@@ -1,8 +1,8 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
-import { initCore } from 'sdkwork-ide-core';
-import { IDEProvider } from 'sdkwork-ide-commons';
+import { initCore } from '@sdkwork/birdcoder-core';
+import { IDEProvider } from '@sdkwork/birdcoder-commons/shell';
 import './index.css';
 
 initCore();

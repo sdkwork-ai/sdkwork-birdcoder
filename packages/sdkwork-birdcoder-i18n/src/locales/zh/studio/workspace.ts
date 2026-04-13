@@ -1,0 +1,41 @@
+import { defineLocaleModule } from '../../resource.ts';
+
+export default defineLocaleModule('studio/workspace', {
+  "studio": {
+    "searchProjects": "搜索项目或对话...",
+    "projects": "项目",
+    "noProjectsFound": "未找到项目",
+    "threads": "对话",
+    "newProject": "新项目",
+    "newThread": "新对话",
+    "openFolder": "打开文件夹",
+    "new": "新建",
+    "open": "打开",
+    "fileSaved": "文件已保存",
+    "allFilesSaved": "所有文件已保存",
+    "revealedInExplorer": "已在资源管理器中显示: {{path}}",
+    "newThreadCreated": "新对话已创建",
+    "failedToCreateThread": "创建对话失败",
+    "pleaseSelectProject": "请先选择一个项目",
+    "startingApplication": "正在启动应用...",
+    "noActiveDiff": "没有可显示的差异",
+    "projectCreated": "项目创建成功",
+    "failedToCreateProject": "创建项目失败",
+    "localFolder": "本地文件夹",
+    "openedFolder": "已打开文件夹: {{name}}",
+    "failedToOpenFolder": "打开文件夹失败",
+    "restoredFiles": "已将文件恢复到之前的状态",
+    "messageDeleted": "消息删除成功",
+    "whatToBuild": "你想构建什么？",
+    "selectProjectToStart": "选择一个项目",
+    "buildDescription": "描述你的想法，提出问题，或粘贴一些代码来开始。我可以帮助你编写代码，调试错误，或构建完整的功能。",
+    "selectProjectDescription": "请从顶部菜单选择或创建一个项目以开始构建。",
+    "findInFiles": "在文件中查找",
+    "searchPlaceholder": "搜索...",
+    "noResultsFound": "未找到结果",
+    "searchFilesByName": "按名称搜索文件...",
+    "noMatchingFiles": "未找到匹配的文件",
+    "fileMatch": "文件匹配",
+    "ranFor": "运行了 {{time}}"
+  }
+});

@@ -1,0 +1,41 @@
+import { defineLocaleModule } from '../../resource.ts';
+
+export default defineLocaleModule('studio/workspace', {
+  "studio": {
+    "searchProjects": "Search projects or threads...",
+    "projects": "Projects",
+    "noProjectsFound": "No projects found",
+    "threads": "Threads",
+    "newProject": "New Project",
+    "newThread": "New Thread",
+    "openFolder": "Open Folder",
+    "new": "New",
+    "open": "Open",
+    "fileSaved": "File saved",
+    "allFilesSaved": "All files saved",
+    "revealedInExplorer": "Revealed in OS Explorer: {{path}}",
+    "newThreadCreated": "New thread created",
+    "failedToCreateThread": "Failed to create thread",
+    "pleaseSelectProject": "Please select a project first",
+    "startingApplication": "Starting application...",
+    "noActiveDiff": "No active diff to show",
+    "projectCreated": "Project created successfully",
+    "failedToCreateProject": "Failed to create project",
+    "localFolder": "Local Folder",
+    "openedFolder": "Opened folder: {{name}}",
+    "failedToOpenFolder": "Failed to open folder",
+    "restoredFiles": "Restored files to previous state",
+    "messageDeleted": "Message deleted successfully",
+    "whatToBuild": "What do you want to build?",
+    "selectProjectToStart": "Select a project",
+    "buildDescription": "Describe your idea, ask a question, or paste some code to get started. I can help you write code, debug errors, or build entire features.",
+    "selectProjectDescription": "Please select or create a project from the top menu to start building.",
+    "findInFiles": "Find in Files",
+    "searchPlaceholder": "Search...",
+    "noResultsFound": "No results found",
+    "searchFilesByName": "Search files by name...",
+    "noMatchingFiles": "No matching files found",
+    "fileMatch": "File match",
+    "ranFor": "Ran for {{time}}"
+  }
+});

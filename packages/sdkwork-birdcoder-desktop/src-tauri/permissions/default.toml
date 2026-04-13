@@ -1,0 +1,108 @@
+[default]
+description = "Default desktop app permissions for the BirdCoder Rust host bridge."
+permissions = [
+  "allow-host-mode",
+  "allow-local-store",
+  "allow-terminal-sessions",
+  "allow-terminal-host",
+  "allow-terminal-detection",
+  "allow-execute-terminal-command",
+]
+
+[[set]]
+identifier = "allow-local-store"
+description = "Allows desktop local store bridge commands."
+permissions = [
+  "allow-local-store-get",
+  "allow-local-store-set",
+  "allow-local-store-delete",
+  "allow-local-store-list",
+]
+
+[[set]]
+identifier = "allow-terminal-sessions"
+description = "Allows terminal session persistence bridge commands."
+permissions = [
+  "allow-terminal-session-upsert",
+  "allow-terminal-session-delete",
+  "allow-terminal-session-list",
+]
+
+[[set]]
+identifier = "allow-terminal-host"
+description = "Allows terminal host lifecycle bridge commands."
+permissions = [
+  "allow-terminal-host-session-open",
+  "allow-terminal-host-session-execute",
+  "allow-terminal-host-session-close",
+]
+
+[[set]]
+identifier = "allow-terminal-detection"
+description = "Allows terminal CLI profile detection bridge commands."
+permissions = ["allow-terminal-cli-profile-detect"]
+
+[[permission]]
+identifier = "allow-host-mode"
+description = "Enables the host_mode command."
+commands.allow = ["host_mode"]
+
+[[permission]]
+identifier = "allow-local-store-get"
+description = "Enables the local_store_get command."
+commands.allow = ["local_store_get"]
+
+[[permission]]
+identifier = "allow-local-store-set"
+description = "Enables the local_store_set command."
+commands.allow = ["local_store_set"]
+
+[[permission]]
+identifier = "allow-local-store-delete"
+description = "Enables the local_store_delete command."
+commands.allow = ["local_store_delete"]
+
+[[permission]]
+identifier = "allow-local-store-list"
+description = "Enables the local_store_list command."
+commands.allow = ["local_store_list"]
+
+[[permission]]
+identifier = "allow-terminal-session-upsert"
+description = "Enables the terminal_session_upsert command."
+commands.allow = ["terminal_session_upsert"]
+
+[[permission]]
+identifier = "allow-terminal-session-delete"
+description = "Enables the terminal_session_delete command."
+commands.allow = ["terminal_session_delete"]
+
+[[permission]]
+identifier = "allow-terminal-session-list"
+description = "Enables the terminal_session_list command."
+commands.allow = ["terminal_session_list"]
+
+[[permission]]
+identifier = "allow-terminal-host-session-open"
+description = "Enables the terminal_host_session_open command."
+commands.allow = ["terminal_host_session_open"]
+
+[[permission]]
+identifier = "allow-terminal-host-session-execute"
+description = "Enables the terminal_host_session_execute command."
+commands.allow = ["terminal_host_session_execute"]
+
+[[permission]]
+identifier = "allow-terminal-host-session-close"
+description = "Enables the terminal_host_session_close command."
+commands.allow = ["terminal_host_session_close"]
+
+[[permission]]
+identifier = "allow-terminal-cli-profile-detect"
+description = "Enables the terminal_cli_profile_detect command."
+commands.allow = ["terminal_cli_profile_detect"]
+
+[[permission]]
+identifier = "allow-execute-terminal-command"
+description = "Enables the execute_terminal_command command."
+commands.allow = ["execute_terminal_command"]

@@ -1,0 +1,4 @@
+services:
+  sdkwork-birdcoder:
+    environment:
+      SDKWORK_BIRD_ACCELERATOR: nvidia-cuda

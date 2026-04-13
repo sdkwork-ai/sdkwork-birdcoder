@@ -1,26 +1,35 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
-    "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "skipLibCheck": true,
-    "moduleResolution": "bundler",
-    "isolatedModules": true,
-    "moduleDetection": "force",
-    "allowJs": true,
-    "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "sdkwork-ide-*": ["packages/sdkwork-ide-*/src"]
-    },
-    "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+      "@/*": [
+        "src/*"
+      ],
+      "@sdkwork/birdcoder-commons/shell": [
+        "packages/sdkwork-birdcoder-commons/src/shell.ts"
+      ],
+      "@sdkwork/birdcoder-*": [
+        "packages/sdkwork-birdcoder-*/src"
+      ],
+      "sdkwork-birdcoder-commons/shell": [
+        "packages/sdkwork-birdcoder-commons/src/shell.ts"
+      ],
+      "sdkwork-birdcoder-*": [
+        "packages/sdkwork-birdcoder-*/src"
+      ]
+    }
+  },
+  "include": [
+    "src",
+    "packages",
+    "scripts"
+  ],
+  "exclude": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/target/**",
+    "**/src-tauri/target/**",
+    "artifacts/**"
+  ]
 }

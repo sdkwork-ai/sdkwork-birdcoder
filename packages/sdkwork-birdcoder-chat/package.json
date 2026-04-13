@@ -1,0 +1,13 @@
+{
+  "name": "@sdkwork/birdcoder-chat",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@sdkwork/birdcoder-types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}

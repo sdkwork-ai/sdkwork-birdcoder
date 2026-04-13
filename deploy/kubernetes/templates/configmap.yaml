@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sdkwork-birdcoder.fullname" . }}
+data:
+  SDKWORK_BIRD_ACCELERATOR: {{ .Values.runtime.accelerator | quote }}

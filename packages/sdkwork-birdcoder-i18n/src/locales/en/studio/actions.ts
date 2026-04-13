@@ -1,0 +1,41 @@
+import { defineLocaleModule } from '../../resource.ts';
+
+export default defineLocaleModule('studio/actions', {
+  "studio": {
+    "analyzeCode": "Analyze Code",
+    "terminal": "Terminal",
+    "share": "Share",
+    "publish": "Publish",
+    "accept": "Accept",
+    "reject": "Reject",
+    "projectEmpty": "Project is empty, please add files",
+    "selectFile": "Please select a file on the left",
+    "codeAnalysisReport": "Code Analysis Report",
+    "linesOfCode": "Lines of Code",
+    "emptyLines": "Empty Lines",
+    "functions": "Functions",
+    "classes": "Classes",
+    "complexity": "Complexity",
+    "maintainability": "Maintainability",
+    "close": "Close",
+    "runTask": "Run Task",
+    "startSimulator": "Start simulator",
+    "runConfig": "Run Configuration",
+    "debugConfig": "Debug Configuration",
+    "name": "Name",
+    "command": "Command",
+    "url": "URL",
+    "webRoot": "Web Root",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "deleteConfirm": "Are you sure you want to delete this {{type}}? This action cannot be undone.",
+    "runningDevTask": "Running dev task...",
+    "runningSimulator": "Running simulator...",
+    "runningBuildTask": "Running build task...",
+    "runningTestTask": "Running test task...",
+    "configurationSaved": "Configuration saved",
+    "debugConfigurationSaved": "Debug configuration saved",
+    "appliedChanges": "Applied changes to {{path}}"
+  }
+});

@@ -1,0 +1,166 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  SDKWORK_SHARED_SDK_MODE: git
+
+jobs:
+  workspace-verify:
+    name: Workspace verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux desktop dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            file \
+            libfuse2t64 \
+            libgbm-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            libpipewire-0.3-dev \
+            libssl-dev \
+            librsvg2-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            pkg-config \
+            rpm \
+            patchelf
+
+      - name: Prepare shared SDK sources
+        run: node scripts/prepare-shared-sdk-git-sources.mjs
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared SDK packages
+        run: pnpm prepare:shared-sdk
+
+      - name: Run workspace lint and parity checks
+        run: pnpm lint
+
+      - name: Run desktop contract checks
+        run: pnpm check:desktop
+
+      - name: Run Rust desktop tests
+        shell: bash
+        run: |
+          set +e
+          cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml 2>&1 | tee cargo-test.log
+          status=${PIPESTATUS[0]}
+          if [[ $status -ne 0 ]]; then
+            tail -n 200 cargo-test.log
+            summary=$(tail -n 60 cargo-test.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')
+            echo "::error title=Rust desktop tests failed::$summary"
+            exit $status
+          fi
+
+      - name: Run server contract and Rust checks
+        run: pnpm check:server
+
+      - name: Build web workspace
+        run: pnpm build
+
+      - name: Build server workspace
+        run: pnpm server:build
+
+      - name: Build docs site
+        run: pnpm docs:build
+
+  desktop-rust-windows:
+    name: Desktop Rust tests (windows)
+    runs-on: windows-2022
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Prepare shared SDK sources
+        run: node scripts/prepare-shared-sdk-git-sources.mjs
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared SDK packages
+        run: pnpm prepare:shared-sdk
+
+      - name: Run Windows desktop Rust tests
+        shell: bash
+        run: |
+          set +e
+          cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml 2>&1 | tee cargo-test.log
+          status=${PIPESTATUS[0]}
+          if [[ $status -ne 0 ]]; then
+            tail -n 200 cargo-test.log
+            summary=$(tail -n 60 cargo-test.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')
+            echo "::error title=Windows desktop Rust tests failed::$summary"
+            exit $status
+          fi
+
+      - name: Run Windows server checks
+        run: pnpm check:server
+
+      - name: Run Windows server build
+        run: pnpm server:build

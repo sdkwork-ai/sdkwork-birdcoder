@@ -1,0 +1,8 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "sdkwork-birdcoder.fullname" . }}
+spec:
+  rules: []
+{{- end }}

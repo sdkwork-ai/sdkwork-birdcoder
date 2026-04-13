@@ -1,0 +1,241 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SDKWork BirdCoder Coding Server API",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:18989"
+    }
+  ],
+  "tags": [
+    {
+      "name": "core"
+    },
+    {
+      "name": "app"
+    },
+    {
+      "name": "admin"
+    }
+  ],
+  "paths": {
+    "/api/core/v1/descriptor": {
+      "get": {
+        "operationId": "core.getDescriptor",
+        "summary": "Get coding-server descriptor",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/engines/:engineKey/capabilities": {
+      "get": {
+        "operationId": "core.getEngineCapabilities",
+        "summary": "Get runtime capabilities for one engine",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/engines": {
+      "get": {
+        "operationId": "core.listEngines",
+        "summary": "List available engines",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/coding-sessions/:id/events": {
+      "get": {
+        "operationId": "core.listCodingSessionEvents",
+        "summary": "Replay or subscribe to coding session events",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/health": {
+      "get": {
+        "operationId": "core.getHealth",
+        "summary": "Get coding-server health",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/operations/:operationId": {
+      "get": {
+        "operationId": "core.getOperation",
+        "summary": "Get operation status",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/approvals/:approvalId/decision": {
+      "post": {
+        "operationId": "core.submitApprovalDecision",
+        "summary": "Submit approval decision",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/runtime": {
+      "get": {
+        "operationId": "core.getRuntime",
+        "summary": "Get runtime metadata",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/coding-sessions": {
+      "post": {
+        "operationId": "core.createCodingSession",
+        "summary": "Create coding session",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/coding-sessions/:id/artifacts": {
+      "get": {
+        "operationId": "core.listCodingSessionArtifacts",
+        "summary": "List coding session artifacts",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/coding-sessions/:id/checkpoints": {
+      "get": {
+        "operationId": "core.listCodingSessionCheckpoints",
+        "summary": "List coding session checkpoints",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/coding-sessions/:id/turns": {
+      "post": {
+        "operationId": "core.createCodingSessionTurn",
+        "summary": "Create coding session turn",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/models": {
+      "get": {
+        "operationId": "core.listModels",
+        "summary": "List model catalog",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/core/v1/coding-sessions/:id": {
+      "get": {
+        "operationId": "core.getCodingSession",
+        "summary": "Get coding session",
+        "tags": [
+          "core"
+        ]
+      }
+    },
+    "/api/app/v1/deployments": {
+      "get": {
+        "operationId": "app.listDeployments",
+        "summary": "List deployments",
+        "tags": [
+          "app"
+        ]
+      }
+    },
+    "/api/app/v1/documents": {
+      "get": {
+        "operationId": "app.listDocuments",
+        "summary": "List project documents",
+        "tags": [
+          "app"
+        ]
+      }
+    },
+    "/api/app/v1/projects": {
+      "get": {
+        "operationId": "app.listProjects",
+        "summary": "List projects",
+        "tags": [
+          "app"
+        ]
+      }
+    },
+    "/api/app/v1/teams": {
+      "get": {
+        "operationId": "app.listTeams",
+        "summary": "List workspace teams",
+        "tags": [
+          "app"
+        ]
+      }
+    },
+    "/api/app/v1/workspaces": {
+      "get": {
+        "operationId": "app.listWorkspaces",
+        "summary": "List workspaces",
+        "tags": [
+          "app"
+        ]
+      }
+    },
+    "/api/admin/v1/audit": {
+      "get": {
+        "operationId": "admin.listAuditEvents",
+        "summary": "List audit events",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/v1/deployments": {
+      "get": {
+        "operationId": "admin.listDeployments",
+        "summary": "List governed deployments",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/v1/policies": {
+      "get": {
+        "operationId": "admin.listPolicies",
+        "summary": "List governance policies",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/v1/releases": {
+      "get": {
+        "operationId": "admin.listReleases",
+        "summary": "List releases",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/v1/teams": {
+      "get": {
+        "operationId": "admin.listTeams",
+        "summary": "List teams",
+        "tags": [
+          "admin"
+        ]
+      }
+    }
+  }
+}

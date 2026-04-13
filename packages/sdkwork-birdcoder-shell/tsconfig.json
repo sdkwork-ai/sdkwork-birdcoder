@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ],
+      "@sdkwork/birdcoder-*": [
+        "packages/sdkwork-birdcoder-*/src"
+      ],
+      "sdkwork-birdcoder-*": [
+        "packages/sdkwork-birdcoder-*/src"
+      ]
+    }
+  },
+  "include": [
+    "src"
+  ]
+}

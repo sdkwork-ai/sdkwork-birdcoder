@@ -1,0 +1,31 @@
+{
+  "name": "@sdkwork/birdcoder-appbase",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@babel/runtime": "catalog:",
+    "html-parse-stringify": "catalog:",
+    "lucide-react": "catalog:",
+    "react-i18next": "catalog:",
+    "@sdkwork/birdcoder-commons": "workspace:*",
+    "@sdkwork/birdcoder-types": "workspace:*",
+    "@sdkwork/birdcoder-ui": "workspace:*",
+    "use-sync-external-store": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  }
+}

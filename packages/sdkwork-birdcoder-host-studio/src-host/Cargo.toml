@@ -1,0 +1,8 @@
+[package]
+name = "sdkwork-birdcoder-host-studio"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "sdkwork_birdcoder_host_studio"
+crate-type = ["rlib"]

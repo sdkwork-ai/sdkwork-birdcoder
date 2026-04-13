@@ -1,0 +1,25 @@
+{
+  "name": "@sdkwork/birdcoder-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lucide-react": "catalog:",
+    "@sdkwork/birdcoder-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

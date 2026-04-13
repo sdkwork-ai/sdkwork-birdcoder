@@ -1,0 +1,806 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import { spawn } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+
+export const DEFAULT_GOVERNANCE_REGRESSION_REPORT_FILE = 'artifacts/governance/governance-regression-report.json';
+
+export const GOVERNANCE_REGRESSION_CHECKS = [
+  {
+    id: 'package-governance',
+    label: 'Package governance contract',
+    scriptPath: 'scripts/package-governance-contract.test.mjs',
+    command: 'node scripts/package-governance-contract.test.mjs',
+  },
+  {
+    id: 'governance-baseline',
+    label: 'Governance baseline contract',
+    scriptPath: 'scripts/governance-baseline-contract.test.ts',
+    command: 'node scripts/governance-baseline-contract.test.ts',
+  },
+  {
+    id: 'terminal-governance',
+    label: 'Terminal governance contract',
+    scriptPath: 'scripts/terminal-governance-contract.test.ts',
+    command: 'node scripts/terminal-governance-contract.test.ts',
+  },
+  {
+    id: 'web-bundle-budget',
+    label: 'Web bundle budget contract',
+    scriptPath: 'scripts/web-bundle-budget.test.mjs',
+    command: 'pnpm run build',
+    execution: 'command',
+  },
+  {
+    id: 'host-runtime',
+    label: 'Host runtime contract',
+    scriptPath: 'scripts/host-runtime-contract.test.ts',
+    command: 'node scripts/host-runtime-contract.test.ts',
+  },
+  {
+    id: 'host-studio-preview',
+    label: 'Host-studio preview contract',
+    scriptPath: 'scripts/host-studio-preview-contract.test.ts',
+    command: 'node scripts/host-studio-preview-contract.test.ts',
+  },
+  {
+    id: 'host-studio-simulator',
+    label: 'Host-studio simulator contract',
+    scriptPath: 'scripts/host-studio-simulator-contract.test.ts',
+    command: 'node scripts/host-studio-simulator-contract.test.ts',
+  },
+  {
+    id: 'studio-preview-execution',
+    label: 'Studio preview execution contract',
+    scriptPath: 'scripts/studio-preview-execution-contract.test.ts',
+    command: 'node scripts/studio-preview-execution-contract.test.ts',
+  },
+  {
+    id: 'studio-build-execution',
+    label: 'Studio build execution contract',
+    scriptPath: 'scripts/studio-build-execution-contract.test.ts',
+    command: 'node scripts/studio-build-execution-contract.test.ts',
+  },
+  {
+    id: 'studio-test-execution',
+    label: 'Studio test execution contract',
+    scriptPath: 'scripts/studio-test-execution-contract.test.ts',
+    command: 'node scripts/studio-test-execution-contract.test.ts',
+  },
+  {
+    id: 'studio-simulator-execution',
+    label: 'Studio simulator execution contract',
+    scriptPath: 'scripts/studio-simulator-execution-contract.test.ts',
+    command: 'node scripts/studio-simulator-execution-contract.test.ts',
+  },
+  {
+    id: 'studio-preview-evidence-store',
+    label: 'Studio preview evidence store contract',
+    scriptPath: 'scripts/studio-preview-evidence-store-contract.test.ts',
+    command: 'node scripts/studio-preview-evidence-store-contract.test.ts',
+  },
+  {
+    id: 'studio-build-evidence-store',
+    label: 'Studio build evidence store contract',
+    scriptPath: 'scripts/studio-build-evidence-store-contract.test.ts',
+    command: 'node scripts/studio-build-evidence-store-contract.test.ts',
+  },
+  {
+    id: 'studio-test-evidence-store',
+    label: 'Studio test evidence store contract',
+    scriptPath: 'scripts/studio-test-evidence-store-contract.test.ts',
+    command: 'node scripts/studio-test-evidence-store-contract.test.ts',
+  },
+  {
+    id: 'studio-simulator-evidence-store',
+    label: 'Studio simulator evidence store contract',
+    scriptPath: 'scripts/studio-simulator-evidence-store-contract.test.ts',
+    command: 'node scripts/studio-simulator-evidence-store-contract.test.ts',
+  },
+  {
+    id: 'studio-evidence-viewer',
+    label: 'Studio evidence viewer contract',
+    scriptPath: 'scripts/studio-evidence-viewer-contract.test.ts',
+    command: 'node scripts/studio-evidence-viewer-contract.test.ts',
+  },
+  {
+    id: 'studio-evidence-viewer-ui',
+    label: 'Studio evidence viewer UI contract',
+    scriptPath: 'scripts/studio-evidence-viewer-ui-contract.test.ts',
+    command: 'node scripts/studio-evidence-viewer-ui-contract.test.ts',
+  },
+  {
+    id: 'studio-simulator-ui',
+    label: 'Studio simulator UI contract',
+    scriptPath: 'scripts/studio-simulator-ui-contract.test.ts',
+    command: 'node scripts/studio-simulator-ui-contract.test.ts',
+  },
+  {
+    id: 'terminal-cli-registry',
+    label: 'Terminal CLI registry contract',
+    scriptPath: 'scripts/terminal-cli-registry-contract.test.ts',
+    command: 'node scripts/terminal-cli-registry-contract.test.ts',
+  },
+  {
+    id: 'run-config-request',
+    label: 'Run configuration request contract',
+    scriptPath: 'scripts/run-config-request-contract.test.ts',
+    command: 'node scripts/run-config-request-contract.test.ts',
+  },
+  {
+    id: 'run-config',
+    label: 'Run configuration contract',
+    scriptPath: 'scripts/run-config-contract.test.ts',
+    command: 'node scripts/run-config-contract.test.ts',
+  },
+  {
+    id: 'terminal-runtime',
+    label: 'Terminal runtime contract',
+    scriptPath: 'scripts/terminal-runtime-contract.test.ts',
+    command: 'node scripts/terminal-runtime-contract.test.ts',
+  },
+  {
+    id: 'terminal-session',
+    label: 'Terminal session contract',
+    scriptPath: 'scripts/terminal-session-contract.test.ts',
+    command: 'node scripts/terminal-session-contract.test.ts',
+  },
+  {
+    id: 'terminal-host-runtime',
+    label: 'Terminal host runtime contract',
+    scriptPath: 'scripts/terminal-host-runtime-contract.test.ts',
+    command: 'node scripts/terminal-host-runtime-contract.test.ts',
+  },
+  {
+    id: 'workbench-preferences',
+    label: 'Workbench preferences contract',
+    scriptPath: 'scripts/workbench-preferences-contract.test.ts',
+    command: 'node scripts/workbench-preferences-contract.test.ts',
+  },
+  {
+    id: 'chat-runtime',
+    label: 'Chat runtime contract',
+    scriptPath: 'scripts/chat-runtime-contract.test.ts',
+    command: 'node scripts/chat-runtime-contract.test.ts',
+  },
+  {
+    id: 'local-store',
+    label: 'Local store contract',
+    scriptPath: 'scripts/local-store-contract.test.ts',
+    command: 'node scripts/local-store-contract.test.ts',
+  },
+  {
+    id: 'gemini-engine',
+    label: 'Gemini engine contract',
+    scriptPath: 'scripts/gemini-engine-contract.test.ts',
+    command: 'node scripts/gemini-engine-contract.test.ts',
+  },
+  {
+    id: 'engine-runtime-adapter',
+    label: 'Engine runtime adapter contract',
+    scriptPath: 'scripts/engine-runtime-adapter-contract.test.ts',
+    command: 'pnpm run test:engine-runtime-adapter',
+  },
+  {
+    id: 'engine-conformance',
+    label: 'Engine conformance contract',
+    scriptPath: 'scripts/engine-conformance-contract.test.ts',
+    command: 'pnpm run test:engine-conformance',
+  },
+  {
+    id: 'tool-protocol',
+    label: 'Tool protocol contract',
+    scriptPath: 'scripts/tool-protocol-contract.test.ts',
+    command: 'pnpm run test:tool-protocol-contract',
+  },
+  {
+    id: 'engine-resume-recovery',
+    label: 'Engine resume or recovery contract',
+    scriptPath: 'scripts/engine-resume-recovery-contract.test.ts',
+    command: 'pnpm run test:engine-resume-recovery-contract',
+  },
+  {
+    id: 'local-store-browser-fallback',
+    label: 'Local store browser fallback contract',
+    scriptPath: 'scripts/local-store-browser-fallback.test.mjs',
+    command: 'node scripts/local-store-browser-fallback.test.mjs',
+  },
+  {
+    id: 'i18n',
+    label: 'I18n contract',
+    scriptPath: 'scripts/i18n-contract.test.mjs',
+    command: 'node scripts/i18n-contract.test.mjs',
+  },
+  {
+    id: 'desktop-tauri-dev',
+    label: 'Desktop Tauri dev contract',
+    scriptPath: 'scripts/desktop-tauri-dev-contract.test.mjs',
+    command: 'node scripts/desktop-tauri-dev-contract.test.mjs',
+  },
+  {
+    id: 'ui-dependency-resolution',
+    label: 'UI dependency resolution contract',
+    scriptPath: 'scripts/ui-dependency-resolution-contract.test.mjs',
+    command: 'node scripts/ui-dependency-resolution-contract.test.mjs',
+  },
+  {
+    id: 'vite-host-toolchain',
+    label: 'Vite host toolchain contract',
+    scriptPath: 'scripts/run-vite-host.test.mjs',
+    command: 'node scripts/run-vite-host.test.mjs',
+  },
+  {
+    id: 'desktop-vite-host',
+    label: 'Desktop Vite host contract',
+    scriptPath: 'scripts/run-desktop-vite-host.test.mjs',
+    command: 'node scripts/run-desktop-vite-host.test.mjs',
+  },
+  {
+    id: 'shared-sdk-mode',
+    label: 'Shared SDK mode contract',
+    scriptPath: 'scripts/shared-sdk-mode.test.mjs',
+    command: 'node scripts/shared-sdk-mode.test.mjs',
+  },
+  {
+    id: 'shared-sdk-packages',
+    label: 'Shared SDK packages preparation contract',
+    scriptPath: 'scripts/prepare-shared-sdk-packages.test.mjs',
+    command: 'node scripts/prepare-shared-sdk-packages.test.mjs',
+  },
+  {
+    id: 'shared-sdk-git-sources',
+    label: 'Shared SDK git sources contract',
+    scriptPath: 'scripts/prepare-shared-sdk-git-sources.test.mjs',
+    command: 'node scripts/prepare-shared-sdk-git-sources.test.mjs',
+  },
+  {
+    id: 'vitepress-toolchain',
+    label: 'VitePress toolchain contract',
+    scriptPath: 'scripts/run-vitepress.test.mjs',
+    command: 'node scripts/run-vitepress.test.mjs',
+  },
+  {
+    id: 'source-parse',
+    label: 'Source parse contract',
+    scriptPath: 'scripts/source-parse-contract.test.mjs',
+    command: 'node scripts/source-parse-contract.test.mjs',
+  },
+  {
+    id: 'tailwind-source',
+    label: 'Tailwind source contract',
+    scriptPath: 'scripts/tailwind-source-contract.test.mjs',
+    command: 'node scripts/tailwind-source-contract.test.mjs',
+  },
+  {
+    id: 'studio-chat-layout',
+    label: 'Studio chat layout contract',
+    scriptPath: 'scripts/studio-chat-layout-contract.test.mjs',
+    command: 'node scripts/studio-chat-layout-contract.test.mjs',
+  },
+  {
+    id: 'studio-sidebar-stability',
+    label: 'Studio sidebar stability contract',
+    scriptPath: 'scripts/studio-sidebar-stability-contract.test.mjs',
+    command: 'node scripts/studio-sidebar-stability-contract.test.mjs',
+  },
+  {
+    id: 'arch-boundaries',
+    label: 'Architecture boundaries contract',
+    scriptPath: 'scripts/check-arch-boundaries.mjs',
+    command: 'node scripts/check-arch-boundaries.mjs',
+  },
+  {
+    id: 'sdkwork-birdcoder-structure',
+    label: 'SDKWork BirdCoder structure contract',
+    scriptPath: 'scripts/check-sdkwork-birdcoder-structure.mjs',
+    command: 'node scripts/check-sdkwork-birdcoder-structure.mjs',
+  },
+  {
+    id: 'release-flow',
+    label: 'Release flow contract',
+    scriptPath: 'scripts/release-flow-contract.test.mjs',
+    command: 'node scripts/release-flow-contract.test.mjs',
+  },
+  {
+    id: 'ci-flow',
+    label: 'CI flow contract',
+    scriptPath: 'scripts/ci-flow-contract.test.mjs',
+    command: 'node scripts/ci-flow-contract.test.mjs',
+  },
+  {
+    id: 'quality-gate-matrix',
+    label: 'Quality gate matrix contract',
+    scriptPath: 'scripts/quality-gate-matrix-contract.test.mjs',
+    command: 'node scripts/quality-gate-matrix-contract.test.mjs',
+  },
+  {
+    id: 'claw-release-parity',
+    label: 'Claw release parity contract',
+    scriptPath: 'scripts/claw-release-parity-contract.test.mjs',
+    command: 'node scripts/claw-release-parity-contract.test.mjs',
+  },
+  {
+    id: 'claw-docs-ia',
+    label: 'Claw docs information architecture contract',
+    scriptPath: 'scripts/claw-docs-ia-contract.test.mjs',
+    command: 'node scripts/claw-docs-ia-contract.test.mjs',
+  },
+  {
+    id: 'step-loop-prompt-governance',
+    label: 'Reusable Step prompt governance contract',
+    scriptPath: 'scripts/prompt-governance-contract.test.mjs',
+    command: 'node scripts/prompt-governance-contract.test.mjs',
+  },
+  {
+    id: 'skill-binding',
+    label: 'Skill binding standard contract',
+    scriptPath: 'scripts/skill-binding-contract.test.ts',
+    command: 'pnpm run test:skill-binding-contract',
+  },
+  {
+    id: 'template-instantiation',
+    label: 'Template instantiation standard contract',
+    scriptPath: 'scripts/template-instantiation-contract.test.ts',
+    command: 'pnpm run test:template-instantiation-contract',
+  },
+  {
+    id: 'prompt-skill-template-runtime-assembly',
+    label: 'Prompt, skill, and template runtime assembly contract',
+    scriptPath: 'scripts/prompt-skill-template-runtime-assembly-contract.test.ts',
+    command: 'pnpm run test:prompt-skill-template-runtime-assembly-contract',
+  },
+  {
+    id: 'prompt-skill-template-evidence-repository',
+    label: 'Prompt, skill, and template evidence repository contract',
+    scriptPath: 'scripts/prompt-skill-template-evidence-repository-contract.test.ts',
+    command: 'pnpm run test:prompt-skill-template-evidence-repository-contract',
+  },
+  {
+    id: 'prompt-skill-template-evidence-consumer',
+    label: 'Prompt, skill, and template evidence consumer contract',
+    scriptPath: 'scripts/prompt-skill-template-evidence-consumer-contract.test.ts',
+    command: 'pnpm run test:prompt-skill-template-evidence-consumer-contract',
+  },
+  {
+    id: 'coding-server-prompt-skill-template-evidence-consumer',
+    label: 'Coding-server prompt, skill, and template evidence consumer contract',
+    scriptPath: 'scripts/coding-server-prompt-skill-template-evidence-consumer-contract.test.ts',
+    command: 'pnpm run test:coding-server-prompt-skill-template-evidence-consumer-contract',
+  },
+  {
+    id: 'postgresql-live-smoke-contract',
+    label: 'PostgreSQL live smoke preflight contract',
+    scriptPath: 'scripts/postgresql-live-smoke-contract.test.ts',
+    command: 'pnpm run test:postgresql-live-smoke-contract',
+  },
+  {
+    id: 'live-docs-governance-baseline',
+    label: 'Live docs governance baseline contract',
+    scriptPath: 'scripts/live-docs-governance-baseline.test.mjs',
+    command: 'node scripts/live-docs-governance-baseline.test.mjs',
+  },
+  {
+    id: 'quality-loop-scoreboard',
+    label: 'Quality loop scoreboard contract',
+    scriptPath: 'scripts/quality-loop-scoreboard-contract.test.mjs',
+    command: 'node scripts/quality-loop-scoreboard-contract.test.mjs',
+  },
+  {
+    id: 'release-command',
+    label: 'Release command contract',
+    scriptPath: 'scripts/release/local-release-command.test.mjs',
+    command: 'node scripts/release/local-release-command.test.mjs',
+  },
+  {
+    id: 'release-rollback-plan-command',
+    label: 'Release rollback plan command contract',
+    scriptPath: 'scripts/release/rollback-plan-command.test.mjs',
+    command: 'node scripts/release/rollback-plan-command.test.mjs',
+  },
+  {
+    id: 'claw-server-build',
+    label: 'Claw-compatible server build contract',
+    scriptPath: 'scripts/run-claw-server-build.test.mjs',
+    command: 'node scripts/run-claw-server-build.test.mjs',
+  },
+  {
+    id: 'birdcoder-server-build',
+    label: 'BirdCoder server build contract',
+    scriptPath: 'scripts/run-birdcoder-server-build.test.mjs',
+    command: 'node scripts/run-birdcoder-server-build.test.mjs',
+  },
+  {
+    id: 'desktop-release-build',
+    label: 'Desktop release build contract',
+    scriptPath: 'scripts/run-desktop-release-build.test.mjs',
+    command: 'node scripts/run-desktop-release-build.test.mjs',
+  },
+  {
+    id: 'release-profiles',
+    label: 'Release profiles contract',
+    scriptPath: 'scripts/release/release-profiles.test.mjs',
+    command: 'node scripts/release/release-profiles.test.mjs',
+  },
+  {
+    id: 'release-plan-resolution',
+    label: 'Release plan resolution contract',
+    scriptPath: 'scripts/release/resolve-release-plan.test.mjs',
+    command: 'node scripts/release/resolve-release-plan.test.mjs',
+  },
+  {
+    id: 'release-smoke-contract',
+    label: 'Release smoke contract',
+    scriptPath: 'scripts/release/release-smoke-contract.test.mjs',
+    command: 'node scripts/release/release-smoke-contract.test.mjs',
+  },
+  {
+    id: 'release-smoke-router',
+    label: 'Release smoke router contract',
+    scriptPath: 'scripts/release/smoke-release-assets.test.mjs',
+    command: 'node scripts/release/smoke-release-assets.test.mjs',
+  },
+  {
+    id: 'release-package-assets',
+    label: 'Release package assets contract',
+    scriptPath: 'scripts/release/package-release-assets.test.mjs',
+    command: 'node scripts/release/package-release-assets.test.mjs',
+  },
+  {
+    id: 'release-finalize-assets',
+    label: 'Release finalize assets contract',
+    scriptPath: 'scripts/release/finalize-release-assets.test.mjs',
+    command: 'node scripts/release/finalize-release-assets.test.mjs',
+  },
+  {
+    id: 'release-finalized-assets-smoke',
+    label: 'Release finalized assets smoke contract',
+    scriptPath: 'scripts/release/smoke-finalized-release-assets.test.mjs',
+    command: 'node scripts/release/smoke-finalized-release-assets.test.mjs',
+  },
+  {
+    id: 'release-studio-evidence-archives',
+    label: 'Release studio evidence archives contract',
+    scriptPath: 'scripts/release/studio-evidence-archives.test.mjs',
+    command: 'node scripts/release/studio-evidence-archives.test.mjs',
+  },
+  {
+    id: 'release-terminal-governance-evidence-archive',
+    label: 'Release terminal governance evidence archive contract',
+    scriptPath: 'scripts/release/terminal-governance-evidence-archive.test.mjs',
+    command: 'node scripts/release/terminal-governance-evidence-archive.test.mjs',
+  },
+  {
+    id: 'release-notes-render',
+    label: 'Release notes render contract',
+    scriptPath: 'scripts/release/render-release-notes.test.mjs',
+    command: 'node scripts/release/render-release-notes.test.mjs',
+  },
+  {
+    id: 'release-notes-claw-invocation',
+    label: 'Release notes Claw invocation contract',
+    scriptPath: 'scripts/release/render-release-notes-claw-invocation.test.mjs',
+    command: 'node scripts/release/render-release-notes-claw-invocation.test.mjs',
+  },
+  {
+    id: 'release-notes-docs-registry',
+    label: 'Release notes docs registry contract',
+    scriptPath: 'scripts/release/render-release-notes-docs-registry.test.mjs',
+    command: 'node scripts/release/render-release-notes-docs-registry.test.mjs',
+  },
+  {
+    id: 'release-desktop-installers',
+    label: 'Release desktop installers smoke contract',
+    scriptPath: 'scripts/release/smoke-desktop-installers.test.mjs',
+    command: 'node scripts/release/smoke-desktop-installers.test.mjs',
+  },
+  {
+    id: 'release-desktop-packaged-launch',
+    label: 'Release desktop packaged launch smoke contract',
+    scriptPath: 'scripts/release/smoke-desktop-packaged-launch.test.mjs',
+    command: 'node scripts/release/smoke-desktop-packaged-launch.test.mjs',
+  },
+  {
+    id: 'release-desktop-startup-evidence',
+    label: 'Release desktop startup evidence smoke contract',
+    scriptPath: 'scripts/release/smoke-desktop-startup-evidence.test.mjs',
+    command: 'node scripts/release/smoke-desktop-startup-evidence.test.mjs',
+  },
+  {
+    id: 'release-server-release-assets',
+    label: 'Release server assets smoke contract',
+    scriptPath: 'scripts/release/smoke-server-release-assets.test.mjs',
+    command: 'node scripts/release/smoke-server-release-assets.test.mjs',
+  },
+  {
+    id: 'release-deployment-release-assets',
+    label: 'Release deployment assets smoke contract',
+    scriptPath: 'scripts/release/smoke-deployment-release-assets.test.mjs',
+    command: 'node scripts/release/smoke-deployment-release-assets.test.mjs',
+  },
+  {
+    id: 'sdkwork-birdcoder-architecture',
+    label: 'SDKWork BirdCoder architecture contract',
+    scriptPath: 'scripts/sdkwork-birdcoder-architecture-contract.test.mjs',
+    command: 'node scripts/sdkwork-birdcoder-architecture-contract.test.mjs',
+  },
+  {
+    id: 'sdkwork-appbase-parity',
+    label: 'SDKWork Appbase parity contract',
+    scriptPath: 'scripts/sdkwork-appbase-parity-contract.test.mjs',
+    command: 'node scripts/sdkwork-appbase-parity-contract.test.mjs',
+  },
+  {
+    id: 'release-closure',
+    label: 'Release closure contract',
+    scriptPath: 'scripts/check-release-closure.mjs',
+    command: 'node scripts/check-release-closure.mjs',
+  },
+];
+
+function parseArgs(argv) {
+  const options = {};
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (token !== '--output') {
+      continue;
+    }
+
+    const value = argv[index + 1];
+    if (!value || value.startsWith('--')) {
+      throw new Error('Missing value for --output.');
+    }
+
+    options.output = value;
+    index += 1;
+  }
+
+  return options;
+}
+
+function trimOutput(value) {
+  return String(value ?? '').trim();
+}
+
+function isPnpmLifecycleCommandEnvKey(key) {
+  const normalizedKey = String(key ?? '').trim().toLowerCase();
+  return normalizedKey === 'pnpm_package_name'
+    || normalizedKey === 'pnpm_script_src_dir'
+    || normalizedKey === 'npm_command'
+    || normalizedKey === 'npm_execpath'
+    || normalizedKey === 'npm_lifecycle_event'
+    || normalizedKey === 'npm_lifecycle_script'
+    || normalizedKey === 'npm_node_execpath'
+    || normalizedKey === 'npm_package_json'
+    || normalizedKey === 'npm_package_name'
+    || normalizedKey === 'npm_package_version';
+}
+
+function quotePowerShellLiteral(value) {
+  return `'${String(value ?? '').replace(/'/g, "''")}'`;
+}
+
+function tokenizeCommand(command) {
+  return String(command ?? '')
+    .match(/"[^"]*"|'[^']*'|\S+/g)
+    ?.map((token) => token.replace(/^['"]|['"]$/g, '')) ?? [];
+}
+
+export function resolveGovernanceRegressionCommandInvocation(command, { platform = process.platform } = {}) {
+  const tokens = tokenizeCommand(command);
+  if (tokens.length === 0) {
+    throw new Error('Governance regression command execution requires a non-empty command.');
+  }
+
+  if (platform === 'win32' && /^(pnpm|pnpm\.cmd)$/i.test(tokens[0])) {
+    const powerShellInvocation = [
+      '& {',
+      `& ${quotePowerShellLiteral('pnpm.cmd')} ${tokens.slice(1).map(quotePowerShellLiteral).join(' ')}`.trim(),
+      'if ($null -ne $LASTEXITCODE) { exit $LASTEXITCODE }',
+      'if ($?) { exit 0 }',
+      'exit 1',
+      '}',
+    ].join('; ');
+
+    return {
+      command: 'powershell.exe',
+      args: ['-NoProfile', '-Command', powerShellInvocation],
+    };
+  }
+
+  return {
+    command: tokens[0],
+    args: tokens.slice(1),
+  };
+}
+
+export function buildGovernanceRegressionCommandEnv({
+  env = process.env,
+  execPath = process.execPath,
+  platform = process.platform,
+} = {}) {
+  const nextEnv = { ...env };
+  for (const key of Object.keys(nextEnv)) {
+    if (isPnpmLifecycleCommandEnvKey(key)) {
+      delete nextEnv[key];
+    }
+  }
+  const pathKey = Object.keys(nextEnv).find((key) => key.toLowerCase() === 'path') ?? 'PATH';
+  const existingPath = String(nextEnv[pathKey] ?? '');
+  const nodeDir = path.dirname(execPath);
+
+  if (!nodeDir) {
+    return nextEnv;
+  }
+
+  const pathEntries = existingPath.split(path.delimiter).filter(Boolean);
+  const normalizedNodeDir = platform === 'win32' ? nodeDir.toLowerCase() : nodeDir;
+  const hasNodeDir = pathEntries.some((entry) => (
+    (platform === 'win32' ? entry.toLowerCase() : entry) === normalizedNodeDir
+  ));
+
+  nextEnv[pathKey] = hasNodeDir
+    ? pathEntries.join(path.delimiter)
+    : [nodeDir, ...pathEntries].join(path.delimiter);
+
+  return nextEnv;
+}
+
+function captureWritableOutput(targetStream, chunks) {
+  const originalWrite = targetStream.write.bind(targetStream);
+  targetStream.write = (chunk, encoding, callback) => {
+    if (typeof chunk === 'string') {
+      chunks.push(chunk);
+    } else {
+      chunks.push(Buffer.from(chunk).toString(typeof encoding === 'string' ? encoding : undefined));
+    }
+
+    if (typeof encoding === 'function') {
+      return originalWrite(chunk, encoding);
+    }
+
+    if (typeof callback === 'function') {
+      return originalWrite(chunk, encoding, callback);
+    }
+
+    return originalWrite(chunk, encoding);
+  };
+
+  return () => {
+    targetStream.write = originalWrite;
+  };
+}
+
+export async function executeGovernanceRegressionCheck(
+  check,
+  { rootDir, platform = process.platform } = {},
+) {
+  const startedAt = Date.now();
+  const stdoutChunks = [];
+  const stderrChunks = [];
+  const restoreStdout = captureWritableOutput(process.stdout, stdoutChunks);
+  const restoreStderr = captureWritableOutput(process.stderr, stderrChunks);
+
+  try {
+    if (check.execution === 'command') {
+      const invocation = resolveGovernanceRegressionCommandInvocation(check.command, { platform });
+      const exitCode = await new Promise((resolve, reject) => {
+        const child = spawn(invocation.command, invocation.args, {
+          cwd: rootDir,
+          env: buildGovernanceRegressionCommandEnv({ platform }),
+          windowsHide: true,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+
+        child.stdout.on('data', (chunk) => {
+          process.stdout.write(chunk);
+        });
+        child.stderr.on('data', (chunk) => {
+          process.stderr.write(chunk);
+        });
+        child.on('error', reject);
+        child.on('close', (code) => resolve(typeof code === 'number' ? code : 1));
+      });
+
+      return {
+        status: exitCode === 0 ? 'passed' : 'failed',
+        exitCode,
+        stdout: trimOutput(stdoutChunks.join('')),
+        stderr: trimOutput(stderrChunks.join('')),
+        durationMs: Date.now() - startedAt,
+      };
+    }
+
+    const resolvedScriptPath = path.isAbsolute(check.scriptPath)
+      ? check.scriptPath
+      : path.resolve(rootDir, check.scriptPath);
+    const scriptUrl = new URL(pathToFileURL(resolvedScriptPath).href);
+    scriptUrl.searchParams.set('governance-regression-check', `${check.id}-${Date.now()}`);
+
+    await import(scriptUrl.href);
+
+    return {
+      status: 'passed',
+      exitCode: 0,
+      stdout: trimOutput(stdoutChunks.join('')),
+      stderr: trimOutput(stderrChunks.join('')),
+      durationMs: Date.now() - startedAt,
+    };
+  } catch (error) {
+    const errorText = error instanceof Error ? error.stack || error.message : String(error);
+    const capturedStderr = trimOutput(stderrChunks.join(''));
+
+    return {
+      status: 'failed',
+      exitCode: 1,
+      stdout: trimOutput(stdoutChunks.join('')),
+      stderr: capturedStderr || errorText,
+      durationMs: Date.now() - startedAt,
+    };
+  } finally {
+    restoreStdout();
+    restoreStderr();
+  }
+}
+
+export async function runGovernanceRegressionReport({
+  outputPath = '',
+  rootDir = process.cwd(),
+  now = () => new Date(),
+  runner = executeGovernanceRegressionCheck,
+} = {}) {
+  const resolvedOutputPath = path.resolve(
+    rootDir,
+    outputPath || DEFAULT_GOVERNANCE_REGRESSION_REPORT_FILE,
+  );
+
+  const checks = [];
+  for (const check of GOVERNANCE_REGRESSION_CHECKS) {
+    const result = await runner(check, { rootDir });
+    checks.push({
+      id: check.id,
+      label: check.label,
+      command: check.command,
+      status: result.status === 'passed' ? 'passed' : 'failed',
+      exitCode: typeof result.exitCode === 'number' ? result.exitCode : 1,
+      durationMs: typeof result.durationMs === 'number' ? result.durationMs : 0,
+      stdout: trimOutput(result.stdout),
+      stderr: trimOutput(result.stderr),
+    });
+  }
+
+  const failedChecks = checks.filter((check) => check.status !== 'passed');
+  const report = {
+    status: failedChecks.length === 0 ? 'passed' : 'failed',
+    generatedAt: now().toISOString(),
+    reportPath: resolvedOutputPath,
+    summary: {
+      totalChecks: checks.length,
+      passedCount: checks.length - failedChecks.length,
+      failedCount: failedChecks.length,
+      failedCheckIds: failedChecks.map((check) => check.id),
+    },
+    checks,
+  };
+
+  fs.mkdirSync(path.dirname(resolvedOutputPath), { recursive: true });
+  fs.writeFileSync(resolvedOutputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+
+  return report;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const options = parseArgs(process.argv.slice(2));
+  const report = await runGovernanceRegressionReport({
+    outputPath: options.output,
+  });
+
+  if (report.status !== 'passed') {
+    console.error(
+      `Governance regression report failed: ${report.summary.failedCheckIds.join(', ') || 'unknown'}`,
+    );
+    process.exit(1);
+  }
+
+  console.log(JSON.stringify(report, null, 2));
+}

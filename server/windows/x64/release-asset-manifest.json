@@ -1,0 +1,26 @@
+{
+  "family": "server",
+  "profileId": "sdkwork-birdcoder",
+  "productName": "SDKWork BirdCoder",
+  "releaseTag": "release-local",
+  "platform": "windows",
+  "arch": "x64",
+  "target": "",
+  "accelerator": "",
+  "imageRepository": "",
+  "imageTag": "",
+  "imageDigest": "",
+  "archiveFormat": "tar.gz",
+  "archiveRelativePath": "server/windows/x64/sdkwork-birdcoder-server-release-local-windows-x64.tar.gz",
+  "artifacts": [
+    {
+      "relativePath": "server/windows/x64/openapi/coding-server-v1.json",
+      "size": 5247
+    },
+    {
+      "relativePath": "server/windows/x64/sdkwork-birdcoder-server-release-local-windows-x64.tar.gz",
+      "size": 235981024
+    }
+  ],
+  "createdAt": "2026-04-10T12:53:42.653Z"
+}

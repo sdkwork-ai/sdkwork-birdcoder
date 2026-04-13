@@ -1,0 +1,429 @@
+#!/usr/bin/env node
+
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import { pathToFileURL } from 'node:url';
+
+import {
+  summarizeStudioBuildEvidenceArchive,
+} from './studio-build-evidence-archive.mjs';
+import {
+  summarizeStudioPreviewEvidenceArchive,
+} from './studio-preview-evidence-archive.mjs';
+import {
+  summarizeStudioSimulatorEvidenceArchive,
+} from './studio-simulator-evidence-archive.mjs';
+import {
+  summarizeStudioTestEvidenceArchive,
+} from './studio-test-evidence-archive.mjs';
+import {
+  summarizeTerminalGovernanceEvidenceArchive,
+} from './terminal-governance-evidence-archive.mjs';
+import {
+  normalizeQualityEvidenceSummary,
+  readReleaseQualityEvidence,
+} from './quality-gate-release-evidence.mjs';
+import {
+  createCodingServerOpenApiEvidence,
+  normalizeCodingServerOpenApiEvidenceSummary,
+} from './coding-server-openapi-release-evidence.mjs';
+
+export const FINALIZED_RELEASE_SMOKE_REPORT_FILENAME = 'finalized-release-smoke-report.json';
+
+function normalizeStringArray(values) {
+  return Array.from(new Set(
+    values
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean),
+  )).sort((left, right) => left.localeCompare(right));
+}
+
+function readOptionValue(argv, index, flag) {
+  const next = argv[index + 1];
+  const normalizedNext = String(next ?? '').trim();
+  if (!normalizedNext || normalizedNext.startsWith('--')) {
+    throw new Error(`Missing value for ${flag}.`);
+  }
+
+  return normalizedNext;
+}
+
+export function resolveFinalizedReleaseSmokeReportPath({
+  releaseAssetsDir,
+} = {}) {
+  return path.join(releaseAssetsDir, FINALIZED_RELEASE_SMOKE_REPORT_FILENAME);
+}
+
+function parseArgs(argv) {
+  const options = {
+    releaseAssetsDir: path.join(process.cwd(), 'artifacts', 'release'),
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (token === '--release-assets-dir') {
+      options.releaseAssetsDir = path.resolve(readOptionValue(argv, index, '--release-assets-dir'));
+      index += 1;
+    }
+  }
+
+  return options;
+}
+
+function normalizePreviewEvidenceSummary(summary = {}) {
+  return {
+    archiveRelativePath: String(summary.archiveRelativePath ?? '').trim(),
+    entryCount: typeof summary.entryCount === 'number' ? summary.entryCount : 0,
+    channels: normalizeStringArray(summary.channels ?? []),
+    projectIds: normalizeStringArray(summary.projectIds ?? []),
+    latestLaunchedAt: typeof summary.latestLaunchedAt === 'number' ? summary.latestLaunchedAt : null,
+  };
+}
+
+function normalizeBuildEvidenceSummary(summary = {}) {
+  return {
+    archiveRelativePath: String(summary.archiveRelativePath ?? '').trim(),
+    entryCount: typeof summary.entryCount === 'number' ? summary.entryCount : 0,
+    targets: normalizeStringArray(summary.targets ?? []),
+    outputKinds: normalizeStringArray(summary.outputKinds ?? []),
+    projectIds: normalizeStringArray(summary.projectIds ?? []),
+    latestLaunchedAt: typeof summary.latestLaunchedAt === 'number' ? summary.latestLaunchedAt : null,
+  };
+}
+
+function normalizeSimulatorEvidenceSummary(summary = {}) {
+  return {
+    archiveRelativePath: String(summary.archiveRelativePath ?? '').trim(),
+    entryCount: typeof summary.entryCount === 'number' ? summary.entryCount : 0,
+    channels: normalizeStringArray(summary.channels ?? []),
+    runtimes: normalizeStringArray(summary.runtimes ?? []),
+    projectIds: normalizeStringArray(summary.projectIds ?? []),
+    latestLaunchedAt: typeof summary.latestLaunchedAt === 'number' ? summary.latestLaunchedAt : null,
+  };
+}
+
+function normalizeTestEvidenceSummary(summary = {}) {
+  return {
+    archiveRelativePath: String(summary.archiveRelativePath ?? '').trim(),
+    entryCount: typeof summary.entryCount === 'number' ? summary.entryCount : 0,
+    commands: normalizeStringArray(summary.commands ?? []),
+    projectIds: normalizeStringArray(summary.projectIds ?? []),
+    latestLaunchedAt: typeof summary.latestLaunchedAt === 'number' ? summary.latestLaunchedAt : null,
+  };
+}
+
+function normalizeGovernanceEvidenceSummary(summary = {}) {
+  return {
+    archiveRelativePath: String(summary.archiveRelativePath ?? '').trim(),
+    entryCount: typeof summary.entryCount === 'number' ? summary.entryCount : 0,
+    blockedRecords: typeof summary.blockedRecords === 'number' ? summary.blockedRecords : 0,
+    riskLevels: normalizeStringArray(summary.riskLevels ?? []),
+    approvalPolicies: normalizeStringArray(summary.approvalPolicies ?? []),
+    latestRecordedAt: typeof summary.latestRecordedAt === 'number' ? summary.latestRecordedAt : null,
+  };
+}
+
+function normalizeQualitySummary(summary = {}) {
+  return normalizeQualityEvidenceSummary(summary);
+}
+
+function normalizeCodingServerOpenApiSummary(summary = {}) {
+  return normalizeCodingServerOpenApiEvidenceSummary(summary);
+}
+
+function assertOptionalSummaryMatches({
+  manifestSummary,
+  archiveSummary,
+  normalizeSummary,
+  missingArchiveMessage,
+  mismatchMessage,
+} = {}) {
+  if (!manifestSummary) {
+    return null;
+  }
+
+  if (!archiveSummary) {
+    throw new Error(missingArchiveMessage);
+  }
+
+  const normalizedManifestSummary = normalizeSummary(manifestSummary);
+  const normalizedArchiveSummary = normalizeSummary(archiveSummary);
+  const mismatch = JSON.stringify(normalizedManifestSummary) !== JSON.stringify(normalizedArchiveSummary);
+  if (mismatch) {
+    throw new Error(mismatchMessage);
+  }
+
+  return normalizedArchiveSummary;
+}
+
+function assertRequiredSummaryMatches({
+  manifestSummary,
+  archiveSummary,
+  normalizeSummary,
+  missingManifestMessage,
+  missingArchiveMessage,
+  mismatchMessage,
+} = {}) {
+  if (!manifestSummary) {
+    throw new Error(missingManifestMessage);
+  }
+
+  return assertOptionalSummaryMatches({
+    manifestSummary,
+    archiveSummary,
+    normalizeSummary,
+    missingArchiveMessage,
+    mismatchMessage,
+  });
+}
+
+function assertPreviewEvidenceSummaryMatches({
+  manifest,
+  releaseAssetsDir,
+} = {}) {
+  return assertOptionalSummaryMatches({
+    manifestSummary: manifest.previewEvidence,
+    archiveSummary: summarizeStudioPreviewEvidenceArchive({
+      releaseAssetsDir,
+    }),
+    normalizeSummary: normalizePreviewEvidenceSummary,
+    missingArchiveMessage: `Missing studio preview evidence archive referenced by finalized manifest: ${releaseAssetsDir}`,
+    mismatchMessage: 'Finalized manifest previewEvidence summary does not match the studio preview evidence archive.',
+  });
+}
+
+function assertBuildEvidenceSummaryMatches({
+  manifest,
+  releaseAssetsDir,
+} = {}) {
+  return assertOptionalSummaryMatches({
+    manifestSummary: manifest.buildEvidence,
+    archiveSummary: summarizeStudioBuildEvidenceArchive({
+      releaseAssetsDir,
+    }),
+    normalizeSummary: normalizeBuildEvidenceSummary,
+    missingArchiveMessage: `Missing studio build evidence archive referenced by finalized manifest: ${releaseAssetsDir}`,
+    mismatchMessage: 'Finalized manifest buildEvidence summary does not match the studio build evidence archive.',
+  });
+}
+
+function assertSimulatorEvidenceSummaryMatches({
+  manifest,
+  releaseAssetsDir,
+} = {}) {
+  return assertOptionalSummaryMatches({
+    manifestSummary: manifest.simulatorEvidence,
+    archiveSummary: summarizeStudioSimulatorEvidenceArchive({
+      releaseAssetsDir,
+    }),
+    normalizeSummary: normalizeSimulatorEvidenceSummary,
+    missingArchiveMessage: `Missing studio simulator evidence archive referenced by finalized manifest: ${releaseAssetsDir}`,
+    mismatchMessage: 'Finalized manifest simulatorEvidence summary does not match the studio simulator evidence archive.',
+  });
+}
+
+function assertTestEvidenceSummaryMatches({
+  manifest,
+  releaseAssetsDir,
+} = {}) {
+  return assertOptionalSummaryMatches({
+    manifestSummary: manifest.testEvidence,
+    archiveSummary: summarizeStudioTestEvidenceArchive({
+      releaseAssetsDir,
+    }),
+    normalizeSummary: normalizeTestEvidenceSummary,
+    missingArchiveMessage: `Missing studio test evidence archive referenced by finalized manifest: ${releaseAssetsDir}`,
+    mismatchMessage: 'Finalized manifest testEvidence summary does not match the studio test evidence archive.',
+  });
+}
+
+function assertGovernanceEvidenceSummaryMatches({
+  manifest,
+  releaseAssetsDir,
+} = {}) {
+  return assertOptionalSummaryMatches({
+    manifestSummary: manifest.governanceEvidence,
+    archiveSummary: summarizeTerminalGovernanceEvidenceArchive({
+      releaseAssetsDir,
+    }),
+    normalizeSummary: normalizeGovernanceEvidenceSummary,
+    missingArchiveMessage: `Missing terminal governance evidence archive referenced by finalized manifest: ${releaseAssetsDir}`,
+    mismatchMessage: 'Finalized manifest governanceEvidence summary does not match the terminal governance evidence archive.',
+  });
+}
+
+function assertCodingServerOpenApiEvidenceSummaryMatches({
+  manifest,
+  releaseAssetsDir,
+} = {}) {
+  const archiveSummary = createCodingServerOpenApiEvidence({
+    releaseAssetsDir,
+    assets: manifest.assets,
+  });
+  if (!archiveSummary) {
+    if (manifest.codingServerOpenApiEvidence) {
+      throw new Error('Finalized manifest codingServerOpenApiEvidence summary is present without packaged server OpenAPI assets.');
+    }
+    return null;
+  }
+
+  return assertRequiredSummaryMatches({
+    manifestSummary: manifest.codingServerOpenApiEvidence,
+    archiveSummary,
+    normalizeSummary: normalizeCodingServerOpenApiSummary,
+    missingManifestMessage: 'Missing finalized manifest codingServerOpenApiEvidence summary.',
+    missingArchiveMessage: `Missing packaged coding-server OpenAPI snapshot referenced by finalized manifest: ${releaseAssetsDir}`,
+    mismatchMessage: 'Finalized manifest codingServerOpenApiEvidence summary does not match the packaged coding-server OpenAPI snapshot.',
+  });
+}
+
+function assertQualityEvidenceSummaryMatches({
+  manifest,
+  releaseAssetsDir,
+} = {}) {
+  const qualityEvidence = readReleaseQualityEvidence({
+    releaseAssetsDir,
+  });
+
+  return assertRequiredSummaryMatches({
+    manifestSummary: manifest.qualityEvidence,
+    archiveSummary: qualityEvidence?.summary ?? null,
+    normalizeSummary: normalizeQualitySummary,
+    missingManifestMessage: 'Missing finalized manifest qualityEvidence summary.',
+    missingArchiveMessage: `Missing quality gate matrix report referenced by finalized manifest: ${releaseAssetsDir}`,
+    mismatchMessage: 'Finalized manifest qualityEvidence summary does not match the quality gate matrix report.',
+  });
+}
+
+export function smokeFinalizedReleaseAssets({
+  releaseAssetsDir = path.join(process.cwd(), 'artifacts', 'release'),
+} = {}) {
+  const manifestPath = path.join(releaseAssetsDir, 'release-manifest.json');
+  if (!fs.existsSync(manifestPath)) {
+    throw new Error(`Missing finalized release manifest: ${manifestPath}`);
+  }
+
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  if (!Array.isArray(manifest.assets)) {
+    throw new Error(`Invalid finalized release manifest at ${manifestPath}: assets must be an array.`);
+  }
+
+  const previewEvidence = assertPreviewEvidenceSummaryMatches({
+    manifest,
+    releaseAssetsDir,
+  });
+  const codingServerOpenApiEvidence = assertCodingServerOpenApiEvidenceSummaryMatches({
+    manifest,
+    releaseAssetsDir,
+  });
+  const buildEvidence = assertBuildEvidenceSummaryMatches({
+    manifest,
+    releaseAssetsDir,
+  });
+  const simulatorEvidence = assertSimulatorEvidenceSummaryMatches({
+    manifest,
+    releaseAssetsDir,
+  });
+  const testEvidence = assertTestEvidenceSummaryMatches({
+    manifest,
+    releaseAssetsDir,
+  });
+  const governanceEvidence = assertGovernanceEvidenceSummaryMatches({
+    manifest,
+    releaseAssetsDir,
+  });
+  const qualityEvidence = assertQualityEvidenceSummaryMatches({
+    manifest,
+    releaseAssetsDir,
+  });
+
+  const reportPath = resolveFinalizedReleaseSmokeReportPath({
+    releaseAssetsDir,
+  });
+  const report = {
+    status: 'passed',
+    verifiedAt: new Date().toISOString(),
+    manifestPath: path.resolve(manifestPath),
+    checks: [
+      {
+        id: 'finalized-manifest-present',
+        status: 'passed',
+        detail: 'finalized release manifest exists and can be parsed',
+      },
+      {
+        id: 'coding-server-openapi-evidence-summary-match',
+        status: codingServerOpenApiEvidence ? 'passed' : 'skipped',
+        detail: codingServerOpenApiEvidence
+          ? 'finalized manifest codingServerOpenApiEvidence summary matches the packaged coding-server OpenAPI snapshot'
+          : 'no packaged server OpenAPI snapshot is attached to the finalized release manifest',
+      },
+      {
+        id: 'preview-evidence-summary-match',
+        status: previewEvidence ? 'passed' : 'skipped',
+        detail: previewEvidence
+          ? 'finalized manifest previewEvidence summary matches the studio preview evidence archive'
+          : 'no studio preview evidence archive is attached to the finalized release manifest',
+      },
+      {
+        id: 'build-evidence-summary-match',
+        status: buildEvidence ? 'passed' : 'skipped',
+        detail: buildEvidence
+          ? 'finalized manifest buildEvidence summary matches the studio build evidence archive'
+          : 'no studio build evidence archive is attached to the finalized release manifest',
+      },
+      {
+        id: 'simulator-evidence-summary-match',
+        status: simulatorEvidence ? 'passed' : 'skipped',
+        detail: simulatorEvidence
+          ? 'finalized manifest simulatorEvidence summary matches the studio simulator evidence archive'
+          : 'no studio simulator evidence archive is attached to the finalized release manifest',
+      },
+      {
+        id: 'test-evidence-summary-match',
+        status: testEvidence ? 'passed' : 'skipped',
+        detail: testEvidence
+          ? 'finalized manifest testEvidence summary matches the studio test evidence archive'
+          : 'no studio test evidence archive is attached to the finalized release manifest',
+      },
+      {
+        id: 'governance-evidence-summary-match',
+        status: governanceEvidence ? 'passed' : 'skipped',
+        detail: governanceEvidence
+          ? 'finalized manifest governanceEvidence summary matches the terminal governance evidence archive'
+          : 'no terminal governance evidence archive is attached to the finalized release manifest',
+      },
+      {
+        id: 'quality-evidence-summary-match',
+        status: 'passed',
+        detail: 'finalized manifest qualityEvidence summary matches the quality gate matrix report',
+      },
+    ],
+    codingServerOpenApiEvidence: codingServerOpenApiEvidence ?? null,
+    previewEvidence: previewEvidence ?? null,
+    buildEvidence: buildEvidence ?? null,
+    simulatorEvidence: simulatorEvidence ?? null,
+    testEvidence: testEvidence ?? null,
+    governanceEvidence: governanceEvidence ?? null,
+    qualityEvidence: qualityEvidence ?? null,
+  };
+
+  fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+
+  return {
+    manifestPath,
+    reportPath,
+    codingServerOpenApiEvidence,
+    previewEvidence,
+    buildEvidence,
+    simulatorEvidence,
+    testEvidence,
+    governanceEvidence,
+    qualityEvidence,
+  };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const result = smokeFinalizedReleaseAssets(parseArgs(process.argv.slice(2)));
+  console.log(JSON.stringify(result, null, 2));
+}

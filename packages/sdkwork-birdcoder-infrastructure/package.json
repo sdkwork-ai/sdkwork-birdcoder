@@ -1,0 +1,25 @@
+{
+  "name": "@sdkwork/birdcoder-infrastructure",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./storage/dataKernel": {
+      "import": "./src/storage/dataKernel.ts",
+      "types": "./src/storage/dataKernel.ts"
+    }
+  },
+  "dependencies": {
+    "@sdkwork/birdcoder-host-core": "workspace:*",
+    "@tauri-apps/api": "catalog:",
+    "@tauri-apps/plugin-dialog": "catalog:",
+    "@sdkwork/birdcoder-types": "workspace:*"
+  }
+}

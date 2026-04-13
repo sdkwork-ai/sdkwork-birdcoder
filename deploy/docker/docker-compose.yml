@@ -1,0 +1,14 @@
+services:
+  sdkwork-birdcoder:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    env_file:
+      - profiles/default.env
+    ports:
+      - "18989:18989"
+    volumes:
+      - sdkwork-birdcoder-data:/var/lib/sdkwork-birdcoder
+
+volumes:
+  sdkwork-birdcoder-data:

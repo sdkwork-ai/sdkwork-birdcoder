@@ -1,25 +1,26 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This app is a Vite + React + TypeScript workspace. The shell app lives in `src/`, with `src/main.tsx` as the entry point and `src/App.tsx` composing the main IDE experience. Reusable feature packages live under `packages/sdkwork-ide-*`; for example, `sdkwork-ide-ui` contains shared UI, `sdkwork-ide-commons` holds hooks/contexts/services, and packages such as `sdkwork-ide-code`, `sdkwork-ide-settings`, and `sdkwork-ide-terminal` provide feature pages. Shared styling starts in `src/index.css`, and localized strings live in `packages/sdkwork-ide-commons/src/i18n/locales/`.
+This workspace keeps the `packages/sdkwork-birdcoder-*` directory layout, but package manifest names now follow the scoped `@sdkwork/birdcoder-*` standard. Foundational layers live in `@sdkwork/birdcoder-core`, `-types`, `-i18n`, `-infrastructure`, `-commons`, and `-shell`. Delivery targets live in `@sdkwork/birdcoder-web`, `-desktop`, and `-server`. Product modules such as `@sdkwork/birdcoder-code`, `-studio`, `-terminal`, `-skills`, `-templates`, and `-appbase` keep BirdCoder business behavior isolated from the architecture shell. Deployment assets are in `deploy/docker` and `deploy/kubernetes`; release automation is in `scripts/release`; docs are in `docs/`.
 
 ## Build, Test, and Development Commands
-Use the root workspace files in this directory.
-
-- `npm install` installs root dependencies and linked workspace packages.
-- `npm run dev` starts the Vite dev server on port `3000` and binds to `0.0.0.0`.
-- `npm run build` creates the production bundle in `dist/`.
-- `npm run preview` serves the built app locally for a quick smoke check.
-- `npm run lint` runs `tsc --noEmit`; this is the main static verification step today.
+- `pnpm install --frozen-lockfile` installs the workspace exactly as CI expects.
+- `pnpm dev` runs the web host locally; `pnpm dev:test` starts the test-mode web host.
+- `pnpm build` builds the shared workspace and web shell; `pnpm server:build` builds the Rust server host.
+- `pnpm tauri:dev` and `pnpm tauri:build` run the desktop host.
+- `pnpm lint` runs TypeScript, architecture, structure, CI, and release-flow checks.
+- `pnpm check:package-governance` validates scoped package naming, internal `workspace:*` dependencies, and root-owned shared dependency versions.
+- `pnpm check:desktop`, `pnpm check:server`, and `pnpm check:multi-mode` verify target-specific delivery layers.
+- `pnpm docs:build` builds the VitePress documentation site.
 
 ## Coding Style & Naming Conventions
-Follow the existing TypeScript/TSX style in the touched file: components, pages, and interfaces use `PascalCase`, hooks use `camelCase` with a `use` prefix, and package names follow the `sdkwork-ide-*` convention. Keep source files readable with the repository's current 2-space indentation and concise React function components. Prefer colocating exports in each package's `src/index.ts`, and keep Tailwind utility usage consistent with nearby code instead of introducing a parallel styling pattern.
+Use TypeScript with 2-space indentation and keep exports centered in each package `src/index.ts`. React components and providers use `PascalCase`; hooks and helpers use `camelCase`. Directory names stay on `sdkwork-birdcoder-*`, package manifest names and import specifiers use `@sdkwork/birdcoder-*`, internal workspace dependencies use `workspace:*`, and repeated third-party versions must be governed from the root `pnpm-workspace.yaml` `catalog` instead of being re-versioned per package. Prefer editing standardized package layers instead of adding new root-level glue. Keep deployment and release metadata explicit: `platform`, `arch`, and `accelerator` are required naming dimensions.
 
 ## Testing Guidelines
-There is no dedicated `npm test` script in this workspace yet, so contributors should treat `npm run lint` and `npm run build` as required pre-PR checks. For UI changes, also include a short manual verification note covering the affected page or workflow. If you add automated tests later, use `*.test.ts` or `*.test.tsx` naming and keep them near the feature they cover.
+Contract tests are script-based and live in `scripts/*.test.mjs` and `scripts/release/*.test.mjs`. Add focused tests beside the release or architecture script you change. Before submitting work, run at least `pnpm lint`; for release or deployment changes also run `pnpm check:release-flow` and the relevant `pnpm release:smoke:*` command.
 
 ## Commit & Pull Request Guidelines
-Recent history follows short Conventional Commit messages such as `feat: ...`, `fix: ...`, and `chore: ...`. Keep new commits imperative and scoped, for example `fix: preserve active workspace selection`. Pull requests should include a concise summary, affected packages, commands run locally, linked task or issue, and screenshots or GIFs for visible UI changes.
+Use short imperative commits with scope, for example `fix release asset manifest layout` or `chore align ci flow`. Pull requests should summarize the changed architecture area, list touched packages or deployment layers, include the exact verification commands run, and attach screenshots only for UI-visible shell changes.
 
 ## Security & Configuration Tips
-Use `.env.example` as the reference for local configuration. `GEMINI_API_KEY` and `APP_URL` are required for runtime integration; never commit real secrets or paste them into logs, screenshots, or test fixtures.
+Keep secrets out of the repo. Use `.env.example` as the baseline, never commit real API keys, and prefer immutable container image tags or digests in release artifacts instead of mutable `latest` references.

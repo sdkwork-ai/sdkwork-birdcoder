@@ -1,0 +1,41 @@
+import { defineLocaleModule } from '../../resource.ts';
+
+export default defineLocaleModule('studio/actions', {
+  "studio": {
+    "analyzeCode": "分析代码",
+    "terminal": "终端",
+    "share": "分享",
+    "publish": "发布",
+    "accept": "接受",
+    "reject": "拒绝",
+    "projectEmpty": "项目为空，请添加文件",
+    "selectFile": "请在左侧选择一个文件",
+    "codeAnalysisReport": "代码分析报告",
+    "linesOfCode": "代码行数",
+    "emptyLines": "空行",
+    "functions": "函数",
+    "classes": "类",
+    "complexity": "复杂度",
+    "maintainability": "可维护性",
+    "close": "关闭",
+    "runTask": "运行任务",
+    "startSimulator": "启动模拟器",
+    "runConfig": "运行配置",
+    "debugConfig": "调试配置",
+    "name": "名称",
+    "command": "命令",
+    "url": "URL",
+    "webRoot": "Web 根目录",
+    "cancel": "取消",
+    "save": "保存",
+    "delete": "删除",
+    "deleteConfirm": "确定要删除此 {{type}} 吗？此操作无法撤销。",
+    "runningDevTask": "正在运行开发任务...",
+    "runningSimulator": "正在运行模拟器...",
+    "runningBuildTask": "正在运行构建任务...",
+    "runningTestTask": "正在运行测试任务...",
+    "configurationSaved": "配置已保存",
+    "debugConfigurationSaved": "调试配置已保存",
+    "appliedChanges": "已将更改应用到 {{path}}"
+  }
+});

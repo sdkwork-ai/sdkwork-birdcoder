@@ -1,0 +1,13 @@
+{
+  "name": "@sdkwork/birdcoder-host-studio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@sdkwork/birdcoder-distribution": "workspace:*",
+    "@sdkwork/birdcoder-host-core": "workspace:*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

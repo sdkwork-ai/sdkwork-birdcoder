@@ -1,0 +1,673 @@
+name: reusable-release
+
+on:
+  workflow_call:
+    inputs:
+      release_profile:
+        description: Release profile id defined under scripts/release/release-profiles.mjs
+        required: true
+        type: string
+      release_tag:
+        description: Existing release tag to publish
+        required: true
+        type: string
+      git_ref:
+        description: Git ref to build; defaults to refs/tags/<release_tag>
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  attestations: write
+  id-token: write
+  packages: write
+
+concurrency:
+  group: release-${{ inputs.release_profile }}-${{ inputs.release_tag }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  SDKWORK_SHARED_SDK_MODE: git
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.plan.outputs.release_tag }}
+      git_ref: ${{ steps.plan.outputs.git_ref }}
+      product_name: ${{ steps.plan.outputs.product_name }}
+      release_name: ${{ steps.plan.outputs.release_name }}
+      desktop_matrix: ${{ steps.plan.outputs.desktop_matrix }}
+      server_matrix: ${{ steps.plan.outputs.server_matrix }}
+      container_matrix: ${{ steps.plan.outputs.container_matrix }}
+      kubernetes_matrix: ${{ steps.plan.outputs.kubernetes_matrix }}
+      manifest_file_name: ${{ steps.plan.outputs.manifest_file_name }}
+      global_checksums_file_name: ${{ steps.plan.outputs.global_checksums_file_name }}
+    steps:
+      - name: Checkout workflow sources
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.git_ref != '' && inputs.git_ref || format('refs/tags/{0}', inputs.release_tag) }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Resolve release plan
+        id: plan
+        shell: bash
+        run: |
+          node scripts/release/resolve-release-plan.mjs --profile ${{ inputs.release_profile }} --release-tag "${{ inputs.release_tag }}" --git-ref "${{ inputs.git_ref }}" --github-output
+
+  verify-release:
+    name: Verify release inputs
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.git_ref }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux desktop dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            file \
+            libfuse2t64 \
+            libgbm-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            libpipewire-0.3-dev \
+            libssl-dev \
+            librsvg2-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            pkg-config \
+            rpm \
+            patchelf
+
+      - name: Prepare shared SDK sources
+        run: node scripts/prepare-shared-sdk-git-sources.mjs
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared SDK packages
+        run: pnpm prepare:shared-sdk
+
+      - name: Run release verification
+        shell: bash
+        run: |
+          pnpm lint
+          pnpm check:desktop
+          pnpm check:server
+          cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml
+          pnpm build
+          pnpm server:build
+          pnpm docs:build
+
+  desktop-release:
+    name: Desktop release (${{ matrix.platform }}-${{ matrix.arch }})
+    needs: [prepare, verify-release]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.desktop_matrix) }}
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.git_ref }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux desktop dependencies
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            file \
+            libfuse2t64 \
+            libgbm-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            libpipewire-0.3-dev \
+            libssl-dev \
+            librsvg2-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            pkg-config \
+            rpm \
+            patchelf \
+            xvfb
+
+      - name: Prepare shared SDK sources
+        run: node scripts/prepare-shared-sdk-git-sources.mjs
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared SDK packages
+        run: pnpm prepare:shared-sdk
+
+      - name: Sync bundled desktop components
+        run: node scripts/run-desktop-release-build.mjs --profile ${{ inputs.release_profile }} --phase sync --target ${{ matrix.target }} --release
+
+      - name: Clean stale Tauri target cache
+        run: node scripts/run-desktop-release-build.mjs --profile ${{ inputs.release_profile }} --phase prepare-target --target ${{ matrix.target }}
+
+      - name: Prepare bundled OpenClaw runtime
+        run: node scripts/run-desktop-release-build.mjs --profile ${{ inputs.release_profile }} --phase prepare-openclaw --target ${{ matrix.target }}
+
+      - name: Build Claw Studio desktop bundle on Windows
+        if: matrix.platform == 'windows'
+        env:
+          CMAKE_GENERATOR: Visual Studio 17 2022
+          HOST_CMAKE_GENERATOR: Visual Studio 17 2022
+        run: node scripts/run-desktop-release-build.mjs --profile ${{ inputs.release_profile }} --phase bundle --target ${{ matrix.target }}
+
+      - name: Build Claw Studio desktop bundle on Unix
+        if: matrix.platform != 'windows'
+        run: node scripts/run-desktop-release-build.mjs --profile ${{ inputs.release_profile }} --phase bundle --target ${{ matrix.target }}
+
+      - name: Collect desktop release assets
+        run: node scripts/release/package-release-assets.mjs desktop --profile ${{ inputs.release_profile }} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --output-dir artifacts/release
+
+      - name: Smoke packaged desktop installers
+        run: node scripts/release/smoke-desktop-installers.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --release-assets-dir artifacts/release
+
+      - name: Smoke packaged desktop launch startup
+        run: node scripts/release/smoke-desktop-packaged-launch.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --release-assets-dir artifacts/release
+
+      - name: Attest desktop release assets
+        if: ${{ needs.prepare.outputs.release_tag != '' }}
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: artifacts/release/**/*
+
+      - name: Upload desktop release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-desktop-${{ matrix.platform }}-${{ matrix.arch }}
+          path: artifacts/release/**/*
+          if-no-files-found: error
+
+  web-release:
+    name: Web and docs release assets
+    needs: [prepare, verify-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.git_ref }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Prepare shared SDK sources
+        run: node scripts/prepare-shared-sdk-git-sources.mjs
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared SDK packages
+        run: pnpm prepare:shared-sdk
+
+      - name: Build web and docs
+        shell: bash
+        run: |
+          pnpm build
+          pnpm docs:build
+
+      - name: Package web release assets
+        run: node scripts/release/package-release-assets.mjs web --profile ${{ inputs.release_profile }} --release-tag ${{ needs.prepare.outputs.release_tag }} --output-dir artifacts/release
+
+      - name: Attest web release assets
+        if: ${{ needs.prepare.outputs.release_tag != '' }}
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: artifacts/release/**/*
+
+      - name: Upload web release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-web
+          path: artifacts/release/**/*
+          if-no-files-found: error
+
+  server-release:
+    name: Server release (${{ matrix.platform }}-${{ matrix.arch }})
+    needs: [prepare, verify-release]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.server_matrix) }}
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.git_ref }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Prepare shared SDK sources
+        run: node scripts/prepare-shared-sdk-git-sources.mjs
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared SDK packages
+        run: pnpm prepare:shared-sdk
+
+      - name: Build web bundle for server assets
+        run: pnpm build
+
+      - name: Build server binary
+        run: node scripts/run-claw-server-build.mjs --target ${{ matrix.target }}
+
+      - name: Package server release assets
+        run: node scripts/release/package-release-assets.mjs server --profile ${{ inputs.release_profile }} --release-tag ${{ needs.prepare.outputs.release_tag }} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --output-dir artifacts/release
+
+      - name: Smoke packaged server release assets
+        run: node scripts/release/smoke-server-release-assets.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --release-assets-dir artifacts/release
+
+      - name: Attest server release assets
+        if: ${{ needs.prepare.outputs.release_tag != '' }}
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: artifacts/release/**/*
+
+      - name: Upload server release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-server-${{ matrix.platform }}-${{ matrix.arch }}
+          path: artifacts/release/**/*
+          if-no-files-found: error
+
+  container-release:
+    name: Container release (${{ matrix.arch }}-${{ matrix.accelerator }})
+    needs: [prepare, verify-release]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.container_matrix) }}
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.git_ref }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Prepare shared SDK sources
+        run: node scripts/prepare-shared-sdk-git-sources.mjs
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared SDK packages
+        run: pnpm prepare:shared-sdk
+
+      - name: Build web bundle for container assets
+        run: pnpm build
+
+      - name: Build server binary
+        run: node scripts/run-claw-server-build.mjs --target ${{ matrix.target }}
+
+      - name: Package container release assets
+        run: node scripts/release/package-release-assets.mjs container --profile ${{ inputs.release_profile }} --release-tag ${{ needs.prepare.outputs.release_tag }} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --accelerator ${{ matrix.accelerator }} --output-dir artifacts/release
+
+      - name: Smoke packaged container release assets
+        run: node scripts/release/smoke-deployment-release-assets.mjs --family container --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --accelerator ${{ matrix.accelerator }} --release-assets-dir artifacts/release
+
+      - name: Resolve OCI image reference
+        if: matrix.accelerator == 'cpu'
+        id: oci_image
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          case "${{ matrix.arch }}" in
+            x64)
+              docker_platform='linux/amd64'
+              ;;
+            arm64)
+              docker_platform='linux/arm64'
+              ;;
+            *)
+              echo "Unsupported image architecture: ${{ matrix.arch }}" >&2
+              exit 1
+              ;;
+          esac
+          {
+            echo "image_repository=ghcr.io/${owner}/sdkwork-birdcoder-server"
+            echo "image_tag=${{ needs.prepare.outputs.release_tag }}-linux-${{ matrix.arch }}"
+            echo "docker_platform=${docker_platform}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Extract container bundle for OCI build context
+        if: matrix.accelerator == 'cpu'
+        id: bundle_context
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive_path="$(find artifacts/release/container -type f -name '*.tar.gz' | head -n 1)"
+          if [ -z "${archive_path}" ]; then
+            echo 'Missing packaged container bundle archive.' >&2
+            exit 1
+          fi
+          extract_root="${RUNNER_TEMP}/birdcoder-container-image-${{ matrix.arch }}"
+          rm -rf "${extract_root}"
+          mkdir -p "${extract_root}"
+          tar -xzf "${archive_path}" -C "${extract_root}"
+          bundle_root="$(find "${extract_root}" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "${bundle_root}" ]; then
+            echo "Unable to resolve extracted container bundle root from ${archive_path}." >&2
+            exit 1
+          fi
+          {
+            echo "archive_path=${archive_path}"
+            echo "bundle_root=${bundle_root}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup Docker Buildx
+        if: matrix.accelerator == 'cpu'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        if: matrix.accelerator == 'cpu'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish server OCI image
+        if: matrix.accelerator == 'cpu'
+        id: publish_image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.bundle_context.outputs.bundle_root }}
+          file: ${{ steps.bundle_context.outputs.bundle_root }}/deploy/docker/Dockerfile
+          platforms: ${{ steps.oci_image.outputs.docker_platform }}
+          push: true
+          tags: ${{ steps.oci_image.outputs.image_repository }}:${{ steps.oci_image.outputs.image_tag }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.prepare.outputs.release_tag }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=sdkwork-birdcoder-server
+
+      - name: Record published OCI image metadata
+        if: matrix.accelerator == 'cpu'
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata_dir="${RUNNER_TEMP}/container-image-metadata-${{ matrix.arch }}"
+          metadata_path="${metadata_dir}/published-image.json"
+          mkdir -p "${metadata_dir}"
+          cat > "${metadata_path}" <<EOF
+          {
+            "imageRepository": "${{ steps.oci_image.outputs.image_repository }}",
+            "imageTag": "${{ steps.oci_image.outputs.image_tag }}",
+            "imageDigest": "${{ steps.publish_image.outputs.digest }}",
+            "imageReference": "${{ steps.oci_image.outputs.image_repository }}@${{ steps.publish_image.outputs.digest }}"
+          }
+          EOF
+
+      - name: Upload published OCI image metadata
+        if: matrix.accelerator == 'cpu'
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-image-metadata-${{ matrix.arch }}
+          path: ${{ runner.temp }}/container-image-metadata-${{ matrix.arch }}/published-image.json
+          if-no-files-found: error
+
+      - name: Attest container release assets
+        if: ${{ needs.prepare.outputs.release_tag != '' }}
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: artifacts/release/**/*
+
+      - name: Upload container release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-container-${{ matrix.arch }}-${{ matrix.accelerator }}
+          path: artifacts/release/**/*
+          if-no-files-found: error
+
+  kubernetes-release:
+    name: Kubernetes release (${{ matrix.arch }}-${{ matrix.accelerator }})
+    needs: [prepare, verify-release, container-release]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.kubernetes_matrix) }}
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.git_ref }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Download published OCI image metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: container-image-metadata-${{ matrix.arch }}
+          path: artifacts/container-image-metadata
+
+      - name: Resolve published OCI image metadata
+        id: image_metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - "artifacts/container-image-metadata/published-image.json" <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs = require('node:fs');
+          const metadataPath = process.argv[2];
+          const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+          const entries = [
+            ['image_repository', metadata.imageRepository],
+            ['image_tag', metadata.imageTag],
+            ['image_digest', metadata.imageDigest],
+          ];
+          for (const [key, value] of entries) {
+            const normalizedValue = String(value ?? '').trim();
+            if (!normalizedValue) {
+              throw new Error(`Missing ${key} in ${metadataPath}`);
+            }
+            process.stdout.write(`${key}=${normalizedValue}\n`);
+          }
+          NODE
+
+      - name: Package kubernetes release assets
+        run: node scripts/release/package-release-assets.mjs kubernetes --profile ${{ inputs.release_profile }} --release-tag ${{ needs.prepare.outputs.release_tag }} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --accelerator ${{ matrix.accelerator }} --image-repository ${{ steps.image_metadata.outputs.image_repository }} --image-tag ${{ steps.image_metadata.outputs.image_tag }} --image-digest ${{ steps.image_metadata.outputs.image_digest }} --output-dir artifacts/release
+
+      - name: Smoke packaged kubernetes release assets
+        run: node scripts/release/smoke-deployment-release-assets.mjs --family kubernetes --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --accelerator ${{ matrix.accelerator }} --release-assets-dir artifacts/release
+
+      - name: Attest kubernetes release assets
+        if: ${{ needs.prepare.outputs.release_tag != '' }}
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: artifacts/release/**/*
+
+      - name: Upload kubernetes release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-kubernetes-${{ matrix.arch }}-${{ matrix.accelerator }}
+          path: artifacts/release/**/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs:
+      - prepare
+      - verify-release
+      - desktop-release
+      - web-release
+      - server-release
+      - container-release
+      - kubernetes-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.git_ref }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Download packaged release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-assets-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Finalize release assets
+        run: node scripts/release/finalize-release-assets.mjs --profile ${{ inputs.release_profile }} --release-tag ${{ needs.prepare.outputs.release_tag }} --repository ${{ github.repository }} --release-assets-dir release-assets
+
+      - name: Smoke finalized release assets
+        run: node scripts/release/smoke-finalized-release-assets.mjs --release-assets-dir release-assets
+
+      - name: Render release notes
+        run: node scripts/release/render-release-notes.mjs --release-tag ${{ needs.prepare.outputs.release_tag }} --output release-assets/release-notes.md
+
+      - name: Attest finalized release assets
+        if: ${{ needs.prepare.outputs.release_tag != '' }}
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: release-assets/**/*
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.release_tag }}
+          name: ${{ needs.prepare.outputs.release_name }}
+          body_path: release-assets/release-notes.md
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: |
+            release-assets/**/*

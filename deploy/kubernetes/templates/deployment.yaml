@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sdkwork-birdcoder.fullname" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sdkwork-birdcoder
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sdkwork-birdcoder
+    spec:
+      containers:
+        - name: sdkwork-birdcoder
+{{- if .Values.image.digest }}
+          image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
+{{- else }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+{{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}

@@ -1,0 +1,73 @@
+import assert from 'node:assert/strict';
+
+import type { ChatMessage } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
+import { executeBirdCoderCoreSessionRun, streamBirdCoderCoreSessionEventEnvelopes } from '../packages/sdkwork-birdcoder-server/src/index.ts';
+
+const messages: ChatMessage[] = [
+  {
+    id: 'msg-user-1',
+    role: 'user',
+    content: 'Review the workspace and use a tool if you need to modify files.',
+    timestamp: Date.now(),
+  },
+];
+
+const projection = await executeBirdCoderCoreSessionRun({
+  sessionId: 'coding-session-1',
+  runtimeId: 'runtime-1',
+  turnId: 'turn-1',
+  engineId: 'codex',
+  modelId: 'codex',
+  hostMode: 'server',
+  messages,
+  options: {
+    model: 'codex',
+    context: {
+      workspaceRoot: 'D:/workspace',
+      currentFile: {
+        path: 'src/App.tsx',
+        content: 'export default function App() { return null; }',
+        language: 'tsx',
+      },
+    },
+  },
+});
+
+assert.equal(projection.runtime.engineId, 'codex');
+assert.equal(projection.runtime.hostMode, 'server');
+assert.equal(projection.runtime.nativeRef.transportKind, 'cli-jsonl');
+assert.equal(projection.events[0]?.kind, 'session.started');
+assert.equal(projection.events[1]?.kind, 'turn.started');
+assert.equal(projection.events.some((event) => event.kind === 'approval.required'), true);
+assert.equal(projection.artifacts.length > 0, true, 'server projection must preserve projected artifacts');
+assert.equal(projection.operation.status, 'running');
+assert.equal(projection.operation.streamKind, 'sse');
+assert.equal(
+  projection.operation.streamUrl,
+  '/api/core/v1/coding-sessions/coding-session-1/events',
+);
+
+const envelopes = [];
+for await (const envelope of streamBirdCoderCoreSessionEventEnvelopes({
+  sessionId: 'coding-session-1',
+  runtimeId: 'runtime-1',
+  turnId: 'turn-1',
+  engineId: 'codex',
+  modelId: 'codex',
+  hostMode: 'server',
+  messages,
+  options: {
+    model: 'codex',
+  },
+})) {
+  envelopes.push(envelope);
+}
+
+assert.equal(envelopes.length > 0, true, 'coding-server SSE contract must emit envelopes');
+assert.equal(envelopes[0]?.meta.version, 'v1');
+assert.equal(envelopes[0]?.data.kind, 'session.started');
+assert.equal(envelopes.some((envelope) => envelope.data.kind === 'tool.call.requested'), true);
+assert.equal(envelopes.some((envelope) => envelope.data.kind === 'artifact.upserted'), true);
+assert.equal(envelopes.some((envelope) => envelope.data.kind === 'turn.completed'), true);
+
+console.log('coding server sse contract passed.');

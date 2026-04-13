@@ -3,24 +3,84 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useEffect, ErrorInfo } from 'react';
-import { Code2, Sparkles, Terminal, Settings, UserCircle, LogIn, Zap, LayoutTemplate, Minus, Square, X, ChevronDown, Folder, Briefcase, Globe, User, Plus, Trash2, AlertTriangle, ChevronRight, Check, Edit } from 'lucide-react';
-import { CodePage } from 'sdkwork-ide-code';
-import { StudioPage } from 'sdkwork-ide-studio';
-import { useWorkspaces, IDEProvider, useAuth, AuthProvider, ToastProvider, useToast, globalEventBus, useProjects, useIDEServices } from 'sdkwork-ide-commons';
-import { IWorkspace } from 'sdkwork-ide-types';
-import { TerminalPage } from 'sdkwork-ide-terminal';
-import { SettingsPage } from 'sdkwork-ide-settings';
-import { LoginPage } from 'sdkwork-ide-auth';
-import { UserProfilePage } from 'sdkwork-ide-user';
-import { SkillsPage } from 'sdkwork-ide-skills';
-import { TemplatesPage } from 'sdkwork-ide-templates';
-import { Button, TopMenu } from 'sdkwork-ide-ui';
-import type { AppTab } from 'sdkwork-ide-types';
-import { useTranslation, Trans } from 'react-i18next';
+import React, { Component, lazy, Suspense, type ErrorInfo, useState, useRef, useEffect } from 'react';
+import { Code2, Sparkles, Terminal, Settings, UserCircle, Shield, Zap, LayoutTemplate, Minus, Square, X, ChevronDown, Folder, Briefcase, Globe, User, Plus, Trash2, AlertTriangle, ChevronRight, Check, Edit } from 'lucide-react';
+import {
+  useWorkspaces,
+  IDEProvider,
+  useAuth,
+  AuthProvider,
+  ToastProvider,
+  useToast,
+  globalEventBus,
+  useProjects,
+  useIDEServices,
+} from '@sdkwork/birdcoder-commons/shell';
+import { Button, TopMenu } from '@sdkwork/birdcoder-ui';
+import type { AppTab } from '@sdkwork/birdcoder-types';
+import type { TerminalCommandRequest } from '@sdkwork/birdcoder-commons/shell';
+import { useTranslation } from 'react-i18next';
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode, t: any }, { hasError: boolean, error: Error | null }> {
-  constructor(props: { children: React.ReactNode, t: any }) {
+const CodePage = lazy(async () => {
+  const module = await import('@sdkwork/birdcoder-code');
+  return { default: module.CodePage };
+});
+
+const StudioPage = lazy(async () => {
+  const module = await import('@sdkwork/birdcoder-studio');
+  return { default: module.StudioPage };
+});
+
+const TerminalPage = lazy(async () => {
+  const module = await import('@sdkwork/birdcoder-terminal');
+  return { default: module.TerminalPage };
+});
+
+const SettingsPage = lazy(async () => {
+  const module = await import('@sdkwork/birdcoder-settings');
+  return { default: module.SettingsPage };
+});
+
+const AuthPage = lazy(async () => {
+  const module = await import('@sdkwork/birdcoder-appbase');
+  return { default: module.AuthPage };
+});
+
+const UserCenterPage = lazy(async () => {
+  const module = await import('@sdkwork/birdcoder-appbase');
+  return { default: module.UserCenterPage };
+});
+
+const VipPage = lazy(async () => {
+  const module = await import('@sdkwork/birdcoder-appbase');
+  return { default: module.VipPage };
+});
+
+const SkillsPage = lazy(async () => {
+  const module = await import('@sdkwork/birdcoder-skills');
+  return { default: module.SkillsPage };
+});
+
+const TemplatesPage = lazy(async () => {
+  const module = await import('@sdkwork/birdcoder-templates');
+  return { default: module.TemplatesPage };
+});
+
+type ErrorBoundaryProps = {
+  children: React.ReactNode;
+  t: (key: string) => string;
+};
+
+type ErrorBoundaryState = {
+  hasError: boolean;
+  error: Error | null;
+};
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  declare props: ErrorBoundaryProps;
+  declare state: ErrorBoundaryState;
+
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
   }
@@ -63,6 +123,16 @@ const ErrorBoundaryWithTranslation = ({ children }: { children: React.ReactNode 
   const { t } = useTranslation();
   return <ErrorBoundary t={t}>{children}</ErrorBoundary>;
 };
+
+function SurfaceLoader({ fullScreen = false }: { fullScreen?: boolean }) {
+  return (
+    <div
+      className={`flex bg-[#0e0e11] text-white items-center justify-center ${fullScreen ? 'h-screen w-screen' : 'h-full w-full'}`}
+    >
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -109,7 +179,7 @@ function AppContent() {
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const workspaceMenuRef = useRef<HTMLDivElement>(null);
 
-  const [terminalRequest, setTerminalRequest] = useState<{path?: string, command?: string, timestamp: number} | undefined>();
+  const [terminalRequest, setTerminalRequest] = useState<TerminalCommandRequest | undefined>();
   const [isRecording, setIsRecording] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showWhatsNewModal, setShowWhatsNewModal] = useState(false);
@@ -162,7 +232,7 @@ function AppContent() {
     const handleOpenSettings = () => {
       setActiveTab('settings');
     };
-    const handleTerminalRequest = (req: { path?: string; command?: string; timestamp: number }) => {
+    const handleTerminalRequest = (req: TerminalCommandRequest) => {
       setTerminalRequest(req);
       if (activeTab !== 'terminal' && activeTab !== 'code' && activeTab !== 'studio') {
         setActiveTab('terminal');
@@ -385,36 +455,82 @@ function AppContent() {
     }
   };
 
+  const getDesktopWindow = async () => {
+    const { isTauri } = await import('@tauri-apps/api/core');
+    if (!isTauri()) {
+      return null;
+    }
+
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    return getCurrentWindow();
+  };
+
   const handleMinimize = async () => {
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().minimize();
-    } catch (e) {
-      console.warn('Not running in Tauri');
+      const desktopWindow = await getDesktopWindow();
+      if (!desktopWindow) {
+        return;
+      }
+
+      await desktopWindow.minimize();
+    } catch (error) {
+      console.warn('Failed to minimize desktop window', error);
     }
   };
 
   const handleMaximize = async () => {
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().toggleMaximize();
-    } catch (e) {
-      console.warn('Not running in Tauri');
+      const desktopWindow = await getDesktopWindow();
+      if (!desktopWindow) {
+        return;
+      }
+
+      await desktopWindow.toggleMaximize();
+    } catch (error) {
+      console.warn('Failed to toggle desktop window maximize state', error);
     }
   };
 
   const handleClose = async () => {
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().close();
-    } catch (e) {
+      const desktopWindow = await getDesktopWindow();
+      if (!desktopWindow) {
+        window.close();
+        return;
+      }
+
+      await desktopWindow.close();
+    } catch (error) {
+      console.warn('Failed to close desktop window', error);
       window.close();
+    }
+  };
+
+  const handleTitleBarMouseDown = async (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('[data-no-drag="true"]')) {
+      return;
+    }
+
+    try {
+      const desktopWindow = await getDesktopWindow();
+      if (!desktopWindow) {
+        return;
+      }
+
+      await desktopWindow.startDragging();
+    } catch (error) {
+      console.warn('Failed to start window dragging', error);
     }
   };
 
   const handleOpenFolder = async () => {
     try {
-      const { openLocalFolder } = await import('sdkwork-ide-commons');
+      const { openLocalFolder } = await import('@sdkwork/birdcoder-commons');
       const folderInfo = await openLocalFolder();
       if (folderInfo) {
         let projectName = t('app.localFolder');
@@ -489,7 +605,11 @@ function AppContent() {
   }
 
   if (!user) {
-    return <LoginPage />;
+    return (
+      <Suspense fallback={<SurfaceLoader fullScreen />}>
+        <AuthPage />
+      </Suspense>
+    );
   }
 
   const handleToggleRecording = () => {
@@ -498,11 +618,15 @@ function AppContent() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#0e0e11] text-gray-100 overflow-hidden font-sans selection:bg-blue-500/30">
+      <div className="flex flex-col h-screen w-screen bg-[#0e0e11] text-gray-100 overflow-hidden font-sans selection:bg-blue-500/30">
       {/* Top Header / Title Bar */}
-      <div className="h-10 w-full bg-[#0e0e11] border-b border-white/[0.08] flex items-center justify-between shrink-0 select-none z-50">
+      <div
+        className="h-10 w-full bg-[#0e0e11] border-b border-white/[0.08] flex items-center justify-between shrink-0 select-none z-50"
+        onMouseDown={handleTitleBarMouseDown}
+      >
         {/* Left: Logo/Title & Menus */}
         <div 
+          data-no-drag="true"
           className="flex items-center pl-4 w-1/3 h-full animate-in fade-in slide-in-from-top-2 fill-mode-both"
           style={{ animationDelay: '0ms' }}
         >
@@ -600,6 +724,7 @@ function AppContent() {
 
         {/* Middle: Workspace Switcher */}
         <div 
+          data-no-drag="true"
           className="flex items-center justify-center w-1/3 h-full relative animate-in fade-in slide-in-from-top-2 fill-mode-both" 
           ref={workspaceMenuRef}
           style={{ animationDelay: '50ms' }}
@@ -867,6 +992,7 @@ function AppContent() {
 
         {/* Right: Window Controls & Actions */}
         <div 
+          data-no-drag="true"
           className="flex items-center justify-end w-1/3 h-full animate-in fade-in slide-in-from-top-2 fill-mode-both pr-2"
           style={{ animationDelay: '100ms' }}
         >
@@ -909,7 +1035,10 @@ function AppContent() {
             <Button variant="ghost" size="icon" onClick={() => setActiveTab('user')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'user' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '250ms' }} title={t('app.userProfile')}>
               <UserCircle size={22} strokeWidth={1.5} />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => setActiveTab('settings')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'settings' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '300ms' }} title={t('app.settings')}>
+            <Button variant="ghost" size="icon" onClick={() => setActiveTab('vip')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'vip' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '300ms' }} title="VIP Membership">
+              <Shield size={22} strokeWidth={1.5} />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setActiveTab('settings')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'settings' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '350ms' }} title={t('app.settings')}>
               <Settings size={22} strokeWidth={1.5} />
             </Button>
           </div>
@@ -917,13 +1046,22 @@ function AppContent() {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden relative bg-[#0e0e11]">
-          {activeTab === 'code' && <CodePage key={activeWorkspaceId} workspaceId={activeWorkspaceId} projectId={activeProjectId} onProjectChange={setActiveProjectId} />}
-          {activeTab === 'studio' && <StudioPage key={activeWorkspaceId} workspaceId={activeWorkspaceId} projectId={activeProjectId} onProjectChange={setActiveProjectId} />}
-          {activeTab === 'terminal' && <TerminalPage terminalRequest={terminalRequest} />}
-          {activeTab === 'skills' && <SkillsPage />}
-          {activeTab === 'templates' && <TemplatesPage workspaceId={activeWorkspaceId} onProjectCreated={(id) => { setActiveProjectId(id); setActiveTab('code'); }} />}
-          {activeTab === 'user' && <UserProfilePage />}
-          {activeTab === 'settings' && <SettingsPage onBack={() => setActiveTab('code')} />}
+          <Suspense fallback={<SurfaceLoader />}>
+            {activeTab === 'code' && <CodePage workspaceId={activeWorkspaceId} projectId={activeProjectId} onProjectChange={setActiveProjectId} />}
+            {activeTab === 'studio' && <StudioPage workspaceId={activeWorkspaceId} projectId={activeProjectId} onProjectChange={setActiveProjectId} />}
+            {activeTab === 'terminal' && (
+              <TerminalPage
+                terminalRequest={terminalRequest}
+                workspaceId={activeWorkspaceId}
+                projectId={activeProjectId || null}
+              />
+            )}
+            {activeTab === 'skills' && <SkillsPage />}
+            {activeTab === 'templates' && <TemplatesPage workspaceId={activeWorkspaceId} onProjectCreated={(id) => { setActiveProjectId(id); setActiveTab('code'); }} />}
+            {activeTab === 'user' && <UserCenterPage onOpenVip={() => setActiveTab('vip')} />}
+            {activeTab === 'vip' && <VipPage />}
+            {activeTab === 'settings' && <SettingsPage onBack={() => setActiveTab('code')} />}
+          </Suspense>
         </div>
       </div>
 
@@ -1092,4 +1230,3 @@ function AppContent() {
     </div>
   );
 }
-

@@ -1,0 +1,13 @@
+{
+  "name": "@sdkwork/birdcoder-chat-gemini",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@sdkwork/birdcoder-chat": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}

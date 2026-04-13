@@ -2,6 +2,16 @@ node_modules/
 build/
 dist/
 coverage/
+artifacts/
+target/
+.pnpm-store/
+.npm-cache/
+external/*-backup-*/
+external/*-snapshot-*/
+external/*-broken-clone-*/
+external/*-placeholder-*/
+external/*-fragment*/
+server/**/*.tar.gz
 .DS_Store
 *.log
 .env*
