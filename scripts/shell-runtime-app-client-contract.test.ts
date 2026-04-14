@@ -148,7 +148,7 @@ try {
       appId: 'sdkwork-birdcoder-cn',
       appName: 'SDKWork BirdCoder',
       distributionId: 'cn',
-      apiBaseUrl: 'https://cn.sdkwork.local/birdcoder/api',
+      apiBaseUrl: 'https://cn.sdkwork.local/birdcoder',
     },
   } as never);
 
@@ -162,14 +162,14 @@ try {
     [
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/api/api/app/v1/workspaces',
+        url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/workspaces',
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/api/api/app/v1/projects?workspaceId=workspace-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/projects?workspaceId=workspace-runtime-contract',
       },
     ],
-    'shell runtime defaults must preserve apiBaseUrl prefixes and route default services through app/admin HTTP transport.',
+    'shell runtime defaults must normalize the host apiBaseUrl and route app/admin HTTP transport without duplicating the /api prefix.',
   );
 
   const ideContextSource = readFileSync(ideContextSourcePath, 'utf8');

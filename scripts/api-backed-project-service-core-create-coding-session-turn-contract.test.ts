@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import type { BirdCoderCoreWriteApiClient } from '@sdkwork/birdcoder-types';
+import type {
+  BirdCoderCoreReadApiClient,
+  BirdCoderCoreWriteApiClient,
+} from '@sdkwork/birdcoder-types';
 
 const dataKernelModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts',
@@ -151,9 +154,99 @@ try {
       throw new Error('not needed');
     },
   };
+  const coreReadClient: BirdCoderCoreReadApiClient = {
+    async getCodingSession(codingSessionId) {
+      return {
+        id: codingSessionId,
+        workspaceId: 'workspace-core-turn-contract',
+        projectId: 'project-core-turn-contract',
+        title: 'Turn Contract Session',
+        status: 'active',
+        hostMode: 'server',
+        engineId: 'codex',
+        modelId: 'gpt-5-codex',
+        createdAt: '2026-04-11T12:02:00.000Z',
+        updatedAt: '2026-04-11T12:03:01.000Z',
+        lastTurnAt: '2026-04-11T12:03:01.000Z',
+      };
+    },
+    async getDescriptor() {
+      throw new Error('not needed');
+    },
+    async getEngineCapabilities() {
+      throw new Error('not needed');
+    },
+    async getHealth() {
+      throw new Error('not needed');
+    },
+    async getOperation() {
+      throw new Error('not needed');
+    },
+    async getRuntime() {
+      throw new Error('not needed');
+    },
+    async listCodingSessionArtifacts() {
+      return [];
+    },
+    async listCodingSessionCheckpoints() {
+      return [];
+    },
+    async listCodingSessionEvents(codingSessionId) {
+      return [
+        {
+          id: 'runtime-turn-contract:coding-turn-server-authoritative:event:1',
+          codingSessionId,
+          turnId: 'coding-turn-server-authoritative',
+          runtimeId: 'runtime-turn-contract',
+          kind: 'turn.started',
+          sequence: 1,
+          payload: {
+            requestKind: 'chat',
+            inputSummary: 'Implement shared core turn facade.',
+            runtimeStatus: 'streaming',
+          },
+          createdAt: '2026-04-11T12:03:00.000Z',
+        },
+        {
+          id: 'runtime-turn-contract:coding-turn-server-authoritative:event:2',
+          codingSessionId,
+          turnId: 'coding-turn-server-authoritative',
+          runtimeId: 'runtime-turn-contract',
+          kind: 'message.completed',
+          sequence: 2,
+          payload: {
+            role: 'assistant',
+            content: 'Server runtime turn completed for shared core turn facade.',
+            runtimeStatus: 'completed',
+          },
+          createdAt: '2026-04-11T12:03:01.000Z',
+        },
+        {
+          id: 'runtime-turn-contract:coding-turn-server-authoritative:event:3',
+          codingSessionId,
+          turnId: 'coding-turn-server-authoritative',
+          runtimeId: 'runtime-turn-contract',
+          kind: 'turn.completed',
+          sequence: 3,
+          payload: {
+            finishReason: 'stop',
+            runtimeStatus: 'completed',
+          },
+          createdAt: '2026-04-11T12:03:01.000Z',
+        },
+      ];
+    },
+    async listEngines() {
+      throw new Error('not needed');
+    },
+    async listModels() {
+      throw new Error('not needed');
+    },
+  };
 
   const services = createDefaultBirdCoderIdeServices({
     appAdminClient,
+    coreReadClient,
     coreWriteClient,
     storageProvider: provider,
   });
@@ -203,8 +296,14 @@ try {
         role: 'user',
         turnId: 'coding-turn-server-authoritative',
       },
+      {
+        id: codingSession?.messages[1]?.id,
+        content: 'Server runtime turn completed for shared core turn facade.',
+        role: 'assistant',
+        turnId: 'coding-turn-server-authoritative',
+      },
     ],
-    'remote create-turn adoption must preserve the server-authoritative turn id inside refreshed project session state.',
+    'remote create-turn adoption must preserve the server-authoritative turn id and mirror completed assistant output back into refreshed project session state.',
   );
 } finally {
   if (originalWindowDescriptor) {

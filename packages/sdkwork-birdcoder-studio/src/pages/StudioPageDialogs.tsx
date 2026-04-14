@@ -47,9 +47,7 @@ interface StudioPageDialogsProps {
   onCopyPublicLink: () => void;
   onInviteCollaborator: () => void;
   showPublishModal: boolean;
-  publishProjectName: string;
   onClosePublish: () => void;
-  onConfirmPublish: () => void;
 }
 
 export function StudioPageDialogs({
@@ -79,9 +77,7 @@ export function StudioPageDialogs({
   onCopyPublicLink,
   onInviteCollaborator,
   showPublishModal,
-  publishProjectName,
   onClosePublish,
-  onConfirmPublish,
 }: StudioPageDialogsProps) {
   const { t } = useTranslation();
 
@@ -335,7 +331,7 @@ export function StudioPageDialogs({
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-[#18181b]/50">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Upload size={18} className="text-blue-400" />
-                {t('studio.publishToProduction')}
+                {t('studio.publishUnavailable')}
               </h3>
               <button
                 onClick={onClosePublish}
@@ -346,37 +342,18 @@ export function StudioPageDialogs({
             </div>
             <div className="p-6 space-y-6">
               <div className="space-y-4">
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                  <Globe size={20} className="text-blue-400 mt-0.5" />
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <Upload size={20} className="text-amber-300 mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-medium text-blue-100">{t('studio.deployToVercel')}</h4>
-                    <p className="text-xs text-blue-200/70 mt-1">{t('studio.deployDesc')}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-300">{t('studio.projectName')}</label>
-                  <input
-                    type="text"
-                    defaultValue={publishProjectName}
-                    className="w-full bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-300">{t('studio.environmentVariables')}</label>
-                  <div className="p-3 rounded-md bg-[#0e0e11] border border-white/10 text-xs text-gray-500 font-mono">
-                    {t('studio.noEnvVars')}
+                    <h4 className="text-sm font-medium text-amber-100">{t('studio.publishUnavailableTitle')}</h4>
+                    <p className="text-xs text-amber-200/80 mt-1">{t('studio.publishUnavailableDesc')}</p>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="p-4 border-t border-white/5 bg-[#18181b]/30 flex justify-end gap-3">
+            <div className="p-4 border-t border-white/5 bg-[#18181b]/30 flex justify-end">
               <Button variant="outline" onClick={onClosePublish}>
-                {t('studio.cancel')}
-              </Button>
-              <Button className="bg-blue-600 hover:bg-blue-500 text-white" onClick={onConfirmPublish}>
-                {t('studio.deployProject')}
+                {t('studio.done')}
               </Button>
             </div>
           </div>

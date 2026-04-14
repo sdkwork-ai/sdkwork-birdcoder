@@ -60,7 +60,7 @@ assert.deepEqual(cnHarmonySimulator, {
     appId: 'sdkwork-birdcoder-cn',
     appName: 'SDKWork BirdCoder',
     distributionId: 'cn',
-    apiBaseUrl: 'https://cn.sdkwork.local/birdcoder/api',
+    apiBaseUrl: 'https://cn.sdkwork.local/birdcoder',
   },
   target: {
     platform: 'app',

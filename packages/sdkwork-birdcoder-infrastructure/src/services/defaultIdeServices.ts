@@ -259,10 +259,9 @@ export function createDefaultBirdCoderIdeServices(
         queries,
       }),
     });
+  const projectServiceCoreReadClient = options.coreReadClient ?? resolveRuntimeCoreReadClient();
   const coreReadClient =
-    options.coreReadClient ??
-    resolveRuntimeCoreReadClient() ??
-    createUnavailableBirdCoderCoreReadClient();
+    projectServiceCoreReadClient ?? createUnavailableBirdCoderCoreReadClient();
   const coreWriteClient = options.coreWriteClient ?? resolveRuntimeCoreWriteClient();
   const exposedCoreWriteClient = coreWriteClient ?? createUnavailableBirdCoderCoreWriteClient();
   const providerBackedWorkspaceService = new ProviderBackedWorkspaceService({
@@ -300,6 +299,7 @@ export function createDefaultBirdCoderIdeServices(
     projectService: new ApiBackedProjectService({
       client: appAdminClient,
       codingSessionMirror: providerBackedProjectService,
+      coreReadClient: projectServiceCoreReadClient,
       coreWriteClient,
       writeService: providerBackedProjectService,
     }),

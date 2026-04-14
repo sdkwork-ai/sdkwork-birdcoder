@@ -14,7 +14,7 @@ export default defineLocaleModule('app/tools', {
     "url": "URL",
     "webRoot": "Web Root",
     "startDebugging": "Start Debugging",
-    "debuggerAttachedMock": "Debugger attached (mock)",
+    "debugConfigurationUnavailable": "Debug attach is unavailable until a runtime-backed debugger host is wired.",
     "runTask": "Run Task",
     "runningDevTask": "Running dev task...",
     "runningBuildTask": "Running build task...",

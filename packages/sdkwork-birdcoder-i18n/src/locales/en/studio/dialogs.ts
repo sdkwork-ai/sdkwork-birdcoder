@@ -9,15 +9,10 @@ export default defineLocaleModule('studio/dialogs', {
     "inviteCollaborators": "Invite Collaborators",
     "emailAddress": "Email address...",
     "invite": "Invite",
-    "publishToProduction": "Publish to Production",
-    "deployToVercel": "Deploy to Vercel",
-    "deployDesc": "Your project will be built and deployed globally on Vercel's Edge Network.",
-    "projectName": "Project Name",
-    "environmentVariables": "Environment Variables",
-    "noEnvVars": "No environment variables detected in .env",
     "done": "Done",
-    "deployProject": "Deploy Project",
-    "deploymentStarted": "Deployment started. This may take a few minutes.",
+    "publishUnavailable": "Publishing unavailable",
+    "publishUnavailableTitle": "Runtime-backed release flow required",
+    "publishUnavailableDesc": "This workspace cannot publish until a runtime-backed release flow is wired.",
     "linkCopied": "Link copied to clipboard",
     "invitationSent": "Invitation sent"
   }

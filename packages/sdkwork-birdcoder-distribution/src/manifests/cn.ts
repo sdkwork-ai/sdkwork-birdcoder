@@ -7,5 +7,5 @@ export const cnManifest: DistributionManifest = {
   bundleIdentifier: 'com.sdkwork.birdcoder.cn',
   updateSource: 'github',
   mirrorStrategy: 'regional',
-  apiBaseUrl: 'https://cn.sdkwork.local/birdcoder/api',
+  apiBaseUrl: 'https://cn.sdkwork.local/birdcoder',
 };

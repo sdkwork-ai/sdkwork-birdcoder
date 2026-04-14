@@ -96,10 +96,8 @@ export function useCodeRunEntryActions({
   };
 
   const handleSaveDebugConfiguration = () => {
-    addToast(t('app.debuggerAttachedMock'), 'success');
     setIsDebugConfigVisible(false);
-    globalEventBus.emit('openTerminal');
-    globalEventBus.emit('terminalRequest', { command: 'npm run dev', timestamp: Date.now() });
+    addToast(t('app.debugConfigurationUnavailable'), 'error');
   };
 
   return {

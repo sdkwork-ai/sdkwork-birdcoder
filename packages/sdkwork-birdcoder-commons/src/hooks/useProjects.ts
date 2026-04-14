@@ -38,7 +38,7 @@ type EditableCodingSessionMessage = Omit<
 >;
 
 export function useProjects(workspaceId?: string) {
-  const { projectService, chatEngine } = useIDEServices();
+  const { projectService } = useIDEServices();
   const [projects, setProjects] = useState<BirdCoderProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -267,120 +267,14 @@ export function useProjects(workspaceId?: string) {
     content: string,
     context?: any,
   ) => {
+    void context;
+
     try {
       const newMessage = await projectService.addCodingSessionMessage(projectId, codingSessionId, {
         role: 'user',
         content,
       });
       await fetchProjects();
-
-      const project = projects.find((candidate) => candidate.id === projectId);
-      const codingSession = project?.codingSessions.find(
-        (candidate) => candidate.id === codingSessionId,
-      );
-
-      if (codingSession) {
-        const messages = codingSession.messages.map((message) => ({
-          id: message.id,
-          role: message.role as 'user' | 'assistant' | 'system' | 'tool',
-          content: message.content,
-          timestamp: Date.now(),
-        }));
-
-        messages.push({
-          id: newMessage.id,
-          role: 'user',
-          content,
-          timestamp: Date.now(),
-        });
-
-        const assistantMessage = await projectService.addCodingSessionMessage(
-          projectId,
-          codingSessionId,
-          {
-            role: 'assistant',
-            content: '',
-          },
-        );
-        await fetchProjects();
-
-        try {
-          const stream = chatEngine.sendMessageStream(messages, { context });
-          let fullContent = '';
-          let fileChanges: any[] = [];
-          let commands: any[] = [];
-          let toolCalls: any[] = [];
-
-          for await (const chunk of stream) {
-            const delta = chunk.choices?.[0]?.delta;
-            if (!delta) {
-              continue;
-            }
-
-            let updated = false;
-
-            if (delta.content) {
-              fullContent += delta.content;
-              updated = true;
-            }
-
-            if (delta.tool_calls) {
-              for (const toolCall of delta.tool_calls) {
-                toolCalls.push(toolCall);
-
-                if (toolCall.function.name === 'edit_file') {
-                  try {
-                    const args = JSON.parse(toolCall.function.arguments);
-                    fileChanges.push({
-                      path: args.path,
-                      content: args.content,
-                      additions: args.content.split('\n').length,
-                      deletions: 0,
-                    });
-                    updated = true;
-                  } catch {}
-                } else if (toolCall.function.name === 'run_command') {
-                  try {
-                    const args = JSON.parse(toolCall.function.arguments);
-                    commands.push({
-                      command: args.command,
-                      status: 'success',
-                      output: 'Command executed successfully.',
-                    });
-                    updated = true;
-                  } catch {}
-                }
-              }
-            }
-
-            if (updated) {
-              await projectService.editCodingSessionMessage(
-                projectId,
-                codingSessionId,
-                assistantMessage.id,
-                {
-                  content: fullContent,
-                  tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
-                  fileChanges: fileChanges.length > 0 ? fileChanges : undefined,
-                  commands: commands.length > 0 ? commands : undefined,
-                },
-              );
-              await fetchProjects();
-            }
-          }
-        } catch (streamError) {
-          console.error('Streaming error:', streamError);
-          await projectService.editCodingSessionMessage(
-            projectId,
-            codingSessionId,
-            assistantMessage.id,
-            {
-              content: 'Error generating response.',
-            },
-          );
-          await fetchProjects();
-        }
-      }
 
       return newMessage;
     } catch (err: any) {

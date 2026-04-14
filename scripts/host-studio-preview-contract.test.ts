@@ -49,7 +49,7 @@ assert.deepEqual(cnHarmonyPreview, {
     appId: 'sdkwork-birdcoder-cn',
     appName: 'SDKWork BirdCoder',
     distributionId: 'cn',
-    apiBaseUrl: 'https://cn.sdkwork.local/birdcoder/api',
+    apiBaseUrl: 'https://cn.sdkwork.local/birdcoder',
   },
   target: {
     url: 'http://127.0.0.1:4173/app',

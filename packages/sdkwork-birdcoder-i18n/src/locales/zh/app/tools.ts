@@ -14,7 +14,7 @@ export default defineLocaleModule('app/tools', {
     "url": "网址",
     "webRoot": "Web 根目录",
     "startDebugging": "开始调试",
-    "debuggerAttachedMock": "调试器已附加（模拟）",
+    "debugConfigurationUnavailable": "在接入 runtime-backed 调试主机之前，暂不支持附加调试。",
     "runTask": "运行任务",
     "runningDevTask": "正在运行开发任务...",
     "runningBuildTask": "正在运行构建任务...",

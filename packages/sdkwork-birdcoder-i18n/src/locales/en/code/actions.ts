@@ -19,7 +19,6 @@ export default defineLocaleModule('code/actions', {
     "restoredFiles": "Restored files to previous state",
     "noResultsFound": "No results found",
     "runningConfiguration": "Running configuration...",
-    "debuggerAttachedMock": "Debugger attached (mock)",
     "runningDevTask": "Running dev task...",
     "runningBuildTask": "Running build task...",
     "runningTestTask": "Running test task...",

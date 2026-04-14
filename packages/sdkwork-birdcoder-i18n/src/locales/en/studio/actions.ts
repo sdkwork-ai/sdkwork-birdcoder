@@ -35,7 +35,7 @@ export default defineLocaleModule('studio/actions', {
     "runningBuildTask": "Running build task...",
     "runningTestTask": "Running test task...",
     "configurationSaved": "Configuration saved",
-    "debugConfigurationSaved": "Debug configuration saved",
+    "debugConfigurationUnavailable": "Debug attach is unavailable until a runtime-backed debugger host is wired.",
     "appliedChanges": "Applied changes to {{path}}"
   }
 });

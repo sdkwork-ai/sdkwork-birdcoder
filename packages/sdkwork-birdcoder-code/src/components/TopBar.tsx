@@ -4,6 +4,12 @@ import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcode
 import { Button } from '@sdkwork/birdcoder-ui';
 import { useToast } from '@sdkwork/birdcoder-commons';
 import { useTranslation } from 'react-i18next';
+import {
+  executeGitCommand,
+  listGitBranches,
+  normalizeGitBranchName,
+  requireDesktopGitRepositoryPath,
+} from './gitRuntime';
 
 interface TopBarProps {
   currentProject: BirdCoderProject | undefined;
@@ -31,26 +37,17 @@ export function TopBar({
 
   useEffect(() => {
     const fetchBranches = async () => {
-      if (window.__TAURI__ && currentProject?.path) {
-        try {
-          const { Command } = await import('@tauri-apps/plugin-shell');
-          const output = await Command.create('sh', ['-c', `cd "${currentProject.path}" && git branch`]).execute();
-          if (output.code === 0) {
-            const branchList = output.stdout
-              .split('\n')
-              .map(b => b.trim())
-              .filter(b => b.length > 0);
-            
-            const current = branchList.find(b => b.startsWith('*'));
-            if (current) {
-              setSelectedBranch(current.replace('* ', ''));
-            }
-            
-            setBranches(branchList.map(b => b.replace('* ', '')));
-          }
-        } catch (err) {
-          console.error('Failed to fetch branches', err);
+      try {
+        const repositoryPath = requireDesktopGitRepositoryPath(currentProject?.path);
+        const branchState = await listGitBranches(repositoryPath);
+        if (branchState.currentBranch) {
+          setSelectedBranch(branchState.currentBranch);
         }
+        if (branchState.branches.length > 0) {
+          setBranches(branchState.branches);
+        }
+      } catch (err) {
+        console.error('Failed to fetch branches', err);
       }
     };
     
@@ -74,17 +71,13 @@ export function TopBar({
   const handleCommit = async () => {
     if (!commitMessage.trim()) return;
     
-    if (window.__TAURI__ && currentProject?.path) {
-      try {
-        const { Command } = await import('@tauri-apps/plugin-shell');
-        // Add all changes and commit
-        await Command.create('sh', ['-c', `cd "${currentProject.path}" && git add . && git commit -m "${commitMessage.replace(/"/g, '\\"')}"`]).execute();
-        addToast(t('code.changesCommitted'), 'success');
-      } catch (err) {
-        addToast(t('code.failedToCommit', { error: String(err) }), 'error');
-      }
-    } else {
-      addToast(t('code.changesCommittedMock'), 'success');
+    try {
+      const repositoryPath = requireDesktopGitRepositoryPath(currentProject?.path);
+      await executeGitCommand(repositoryPath, ['add', '--all']);
+      await executeGitCommand(repositoryPath, ['commit', '-m', commitMessage.trim()]);
+      addToast(t('code.changesCommitted'), 'success');
+    } catch (err) {
+      addToast(t('code.failedToCommit', { error: String(err) }), 'error');
     }
     
     setShowCommitModal(false);
@@ -92,17 +85,14 @@ export function TopBar({
   };
 
   const handlePush = async () => {
-    if (window.__TAURI__ && currentProject?.path) {
-      try {
-        const { Command } = await import('@tauri-apps/plugin-shell');
-        addToast(t('code.pushingToRemote'), 'info');
-        await Command.create('sh', ['-c', `cd "${currentProject.path}" && git push origin ${selectedBranch}`]).execute();
-        addToast(t('code.pushedToRemote'), 'success');
-      } catch (err) {
-        addToast(t('code.failedToPush', { error: String(err) }), 'error');
-      }
-    } else {
-      addToast(t('code.pushedToRemoteMock'), 'success');
+    try {
+      const repositoryPath = requireDesktopGitRepositoryPath(currentProject?.path);
+      const branchName = normalizeGitBranchName(selectedBranch);
+      addToast(t('code.pushingToRemote'), 'info');
+      await executeGitCommand(repositoryPath, ['push', 'origin', branchName]);
+      addToast(t('code.pushedToRemote'), 'success');
+    } catch (err) {
+      addToast(t('code.failedToPush', { error: String(err) }), 'error');
     }
     setShowPushModal(false);
   };
@@ -110,18 +100,17 @@ export function TopBar({
   const handleCreateBranch = async () => {
     if (!newBranchName.trim()) return;
     
-    if (window.__TAURI__ && currentProject?.path) {
-      try {
-        const { Command } = await import('@tauri-apps/plugin-shell');
-        await Command.create('sh', ['-c', `cd "${currentProject.path}" && git checkout -b "${newBranchName}"`]).execute();
-        setSelectedBranch(newBranchName);
-        addToast(t('code.createdAndSwitchedBranch', { branch: newBranchName }), 'success');
-      } catch (err) {
-        addToast(t('code.failedToCreateBranch', { error: String(err) }), 'error');
-      }
-    } else {
-      setSelectedBranch(newBranchName);
-      addToast(t('code.createdAndSwitchedBranchMock', { branch: newBranchName }), 'success');
+    try {
+      const repositoryPath = requireDesktopGitRepositoryPath(currentProject?.path);
+      const branchName = normalizeGitBranchName(newBranchName);
+      await executeGitCommand(repositoryPath, ['switch', '-c', branchName]);
+      setSelectedBranch(branchName);
+      setBranches((previousBranches) =>
+        previousBranches.includes(branchName) ? previousBranches : [branchName, ...previousBranches],
+      );
+      addToast(t('code.createdAndSwitchedBranch', { branch: branchName }), 'success');
+    } catch (err) {
+      addToast(t('code.failedToCreateBranch', { error: String(err) }), 'error');
     }
     
     setShowBranchModal(false);
@@ -129,18 +118,14 @@ export function TopBar({
   };
 
   const handleSwitchBranch = async (branch: string) => {
-    if (window.__TAURI__ && currentProject?.path) {
-      try {
-        const { Command } = await import('@tauri-apps/plugin-shell');
-        await Command.create('sh', ['-c', `cd "${currentProject.path}" && git checkout "${branch}"`]).execute();
-        setSelectedBranch(branch);
-        addToast(t('code.switchedToBranch', { branch }), 'success');
-      } catch (err) {
-        addToast(t('code.failedToSwitchBranch', { error: String(err) }), 'error');
-      }
-    } else {
-      setSelectedBranch(branch);
-      addToast(t('code.switchedToBranchMock', { branch }), 'success');
+    try {
+      const repositoryPath = requireDesktopGitRepositoryPath(currentProject?.path);
+      const branchName = normalizeGitBranchName(branch);
+      await executeGitCommand(repositoryPath, ['switch', branchName]);
+      setSelectedBranch(branchName);
+      addToast(t('code.switchedToBranch', { branch: branchName }), 'success');
+    } catch (err) {
+      addToast(t('code.failedToSwitchBranch', { error: String(err) }), 'error');
     }
     setShowBranchMenu(false);
   };
@@ -370,7 +355,7 @@ export function TopBar({
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-[#121214]">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Upload size={18} className="text-blue-400" />
-                {t('app.publishToProduction')}
+                {t('app.publishUnavailable')}
               </h3>
               <button 
                 onClick={() => setShowPublishModal(false)}
@@ -381,42 +366,17 @@ export function TopBar({
             </div>
             <div className="p-6 space-y-6">
               <div className="space-y-4">
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                  <Globe size={20} className="text-blue-400 mt-0.5" />
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <Upload size={20} className="text-amber-300 mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-medium text-blue-100">{t('app.deployToVercel')}</h4>
-                    <p className="text-xs text-blue-200/70 mt-1">{t('app.deployToVercelDesc')}</p>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-300">{t('app.projectName')}</label>
-                  <input 
-                    type="text" 
-                    defaultValue={currentProject?.name.toLowerCase().replace(/\s+/g, '-') || 'my-project'}
-                    className="w-full bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-300">{t('app.environmentVariables')}</label>
-                  <div className="p-3 rounded-md bg-[#0e0e11] border border-white/10 text-xs text-gray-500 font-mono">
-                    {t('app.noEnvVars')}
+                    <h4 className="text-sm font-medium text-amber-100">{t('app.publishUnavailableTitle')}</h4>
+                    <p className="text-xs text-amber-200/80 mt-1">{t('app.publishUnavailableDesc')}</p>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="p-4 border-t border-white/5 bg-[#121214] flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setShowPublishModal(false)}>{t('app.cancel')}</Button>
-              <Button 
-                className="bg-blue-600 hover:bg-blue-500 text-white"
-                onClick={() => {
-                  setShowPublishModal(false);
-                  addToast(t('code.deploymentStarted'), 'info');
-                }}
-              >
-                {t('app.deployProject')}
-              </Button>
+            <div className="p-4 border-t border-white/5 bg-[#121214] flex justify-end">
+              <Button variant="outline" onClick={() => setShowPublishModal(false)}>{t('app.done')}</Button>
             </div>
           </div>
         </div>

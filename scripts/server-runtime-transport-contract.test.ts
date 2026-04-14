@@ -174,18 +174,18 @@ try {
     [
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/api/api/app/v1/workspaces',
+        url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/workspaces',
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/api/api/app/v1/projects?workspaceId=workspace-server-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/projects?workspaceId=workspace-server-runtime-contract',
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/api/api/app/v1/teams?workspaceId=workspace-server-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/teams?workspaceId=workspace-server-runtime-contract',
       },
     ],
-    'server runtime binding must route default workspace/project/team reads through the same host-derived app-surface HTTP transport contract.',
+    'server runtime binding must normalize the distribution host base URL and append each /api/app/v1 route exactly once.',
   );
 
   resetDefaultBirdCoderIdeServicesRuntimeForTests();

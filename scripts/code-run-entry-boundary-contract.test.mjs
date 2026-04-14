@@ -79,5 +79,15 @@ for (const handlerName of [
     `useCodeRunEntryActions must define ${handlerName}.`,
   );
 }
+assert.doesNotMatch(
+  hookSource,
+  /debuggerAttachedMock/,
+  'useCodeRunEntryActions must not report a fake debugger attachment while the debug runtime is still unavailable.',
+);
+assert.doesNotMatch(
+  hookSource,
+  /terminalRequest', \{ command: 'npm run dev', timestamp: Date\.now\(\) \}/,
+  'useCodeRunEntryActions must not synthesize a fake debug session by blindly launching npm run dev in the terminal.',
+);
 
 console.log('code run-entry boundary contract passed.');

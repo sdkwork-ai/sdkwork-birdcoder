@@ -9,15 +9,10 @@ export default defineLocaleModule('studio/dialogs', {
     "inviteCollaborators": "邀请协作者",
     "emailAddress": "邮箱地址...",
     "invite": "邀请",
-    "publishToProduction": "发布到生产环境",
-    "deployToVercel": "部署到 Vercel",
-    "deployDesc": "您的项目将被构建并部署到 Vercel 的全球边缘网络。",
-    "projectName": "项目名称",
-    "environmentVariables": "环境变量",
-    "noEnvVars": "未在 .env 中检测到环境变量",
     "done": "完成",
-    "deployProject": "部署项目",
-    "deploymentStarted": "部署已开始。这可能需要几分钟。",
+    "publishUnavailable": "发布功能暂不可用",
+    "publishUnavailableTitle": "需要接入 runtime-backed 发布流程",
+    "publishUnavailableDesc": "当前工作区尚未接通真实发布链路，在接入 runtime-backed 发布流程之前无法从界面执行发布。",
     "linkCopied": "链接已复制到剪贴板",
     "invitationSent": "邀请已发送"
   }

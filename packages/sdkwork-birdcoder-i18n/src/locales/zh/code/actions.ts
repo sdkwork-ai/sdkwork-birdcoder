@@ -19,7 +19,6 @@ export default defineLocaleModule('code/actions', {
     "restoredFiles": "已将文件恢复到以前的状态",
     "noResultsFound": "未找到结果",
     "runningConfiguration": "正在运行配置...",
-    "debuggerAttachedMock": "调试器已附加 (模拟)",
     "runningDevTask": "正在运行开发任务...",
     "runningBuildTask": "正在运行构建任务...",
     "runningTestTask": "正在运行测试任务...",

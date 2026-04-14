@@ -242,8 +242,7 @@ const getPrefixColor = (profileId: string) => {
 
 export function TerminalPage({ terminalRequest, workspaceId, projectId }: TerminalPageProps) {
   const { t } = useTranslation();
-  const { createFile, createFolder, deleteFile, deleteFolder, renameNode, refreshFiles } =
-    useFileSystem(projectId ?? undefined);
+  const { refreshFiles } = useFileSystem(projectId ?? undefined);
   const { preferences, updatePreferences, isHydrated: isWorkbenchHydrated } = useWorkbenchPreferences();
   const preferredProfile = getTerminalProfile(preferences.terminalProfileId);
   const terminalLayoutKey = buildTerminalLayoutStorageKey(projectId);
@@ -894,6 +893,64 @@ export function TerminalPage({ terminalRequest, workspaceId, projectId }: Termin
       return;
     }
 
+    const shouldDelegateBrowserCommand =
+      cmd.startsWith('touch ') ||
+      cmd.startsWith('mkdir ') ||
+      cmd.startsWith('rm ') ||
+      cmd.startsWith('mv ') ||
+      cmd.startsWith('cp ');
+
+    if (shouldDelegateBrowserCommand) {
+      setTabs(prev =>
+        prev.map(tab =>
+          tab.id === tabId ? { ...tab, status: 'running' } : tab,
+        ),
+      );
+
+      try {
+        const output = await runTerminalHostSessionCommand({
+          sessionId: tabId,
+          profileId: activeTab.profileId,
+          title: activeTab.title,
+          cwd: activeTab.cwd,
+          command: cmd,
+        });
+
+        setTabs(prev => prev.map(tab => {
+          if (tab.id === tabId) {
+            const newHistory = [...tab.history];
+            output.lines.forEach((line) => {
+              newHistory.push(line.text);
+            });
+            return {
+              ...tab,
+              cwd: output.state.cwd,
+              status: output.state.status,
+              lastExitCode: output.state.lastExitCode,
+              history: newHistory,
+            };
+          }
+          return tab;
+        }));
+      } catch (err) {
+        setTabs(prev => prev.map(tab => {
+          if (tab.id === tabId) {
+            return {
+              ...tab,
+              status: 'error',
+              lastExitCode: -1,
+              history: [
+                ...tab.history,
+                t('terminal.error', { error: String(err) }),
+              ],
+            };
+          }
+          return tab;
+        }));
+      }
+      return;
+    }
+
     setTabs(prev => prev.map(tab => {
       if (tab.id !== tabId) {
         return tab;
@@ -929,31 +986,6 @@ export function TerminalPage({ terminalRequest, workspaceId, projectId }: Termin
         newHistory.push(tab.profileId === 'ubuntu' || tab.profileId === 'bash' ? 'developer' : 'desktop-abc1234\\developer');
       } else if (cmd.startsWith('echo ')) {
         newHistory.push(cmd.substring(5));
-      } else if (cmd.startsWith('touch ')) {
-        const target = cmd.substring(6).trim();
-        if (target) {
-          void createFile(target);
-        }
-      } else if (cmd.startsWith('mkdir ')) {
-        const target = cmd.substring(6).trim();
-        if (target) {
-          void createFolder(target);
-        }
-      } else if (cmd.startsWith('rm ')) {
-        const target = cmd.substring(3).trim();
-        if (target) {
-          if (target.includes('-rf ') || target.includes('-r ')) {
-            const actualTarget = target.replace('-rf ', '').replace('-r ', '').trim();
-            void deleteFolder(actualTarget);
-          } else {
-            void deleteFile(target);
-          }
-        }
-      } else if (cmd.startsWith('mv ')) {
-        const parts = cmd.substring(3).trim().split(' ');
-        if (parts.length === 2) {
-          void renameNode(parts[0], parts[1]);
-        }
       } else if (cmd === 'date') {
         newHistory.push(new Date().toString());
       } else if (tab.profileId === 'node') {
@@ -971,13 +1003,13 @@ export function TerminalPage({ terminalRequest, workspaceId, projectId }: Termin
       } else {
         newHistory.push(t('terminal.commandNotFound', { command: cmd }));
       }
-      return {
-        ...tab,
-        history: newHistory,
-        status: 'idle',
-        lastExitCode: tab.profileId === 'node' || cmd === 'ls' || cmd === 'dir' || cmd === 'pwd' || cmd === 'whoami' || cmd.startsWith('echo ') || cmd.startsWith('touch ') || cmd.startsWith('mkdir ') || cmd.startsWith('rm ') || cmd.startsWith('mv ') || cmd === 'date'
-          ? 0
-          : 127,
+        return {
+          ...tab,
+          history: newHistory,
+          status: 'idle',
+          lastExitCode: tab.profileId === 'node' || cmd === 'ls' || cmd === 'dir' || cmd === 'pwd' || cmd === 'whoami' || cmd.startsWith('echo ') || cmd === 'date'
+            ? 0
+            : 127,
       };
     }));
   };

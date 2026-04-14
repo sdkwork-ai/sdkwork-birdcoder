@@ -1816,6 +1816,10 @@ fn next_event_sequence(snapshot: &ProjectionSnapshot) -> usize {
         .unwrap_or(0)
 }
 
+fn build_completed_turn_assistant_content(request_kind: &str, input_summary: &str) -> String {
+    format!("Completed {request_kind} request: {input_summary}")
+}
+
 fn derive_runtime_status(snapshot: &ProjectionSnapshot, session: &CodingSessionPayload) -> String {
     snapshot
         .events
@@ -2230,10 +2234,15 @@ fn persist_created_coding_session_to_provider(
 fn persist_created_coding_session_turn_to_provider(
     connection: &mut Connection,
     turn: &CodingSessionTurnPayload,
-    event: &CodingSessionEventPayload,
+    events: &[CodingSessionEventPayload],
     operation: &OperationPayload,
 ) -> Result<(), String> {
     let updated_at = turn
+        .completed_at
+        .clone()
+        .or_else(|| turn.started_at.clone())
+        .unwrap_or_else(current_unix_millis_string);
+    let turn_created_at = turn
         .started_at
         .clone()
         .unwrap_or_else(current_unix_millis_string);
@@ -2243,13 +2252,10 @@ fn persist_created_coding_session_turn_to_provider(
             operation.operation_id
         )
     })?;
-    let payload_json = serde_json::to_string(&event.payload)
-        .map_err(|error| format!("serialize created event {} payload failed: {error}", event.id))?;
     let runtime_id = turn
         .runtime_id
         .clone()
         .ok_or("coding session turn runtimeId is required.")?;
-    let started_at = turn.started_at.clone();
     let transaction = connection
         .transaction()
         .map_err(|error| format!("open create coding_session turn transaction failed: {error}"))?;
@@ -2283,7 +2289,7 @@ fn persist_created_coding_session_turn_to_provider(
             SET updated_at = ?2, status = ?3
             WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
             "#,
-            params![runtime_id, updated_at, "streaming", turn.coding_session_id],
+            params![runtime_id, updated_at, "completed", turn.coding_session_id],
         )
         .map_err(|error| {
             format!(
@@ -2308,7 +2314,7 @@ fn persist_created_coding_session_turn_to_provider(
             "#,
             params![
                 turn.id,
-                updated_at,
+                turn_created_at,
                 updated_at,
                 0_i64,
                 0_i64,
@@ -2317,35 +2323,42 @@ fn persist_created_coding_session_turn_to_provider(
                 turn.request_kind,
                 turn.status,
                 turn.input_summary,
-                started_at,
+                turn.started_at,
                 turn.completed_at,
             ],
         )
         .map_err(|error| format!("insert created coding_session turn {} failed: {error}", turn.id))?;
 
-    transaction
-        .execute(
-            r#"
-            INSERT INTO coding_session_events (
-                id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
+    for event in events {
+        let payload_json = serde_json::to_string(&event.payload).map_err(|error| {
+            format!("serialize created event {} payload failed: {error}", event.id)
+        })?;
+        transaction
+            .execute(
+                r#"
+                INSERT INTO coding_session_events (
+                    id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                "#,
+                params![
+                    event.id,
+                    event.created_at,
+                    event.created_at,
+                    0_i64,
+                    0_i64,
+                    event.coding_session_id,
+                    event.turn_id,
+                    event.runtime_id,
+                    event.kind,
+                    event.sequence as i64,
+                    payload_json,
+                ],
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
-            "#,
-            params![
-                event.id,
-                event.created_at,
-                event.created_at,
-                0_i64,
-                0_i64,
-                event.coding_session_id,
-                event.turn_id,
-                event.runtime_id,
-                event.kind,
-                event.sequence as i64,
-                payload_json,
-            ],
-        )
-        .map_err(|error| format!("insert created coding_session event {} failed: {error}", event.id))?;
+            .map_err(|error| {
+                format!("insert created coding_session event {} failed: {error}", event.id)
+            })?;
+    }
 
     transaction
         .execute(
@@ -3788,42 +3801,96 @@ impl ProjectionAuthorityState {
         let operation_id = format!("{turn_id}:operation");
         let request_kind = input.request_kind;
         let input_summary = input.input_summary;
+        let completed_at = current_unix_millis_string();
+        let assistant_content =
+            build_completed_turn_assistant_content(&request_kind, &input_summary);
+        let base_sequence = next_event_sequence(&snapshot);
         let turn = CodingSessionTurnPayload {
             id: turn_id.clone(),
             coding_session_id: coding_session_id.to_owned(),
             runtime_id: Some(runtime_id.clone()),
             request_kind: request_kind.clone(),
-            status: "running".to_owned(),
+            status: "completed".to_owned(),
             input_summary: input_summary.clone(),
             started_at: Some(started_at.clone()),
-            completed_at: None,
+            completed_at: Some(completed_at.clone()),
         };
         let operation = OperationPayload {
             operation_id: operation_id.clone(),
-            status: "running".to_owned(),
+            status: "succeeded".to_owned(),
             artifact_refs: Vec::new(),
             stream_url: format!("/api/core/v1/coding-sessions/{coding_session_id}/events"),
             stream_kind: "sse".to_owned(),
         };
-        let mut event_payload = BTreeMap::new();
-        event_payload.insert("engineId".to_owned(), session.engine_id);
-        event_payload.insert("requestKind".to_owned(), request_kind);
-        event_payload.insert("inputSummary".to_owned(), input_summary);
-        event_payload.insert("operationId".to_owned(), operation_id);
-        event_payload.insert("runtimeStatus".to_owned(), "streaming".to_owned());
-        let event = CodingSessionEventPayload {
-            id: format!(
-                "{runtime_id}:{turn_id}:event:{}",
-                next_event_sequence(&snapshot)
-            ),
-            coding_session_id: coding_session_id.to_owned(),
-            turn_id: Some(turn_id),
-            runtime_id: Some(runtime_id),
-            kind: "turn.started".to_owned(),
-            sequence: next_event_sequence(&snapshot),
-            payload: event_payload,
-            created_at: started_at.clone(),
-        };
+        let mut started_payload = BTreeMap::new();
+        started_payload.insert("engineId".to_owned(), session.engine_id);
+        started_payload.insert("requestKind".to_owned(), request_kind.clone());
+        started_payload.insert("inputSummary".to_owned(), input_summary.clone());
+        started_payload.insert("operationId".to_owned(), operation_id.clone());
+        started_payload.insert("runtimeStatus".to_owned(), "streaming".to_owned());
+
+        let mut message_payload = BTreeMap::new();
+        message_payload.insert("role".to_owned(), "assistant".to_owned());
+        message_payload.insert("content".to_owned(), assistant_content.clone());
+        message_payload.insert("operationId".to_owned(), operation_id.clone());
+        message_payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
+
+        let mut operation_payload = BTreeMap::new();
+        operation_payload.insert("operationId".to_owned(), operation_id.clone());
+        operation_payload.insert("status".to_owned(), "succeeded".to_owned());
+        operation_payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
+
+        let mut completed_payload = BTreeMap::new();
+        completed_payload.insert("operationId".to_owned(), operation_id.clone());
+        completed_payload.insert("finishReason".to_owned(), "stop".to_owned());
+        completed_payload.insert(
+            "contentLength".to_owned(),
+            assistant_content.len().to_string(),
+        );
+        completed_payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
+
+        let events = vec![
+            CodingSessionEventPayload {
+                id: format!("{runtime_id}:{turn_id}:event:{base_sequence}"),
+                coding_session_id: coding_session_id.to_owned(),
+                turn_id: Some(turn_id.clone()),
+                runtime_id: Some(runtime_id.clone()),
+                kind: "turn.started".to_owned(),
+                sequence: base_sequence,
+                payload: started_payload,
+                created_at: started_at.clone(),
+            },
+            CodingSessionEventPayload {
+                id: format!("{runtime_id}:{turn_id}:event:{}", base_sequence + 1),
+                coding_session_id: coding_session_id.to_owned(),
+                turn_id: Some(turn_id.clone()),
+                runtime_id: Some(runtime_id.clone()),
+                kind: "message.completed".to_owned(),
+                sequence: base_sequence + 1,
+                payload: message_payload,
+                created_at: completed_at.clone(),
+            },
+            CodingSessionEventPayload {
+                id: format!("{runtime_id}:{turn_id}:event:{}", base_sequence + 2),
+                coding_session_id: coding_session_id.to_owned(),
+                turn_id: Some(turn_id.clone()),
+                runtime_id: Some(runtime_id.clone()),
+                kind: "operation.updated".to_owned(),
+                sequence: base_sequence + 2,
+                payload: operation_payload,
+                created_at: completed_at.clone(),
+            },
+            CodingSessionEventPayload {
+                id: format!("{runtime_id}:{turn_id}:event:{}", base_sequence + 3),
+                coding_session_id: coding_session_id.to_owned(),
+                turn_id: Some(turn_id.clone()),
+                runtime_id: Some(runtime_id.clone()),
+                kind: "turn.completed".to_owned(),
+                sequence: base_sequence + 3,
+                payload: completed_payload,
+                created_at: completed_at.clone(),
+            },
+        ];
 
         if let Some(sqlite_file) = self.sqlite_file.as_deref() {
             let mut connection = Connection::open(sqlite_file).map_err(|error| {
@@ -3833,7 +3900,12 @@ impl ProjectionAuthorityState {
                 )
             })?;
             ensure_sqlite_provider_authority(&mut connection, sqlite_file)?;
-            persist_created_coding_session_turn_to_provider(&mut connection, &turn, &event, &operation)?;
+            persist_created_coding_session_turn_to_provider(
+                &mut connection,
+                &turn,
+                &events,
+                &operation,
+            )?;
             let reloaded_state = ProjectionReadState::from_sqlite_provider_connection(&connection)?;
             *self
                 .state
@@ -3846,11 +3918,11 @@ impl ProjectionAuthorityState {
                 .get_mut(coding_session_id)
                 .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
             if let Some(session) = snapshot.session.as_mut() {
-                session.updated_at = started_at.clone();
-                session.last_turn_at = Some(started_at.clone());
+                session.updated_at = completed_at.clone();
+                session.last_turn_at = Some(completed_at.clone());
             }
             snapshot.turns.push(turn.clone());
-            snapshot.events.push(event);
+            snapshot.events.extend(events);
             snapshot.operations.push(operation);
         }
 
@@ -6457,13 +6529,13 @@ mod tests {
         assert_eq!(create_json["data"]["codingSessionId"], "demo-coding-session");
         assert_eq!(create_json["data"]["runtimeId"], "demo-runtime");
         assert_eq!(create_json["data"]["requestKind"], "chat");
-        assert_eq!(create_json["data"]["status"], "running");
+        assert_eq!(create_json["data"]["status"], "completed");
         assert_eq!(
             create_json["data"]["inputSummary"],
             "Implement terminal command palette"
         );
         assert!(create_json["data"]["startedAt"].is_string());
-        assert_eq!(create_json["data"]["completedAt"], serde_json::Value::Null);
+        assert!(create_json["data"]["completedAt"].is_string());
         assert_eq!(create_json["meta"]["version"], CODING_SERVER_API_VERSION);
 
         let session_response = app
@@ -6485,7 +6557,7 @@ mod tests {
             serde_json::from_slice(&session_body).expect("parse get coding session response");
         assert_eq!(
             session_json["data"]["lastTurnAt"],
-            create_json["data"]["startedAt"]
+            create_json["data"]["completedAt"]
         );
 
         let operation_response = app
@@ -6508,7 +6580,7 @@ mod tests {
             serde_json::from_slice(&operation_body).expect("parse get operation response");
 
         assert_eq!(operation_json["data"]["operationId"], created_operation_id);
-        assert_eq!(operation_json["data"]["status"], "running");
+        assert_eq!(operation_json["data"]["status"], "succeeded");
         assert_eq!(
             operation_json["data"]["streamUrl"],
             "/api/core/v1/coding-sessions/demo-coding-session/events"
@@ -6535,22 +6607,30 @@ mod tests {
         let events_json: serde_json::Value =
             serde_json::from_slice(&events_body).expect("parse get coding session events response");
 
-        let created_event = events_json["items"]
+        let created_events = events_json["items"]
             .as_array()
             .expect("events items")
-            .last()
-            .expect("latest created event");
-        assert_eq!(created_event["turnId"], created_turn_id);
-        assert_eq!(created_event["runtimeId"], "demo-runtime");
-        assert_eq!(created_event["kind"], "turn.started");
+            .iter()
+            .filter(|event| event["turnId"] == created_turn_id)
+            .collect::<Vec<_>>();
+        assert_eq!(created_events.len(), 4);
+        assert_eq!(created_events[0]["turnId"], created_turn_id);
+        assert_eq!(created_events[0]["runtimeId"], "demo-runtime");
+        assert_eq!(created_events[0]["kind"], "turn.started");
         assert_eq!(
-            created_event["payload"]["requestKind"],
+            created_events[0]["payload"]["requestKind"],
             serde_json::json!("chat")
         );
         assert_eq!(
-            created_event["payload"]["inputSummary"],
+            created_events[0]["payload"]["inputSummary"],
             serde_json::json!("Implement terminal command palette")
         );
+        assert_eq!(created_events[1]["kind"], "message.completed");
+        assert!(created_events[1]["payload"]["content"].is_string());
+        assert_eq!(created_events[2]["kind"], "operation.updated");
+        assert_eq!(created_events[2]["payload"]["status"], "succeeded");
+        assert_eq!(created_events[3]["kind"], "turn.completed");
+        assert_eq!(created_events[3]["payload"]["finishReason"], "stop");
     }
 
     #[tokio::test]
@@ -6661,9 +6741,12 @@ mod tests {
         assert_eq!(persisted_turn.0, "provider-session");
         assert_eq!(persisted_turn.1, "provider-runtime");
         assert_eq!(persisted_turn.2, "review");
-        assert_eq!(persisted_turn.3, "running");
+        assert_eq!(persisted_turn.3, "completed");
         assert_eq!(persisted_turn.4, "Review unified app/admin facade parity");
-        assert_eq!(persisted_turn.5, None);
+        assert_eq!(
+            persisted_turn.5.as_deref(),
+            create_json["data"]["completedAt"].as_str()
+        );
 
         let persisted_operation: (String, String, String, String) = connection
             .query_row(
@@ -6678,7 +6761,7 @@ mod tests {
             .expect("read persisted coding session operation row");
         assert_eq!(persisted_operation.0, "provider-session");
         assert_eq!(persisted_operation.1, created_turn_id);
-        assert_eq!(persisted_operation.2, "running");
+        assert_eq!(persisted_operation.2, "succeeded");
         assert_eq!(
             persisted_operation.3,
             "/api/core/v1/coding-sessions/provider-session/events"
@@ -6699,8 +6782,8 @@ mod tests {
             .expect("read persisted coding session event row");
         assert_eq!(persisted_event.0, created_turn_id);
         assert_eq!(persisted_event.1, "provider-runtime");
-        assert_eq!(persisted_event.2, "turn.started");
-        assert!(persisted_event.3.contains("\"requestKind\":\"review\""));
+        assert_eq!(persisted_event.2, "turn.completed");
+        assert!(persisted_event.3.contains("\"finishReason\":\"stop\""));
 
         let persisted_session: (String, Option<String>) = connection
             .query_row(
@@ -6715,9 +6798,9 @@ mod tests {
             .expect("read persisted updated coding session row");
         assert_eq!(
             persisted_session.1.as_deref(),
-            create_json["data"]["startedAt"].as_str()
+            create_json["data"]["completedAt"].as_str()
         );
-        assert_eq!(persisted_session.0, create_json["data"]["startedAt"]);
+        assert_eq!(persisted_session.0, create_json["data"]["completedAt"]);
 
         drop(connection);
         fs::remove_file(sqlite_path).expect("remove provider authority fixture");

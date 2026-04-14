@@ -4,6 +4,7 @@ import type {
   BirdCoderCodingSession,
   BirdCoderCodingSessionSummary,
   BirdCoderCreateCodingSessionTurnRequest,
+  BirdCoderCoreReadApiClient,
   BirdCoderCoreWriteApiClient,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
@@ -15,6 +16,7 @@ const ZERO_TIMESTAMP = new Date(0).toISOString();
 export interface ApiBackedProjectServiceOptions {
   client: BirdCoderAppAdminApiClient;
   codingSessionMirror?: IProjectSessionMirror;
+  coreReadClient?: BirdCoderCoreReadApiClient;
   coreWriteClient?: BirdCoderCoreWriteApiClient;
   writeService: IProjectService;
 }
@@ -97,15 +99,30 @@ function shouldFallbackToLocalTurnMirror(error: unknown): boolean {
   return error.message.includes('-> 404') || error.message.toLowerCase().includes('not found');
 }
 
+function readProjectionPayloadString(
+  payload: Record<string, unknown>,
+  fieldName: string,
+): string | undefined {
+  const value = payload[fieldName];
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const normalizedValue = value.trim();
+  return normalizedValue.length > 0 ? normalizedValue : undefined;
+}
+
 export class ApiBackedProjectService implements IProjectService {
   private readonly client: BirdCoderAppAdminApiClient;
   private readonly codingSessionMirror?: IProjectSessionMirror;
+  private readonly coreReadClient?: BirdCoderCoreReadApiClient;
   private readonly coreWriteClient?: BirdCoderCoreWriteApiClient;
   private readonly writeService: IProjectService;
 
-  constructor({ client, codingSessionMirror, coreWriteClient, writeService }: ApiBackedProjectServiceOptions) {
+  constructor({ client, codingSessionMirror, coreReadClient, coreWriteClient, writeService }: ApiBackedProjectServiceOptions) {
     this.client = client;
     this.codingSessionMirror = codingSessionMirror;
+    this.coreReadClient = coreReadClient;
     this.coreWriteClient = coreWriteClient;
     this.writeService = writeService;
   }
@@ -217,22 +234,34 @@ export class ApiBackedProjectService implements IProjectService {
     }
 
     let turnId = message.turnId;
+    let createdRemoteTurn = false;
     try {
       const createdTurn = await this.coreWriteClient!.createCodingSessionTurn(
         codingSessionId,
         remoteTurnRequest,
       );
       turnId = createdTurn.id;
+      createdRemoteTurn = true;
     } catch (error) {
       if (!shouldFallbackToLocalTurnMirror(error)) {
         throw error;
       }
     }
 
-    return this.writeService.addCodingSessionMessage(projectId, codingSessionId, {
+    const createdMessage = await this.writeService.addCodingSessionMessage(projectId, codingSessionId, {
       ...message,
       turnId,
     });
+
+    if (createdRemoteTurn && turnId) {
+      try {
+        await this.syncRemoteTurnMirror(projectId, codingSessionId, turnId);
+      } catch (error) {
+        console.error('Failed to synchronize remote coding session turn mirror', error);
+      }
+    }
+
+    return createdMessage;
   }
 
   async editCodingSessionMessage(
@@ -250,5 +279,76 @@ export class ApiBackedProjectService implements IProjectService {
     messageId: string,
   ): Promise<void> {
     await this.writeService.deleteCodingSessionMessage(projectId, codingSessionId, messageId);
+  }
+
+  private async syncRemoteTurnMirror(
+    projectId: string,
+    codingSessionId: string,
+    turnId: string,
+  ): Promise<void> {
+    if (!this.coreReadClient) {
+      return;
+    }
+
+    const [sessionSummary, events, localProjects] = await Promise.all([
+      this.coreReadClient.getCodingSession(codingSessionId),
+      this.coreReadClient.listCodingSessionEvents(codingSessionId),
+      this.writeService.getProjects(),
+    ]);
+
+    const localProject = localProjects.find((candidate) => candidate.id === projectId);
+    const localCodingSession = localProject?.codingSessions.find(
+      (candidate) => candidate.id === codingSessionId,
+    );
+
+    if (this.codingSessionMirror) {
+      await this.codingSessionMirror.upsertCodingSession(
+        projectId,
+        mergeCodingSessionSummary(sessionSummary, localCodingSession),
+      );
+    }
+
+    const completedMessageEvent = [...events]
+      .reverse()
+      .find(
+        (event) =>
+          event.turnId === turnId &&
+          event.kind === 'message.completed' &&
+          readProjectionPayloadString(event.payload, 'role') === 'assistant',
+      );
+    const assistantContent = completedMessageEvent
+      ? readProjectionPayloadString(completedMessageEvent.payload, 'content')
+      : undefined;
+
+    if (!assistantContent) {
+      return;
+    }
+
+    const refreshedProjects = await this.writeService.getProjects();
+    const refreshedProject = refreshedProjects.find((candidate) => candidate.id === projectId);
+    const refreshedCodingSession = refreshedProject?.codingSessions.find(
+      (candidate) => candidate.id === codingSessionId,
+    );
+    const existingAssistantMessage = refreshedCodingSession?.messages.find(
+      (candidate) => candidate.turnId === turnId && candidate.role === 'assistant',
+    );
+
+    if (existingAssistantMessage) {
+      await this.writeService.editCodingSessionMessage(
+        projectId,
+        codingSessionId,
+        existingAssistantMessage.id,
+        {
+          content: assistantContent,
+        },
+      );
+      return;
+    }
+
+    await this.writeService.addCodingSessionMessage(projectId, codingSessionId, {
+      role: 'assistant',
+      turnId,
+      content: assistantContent,
+    });
   }
 }

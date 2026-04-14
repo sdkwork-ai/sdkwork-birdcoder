@@ -203,6 +203,31 @@ assert.match(
   /Copy Release Note/,
   'TerminalPage should expose a copy release-note action for governance recovery records.',
 );
+assert.doesNotMatch(
+  terminalPageSource,
+  /void createFile\(target\);/,
+  'TerminalPage browser fallback must not mutate files directly for touch commands.',
+);
+assert.doesNotMatch(
+  terminalPageSource,
+  /void createFolder\(target\);/,
+  'TerminalPage browser fallback must not mutate files directly for mkdir commands.',
+);
+assert.doesNotMatch(
+  terminalPageSource,
+  /void deleteFolder\(actualTarget\);/,
+  'TerminalPage browser fallback must not mutate folders directly for recursive rm commands.',
+);
+assert.doesNotMatch(
+  terminalPageSource,
+  /void deleteFile\(target\);/,
+  'TerminalPage browser fallback must not mutate files directly for rm commands.',
+);
+assert.doesNotMatch(
+  terminalPageSource,
+  /void renameNode\(parts\[0\], parts\[1\]\);/,
+  'TerminalPage browser fallback must not mutate files directly for mv commands.',
+);
 
 if (originalWindow) {
   runtimeGlobals.window = originalWindow;

@@ -110,7 +110,7 @@ const BIRD_SERVER_DISTRIBUTIONS = {
     id: 'cn',
     appId: 'sdkwork-birdcoder-cn',
     appName: 'SDKWork BirdCoder',
-    apiBaseUrl: 'https://cn.sdkwork.local/birdcoder/api',
+    apiBaseUrl: 'https://cn.sdkwork.local/birdcoder',
   },
 } as const;
 

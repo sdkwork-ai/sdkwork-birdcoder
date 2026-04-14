@@ -75,6 +75,14 @@ const tauriDevPortGuardScriptPath = path.join(rootDir, 'scripts', 'ensure-tauri-
 const tauriCliRunnerScriptPath = path.join(rootDir, 'scripts', 'run-tauri-cli.mjs');
 const tauriTargetCleanScriptPath = path.join(rootDir, 'scripts', 'ensure-tauri-target-clean.mjs');
 const appSourcePath = path.join(rootDir, 'src', 'App.tsx');
+const codeTopBarPath = path.join(
+  rootDir,
+  'packages',
+  'sdkwork-birdcoder-code',
+  'src',
+  'components',
+  'TopBar.tsx',
+);
 const desktopIndexHtmlPath = path.join(
   rootDir,
   'packages',
@@ -104,6 +112,7 @@ const desktopLibRsSource = fs.readFileSync(desktopLibRsPath, 'utf8');
 const desktopViteConfigSource = fs.readFileSync(desktopViteConfigPath, 'utf8');
 const desktopViteHostSource = fs.readFileSync(desktopViteHostPath, 'utf8');
 const appSource = fs.readFileSync(appSourcePath, 'utf8');
+const codeTopBarSource = fs.readFileSync(codeTopBarPath, 'utf8');
 const desktopIndexHtmlSource = fs.readFileSync(desktopIndexHtmlPath, 'utf8');
 
 assert.equal(
@@ -461,10 +470,20 @@ assert.ok(
       (scopeEntry) =>
         scopeEntry &&
         typeof scopeEntry === 'object' &&
-        scopeEntry.name === 'sh' &&
-        scopeEntry.cmd === 'sh',
+        scopeEntry.name === 'git' &&
+        scopeEntry.cmd === 'git',
     ),
-  'Desktop shell execute capability must whitelist the scoped sh command used by the BirdCoder git workflow.',
+  'Desktop shell execute capability must whitelist the scoped git command used by the BirdCoder git workflow.',
+);
+assert.doesNotMatch(
+  codeTopBarSource,
+  /Command\.create\('sh'/,
+  'Desktop code workbench Git actions must execute git directly instead of shelling through sh -c.',
+);
+assert.doesNotMatch(
+  codeTopBarSource,
+  /changesCommittedMock|pushedToRemoteMock|createdAndSwitchedBranchMock|switchedToBranchMock/,
+  'Desktop code workbench Git actions must not fall back to mock-success toasts when the runtime cannot execute a real Git command.',
 );
 assert.ok(
   fs.existsSync(desktopAppPermissionsPath),

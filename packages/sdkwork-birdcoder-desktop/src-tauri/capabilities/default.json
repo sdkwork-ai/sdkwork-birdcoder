@@ -28,8 +28,8 @@
       "identifier": "shell:allow-execute",
       "allow": [
         {
-          "name": "sh",
-          "cmd": "sh",
+          "name": "git",
+          "cmd": "git",
           "args": true
         }
       ]

@@ -35,7 +35,7 @@ export default defineLocaleModule('studio/actions', {
     "runningBuildTask": "正在运行构建任务...",
     "runningTestTask": "正在运行测试任务...",
     "configurationSaved": "配置已保存",
-    "debugConfigurationSaved": "调试配置已保存",
+    "debugConfigurationUnavailable": "在接入 runtime-backed 调试主机之前，暂不支持附加调试。",
     "appliedChanges": "已将更改应用到 {{path}}"
   }
 });

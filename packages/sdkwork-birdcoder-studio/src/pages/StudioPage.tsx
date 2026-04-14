@@ -746,8 +746,6 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
   const currentProject = filteredProjects.find((project) => project.id === currentProjectId);
   const currentProjectName = currentProject?.name;
   const publicShareUrl = `https://ide.sdkwork.com/p/${currentProjectId || 'demo'}`;
-  const publishProjectName = currentProjectName?.toLowerCase().replace(/\s+/g, '-') || 'my-project';
-
   const handlePreviewAppPlatformChange = (platform: 'ios' | 'android' | 'harmony') => {
     setPreviewAppPlatform(platform);
     if (platform === 'ios') {
@@ -801,7 +799,7 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
   };
 
   const handleSaveDebugConfiguration = () => {
-    addToast(t('studio.debugConfigurationSaved'), 'success');
+    addToast(t('studio.debugConfigurationUnavailable'), 'error');
     setIsDebugConfigVisible(false);
   };
 
@@ -819,11 +817,6 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
 
   const handleInviteCollaborator = () => {
     addToast(t('studio.invitationSent'), 'success');
-  };
-
-  const handlePublishProject = () => {
-    setShowPublishModal(false);
-    addToast(t('studio.deploymentStarted'), 'info');
   };
 
   const handleAcceptViewingDiff = async () => {
@@ -1096,9 +1089,7 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
         onCopyPublicLink={handleCopyPublicLink}
         onInviteCollaborator={handleInviteCollaborator}
         showPublishModal={showPublishModal}
-        publishProjectName={publishProjectName}
         onClosePublish={() => setShowPublishModal(false)}
-        onConfirmPublish={handlePublishProject}
       />
     </div>
   );
