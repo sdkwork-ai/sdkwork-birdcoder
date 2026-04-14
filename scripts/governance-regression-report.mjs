@@ -586,6 +586,82 @@ function tokenizeCommand(command) {
     ?.map((token) => token.replace(/^['"]|['"]$/g, '')) ?? [];
 }
 
+function isNodeCommandToken(token, { execPath = process.execPath } = {}) {
+  const normalizedToken = path.basename(String(token ?? '').trim()).toLowerCase();
+  const normalizedExecBase = path.basename(String(execPath ?? '').trim()).toLowerCase();
+  return normalizedToken === 'node' || normalizedToken === 'node.exe' || normalizedToken === normalizedExecBase;
+}
+
+function resolveGovernanceRegressionInProcessNodeExecution(
+  command,
+  { rootDir = process.cwd(), execPath = process.execPath } = {},
+) {
+  const tokens = tokenizeCommand(command);
+  if (tokens.length < 2 || !isNodeCommandToken(tokens[0], { execPath })) {
+    return null;
+  }
+
+  const scriptPath = path.isAbsolute(tokens[1]) ? tokens[1] : path.resolve(rootDir, tokens[1]);
+  return {
+    scriptPath,
+    argv: [execPath, scriptPath, ...tokens.slice(2)],
+  };
+}
+
+async function importGovernanceRegressionScript(scriptPath, cacheKey = '') {
+  const scriptUrl = new URL(pathToFileURL(scriptPath).href);
+  if (cacheKey) {
+    scriptUrl.searchParams.set('governance-regression-check', cacheKey);
+  }
+  await import(scriptUrl.href);
+}
+
+async function executeGovernanceRegressionNodeCommandInProcess(
+  command,
+  { rootDir = process.cwd(), execPath = process.execPath } = {},
+) {
+  const execution = resolveGovernanceRegressionInProcessNodeExecution(command, {
+    rootDir,
+    execPath,
+  });
+
+  if (!execution) {
+    throw new Error(`Governance regression in-process node execution requires a node script command, received: ${command}`);
+  }
+
+  const previousArgv = process.argv;
+  const previousExit = process.exit;
+  const previousExitCode = process.exitCode;
+  const exitSignalName = 'GovernanceRegressionProcessExit';
+
+  process.argv = [...execution.argv];
+  process.exitCode = undefined;
+  process.exit = ((code = 0) => {
+    throw Object.assign(
+      new Error(`Governance regression in-process node execution exited with code ${code}.`),
+      {
+        name: exitSignalName,
+        exitCode: typeof code === 'number' ? code : Number(code) || 0,
+      },
+    );
+  });
+
+  try {
+    await importGovernanceRegressionScript(execution.scriptPath);
+    return typeof process.exitCode === 'number' ? process.exitCode : 0;
+  } catch (error) {
+    if (error instanceof Error && error.name === exitSignalName) {
+      return typeof error.exitCode === 'number' ? error.exitCode : 1;
+    }
+
+    throw error;
+  } finally {
+    process.argv = previousArgv;
+    process.exit = previousExit;
+    process.exitCode = previousExitCode;
+  }
+}
+
 export function resolveGovernanceRegressionCommandInvocation(command, { platform = process.platform } = {}) {
   const tokens = tokenizeCommand(command);
   if (tokens.length === 0) {
@@ -683,24 +759,29 @@ export async function executeGovernanceRegressionCheck(
 
   try {
     if (check.execution === 'command') {
-      const invocation = resolveGovernanceRegressionCommandInvocation(check.command, { platform });
-      const exitCode = await new Promise((resolve, reject) => {
-        const child = spawn(invocation.command, invocation.args, {
-          cwd: rootDir,
-          env: buildGovernanceRegressionCommandEnv({ platform }),
-          windowsHide: true,
-          stdio: ['ignore', 'pipe', 'pipe'],
-        });
-
-        child.stdout.on('data', (chunk) => {
-          process.stdout.write(chunk);
-        });
-        child.stderr.on('data', (chunk) => {
-          process.stderr.write(chunk);
-        });
-        child.on('error', reject);
-        child.on('close', (code) => resolve(typeof code === 'number' ? code : 1));
+      const inProcessNodeExecution = resolveGovernanceRegressionInProcessNodeExecution(check.command, {
+        rootDir,
       });
+      const exitCode = inProcessNodeExecution
+        ? await executeGovernanceRegressionNodeCommandInProcess(check.command, { rootDir })
+        : await new Promise((resolve, reject) => {
+          const invocation = resolveGovernanceRegressionCommandInvocation(check.command, { platform });
+          const child = spawn(invocation.command, invocation.args, {
+            cwd: rootDir,
+            env: buildGovernanceRegressionCommandEnv({ platform }),
+            windowsHide: true,
+            stdio: ['ignore', 'pipe', 'pipe'],
+          });
+
+          child.stdout.on('data', (chunk) => {
+            process.stdout.write(chunk);
+          });
+          child.stderr.on('data', (chunk) => {
+            process.stderr.write(chunk);
+          });
+          child.on('error', reject);
+          child.on('close', (code) => resolve(typeof code === 'number' ? code : 1));
+        });
 
       return {
         status: exitCode === 0 ? 'passed' : 'failed',
@@ -714,10 +795,7 @@ export async function executeGovernanceRegressionCheck(
     const resolvedScriptPath = path.isAbsolute(check.scriptPath)
       ? check.scriptPath
       : path.resolve(rootDir, check.scriptPath);
-    const scriptUrl = new URL(pathToFileURL(resolvedScriptPath).href);
-    scriptUrl.searchParams.set('governance-regression-check', `${check.id}-${Date.now()}`);
-
-    await import(scriptUrl.href);
+    await importGovernanceRegressionScript(resolvedScriptPath, `${check.id}-${Date.now()}`);
 
     return {
       status: 'passed',
