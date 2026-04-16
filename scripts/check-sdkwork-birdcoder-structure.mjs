@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const rootDir = process.cwd();
 const packagesDir = path.join(rootDir, 'packages');
@@ -49,11 +50,13 @@ const requiredPaths = [
   'scripts/check-arch-boundaries.mjs',
   'scripts/ci-flow-contract.test.mjs',
   'scripts/check-sdkwork-birdcoder-structure.mjs',
+  'scripts/check-sdkwork-birdcoder-structure-contract.test.mjs',
   'scripts/check-release-closure.mjs',
   'scripts/quality-gate-matrix-report.mjs',
   'scripts/quality-gate-matrix-contract.test.mjs',
   'scripts/quality-gate-execution-report.mjs',
   'scripts/quality-gate-execution-report.test.mjs',
+  'scripts/package-script-entrypoints-contract.test.mjs',
   'scripts/package-governance-contract.test.mjs',
   'scripts/prompt-governance-contract.test.mjs',
   'scripts/live-docs-governance-baseline.test.mjs',
@@ -78,6 +81,9 @@ const requiredPaths = [
   'scripts/studio-simulator-ui-contract.test.ts',
   'scripts/run-claw-server-build.mjs',
   'scripts/run-birdcoder-server-build.mjs',
+  'scripts/run-release-flow-check.mjs',
+  'scripts/run-release-flow-check.test.mjs',
+  'scripts/provider-sdk-package-manifest-contract.test.mjs',
   'scripts/prepare-shared-sdk-git-sources.mjs',
   'scripts/prepare-shared-sdk-packages.mjs',
   'scripts/run-vitepress.mjs',
@@ -177,6 +183,53 @@ function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(rootDir, relativePath), 'utf8'));
 }
 
+function collectRootPackageScriptTargetPaths(rootPackageJson) {
+  if (!rootPackageJson?.scripts || typeof rootPackageJson.scripts !== 'object') {
+    return [];
+  }
+
+  const references = [];
+  const seen = new Set();
+
+  for (const [scriptName, command] of Object.entries(rootPackageJson.scripts)) {
+    if (typeof command !== 'string') {
+      continue;
+    }
+
+    for (const match of command.matchAll(/((?:(?:\.\.?\/)*)scripts\/[A-Za-z0-9_./-]+\.(?:cjs|js|mjs|ps1|ts))/g)) {
+      const rawPath = match[1].replace(/\\/g, '/');
+      const scriptsIndex = rawPath.indexOf('scripts/');
+
+      if (scriptsIndex === -1) {
+        continue;
+      }
+
+      const relativePath = rawPath.slice(scriptsIndex);
+      const dedupeKey = `${scriptName}:${relativePath}`;
+      if (seen.has(dedupeKey)) {
+        continue;
+      }
+
+      seen.add(dedupeKey);
+      references.push({
+        command,
+        relativePath,
+        scriptName,
+      });
+    }
+  }
+
+  return references;
+}
+
+function assertRootPackageScriptTargetsExist(rootPackageJson) {
+  for (const reference of collectRootPackageScriptTargetPaths(rootPackageJson)) {
+    if (!fs.existsSync(path.join(rootDir, reference.relativePath))) {
+      errors.push(`Root package script ${reference.scriptName} references missing repo file: ${reference.relativePath}`);
+    }
+  }
+}
+
 function scanForLegacyReferences(absolutePath) {
   if (!fs.existsSync(absolutePath)) {
     return;
@@ -254,54 +307,77 @@ function assertNoLegacyPackageDirs() {
   }
 }
 
-assertWorkspaceTargetsBirdCoderPackages();
-assertNoLegacyPackageDirs();
+export function runSdkworkBirdcoderStructureCheck({
+  stderr = console.error,
+  stdout = console.log,
+} = {}) {
+  errors.length = 0;
 
-assertExists('package.json', 'root manifest');
-if (fs.existsSync(path.join(rootDir, 'package.json'))) {
-  const rootPackageJson = readJson('package.json');
-  if (rootPackageJson.name !== '@sdkwork/birdcoder-workspace') {
-    errors.push(`Unexpected root workspace name: expected @sdkwork/birdcoder-workspace, got ${rootPackageJson.name ?? '<missing>'}`);
-  }
-}
+  assertWorkspaceTargetsBirdCoderPackages();
+  assertNoLegacyPackageDirs();
 
-for (const relativePath of requiredPaths) {
-  assertExists(relativePath);
-}
+  assertExists('package.json', 'root manifest');
+  let rootPackageJson = null;
+  if (fs.existsSync(path.join(rootDir, 'package.json'))) {
+    rootPackageJson = readJson('package.json');
+    if (rootPackageJson.name !== '@sdkwork/birdcoder-workspace') {
+      errors.push(`Unexpected root workspace name: expected @sdkwork/birdcoder-workspace, got ${rootPackageJson.name ?? '<missing>'}`);
+    }
 
-for (const relativePath of forbiddenResidualPaths) {
-  if (fs.existsSync(path.join(rootDir, relativePath))) {
-    errors.push(`Retired standalone package directory must stay removed: ${relativePath}`);
-  }
-}
-
-for (const [relativeDir, expectedName] of requiredPackages) {
-  assertExists(relativeDir, 'package directory');
-
-  const packageJsonPath = path.join(relativeDir, 'package.json');
-  assertExists(packageJsonPath, 'package manifest');
-  if (!fs.existsSync(path.join(rootDir, packageJsonPath))) {
-    continue;
+    assertRootPackageScriptTargetsExist(rootPackageJson);
   }
 
-  const pkg = readJson(packageJsonPath);
-  if (pkg.name !== expectedName) {
-    errors.push(`Unexpected package name in ${packageJsonPath}: expected ${expectedName}, got ${pkg.name ?? '<missing>'}`);
+  for (const relativePath of requiredPaths) {
+    assertExists(relativePath);
   }
 
-  scanForLegacyReferences(path.join(rootDir, relativeDir));
-}
-
-for (const relativePath of rootScanTargets) {
-  scanForLegacyReferences(path.join(rootDir, relativePath));
-}
-
-if (errors.length > 0) {
-  console.error('SDKWork BirdCoder structure check failed:');
-  for (const error of errors) {
-    console.error(`- ${error}`);
+  for (const relativePath of forbiddenResidualPaths) {
+    if (fs.existsSync(path.join(rootDir, relativePath))) {
+      errors.push(`Retired standalone package directory must stay removed: ${relativePath}`);
+    }
   }
-  process.exit(1);
+
+  for (const [relativeDir, expectedName] of requiredPackages) {
+    assertExists(relativeDir, 'package directory');
+
+    const packageJsonPath = path.join(relativeDir, 'package.json');
+    assertExists(packageJsonPath, 'package manifest');
+    if (!fs.existsSync(path.join(rootDir, packageJsonPath))) {
+      continue;
+    }
+
+    const pkg = readJson(packageJsonPath);
+    if (pkg.name !== expectedName) {
+      errors.push(`Unexpected package name in ${packageJsonPath}: expected ${expectedName}, got ${pkg.name ?? '<missing>'}`);
+    }
+
+    scanForLegacyReferences(path.join(rootDir, relativeDir));
+  }
+
+  for (const relativePath of rootScanTargets) {
+    scanForLegacyReferences(path.join(rootDir, relativePath));
+  }
+
+  if (errors.length > 0) {
+    stderr('SDKWork BirdCoder structure check failed:');
+    for (const error of errors) {
+      stderr(`- ${error}`);
+    }
+    return 1;
+  }
+
+  stdout('SDKWork BirdCoder structure check passed.');
+  return 0;
 }
 
-console.log('SDKWork BirdCoder structure check passed.');
+export async function runSdkworkBirdcoderStructureCheckCli() {
+  process.exit(runSdkworkBirdcoderStructureCheck());
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void runSdkworkBirdcoderStructureCheckCli().catch((error) => {
+    const message = error instanceof Error ? error.stack || error.message : String(error);
+    console.error(message);
+    process.exit(1);
+  });
+}

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const rootDir = process.cwd();
 const promptPath = path.join(rootDir, 'docs/prompts/反复执行Step指令.md');
@@ -13,6 +14,10 @@ const governanceRegressionReportSource = fs.readFileSync(
   path.join(rootDir, 'scripts/governance-regression-report.mjs'),
   'utf8',
 );
+const releaseFlowRunnerModule = await import(
+  pathToFileURL(path.join(rootDir, 'scripts/run-release-flow-check.mjs')).href
+);
+const releaseFlowCommandsJoined = releaseFlowRunnerModule.RELEASE_FLOW_CHECK_COMMANDS.join(' && ');
 
 assert.match(promptSource, /release assets/);
 assert.match(promptSource, /`docs\/step\/`/);
@@ -69,10 +74,8 @@ assert.doesNotMatch(
   /the next non-environmental slice must return to the `09 -> 17` mainline instead of reopening Code page internals/,
 );
 
-assert.match(
-  rootPackageJson.scripts['check:release-flow'],
-  /prompt-governance-contract\.test\.mjs/,
-);
+assert.equal(rootPackageJson.scripts['check:release-flow'], 'node scripts/run-release-flow-check.mjs');
+assert.match(releaseFlowCommandsJoined, /prompt-governance-contract\.test\.mjs/);
 
 assert.match(governanceRegressionReportSource, /id:\s*'step-loop-prompt-governance'/);
 assert.match(

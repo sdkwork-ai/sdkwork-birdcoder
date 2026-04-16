@@ -1,4 +1,10 @@
-import type { IFileNode, LocalFolderMountSource } from '@sdkwork/birdcoder-types';
+import {
+  searchProjectFiles,
+  type IFileNode,
+  type LocalFolderMountSource,
+  type WorkspaceFileSearchExecutionResult,
+  type WorkspaceFileSearchOptions,
+} from '@sdkwork/birdcoder-types';
 import type { IFileSystemService } from '../interfaces/IFileSystemService';
 
 const MOCK_FILES: IFileNode[] = [
@@ -329,6 +335,24 @@ export class MockFileSystemService implements IFileSystemService {
         
         resolve();
       }, 50);
+    });
+  }
+
+  async searchFiles(
+    projectId: string,
+    options: WorkspaceFileSearchOptions,
+  ): Promise<WorkspaceFileSearchExecutionResult> {
+    const files = await this.getFiles(projectId);
+    return searchProjectFiles({
+      files,
+      query: options.query,
+      maxResults: options.maxResults,
+      maxSnippetLength: options.maxSnippetLength,
+      signal: options.signal,
+      readFileContent: async (path: string) => {
+        const content = await this.getFileContent(projectId, path);
+        return content === '// File content not found' ? '' : content;
+      },
     });
   }
 

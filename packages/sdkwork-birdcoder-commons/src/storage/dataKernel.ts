@@ -1,9 +1,11 @@
 export {
   buildLocalStoreKey,
+  type BirdCoderStoredRawValueEntry,
   createJsonRecordRepository,
   deserializeStoredValue,
   getStoredJson,
   getStoredRawValue,
+  listStoredRawValues,
   removeStoredValue,
   serializeStoredValue,
   setStoredJson,

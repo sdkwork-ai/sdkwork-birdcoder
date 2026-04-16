@@ -1,4 +1,4 @@
-import type { BirdCoderEntityStorageBinding } from './data.ts';
+import type { BirdCoderEntityStorageBinding } from './storageBindings.ts';
 import {
   BIRDCODER_APP_TEMPLATE_INSTANTIATION_STORAGE_BINDING,
   BIRDCODER_APP_TEMPLATE_PRESET_STORAGE_BINDING,
@@ -17,7 +17,7 @@ import {
   BIRDCODER_SKILL_PACKAGE_STORAGE_BINDING,
   BIRDCODER_SKILL_RUNTIME_CONFIG_STORAGE_BINDING,
   BIRDCODER_SKILL_VERSION_STORAGE_BINDING,
-} from './data.ts';
+} from './storageBindings.ts';
 
 export const BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS = [
   'platform_rule',

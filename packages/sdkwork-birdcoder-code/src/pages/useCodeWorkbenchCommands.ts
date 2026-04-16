@@ -3,8 +3,9 @@ import {
   globalEventBus,
   type TerminalCommandRequest,
   type ToastType,
-} from '@sdkwork/birdcoder-commons';
+} from '@sdkwork/birdcoder-commons/workbench';
 import type { FileChange, BirdCoderProject } from '@sdkwork/birdcoder-types';
+import { useTranslation } from 'react-i18next';
 
 interface UseCodeWorkbenchCommandsOptions {
   projects: BirdCoderProject[];
@@ -41,6 +42,8 @@ export function useCodeWorkbenchCommands({
   setIsRunTaskVisible,
   addToast,
 }: UseCodeWorkbenchCommandsOptions) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     const handleCloseTerminal = () => setIsTerminalOpen(false);
 
@@ -57,7 +60,7 @@ export function useCodeWorkbenchCommands({
         if (previousState) {
           return null;
         }
-        addToast('No active diff to show', 'info');
+        addToast(t('code.noActiveDiff'), 'info');
         return null;
       });
     };
@@ -101,11 +104,11 @@ export function useCodeWorkbenchCommands({
     };
 
     const handleSaveActiveFile = () => {
-      addToast('File saved', 'success');
+      addToast(t('code.fileSaved'), 'success');
     };
 
     const handleSaveAllFiles = () => {
-      addToast('All files saved', 'success');
+      addToast(t('code.allFilesSaved'), 'success');
     };
 
     const handleStartDebugging = () => {
@@ -115,7 +118,7 @@ export function useCodeWorkbenchCommands({
     const handleRunWithoutDebugging = () => {
       globalEventBus.emit('openTerminal');
       globalEventBus.emit('terminalRequest', { command: 'npm start', timestamp: Date.now() });
-      addToast('Starting application...', 'info');
+      addToast(t('code.startingApplication'), 'info');
     };
 
     const handleAddRunConfiguration = () => {
@@ -139,26 +142,26 @@ export function useCodeWorkbenchCommands({
           return;
         }
 
-        addToast(`Revealed in OS Explorer: ${targetPath}`, 'info');
+        addToast(t('code.revealedInExplorer', { path: targetPath }), 'info');
       } catch (error) {
         console.error('Failed to reveal in explorer', error);
-        addToast(`Revealed in OS Explorer: ${targetPath}`, 'info');
+        addToast(t('code.revealedInExplorer', { path: targetPath }), 'info');
       }
     };
 
     const handleCreateNewCodingSession = async () => {
       if (!currentProjectId) {
-        addToast('Please select a project first', 'error');
+        addToast(t('code.selectProjectFirst'), 'error');
         return;
       }
 
       try {
-        const newCodingSession = await createCodingSession(currentProjectId, 'New Thread');
+        const newCodingSession = await createCodingSession(currentProjectId, t('app.menu.newThread'));
         setSelectedCodingSessionId(newCodingSession.id);
-        addToast('New thread created', 'success');
+        addToast(t('code.newThreadCreated'), 'success');
       } catch (error) {
         console.error('Failed to create thread', error);
-        addToast('Failed to create thread', 'error');
+        addToast(t('code.failedToCreateThread'), 'error');
       }
     };
 
@@ -202,5 +205,6 @@ export function useCodeWorkbenchCommands({
     setSelectedCodingSessionId,
     setTerminalRequest,
     setViewingDiff,
+    t,
   ]);
 }

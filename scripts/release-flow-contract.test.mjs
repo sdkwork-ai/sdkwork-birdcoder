@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const rootDir = process.cwd();
 const reusableWorkflow = fs.readFileSync(
@@ -16,6 +17,10 @@ const rootPackageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.j
 const webPackageJson = JSON.parse(
   fs.readFileSync(path.join(rootDir, 'packages/sdkwork-birdcoder-web/package.json'), 'utf8'),
 );
+const releaseFlowRunnerModule = await import(
+  pathToFileURL(path.join(rootDir, 'scripts/run-release-flow-check.mjs')).href
+);
+const releaseFlowCommandsJoined = releaseFlowRunnerModule.RELEASE_FLOW_CHECK_COMMANDS.join(' && ');
 
 assert.match(releaseWorkflow, /name:\s*release/);
 assert.match(releaseWorkflow, /push:\s*[\s\S]*tags:\s*[\s\S]*-\s*'release-\*'/);
@@ -52,72 +57,114 @@ assert.match(
 );
 assert.match(reusableWorkflow, /render-release-notes\.mjs --release-tag .* --output release-assets\/release-notes\.md/);
 
-assert.match(rootPackageJson.scripts['check:release-flow'], /release-flow-contract\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /host-runtime-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /host-studio-preview-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /host-studio-simulator-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /studio-preview-execution-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /studio-preview-evidence-store-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /studio-build-execution-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /studio-build-evidence-store-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /studio-test-execution-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /studio-test-evidence-store-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /studio-simulator-execution-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /studio-simulator-evidence-store-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /studio-simulator-ui-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /studio-evidence-viewer-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /studio-evidence-viewer-ui-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /check-release-closure\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /claw-release-parity-contract\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /claw-docs-ia-contract\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /prompt-governance-contract\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /shell-runtime-app-client-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /server-runtime-transport-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /skill-binding-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /template-instantiation-contract\.test\.ts/);
+assert.equal(rootPackageJson.scripts['check:release-flow'], 'node scripts/run-release-flow-check.mjs');
+assert.ok(Array.isArray(releaseFlowRunnerModule.RELEASE_FLOW_CHECK_COMMANDS));
+assert.equal(releaseFlowRunnerModule.RELEASE_FLOW_CHECK_COMMANDS.length > 0, true);
+assert.match(releaseFlowCommandsJoined, /release-flow-contract\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /run-release-flow-check\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /host-runtime-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /host-studio-preview-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /host-studio-simulator-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /studio-preview-execution-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /studio-preview-evidence-store-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /studio-build-execution-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /studio-build-evidence-store-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /studio-test-execution-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /studio-test-evidence-store-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /studio-simulator-execution-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /studio-simulator-evidence-store-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /studio-simulator-ui-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /studio-evidence-viewer-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /studio-evidence-viewer-ui-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /check-release-closure\.mjs/);
+assert.match(releaseFlowCommandsJoined, /claw-release-parity-contract\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /claw-docs-ia-contract\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /prompt-governance-contract\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /shell-runtime-app-client-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /server-runtime-transport-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /skill-binding-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /template-instantiation-contract\.test\.ts/);
 assert.match(
-  rootPackageJson.scripts['check:release-flow'],
+  releaseFlowCommandsJoined,
   /prompt-skill-template-runtime-assembly-contract\.test\.ts/,
 );
 assert.match(
-  rootPackageJson.scripts['check:release-flow'],
+  releaseFlowCommandsJoined,
   /prompt-skill-template-evidence-repository-contract\.test\.ts/,
 );
 assert.match(
-  rootPackageJson.scripts['check:release-flow'],
+  releaseFlowCommandsJoined,
   /prompt-skill-template-evidence-consumer-contract\.test\.ts/,
 );
 assert.match(
-  rootPackageJson.scripts['check:release-flow'],
+  releaseFlowCommandsJoined,
   /coding-server-prompt-skill-template-evidence-consumer-contract\.test\.ts/,
 );
 assert.match(
-  rootPackageJson.scripts['check:release-flow'],
+  releaseFlowCommandsJoined,
   /postgresql-live-smoke-contract\.test\.ts/,
 );
-assert.match(rootPackageJson.scripts['check:release-flow'], /live-docs-governance-baseline\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /quality-loop-scoreboard-contract\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /rollback-plan-command\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /package-release-assets\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /finalize-release-assets\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /smoke-finalized-release-assets\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /smoke-desktop-installers\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /smoke-server-release-assets\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /smoke-deployment-release-assets\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /sdkwork-appbase-parity-contract\.test\.mjs/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /engine-runtime-adapter-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /engine-conformance-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /tool-protocol-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /engine-resume-recovery-contract\.test\.ts/);
-assert.match(rootPackageJson.scripts['check:release-flow'], /generate-rust-host-engine-catalog\.ts/);
+assert.match(releaseFlowCommandsJoined, /live-docs-governance-baseline\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /quality-loop-scoreboard-contract\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /rollback-plan-command\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /package-release-assets\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /finalize-release-assets\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /smoke-finalized-release-assets\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /smoke-desktop-installers\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /smoke-server-release-assets\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /smoke-deployment-release-assets\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /sdkwork-appbase-parity-contract\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /engine-official-sdk-contract\.test\.ts/);
 assert.match(
-  rootPackageJson.scripts['check:release-flow'],
+  releaseFlowCommandsJoined,
+  /engine-official-sdk-runtime-selection-contract\.test\.ts/,
+);
+assert.match(releaseFlowCommandsJoined, /engine-runtime-adapter-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /engine-kernel-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /engine-environment-health-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /engine-capability-extension-contract\.test\.ts/);
+assert.match(
+  releaseFlowCommandsJoined,
+  /engine-experimental-capability-gating-contract\.test\.ts/,
+);
+assert.match(
+  releaseFlowCommandsJoined,
+  /engine-canonical-registry-governance-contract\.test\.ts/,
+);
+assert.match(
+  releaseFlowCommandsJoined,
+  /provider-sdk-import-governance-contract\.test\.mjs/,
+);
+assert.match(
+  releaseFlowCommandsJoined,
+  /provider-sdk-package-manifest-contract\.test\.mjs/,
+);
+assert.match(
+  releaseFlowCommandsJoined,
+  /provider-adapter-browser-safety-contract\.test\.mjs/,
+);
+assert.match(
+  releaseFlowCommandsJoined,
+  /engine-official-sdk-error-propagation-contract\.test\.ts/,
+);
+assert.match(releaseFlowCommandsJoined, /provider-official-sdk-bridge-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /engine-conformance-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /tool-protocol-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /engine-resume-recovery-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /generate-rust-host-engine-catalog\.ts/);
+assert.match(
+  releaseFlowCommandsJoined,
   /cargo test --manifest-path packages\/sdkwork-birdcoder-server\/src-host\/Cargo\.toml core_engine_catalog_routes_match_generated_shared_engine_catalog/,
 );
 assert.doesNotMatch(
   rootPackageJson.scripts['check:release-flow'],
   /pnpm run /,
   'release-flow must not reopen nested pnpm run wrappers inside higher-tier quality gates on Windows',
+);
+assert.doesNotMatch(
+  rootPackageJson.scripts['check:release-flow'],
+  /&&/,
+  'release-flow must delegate to a runner script so Windows command-line length stays bounded',
 );
 assert.equal(
   rootPackageJson.scripts['test:rust-host-engine-route-parity-contract'],
@@ -130,6 +177,50 @@ assert.doesNotMatch(
 );
 assert.equal(rootPackageJson.scripts['check:quality-matrix'], 'node scripts/quality-gate-matrix-contract.test.mjs');
 assert.equal(rootPackageJson.scripts['check:quality-loop-scoreboard'], 'node scripts/quality-loop-scoreboard-contract.test.mjs');
+assert.equal(
+  rootPackageJson.scripts['test:engine-official-sdk-contract'],
+  'node --experimental-strip-types scripts/engine-official-sdk-contract.test.ts',
+);
+assert.equal(
+  rootPackageJson.scripts['test:engine-official-sdk-runtime-selection-contract'],
+  'node --experimental-strip-types scripts/engine-official-sdk-runtime-selection-contract.test.ts',
+);
+assert.equal(
+  rootPackageJson.scripts['test:engine-kernel-contract'],
+  'node --experimental-strip-types scripts/engine-kernel-contract.test.ts',
+);
+assert.equal(
+  rootPackageJson.scripts['test:engine-environment-health-contract'],
+  'node --experimental-strip-types scripts/engine-environment-health-contract.test.ts',
+);
+assert.equal(
+  rootPackageJson.scripts['test:engine-capability-extension-contract'],
+  'node --experimental-strip-types scripts/engine-capability-extension-contract.test.ts',
+);
+assert.equal(
+  rootPackageJson.scripts['test:provider-sdk-import-governance-contract'],
+  'node scripts/provider-sdk-import-governance-contract.test.mjs',
+);
+assert.equal(
+  rootPackageJson.scripts['test:provider-sdk-package-manifest-contract'],
+  'node scripts/provider-sdk-package-manifest-contract.test.mjs',
+);
+assert.equal(
+  rootPackageJson.scripts['test:provider-adapter-browser-safety-contract'],
+  'node scripts/provider-adapter-browser-safety-contract.test.mjs',
+);
+assert.equal(
+  rootPackageJson.scripts['test:engine-official-sdk-error-propagation-contract'],
+  'node --experimental-strip-types scripts/engine-official-sdk-error-propagation-contract.test.ts',
+);
+assert.equal(
+  rootPackageJson.scripts['test:engine-experimental-capability-gating-contract'],
+  'node --experimental-strip-types scripts/engine-experimental-capability-gating-contract.test.ts',
+);
+assert.equal(
+  rootPackageJson.scripts['test:engine-canonical-registry-governance-contract'],
+  'node --experimental-strip-types scripts/engine-canonical-registry-governance-contract.test.ts',
+);
 assert.match(
   rootPackageJson.scripts['check:quality:standard'],
   /node scripts\/prepare-shared-sdk-packages\.mjs && pnpm --dir packages\/sdkwork-birdcoder-web exec node \.\.\/\.\.\/scripts\/run-vite-host\.mjs build --mode production && node scripts\/web-bundle-budget\.test\.mjs/,

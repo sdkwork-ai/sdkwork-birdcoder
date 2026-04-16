@@ -59,7 +59,7 @@ pnpm check:governance-regression
 pnpm check:live-docs-governance-baseline
 ```
 
-This emits `artifacts/governance/governance-regression-report.json` and currently aggregates 88 existing checks across governance baseline, terminal blocking, web budget, host runtime, host-studio modes, Studio execution lanes, Studio evidence stores, Studio evidence viewer contracts, Studio simulator UI, terminal CLI registry launch governance, run-configuration launch request governance, run-configuration storage and normalization governance, terminal runtime governance, terminal session governance, terminal host-runtime governance, workbench preference governance, chat runtime governance, local store governance, Gemini engine governance, engine runtime adapter governance, engine conformance governance, tool protocol governance, engine resume or recovery governance, browser local-store fallback governance, i18n governance, desktop Tauri dev governance, Vite host toolchain governance, desktop Vite host governance, UI bundle segmentation governance, web React compat mode governance, commons shell entry governance, shared SDK mode governance, shared SDK package preparation governance, shared SDK git-source governance, VitePress toolchain governance, source parse governance, Tailwind source governance, Studio chat layout governance, Studio sidebar stability governance, architecture boundary governance, BirdCoder structure governance, release flow governance, CI flow governance, quality gate matrix governance, Claw release parity governance, Claw docs IA governance, reusable Step prompt governance, skill binding governance, template instantiation governance, prompt-skill-template runtime assembly governance, prompt-skill-template evidence repository governance, prompt-skill-template evidence consumer governance, coding-server prompt-skill-template evidence consumer governance, PostgreSQL live-smoke preflight governance, live docs governance baseline, quality loop scoreboard governance, release command governance, release rollback-plan command governance, desktop/server build orchestration governance, release profile governance, release plan resolution governance, release smoke contract governance, release smoke router governance, release package/finalize governance, release studio evidence archive governance, release terminal governance evidence archive governance, release notes rendering governance, desktop/server/deployment smoke governance, BirdCoder architecture governance, appbase parity governance, and release closure. `pnpm check:live-docs-governance-baseline` complements that machine-readable report by freezing active architecture, Step, and release docs against the same governance vocabulary.
+This emits `artifacts/governance/governance-regression-report.json` and currently aggregates 101 existing checks across governance baseline, terminal blocking, web budget, host runtime, host-studio modes, Studio execution lanes, Studio evidence stores, Studio evidence viewer contracts, Studio simulator UI, terminal CLI registry launch governance, run-configuration launch request governance, run-configuration storage and normalization governance, terminal runtime governance, terminal session governance, terminal host-runtime governance, workbench preference governance, chat runtime governance, local store governance, Gemini engine governance, the official-SDK-first engine lane (`engine-official-sdk`, runtime selection, runtime adapter, kernel, environment health, capability extension, experimental capability gating, canonical registry governance, provider SDK import and package-manifest governance, browser safety, error propagation, provider bridges, engine conformance, tool protocol, and resume or recovery), i18n governance, desktop Tauri dev governance, Vite host toolchain governance, desktop Vite host governance, UI bundle segmentation governance, web React compat mode governance, commons shell entry governance, shared SDK mode governance, shared SDK package preparation governance, shared SDK git-source governance, VitePress toolchain governance, source parse governance, Tailwind source governance, Studio chat layout governance, Studio sidebar stability governance, architecture boundary governance, BirdCoder structure governance, release flow governance, CI flow governance, quality gate matrix governance, Claw release parity governance, Claw docs IA governance, reusable Step prompt governance, skill binding governance, template instantiation governance, prompt-skill-template runtime assembly governance, prompt-skill-template evidence repository governance, prompt-skill-template evidence consumer governance, coding-server prompt-skill-template evidence consumer governance, PostgreSQL live-smoke preflight governance, live docs governance baseline, quality loop scoreboard governance, release command governance, release rollback-plan command governance, desktop/server build orchestration governance, release profile governance, release plan resolution governance, release smoke contract governance, release smoke router governance, release package/finalize governance, release studio evidence archive governance, release terminal governance evidence archive governance, release notes rendering governance, desktop/server/deployment smoke governance, BirdCoder architecture governance, appbase parity governance, and release closure. When a command-backed slice reaches the governed Vite or esbuild path and the host stops at `[vite:define] spawn EPERM`, the same report now records `blockedCheckIds`, `blockingDiagnosticIds`, and `environmentDiagnostics` such as `vite-host-build-preflight` instead of classifying that host limitation as a failed repository regression. `pnpm check:live-docs-governance-baseline` complements that machine-readable report by freezing active architecture, Step, and release docs against the same governance vocabulary.
 
 When a change touches Step 12 quality tiers, run:
 
@@ -72,18 +72,21 @@ pnpm quality:report
 pnpm quality:execution-report
 ```
 
-This freezes the CI and release preflight tiers and emits `artifacts/quality/quality-gate-matrix-report.json`. `pnpm check:quality-matrix` verifies that the declared quality tiers and workflow bindings still match the repository standard before the reports are treated as release evidence, and it now also rejects a stale workspace `artifacts/quality/quality-gate-matrix-report.json` when that file no longer matches the current generated tier or workflow truth.
-The report now also freezes `environmentDiagnostics` and `blockingDiagnosticIds`, so host-level `toolchain-platform` blockers are archived with the same asset as tier ownership and workflow binding.
+This freezes the CI and release preflight tiers and emits `artifacts/quality/quality-gate-matrix-report.json`. `pnpm check:quality-matrix` verifies that the declared quality tiers, workflow bindings, and root `package.json` `check:quality:*` bindings still match the repository standard before the reports are treated as release evidence, and it now also rejects a stale workspace `artifacts/quality/quality-gate-matrix-report.json` when that file no longer matches the current generated tier, workflow, or manifest truth. That freshness comparison now ignores host-specific `environmentDiagnostics` drift when the stable tier/workflow/manifest truth is unchanged.
+The report now also freezes per-tier manifest binding state plus `environmentDiagnostics` and `blockingDiagnosticIds`, so host-level `toolchain-platform` blockers are archived with the same asset as tier ownership and workflow/root-manifest binding truth.
 If the workspace artifact becomes stale after a quality-tier command or workflow change, rerun `pnpm quality:report` before treating that file as active release evidence.
 Blocked diagnostics now also preserve `requiredCapabilities` and `rerunCommands`, so the same quality artifact can say what the host is missing and which gate sequence must be rerun after the environment is fixed.
-The release tier now also freezes `governanceCheckIds` for `engine-runtime-adapter`, `engine-conformance`, `tool-protocol`, and `engine-resume-recovery`, so Step 18 engine-governance risk is visible inside the quality score surface instead of living only in raw release-flow output.
+The release tier now also freezes `governanceCheckIds` for the full official-SDK-first engine governance set, covering official SDK presence, runtime selection, canonical runtime and kernel projection, provider SDK governance, browser safety, bridge error propagation, provider bridge contracts, engine conformance, tool protocol, and resume or recovery closure. That keeps engine-governance risk visible inside the quality score surface instead of living only in raw release-flow output.
 `pnpm quality:execution-report` complements that matrix with `artifacts/quality/quality-gate-execution-report.json`, recording the real `fast -> standard -> release` cascade, the last executed tier, and downstream skipped tiers after a blocker.
-When the workspace host cannot launch the runtime tier runner itself, the execution report now records a dedicated `quality-gate-command-runner` blocker, so a `spawn EPERM` on `powershell.exe` is preserved as a host block at `fast` instead of being misreported as ordinary contract failure.
+When the workspace host reaches an affected Vite-backed quality gate and the build preflight hits `[vite:define] spawn EPERM`, the execution report now records the dedicated `vite-host-build-preflight` blocker so that fast-tier stop is preserved as a host or toolchain block instead of being misreported as ordinary contract failure.
 The Step 12 desktop startup-graph lane is now also port-resilient: an unrelated listener on the legacy `127.0.0.1:1537` port no longer fabricates a fast-tier failure because the startup-graph contract now selects a free loopback port and `check:desktop-startup-graph` freezes that regression.
 Release finalization regenerates the same report shape under `quality/quality-gate-matrix-report.json` inside the active release asset directory and, when the runtime artifact already exists, archives it as `quality/quality-gate-execution-report.json` so published assets, finalized smoke, and release notes consume one runtime verdict.
-The finalized `qualityEvidence` summary now also preserves release-tier `governanceCheckIds` as `releaseGovernanceCheckIds`, so the Step 18 engine-governance quartet survives packaging instead of disappearing after the quality report stage.
-On the current Windows host, the runtime execution report has been re-verified as fully passed: `status=passed`, `passedCount=3`, `failedCount=0`, and `blockedCount=0` in `artifacts/quality/quality-gate-execution-report.json`.
-That host result is achieved by flattening the remaining Windows-fragile nested wrappers under `check:desktop`, `check:server`, `check:quality:standard`, and `check:release-flow` while keeping the declared `fast -> standard -> release` topology unchanged.
+When `scripts/release/render-release-notes.mjs` writes `release-notes.md` inside that same release asset directory and `SHA256SUMS.txt` already exists, it now refreshes the checksum inventory immediately so rendered notes cannot silently stale the finalized digest surface.
+Rendered post-release `Stop-ship signals` now also absorb runtime blocked tiers, runtime failed tiers, and runtime blocking diagnostics from packaged `qualityEvidence`, so operator release notes cannot under-report a publish-blocking execution verdict that is already present in finalized assets.
+The finalized `qualityEvidence` summary now also preserves manifest-bound tier counts beside workflow-bound counts and the release-tier engine governance set as `releaseGovernanceCheckIds`, so the official-SDK-first engine-governance closure survives packaging instead of disappearing after the quality report stage and the packaged loop scoreboard cannot stay at `100` when root quality-tier topology drifts.
+On the current Windows host, the runtime execution report now preserves a blocked Vite-host preflight state instead of fabricating a contract failure: `status=blocked`, `passedCount=0`, `blockedCount=1`, `failedCount=0`, `lastExecutedTierId=fast`, and `blockingDiagnosticIds=["vite-host-build-preflight"]` in `artifacts/quality/quality-gate-execution-report.json`.
+That host result keeps the declared `fast -> standard -> release` topology intact while making the downstream `standard` and `release` skips explicit until the governed Vite or esbuild execution path is stable again.
+Fresh outer-shell reruns on `2026-04-15` now confirm a narrower split truth on this host: direct `pnpm.cmd run build` passes under the bundle budget, but direct `pnpm.cmd check:quality:fast` fails at `check:web-vite-build` with `[vite:define] spawn EPERM`, and direct `pnpm.cmd check:quality:release` exits non-zero for the same reason because `fast` stops first. Treat both `pnpm quality:execution-report` and the governed release-flow evidence as the active blocker truth until the Vite-host execution-path divergence is eliminated on Windows.
 DSN-backed `pnpm release:smoke:postgresql-live` remains a separate environment gate. If the host lacks a real PostgreSQL DSN or driver, keep that lane explicitly blocked rather than weakening the quality-tier truth.
 If a DSN is configured but the PostgreSQL backend is unreachable, the same command must return a structured `failed` report instead of crashing during provider cleanup.
 On this Windows host, that gate has now also been closed with a real `passed` report against a temporary Docker-backed `postgres:16-alpine` instance published on `127.0.0.1:55432`.
@@ -189,13 +192,14 @@ Rendered release notes must also freeze a deterministic post-release operations 
 
 - Observation goal: derived from `releaseKind`
 - Observation window: `monitoringWindowMinutes` + `rolloutStage`
-- Stop-ship signals: finalized `qualityEvidence` blockers plus `governanceEvidence.blockedRecords`
+- Stop-ship signals: finalized `qualityEvidence` blockers or topology drift plus `governanceEvidence.blockedRecords`
 - Rollback entry: explicit `rollbackCommand` when present, otherwise the fallback `pnpm release:rollback:plan -- --release-tag <tag> --release-assets-dir <dir>`
 - Rollback runbook: `rollbackRunbookRef`
 - Re-issue path: `pnpm release:plan` -> package/smoke -> `pnpm release:finalize`
 - Writeback targets: `docs/release/releases.json` plus the per-tag markdown note when one exists
 
 This keeps docs-backed notes, manifest-fallback notes, and GitHub release text aligned on one post-release checklist instead of maintaining separate human-only runbooks.
+When promotion metadata is written back into `docs/release/releases.json`, the renderer must update only the targeted release entry. Unrelated historical release entries and any top-level registry metadata such as schema or generation timestamps must be preserved verbatim.
 
 When Studio evidence archives are exported into the release asset directory, finalization also emits optional top-level summaries in `release-manifest.json` and preserves the raw archives:
 
@@ -291,11 +295,21 @@ If `terminal/governance/terminal-governance-diagnostics.json` is present, the fi
 
 The finalizer now always emits `quality/quality-gate-matrix-report.json` and `release-manifest.json.qualityEvidence` with:
 
-- tier ids and workflow-bound tier count
+- tier ids plus workflow-bound and manifest-bound tier counts
 - failure classification ids
 - environment diagnostic count
 - blocking diagnostic ids, normalized blocker summaries, required host capabilities, and rerun command sequence
 - when `artifacts/quality/quality-gate-execution-report.json` is present, runtime execution archive path, runtime gate status, last executed tier, blocked/failed/skipped tier ids, and runtime blocking diagnostic ids
+
+For `formal` releases and any explicit `general-availability` rollout-stage, finalization now treats packaged stop-ship evidence as a hard publication gate instead of advisory metadata. That gate is driven by the same packaged signal set used in rendered release notes:
+
+- workflow topology drift
+- manifest topology drift
+- packaged quality blockers
+- runtime blocked tiers
+- runtime failed tiers
+- runtime blocking diagnostics
+- governance blocked records
 
 After finalization, local verification can run:
 
@@ -305,6 +319,16 @@ pnpm release:smoke:finalized
 
 This post-finalize smoke step validates that any attached `previewEvidence`, `buildEvidence`, `simulatorEvidence`, `testEvidence`, and `governanceEvidence` summaries still match their raw evidence archives.
 It now also validates that `qualityEvidence` still matches the raw `quality/quality-gate-matrix-report.json` artifact and, when present, the archived `quality/quality-gate-execution-report.json` runtime verdict.
+When the finalized manifest declares `formal` or `general-availability` release control, this smoke step also fails if any packaged stop-ship evidence remains, so operator signoff cannot succeed against a manifest that still advertises publication blockers.
+When the release asset directory already contains `SHA256SUMS.txt`, finalized smoke now refreshes that checksum inventory after writing `finalized-release-smoke-report.json`, so post-finalize evidence replay cannot leave the packaged asset digest set stale.
+The finalized smoke report now also publishes a machine-readable promotion summary:
+
+- `stopShipSignals`: the same packaged blocker list rendered into release notes
+- `promotionReadiness.currentReleaseKind`
+- `promotionReadiness.currentRolloutStage`
+- `promotionReadiness.formalOrGaStatus`
+
+This keeps `finalized-release-smoke-report.json` honest about commercial promotion state even when its own top-level `status` is still `passed` because evidence consistency checks succeeded for a canary or other non-GA release shape.
 
 ## GPU Variant Model
 
@@ -328,4 +352,8 @@ Profiles:
 
 - Release entries live under `docs/release/`
 - The machine-readable index is `docs/release/releases.json`
+- The latest registry entry must also backwrite the packaged promotion summary as `stopShipSignals` plus `promotionReadiness.currentReleaseKind`, `promotionReadiness.currentRolloutStage`, `promotionReadiness.formalOrGaStatus`, and `promotionReadiness.stopShipSignals`
+- When `artifacts/release-openapi-canonical` is present, that latest registry entry must stay aligned with the canonical `release-manifest.json` and `finalized-release-smoke-report.json` promotion summary
+- The latest registry-backed release note must also echo that same promotion summary explicitly with `Release kind`, `Rollout stage`, `Formal or GA status`, and `Machine stop-ship signals`
+- Registry writeback is entry-scoped: rendering one release must not overwrite unrelated release entries or drop top-level registry metadata
 - Per-tag release notes are markdown files such as `docs/release/release-2026-04-08-02.md`

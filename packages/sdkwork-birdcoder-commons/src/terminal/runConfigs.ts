@@ -1,5 +1,7 @@
 import {
   createJsonRecordRepository,
+  getStoredRawValue,
+  serializeStoredValue,
   type BirdCoderJsonRecordRepository,
 } from '../storage/dataKernel.ts';
 import { getTerminalProfile, type TerminalProfileId } from './profiles.ts';
@@ -14,8 +16,7 @@ import {
 } from './runtime.ts';
 import {
   BIRDCODER_RUN_CONFIGURATION_STORAGE_BINDING,
-  getBirdCoderEntityDefinition,
-} from '@sdkwork/birdcoder-types';
+} from '@sdkwork/birdcoder-types/storageBindings';
 
 const RUN_CONFIGURATION_LIMIT = 20;
 
@@ -123,7 +124,7 @@ function normalizeRunConfiguration(
   return {
     id: value?.id?.trim() || `config-${index + 1}`,
     name: value?.name?.trim() || 'Run Task',
-    command: value?.command?.trim() || 'echo TODO',
+    command: value?.command?.trim() || 'echo Configure this run command first.',
     profileId: getTerminalProfile(value?.profileId ?? 'powershell').id,
     group: normalizeRunConfigurationGroup(value?.group),
     cwdMode: normalizeRunConfigurationCwdMode(value?.cwdMode),
@@ -144,7 +145,6 @@ function createRunConfigurationRepository(
       ...BIRDCODER_RUN_CONFIGURATION_STORAGE_BINDING,
       storageKey: buildRunConfigurationStorageKey(projectId),
     },
-    definition: getBirdCoderEntityDefinition('run_configuration'),
     fallback: getDefaultRunConfigurations(),
     normalize(value) {
       return normalizeRunConfigurations(value);
@@ -253,6 +253,24 @@ export async function listStoredRunConfigurations(
   projectId: string | null | undefined,
 ): Promise<RunConfigurationRecord[]> {
   return getRunConfigurationRepository(projectId).read();
+}
+
+export async function ensureStoredRunConfigurations(
+  projectId: string | null | undefined,
+): Promise<RunConfigurationRecord[]> {
+  const repository = getRunConfigurationRepository(projectId);
+  const normalizedValue = await repository.read();
+  const currentRawValue = await getStoredRawValue(
+    repository.binding.storageScope,
+    repository.binding.storageKey,
+  );
+  const nextRawValue = serializeStoredValue(normalizedValue);
+
+  if (currentRawValue !== nextRawValue) {
+    await repository.write(normalizedValue);
+  }
+
+  return normalizedValue;
 }
 
 export async function saveStoredRunConfigurations(

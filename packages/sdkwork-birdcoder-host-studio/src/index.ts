@@ -108,10 +108,14 @@ const APP_SIMULATOR_RUNTIMES: Record<
   harmony: 'harmony-emulator',
 };
 
-export function createHostStudioDescriptor(distributionId: DistributionId = 'global') {
+export function createHostStudioDescriptor(
+  distributionId: DistributionId = 'global',
+  overrides: Partial<BirdHostDescriptor> = {},
+) {
   return createBirdHostDescriptorFromDistribution(
     'desktop',
     getDistributionManifest(distributionId),
+    overrides,
   );
 }
 

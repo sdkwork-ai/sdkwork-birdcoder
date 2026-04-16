@@ -3,13 +3,21 @@ import type {
   ChatMessage,
   ChatOptions,
 } from '../../sdkwork-birdcoder-chat/src/index.ts';
-import { createChatEngineById } from '../../sdkwork-birdcoder-commons/src/workbench/engines.ts';
+import {
+  createChatEngineById,
+} from '../../sdkwork-birdcoder-commons/src/workbench/engines.ts';
+import {
+  resolveTransportKindForRuntimeMode,
+} from '../../sdkwork-birdcoder-chat/src/index.ts';
 import {
   getWorkbenchCodeEngineKernel,
   listWorkbenchCodeEngineDescriptors,
   listWorkbenchModelCatalogEntries,
 } from '../../sdkwork-birdcoder-commons/src/workbench/kernel.ts';
 import {
+  BIRDCODER_DEFAULT_LOCAL_API_BASE_URL,
+  BIRDCODER_DEFAULT_LOCAL_API_HOST,
+  BIRDCODER_DEFAULT_LOCAL_API_PORT,
   createBirdHostDescriptorFromDistribution,
   type BirdHostDescriptor,
 } from '../../sdkwork-birdcoder-host-core/src/index.ts';
@@ -35,8 +43,8 @@ import type {
 } from '../../sdkwork-birdcoder-types/src/index.ts';
 import { BIRDCODER_CODING_SERVER_API_VERSION as BIRDCODER_CODING_SERVER_API_VERSION_VALUE } from '../../sdkwork-birdcoder-types/src/index.ts';
 
-export const BIRD_SERVER_DEFAULT_HOST = '127.0.0.1';
-export const BIRD_SERVER_DEFAULT_PORT = 18989;
+export const BIRD_SERVER_DEFAULT_HOST = BIRDCODER_DEFAULT_LOCAL_API_HOST;
+export const BIRD_SERVER_DEFAULT_PORT = BIRDCODER_DEFAULT_LOCAL_API_PORT;
 export const BIRD_SERVER_DEFAULT_CONFIG_FILE_NAME = 'bird-server.config.json';
 export const BIRDCODER_CODING_SERVER_API_VERSION = BIRDCODER_CODING_SERVER_API_VERSION_VALUE;
 export const BIRDCODER_CODING_SERVER_OPENAPI_PATH = '/openapi/coding-server-v1.json';
@@ -104,13 +112,13 @@ const BIRD_SERVER_DISTRIBUTIONS = {
     id: 'global',
     appId: 'sdkwork-birdcoder',
     appName: 'SDKWork BirdCoder',
-    apiBaseUrl: 'https://api.sdkwork.com/birdcoder',
+    apiBaseUrl: BIRDCODER_DEFAULT_LOCAL_API_BASE_URL,
   },
   cn: {
     id: 'cn',
     appId: 'sdkwork-birdcoder-cn',
     appName: 'SDKWork BirdCoder',
-    apiBaseUrl: 'https://cn.sdkwork.local/birdcoder',
+    apiBaseUrl: BIRDCODER_DEFAULT_LOCAL_API_BASE_URL,
   },
 } as const;
 
@@ -373,14 +381,22 @@ const ADMIN_API_CONTRACT: BirdCoderAdminApiContract = {
 
 export function resolveServerRuntime(
   distributionId: BirdServerDistributionId = 'global',
+  overrides: Partial<BirdServerRuntime> = {},
 ): BirdServerRuntime {
   const distribution = BIRD_SERVER_DISTRIBUTIONS[distributionId];
+  const hostDescriptor = createBirdHostDescriptorFromDistribution('server', distribution, {
+    ...(overrides.apiBaseUrl ? { apiBaseUrl: overrides.apiBaseUrl } : {}),
+    ...(overrides.appId ? { appId: overrides.appId } : {}),
+    ...(overrides.appName ? { appName: overrides.appName } : {}),
+    ...(overrides.distributionId ? { distributionId: overrides.distributionId } : {}),
+    ...(overrides.mode ? { mode: overrides.mode } : {}),
+  });
 
   return {
-    ...createBirdHostDescriptorFromDistribution('server', distribution),
-    host: BIRD_SERVER_DEFAULT_HOST,
-    port: BIRD_SERVER_DEFAULT_PORT,
-    configFileName: BIRD_SERVER_DEFAULT_CONFIG_FILE_NAME,
+    ...hostDescriptor,
+    host: overrides.host ?? BIRD_SERVER_DEFAULT_HOST,
+    port: overrides.port ?? BIRD_SERVER_DEFAULT_PORT,
+    configFileName: overrides.configFileName ?? BIRD_SERVER_DEFAULT_CONFIG_FILE_NAME,
   };
 }
 
@@ -536,6 +552,13 @@ export async function executeBirdCoderCoreSessionRun(
     (() => {
       throw new Error(`Engine ${request.engineId} does not expose describeRuntime()`);
     })();
+  const runtimeHealth = await chatEngine.getHealth?.();
+  const runtimeTransportKind = runtimeHealth
+    ? resolveTransportKindForRuntimeMode(
+        kernel.descriptor.transportKinds,
+        runtimeHealth.runtimeMode,
+      )
+    : runtimeDescriptor.transportKind;
   const createdAt = new Date().toISOString();
   const events: BirdCoderCodingSessionEvent[] = [];
   const artifacts: BirdCoderCodingSessionArtifact[] = [];
@@ -565,7 +588,7 @@ export async function executeBirdCoderCoreSessionRun(
     modelId: runtimeDescriptor.modelId,
     nativeRef: {
       engineId: runtimeDescriptor.engineId,
-      transportKind: runtimeDescriptor.transportKind,
+      transportKind: runtimeTransportKind,
       nativeSessionId: request.sessionId,
       nativeTurnContainerId: request.turnId,
       metadata: {

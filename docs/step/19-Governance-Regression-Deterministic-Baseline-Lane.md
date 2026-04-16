@@ -55,8 +55,8 @@ Remove false governance-regression blockers so the gate fails only on real produ
 - `node scripts/check-arch-boundaries.mjs`
 - `node scripts/i18n-contract.test.mjs`
 - `node scripts/governance-regression-report.test.mjs`
-- `pnpm.cmd run build` -> fails on real `web-bundle-budget`
-- `pnpm.cmd run check:governance-regression` -> fails only on `web-bundle-budget`
+- `pnpm.cmd run build` -> passes under the governed `web-bundle-budget`
+- `node scripts/governance-regression-report.mjs` -> blocked on `vite-host-build-preflight`
 
 ## Notes
 
@@ -76,6 +76,17 @@ Remove false governance-regression blockers so the gate fails only on real produ
 - Fresh release-tier evidence on `2026-04-13` now confirms both command surfaces are green with the declared `fast -> standard -> matrix -> release-flow -> ci-flow -> governance` topology unchanged:
   - `cmd /d /s /c "pnpm.cmd check:quality:release"` passes
   - `node scripts/quality-gate-execution-report.mjs` returns `status: passed` with `passedCount: 3`
-- Fresh `node scripts/governance-regression-report.mjs` evidence now returns `88/88` passed checks with the governed bundle sizes:
+- Fresh `node scripts/governance-regression-report.mjs` evidence now returns `101/101` passed checks with the governed bundle sizes:
   - entry `index-DJsuPCYU.js`: `68.1 KiB`
   - largest JS asset `vendor-markdown-DqZNkVdw.js`: `598.2 KiB`
+
+## Current Loop Addendum - 2026-04-15 Vite Host Block Preservation
+
+- The Step `19` deterministic baseline now also closes the remaining Vite-host blocker misclassification drift.
+- `scripts/governance-regression-report.test.mjs` now freezes that command-backed `[vite:define] spawn EPERM` is reported as `blocked` with `failureClassification: toolchain-platform`, not as an ordinary failed repository regression.
+- `scripts/governance-regression-report.mjs` now emits `blockedCheckIds`, `blockingDiagnosticIds`, and `environmentDiagnostics` so a governed Vite-host denial stays machine-readable and auditable inside the governance report.
+- Fresh evidence on `2026-04-15` now records the split current truth:
+  - direct `pnpm.cmd run build` still passes with entry `68.1 KiB`, largest JS asset `598.2 KiB`, and cap `700.0 KiB`
+  - `node scripts/governance-regression-report.mjs` returns `status: blocked`, `passedCount: 100`, `blockedCount: 1`, `failedCount: 0`, `blockedCheckIds: ["web-bundle-budget"]`, and `blockingDiagnosticIds: ["vite-host-build-preflight"]`
+  - direct `pnpm.cmd check:quality:release` now exits non-zero earlier because `fast` fails first at `check:web-vite-build` with `[vite:define] spawn EPERM`
+- Future loops must not weaken the web budget or rewrite repository truth when the remaining governance issue is this blocked Vite-host execution path on the current host; rerun the declared command path after the host capability gap is cleared.

@@ -1,4 +1,4 @@
-import { type TerminalCommandRequest } from '@sdkwork/birdcoder-commons';
+import { type TerminalCommandRequest } from '@sdkwork/birdcoder-commons/workbench';
 import { ResizeHandle } from '@sdkwork/birdcoder-ui';
 import React, { Suspense, lazy } from 'react';
 

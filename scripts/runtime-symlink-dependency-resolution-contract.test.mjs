@@ -19,6 +19,12 @@ assert.match(
   'Workspace dependency management must enable root-level workspace linking, matching the claw-studio baseline.',
 );
 
+assert.match(
+  npmrcSource,
+  /auto-install-peers\s*=\s*false/,
+  'Workspace dependency management must disable auto-install-peers so optional provider SDK peers remain optional and do not force npm registry fetches during root installs.',
+);
+
 assert.doesNotMatch(
   desktopViteConfigSource,
   /preserveSymlinks\s*:\s*true/,

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check, GitBranch, CheckCircle2, Share, Upload, Terminal, X, Copy, Globe, Lock, Users, Plus } from 'lucide-react';
 import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-types';
 import { Button } from '@sdkwork/birdcoder-ui';
-import { useToast } from '@sdkwork/birdcoder-commons';
+import { globalEventBus, useToast } from '@sdkwork/birdcoder-commons/workbench';
 import { useTranslation } from 'react-i18next';
 import {
   executeGitCommand,
@@ -220,9 +220,7 @@ export function TopBar({
                 <div className="h-px bg-white/10 my-1.5"></div>
                 <div className="px-3 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer flex items-center gap-2 transition-colors" onClick={() => { 
                   setShowSubmitMenu(false); 
-                  import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-                    globalEventBus.emit('toggleDiffPanel');
-                  });
+                  globalEventBus.emit('toggleDiffPanel');
                 }}>
                   <span>{t('app.menu.viewDiff')}</span>
                 </div>

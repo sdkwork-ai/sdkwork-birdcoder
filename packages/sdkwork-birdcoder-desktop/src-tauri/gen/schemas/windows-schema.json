@@ -387,10 +387,16 @@
       "description": "Permission identifier",
       "oneOf": [
         {
-          "description": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-local-store`\n- `allow-terminal-sessions`\n- `allow-terminal-host`\n- `allow-terminal-detection`\n- `allow-execute-terminal-command`",
+          "description": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-local-store`\n- `allow-file-system-bridge`\n- `allow-terminal-sessions`\n- `allow-terminal-host`\n- `allow-terminal-detection`\n- `allow-execute-terminal-command`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-local-store`\n- `allow-terminal-sessions`\n- `allow-terminal-host`\n- `allow-terminal-detection`\n- `allow-execute-terminal-command`"
+          "markdownDescription": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-local-store`\n- `allow-file-system-bridge`\n- `allow-terminal-sessions`\n- `allow-terminal-host`\n- `allow-terminal-detection`\n- `allow-execute-terminal-command`"
+        },
+        {
+          "description": "Allows mounted project file-system bridge commands.\n#### This permission set includes:\n\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`",
+          "type": "string",
+          "const": "allow-file-system-bridge",
+          "markdownDescription": "Allows mounted project file-system bridge commands.\n#### This permission set includes:\n\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`"
         },
         {
           "description": "Allows desktop local store bridge commands.\n#### This permission set includes:\n\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-local-store-list`",
@@ -417,10 +423,58 @@
           "markdownDescription": "Allows terminal session persistence bridge commands.\n#### This permission set includes:\n\n- `allow-terminal-session-upsert`\n- `allow-terminal-session-delete`\n- `allow-terminal-session-list`"
         },
         {
+          "description": "Enables the desktop_runtime_config command.",
+          "type": "string",
+          "const": "allow-desktop-runtime-config",
+          "markdownDescription": "Enables the desktop_runtime_config command."
+        },
+        {
           "description": "Enables the execute_terminal_command command.",
           "type": "string",
           "const": "allow-execute-terminal-command",
           "markdownDescription": "Enables the execute_terminal_command command."
+        },
+        {
+          "description": "Enables the fs_create_directory command.",
+          "type": "string",
+          "const": "allow-fs-create-directory",
+          "markdownDescription": "Enables the fs_create_directory command."
+        },
+        {
+          "description": "Enables the fs_create_file command.",
+          "type": "string",
+          "const": "allow-fs-create-file",
+          "markdownDescription": "Enables the fs_create_file command."
+        },
+        {
+          "description": "Enables the fs_delete_entry command.",
+          "type": "string",
+          "const": "allow-fs-delete-entry",
+          "markdownDescription": "Enables the fs_delete_entry command."
+        },
+        {
+          "description": "Enables the fs_read_file command.",
+          "type": "string",
+          "const": "allow-fs-read-file",
+          "markdownDescription": "Enables the fs_read_file command."
+        },
+        {
+          "description": "Enables the fs_rename_entry command.",
+          "type": "string",
+          "const": "allow-fs-rename-entry",
+          "markdownDescription": "Enables the fs_rename_entry command."
+        },
+        {
+          "description": "Enables the fs_snapshot_folder command.",
+          "type": "string",
+          "const": "allow-fs-snapshot-folder",
+          "markdownDescription": "Enables the fs_snapshot_folder command."
+        },
+        {
+          "description": "Enables the fs_write_file command.",
+          "type": "string",
+          "const": "allow-fs-write-file",
+          "markdownDescription": "Enables the fs_write_file command."
         },
         {
           "description": "Enables the host_mode command.",

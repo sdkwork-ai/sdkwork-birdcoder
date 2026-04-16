@@ -13,6 +13,8 @@ fs.mkdirSync(releaseAssetsDir, { recursive: true });
 fs.writeFileSync(
   path.join(docsDir, 'releases.json'),
   JSON.stringify({
+    schemaVersion: 2,
+    generatedAt: '2026-04-08T00:00:00.000Z',
     releases: [
       {
         tag: 'release-2026-04-08-00',
@@ -21,6 +23,13 @@ fs.writeFileSync(
         status: 'draft',
         summary: 'Earlier unpublished tag.',
         notesFile: 'release-2026-04-08-00.md',
+        stopShipSignals: ['governance blockers `manual-approval-missing`'],
+        promotionReadiness: {
+          currentReleaseKind: 'canary',
+          currentRolloutStage: 'ring-0',
+          formalOrGaStatus: 'blocked',
+          stopShipSignals: ['governance blockers `manual-approval-missing`'],
+        },
       },
       {
         tag: 'release-2026-04-08-01',
@@ -61,6 +70,7 @@ fs.writeFileSync(
       archiveRelativePath: 'quality/quality-gate-matrix-report.json',
       totalTiers: 3,
       workflowBoundTiers: 3,
+      manifestBoundTiers: 3,
       tierIds: ['fast', 'standard', 'release'],
       failureClassificationIds: ['contract-drift', 'toolchain-platform', 'artifact-integrity', 'evidence-gap'],
       environmentDiagnostics: 1,
@@ -76,6 +86,7 @@ fs.writeFileSync(
           rerunCommands: ['pnpm check:quality:standard', 'pnpm check:quality:release'],
         },
       ],
+      releaseReadinessSignals: ['desktop local project recovery `windows/x64` is `not-ready`'],
     },
   }, null, 2),
 );
@@ -92,6 +103,11 @@ renderReleaseNotes({
 const rendered = fs.readFileSync(outputPath, 'utf8');
 assert.match(rendered, /SDKWork BirdCoder release-2026-04-08-01/);
 assert.match(rendered, /Docs-backed release note source/);
+assert.match(rendered, /Finalized release readiness: `blocked`/);
+assert.match(
+  rendered,
+  /Finalized readiness signals: quality blockers `vite-host-build-preflight`; desktop local project recovery `windows\/x64` is `not-ready`/,
+);
 assert.match(rendered, /Docs registry note wins/);
 assert.match(rendered, /Carried Forward From Earlier Unpublished Tags/);
 assert.match(rendered, /release-2026-04-08-00/);
@@ -100,6 +116,7 @@ assert.match(rendered, /## Finalized Release Evidence/);
 assert.match(rendered, /## Coding-server OpenAPI evidence/);
 assert.match(rendered, /Canonical snapshot: `server\/windows\/x64\/openapi\/coding-server-v1\.json`/);
 assert.match(rendered, /## Quality evidence/);
+assert.match(rendered, /Manifest-bound tiers: `3\/3`/);
 assert.match(rendered, /Blocking diagnostics: `vite-host-build-preflight`/);
 assert.match(rendered, /Required host capabilities for `vite-host-build-preflight`: `cmd\.exe shell execution`, `esbuild\.exe process launch`/);
 assert.match(rendered, /Rerun sequence for `vite-host-build-preflight`: `pnpm check:quality:standard` -> `pnpm check:quality:release`/);
@@ -107,6 +124,31 @@ assert.match(rendered, /## Post-release operations/);
 assert.match(rendered, /Observation window: `0` minutes on `pending`/);
 assert.match(rendered, /Rollback entry: `pnpm release:rollback:plan -- --release-tag release-2026-04-08-01 --release-assets-dir /);
 assert.match(rendered, /Writeback targets: `.*releases\.json` and `.*release-2026-04-08-01\.md`/);
+const updatedRegistry = JSON.parse(fs.readFileSync(path.join(docsDir, 'releases.json'), 'utf8'));
+assert.equal(updatedRegistry.schemaVersion, 2);
+assert.equal(updatedRegistry.generatedAt, '2026-04-08T00:00:00.000Z');
+assert.deepEqual(updatedRegistry.releases[0].stopShipSignals, [
+  'governance blockers `manual-approval-missing`',
+]);
+assert.deepEqual(updatedRegistry.releases[0].promotionReadiness, {
+  currentReleaseKind: 'canary',
+  currentRolloutStage: 'ring-0',
+  formalOrGaStatus: 'blocked',
+  stopShipSignals: [
+    'governance blockers `manual-approval-missing`',
+  ],
+});
+assert.deepEqual(updatedRegistry.releases[1].stopShipSignals, [
+  'quality blockers `vite-host-build-preflight`',
+]);
+assert.deepEqual(updatedRegistry.releases[1].promotionReadiness, {
+  currentReleaseKind: '',
+  currentRolloutStage: '',
+  formalOrGaStatus: 'blocked',
+  stopShipSignals: [
+    'quality blockers `vite-host-build-preflight`',
+  ],
+});
 
 const missingQualityReleaseAssetsDir = path.join(fixtureRoot, 'release-assets-missing-quality');
 fs.mkdirSync(missingQualityReleaseAssetsDir, { recursive: true });

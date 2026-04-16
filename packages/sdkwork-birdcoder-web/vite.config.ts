@@ -24,10 +24,30 @@ export default defineConfig(({ mode }) => ({
   build: {
     minify: false,
     cssMinify: false,
+    modulePreload: {
+      resolveDependencies(_filename, deps, context) {
+        if (context.hostType !== 'html') {
+          return deps;
+        }
+
+        return deps.filter(
+          (dependency) =>
+            !/^assets\/(?:ui-chat|birdcoder-infrastructure)-/u.test(dependency),
+        );
+      },
+    },
     rollupOptions: {
       onwarn: onBirdcoderRollupWarning,
       output: {
         manualChunks(id) {
+          if (
+            id.includes('/packages/sdkwork-birdcoder-i18n/src/') ||
+            id.includes('/node_modules/react-i18next/') ||
+            id.includes('/node_modules/i18next/')
+          ) {
+            return 'vendor-i18n';
+          }
+
           if (
             id.includes('sdkwork-birdcoder-web-react-dom-client') ||
             id.includes('sdkwork-birdcoder-web-react-dom')
@@ -46,6 +66,19 @@ export default defineConfig(({ mode }) => ({
           }
 
           if (
+            id.includes('/packages/sdkwork-birdcoder-ui/src/shell.ts') ||
+            id.includes('/packages/sdkwork-birdcoder-ui/src/components/TopMenu.tsx') ||
+            id.includes('/packages/sdkwork-birdcoder-ui/src/components/ui/button.tsx') ||
+            id.includes('/packages/sdkwork-birdcoder-ui/src/lib/utils.ts') ||
+            id.includes('/node_modules/@radix-ui/react-slot/') ||
+            id.includes('/node_modules/class-variance-authority/') ||
+            id.includes('/node_modules/clsx/') ||
+            id.includes('/node_modules/tailwind-merge/')
+          ) {
+            return 'ui-shell';
+          }
+
+          if (
             id.includes('/node_modules/monaco-editor/') ||
             id.includes('/node_modules/@monaco-editor/')
           ) {
@@ -53,11 +86,16 @@ export default defineConfig(({ mode }) => ({
           }
 
           if (
-            id.includes('/node_modules/react-markdown/') ||
             id.includes('/node_modules/react-syntax-highlighter/') ||
             id.includes('/node_modules/prismjs/') ||
             id.includes('/node_modules/refractor/') ||
-            id.includes('/node_modules/lowlight/') ||
+            id.includes('/node_modules/lowlight/')
+          ) {
+            return 'vendor-code-highlight';
+          }
+
+          if (
+            id.includes('/node_modules/react-markdown/') ||
             id.includes('/node_modules/unified/') ||
             id.includes('/node_modules/remark-') ||
             id.includes('/node_modules/mdast-') ||
@@ -67,6 +105,26 @@ export default defineConfig(({ mode }) => ({
             id.includes('/node_modules/unist-util')
           ) {
             return 'vendor-markdown';
+          }
+
+          if (id.includes('/packages/sdkwork-birdcoder-types/src/storageBindings.ts')) {
+            return 'birdcoder-types-storage';
+          }
+
+          if (id.includes('/packages/sdkwork-birdcoder-types/src/')) {
+            return 'birdcoder-types';
+          }
+
+          if (
+            id.includes('/packages/sdkwork-birdcoder-infrastructure/src/storage/runtime.ts')
+          ) {
+            return 'storage-runtime';
+          }
+
+          if (
+            id.includes('/packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesRuntime.ts')
+          ) {
+            return 'infra-runtime';
           }
 
           if (

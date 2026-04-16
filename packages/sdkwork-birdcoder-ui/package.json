@@ -21,6 +21,10 @@
     "./run-config": {
       "import": "./src/run-config.ts",
       "types": "./src/run-config.ts"
+    },
+    "./shell": {
+      "import": "./src/shell.ts",
+      "types": "./src/shell.ts"
     }
   },
   "scripts": {

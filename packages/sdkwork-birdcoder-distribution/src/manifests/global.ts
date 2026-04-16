@@ -1,3 +1,4 @@
+import { BIRDCODER_DEFAULT_LOCAL_API_BASE_URL } from '../../../sdkwork-birdcoder-host-core/src/index.ts';
 import type { DistributionManifest } from '../index';
 
 export const globalManifest: DistributionManifest = {
@@ -7,5 +8,5 @@ export const globalManifest: DistributionManifest = {
   bundleIdentifier: 'com.sdkwork.birdcoder',
   updateSource: 'github',
   mirrorStrategy: 'global',
-  apiBaseUrl: 'https://api.sdkwork.com/birdcoder',
+  apiBaseUrl: BIRDCODER_DEFAULT_LOCAL_API_BASE_URL,
 };

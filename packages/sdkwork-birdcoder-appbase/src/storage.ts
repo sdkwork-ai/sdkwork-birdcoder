@@ -4,8 +4,7 @@ import {
 import {
   BIRDCODER_APPBASE_USER_PROFILE_STORAGE_BINDING,
   BIRDCODER_APPBASE_VIP_SUBSCRIPTION_STORAGE_BINDING,
-  getBirdCoderEntityDefinition,
-} from '@sdkwork/birdcoder-types';
+} from '@sdkwork/birdcoder-types/storageBindings';
 import {
   BIRDCODER_APPBASE_USER_PROFILE_KEY,
   BIRDCODER_APPBASE_USER_STORAGE_SCOPE,
@@ -92,7 +91,6 @@ const birdCoderUserProfileRepository = createJsonRecordRepository<BirdCoderUserP
     storageScope: BIRDCODER_APPBASE_USER_STORAGE_SCOPE,
     storageKey: BIRDCODER_APPBASE_USER_PROFILE_KEY,
   },
-  definition: getBirdCoderEntityDefinition('user_profile'),
   fallback: DEFAULT_BIRDCODER_USER_PROFILE,
   normalize: normalizeBirdCoderUserProfile,
 });
@@ -103,7 +101,6 @@ const birdCoderVipMembershipRepository = createJsonRecordRepository<BirdCoderVip
     storageScope: BIRDCODER_APPBASE_VIP_STORAGE_SCOPE,
     storageKey: BIRDCODER_APPBASE_VIP_MEMBERSHIP_KEY,
   },
-  definition: getBirdCoderEntityDefinition('vip_subscription'),
   fallback: DEFAULT_BIRDCODER_VIP_MEMBERSHIP,
   normalize: normalizeBirdCoderVipMembership,
 });

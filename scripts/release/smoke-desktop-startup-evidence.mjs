@@ -32,6 +32,18 @@ export function smokeDesktopStartupEvidence(options = {}) {
     readinessEvidence: {
       ready: true,
       shellMounted: true,
+      workspaceBootstrap: {
+        defaultWorkspaceReady: true,
+        defaultProjectReady: true,
+        recoverySnapshotReady: true,
+      },
+      localProjectRecovery: {
+        autoRemountSupported: true,
+        recoveringStateVisible: true,
+        failedStateVisible: true,
+        retrySupported: true,
+        reimportSupported: true,
+      },
     },
   });
   const smokeReport = writeDesktopStartupSmokeReport({
@@ -56,6 +68,16 @@ export function smokeDesktopStartupEvidence(options = {}) {
         id: 'shell-mounted',
         status: 'passed',
         detail: 'desktop shell bootstrap can be represented as mounted for release evidence',
+      },
+      {
+        id: 'workspace-bootstrap-ready',
+        status: 'passed',
+        detail: 'desktop startup evidence includes default workspace and project bootstrap readiness',
+      },
+      {
+        id: 'local-project-recovery-ready',
+        status: 'passed',
+        detail: 'desktop startup evidence includes local project recovery visibility and operator actions',
       },
     ],
   });

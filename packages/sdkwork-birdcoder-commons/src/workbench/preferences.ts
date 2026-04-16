@@ -11,8 +11,7 @@ import {
 } from './kernel.ts';
 import {
   BIRDCODER_WORKBENCH_PREFERENCES_STORAGE_BINDING,
-  getBirdCoderEntityDefinition,
-} from '@sdkwork/birdcoder-types';
+} from '@sdkwork/birdcoder-types/storageBindings';
 
 export interface WorkbenchCodeEngineDefinition {
   id: WorkbenchCodeEngineId;
@@ -179,7 +178,6 @@ export function normalizeWorkbenchPreferences(
 const workbenchPreferencesRepository: BirdCoderJsonRecordRepository<WorkbenchPreferences> =
   createJsonRecordRepository<WorkbenchPreferences>({
     binding: BIRDCODER_WORKBENCH_PREFERENCES_STORAGE_BINDING,
-    definition: getBirdCoderEntityDefinition('workbench_preference'),
     fallback: DEFAULT_WORKBENCH_PREFERENCES,
     normalize(value, fallback) {
       const normalizedValue =

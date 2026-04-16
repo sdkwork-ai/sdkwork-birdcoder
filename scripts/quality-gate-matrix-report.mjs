@@ -2,12 +2,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
+import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from './governance-regression-report.mjs';
 import {
   formatViteHostPreflightFailure,
   runViteHostBuildPreflight,
 } from './vite-host-preflight.mjs';
 
 export const DEFAULT_QUALITY_GATE_MATRIX_REPORT_FILE = 'artifacts/quality/quality-gate-matrix-report.json';
+export const VITE_HOST_BUILD_PREFLIGHT_DIAGNOSTIC_ID = 'vite-host-build-preflight';
+export const VITE_HOST_REQUIRED_CAPABILITIES = Object.freeze([
+  'cmd.exe shell execution',
+  'esbuild.exe process launch',
+]);
 
 export const QUALITY_GATE_TIERS = Object.freeze([
   Object.freeze({
@@ -84,12 +90,7 @@ export const QUALITY_GATE_TIERS = Object.freeze([
       'governance regression report',
       'engine governance regression checks',
     ]),
-    governanceCheckIds: Object.freeze([
-      'engine-runtime-adapter',
-      'engine-conformance',
-      'tool-protocol',
-      'engine-resume-recovery',
-    ]),
+    governanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
     rerunPolicy: 'Any release-gate failure blocks packaging or publish; rerun the full release gate after the fix to keep release evidence coherent.',
     workflowBinding: Object.freeze({
       kind: 'legacy-parity',
@@ -117,7 +118,7 @@ export const QUALITY_FAILURE_CLASSIFICATIONS = Object.freeze([
   Object.freeze({
     id: 'toolchain-platform',
     label: 'Toolchain or platform regression',
-    appliesTo: Object.freeze(['standard', 'release']),
+    appliesTo: Object.freeze(['fast', 'standard', 'release']),
     indicators: Object.freeze(['desktop/server check failed', 'target-specific build break']),
     evidence: Object.freeze(['target logs', 'platform-specific build output']),
   }),
@@ -168,6 +169,10 @@ function hasWorkflowBinding(workflowSource, tier) {
   }
 
   return requiredCommands.every((command) => workflowSource.includes(command));
+}
+
+function hasManifestBinding(command) {
+  return String(command ?? '').trim().length > 0;
 }
 
 function parseArgs(argv) {
@@ -235,28 +240,28 @@ export function buildToolchainPlatformDiagnostic({
     ? 'not-applicable'
     : preflightReport?.ok
       ? 'clear'
-      : 'blocked';
+      : 'warning';
 
   let summary = 'Vite host build preflight does not apply on this platform.';
   if (normalizedStatus === 'clear') {
     summary = 'Vite host build preflight passed for the current workspace host.';
-  } else if (normalizedStatus === 'blocked') {
-    summary = formatViteHostPreflightFailure(preflightReport);
+  } else if (normalizedStatus === 'warning') {
+    summary = [
+      formatViteHostPreflightFailure(preflightReport),
+      'This preflight is observational until a real Vite-backed build fails on the current host.',
+    ].join('\n');
   }
 
   const appliesTo = [...(classification?.appliesTo ?? ['standard', 'release'])];
-  const requiredCapabilities = normalizedStatus === 'blocked'
-    ? [
-        'cmd.exe shell execution',
-        'esbuild.exe process launch',
-      ]
+  const requiredCapabilities = normalizedStatus === 'warning'
+    ? [...VITE_HOST_REQUIRED_CAPABILITIES]
     : [];
-  const rerunCommands = normalizedStatus === 'blocked'
+  const rerunCommands = normalizedStatus === 'warning'
     ? resolveTierRerunCommands(appliesTo)
     : [];
 
   return {
-    id: 'vite-host-build-preflight',
+    id: VITE_HOST_BUILD_PREFLIGHT_DIAGNOSTIC_ID,
     label: 'Vite host build preflight',
     classification: classification?.id ?? 'toolchain-platform',
     appliesTo,
@@ -308,6 +313,11 @@ export function buildQualityGateMatrixReport({
         requiredCommands: [...tier.workflowBinding.requiredCommands],
         bound: hasWorkflowBinding(workflowSource, tier),
       },
+      manifest: {
+        file: 'package.json',
+        scriptName: tier.scriptName,
+        bound: hasManifestBinding(command),
+      },
     };
   });
 
@@ -326,6 +336,8 @@ export function buildQualityGateMatrixReport({
       totalTiers: tiers.length,
       workflowBoundTiers: tiers.filter((tier) => tier.workflow.bound).length,
       missingWorkflowBindings: tiers.filter((tier) => !tier.workflow.bound).map((tier) => tier.id),
+      manifestBoundTiers: tiers.filter((tier) => tier.manifest.bound).length,
+      missingManifestBindings: tiers.filter((tier) => !tier.manifest.bound).map((tier) => tier.id),
       failureClassifications: QUALITY_FAILURE_CLASSIFICATIONS.length,
       environmentDiagnostics: environmentDiagnostics.length,
       blockingDiagnosticIds: environmentDiagnostics

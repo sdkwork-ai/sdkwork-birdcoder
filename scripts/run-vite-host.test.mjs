@@ -4,12 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 import {
+  applyViteHostBuildRuntimeEnv,
   createViteHostPlan,
   normalizeViteMode,
   resolveInstalledVitePackageRoot,
+  shouldEnforceViteHostBuildPreflight,
   resolveViteCliEntry,
   resolveViteWindowsRealpathPatchEntry,
-  shouldSkipViteHostBuildPreflight,
   stripModeArg,
 } from './run-vite-host.mjs';
 
@@ -102,6 +103,66 @@ assert.equal(buildPlan.cwd, tempRoot);
 assert.equal(buildPlan.env.SDKWORK_VITE_MODE, 'test');
 assert.equal(buildPlan.env.CUSTOM_ENV, 'retained');
 
+const workspaceRootPackageJsonPath = path.resolve('package.json');
+const workspaceRootPackageJson = JSON.parse(fs.readFileSync(workspaceRootPackageJsonPath, 'utf8'));
+const aliasedBuildPlan = createViteHostPlan({
+  argv: ['build', '--mode', 'production'],
+  env: {
+    CUSTOM_ENV: 'retained',
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'safe.directory',
+    GIT_CONFIG_VALUE_0: tempRoot,
+    GIT_PAGER: 'more.com',
+    PAGER: 'more.com',
+    npm_command: 'run-script',
+    npm_lifecycle_event: 'build:prod',
+    npm_lifecycle_script: 'pnpm run build:prod',
+  },
+  cwd: tempRoot,
+});
+assert.equal(aliasedBuildPlan.env.CUSTOM_ENV, 'retained');
+assert.equal(aliasedBuildPlan.env.npm_lifecycle_event, 'build');
+assert.equal(aliasedBuildPlan.env.npm_lifecycle_script, workspaceRootPackageJson.scripts.build);
+assert.equal(aliasedBuildPlan.env.INIT_CWD, path.resolve('.'));
+assert.equal(aliasedBuildPlan.env.PNPM_SCRIPT_SRC_DIR, path.resolve('.'));
+assert.equal(aliasedBuildPlan.env.NODE, process.execPath);
+assert.equal(aliasedBuildPlan.env.npm_node_execpath, process.execPath);
+assert.equal(aliasedBuildPlan.env.npm_package_json, workspaceRootPackageJsonPath);
+assert.equal(aliasedBuildPlan.env.npm_package_name, workspaceRootPackageJson.name);
+assert.equal(aliasedBuildPlan.env.npm_package_version, workspaceRootPackageJson.version);
+assert.equal(aliasedBuildPlan.env.GIT_CONFIG_COUNT, undefined);
+assert.equal(aliasedBuildPlan.env.GIT_CONFIG_KEY_0, undefined);
+assert.equal(aliasedBuildPlan.env.GIT_CONFIG_VALUE_0, undefined);
+assert.equal(aliasedBuildPlan.env.GIT_PAGER, undefined);
+assert.equal(aliasedBuildPlan.env.PAGER, undefined);
+
+const runtimeEnv = {
+  CUSTOM_ENV: 'retained',
+  GIT_CONFIG_COUNT: '1',
+  GIT_CONFIG_KEY_0: 'safe.directory',
+  GIT_CONFIG_VALUE_0: tempRoot,
+  GIT_PAGER: 'more.com',
+  PAGER: 'more.com',
+  npm_lifecycle_event: 'build:prod',
+  npm_lifecycle_script: 'pnpm run build:prod',
+};
+const normalizedRuntimeEnv = applyViteHostBuildRuntimeEnv({
+  env: runtimeEnv,
+  viteCommand: 'build',
+  workspaceRootDir: path.resolve('.'),
+  nodeExecPath: process.execPath,
+  rootPackageJson: workspaceRootPackageJson,
+});
+assert.equal(normalizedRuntimeEnv, runtimeEnv);
+assert.equal(runtimeEnv.CUSTOM_ENV, 'retained');
+assert.equal(runtimeEnv.npm_lifecycle_event, 'build');
+assert.equal(runtimeEnv.npm_lifecycle_script, workspaceRootPackageJson.scripts.build);
+assert.equal(runtimeEnv.GIT_CONFIG_COUNT, undefined);
+assert.equal(runtimeEnv.GIT_CONFIG_KEY_0, undefined);
+assert.equal(runtimeEnv.GIT_CONFIG_VALUE_0, undefined);
+assert.equal(runtimeEnv.GIT_PAGER, undefined);
+assert.equal(runtimeEnv.PAGER, undefined);
+
 const explicitConfigLoaderPlan = createViteHostPlan({
   argv: ['serve', '--configLoader', 'runner'],
   env: {},
@@ -119,8 +180,17 @@ assert.deepEqual(explicitConfigLoaderPlan.args, [
 ]);
 
 assert.equal(
-  shouldSkipViteHostBuildPreflight({
-    cwd: tempRoot,
+  shouldEnforceViteHostBuildPreflight({
+    env: {},
+  }),
+  false,
+);
+
+assert.equal(
+  shouldEnforceViteHostBuildPreflight({
+    env: {
+      SDKWORK_ENFORCE_VITE_HOST_PREFLIGHT: '1',
+    },
   }),
   true,
 );
@@ -135,11 +205,6 @@ fs.writeFileSync(
   'utf8',
 );
 
-assert.equal(
-  shouldSkipViteHostBuildPreflight({
-    cwd: nonBirdcoderTempRoot,
-  }),
-  false,
-);
+assert.equal(shouldEnforceViteHostBuildPreflight({ env: {} }), false);
 
 console.log('run vite host contract passed.');

@@ -32,6 +32,7 @@ fs.writeFileSync(
       archiveRelativePath: 'quality/quality-gate-matrix-report.json',
       totalTiers: 3,
       workflowBoundTiers: 3,
+      manifestBoundTiers: 3,
       tierIds: ['fast', 'standard', 'release'],
       failureClassificationIds: ['contract-drift', 'toolchain-platform', 'artifact-integrity', 'evidence-gap'],
       environmentDiagnostics: 1,
@@ -64,6 +65,7 @@ assert.match(rendered, /Finalized at: 2026-04-08T00:00:00.000Z/);
 assert.match(rendered, /Release kind: `formal`/);
 assert.match(rendered, /Rollout stage: `general-availability`/);
 assert.match(rendered, /## Quality evidence/);
+assert.match(rendered, /Manifest-bound tiers: `3\/3`/);
 assert.match(rendered, /Blocking diagnostics: `vite-host-build-preflight`/);
 assert.match(rendered, /Required host capabilities for `vite-host-build-preflight`: `cmd\.exe shell execution`, `esbuild\.exe process launch`/);
 assert.match(rendered, /Rerun sequence for `vite-host-build-preflight`: `pnpm check:quality:standard` -> `pnpm check:quality:release`/);

@@ -1,4 +1,8 @@
 export const SDKWORK_BIRD_HOST_CORE_PACKAGE = 'sdkwork-birdcoder-host-core';
+export const BIRDCODER_DEFAULT_LOCAL_API_HOST = '127.0.0.1';
+export const BIRDCODER_DEFAULT_LOCAL_API_PORT = 10240;
+export const BIRDCODER_DEFAULT_LOCAL_API_BASE_URL =
+  `http://${BIRDCODER_DEFAULT_LOCAL_API_HOST}:${BIRDCODER_DEFAULT_LOCAL_API_PORT}`;
 
 export const SDKWORK_BIRD_HOST_MODES = [
   'web',
@@ -31,7 +35,7 @@ export function createBirdHostDescriptor(
     appId: overrides.appId ?? 'sdkwork-birdcoder',
     appName: overrides.appName ?? 'SDKWork BirdCoder',
     distributionId: overrides.distributionId ?? 'global',
-    apiBaseUrl: overrides.apiBaseUrl ?? 'http://127.0.0.1:18989',
+    apiBaseUrl: overrides.apiBaseUrl ?? BIRDCODER_DEFAULT_LOCAL_API_BASE_URL,
   };
 }
 

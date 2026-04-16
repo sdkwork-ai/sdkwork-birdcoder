@@ -23,12 +23,16 @@ import {
   type BirdCoderSqlPlan,
   type BirdCoderSqlRow,
 } from './sqlPlans.ts';
+import {
+  deserializeStoredValue,
+  getStoredRawValue,
+  removeStoredValue,
+  serializeStoredValue,
+  setStoredRawValue,
+  type BirdCoderStorageAccess,
+} from './runtime.ts';
 
-const LOCAL_STORE_NAMESPACE = 'sdkwork-birdcoder';
 const MIGRATION_HISTORY_SCOPE = 'governance';
-const inMemoryStorageFallback = new Map<string, string>();
-
-type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
 
 type BirdCoderUnitOfWorkMutation =
   | {
@@ -39,11 +43,22 @@ type BirdCoderUnitOfWorkMutation =
       value: string;
     };
 
-export interface BirdCoderStorageAccess {
-  readRawValue(scope: string, key: string): Promise<string | null>;
-  removeRawValue(scope: string, key: string): Promise<void>;
-  setRawValue(scope: string, key: string, value: string): Promise<void>;
-}
+export {
+  buildLocalStoreKey,
+  type BirdCoderStoredRawValueEntry,
+  createJsonRecordRepository,
+  deserializeStoredValue,
+  getStoredJson,
+  getStoredRawValue,
+  listStoredRawValues,
+  removeStoredValue,
+  serializeStoredValue,
+  setStoredJson,
+  setStoredRawValue,
+  type BirdCoderJsonRecordRepository,
+  type BirdCoderStorageAccess,
+  type CreateBirdCoderJsonRecordRepositoryOptions,
+} from './runtime.ts';
 
 export interface BirdCoderSqlPlanStorageAccess {
   readonly sqlPlanExecutionEnabled: boolean;
@@ -74,22 +89,6 @@ export interface CreateBirdCoderStorageProviderOptions {
   sqlExecutor?: BirdCoderSqlExecutor;
 }
 
-export interface BirdCoderJsonRecordRepository<TRecord> {
-  binding: BirdCoderEntityStorageBinding;
-  clear(): Promise<void>;
-  definition: BirdCoderEntityDefinition;
-  read(): Promise<TRecord>;
-  write(value: TRecord): Promise<TRecord>;
-}
-
-export interface CreateBirdCoderJsonRecordRepositoryOptions<TRecord> {
-  binding: BirdCoderEntityStorageBinding;
-  definition: BirdCoderEntityDefinition;
-  fallback: TRecord;
-  normalize?: (value: unknown, fallback: TRecord) => TRecord;
-  storage?: BirdCoderStorageAccess;
-}
-
 export interface BirdCoderTableRecordRepository<TRecord, TId extends string = string> {
   binding: BirdCoderEntityStorageBinding;
   clear(): Promise<void>;
@@ -117,67 +116,11 @@ export interface CreateBirdCoderTableRecordRepositoryOptions<
   toRow?: (value: TRecord) => BirdCoderSqlRow;
 }
 
-export function buildLocalStoreKey(scope: string, key: string): string {
-  return `${LOCAL_STORE_NAMESPACE}:${scope}:${key}`;
-}
-
 export function buildProviderScopedStorageKey(
   providerId: BirdCoderDatabaseProviderId,
   binding: BirdCoderEntityStorageBinding,
 ): string {
   return `${binding.storageMode}.${providerId}.${binding.storageKey}`;
-}
-
-export function serializeStoredValue<T>(value: T): string {
-  return JSON.stringify(value);
-}
-
-export function deserializeStoredValue<T>(rawValue: string | null, fallback: T): T {
-  if (!rawValue) {
-    return fallback;
-  }
-
-  try {
-    return JSON.parse(rawValue) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-async function resolveTauriInvoke(): Promise<TauriInvoke | null> {
-  if (typeof window === 'undefined' || !window.__TAURI__) {
-    return null;
-  }
-
-  try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return invoke;
-  } catch {
-    return null;
-  }
-}
-
-export async function getStoredRawValue(scope: string, key: string): Promise<string | null> {
-  const invoke = await resolveTauriInvoke();
-  if (invoke) {
-    try {
-      return await invoke<string | null>('local_store_get', { scope, key });
-    } catch {
-      // Fall through to browser storage when the desktop bridge is unavailable.
-    }
-  }
-
-  if (typeof window === 'undefined') {
-    return inMemoryStorageFallback.has(buildLocalStoreKey(scope, key))
-      ? inMemoryStorageFallback.get(buildLocalStoreKey(scope, key))!
-      : null;
-  }
-
-  try {
-    return window.localStorage.getItem(buildLocalStoreKey(scope, key));
-  } catch {
-    return null;
-  }
 }
 
 function buildStorageAccessEntryKey(scope: string, key: string): string {
@@ -497,102 +440,6 @@ export function createBirdCoderStorageProvider(
   options: CreateBirdCoderStorageProviderOptions = {},
 ): BirdCoderTransactionalStorageProvider {
   return new LocalBirdCoderStorageProvider(providerId, options);
-}
-
-export async function setStoredRawValue(scope: string, key: string, value: string): Promise<void> {
-  const invoke = await resolveTauriInvoke();
-  if (invoke) {
-    try {
-      await invoke('local_store_set', { scope, key, value });
-      return;
-    } catch {
-      // Fall through to browser storage when the desktop bridge is unavailable.
-    }
-  }
-
-  if (typeof window === 'undefined') {
-    inMemoryStorageFallback.set(buildLocalStoreKey(scope, key), value);
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(buildLocalStoreKey(scope, key), value);
-  } catch {
-    // Ignore browser storage failures and keep callers non-fatal.
-  }
-}
-
-export async function removeStoredValue(scope: string, key: string): Promise<void> {
-  const invoke = await resolveTauriInvoke();
-  if (invoke) {
-    try {
-      await invoke('local_store_delete', { scope, key });
-      return;
-    } catch {
-      // Fall through to browser storage when the desktop bridge is unavailable.
-    }
-  }
-
-  if (typeof window === 'undefined') {
-    inMemoryStorageFallback.delete(buildLocalStoreKey(scope, key));
-    return;
-  }
-
-  try {
-    window.localStorage.removeItem(buildLocalStoreKey(scope, key));
-  } catch {
-    // Ignore browser storage failures and keep callers non-fatal.
-  }
-}
-
-export async function getStoredJson<T>(scope: string, key: string, fallback: T): Promise<T> {
-  const rawValue = await getStoredRawValue(scope, key);
-  return deserializeStoredValue(rawValue, fallback);
-}
-
-export async function setStoredJson<T>(scope: string, key: string, value: T): Promise<void> {
-  await setStoredRawValue(scope, key, serializeStoredValue(value));
-}
-
-export function createJsonRecordRepository<TRecord>({
-  binding,
-  definition,
-  fallback,
-  normalize,
-  storage,
-}: CreateBirdCoderJsonRecordRepositoryOptions<TRecord>): BirdCoderJsonRecordRepository<TRecord> {
-  const storageAccess = storage ?? createDefaultStorageAccess();
-  const normalizeValue =
-    normalize ??
-    ((value: unknown, repositoryFallback: TRecord) =>
-      deserializeStoredValue(
-        typeof value === 'string' ? value : serializeStoredValue(value),
-        repositoryFallback,
-      ));
-
-  return {
-    binding,
-    definition,
-    async read() {
-      const value = deserializeStoredValue(
-        await storageAccess.readRawValue(binding.storageScope, binding.storageKey),
-        fallback,
-      );
-      return normalizeValue(value, fallback);
-    },
-    async write(value) {
-      const normalizedValue = normalizeValue(value, fallback);
-      await storageAccess.setRawValue(
-        binding.storageScope,
-        binding.storageKey,
-        serializeStoredValue(normalizedValue),
-      );
-      return normalizedValue;
-    },
-    async clear() {
-      await storageAccess.removeRawValue(binding.storageScope, binding.storageKey);
-    },
-  };
 }
 
 function defaultNormalizeTableRecord<TRecord>(value: unknown): TRecord | null {

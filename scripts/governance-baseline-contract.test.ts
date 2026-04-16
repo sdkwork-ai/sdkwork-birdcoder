@@ -15,6 +15,8 @@ assert.deepEqual(
     webInteractiveMs: 3_000,
     webEntryJsBytes: 500 * 1024,
     webAnyJsAssetBytes: 700 * 1024,
+    webMarkdownJsBytes: 500 * 1024,
+    webCodeHighlightJsBytes: 200 * 1024,
     desktopColdStartMs: 5_000,
     firstTokenMs: 2_000,
     previewRefreshMs: 1_500,
@@ -82,6 +84,16 @@ assert.equal(
   webBudgetScriptSource.includes('BIRDCODER_PERFORMANCE_BUDGETS.webAnyJsAssetBytes'),
   true,
   'web bundle budget gate should consume the shared largest-asset threshold.',
+);
+assert.equal(
+  webBudgetScriptSource.includes('BIRDCODER_PERFORMANCE_BUDGETS.webMarkdownJsBytes'),
+  true,
+  'web bundle budget gate should consume the shared markdown-chunk threshold.',
+);
+assert.equal(
+  webBudgetScriptSource.includes('BIRDCODER_PERFORMANCE_BUDGETS.webCodeHighlightJsBytes'),
+  true,
+  'web bundle budget gate should consume the shared code-highlight chunk threshold.',
 );
 
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));

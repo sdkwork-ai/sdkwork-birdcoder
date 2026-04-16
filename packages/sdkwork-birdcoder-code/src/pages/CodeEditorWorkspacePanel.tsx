@@ -6,7 +6,7 @@ import { CodeEditorSurface } from './CodeEditorSurface';
 interface CodeEditorWorkspacePanelProps {
   files: FileNode[];
   selectedFile?: string | null;
-  currentProjectName?: string;
+  currentProjectPath?: string;
   viewingDiff: FileChange | null;
   fileContent: string;
   chatWidth: number;
@@ -44,7 +44,7 @@ interface CodeEditorWorkspacePanelProps {
 export function CodeEditorWorkspacePanel({
   files,
   selectedFile,
-  currentProjectName,
+  currentProjectPath,
   viewingDiff,
   fileContent,
   chatWidth,
@@ -83,7 +83,7 @@ export function CodeEditorWorkspacePanel({
       <FileExplorer
         files={files}
         selectedFile={selectedFile || undefined}
-        basePath={`/workspace/${currentProjectName || 'project'}`}
+        basePath={currentProjectPath}
         onSelectFile={onSelectFile}
         onCreateFile={onCreateFile}
         onCreateFolder={onCreateFolder}

@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 import { buildToolchainPlatformDiagnostic, QUALITY_GATE_TIERS } from './quality-gate-matrix-report.mjs';
+import { runWindowsShellCommandWithOutputCapture } from './windows-shell-command-runner.mjs';
 
 export const DEFAULT_QUALITY_GATE_EXECUTION_REPORT_FILE = 'artifacts/quality/quality-gate-execution-report.json';
 export const QUALITY_GATE_COMMAND_RUNNER_DIAGNOSTIC_ID = 'quality-gate-command-runner';
@@ -42,12 +43,17 @@ function trimOutput(value) {
   return String(value ?? '').trim();
 }
 
-function quotePowerShellLiteral(value) {
-  return `'${String(value ?? '').replace(/'/g, "''")}'`;
-}
-
 function escapeRegex(value) {
   return String(value ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function isViteHostToolchainFailureOutput(output) {
+  const normalizedOutput = trimOutput(output);
+  if (!/spawn EPERM/i.test(normalizedOutput)) {
+    return false;
+  }
+
+  return /(vite:define|ensureServiceIsRunning|esbuild(?:\.exe|\\lib\\main\.js))/i.test(normalizedOutput);
 }
 
 function normalizeTierResult(result = {}) {
@@ -60,40 +66,76 @@ function normalizeTierResult(result = {}) {
   };
 }
 
+function readQualityGateRootPackageJson(rootDir) {
+  const packageJsonPath = path.join(rootDir, 'package.json');
+  if (!fs.existsSync(packageJsonPath)) {
+    return null;
+  }
+
+  return JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+}
+
+export function validateQualityGateExecutionTopology({
+  tiers = QUALITY_GATE_EXECUTION_TIERS,
+  rootDir = process.cwd(),
+  rootPackageJson = readQualityGateRootPackageJson(rootDir),
+} = {}) {
+  const errors = [];
+
+  for (const tier of tiers) {
+    if (!rootPackageJson?.scripts?.[tier.scriptName]) {
+      errors.push({
+        tier,
+        message: `Quality gate tier ${tier.id} references missing root package script: ${tier.scriptName}`,
+      });
+    }
+  }
+
+  return errors;
+}
+
 function resolveTierInvocation(tier, { platform = process.platform } = {}) {
   if (platform === 'win32') {
     return {
-      command: 'powershell.exe',
-      args: [
-        '-NoProfile',
-        '-Command',
-        [
-          '& {',
-          `& ${quotePowerShellLiteral('pnpm.cmd')} ${quotePowerShellLiteral(tier.scriptName)}`,
-          'if ($null -ne $LASTEXITCODE) { exit $LASTEXITCODE }',
-          'if ($?) { exit 0 }',
-          'exit 1',
-          '}',
-        ].join('; '),
-      ],
+      command: tier.command,
+      args: [],
+      shell: true,
+      diagnosticCommand: 'cmd.exe',
+      requiredCapability: 'cmd.exe shell execution',
     };
   }
 
   return {
     command: 'pnpm',
     args: [tier.scriptName],
+    shell: false,
+    diagnosticCommand: 'pnpm',
+    requiredCapability: 'pnpm child-process execution',
   };
 }
 
-export async function executeQualityGateTier(tier, { rootDir = process.cwd(), platform = process.platform } = {}) {
+export async function executeQualityGateTier(
+  tier,
+  {
+    rootDir = process.cwd(),
+    platform = process.platform,
+    spawnSyncImpl = spawnSync,
+  } = {},
+) {
   const startedAt = Date.now();
   const invocation = resolveTierInvocation(tier, { platform });
-  const result = spawnSync(invocation.command, invocation.args, {
-    cwd: rootDir,
-    encoding: 'utf8',
-    maxBuffer: 16 * 1024 * 1024,
-    windowsHide: true,
-  });
+  const result = invocation.shell === true && platform === 'win32'
+    ? runWindowsShellCommandWithOutputCapture(invocation.command, {
+        cwd: rootDir,
+        runner: (command, options) => spawnSyncImpl(command, options),
+      })
+    : spawnSyncImpl(invocation.command, invocation.args, {
+        cwd: rootDir,
+        encoding: 'utf8',
+        maxBuffer: 16 * 1024 * 1024,
+        shell: invocation.shell === true,
+        windowsHide: true,
+      });
 
   const errorText = result.error instanceof Error
     ? result.error.stack || result.error.message
@@ -127,8 +169,25 @@ function buildSkippedTier(tier, blockedByTierId) {
   };
 }
 
+function buildFailedTier(tier, stderr) {
+  return {
+    id: tier.id,
+    label: tier.label,
+    scriptName: tier.scriptName,
+    command: tier.command,
+    status: 'failed',
+    exitCode: 1,
+    durationMs: 0,
+    stdout: '',
+    stderr: trimOutput(stderr),
+  };
+}
+
 function shouldTreatAsToolchainBlock({ tier, result, toolchainDiagnostic }) {
-  if (!toolchainDiagnostic || toolchainDiagnostic.status !== 'blocked') {
+  if (
+    !toolchainDiagnostic
+    || (toolchainDiagnostic.status !== 'blocked' && toolchainDiagnostic.status !== 'warning')
+  ) {
     return false;
   }
 
@@ -137,7 +196,7 @@ function shouldTreatAsToolchainBlock({ tier, result, toolchainDiagnostic }) {
   }
 
   const combinedOutput = `${trimOutput(result.stdout)}\n${trimOutput(result.stderr)}`;
-  return /spawn EPERM|cmd\.exe|esbuild\.exe/i.test(combinedOutput);
+  return isViteHostToolchainFailureOutput(combinedOutput);
 }
 
 function resolveTierRerunCommands(startTierId = '') {
@@ -157,7 +216,10 @@ function buildCommandRunnerDiagnostic({
   platform = process.platform,
 } = {}) {
   const invocation = resolveTierInvocation(tier, { platform });
-  const invocationCommand = path.basename(String(invocation.command ?? '').trim());
+  const invocationCommand = String(invocation.diagnosticCommand ?? invocation.command ?? '').trim();
+  const requiredCapability = String(
+    invocation.requiredCapability ?? `${invocationCommand} child-process execution`,
+  ).trim();
   const combinedOutput = `${trimOutput(result.stdout)}\n${trimOutput(result.stderr)}`;
   if (!invocationCommand || !/EPERM/i.test(combinedOutput)) {
     return null;
@@ -177,8 +239,8 @@ function buildCommandRunnerDiagnostic({
     )).filter(Boolean),
     platform: String(platform ?? '').trim(),
     status: 'blocked',
-    summary: `The current host blocks ${invocationCommand} child-process execution required to run quality gate tiers (${tier.id}; spawn EPERM).`,
-    requiredCapabilities: [`${invocationCommand} child-process execution`],
+    summary: `The current host blocks ${requiredCapability} required to run quality gate tiers (${tier.id}; spawn EPERM).`,
+    requiredCapabilities: [requiredCapability],
     rerunCommands: resolveTierRerunCommands(tier.id),
     checks: [],
   };
@@ -264,6 +326,7 @@ export async function runQualityGateExecutionReport({
   platform = process.platform,
   preflightReport,
   runner = executeQualityGateTier,
+  tierDefinitions = QUALITY_GATE_EXECUTION_TIERS,
 } = {}) {
   const reportPath = path.resolve(rootDir, outputPath || DEFAULT_QUALITY_GATE_EXECUTION_REPORT_FILE);
   const toolchainDiagnostic = buildToolchainPlatformDiagnostic({
@@ -272,16 +335,26 @@ export async function runQualityGateExecutionReport({
     preflightReport,
   });
   const environmentDiagnostics = [];
-  if (toolchainDiagnostic.status === 'blocked') {
-    environmentDiagnostics.push(toolchainDiagnostic);
-  }
 
   const tiers = [];
   let haltedTierId = '';
+  const topologyErrorsByTierId = new Map(
+    validateQualityGateExecutionTopology({
+      tiers: tierDefinitions,
+      rootDir,
+    }).map((entry) => [entry.tier.id, entry]),
+  );
 
-  for (const tier of QUALITY_GATE_EXECUTION_TIERS) {
+  for (const tier of tierDefinitions) {
     if (haltedTierId) {
       tiers.push(buildSkippedTier(tier, haltedTierId));
+      continue;
+    }
+
+    const topologyError = topologyErrorsByTierId.get(tier.id);
+    if (topologyError) {
+      tiers.push(buildFailedTier(tier, topologyError.message));
+      haltedTierId = tier.id;
       continue;
     }
 
@@ -303,6 +376,14 @@ export async function runQualityGateExecutionReport({
       blockingDiagnostic,
       toolchainDiagnostic,
     });
+    if (
+      executedTier.status === 'blocked'
+      && Array.isArray(executedTier.blockingDiagnosticIds)
+      && executedTier.blockingDiagnosticIds.includes(toolchainDiagnostic.id)
+      && !environmentDiagnostics.some((diagnostic) => diagnostic.id === toolchainDiagnostic.id)
+    ) {
+      environmentDiagnostics.push(toolchainDiagnostic);
+    }
     tiers.push(executedTier);
 
     if (executedTier.status !== 'passed') {
@@ -312,10 +393,10 @@ export async function runQualityGateExecutionReport({
 
   const summary = summarizeExecutionReport(tiers);
   const report = {
-    status: summary.blockedCount > 0
-      ? 'blocked'
-      : summary.failedCount > 0
-        ? 'failed'
+    status: summary.failedCount > 0
+      ? 'failed'
+      : summary.blockedCount > 0
+        ? 'blocked'
         : 'passed',
     generatedAt: now().toISOString(),
     reportPath,
@@ -332,16 +413,23 @@ export async function runQualityGateExecutionReport({
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const options = parseArgs(process.argv.slice(2));
-  const report = await runQualityGateExecutionReport({
+  void runQualityGateExecutionReport({
     outputPath: options.output,
-  });
+  })
+    .then((report) => {
+      if (report.status !== 'passed') {
+        console.error(
+          `Quality gate execution report finished with ${report.status}: ${report.summary.lastExecutedTierId || 'unknown'}`,
+        );
+        process.exit(1);
+        return;
+      }
 
-  if (report.status !== 'passed') {
-    console.error(
-      `Quality gate execution report finished with ${report.status}: ${report.summary.lastExecutedTierId || 'unknown'}`,
-    );
-    process.exit(1);
-  }
-
-  console.log(JSON.stringify(report, null, 2));
+      console.log(JSON.stringify(report, null, 2));
+    })
+    .catch((error) => {
+      const message = error instanceof Error ? error.stack || error.message : String(error);
+      console.error(message);
+      process.exit(1);
+    });
 }

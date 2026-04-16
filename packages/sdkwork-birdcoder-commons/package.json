@@ -15,6 +15,14 @@
       "import": "./src/shell.ts",
       "types": "./src/shell.ts"
     },
+    "./workbench": {
+      "import": "./src/workbench.ts",
+      "types": "./src/workbench.ts"
+    },
+    "./platform/fileSystem": {
+      "import": "./src/utils/fileSystem.ts",
+      "types": "./src/utils/fileSystem.ts"
+    },
     "./storage/dataKernel": {
       "import": "./src/storage/dataKernel.ts",
       "types": "./src/storage/dataKernel.ts"

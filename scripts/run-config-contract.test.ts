@@ -38,7 +38,14 @@ assert.deepEqual(
   })),
   [
     { id: 'x', name: 'Custom Dev', command: 'pnpm dev', profileId: 'claude-code', group: 'dev', cwdMode: 'project' },
-    { id: 'config-2', name: 'Run Task', command: 'echo TODO', profileId: 'powershell', group: 'custom', cwdMode: 'project' },
+    {
+      id: 'config-2',
+      name: 'Run Task',
+      command: 'echo Configure this run command first.',
+      profileId: 'powershell',
+      group: 'custom',
+      cwdMode: 'project',
+    },
   ],
 );
 

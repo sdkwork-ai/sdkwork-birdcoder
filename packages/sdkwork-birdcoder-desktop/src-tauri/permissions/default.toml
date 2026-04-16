@@ -2,7 +2,9 @@
 description = "Default desktop app permissions for the BirdCoder Rust host bridge."
 permissions = [
   "allow-host-mode",
+  "allow-desktop-runtime-config",
   "allow-local-store",
+  "allow-file-system-bridge",
   "allow-terminal-sessions",
   "allow-terminal-host",
   "allow-terminal-detection",
@@ -17,6 +19,19 @@ permissions = [
   "allow-local-store-set",
   "allow-local-store-delete",
   "allow-local-store-list",
+]
+
+[[set]]
+identifier = "allow-file-system-bridge"
+description = "Allows mounted project file-system bridge commands."
+permissions = [
+  "allow-fs-snapshot-folder",
+  "allow-fs-read-file",
+  "allow-fs-write-file",
+  "allow-fs-create-file",
+  "allow-fs-create-directory",
+  "allow-fs-delete-entry",
+  "allow-fs-rename-entry",
 ]
 
 [[set]]
@@ -48,6 +63,11 @@ description = "Enables the host_mode command."
 commands.allow = ["host_mode"]
 
 [[permission]]
+identifier = "allow-desktop-runtime-config"
+description = "Enables the desktop_runtime_config command."
+commands.allow = ["desktop_runtime_config"]
+
+[[permission]]
 identifier = "allow-local-store-get"
 description = "Enables the local_store_get command."
 commands.allow = ["local_store_get"]
@@ -66,6 +86,41 @@ commands.allow = ["local_store_delete"]
 identifier = "allow-local-store-list"
 description = "Enables the local_store_list command."
 commands.allow = ["local_store_list"]
+
+[[permission]]
+identifier = "allow-fs-snapshot-folder"
+description = "Enables the fs_snapshot_folder command."
+commands.allow = ["fs_snapshot_folder"]
+
+[[permission]]
+identifier = "allow-fs-read-file"
+description = "Enables the fs_read_file command."
+commands.allow = ["fs_read_file"]
+
+[[permission]]
+identifier = "allow-fs-write-file"
+description = "Enables the fs_write_file command."
+commands.allow = ["fs_write_file"]
+
+[[permission]]
+identifier = "allow-fs-create-file"
+description = "Enables the fs_create_file command."
+commands.allow = ["fs_create_file"]
+
+[[permission]]
+identifier = "allow-fs-create-directory"
+description = "Enables the fs_create_directory command."
+commands.allow = ["fs_create_directory"]
+
+[[permission]]
+identifier = "allow-fs-delete-entry"
+description = "Enables the fs_delete_entry command."
+commands.allow = ["fs_delete_entry"]
+
+[[permission]]
+identifier = "allow-fs-rename-entry"
+description = "Enables the fs_rename_entry command."
+commands.allow = ["fs_rename_entry"]
 
 [[permission]]
 identifier = "allow-terminal-session-upsert"

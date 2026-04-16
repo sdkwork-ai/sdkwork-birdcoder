@@ -10,6 +10,7 @@ import {
   FolderOpen,
   MessageSquare,
   Plus,
+  RefreshCw,
   Search,
   Zap,
 } from 'lucide-react';
@@ -41,6 +42,10 @@ interface StudioChatSidebarProps {
   onCreateProject: () => Promise<void>;
   onOpenFolder: () => Promise<void>;
   onCreateCodingSession: (projectId: string) => Promise<void>;
+  onRefreshProjectSessions: (projectId: string) => Promise<void>;
+  onRefreshCodingSessionMessages: (codingSessionId: string) => Promise<void>;
+  refreshingProjectId: string | null;
+  refreshingCodingSessionId: string | null;
   onViewChanges: (file: FileChange) => void;
   onEditMessage: (messageId: string) => void;
   onDeleteMessage: (messageId: string) => void;
@@ -74,6 +79,10 @@ export function StudioChatSidebar({
   onCreateProject,
   onOpenFolder,
   onCreateCodingSession,
+  onRefreshProjectSessions,
+  onRefreshCodingSessionMessages,
+  refreshingProjectId,
+  refreshingCodingSessionId,
   onViewChanges,
   onEditMessage,
   onDeleteMessage,
@@ -104,6 +113,8 @@ export function StudioChatSidebar({
   const currentCodingSessionTitle = currentProject?.codingSessions.find(
     (codingSession) => codingSession.id === selectedCodingSessionId,
   )?.title;
+  const menuSelectedSessionId =
+    currentProjectId === menuActiveProjectId ? selectedCodingSessionId : '';
 
   const handleToggleProjectMenu = () => {
     if (!showProjectMenu) {
@@ -257,7 +268,7 @@ export function StudioChatSidebar({
                 </div>
 
                 <div className="flex border-t border-white/10 bg-[#0e0e11]/80 backdrop-blur-sm">
-                  <div className="w-[40%] p-2 border-r border-white/10 flex gap-1">
+                  <div className="w-[40%] p-2 border-r border-white/10 grid grid-cols-3 gap-1">
                     <button
                       onClick={() => {
                         void onCreateProject();
@@ -278,8 +289,25 @@ export function StudioChatSidebar({
                       <Folder size={12} />
                       {t('studio.open')}
                     </button>
+                    <button
+                      onClick={() => {
+                        if (!menuActiveProjectId) {
+                          return;
+                        }
+                        void onRefreshProjectSessions(menuActiveProjectId);
+                      }}
+                      disabled={!menuActiveProjectId || refreshingProjectId === menuActiveProjectId}
+                      className="flex items-center justify-center gap-2 flex-1 px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                      title={t('studio.refreshSessions')}
+                    >
+                      <RefreshCw
+                        size={12}
+                        className={refreshingProjectId === menuActiveProjectId ? 'animate-spin' : ''}
+                      />
+                      {t('studio.refreshSessions')}
+                    </button>
                   </div>
-                  <div className="w-[60%] p-2">
+                  <div className="w-[60%] p-2 flex gap-1">
                     <button
                       onClick={() => {
                         void onCreateCodingSession(menuActiveProjectId).then(() => {
@@ -291,12 +319,70 @@ export function StudioChatSidebar({
                       <Plus size={12} />
                       {t('studio.newThread')}
                     </button>
+                    <button
+                      onClick={() => {
+                        if (!menuSelectedSessionId) {
+                          return;
+                        }
+                        void onRefreshCodingSessionMessages(menuSelectedSessionId);
+                      }}
+                      disabled={!menuSelectedSessionId || refreshingCodingSessionId === menuSelectedSessionId}
+                      className="flex items-center justify-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <RefreshCw
+                        size={12}
+                        className={refreshingCodingSessionId === menuSelectedSessionId ? 'animate-spin' : ''}
+                      />
+                      {t('studio.refreshMessages')}
+                    </button>
                   </div>
                 </div>
               </div>
             )}
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="text-gray-500 hover:text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={refreshingProjectId === currentProjectId}
+              title={t(
+                refreshingProjectId === currentProjectId
+                  ? 'studio.refreshingSessions'
+                  : 'studio.refreshSessions',
+              )}
+              onClick={() => {
+                if (!currentProjectId) {
+                  return;
+                }
+                void onRefreshProjectSessions(currentProjectId);
+              }}
+            >
+              <RefreshCw
+                size={14}
+                className={refreshingProjectId === currentProjectId ? 'animate-spin' : ''}
+              />
+            </button>
+            <button
+              type="button"
+              className="text-gray-500 hover:text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!selectedCodingSessionId || refreshingCodingSessionId === selectedCodingSessionId}
+              title={t(
+                refreshingCodingSessionId === selectedCodingSessionId
+                  ? 'studio.refreshingMessages'
+                  : 'studio.refreshMessages',
+              )}
+              onClick={() => {
+                if (!selectedCodingSessionId) {
+                  return;
+                }
+                void onRefreshCodingSessionMessages(selectedCodingSessionId);
+              }}
+            >
+              <RefreshCw
+                size={14}
+                className={refreshingCodingSessionId === selectedCodingSessionId ? 'animate-spin' : ''}
+              />
+            </button>
             <div className="text-xs text-gray-500">{t('studio.ranFor', { time: '335s' })}</div>
           </div>
         </div>

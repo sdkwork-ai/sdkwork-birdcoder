@@ -1,6 +1,5 @@
-import React, { ReactNode, useState, useCallback, useRef } from 'react';
-import { IChatEngine } from '@sdkwork/birdcoder-chat';
-import {
+import React, { ReactNode, useRef } from 'react';
+import type {
   IAdminDeploymentService,
   IAdminPolicyService,
   IAuthService,
@@ -21,7 +20,6 @@ import {
   createDefaultIdeContextValue,
   useIDEServices,
 } from './ideServices';
-import { createChatEngineById } from '../workbench/engines';
 
 // Source-governance marker preserved for shell-runtime contracts:
 // const IDEContext = createContext<IIDEContext | null>(null);
@@ -41,7 +39,6 @@ export interface IDEProviderProps {
   teamService?: ITeamService;
   fileSystemService?: IFileSystemService;
   authService?: IAuthService;
-  initialChatEngine?: IChatEngine;
 }
 
 export const IDEProvider: React.FC<IDEProviderProps> = ({
@@ -59,16 +56,10 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
   teamService,
   fileSystemService,
   authService,
-  initialChatEngine,
 }) => {
   const defaultContextRef = useRef<IIDEContext | null>(null);
   defaultContextRef.current ??= createDefaultIdeContextValue();
   const defaultContext = defaultContextRef.current;
-  const [chatEngine, setChatEngine] = useState<IChatEngine>(initialChatEngine ?? defaultContext.chatEngine);
-
-  const switchChatEngine = useCallback((name: string) => {
-    setChatEngine(createChatEngineById(name));
-  }, []);
 
   return (
     <IDEContext.Provider
@@ -86,9 +77,6 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
         teamService: teamService ?? defaultContext.teamService,
         fileSystemService: fileSystemService ?? defaultContext.fileSystemService,
         authService: authService ?? defaultContext.authService,
-        chatEngine,
-        setChatEngine,
-        switchChatEngine,
       }}
     >
       {children}

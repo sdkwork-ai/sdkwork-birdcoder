@@ -563,8 +563,8 @@
   - the next autonomous loop must select a new lowest-score Step from fresh evidence instead of continuing Step `20`
 58. The remaining release-tier contract-tail drift is now also closed:
   - `scripts/ci-flow-contract.test.mjs` and `scripts/quality-gate-matrix-contract.test.mjs` now freeze the same direct web-host `check:quality:standard` chain already used by `build`, `build:prod`, `check:quality:standard`, and governance regression
-  - fresh `node scripts/governance-regression-report.mjs` evidence now returns `88/88` passed checks with `failedCheckIds: []`
-  - fresh `node scripts/quality-gate-execution-report.mjs` evidence now returns `status: passed`, `passedCount: 3`, `failedCount: 0`, `blockedCount: 0`, and `lastExecutedTierId: release`
+  - the 2026-04-13 direct-runner evidence returned `101/101` passed checks with `failedCheckIds: []`
+  - the 2026-04-13 direct-runner quality execution evidence returned `status: passed`, `passedCount: 3`, `failedCount: 0`, `blockedCount: 0`, and `lastExecutedTierId: release`
   - the declared `fast -> standard -> matrix -> release-flow -> ci-flow -> governance` topology remains unchanged; only the last stale contract expectations were realigned to the already-governed command truth
 59. The Step 17 live-docs truth-drift closure is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now freezes that Step 17 and architecture docs must not preserve already-closed OpenAPI/codegen, shared-facade, representative-placeholder-route, or PostgreSQL-blocker language
@@ -576,8 +576,9 @@
   - historical blocked checkpoints may remain only as checkpoint-local history explicitly superseded by `docs/release/release-2026-04-13-04.md`
   - future loops must not reopen PostgreSQL blocked-state docs drift without fresh failing evidence from the live docs contract or a fresh PostgreSQL rerun regression
 61. The workspace quality-matrix evidence freshness closure is now also closed:
-  - `scripts/quality-gate-matrix-contract.test.mjs` now rejects a stale workspace `artifacts/quality/quality-gate-matrix-report.json` whenever that file no longer matches the current generated quality-tier or workflow truth
+  - `scripts/quality-gate-matrix-contract.test.mjs` now rejects a stale workspace `artifacts/quality/quality-gate-matrix-report.json` whenever that file no longer matches the current stable generated quality-tier or workflow truth
   - `pnpm quality:report` regenerated the active workspace artifact so Step 12 quality evidence now records the governed direct web-host standard-tier build chain instead of the stale nested web build path
+  - that freshness comparison ignores host-specific `environmentDiagnostics` drift when the same stable tier/workflow truth still holds
   - Step 12, architecture, and command docs now treat `pnpm quality:report` as the required refresh path after `check:quality-matrix` reports stale workspace evidence
   - future loops must not treat the workspace quality-matrix artifact as live evidence unless it still matches current generated output
 62. The desktop startup-graph port-resilience closure is now also closed:
@@ -652,3 +653,16 @@
   - `scripts/prompt-governance-contract.test.mjs` now rejects stale active-controller wording that still treats “return to the `09 -> 17` mainline” as the current next non-environmental slice inside `docs/prompts/反复执行Step指令.md`
   - `docs/step/06-code视图-编辑器-文件系统重构.md`, `docs/架构/03-模块规划与边界.md`, and `docs/prompts/反复执行Step指令.md` now keep that mainline-return note only as checkpoint-local history explicitly superseded by `docs/release/release-2026-04-13-04.md`, `docs/release/release-2026-04-13-05.md`, and `docs/release/release-2026-04-13-08.md`
   - future loops must not reopen Step 06, Architecture 03, or the prompt controller as if the `09 -> 17` mainline return were still the current next serial closure unless fresh failing evidence appears on those already-closed follow-on lanes
+77. The Step 19 governed Vite-host blocker classification is now also closed:
+  - `scripts/governance-regression-report.test.mjs` now freezes that command-backed `[vite:define] spawn EPERM` outcomes must be reported as `blocked` `toolchain-platform` diagnostics instead of ordinary failed repository regressions
+  - `scripts/governance-regression-report.mjs` now emits `blockedCheckIds`, `blockingDiagnosticIds`, and `environmentDiagnostics`, so the current host can preserve `vite-host-build-preflight` without weakening the real `pnpm.cmd run build` bundle truth
+  - current host evidence on `2026-04-15` records `status: blocked`, `passedCount: 100`, `blockedCount: 1`, `failedCount: 0`, `blockedCheckIds: ["web-bundle-budget"]`, and `blockingDiagnosticIds: ["vite-host-build-preflight"]`, while direct `pnpm.cmd run build` still passes under the governed bundle cap
+  - future loops must not rewrite repository truth or weaken the web budget when governance regression is blocked only by the current governed Vite-host path; rerun the declared command path after the missing host capability is restored
+78. The current-host quality execution blocker state is now also explicitly preserved:
+  - fresh `node scripts/quality-gate-execution-report.mjs` evidence on `2026-04-15` returns `status: blocked`, `passedCount: 0`, `blockedCount: 1`, `failedCount: 0`, `lastExecutedTierId: fast`, and `blockingDiagnosticIds: ["vite-host-build-preflight"]`
+  - downstream `standard` and `release` tiers remain explicit `skipped` truth inside that runtime execution report while the affected Vite-backed gate hits `[vite:define] spawn EPERM`; future loops must not rewrite repository code to hide this host-only blocker
+  - Step 12 and architecture docs must keep that state auditable as a current host blocker until a fresh rerun clears it
+79. The current-host direct quality-tier rerun split truth is now also explicitly preserved:
+  - fresh direct outer-shell reruns on `2026-04-15` confirm `pnpm.cmd run build` passes on this host, while `pnpm.cmd check:quality:fast` fails at `check:web-vite-build` with `[vite:define] spawn EPERM`
+  - fresh direct `pnpm.cmd check:quality:release` evidence on `2026-04-15` fails for the same reason because `fast` stops first
+  - future loops must not misdescribe the direct tier contents as fully green or fully broken on this host; the remaining executable release blocker is the governed Vite-host boundary inside `quality-gate-execution-report.mjs` and `governance-regression-report.mjs`, even though a direct `pnpm.cmd run build` still passes

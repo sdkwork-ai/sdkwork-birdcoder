@@ -4,11 +4,128 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const rootDir = process.cwd();
 
 function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+}
+
+function escapeRegExp(value) {
+  return String(value ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function validateLatestReleaseRegistryEntry(latestReleaseEntry = {}) {
+  assert.ok(
+    latestReleaseEntry?.notesFile,
+    'release registry must expose a latest release note entry with notesFile metadata.',
+  );
+  assert.ok(
+    Array.isArray(latestReleaseEntry?.stopShipSignals),
+    'release registry must expose latest stopShipSignals metadata for machine-readable promotion decisions.',
+  );
+  assert.ok(
+    latestReleaseEntry?.promotionReadiness
+    && typeof latestReleaseEntry.promotionReadiness === 'object',
+    'release registry must expose latest promotionReadiness metadata for machine-readable promotion decisions.',
+  );
+  assert.match(
+    String(latestReleaseEntry.promotionReadiness?.currentReleaseKind ?? '').trim(),
+    /.+/,
+    'release registry must expose promotionReadiness.currentReleaseKind on the latest entry.',
+  );
+  assert.match(
+    String(latestReleaseEntry.promotionReadiness?.currentRolloutStage ?? '').trim(),
+    /.+/,
+    'release registry must expose promotionReadiness.currentRolloutStage on the latest entry.',
+  );
+  assert.match(
+    String(latestReleaseEntry.promotionReadiness?.formalOrGaStatus ?? '').trim(),
+    /^(blocked|clear)$/,
+    'release registry must expose promotionReadiness.formalOrGaStatus as blocked or clear on the latest entry.',
+  );
+  assert.deepEqual(
+    latestReleaseEntry.promotionReadiness.stopShipSignals,
+    latestReleaseEntry.stopShipSignals,
+    'release registry must keep promotionReadiness.stopShipSignals aligned with the top-level stopShipSignals summary.',
+  );
+}
+
+export function validateLatestReleaseNoteAgainstRegistry(
+  latestReleaseEntry = {},
+  latestReleaseNote = '',
+) {
+  const noteText = String(latestReleaseNote ?? '');
+  const promotionReadiness = latestReleaseEntry?.promotionReadiness ?? {};
+  const stopShipSignals = Array.isArray(latestReleaseEntry?.stopShipSignals)
+    ? latestReleaseEntry.stopShipSignals
+    : [];
+
+  assert.match(
+    noteText,
+    new RegExp(`Release kind:\\s*\`${escapeRegExp(String(promotionReadiness.currentReleaseKind ?? ''))}\``),
+    'latest registry-backed release note must echo promotionReadiness.currentReleaseKind.',
+  );
+  assert.match(
+    noteText,
+    new RegExp(`Rollout stage:\\s*\`${escapeRegExp(String(promotionReadiness.currentRolloutStage ?? ''))}\``),
+    'latest registry-backed release note must echo promotionReadiness.currentRolloutStage.',
+  );
+  assert.match(
+    noteText,
+    new RegExp(`Formal or GA status:\\s*\`${escapeRegExp(String(promotionReadiness.formalOrGaStatus ?? ''))}\``),
+    'latest registry-backed release note must echo promotionReadiness.formalOrGaStatus.',
+  );
+  assert.match(
+    noteText,
+    /Machine stop-ship signals:/,
+    'latest registry-backed release note must include an explicit Machine stop-ship signals summary.',
+  );
+
+  if (stopShipSignals.length === 0) {
+    assert.match(
+      noteText,
+      /Machine stop-ship signals:\s*`none`/i,
+      'latest registry-backed release note must echo `none` when the latest registry stop-ship signals are empty.',
+    );
+    return;
+  }
+
+  for (const signal of stopShipSignals) {
+    assert.match(
+      noteText,
+      new RegExp(escapeRegExp(signal)),
+      `latest registry-backed release note must echo the latest registry stop-ship signal ${signal}.`,
+    );
+  }
+}
+
+export function validateLatestReleaseRegistryAgainstCanonicalTruth(
+  latestReleaseEntry = {},
+  canonicalManifest = {},
+  canonicalFinalizedSmokeReport = {},
+) {
+  assert.deepEqual(
+    latestReleaseEntry?.stopShipSignals ?? [],
+    canonicalManifest?.stopShipSignals ?? [],
+    'latest release registry entry must preserve the canonical finalized manifest stop-ship summary.',
+  );
+  assert.deepEqual(
+    latestReleaseEntry?.promotionReadiness ?? {},
+    canonicalManifest?.promotionReadiness ?? {},
+    'latest release registry entry must preserve the canonical finalized manifest promotionReadiness summary.',
+  );
+  assert.deepEqual(
+    latestReleaseEntry?.stopShipSignals ?? [],
+    canonicalFinalizedSmokeReport?.stopShipSignals ?? [],
+    'latest release registry entry must preserve the canonical finalized smoke stop-ship summary.',
+  );
+  assert.deepEqual(
+    latestReleaseEntry?.promotionReadiness ?? {},
+    canonicalFinalizedSmokeReport?.promotionReadiness ?? {},
+    'latest release registry entry must preserve the canonical finalized smoke promotionReadiness summary.',
+  );
 }
 
 function main() {
@@ -19,13 +136,33 @@ function main() {
   const releaseDoc = read('docs/core/release-and-deployment.md');
   const releaseRegistry = JSON.parse(read('docs/release/releases.json'));
   const latestReleaseEntry = releaseRegistry.releases.at(-1);
-
-  assert.ok(
-    latestReleaseEntry?.notesFile,
-    'release registry must expose a latest release note entry with notesFile metadata.',
+  const canonicalManifestPath = path.join(rootDir, 'artifacts', 'release-openapi-canonical', 'release-manifest.json');
+  const canonicalFinalizedSmokeReportPath = path.join(
+    rootDir,
+    'artifacts',
+    'release-openapi-canonical',
+    'finalized-release-smoke-report.json',
   );
 
+  validateLatestReleaseRegistryEntry(latestReleaseEntry);
+
   const latestReleaseNote = read(path.join('docs/release', latestReleaseEntry.notesFile));
+  validateLatestReleaseNoteAgainstRegistry(latestReleaseEntry, latestReleaseNote);
+  if (fs.existsSync(canonicalManifestPath) || fs.existsSync(canonicalFinalizedSmokeReportPath)) {
+    assert.ok(
+      fs.existsSync(canonicalManifestPath),
+      'release closure requires artifacts/release-openapi-canonical/release-manifest.json when canonical packaged truth is present.',
+    );
+    assert.ok(
+      fs.existsSync(canonicalFinalizedSmokeReportPath),
+      'release closure requires artifacts/release-openapi-canonical/finalized-release-smoke-report.json when canonical packaged truth is present.',
+    );
+    validateLatestReleaseRegistryAgainstCanonicalTruth(
+      latestReleaseEntry,
+      JSON.parse(fs.readFileSync(canonicalManifestPath, 'utf8')),
+      JSON.parse(fs.readFileSync(canonicalFinalizedSmokeReportPath, 'utf8')),
+    );
+  }
 
   assert.doesNotMatch(
     kubernetesValues,
@@ -281,4 +418,6 @@ function main() {
   console.log('Release closure checks passed.');
 }
 
-main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}

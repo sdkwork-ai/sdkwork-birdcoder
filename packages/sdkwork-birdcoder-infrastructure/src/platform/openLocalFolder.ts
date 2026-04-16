@@ -1,4 +1,5 @@
 import type { LocalFolderMountSource } from '@sdkwork/birdcoder-types';
+import { isBirdCoderTauriRuntime } from './tauriRuntime.ts';
 
 type DirectoryPickerWindow = Window &
   typeof globalThis & {
@@ -6,12 +7,12 @@ type DirectoryPickerWindow = Window &
   };
 
 export async function openLocalFolder(): Promise<LocalFolderMountSource | null> {
-  // Check if running in Tauri
-  const isTauri = '__TAURI__' in window;
+  const directoryPickerWindow = window as DirectoryPickerWindow;
 
-  if (isTauri) {
+  // Prefer the host-native dialog in Tauri so desktop imports never trigger
+  // the browser File System Access permission prompt path.
+  if (await isBirdCoderTauriRuntime()) {
     try {
-      // Use Tauri API
       const { open } = await import('@tauri-apps/plugin-dialog');
       const selectedPath = await open({
         directory: true,
@@ -20,27 +21,33 @@ export async function openLocalFolder(): Promise<LocalFolderMountSource | null> 
       if (selectedPath) {
         return { type: 'tauri', path: selectedPath as string };
       }
+
+      return null;
     } catch (err) {
-      console.error('Error opening directory with Tauri:', err);
-      throw err;
-    }
-  } else {
-    // Use File System Access API
-    const directoryPickerWindow = window as DirectoryPickerWindow;
-    if (directoryPickerWindow.showDirectoryPicker) {
-      try {
-        const directoryHandle = await directoryPickerWindow.showDirectoryPicker();
-        return { type: 'browser', handle: directoryHandle };
-      } catch (err) {
-        const pickerError = err as Error & { name?: string };
-        if (pickerError.name !== 'AbortError') {
-          console.error('Error opening directory:', pickerError);
-          throw pickerError;
-        }
+      const pickerError = err as Error & { name?: string };
+      if (pickerError.name === 'AbortError') {
+        return null;
       }
-    } else {
-      throw new Error('File System Access API is not supported in this browser.');
+
+      console.error('Error opening directory with Tauri dialog API:', pickerError);
+      throw pickerError;
     }
   }
-  return null;
+
+  if (directoryPickerWindow.showDirectoryPicker) {
+    try {
+      const directoryHandle = await directoryPickerWindow.showDirectoryPicker();
+      return { type: 'browser', handle: directoryHandle };
+    } catch (err) {
+      const pickerError = err as Error & { name?: string };
+      if (pickerError.name === 'AbortError') {
+        return null;
+      }
+
+      console.error('Error opening directory with browser File System Access API:', pickerError);
+      throw pickerError;
+    }
+  }
+
+  throw new Error('File System Access API is not supported in this browser.');
 }

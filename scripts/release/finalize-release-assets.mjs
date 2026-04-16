@@ -41,10 +41,20 @@ import {
 } from './terminal-governance-evidence-archive.mjs';
 import {
   createReleaseQualityEvidence,
+  enrichQualityEvidenceSummary,
 } from './quality-gate-release-evidence.mjs';
 import {
   createCodingServerOpenApiEvidence,
 } from './coding-server-openapi-release-evidence.mjs';
+import {
+  assertClearStopShipEvidence,
+  buildPromotionReadinessSummary,
+  collectReleaseStopShipSignals,
+} from './release-stop-ship-governance.mjs';
+import {
+  collectDesktopStartupReadinessSignals,
+  summarizeDesktopStartupReadiness,
+} from './desktop-startup-readiness-summary.mjs';
 
 function parseOptions(argv) {
   const options = {};
@@ -154,6 +164,10 @@ function normalizeDesktopSmokeMetadata({
     throw new Error(`Desktop startup evidence must preserve passed status: ${startupEvidencePath}`);
   }
 
+  const desktopStartupReadinessSummary = summarizeDesktopStartupReadiness(
+    startupEvidence.readinessEvidence,
+  );
+
   return {
     desktopInstallerSmoke: {
       reportRelativePath: toRelativePath(releaseAssetsDir, installerReportPath),
@@ -187,6 +201,9 @@ function normalizeDesktopSmokeMetadata({
       capturedEvidenceRelativePath: toRelativePath(releaseAssetsDir, startupEvidencePath),
       ...startupEvidence,
     },
+    ...(desktopStartupReadinessSummary
+      ? { desktopStartupReadinessSummary }
+      : {}),
   };
 }
 
@@ -398,7 +415,28 @@ export function finalizeReleaseAssets(options = {}) {
     releaseAssetsDir,
     qualityExecutionReportPath: options['quality-execution-report-path'],
   });
-  manifest.qualityEvidence = qualityEvidence.summary;
+  manifest.qualityEvidence = enrichQualityEvidenceSummary(
+    qualityEvidence.summary,
+    {
+      releaseReadinessSignals: collectDesktopStartupReadinessSignals(manifest.assets),
+    },
+  );
+  manifest.stopShipSignals = collectReleaseStopShipSignals({
+    qualityEvidence: manifest.qualityEvidence,
+    governanceEvidence: manifest.governanceEvidence ?? null,
+    assets: manifest.assets,
+  });
+  manifest.promotionReadiness = buildPromotionReadinessSummary({
+    releaseControl: manifest.releaseControl,
+    stopShipSignals: manifest.stopShipSignals,
+  });
+  assertClearStopShipEvidence({
+    releaseControl: manifest.releaseControl,
+    qualityEvidence: manifest.qualityEvidence,
+    governanceEvidence: manifest.governanceEvidence ?? null,
+    assets: manifest.assets,
+    errorPrefix: 'Formal or general-availability release finalization requires clear stop-ship evidence',
+  });
 
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 

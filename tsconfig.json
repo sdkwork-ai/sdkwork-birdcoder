@@ -9,6 +9,9 @@
       "@sdkwork/birdcoder-commons/shell": [
         "packages/sdkwork-birdcoder-commons/src/shell.ts"
       ],
+      "@sdkwork/birdcoder-shell/runtime": [
+        "packages/sdkwork-birdcoder-shell/src/runtime.ts"
+      ],
       "@sdkwork/birdcoder-*": [
         "packages/sdkwork-birdcoder-*/src"
       ],

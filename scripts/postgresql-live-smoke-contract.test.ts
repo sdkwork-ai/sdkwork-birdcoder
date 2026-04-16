@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
 
 import {
   BIRDCODER_POSTGRESQL_DSN_ENV_PRIORITY,
@@ -6,6 +9,28 @@ import {
   runBirdCoderPostgresqlLiveSmoke,
   type BirdCoderPostgresqlOpenConnectionFactory,
 } from './postgresql-live-smoke.ts';
+
+const rootDir = process.cwd();
+const postgresqlLiveSmokeRunnerSource = fs.readFileSync(
+  path.join(rootDir, 'scripts', 'run-postgresql-live-smoke.ts'),
+  'utf8',
+);
+
+assert.doesNotMatch(
+  postgresqlLiveSmokeRunnerSource,
+  /^const report = await runBirdCoderPostgresqlLiveSmoke\(/m,
+  'postgresql live smoke CLI must not block module evaluation behind a top-level await on runBirdCoderPostgresqlLiveSmoke.',
+);
+assert.match(
+  postgresqlLiveSmokeRunnerSource,
+  /pathToFileURL\(process\.argv\[1\]\)\.href/,
+  'postgresql live smoke CLI must gate execution behind a direct-entry check.',
+);
+assert.match(
+  postgresqlLiveSmokeRunnerSource,
+  /void runBirdCoderPostgresqlLiveSmokeCli\(/,
+  'postgresql live smoke CLI must launch its async runner without turning the module itself into a top-level-await dependency.',
+);
 
 const emptyConfig = resolveBirdCoderPostgresqlLiveSmokeConfig({});
 assert.deepEqual(emptyConfig, {});

@@ -5,6 +5,7 @@ import type {
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import { useIDEServices } from '../context/IDEContext';
+import type { CreateCodingSessionOptions } from '../services/interfaces/IProjectService';
 
 function fuzzyScore(pattern: string, value: string): number {
   if (!pattern) {
@@ -118,9 +119,13 @@ export function useProjects(workspaceId?: string) {
     }
   };
 
-  const createCodingSession = async (projectId: string, title: string) => {
+  const createCodingSession = async (
+    projectId: string,
+    title: string,
+    options?: CreateCodingSessionOptions,
+  ) => {
     try {
-      const codingSession = await projectService.createCodingSession(projectId, title);
+      const codingSession = await projectService.createCodingSession(projectId, title, options);
       await fetchProjects();
       return codingSession;
     } catch (err: any) {

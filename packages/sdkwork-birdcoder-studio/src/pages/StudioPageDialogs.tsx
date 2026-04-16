@@ -1,6 +1,6 @@
 import { Button } from '@sdkwork/birdcoder-ui';
 import { RunConfigurationDialog, RunTaskDialog } from '@sdkwork/birdcoder-ui/run-config';
-import type { RunConfigurationRecord } from '@sdkwork/birdcoder-commons';
+import type { RunConfigurationRecord } from '@sdkwork/birdcoder-commons/workbench';
 import { Code2, Copy, Globe, Lock, Share, Upload, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

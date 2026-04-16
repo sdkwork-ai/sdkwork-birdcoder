@@ -1,4 +1,14 @@
+export interface AppSettings extends Record<string, unknown> {
+  approvalPolicy: string;
+  codeDevelopmentEngine: string;
+  integratedTerminalShell: string;
+  sandboxSettings: string;
+  serverBaseUrl: string;
+}
+
 export interface SettingsProps {
-  settings: any;
-  updateSetting: (key: string, value: any) => void;
+  settings: AppSettings;
+  updateSetting: (key: string, value: unknown) => void;
+  bootServerBaseUrlOverride?: string;
+  currentServerBaseUrl?: string;
 }

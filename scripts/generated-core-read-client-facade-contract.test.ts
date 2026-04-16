@@ -63,7 +63,7 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
           return createEnvelope(
             {
               host: '127.0.0.1',
-              port: 18989,
+              port: 10240,
               configFileName: 'bird-server.config.json',
             },
             'req.core.runtime',

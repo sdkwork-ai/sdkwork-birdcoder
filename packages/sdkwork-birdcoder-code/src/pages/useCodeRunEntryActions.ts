@@ -7,7 +7,7 @@ import {
   useProjectRunConfigurations,
   type RunConfigurationRecord,
   type ToastType,
-} from '@sdkwork/birdcoder-commons';
+} from '@sdkwork/birdcoder-commons/workbench';
 import { useTranslation } from 'react-i18next';
 
 interface UseCodeRunEntryActionsOptions {

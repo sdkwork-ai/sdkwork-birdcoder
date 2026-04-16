@@ -117,7 +117,10 @@ function createWorkbenchCodeEngineKernelDefinition(
   };
 }
 
-const CODEX_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = ['cli-jsonl', 'json-rpc-v2'];
+const CODEX_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = [
+  'sdk-stream',
+  'cli-jsonl',
+];
 const CLAUDE_CODE_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = [
   'sdk-stream',
   'remote-control-http',
@@ -127,6 +130,7 @@ const GEMINI_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = [
   'openapi-http',
 ];
 const OPENCODE_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = [
+  'sdk-stream',
   'openapi-http',
   'cli-jsonl',
 ];
@@ -205,11 +209,11 @@ export const WORKBENCH_ENGINE_KERNELS: ReadonlyArray<WorkbenchCodeEngineKernelDe
     },
     source: {
       externalPath: 'external/claude-code',
-      sdkPath: '../../spring-ai-plus-ai-api/sdkwork-sdk-ai/sdkwork-ai-sdk-typescript',
+      sdkPath: null,
       sourceStatus: 'mirrored',
       sourceKind: 'repository',
       notes:
-        'Uses the mirrored Claude Code source tree together with the generated Spring AI Plus Claude SDK path for bridge and protocol alignment.',
+        'Uses the mirrored Claude Code repository as a protocol reference while the official Agent SDK remains the primary runtime lane.',
     },
     descriptor: {
       engineKey: 'claude-code',
@@ -344,11 +348,11 @@ export const WORKBENCH_ENGINE_KERNELS: ReadonlyArray<WorkbenchCodeEngineKernelDe
     },
     source: {
       externalPath: 'external/opencode',
-      sdkPath: null,
+      sdkPath: 'external/opencode/packages/sdk/js',
       sourceStatus: 'mirrored',
       sourceKind: 'repository',
       notes:
-        'Uses the mirrored anomalyco/opencode source tree as the current OpenCode protocol and tool-contract baseline.',
+        'Uses the mirrored OpenCode source tree together with the official JavaScript SDK package path for adapter alignment.',
     },
     descriptor: {
       engineKey: 'opencode',

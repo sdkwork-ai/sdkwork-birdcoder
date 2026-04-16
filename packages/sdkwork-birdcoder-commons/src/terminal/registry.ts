@@ -28,6 +28,17 @@ export const TERMINAL_CLI_PROFILE_REGISTRY: ReadonlyArray<TerminalCliProfileDefi
 
 const TERMINAL_CLI_PROFILE_ID_SET = new Set<string>(TERMINAL_CLI_PROFILE_IDS);
 
+interface TerminalRuntimeProcess {
+  platform?: string;
+}
+
+function getRuntimePlatform(): string | null {
+  const runtime = globalThis as typeof globalThis & {
+    process?: TerminalRuntimeProcess;
+  };
+  return runtime.process?.platform ?? null;
+}
+
 export function isTerminalCliProfileId(
   profileId: string | null | undefined,
 ): profileId is TerminalCliProfileId {
@@ -45,6 +56,18 @@ export function getTerminalCliProfileDefinition(
   );
 }
 
+function resolveTerminalCliPreferredExecutable(
+  profileId: TerminalCliProfileId,
+  executable: string,
+): string {
+  const normalizedExecutable = executable.trim();
+  if (getRuntimePlatform() === 'win32' && profileId === 'codex') {
+    return 'codex.cmd';
+  }
+
+  return normalizedExecutable;
+}
+
 export function normalizeTerminalCliExecutable(
   profileId: TerminalCliProfileId | string,
   executable: string | null | undefined,
@@ -52,10 +75,10 @@ export function normalizeTerminalCliExecutable(
   const definition = getTerminalCliProfileDefinition(profileId);
   const normalizedExecutable = executable?.trim().toLowerCase();
   if (!normalizedExecutable) {
-    return definition.executable;
+    return resolveTerminalCliPreferredExecutable(definition.profileId, definition.executable);
   }
 
   return definition.aliases.includes(normalizedExecutable)
-    ? definition.executable
+    ? resolveTerminalCliPreferredExecutable(definition.profileId, definition.executable)
     : executable!.trim();
 }

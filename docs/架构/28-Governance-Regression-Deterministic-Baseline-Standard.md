@@ -2,7 +2,7 @@
 
 ## Objective
 
-`check:governance-regression` must fail only on real repository regressions, not on stale dependency policy drift, missing locale keys, or missing build artifacts.
+`check:governance-regression` must fail only on real repository regressions, not on stale dependency policy drift, missing locale keys, missing build artifacts, or host command-runner capability gaps.
 
 ## Standard
 
@@ -10,6 +10,7 @@
 - Locale governance must include every key referenced by source code in both `en` and `zh`.
 - The web bundle budget slice must execute on a fresh build artifact, not on leftover `dist` state.
 - Governance checks that depend on generated artifacts must execute their declared command path when the command itself materializes the prerequisite artifact; relabeling the command without executing it is still stale-state drift.
+- If the host blocks the declared command runner itself, governance regression must preserve that condition as a structured `blocked` `toolchain-platform` diagnostic instead of collapsing it into a failed repository regression.
 - Once those prerequisites are correct, the remaining governance-regression failures are treated as real release blockers.
 
 ## Prohibited
@@ -45,6 +46,9 @@
 - `performance_truth`
   - pass: the web budget gate runs on a fresh build and reports a real size outcome
   - fail: missing build artifacts or stale outputs hide the true bundle state
+- `runner_truth`
+  - pass: host command-runner denials are recorded as structured blocked diagnostics
+  - fail: host `spawn EPERM` conditions are misreported as repository regressions
 
 ## Closure Result
 
@@ -70,6 +74,10 @@ The Step 18 packaged release-evidence promotion is now closed; PostgreSQL live s
   - entry `index-DJsuPCYU.js`: `68.1 KiB`
   - largest JS asset `vendor-markdown-DqZNkVdw.js`: `598.2 KiB`
   - allowed cap: `700.0 KiB`
-- The same loop also re-verified:
-  - `artifacts/governance/governance-regression-report.json`: `88/88` passed with `failedCheckIds: []`
+- Historical direct-runner evidence on `2026-04-13` re-verified:
+  - `artifacts/governance/governance-regression-report.json`: `101/101` passed with `failedCheckIds: []`
   - `artifacts/quality/quality-gate-execution-report.json`: `status: passed` with `passedCount: 3`
+- Current host evidence on `2026-04-15` now preserves the governed Vite-host blocker explicitly instead of fabricating a repository failure:
+  - direct `pnpm.cmd run build` still passes with entry `68.1 KiB`, largest JS asset `598.2 KiB`, and cap `700.0 KiB`
+  - `artifacts/governance/governance-regression-report.json`: `status: blocked`, `passedCount: 100`, `blockedCount: 1`, `failedCount: 0`, `blockedCheckIds: ["web-bundle-budget"]`, `blockingDiagnosticIds: ["vite-host-build-preflight"]`
+  - direct `pnpm.cmd check:quality:release` now exits non-zero earlier because `fast` fails first at `check:web-vite-build` with `[vite:define] spawn EPERM`

@@ -9,7 +9,12 @@ import type {
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import type { IProjectSessionMirror } from '../interfaces/IProjectSessionMirror.ts';
-import type { IProjectService } from '../interfaces/IProjectService.ts';
+import type {
+  BirdCoderCodingSessionMirrorSnapshot,
+  BirdCoderProjectMirrorSnapshot,
+  CreateCodingSessionOptions,
+  IProjectService,
+} from '../interfaces/IProjectService.ts';
 
 const ZERO_TIMESTAMP = new Date(0).toISOString();
 
@@ -25,16 +30,37 @@ function mergeProjectSummary(
   summary: Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>[number],
   localProject: BirdCoderProject | undefined,
 ): BirdCoderProject {
+  const resolvedProjectPath = summary.rootPath?.trim() || localProject?.path;
   return {
     id: summary.id,
     workspaceId: summary.workspaceId,
     name: summary.name,
     description: summary.description,
-    path: summary.rootPath,
+    path: resolvedProjectPath,
     createdAt: summary.createdAt || localProject?.createdAt || ZERO_TIMESTAMP,
     updatedAt: summary.updatedAt || localProject?.updatedAt || summary.createdAt || ZERO_TIMESTAMP,
     archived: summary.status === 'archived',
     codingSessions: localProject?.codingSessions ? structuredClone(localProject.codingSessions) : [],
+  };
+}
+
+function mergeProjectMirrorSnapshot(
+  summary: Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>[number],
+  localProject: BirdCoderProjectMirrorSnapshot | undefined,
+): BirdCoderProjectMirrorSnapshot {
+  const resolvedProjectPath = summary.rootPath?.trim() || localProject?.path;
+  return {
+    id: summary.id,
+    workspaceId: summary.workspaceId,
+    name: summary.name,
+    description: summary.description,
+    path: resolvedProjectPath,
+    createdAt: summary.createdAt || localProject?.createdAt || ZERO_TIMESTAMP,
+    updatedAt: summary.updatedAt || localProject?.updatedAt || summary.createdAt || ZERO_TIMESTAMP,
+    archived: summary.status === 'archived',
+    codingSessions: localProject?.codingSessions
+      ? structuredClone(localProject.codingSessions)
+      : [],
   };
 }
 
@@ -133,9 +159,65 @@ export class ApiBackedProjectService implements IProjectService {
       this.writeService.getProjects(workspaceId),
     ]);
     const localProjectsById = new Map(localProjects.map((project) => [project.id, project]));
-    return projectSummaries.map((projectSummary) =>
+    const mergedProjects = projectSummaries.map((projectSummary) =>
       mergeProjectSummary(projectSummary, localProjectsById.get(projectSummary.id)),
     );
+    const localOnlyProjects = localProjects.filter(
+      (project) => !projectSummaries.some((summary) => summary.id === project.id),
+    );
+
+    return [...mergedProjects, ...structuredClone(localOnlyProjects)];
+  }
+
+  async getProjectMirrorSnapshots(workspaceId?: string): Promise<BirdCoderProjectMirrorSnapshot[]> {
+    const [projectSummaries, localProjects] = await Promise.all([
+      this.client.listProjects({ workspaceId }),
+      this.writeService.getProjectMirrorSnapshots
+        ? this.writeService.getProjectMirrorSnapshots(workspaceId)
+        : this.writeService.getProjects(workspaceId).then((projects) =>
+            projects.map((project) => ({
+              id: project.id,
+              workspaceId: project.workspaceId,
+              name: project.name,
+              description: project.description,
+              path: project.path,
+              createdAt: project.createdAt,
+              updatedAt: project.updatedAt,
+              archived: project.archived,
+              codingSessions: project.codingSessions.map((codingSession): BirdCoderCodingSessionMirrorSnapshot => ({
+                id: codingSession.id,
+                workspaceId: codingSession.workspaceId,
+                projectId: codingSession.projectId,
+                title: codingSession.title,
+                status: codingSession.status,
+                hostMode: codingSession.hostMode,
+                engineId: codingSession.engineId,
+                modelId: codingSession.modelId,
+                createdAt: codingSession.createdAt,
+                updatedAt: codingSession.updatedAt,
+                lastTurnAt: codingSession.lastTurnAt,
+                displayTime: codingSession.displayTime,
+                pinned: codingSession.pinned,
+                archived: codingSession.archived,
+                unread: codingSession.unread,
+                messageCount: codingSession.messages.length,
+                nativeTranscriptUpdatedAt: [...codingSession.messages]
+                  .reverse()
+                  .find((message) => message.id.includes(':native-message:'))
+                  ?.createdAt ?? null,
+              })),
+            })),
+          ),
+    ]);
+    const localProjectsById = new Map(localProjects.map((project) => [project.id, project]));
+    const mergedProjects = projectSummaries.map((projectSummary) =>
+      mergeProjectMirrorSnapshot(projectSummary, localProjectsById.get(projectSummary.id)),
+    );
+    const localOnlyProjects = localProjects.filter(
+      (project) => !projectSummaries.some((summary) => summary.id === project.id),
+    );
+
+    return [...mergedProjects, ...structuredClone(localOnlyProjects)];
   }
 
   async createProject(workspaceId: string, name: string): Promise<BirdCoderProject> {
@@ -154,9 +236,13 @@ export class ApiBackedProjectService implements IProjectService {
     await this.writeService.deleteProject(projectId);
   }
 
-  async createCodingSession(projectId: string, title: string): Promise<BirdCoderCodingSession> {
+  async createCodingSession(
+    projectId: string,
+    title: string,
+    options?: CreateCodingSessionOptions,
+  ): Promise<BirdCoderCodingSession> {
     if (!this.coreWriteClient) {
-      return this.writeService.createCodingSession(projectId, title);
+      return this.writeService.createCodingSession(projectId, title, options);
     }
 
     const project = await this.resolveProject(projectId);
@@ -167,6 +253,8 @@ export class ApiBackedProjectService implements IProjectService {
       workspaceId: project.workspaceId,
       projectId,
       title,
+      engineId: options?.engineId,
+      modelId: options?.modelId,
     });
     const createdCodingSession = mergeCodingSessionSummary(
       createdCodingSessionSummary,
@@ -175,6 +263,22 @@ export class ApiBackedProjectService implements IProjectService {
 
     await this.codingSessionMirror?.upsertCodingSession(projectId, createdCodingSession);
     return structuredClone(createdCodingSession);
+  }
+
+  async upsertCodingSession(projectId: string, codingSession: BirdCoderCodingSession): Promise<void> {
+    if (this.codingSessionMirror) {
+      await this.codingSessionMirror.upsertCodingSession(projectId, codingSession);
+      return;
+    }
+
+    if (this.writeService.upsertCodingSession) {
+      await this.writeService.upsertCodingSession(projectId, codingSession);
+      return;
+    }
+
+    throw new Error(
+      'Project service session mirroring requires a codingSessionMirror or writeService.upsertCodingSession implementation.',
+    );
   }
 
   private async resolveProject(projectId: string): Promise<BirdCoderProject> {

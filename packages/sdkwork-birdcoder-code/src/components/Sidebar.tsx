@@ -1,7 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Edit, Clock, Zap, Folder, FolderPlus, ChevronDown, ChevronRight, Plus, ListFilter, Check, MessageSquare, Trash2, Edit2, Archive, Copy, Pin, Search, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Edit, Clock, Zap, Folder, FolderPlus, ChevronDown, ChevronRight, Plus, ListFilter, Check, MessageSquare, Trash2, Edit2, Archive, Copy, Pin, Search, X, RefreshCw } from 'lucide-react';
 import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-types';
-import { listWorkbenchCliEngines, useToast } from '@sdkwork/birdcoder-commons';
+import {
+  globalEventBus,
+  listWorkbenchCliEngines,
+  useToast,
+} from '@sdkwork/birdcoder-commons/workbench';
 import { useTranslation } from 'react-i18next';
 
 interface SidebarProps {
@@ -17,9 +22,13 @@ interface SidebarProps {
   onNewProject: () => Promise<string | undefined>;
   onOpenFolder?: () => void;
   onNewCodingSessionInProject: (id: string) => void;
+  onRefreshProjectSessions?: (id: string) => Promise<void> | void;
+  onRefreshCodingSessionMessages?: (id: string) => Promise<void> | void;
   onArchiveProject?: (id: string) => void;
   onCopyWorkingDirectory?: (id: string) => void;
+  onCopyProjectPath?: (id: string) => void;
   onOpenInTerminal?: (id: string, profileId?: string) => void;
+  onOpenInFileExplorer?: (id: string) => void;
   onPinCodingSession?: (id: string) => void;
   onArchiveCodingSession?: (id: string) => void;
   onMarkCodingSessionUnread?: (id: string) => void;
@@ -28,12 +37,23 @@ interface SidebarProps {
   onCopyCodingSessionDeeplink?: (id: string) => void;
   onForkCodingSessionLocal?: (id: string) => void;
   onForkCodingSessionNewTree?: (id: string) => void;
+  refreshingProjectId?: string | null;
+  refreshingCodingSessionId?: string | null;
   searchQuery?: string;
   setSearchQuery?: (query: string) => void;
   width?: number;
 }
 
 const CLI_ENGINE_TERMINAL_OPTIONS = listWorkbenchCliEngines();
+const SIDEBAR_CONTEXT_MENU_Z_INDEX = 2147483647;
+
+function renderSidebarContextMenuPortal(content: React.ReactNode) {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  return createPortal(content, document.body);
+}
 
 export function Sidebar({
   projects,
@@ -48,9 +68,13 @@ export function Sidebar({
   onNewProject,
   onOpenFolder,
   onNewCodingSessionInProject,
+  onRefreshProjectSessions,
+  onRefreshCodingSessionMessages,
   onArchiveProject,
   onCopyWorkingDirectory,
+  onCopyProjectPath,
   onOpenInTerminal,
+  onOpenInFileExplorer,
   onPinCodingSession,
   onArchiveCodingSession,
   onMarkCodingSessionUnread,
@@ -59,6 +83,8 @@ export function Sidebar({
   onCopyCodingSessionDeeplink,
   onForkCodingSessionLocal,
   onForkCodingSessionNewTree,
+  refreshingProjectId,
+  refreshingCodingSessionId,
   searchQuery = '',
   setSearchQuery,
   width = 256
@@ -72,6 +98,10 @@ export function Sidebar({
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
   const { t } = useTranslation();
+  const refreshSessionsLabel = t('code.refreshSessions');
+  const refreshingSessionsLabel = t('code.refreshingSessions');
+  const refreshMessagesLabel = t('code.refreshMessages');
+  const refreshingMessagesLabel = t('code.refreshingMessages');
 
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, codingSessionId: string } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -218,12 +248,14 @@ export function Sidebar({
           style={{ animationDelay: '0ms' }}
           onClick={() => {
             if (selectedProjectId) {
-              import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-                globalEventBus.emit('createNewCodingSession');
-              });
+              globalEventBus.emit('createNewCodingSession');
             }
           }}
-          title={selectedProjectId ? "Create a new thread in the current project" : "Please select a project first"}
+          title={
+            selectedProjectId
+              ? t('app.newSessionInCurrentProject')
+              : t('code.selectProjectFirst')
+          }
         >
           <Edit size={16} />
           <span className="font-medium">{t('app.menu.newThread')}</span>
@@ -237,7 +269,28 @@ export function Sidebar({
         >
           <span>{t('app.threads')}</span>
           <div className="flex gap-2 items-center">
-            <div title="Search threads">
+            {selectedProjectId && onRefreshProjectSessions && (
+              <button
+                type="button"
+                className="text-gray-400 hover:text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={refreshingProjectId === selectedProjectId}
+                title={
+                  refreshingProjectId === selectedProjectId
+                    ? refreshingSessionsLabel
+                    : refreshSessionsLabel
+                }
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void onRefreshProjectSessions(selectedProjectId);
+                }}
+              >
+                <RefreshCw
+                  size={14}
+                  className={refreshingProjectId === selectedProjectId ? 'animate-spin' : ''}
+                />
+              </button>
+            )}
+            <div title={t('app.searchSessionsTitle')}>
               <Search 
                 size={14} 
                 className={`cursor-pointer hover:text-white transition-colors ${showSearch || searchQuery ? 'text-white' : ''}`}
@@ -254,8 +307,6 @@ export function Sidebar({
                 const newId = await onNewProject();
                 if (newId) {
                   setExpandedProjects(prev => ({ ...prev, [newId]: true }));
-                  setRenamingProjectId(newId);
-                  setRenameValue('New Project');
                 }
               }} />
             </div>
@@ -437,7 +488,7 @@ export function Sidebar({
                       ))
                     ) : (
                       <div className="pl-8 py-1 text-gray-500 text-xs italic animate-in fade-in fill-mode-both" style={{ animationDelay: `${(index * 50) + 200}ms` }}>
-                        No threads
+                        {t('app.noSessions')}
                       </div>
                     )}
                   </div>
@@ -505,136 +556,173 @@ export function Sidebar({
         </div>
       </div>
 
-      {rootContextMenu && (
-        <div 
-          ref={rootContextMenuRef}
-          className="fixed bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 w-56 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
-          style={{ top: rootContextMenu.y, left: rootContextMenu.x }}
-        >
+      {rootContextMenu &&
+        renderSidebarContextMenuPortal(
           <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors"
-            onClick={async () => { 
-              const newId = await onNewProject(); 
-              if (newId) {
-                setExpandedProjects(prev => ({ ...prev, [newId]: true }));
-                setRenamingProjectId(newId);
-                setRenameValue(t('app.newProject'));
-              }
-              setRootContextMenu(null); 
-            }}
+            ref={rootContextMenuRef}
+            className="fixed bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl py-1.5 text-[13px] text-gray-300 w-56 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
+            style={{ top: rootContextMenu.y, left: rootContextMenu.x, zIndex: SIDEBAR_CONTEXT_MENU_Z_INDEX }}
           >
-            {t('app.newProject')}
-          </div>
-          {onOpenFolder && (
             <div 
               className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors"
-              onClick={() => { onOpenFolder(); setRootContextMenu(null); }}
+              onClick={async () => { 
+                const newId = await onNewProject(); 
+                if (newId) {
+                  setExpandedProjects(prev => ({ ...prev, [newId]: true }));
+                }
+                setRootContextMenu(null); 
+              }}
             >
-              {t('app.menu.openFolder').replace('...', '')}
+              {t('app.newProject')}
             </div>
-          )}
-          <div className="h-px bg-white/10 my-1.5"></div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors"
-            onClick={() => { 
-              if (selectedProjectId) {
-                import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
+            {onOpenFolder && (
+              <div 
+                className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors"
+                onClick={() => { onOpenFolder(); setRootContextMenu(null); }}
+              >
+                {t('app.menu.openFolder').replace('...', '')}
+              </div>
+            )}
+            <div className="h-px bg-white/10 my-1.5"></div>
+            <div 
+              className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors"
+              onClick={() => { 
+                if (selectedProjectId) {
                   globalEventBus.emit('createNewCodingSession');
-                });
-              } else {
-                addToast(t('code.selectProjectFirst'), 'error');
-              }
-              setRootContextMenu(null); 
-            }}
-          >
-            {t('app.menu.newThread')}
-          </div>
-        </div>
-      )}
+                } else {
+                  addToast(t('code.selectProjectFirst'), 'error');
+                }
+                setRootContextMenu(null); 
+              }}
+            >
+              {t('app.menu.newThread')}
+            </div>
+          </div>,
+        )}
 
-      {contextMenu && (
-        <div 
-          ref={contextMenuRef}
-          className="fixed bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 w-56 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
+      {contextMenu &&
+        renderSidebarContextMenuPortal(
           <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
-            onClick={() => { onPinCodingSession?.(contextMenu.codingSessionId); setContextMenu(null); }}
+            ref={contextMenuRef}
+            className="fixed bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl py-1.5 text-[13px] text-gray-300 w-56 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
+            style={{ top: contextMenu.y, left: contextMenu.x, zIndex: SIDEBAR_CONTEXT_MENU_Z_INDEX }}
           >
-            {projects.flatMap((project) => project.codingSessions).find((codingSession) => codingSession.id === contextMenu.codingSessionId)?.pinned ? t('code.unpinThread') : t('code.pinThread')}
-          </div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors"
-            onClick={() => { 
-              setRenamingCodingSessionId(contextMenu.codingSessionId);
-              const thread = projects.flatMap((project) => project.codingSessions).find((codingSession) => codingSession.id === contextMenu.codingSessionId);
-              if (thread) setRenameValue(thread.title);
-              setContextMenu(null); 
-            }}
-          >
-            {t('code.renameThread')}
-          </div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
-            onClick={() => { onArchiveCodingSession?.(contextMenu.codingSessionId); setContextMenu(null); }}
-          >
-            {projects.flatMap((project) => project.codingSessions).find((codingSession) => codingSession.id === contextMenu.codingSessionId)?.archived ? t('code.unarchiveThread') : t('code.archiveThread')}
-          </div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
-            onClick={() => { onMarkCodingSessionUnread?.(contextMenu.codingSessionId); setContextMenu(null); }}
-          >
-            {projects.flatMap((project) => project.codingSessions).find((codingSession) => codingSession.id === contextMenu.codingSessionId)?.unread ? t('code.markAsRead') : t('code.markAsUnread')}
-          </div>
-          <div className="h-px bg-white/10 my-1.5"></div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
-            onClick={() => { onCopyCodingSessionWorkingDirectory?.(contextMenu.codingSessionId); setContextMenu(null); }}
-          >
-            {t('code.copyWorkingDirectory')}
-          </div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
-            onClick={() => { onCopyCodingSessionSessionId?.(contextMenu.codingSessionId); setContextMenu(null); }}
-          >
-            {t('code.copySessionId')}
-          </div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
-            onClick={() => { onCopyCodingSessionDeeplink?.(contextMenu.codingSessionId); setContextMenu(null); }}
-          >
-            {t('code.copyDeeplink')}
-          </div>
-          <div className="h-px bg-white/10 my-1.5"></div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
-            onClick={() => { onForkCodingSessionLocal?.(contextMenu.codingSessionId); setContextMenu(null); }}
-          >
-            {t('code.forkToLocal')}
-          </div>
-          <div 
-            className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
-            onClick={() => { onForkCodingSessionNewTree?.(contextMenu.codingSessionId); setContextMenu(null); }}
-          >
-            {t('code.forkToNewTree')}
-          </div>
-          <div className="h-px bg-white/10 my-1.5"></div>
-          <div 
-            className="px-4 py-1.5 hover:bg-red-500/10 hover:text-red-400 cursor-pointer text-red-500 transition-colors"
-            onClick={() => { onDeleteCodingSession(contextMenu.codingSessionId); setContextMenu(null); }}
-          >
-            {t('code.deleteThread')}
-          </div>
-        </div>
-      )}
+            <div
+              className={`px-4 py-1.5 transition-colors ${
+                refreshingCodingSessionId === contextMenu.codingSessionId
+                  ? 'cursor-not-allowed text-gray-500'
+                  : 'cursor-pointer hover:bg-white/10 hover:text-white'
+              }`}
+              onClick={() => {
+                if (refreshingCodingSessionId === contextMenu.codingSessionId) {
+                  return;
+                }
+                void onRefreshCodingSessionMessages?.(contextMenu.codingSessionId);
+                setContextMenu(null);
+              }}
+            >
+              {refreshingCodingSessionId === contextMenu.codingSessionId
+                ? refreshingMessagesLabel
+                : refreshMessagesLabel}
+            </div>
+            <div className="h-px bg-white/10 my-1.5"></div>
+            <div 
+              className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
+              onClick={() => { onPinCodingSession?.(contextMenu.codingSessionId); setContextMenu(null); }}
+            >
+              {projects.flatMap((project) => project.codingSessions).find((codingSession) => codingSession.id === contextMenu.codingSessionId)?.pinned ? t('code.unpinThread') : t('code.pinThread')}
+            </div>
+            <div 
+              className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors"
+              onClick={() => { 
+                setRenamingCodingSessionId(contextMenu.codingSessionId);
+                const thread = projects.flatMap((project) => project.codingSessions).find((codingSession) => codingSession.id === contextMenu.codingSessionId);
+                if (thread) setRenameValue(thread.title);
+                setContextMenu(null); 
+              }}
+            >
+              {t('code.renameThread')}
+            </div>
+            <div 
+              className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
+              onClick={() => { onArchiveCodingSession?.(contextMenu.codingSessionId); setContextMenu(null); }}
+            >
+              {projects.flatMap((project) => project.codingSessions).find((codingSession) => codingSession.id === contextMenu.codingSessionId)?.archived ? t('code.unarchiveThread') : t('code.archiveThread')}
+            </div>
+            <div 
+              className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
+              onClick={() => { onMarkCodingSessionUnread?.(contextMenu.codingSessionId); setContextMenu(null); }}
+            >
+              {projects.flatMap((project) => project.codingSessions).find((codingSession) => codingSession.id === contextMenu.codingSessionId)?.unread ? t('code.markAsRead') : t('code.markAsUnread')}
+            </div>
+            <div className="h-px bg-white/10 my-1.5"></div>
+            <div 
+              className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
+              onClick={() => { onCopyCodingSessionWorkingDirectory?.(contextMenu.codingSessionId); setContextMenu(null); }}
+            >
+              {t('code.copyWorkingDirectory')}
+            </div>
+            <div 
+              className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
+              onClick={() => { onCopyCodingSessionSessionId?.(contextMenu.codingSessionId); setContextMenu(null); }}
+            >
+              {t('code.copySessionId')}
+            </div>
+            <div 
+              className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
+              onClick={() => { onCopyCodingSessionDeeplink?.(contextMenu.codingSessionId); setContextMenu(null); }}
+            >
+              {t('code.copyDeeplink')}
+            </div>
+            <div className="h-px bg-white/10 my-1.5"></div>
+            <div 
+              className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
+              onClick={() => { onForkCodingSessionLocal?.(contextMenu.codingSessionId); setContextMenu(null); }}
+            >
+              {t('code.forkToLocal')}
+            </div>
+            <div 
+              className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
+              onClick={() => { onForkCodingSessionNewTree?.(contextMenu.codingSessionId); setContextMenu(null); }}
+            >
+              {t('code.forkToNewTree')}
+            </div>
+            <div className="h-px bg-white/10 my-1.5"></div>
+            <div 
+              className="px-4 py-1.5 hover:bg-red-500/10 hover:text-red-400 cursor-pointer text-red-500 transition-colors"
+              onClick={() => { onDeleteCodingSession(contextMenu.codingSessionId); setContextMenu(null); }}
+            >
+              {t('code.deleteThread')}
+            </div>
+          </div>,
+        )}
 
-      {projectContextMenu && (
+      {projectContextMenu &&
+        renderSidebarContextMenuPortal(
         <div 
           ref={projectContextMenuRef}
-          className="fixed bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 w-56 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
-          style={{ top: projectContextMenu.y, left: projectContextMenu.x }}
+          className="fixed bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl py-1.5 text-[13px] text-gray-300 w-56 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
+          style={{ top: projectContextMenu.y, left: projectContextMenu.x, zIndex: SIDEBAR_CONTEXT_MENU_Z_INDEX }}
         >
+          <div
+            className={`px-4 py-1.5 transition-colors ${
+              refreshingProjectId === projectContextMenu.projectId
+                ? 'cursor-not-allowed text-gray-500'
+                : 'cursor-pointer hover:bg-white/10 hover:text-white'
+            }`}
+            onClick={() => {
+              if (refreshingProjectId === projectContextMenu.projectId) {
+                return;
+              }
+              void onRefreshProjectSessions?.(projectContextMenu.projectId);
+              setProjectContextMenu(null);
+            }}
+          >
+            {refreshingProjectId === projectContextMenu.projectId
+              ? refreshingSessionsLabel
+              : refreshSessionsLabel}
+          </div>
+          <div className="h-px bg-white/10 my-1.5"></div>
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors"
             onClick={() => { onNewCodingSessionInProject(projectContextMenu.projectId); setProjectContextMenu(null); }}
@@ -668,12 +756,8 @@ export function Sidebar({
           </div>
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
-            onClick={() => { 
-              const project = projects.find((item) => item.id === projectContextMenu.projectId);
-              if (project) {
-                navigator.clipboard.writeText(`/workspace/${project.name}`);
-                addToast(t('code.copiedPath', { path: `/workspace/${project.name}` }), 'success');
-              }
+            onClick={() => {
+              onCopyProjectPath?.(projectContextMenu.projectId);
               setProjectContextMenu(null);
             }}
           >
@@ -698,16 +782,11 @@ export function Sidebar({
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors" 
             onClick={() => { 
               // 鍦╡xplorer涓墦寮€
-              const project = projects.find(p => p.id === projectContextMenu.projectId);
-              if (project) {
-                import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-                  globalEventBus.emit('revealInExplorer', `/workspace/${project.name}`);
-                });
-              }
+              onOpenInFileExplorer?.(projectContextMenu.projectId);
               setProjectContextMenu(null); 
             }}
           >
-            {t('code.revealInOSExplorer')}
+            {t('code.openInFileExplorer')}
           </div>
           <div className="h-px bg-white/10 my-1.5"></div>
           <div 
@@ -716,8 +795,8 @@ export function Sidebar({
           >
             {t('app.deleteProject')}
           </div>
-        </div>
-      )}
+        </div>,
+        )}
     </div>
   );
 }

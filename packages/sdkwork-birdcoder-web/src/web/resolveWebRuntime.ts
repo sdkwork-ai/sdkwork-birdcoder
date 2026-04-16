@@ -1,7 +1,13 @@
 import { getDistributionManifest } from '@sdkwork/birdcoder-distribution';
-import { createBirdHostDescriptorFromDistribution } from '@sdkwork/birdcoder-host-core';
+import {
+  createBirdHostDescriptorFromDistribution,
+  type BirdHostDescriptor,
+} from '@sdkwork/birdcoder-host-core';
 
-export function resolveWebRuntime(distributionId: 'cn' | 'global' = 'global') {
+export function resolveWebRuntime(
+  distributionId: 'cn' | 'global' = 'global',
+  overrides: Partial<BirdHostDescriptor> = {},
+) {
   const distribution = getDistributionManifest(distributionId);
-  return createBirdHostDescriptorFromDistribution('web', distribution);
+  return createBirdHostDescriptorFromDistribution('web', distribution, overrides);
 }

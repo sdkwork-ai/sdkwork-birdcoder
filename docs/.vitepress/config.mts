@@ -52,6 +52,7 @@ const sidebar = {
         { text: '12 Tool Protocol Sandbox Audit', link: '/架构/12-统一工具协议-权限沙箱-审计标准' },
         { text: '13 Rules Skills MCP Knowledge', link: '/架构/13-规则-技能-MCP-知识系统标准' },
         { text: '14 Current Baseline And Roadmap', link: '/架构/14-现状基线-差距-演进路线' },
+        { text: '21 Multi-Engine SDK Adapter Standard', link: '/架构/21-多Code-Engine协议-SDK-适配标准' },
       ],
     },
   ],
@@ -60,6 +61,7 @@ const sidebar = {
       text: 'Reference',
       items: [
         { text: 'API Overview', link: '/reference/api-reference' },
+        { text: 'Engine SDK Integration', link: '/reference/engine-sdk-integration' },
         { text: 'Commands', link: '/reference/commands' },
         { text: 'Environment', link: '/reference/environment' },
       ],

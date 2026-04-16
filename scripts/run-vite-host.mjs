@@ -32,8 +32,6 @@ function resolveDefaultMode(command) {
   return command === 'build' ? 'production' : 'development';
 }
 
-const compatibleBuildPackageNames = new Set(['@sdkwork/birdcoder-web', '@sdkwork/birdcoder-desktop']);
-
 function hasOption(args, flag) {
   return args.some((token) => token === flag);
 }
@@ -73,20 +71,118 @@ export function resolveWorkspaceRootDir() {
   return path.resolve(__dirname, '..');
 }
 
-export function shouldSkipViteHostBuildPreflight({
-  cwd = process.cwd(),
+export function resolveWorkspaceRootPackageJsonPath({
+  workspaceRootDir = resolveWorkspaceRootDir(),
 } = {}) {
-  const packageJsonPath = path.join(cwd, 'package.json');
+  return path.join(workspaceRootDir, 'package.json');
+}
+
+function isViteHostBuildEnvConflictKey(key) {
+  const normalizedKey = String(key ?? '').trim().toUpperCase();
+  return normalizedKey === 'GIT_PAGER'
+    || normalizedKey === 'PAGER'
+    || normalizedKey === 'GIT_CONFIG_COUNT'
+    || /^GIT_CONFIG_(KEY|VALUE)_\d+$/u.test(normalizedKey);
+}
+
+export function readWorkspaceRootPackageJson({
+  workspaceRootDir = resolveWorkspaceRootDir(),
+} = {}) {
+  const packageJsonPath = resolveWorkspaceRootPackageJsonPath({
+    workspaceRootDir,
+  });
   if (!existsSync(packageJsonPath)) {
-    return false;
+    return null;
   }
 
-  try {
-    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-    return compatibleBuildPackageNames.has(String(packageJson?.name ?? '').trim());
-  } catch {
-    return false;
+  return JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+}
+
+export function buildViteHostChildEnv({
+  env = process.env,
+  viteCommand = 'serve',
+  workspaceRootDir = resolveWorkspaceRootDir(),
+  nodeExecPath = process.execPath,
+  rootPackageJson = readWorkspaceRootPackageJson({
+    workspaceRootDir,
+  }),
+} = {}) {
+  const nextEnv = {
+    ...env,
+  };
+  if (viteCommand !== 'build') {
+    return nextEnv;
   }
+  for (const key of Object.keys(nextEnv)) {
+    if (isViteHostBuildEnvConflictKey(key)) {
+      delete nextEnv[key];
+    }
+  }
+
+  const resolvedWorkspaceRootDir = String(workspaceRootDir ?? '').trim();
+  if (resolvedWorkspaceRootDir) {
+    nextEnv.INIT_CWD = resolvedWorkspaceRootDir;
+    nextEnv.PNPM_SCRIPT_SRC_DIR = resolvedWorkspaceRootDir;
+    nextEnv.npm_package_json = resolveWorkspaceRootPackageJsonPath({
+      workspaceRootDir: resolvedWorkspaceRootDir,
+    });
+  }
+
+  const resolvedNodeExecPath = String(nodeExecPath ?? '').trim();
+  if (resolvedNodeExecPath) {
+    nextEnv.NODE = resolvedNodeExecPath;
+    nextEnv.npm_node_execpath = resolvedNodeExecPath;
+  }
+
+  const canonicalBuildScript = String(rootPackageJson?.scripts?.build ?? '').trim();
+  nextEnv.npm_lifecycle_event = 'build';
+  if (canonicalBuildScript) {
+    nextEnv.npm_lifecycle_script = canonicalBuildScript;
+  }
+  if (typeof rootPackageJson?.name === 'string' && rootPackageJson.name.trim()) {
+    nextEnv.npm_package_name = rootPackageJson.name.trim();
+  }
+  if (typeof rootPackageJson?.version === 'string' && rootPackageJson.version.trim()) {
+    nextEnv.npm_package_version = rootPackageJson.version.trim();
+  }
+
+  return nextEnv;
+}
+
+export function applyViteHostBuildRuntimeEnv({
+  env = process.env,
+  viteCommand = 'serve',
+  workspaceRootDir = resolveWorkspaceRootDir(),
+  nodeExecPath = process.execPath,
+  rootPackageJson = readWorkspaceRootPackageJson({
+    workspaceRootDir,
+  }),
+} = {}) {
+  if (!env || viteCommand !== 'build') {
+    return env;
+  }
+
+  const normalizedEnv = buildViteHostChildEnv({
+    env,
+    viteCommand,
+    workspaceRootDir,
+    nodeExecPath,
+    rootPackageJson,
+  });
+  for (const key of Object.keys(env)) {
+    if (!(key in normalizedEnv)) {
+      delete env[key];
+    }
+  }
+  Object.assign(env, normalizedEnv);
+
+  return env;
+}
+
+export function shouldEnforceViteHostBuildPreflight({
+  env = process.env,
+} = {}) {
+  return String(env?.SDKWORK_ENFORCE_VITE_HOST_PREFLIGHT ?? '').trim() === '1';
 }
 
 export function resolveViteWindowsRealpathPatchEntry() {
@@ -197,6 +293,11 @@ export function createViteHostPlan({
     cwd,
     workspaceRootDir,
   });
+  const childEnv = buildViteHostChildEnv({
+    env,
+    viteCommand: command,
+    workspaceRootDir,
+  });
   const configLoaderArgs =
     process.platform === 'win32' && !hasOption(restArgs, '--configLoader')
       ? ['--configLoader', 'native']
@@ -211,17 +312,24 @@ export function createViteHostPlan({
     cwd,
     viteCommand: command,
     env: {
-      ...env,
+      ...childEnv,
       SDKWORK_VITE_MODE: mode,
     },
   };
 }
 
 export async function runCli() {
-  const plan = createViteHostPlan({
-    argv: process.argv.slice(2),
+  const argv = process.argv.slice(2);
+  const initialPlan = createViteHostPlan({
+    argv,
   });
-  if (plan.viteCommand === 'build' && !shouldSkipViteHostBuildPreflight({ cwd: plan.cwd })) {
+  applyViteHostBuildRuntimeEnv({
+    viteCommand: initialPlan.viteCommand,
+  });
+  const plan = createViteHostPlan({
+    argv,
+  });
+  if (plan.viteCommand === 'build' && shouldEnforceViteHostBuildPreflight()) {
     const preflightReport = runViteHostBuildPreflight({
       cwd: plan.cwd,
       workspaceRootDir: resolveWorkspaceRootDir(),

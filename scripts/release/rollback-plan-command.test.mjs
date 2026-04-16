@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { runLocalReleaseCommand } from './local-release-command.mjs';
 
@@ -51,7 +52,14 @@ assert.match(
 assert.deepEqual(JSON.parse(stdout), rollbackPlan);
 
 const rootPackageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
-assert.match(rootPackageJson.scripts['check:release-flow'], /rollback-plan-command\.test\.mjs/);
+const releaseFlowRunnerModule = await import(
+  pathToFileURL(path.join(process.cwd(), 'scripts/run-release-flow-check.mjs')).href
+);
+assert.equal(rootPackageJson.scripts['check:release-flow'], 'node scripts/run-release-flow-check.mjs');
+assert.match(
+  releaseFlowRunnerModule.RELEASE_FLOW_CHECK_COMMANDS.join(' && '),
+  /rollback-plan-command\.test\.mjs/,
+);
 const governanceRegressionSource = fs.readFileSync(
   path.join(process.cwd(), 'scripts/governance-regression-report.mjs'),
   'utf8',

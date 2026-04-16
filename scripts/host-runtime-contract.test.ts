@@ -16,7 +16,7 @@ assert.deepEqual(desktopGlobalRuntime, {
   appId: 'sdkwork-birdcoder',
   appName: 'SDKWork BirdCoder',
   distributionId: 'global',
-  apiBaseUrl: 'https://api.sdkwork.com/birdcoder',
+  apiBaseUrl: 'http://127.0.0.1:10240',
 });
 
 const desktopCnRuntime = resolveDesktopRuntime('cn');
@@ -25,7 +25,15 @@ assert.deepEqual(desktopCnRuntime, {
   appId: 'sdkwork-birdcoder-cn',
   appName: 'SDKWork BirdCoder',
   distributionId: 'cn',
-  apiBaseUrl: 'https://cn.sdkwork.local/birdcoder',
+  apiBaseUrl: 'http://127.0.0.1:10240',
+});
+
+assert.deepEqual(resolveDesktopRuntime('global', { apiBaseUrl: 'https://deploy.example.com/birdcoder' }), {
+  mode: 'desktop',
+  appId: 'sdkwork-birdcoder',
+  appName: 'SDKWork BirdCoder',
+  distributionId: 'global',
+  apiBaseUrl: 'https://deploy.example.com/birdcoder',
 });
 
 const webGlobalRuntime = resolveWebRuntime();
@@ -34,7 +42,7 @@ assert.deepEqual(webGlobalRuntime, {
   appId: 'sdkwork-birdcoder',
   appName: 'SDKWork BirdCoder',
   distributionId: 'global',
-  apiBaseUrl: 'https://api.sdkwork.com/birdcoder',
+  apiBaseUrl: 'http://127.0.0.1:10240',
 });
 
 const webCnRuntime = resolveWebRuntime('cn');
@@ -43,7 +51,15 @@ assert.deepEqual(webCnRuntime, {
   appId: 'sdkwork-birdcoder-cn',
   appName: 'SDKWork BirdCoder',
   distributionId: 'cn',
-  apiBaseUrl: 'https://cn.sdkwork.local/birdcoder',
+  apiBaseUrl: 'http://127.0.0.1:10240',
+});
+
+assert.deepEqual(resolveWebRuntime('global', { apiBaseUrl: 'https://preview.example.com/birdcoder' }), {
+  mode: 'web',
+  appId: 'sdkwork-birdcoder',
+  appName: 'SDKWork BirdCoder',
+  distributionId: 'global',
+  apiBaseUrl: 'https://preview.example.com/birdcoder',
 });
 
 const hostStudioGlobalRuntime = createHostStudioDescriptor();
@@ -52,7 +68,7 @@ assert.deepEqual(hostStudioGlobalRuntime, {
   appId: 'sdkwork-birdcoder',
   appName: 'SDKWork BirdCoder',
   distributionId: 'global',
-  apiBaseUrl: 'https://api.sdkwork.com/birdcoder',
+  apiBaseUrl: 'http://127.0.0.1:10240',
 });
 
 const hostStudioCnRuntime = createHostStudioDescriptor('cn');
@@ -61,8 +77,19 @@ assert.deepEqual(hostStudioCnRuntime, {
   appId: 'sdkwork-birdcoder-cn',
   appName: 'SDKWork BirdCoder',
   distributionId: 'cn',
-  apiBaseUrl: 'https://cn.sdkwork.local/birdcoder',
+  apiBaseUrl: 'http://127.0.0.1:10240',
 });
+
+assert.deepEqual(
+  createHostStudioDescriptor('global', { apiBaseUrl: 'https://studio.example.com/birdcoder' }),
+  {
+    mode: 'desktop',
+    appId: 'sdkwork-birdcoder',
+    appName: 'SDKWork BirdCoder',
+    distributionId: 'global',
+    apiBaseUrl: 'https://studio.example.com/birdcoder',
+  },
+);
 
 const serverGlobalRuntime = resolveServerRuntime();
 assert.deepEqual(serverGlobalRuntime, {
@@ -70,7 +97,7 @@ assert.deepEqual(serverGlobalRuntime, {
   appId: 'sdkwork-birdcoder',
   appName: 'SDKWork BirdCoder',
   distributionId: 'global',
-  apiBaseUrl: 'https://api.sdkwork.com/birdcoder',
+  apiBaseUrl: 'http://127.0.0.1:10240',
   host: BIRD_SERVER_DEFAULT_HOST,
   port: BIRD_SERVER_DEFAULT_PORT,
   configFileName: BIRD_SERVER_DEFAULT_CONFIG_FILE_NAME,
@@ -82,7 +109,18 @@ assert.deepEqual(serverCnRuntime, {
   appId: 'sdkwork-birdcoder-cn',
   appName: 'SDKWork BirdCoder',
   distributionId: 'cn',
-  apiBaseUrl: 'https://cn.sdkwork.local/birdcoder',
+  apiBaseUrl: 'http://127.0.0.1:10240',
+  host: BIRD_SERVER_DEFAULT_HOST,
+  port: BIRD_SERVER_DEFAULT_PORT,
+  configFileName: BIRD_SERVER_DEFAULT_CONFIG_FILE_NAME,
+});
+
+assert.deepEqual(resolveServerRuntime('global', { apiBaseUrl: 'https://server.example.com/birdcoder' }), {
+  mode: 'server',
+  appId: 'sdkwork-birdcoder',
+  appName: 'SDKWork BirdCoder',
+  distributionId: 'global',
+  apiBaseUrl: 'https://server.example.com/birdcoder',
   host: BIRD_SERVER_DEFAULT_HOST,
   port: BIRD_SERVER_DEFAULT_PORT,
   configFileName: BIRD_SERVER_DEFAULT_CONFIG_FILE_NAME,

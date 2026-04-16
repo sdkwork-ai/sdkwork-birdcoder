@@ -7,12 +7,15 @@ edition = "2021"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+axum = "0.8"
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sdkwork-birdcoder-server = { path = "../../sdkwork-birdcoder-server/src-host" }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
+tokio = { version = "1", features = ["net", "rt-multi-thread"] }
 
 [lib]
 name = "sdkwork_birdcoder_desktop_lib"

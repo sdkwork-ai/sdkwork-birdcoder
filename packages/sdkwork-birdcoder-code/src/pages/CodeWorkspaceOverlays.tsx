@@ -1,5 +1,6 @@
+import type { ProjectMountRecoveryState } from '@sdkwork/birdcoder-commons/workbench';
 import type { FileNode } from '@sdkwork/birdcoder-ui';
-import { FileCode2, Search, X } from 'lucide-react';
+import { AlertCircle, FileCode2, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -9,10 +10,19 @@ import {
 
 interface CodeWorkspaceOverlaysProps {
   files: FileNode[];
+  mountRecoveryState: ProjectMountRecoveryState;
+  isMountRecoveryActionPending: boolean;
   isFindVisible: boolean;
+  isSearchingFiles: boolean;
   isQuickOpenVisible: boolean;
-  searchFiles: (query: string) => Promise<CodeWorkspaceSearchResult[]>;
+  searchFiles: (query: string) => Promise<{
+    status: 'completed' | 'stale';
+    limitReached: boolean;
+    results: CodeWorkspaceSearchResult[];
+  }>;
   onSelectFile: (path: string) => void;
+  onRetryMountRecovery: () => void;
+  onReimportProjectFolder: () => void;
   onCloseFind: () => void;
   onCloseQuickOpen: () => void;
   onNotifyNoResults: () => void;
@@ -20,23 +30,28 @@ interface CodeWorkspaceOverlaysProps {
 
 export function CodeWorkspaceOverlays({
   files,
+  mountRecoveryState,
+  isMountRecoveryActionPending,
   isFindVisible,
+  isSearchingFiles,
   isQuickOpenVisible,
   searchFiles,
   onSelectFile,
+  onRetryMountRecovery,
+  onReimportProjectFolder,
   onCloseFind,
   onCloseQuickOpen,
   onNotifyNoResults,
 }: CodeWorkspaceOverlaysProps) {
   const { t } = useTranslation();
   const [findResults, setFindResults] = useState<CodeWorkspaceSearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [isResultLimitReached, setIsResultLimitReached] = useState(false);
   const [quickOpenQuery, setQuickOpenQuery] = useState('');
 
   useEffect(() => {
     if (isFindVisible) {
       setFindResults([]);
-      setIsSearching(false);
+      setIsResultLimitReached(false);
     }
   }, [isFindVisible]);
 
@@ -56,20 +71,84 @@ export function CodeWorkspaceOverlays({
       return;
     }
 
-    setIsSearching(true);
-    try {
-      const results = await searchFiles(query);
-      setFindResults(results);
-      if (results.length === 0) {
-        onNotifyNoResults();
-      }
-    } finally {
-      setIsSearching(false);
+    const response = await searchFiles(query);
+    if (response.status !== 'completed') {
+      return;
+    }
+
+    setFindResults(response.results);
+    setIsResultLimitReached(response.limitReached);
+    if (response.results.length === 0) {
+      onNotifyNoResults();
     }
   };
 
   return (
     <>
+      {mountRecoveryState.status === 'recovering' && (
+        <div className="absolute top-16 left-4 z-40 max-w-xl">
+          <div className="rounded-xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 shadow-2xl backdrop-blur">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 border-sky-200/80 border-t-transparent animate-spin" />
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-sky-100">
+                  Reconnecting local project folder
+                </div>
+                <div className="mt-1 text-sm leading-6 text-sky-50/90">
+                  BirdCoder is reopening the persisted local folder for this project.
+                </div>
+                {mountRecoveryState.path && (
+                  <div className="mt-2 break-all font-mono text-xs text-sky-100/80">
+                    {mountRecoveryState.path}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mountRecoveryState.status === 'failed' && (
+        <div className="absolute top-16 left-4 z-40 max-w-xl">
+          <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 shadow-2xl backdrop-blur">
+            <div className="flex items-start gap-3">
+              <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-300" />
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-amber-100">
+                  Local project folder needs attention
+                </div>
+                <div className="mt-1 text-sm leading-6 text-amber-50/90">
+                  {mountRecoveryState.message}
+                </div>
+                {mountRecoveryState.path && (
+                  <div className="mt-2 break-all font-mono text-xs text-amber-100/80">
+                    {mountRecoveryState.path}
+                  </div>
+                )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={isMountRecoveryActionPending}
+                    className="rounded-md border border-amber-200/30 bg-amber-200/10 px-3 py-1.5 text-xs font-semibold text-amber-50 transition-colors hover:bg-amber-200/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={onRetryMountRecovery}
+                  >
+                    {isMountRecoveryActionPending ? 'Retrying...' : 'Retry Connection'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isMountRecoveryActionPending}
+                    className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-100 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={onReimportProjectFolder}
+                  >
+                    Choose Folder
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isFindVisible && (
         <div className="absolute top-16 right-1/2 translate-x-1/2 w-[32rem] max-h-[80vh] flex flex-col bg-[#18181b] border border-white/10 rounded-lg shadow-2xl z-50 animate-in fade-in slide-in-from-top-4">
           <div className="flex items-center justify-between p-4 border-b border-white/5 shrink-0">
@@ -93,13 +172,18 @@ export function CodeWorkspaceOverlays({
                   }
                 }}
               />
-              {isSearching && (
+              {isSearchingFiles && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                   <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
             </div>
           </div>
+          {isResultLimitReached && (
+            <div className="px-4 py-2 border-t border-amber-500/20 bg-amber-500/10 text-xs text-amber-200 shrink-0">
+              Showing first {findResults.length} matches. Refine your query to narrow the results.
+            </div>
+          )}
           {findResults.length > 0 && (
             <div className="overflow-y-auto p-2 border-t border-white/5">
               {findResults.map((result, index) => (

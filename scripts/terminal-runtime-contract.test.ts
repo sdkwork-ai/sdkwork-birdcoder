@@ -29,6 +29,11 @@ assert.equal(claudePlan.executable, 'claude');
 assert.deepEqual(claudePlan.args, ['chat', '--print', 'fix bug']);
 assert.equal(claudePlan.kind, 'cli');
 
+const codexPlan = buildTerminalExecutionPlan('codex', '--version', 'C:\\repo');
+assert.equal(codexPlan.executable, process.platform === 'win32' ? 'codex.cmd' : 'codex');
+assert.deepEqual(codexPlan.args, ['--version']);
+assert.equal(codexPlan.kind, 'cli');
+
 assert.deepEqual(tokenizeTerminalCommand('chat --model sonnet "fix bug"'), [
   'chat',
   '--model',

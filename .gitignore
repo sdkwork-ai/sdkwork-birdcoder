@@ -14,5 +14,10 @@ external/*-fragment*/
 server/**/*.tar.gz
 .DS_Store
 *.log
+.codex-protocol-dump/
+.codex-smoke/
+claude-*.txt
+codex-*.txt
+packages/sdkwork-birdcoder-desktop/.local/
 .env*
 !.env.example

@@ -242,7 +242,7 @@ const getPrefixColor = (profileId: string) => {
 
 export function TerminalPage({ terminalRequest, workspaceId, projectId }: TerminalPageProps) {
   const { t } = useTranslation();
-  const { refreshFiles } = useFileSystem(projectId ?? undefined);
+  const { refreshFiles } = useFileSystem(projectId ?? '');
   const { preferences, updatePreferences, isHydrated: isWorkbenchHydrated } = useWorkbenchPreferences();
   const preferredProfile = getTerminalProfile(preferences.terminalProfileId);
   const terminalLayoutKey = buildTerminalLayoutStorageKey(projectId);

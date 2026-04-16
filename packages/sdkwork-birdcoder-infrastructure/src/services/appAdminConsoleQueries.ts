@@ -11,6 +11,7 @@ import type {
   BirdCoderRepresentativeTeamRecord,
   BirdCoderWorkspaceRecord,
 } from '../storage/appConsoleRepository.ts';
+import { ensureBirdCoderBootstrapConsoleCatalog } from '../storage/bootstrapConsoleCatalog.ts';
 
 export interface BirdCoderAppAdminConsoleQueries {
   listAuditEvents(): Promise<BirdCoderRepresentativeAuditRecord[]>;
@@ -81,7 +82,7 @@ export function createBirdCoderAppAdminConsoleQueries({
 }: CreateBirdCoderAppAdminConsoleQueriesOptions): BirdCoderAppAdminConsoleQueries {
   return {
     async listWorkspaces(): Promise<BirdCoderWorkspaceRecord[]> {
-      return repositories.workspaces.list();
+      return (await ensureBirdCoderBootstrapConsoleCatalog({ repositories })).workspaces;
     },
     async listAuditEvents(): Promise<BirdCoderRepresentativeAuditRecord[]> {
       return repositories.audits.list();
@@ -101,7 +102,10 @@ export function createBirdCoderAppAdminConsoleQueries({
       return repositories.policies.list();
     },
     async listProjects(options = {}): Promise<BirdCoderRepresentativeProjectRecord[]> {
-      return filterByWorkspaceId(await repositories.projects.list(), options.workspaceId);
+      return filterByWorkspaceId(
+        (await ensureBirdCoderBootstrapConsoleCatalog({ repositories })).projects,
+        options.workspaceId,
+      );
     },
     async listTeamMembers(options = {}): Promise<BirdCoderRepresentativeTeamMemberRecord[]> {
       return filterByTeamId(await repositories.members.list(), options.teamId);

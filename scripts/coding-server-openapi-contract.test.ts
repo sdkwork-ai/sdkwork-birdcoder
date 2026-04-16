@@ -7,7 +7,7 @@ const documentSeed = buildBirdCoderCodingServerOpenApiDocumentSeed();
 assert.equal(documentSeed.openapi, '3.1.0');
 assert.equal(documentSeed.info.title, 'SDKWork BirdCoder Coding Server API');
 assert.equal(documentSeed.info.version, 'v1');
-assert.equal(documentSeed.servers[0]?.url, 'http://127.0.0.1:18989');
+assert.equal(documentSeed.servers[0]?.url, 'http://127.0.0.1:10240');
 assert.deepEqual(documentSeed.tags.map((tag) => tag.name), ['core', 'app', 'admin']);
 assert.equal(documentSeed.paths['/api/core/v1/coding-sessions']?.post?.operationId, 'core.createCodingSession');
 assert.equal(documentSeed.paths['/api/core/v1/coding-sessions/:id/events']?.get?.operationId, 'core.listCodingSessionEvents');

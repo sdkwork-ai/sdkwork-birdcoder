@@ -33,7 +33,7 @@ assert.deepEqual(
   ['contract-drift', 'toolchain-platform', 'artifact-integrity', 'evidence-gap'],
 );
 
-const blockedToolchainDiagnostic = buildToolchainPlatformDiagnostic({
+const warningToolchainDiagnostic = buildToolchainPlatformDiagnostic({
   platform: 'win32',
   preflightReport: {
     ok: false,
@@ -76,17 +76,18 @@ const blockedToolchainDiagnostic = buildToolchainPlatformDiagnostic({
     ],
   },
 });
-assert.equal(blockedToolchainDiagnostic.classification, 'toolchain-platform');
-assert.equal(blockedToolchainDiagnostic.status, 'blocked');
-assert.deepEqual(blockedToolchainDiagnostic.appliesTo, ['standard', 'release']);
-assert.match(blockedToolchainDiagnostic.summary, /cmd\.exe/u);
-assert.match(blockedToolchainDiagnostic.summary, /esbuild\.exe/u);
-assert.match(blockedToolchainDiagnostic.summary, /spawn EPERM/u);
-assert.deepEqual(blockedToolchainDiagnostic.requiredCapabilities, [
+assert.equal(warningToolchainDiagnostic.classification, 'toolchain-platform');
+assert.equal(warningToolchainDiagnostic.status, 'warning');
+assert.deepEqual(warningToolchainDiagnostic.appliesTo, ['fast', 'standard', 'release']);
+assert.match(warningToolchainDiagnostic.summary, /cmd\.exe/u);
+assert.match(warningToolchainDiagnostic.summary, /esbuild\.exe/u);
+assert.match(warningToolchainDiagnostic.summary, /spawn EPERM/u);
+assert.deepEqual(warningToolchainDiagnostic.requiredCapabilities, [
   'cmd.exe shell execution',
   'esbuild.exe process launch',
 ]);
-assert.deepEqual(blockedToolchainDiagnostic.rerunCommands, [
+assert.deepEqual(warningToolchainDiagnostic.rerunCommands, [
+  'pnpm check:quality:fast',
   'pnpm check:quality:standard',
   'pnpm check:quality:release',
 ]);
@@ -164,33 +165,109 @@ const report = buildQualityGateMatrixReport({
   preflightReport: {
     ok: false,
     status: 'failed',
-    checks: blockedToolchainDiagnostic.checks,
+    checks: warningToolchainDiagnostic.checks,
   },
 });
 
 function normalizeReportForComparison(candidate = {}) {
+  const summary = candidate.summary ?? {};
   return {
-    summary: candidate.summary,
+    summary: {
+      totalTiers: summary.totalTiers,
+      workflowBoundTiers: summary.workflowBoundTiers,
+      missingWorkflowBindings: summary.missingWorkflowBindings,
+      manifestBoundTiers: summary.manifestBoundTiers,
+      missingManifestBindings: summary.missingManifestBindings,
+      failureClassifications: summary.failureClassifications,
+    },
     tiers: candidate.tiers,
     failureClassifications: candidate.failureClassifications,
-    environmentDiagnostics: candidate.environmentDiagnostics,
   };
 }
+
+const stableTruthReport = {
+  summary: {
+    totalTiers: 3,
+    workflowBoundTiers: 3,
+    missingWorkflowBindings: [],
+    manifestBoundTiers: 3,
+    missingManifestBindings: [],
+    failureClassifications: 4,
+    environmentDiagnostics: 0,
+    blockingDiagnosticIds: [],
+  },
+  tiers: [
+    { id: 'fast', command: 'pnpm check:quality:fast' },
+    { id: 'standard', command: 'pnpm check:quality:standard' },
+    { id: 'release', command: 'pnpm check:quality:release' },
+  ],
+  failureClassifications: [
+    { id: 'contract-drift' },
+    { id: 'toolchain-platform' },
+    { id: 'artifact-integrity' },
+    { id: 'evidence-gap' },
+  ],
+  environmentDiagnostics: [],
+};
+
+const hostVariantReport = {
+  ...stableTruthReport,
+  summary: {
+    ...stableTruthReport.summary,
+    environmentDiagnostics: 1,
+    blockingDiagnosticIds: [],
+  },
+  environmentDiagnostics: [
+    {
+      id: 'vite-host-build-preflight',
+      status: 'warning',
+      platform: 'win32',
+    },
+  ],
+};
+
+assert.deepEqual(
+  normalizeReportForComparison(hostVariantReport),
+  normalizeReportForComparison(stableTruthReport),
+  'workspace quality-matrix freshness must ignore host-specific environment diagnostics when tier and workflow truth are unchanged.',
+);
 
 assert.ok(fs.existsSync(outputPath));
 assert.equal(report.generatedAt, '2026-04-09T08:00:00.000Z');
 assert.equal(report.summary.totalTiers, 3);
 assert.equal(report.summary.workflowBoundTiers, 3);
 assert.deepEqual(report.summary.missingWorkflowBindings, []);
+assert.equal(report.summary.manifestBoundTiers, 3);
+assert.deepEqual(report.summary.missingManifestBindings, []);
 assert.equal(report.summary.failureClassifications, 4);
 assert.equal(report.summary.environmentDiagnostics, 1);
-assert.deepEqual(report.summary.blockingDiagnosticIds, ['vite-host-build-preflight']);
+assert.deepEqual(report.summary.blockingDiagnosticIds, []);
 assert.deepEqual(
-  report.tiers.map((tier) => ({ id: tier.id, command: tier.command, bound: tier.workflow.bound })),
+  report.tiers.map((tier) => ({
+    id: tier.id,
+    command: tier.command,
+    workflowBound: tier.workflow.bound,
+    manifestBound: tier.manifest.bound,
+  })),
   [
-    { id: 'fast', command: rootPackageJson.scripts['check:quality:fast'], bound: true },
-    { id: 'standard', command: rootPackageJson.scripts['check:quality:standard'], bound: true },
-    { id: 'release', command: rootPackageJson.scripts['check:quality:release'], bound: true },
+    {
+      id: 'fast',
+      command: rootPackageJson.scripts['check:quality:fast'],
+      workflowBound: true,
+      manifestBound: true,
+    },
+    {
+      id: 'standard',
+      command: rootPackageJson.scripts['check:quality:standard'],
+      workflowBound: true,
+      manifestBound: true,
+    },
+    {
+      id: 'release',
+      command: rootPackageJson.scripts['check:quality:release'],
+      workflowBound: true,
+      manifestBound: true,
+    },
   ],
 );
 assert.equal(
@@ -208,7 +285,20 @@ assert.match(
 assert.deepEqual(
   report.tiers.find((tier) => tier.id === 'release')?.governanceCheckIds ?? [],
   [
+    'engine-official-sdk',
+    'engine-official-sdk-runtime-selection',
     'engine-runtime-adapter',
+    'engine-kernel',
+    'engine-environment-health',
+    'engine-capability-extension',
+    'engine-experimental-capability-gating',
+    'engine-canonical-registry-governance',
+    'provider-sdk-import-governance',
+    'provider-sdk-package-manifest',
+    'provider-adapter-browser-safety',
+    'engine-official-sdk-error-propagation',
+    'provider-official-sdk-bridge',
+    'opencode-official-sdk-bridge',
     'engine-conformance',
     'tool-protocol',
     'engine-resume-recovery',
@@ -216,18 +306,80 @@ assert.deepEqual(
 );
 assert.deepEqual(report.environmentDiagnostics.map((entry) => entry.id), ['vite-host-build-preflight']);
 assert.equal(report.environmentDiagnostics[0].classification, 'toolchain-platform');
-assert.equal(report.environmentDiagnostics[0].status, 'blocked');
-assert.deepEqual(report.environmentDiagnostics[0].appliesTo, ['standard', 'release']);
+assert.equal(report.environmentDiagnostics[0].status, 'warning');
+assert.deepEqual(report.environmentDiagnostics[0].appliesTo, ['fast', 'standard', 'release']);
 assert.match(report.environmentDiagnostics[0].summary, /toolchain-platform/u);
 assert.deepEqual(report.environmentDiagnostics[0].requiredCapabilities, [
   'cmd.exe shell execution',
   'esbuild.exe process launch',
 ]);
 assert.deepEqual(report.environmentDiagnostics[0].rerunCommands, [
+  'pnpm check:quality:fast',
   'pnpm check:quality:standard',
   'pnpm check:quality:release',
 ]);
 assert.equal(report.environmentDiagnostics[0].checks.length, 2);
+
+const topologyGapRootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-quality-gate-topology-gap-'));
+fs.mkdirSync(path.join(topologyGapRootDir, '.github', 'workflows'), { recursive: true });
+const topologyGapPackageJson = structuredClone(rootPackageJson);
+delete topologyGapPackageJson.scripts['check:quality:fast'];
+fs.writeFileSync(
+  path.join(topologyGapRootDir, 'package.json'),
+  `${JSON.stringify(topologyGapPackageJson, null, 2)}\n`,
+  'utf8',
+);
+fs.writeFileSync(path.join(topologyGapRootDir, '.github', 'workflows', 'ci.yml'), ciWorkflow, 'utf8');
+fs.writeFileSync(
+  path.join(topologyGapRootDir, '.github', 'workflows', 'release-reusable.yml'),
+  releaseWorkflow,
+  'utf8',
+);
+
+const topologyGapReport = buildQualityGateMatrixReport({
+  rootDir: topologyGapRootDir,
+  outputPath: path.join(topologyGapRootDir, 'quality-gate-matrix-report.json'),
+  now: () => new Date('2026-04-15T08:00:00.000Z'),
+  platform: 'linux',
+  preflightReport: {
+    ok: true,
+    status: 'passed',
+    checks: [],
+  },
+});
+
+assert.equal(topologyGapReport.summary.workflowBoundTiers, 3);
+assert.deepEqual(topologyGapReport.summary.missingWorkflowBindings, []);
+assert.equal(topologyGapReport.summary.manifestBoundTiers, 2);
+assert.deepEqual(topologyGapReport.summary.missingManifestBindings, ['fast']);
+assert.deepEqual(
+  topologyGapReport.tiers.map((tier) => ({
+    id: tier.id,
+    command: tier.command,
+    workflowBound: tier.workflow.bound,
+    manifestBound: tier.manifest.bound,
+  })),
+  [
+    {
+      id: 'fast',
+      command: '',
+      workflowBound: true,
+      manifestBound: false,
+    },
+    {
+      id: 'standard',
+      command: rootPackageJson.scripts['check:quality:standard'],
+      workflowBound: true,
+      manifestBound: true,
+    },
+    {
+      id: 'release',
+      command: rootPackageJson.scripts['check:quality:release'],
+      workflowBound: true,
+      manifestBound: true,
+    },
+  ],
+);
 
 const defaultOutputPath = path.join(rootDir, DEFAULT_QUALITY_GATE_MATRIX_REPORT_FILE);
 if (fs.existsSync(defaultOutputPath)) {

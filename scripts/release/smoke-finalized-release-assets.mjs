@@ -21,6 +21,7 @@ import {
   summarizeTerminalGovernanceEvidenceArchive,
 } from './terminal-governance-evidence-archive.mjs';
 import {
+  enrichQualityEvidenceSummary,
   normalizeQualityEvidenceSummary,
   readReleaseQualityEvidence,
 } from './quality-gate-release-evidence.mjs';
@@ -28,6 +29,25 @@ import {
   createCodingServerOpenApiEvidence,
   normalizeCodingServerOpenApiEvidenceSummary,
 } from './coding-server-openapi-release-evidence.mjs';
+import {
+  assertClearStopShipEvidence,
+  buildPromotionReadinessSummary,
+  collectReleaseStopShipSignals,
+  normalizePromotionReadinessSummary,
+  normalizeStopShipSignals,
+} from './release-stop-ship-governance.mjs';
+import {
+  collectDesktopStartupReadinessSignals,
+  normalizeDesktopStartupReadinessSummary,
+  resolveDesktopAssetTargetLabel,
+  summarizeDesktopStartupReadiness,
+} from './desktop-startup-readiness-summary.mjs';
+import {
+  resolveDesktopStartupEvidencePath,
+} from './desktop-startup-smoke-contract.mjs';
+import {
+  refreshReleaseChecksumsIfPresent,
+} from './release-checksums.mjs';
 
 export const FINALIZED_RELEASE_SMOKE_REPORT_FILENAME = 'finalized-release-smoke-report.json';
 
@@ -288,11 +308,101 @@ function assertQualityEvidenceSummaryMatches({
 
   return assertRequiredSummaryMatches({
     manifestSummary: manifest.qualityEvidence,
-    archiveSummary: qualityEvidence?.summary ?? null,
+    archiveSummary: enrichQualityEvidenceSummary(
+      qualityEvidence?.summary ?? {},
+      {
+        releaseReadinessSignals: collectDesktopStartupReadinessSignals(manifest.assets),
+      },
+    ),
     normalizeSummary: normalizeQualitySummary,
     missingManifestMessage: 'Missing finalized manifest qualityEvidence summary.',
     missingArchiveMessage: `Missing quality gate matrix report referenced by finalized manifest: ${releaseAssetsDir}`,
     mismatchMessage: 'Finalized manifest qualityEvidence summary does not match the quality gate matrix report.',
+  });
+}
+
+function assertDesktopStartupReadinessSummaryMatches({
+  manifest,
+  releaseAssetsDir,
+} = {}) {
+  const desktopAssets = (manifest.assets ?? []).filter((entry) => String(entry?.family ?? '').trim() === 'desktop');
+  if (desktopAssets.length === 0) {
+    return [];
+  }
+
+  return desktopAssets.map((entry) => {
+    const target = resolveDesktopAssetTargetLabel(entry);
+    if (!entry.desktopStartupReadinessSummary) {
+      throw new Error(`Missing finalized manifest desktopStartupReadinessSummary for packaged desktop asset: ${target}.`);
+    }
+
+    const capturedEvidenceRelativePath = String(
+      entry.desktopStartupEvidence?.capturedEvidenceRelativePath ?? '',
+    ).trim();
+    const startupEvidencePath = capturedEvidenceRelativePath
+      ? path.join(releaseAssetsDir, capturedEvidenceRelativePath)
+      : resolveDesktopStartupEvidencePath({
+        releaseAssetsDir,
+        platform: entry.platform,
+        arch: entry.arch,
+      });
+
+    if (!fs.existsSync(startupEvidencePath)) {
+      throw new Error(`Missing packaged desktop startup evidence referenced by finalized manifest: ${startupEvidencePath}`);
+    }
+
+    const startupEvidence = JSON.parse(fs.readFileSync(startupEvidencePath, 'utf8'));
+    const normalizedManifestSummary = normalizeDesktopStartupReadinessSummary(
+      entry.desktopStartupReadinessSummary,
+    );
+    const normalizedEvidenceSummary = normalizeDesktopStartupReadinessSummary(
+      summarizeDesktopStartupReadiness(startupEvidence.readinessEvidence) ?? {},
+    );
+
+    if (JSON.stringify(normalizedManifestSummary) !== JSON.stringify(normalizedEvidenceSummary)) {
+      throw new Error(`Finalized manifest desktopStartupReadinessSummary does not match the packaged desktop startup evidence for ${target}.`);
+    }
+
+    return {
+      target,
+      ...normalizedEvidenceSummary,
+    };
+  });
+}
+
+function assertStopShipSignalsSummaryMatches({
+  manifest,
+  qualityEvidence,
+  governanceEvidence,
+} = {}) {
+  return assertRequiredSummaryMatches({
+    manifestSummary: manifest.stopShipSignals,
+    archiveSummary: collectReleaseStopShipSignals({
+      qualityEvidence,
+      governanceEvidence,
+      assets: manifest.assets,
+    }),
+    normalizeSummary: normalizeStopShipSignals,
+    missingManifestMessage: 'Missing finalized manifest stopShipSignals summary.',
+    missingArchiveMessage: 'Missing recomputed stopShipSignals summary.',
+    mismatchMessage: 'Finalized manifest stopShipSignals summary does not match recomputed release stop-ship signals.',
+  });
+}
+
+function assertPromotionReadinessSummaryMatches({
+  manifest,
+  stopShipSignals,
+} = {}) {
+  return assertRequiredSummaryMatches({
+    manifestSummary: manifest.promotionReadiness,
+    archiveSummary: buildPromotionReadinessSummary({
+      releaseControl: manifest.releaseControl ?? null,
+      stopShipSignals,
+    }),
+    normalizeSummary: normalizePromotionReadinessSummary,
+    missingManifestMessage: 'Missing finalized manifest promotionReadiness summary.',
+    missingArchiveMessage: 'Missing recomputed promotionReadiness summary.',
+    mismatchMessage: 'Finalized manifest promotionReadiness summary does not match recomputed release promotion readiness.',
   });
 }
 
@@ -333,9 +443,29 @@ export function smokeFinalizedReleaseAssets({
     manifest,
     releaseAssetsDir,
   });
+  const desktopStartupReadiness = assertDesktopStartupReadinessSummaryMatches({
+    manifest,
+    releaseAssetsDir,
+  });
   const qualityEvidence = assertQualityEvidenceSummaryMatches({
     manifest,
     releaseAssetsDir,
+  });
+  const stopShipSignals = assertStopShipSignalsSummaryMatches({
+    manifest,
+    qualityEvidence,
+    governanceEvidence,
+  });
+  const promotionReadiness = assertPromotionReadinessSummaryMatches({
+    manifest,
+    stopShipSignals,
+  });
+  assertClearStopShipEvidence({
+    releaseControl: manifest.releaseControl ?? null,
+    qualityEvidence,
+    governanceEvidence,
+    assets: manifest.assets,
+    errorPrefix: 'Formal or general-availability finalized release manifests require clear stop-ship evidence',
   });
 
   const reportPath = resolveFinalizedReleaseSmokeReportPath({
@@ -394,6 +524,13 @@ export function smokeFinalizedReleaseAssets({
           : 'no terminal governance evidence archive is attached to the finalized release manifest',
       },
       {
+        id: 'desktop-startup-readiness-summary-match',
+        status: desktopStartupReadiness.length > 0 ? 'passed' : 'skipped',
+        detail: desktopStartupReadiness.length > 0
+          ? 'finalized manifest desktopStartupReadinessSummary matches the packaged desktop startup evidence'
+          : 'no packaged desktop startup evidence is attached to the finalized release manifest',
+      },
+      {
         id: 'quality-evidence-summary-match',
         status: 'passed',
         detail: 'finalized manifest qualityEvidence summary matches the quality gate matrix report',
@@ -405,10 +542,17 @@ export function smokeFinalizedReleaseAssets({
     simulatorEvidence: simulatorEvidence ?? null,
     testEvidence: testEvidence ?? null,
     governanceEvidence: governanceEvidence ?? null,
+    desktopStartupReadiness,
     qualityEvidence: qualityEvidence ?? null,
+    stopShipSignals,
+    promotionReadiness,
   };
 
   fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  refreshReleaseChecksumsIfPresent({
+    releaseAssetsDir,
+    checksumFileName: String(manifest.checksumFileName ?? 'SHA256SUMS.txt').trim() || 'SHA256SUMS.txt',
+  });
 
   return {
     manifestPath,
@@ -419,7 +563,10 @@ export function smokeFinalizedReleaseAssets({
     simulatorEvidence,
     testEvidence,
     governanceEvidence,
+    desktopStartupReadiness,
     qualityEvidence,
+    stopShipSignals,
+    promotionReadiness,
   };
 }
 

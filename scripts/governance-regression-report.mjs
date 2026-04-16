@@ -3,8 +3,124 @@ import path from 'node:path';
 import process from 'node:process';
 import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { runWindowsShellCommandWithOutputCapture } from './windows-shell-command-runner.mjs';
 
 export const DEFAULT_GOVERNANCE_REGRESSION_REPORT_FILE = 'artifacts/governance/governance-regression-report.json';
+export const GOVERNANCE_REGRESSION_COMMAND_RUNNER_DIAGNOSTIC_ID = 'governance-regression-command-runner';
+const GOVERNANCE_VITE_HOST_BUILD_PREFLIGHT_DIAGNOSTIC_ID = 'vite-host-build-preflight';
+const GOVERNANCE_VITE_HOST_REQUIRED_CAPABILITIES = Object.freeze([
+  'cmd.exe shell execution',
+  'esbuild.exe process launch',
+]);
+
+export const ENGINE_GOVERNANCE_REGRESSION_CHECKS = Object.freeze([
+  {
+    id: 'engine-official-sdk',
+    label: 'Engine official SDK contract',
+    scriptPath: 'scripts/engine-official-sdk-contract.test.ts',
+    command: 'pnpm run test:engine-official-sdk-contract',
+  },
+  {
+    id: 'engine-official-sdk-runtime-selection',
+    label: 'Engine official SDK runtime-selection contract',
+    scriptPath: 'scripts/engine-official-sdk-runtime-selection-contract.test.ts',
+    command: 'pnpm run test:engine-official-sdk-runtime-selection-contract',
+  },
+  {
+    id: 'engine-runtime-adapter',
+    label: 'Engine runtime adapter contract',
+    scriptPath: 'scripts/engine-runtime-adapter-contract.test.ts',
+    command: 'pnpm run test:engine-runtime-adapter',
+  },
+  {
+    id: 'engine-kernel',
+    label: 'Engine kernel contract',
+    scriptPath: 'scripts/engine-kernel-contract.test.ts',
+    command: 'pnpm run test:engine-kernel-contract',
+  },
+  {
+    id: 'engine-environment-health',
+    label: 'Engine environment health contract',
+    scriptPath: 'scripts/engine-environment-health-contract.test.ts',
+    command: 'pnpm run test:engine-environment-health-contract',
+  },
+  {
+    id: 'engine-capability-extension',
+    label: 'Engine capability extension contract',
+    scriptPath: 'scripts/engine-capability-extension-contract.test.ts',
+    command: 'pnpm run test:engine-capability-extension-contract',
+  },
+  {
+    id: 'engine-experimental-capability-gating',
+    label: 'Engine experimental capability gating contract',
+    scriptPath: 'scripts/engine-experimental-capability-gating-contract.test.ts',
+    command: 'pnpm run test:engine-experimental-capability-gating-contract',
+  },
+  {
+    id: 'engine-canonical-registry-governance',
+    label: 'Engine canonical registry governance contract',
+    scriptPath: 'scripts/engine-canonical-registry-governance-contract.test.ts',
+    command: 'pnpm run test:engine-canonical-registry-governance-contract',
+  },
+  {
+    id: 'provider-sdk-import-governance',
+    label: 'Provider SDK import governance contract',
+    scriptPath: 'scripts/provider-sdk-import-governance-contract.test.mjs',
+    command: 'pnpm run test:provider-sdk-import-governance-contract',
+  },
+  {
+    id: 'provider-sdk-package-manifest',
+    label: 'Provider SDK package-manifest contract',
+    scriptPath: 'scripts/provider-sdk-package-manifest-contract.test.mjs',
+    command: 'pnpm run test:provider-sdk-package-manifest-contract',
+  },
+  {
+    id: 'provider-adapter-browser-safety',
+    label: 'Provider adapter browser-safety contract',
+    scriptPath: 'scripts/provider-adapter-browser-safety-contract.test.mjs',
+    command: 'pnpm run test:provider-adapter-browser-safety-contract',
+  },
+  {
+    id: 'engine-official-sdk-error-propagation',
+    label: 'Engine official SDK error-propagation contract',
+    scriptPath: 'scripts/engine-official-sdk-error-propagation-contract.test.ts',
+    command: 'pnpm run test:engine-official-sdk-error-propagation-contract',
+  },
+  {
+    id: 'provider-official-sdk-bridge',
+    label: 'Provider official SDK bridge contract',
+    scriptPath: 'scripts/provider-official-sdk-bridge-contract.test.ts',
+    command: 'pnpm run test:provider-official-sdk-bridge-contract',
+  },
+  {
+    id: 'opencode-official-sdk-bridge',
+    label: 'OpenCode official SDK bridge contract',
+    scriptPath: 'scripts/opencode-official-sdk-bridge-contract.test.ts',
+    command: 'pnpm run test:opencode-official-sdk-bridge-contract',
+  },
+  {
+    id: 'engine-conformance',
+    label: 'Engine conformance contract',
+    scriptPath: 'scripts/engine-conformance-contract.test.ts',
+    command: 'pnpm run test:engine-conformance',
+  },
+  {
+    id: 'tool-protocol',
+    label: 'Tool protocol contract',
+    scriptPath: 'scripts/tool-protocol-contract.test.ts',
+    command: 'pnpm run test:tool-protocol-contract',
+  },
+  {
+    id: 'engine-resume-recovery',
+    label: 'Engine resume or recovery contract',
+    scriptPath: 'scripts/engine-resume-recovery-contract.test.ts',
+    command: 'pnpm run test:engine-resume-recovery-contract',
+  },
+]);
+
+export const ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS = Object.freeze(
+  ENGINE_GOVERNANCE_REGRESSION_CHECKS.map((check) => check.id),
+);
 
 export const GOVERNANCE_REGRESSION_CHECKS = [
   {
@@ -176,30 +292,7 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     scriptPath: 'scripts/gemini-engine-contract.test.ts',
     command: 'node scripts/gemini-engine-contract.test.ts',
   },
-  {
-    id: 'engine-runtime-adapter',
-    label: 'Engine runtime adapter contract',
-    scriptPath: 'scripts/engine-runtime-adapter-contract.test.ts',
-    command: 'pnpm run test:engine-runtime-adapter',
-  },
-  {
-    id: 'engine-conformance',
-    label: 'Engine conformance contract',
-    scriptPath: 'scripts/engine-conformance-contract.test.ts',
-    command: 'pnpm run test:engine-conformance',
-  },
-  {
-    id: 'tool-protocol',
-    label: 'Tool protocol contract',
-    scriptPath: 'scripts/tool-protocol-contract.test.ts',
-    command: 'pnpm run test:tool-protocol-contract',
-  },
-  {
-    id: 'engine-resume-recovery',
-    label: 'Engine resume or recovery contract',
-    scriptPath: 'scripts/engine-resume-recovery-contract.test.ts',
-    command: 'pnpm run test:engine-resume-recovery-contract',
-  },
+  ...ENGINE_GOVERNANCE_REGRESSION_CHECKS,
   {
     id: 'local-store-browser-fallback',
     label: 'Local store browser fallback contract',
@@ -562,6 +655,26 @@ function trimOutput(value) {
   return String(value ?? '').trim();
 }
 
+function escapeRegex(value) {
+  return String(value ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeStringList(values) {
+  const normalized = [];
+  const seen = new Set();
+  for (const value of values ?? []) {
+    const candidate = String(value ?? '').trim();
+    if (!candidate || seen.has(candidate)) {
+      continue;
+    }
+
+    seen.add(candidate);
+    normalized.push(candidate);
+  }
+
+  return normalized;
+}
+
 function isPnpmLifecycleCommandEnvKey(key) {
   const normalizedKey = String(key ?? '').trim().toLowerCase();
   return normalizedKey === 'pnpm_package_name'
@@ -576,14 +689,46 @@ function isPnpmLifecycleCommandEnvKey(key) {
     || normalizedKey === 'npm_package_version';
 }
 
-function quotePowerShellLiteral(value) {
-  return `'${String(value ?? '').replace(/'/g, "''")}'`;
-}
-
 function tokenizeCommand(command) {
   return String(command ?? '')
     .match(/"[^"]*"|'[^']*'|\S+/g)
     ?.map((token) => token.replace(/^['"]|['"]$/g, '')) ?? [];
+}
+
+function collectGovernanceRegressionCommandScriptPaths(command) {
+  const references = [];
+  const seen = new Set();
+
+  for (const match of String(command ?? '').matchAll(/((?:(?:\.\.?\/)*)scripts\/[A-Za-z0-9_./-]+\.(?:cjs|js|mjs|ps1|ts))/g)) {
+    const rawPath = match[1].replace(/\\/g, '/');
+    const scriptsIndex = rawPath.indexOf('scripts/');
+    if (scriptsIndex === -1) {
+      continue;
+    }
+
+    const relativePath = rawPath.slice(scriptsIndex);
+    if (seen.has(relativePath)) {
+      continue;
+    }
+
+    seen.add(relativePath);
+    references.push(relativePath);
+  }
+
+  return references;
+}
+
+function extractGovernanceRegressionPnpmRunScriptName(command) {
+  const tokens = tokenizeCommand(command);
+  if (tokens.length < 3) {
+    return '';
+  }
+
+  if (!/^(pnpm|pnpm\.cmd)$/i.test(tokens[0]) || tokens[1] !== 'run') {
+    return '';
+  }
+
+  return String(tokens[2] ?? '').trim();
 }
 
 function isNodeCommandToken(token, { execPath = process.execPath } = {}) {
@@ -669,24 +814,21 @@ export function resolveGovernanceRegressionCommandInvocation(command, { platform
   }
 
   if (platform === 'win32' && /^(pnpm|pnpm\.cmd)$/i.test(tokens[0])) {
-    const powerShellInvocation = [
-      '& {',
-      `& ${quotePowerShellLiteral('pnpm.cmd')} ${tokens.slice(1).map(quotePowerShellLiteral).join(' ')}`.trim(),
-      'if ($null -ne $LASTEXITCODE) { exit $LASTEXITCODE }',
-      'if ($?) { exit 0 }',
-      'exit 1',
-      '}',
-    ].join('; ');
-
     return {
-      command: 'powershell.exe',
-      args: ['-NoProfile', '-Command', powerShellInvocation],
+      command,
+      args: [],
+      shell: true,
+      diagnosticCommand: 'cmd.exe',
+      requiredCapability: 'cmd.exe shell execution',
     };
   }
 
   return {
     command: tokens[0],
     args: tokens.slice(1),
+    shell: false,
+    diagnosticCommand: path.basename(tokens[0]),
+    requiredCapability: `${path.basename(tokens[0])} child-process execution`,
   };
 }
 
@@ -747,6 +889,252 @@ function captureWritableOutput(targetStream, chunks) {
   };
 }
 
+function normalizeGovernanceRegressionCheckResult(result = {}) {
+  const normalizedStatus = String(result.status ?? '').trim().toLowerCase();
+  return {
+    status: normalizedStatus === 'passed' ? 'passed' : normalizedStatus === 'blocked' ? 'blocked' : 'failed',
+    exitCode: typeof result.exitCode === 'number' ? result.exitCode : 1,
+    stdout: trimOutput(result.stdout),
+    stderr: trimOutput(result.stderr),
+    durationMs: typeof result.durationMs === 'number' ? result.durationMs : 0,
+    errorCode: String(result.errorCode ?? '').trim(),
+    errorSyscall: String(result.errorSyscall ?? '').trim(),
+  };
+}
+
+function isViteHostToolchainFailureOutput(output) {
+  const normalizedOutput = trimOutput(output);
+  if (!/spawn EPERM/i.test(normalizedOutput)) {
+    return false;
+  }
+
+  return /(vite:define|ensureServiceIsRunning|esbuild(?:\.exe|\\lib\\main\.js))/i.test(normalizedOutput);
+}
+
+function readGovernanceRegressionRootPackageJson(rootDir) {
+  const packageJsonPath = path.join(rootDir, 'package.json');
+  if (!fs.existsSync(packageJsonPath)) {
+    return null;
+  }
+
+  return JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+}
+
+export function validateGovernanceRegressionCheckTopology({
+  checks = GOVERNANCE_REGRESSION_CHECKS,
+  rootDir = process.cwd(),
+  rootPackageJson = readGovernanceRegressionRootPackageJson(rootDir),
+} = {}) {
+  const errors = [];
+
+  for (const check of checks) {
+    const messages = [];
+    const seenMessages = new Set();
+    const pushMessage = (message) => {
+      if (seenMessages.has(message)) {
+        return;
+      }
+
+      seenMessages.add(message);
+      messages.push(message);
+    };
+
+    if (check.scriptPath) {
+      const resolvedScriptPath = path.isAbsolute(check.scriptPath)
+        ? check.scriptPath
+        : path.resolve(rootDir, check.scriptPath);
+      if (!fs.existsSync(resolvedScriptPath)) {
+        pushMessage(`Governance regression check ${check.id} references missing repo file: ${check.scriptPath}`);
+      }
+    }
+
+    for (const relativePath of collectGovernanceRegressionCommandScriptPaths(check.command)) {
+      if (!fs.existsSync(path.join(rootDir, relativePath))) {
+        pushMessage(`Governance regression check ${check.id} references missing repo file: ${relativePath}`);
+      }
+    }
+
+    const pnpmRunScriptName = extractGovernanceRegressionPnpmRunScriptName(check.command);
+    if (pnpmRunScriptName && !rootPackageJson?.scripts?.[pnpmRunScriptName]) {
+      pushMessage(`Governance regression check ${check.id} references missing root package script: ${pnpmRunScriptName}`);
+    }
+
+    if (messages.length > 0) {
+      errors.push({
+        check,
+        messages,
+      });
+    }
+  }
+
+  return errors;
+}
+
+function buildGovernanceRegressionCommandRunnerDiagnostic({
+  check,
+  result,
+  platform = process.platform,
+} = {}) {
+  if (check?.execution !== 'command') {
+    return null;
+  }
+
+  const normalizedResult = normalizeGovernanceRegressionCheckResult(result);
+  const combinedOutput = `${normalizedResult.stdout}\n${normalizedResult.stderr}`;
+  const invocation = resolveGovernanceRegressionCommandInvocation(check.command, { platform });
+  const invocationCommand = String(invocation.diagnosticCommand ?? invocation.command ?? '').trim() || 'command-runner';
+  const errorCode = normalizedResult.errorCode.toUpperCase();
+  const errorSyscall = normalizedResult.errorSyscall.toLowerCase();
+  if (!/EPERM/i.test(errorCode) && !/EPERM/i.test(combinedOutput)) {
+    return null;
+  }
+
+  const invocationPattern = new RegExp(`spawn(?:Sync)?\\s+.*${escapeRegex(invocationCommand)}\\s+EPERM`, 'i');
+  const syscallPattern = new RegExp(`spawn(?:Sync)?\\s+.*${escapeRegex(invocationCommand)}`, 'i');
+  if (!invocationPattern.test(combinedOutput) && !syscallPattern.test(errorSyscall)) {
+    return null;
+  }
+  const requiredCapability = String(
+    invocation.requiredCapability ?? `${invocationCommand} child-process execution`,
+  ).trim();
+
+  return {
+    id: GOVERNANCE_REGRESSION_COMMAND_RUNNER_DIAGNOSTIC_ID,
+    label: 'Governance regression command runner',
+    classification: 'toolchain-platform',
+    appliesTo: [check.id],
+    platform: String(platform ?? '').trim(),
+    status: 'blocked',
+    summary: `The current host blocks ${requiredCapability} required to run governance regression command checks (${check.id}; spawn EPERM).`,
+    requiredCapabilities: [requiredCapability],
+    rerunCommands: [check.command],
+    checks: [],
+  };
+}
+
+function buildGovernanceRegressionViteHostDiagnostic({
+  check,
+  result,
+  platform = process.platform,
+} = {}) {
+  if (check?.id !== 'web-bundle-budget' || check?.execution !== 'command') {
+    return null;
+  }
+
+  const normalizedResult = normalizeGovernanceRegressionCheckResult(result);
+  const combinedOutput = `${normalizedResult.stdout}\n${normalizedResult.stderr}`;
+  if (!isViteHostToolchainFailureOutput(combinedOutput)) {
+    return null;
+  }
+
+  return {
+    id: GOVERNANCE_VITE_HOST_BUILD_PREFLIGHT_DIAGNOSTIC_ID,
+    label: 'Vite host build preflight',
+    classification: 'toolchain-platform',
+    appliesTo: [check.id],
+    platform: String(platform ?? '').trim(),
+    status: 'blocked',
+    summary: [
+      '[pnpm run build] toolchain-platform failure reached the Vite build pipeline.',
+      'The current Windows host blocks child-process execution required by the Vite build pipeline.',
+      'Observed failure: [vite:define] spawn EPERM.',
+      'Expected capabilities: cmd.exe shell execution and esbuild.exe process launch.',
+      'Resolution: rerun `pnpm run build` on a host where Node child_process spawning is permitted.',
+    ].join('\n'),
+    requiredCapabilities: [...GOVERNANCE_VITE_HOST_REQUIRED_CAPABILITIES],
+    rerunCommands: [check.command],
+    checks: [],
+  };
+}
+
+function mergeGovernanceRegressionDiagnostic(existingDiagnostic, nextDiagnostic) {
+  if (!existingDiagnostic) {
+    return {
+      ...nextDiagnostic,
+      appliesTo: normalizeStringList(nextDiagnostic.appliesTo ?? []),
+      requiredCapabilities: normalizeStringList(nextDiagnostic.requiredCapabilities ?? []),
+      rerunCommands: normalizeStringList(nextDiagnostic.rerunCommands ?? []),
+      checks: Array.isArray(nextDiagnostic.checks) ? [...nextDiagnostic.checks] : [],
+    };
+  }
+
+  return {
+    ...existingDiagnostic,
+    appliesTo: normalizeStringList([
+      ...(existingDiagnostic.appliesTo ?? []),
+      ...(nextDiagnostic.appliesTo ?? []),
+    ]),
+    requiredCapabilities: normalizeStringList([
+      ...(existingDiagnostic.requiredCapabilities ?? []),
+      ...(nextDiagnostic.requiredCapabilities ?? []),
+    ]),
+    rerunCommands: normalizeStringList([
+      ...(existingDiagnostic.rerunCommands ?? []),
+      ...(nextDiagnostic.rerunCommands ?? []),
+    ]),
+    checks: Array.isArray(existingDiagnostic.checks) ? [...existingDiagnostic.checks] : [],
+  };
+}
+
+function buildGovernanceRegressionReportCheck({
+  check,
+  result,
+  blockingDiagnostic,
+} = {}) {
+  const normalizedResult = normalizeGovernanceRegressionCheckResult(result);
+  const reportCheck = {
+    id: check.id,
+    label: check.label,
+    command: check.command,
+    exitCode: normalizedResult.exitCode,
+    durationMs: normalizedResult.durationMs,
+    stdout: normalizedResult.stdout,
+    stderr: normalizedResult.stderr,
+  };
+
+  if (normalizedResult.status === 'passed') {
+    return {
+      ...reportCheck,
+      status: 'passed',
+    };
+  }
+
+  if (blockingDiagnostic?.status === 'blocked') {
+    return {
+      ...reportCheck,
+      status: 'blocked',
+      failureClassification: blockingDiagnostic.classification || 'toolchain-platform',
+      blockingDiagnosticIds: [blockingDiagnostic.id],
+      requiredCapabilities: [...(blockingDiagnostic.requiredCapabilities ?? [])],
+      rerunCommands: [...(blockingDiagnostic.rerunCommands ?? [])],
+    };
+  }
+
+  return {
+    ...reportCheck,
+    status: 'failed',
+  };
+}
+
+function summarizeGovernanceRegressionChecks(checks) {
+  const passedChecks = checks.filter((check) => check.status === 'passed');
+  const blockedChecks = checks.filter((check) => check.status === 'blocked');
+  const failedChecks = checks.filter((check) => check.status === 'failed');
+  const blockingDiagnosticIds = Array.from(new Set(
+    blockedChecks.flatMap((check) => check.blockingDiagnosticIds ?? []),
+  ));
+
+  return {
+    totalChecks: checks.length,
+    passedCount: passedChecks.length,
+    blockedCount: blockedChecks.length,
+    failedCount: failedChecks.length,
+    blockedCheckIds: blockedChecks.map((check) => check.id),
+    failedCheckIds: failedChecks.map((check) => check.id),
+    blockingDiagnosticIds,
+  };
+}
+
 export async function executeGovernanceRegressionCheck(
   check,
   { rootDir, platform = process.platform } = {},
@@ -762,32 +1150,63 @@ export async function executeGovernanceRegressionCheck(
       const inProcessNodeExecution = resolveGovernanceRegressionInProcessNodeExecution(check.command, {
         rootDir,
       });
-      const exitCode = inProcessNodeExecution
-        ? await executeGovernanceRegressionNodeCommandInProcess(check.command, { rootDir })
-        : await new Promise((resolve, reject) => {
-          const invocation = resolveGovernanceRegressionCommandInvocation(check.command, { platform });
-          const child = spawn(invocation.command, invocation.args, {
-            cwd: rootDir,
-            env: buildGovernanceRegressionCommandEnv({ platform }),
-            windowsHide: true,
-            stdio: ['ignore', 'pipe', 'pipe'],
-          });
+      const commandResult = inProcessNodeExecution
+        ? {
+            exitCode: await executeGovernanceRegressionNodeCommandInProcess(check.command, { rootDir }),
+            stdout: trimOutput(stdoutChunks.join('')),
+            stderr: trimOutput(stderrChunks.join('')),
+            errorCode: '',
+            errorSyscall: '',
+          }
+        : await (async () => {
+            const invocation = resolveGovernanceRegressionCommandInvocation(check.command, { platform });
+            if (invocation.shell === true && platform === 'win32') {
+              const shellResult = runWindowsShellCommandWithOutputCapture(check.command, {
+                cwd: rootDir,
+                env: buildGovernanceRegressionCommandEnv({ platform }),
+              });
+              return {
+                exitCode: typeof shellResult.status === 'number' ? shellResult.status : 1,
+                stdout: shellResult.stdout,
+                stderr: shellResult.stderr,
+                errorCode: shellResult.error instanceof Error ? String(shellResult.error.code ?? '').trim() : '',
+                errorSyscall: shellResult.error instanceof Error ? String(shellResult.error.syscall ?? '').trim() : '',
+              };
+            }
 
-          child.stdout.on('data', (chunk) => {
-            process.stdout.write(chunk);
-          });
-          child.stderr.on('data', (chunk) => {
-            process.stderr.write(chunk);
-          });
-          child.on('error', reject);
-          child.on('close', (code) => resolve(typeof code === 'number' ? code : 1));
-        });
+            return new Promise((resolve, reject) => {
+              const child = spawn(invocation.command, invocation.args, {
+                cwd: rootDir,
+                env: buildGovernanceRegressionCommandEnv({ platform }),
+                shell: invocation.shell === true,
+                windowsHide: true,
+                stdio: ['ignore', 'pipe', 'pipe'],
+              });
+
+              child.stdout.on('data', (chunk) => {
+                process.stdout.write(chunk);
+              });
+              child.stderr.on('data', (chunk) => {
+                process.stderr.write(chunk);
+              });
+              child.on('error', reject);
+              child.on('close', (code) => resolve({
+                exitCode: typeof code === 'number' ? code : 1,
+                stdout: trimOutput(stdoutChunks.join('')),
+                stderr: trimOutput(stderrChunks.join('')),
+                errorCode: '',
+                errorSyscall: '',
+              }));
+            });
+          })();
 
       return {
-        status: exitCode === 0 ? 'passed' : 'failed',
-        exitCode,
-        stdout: trimOutput(stdoutChunks.join('')),
-        stderr: trimOutput(stderrChunks.join('')),
+        status: commandResult.exitCode === 0 ? 'passed' : 'failed',
+        exitCode: commandResult.exitCode,
+        stdout: commandResult.stdout,
+        stderr: commandResult.stderr,
+        errorCode: commandResult.errorCode,
+        errorSyscall: commandResult.errorSyscall,
         durationMs: Date.now() - startedAt,
       };
     }
@@ -802,6 +1221,8 @@ export async function executeGovernanceRegressionCheck(
       exitCode: 0,
       stdout: trimOutput(stdoutChunks.join('')),
       stderr: trimOutput(stderrChunks.join('')),
+      errorCode: '',
+      errorSyscall: '',
       durationMs: Date.now() - startedAt,
     };
   } catch (error) {
@@ -813,6 +1234,8 @@ export async function executeGovernanceRegressionCheck(
       exitCode: 1,
       stdout: trimOutput(stdoutChunks.join('')),
       stderr: capturedStderr || errorText,
+      errorCode: error instanceof Error ? String(error.code ?? '').trim() : '',
+      errorSyscall: error instanceof Error ? String(error.syscall ?? '').trim() : '',
       durationMs: Date.now() - startedAt,
     };
   } finally {
@@ -825,40 +1248,85 @@ export async function runGovernanceRegressionReport({
   outputPath = '',
   rootDir = process.cwd(),
   now = () => new Date(),
+  platform = process.platform,
   runner = executeGovernanceRegressionCheck,
+  checks = GOVERNANCE_REGRESSION_CHECKS,
 } = {}) {
   const resolvedOutputPath = path.resolve(
     rootDir,
     outputPath || DEFAULT_GOVERNANCE_REGRESSION_REPORT_FILE,
   );
 
-  const checks = [];
-  for (const check of GOVERNANCE_REGRESSION_CHECKS) {
+  const reportChecks = [];
+  const environmentDiagnostics = [];
+  const topologyErrorsByCheckId = new Map(
+    validateGovernanceRegressionCheckTopology({
+      checks,
+      rootDir,
+    }).map((entry) => [entry.check.id, entry]),
+  );
+
+  for (const check of checks) {
+    const topologyError = topologyErrorsByCheckId.get(check.id);
+    if (topologyError) {
+      reportChecks.push(buildGovernanceRegressionReportCheck({
+        check,
+        result: {
+          status: 'failed',
+          exitCode: 1,
+          stdout: '',
+          stderr: topologyError.messages.join('\n'),
+          errorCode: '',
+          errorSyscall: '',
+          durationMs: 0,
+        },
+      }));
+      continue;
+    }
+
     const result = await runner(check, { rootDir });
-    checks.push({
-      id: check.id,
-      label: check.label,
-      command: check.command,
-      status: result.status === 'passed' ? 'passed' : 'failed',
-      exitCode: typeof result.exitCode === 'number' ? result.exitCode : 1,
-      durationMs: typeof result.durationMs === 'number' ? result.durationMs : 0,
-      stdout: trimOutput(result.stdout),
-      stderr: trimOutput(result.stderr),
+    const blockingDiagnostic = buildGovernanceRegressionViteHostDiagnostic({
+      check,
+      result,
+      platform,
+    }) ?? buildGovernanceRegressionCommandRunnerDiagnostic({
+      check,
+      result,
+      platform,
     });
+    if (blockingDiagnostic) {
+      const existingDiagnosticIndex = environmentDiagnostics.findIndex(
+        (entry) => entry.id === blockingDiagnostic.id,
+      );
+      if (existingDiagnosticIndex >= 0) {
+        environmentDiagnostics[existingDiagnosticIndex] = mergeGovernanceRegressionDiagnostic(
+          environmentDiagnostics[existingDiagnosticIndex],
+          blockingDiagnostic,
+        );
+      } else {
+        environmentDiagnostics.push(mergeGovernanceRegressionDiagnostic(null, blockingDiagnostic));
+      }
+    }
+
+    reportChecks.push(buildGovernanceRegressionReportCheck({
+      check,
+      result,
+      blockingDiagnostic,
+    }));
   }
 
-  const failedChecks = checks.filter((check) => check.status !== 'passed');
+  const summary = summarizeGovernanceRegressionChecks(reportChecks);
   const report = {
-    status: failedChecks.length === 0 ? 'passed' : 'failed',
+    status: summary.failedCount > 0
+      ? 'failed'
+      : summary.blockedCount > 0
+        ? 'blocked'
+        : 'passed',
     generatedAt: now().toISOString(),
     reportPath: resolvedOutputPath,
-    summary: {
-      totalChecks: checks.length,
-      passedCount: checks.length - failedChecks.length,
-      failedCount: failedChecks.length,
-      failedCheckIds: failedChecks.map((check) => check.id),
-    },
-    checks,
+    summary,
+    environmentDiagnostics,
+    checks: reportChecks,
   };
 
   fs.mkdirSync(path.dirname(resolvedOutputPath), { recursive: true });
@@ -869,16 +1337,27 @@ export async function runGovernanceRegressionReport({
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const options = parseArgs(process.argv.slice(2));
-  const report = await runGovernanceRegressionReport({
+  void runGovernanceRegressionReport({
     outputPath: options.output,
-  });
+  })
+    .then((report) => {
+      if (report.status !== 'passed') {
+        const blockedSummary = report.summary.blockedCheckIds.join(', ');
+        const failedSummary = report.summary.failedCheckIds.join(', ');
+        console.error(
+          report.status === 'blocked'
+            ? `Governance regression report blocked: ${blockedSummary || 'unknown'}`
+            : `Governance regression report failed: ${failedSummary || blockedSummary || 'unknown'}`,
+        );
+        process.exit(1);
+        return;
+      }
 
-  if (report.status !== 'passed') {
-    console.error(
-      `Governance regression report failed: ${report.summary.failedCheckIds.join(', ') || 'unknown'}`,
-    );
-    process.exit(1);
-  }
-
-  console.log(JSON.stringify(report, null, 2));
+      console.log(JSON.stringify(report, null, 2));
+    })
+    .catch((error) => {
+      const message = error instanceof Error ? error.stack || error.message : String(error);
+      console.error(message);
+      process.exit(1);
+    });
 }

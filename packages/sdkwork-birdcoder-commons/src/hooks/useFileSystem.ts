@@ -1,104 +1,332 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import type { IFileNode, LocalFolderMountSource } from '@sdkwork/birdcoder-types';
 import { useIDEServices } from '../context/IDEContext';
+import { getStoredJson, removeStoredValue, setStoredJson } from '../storage/localStore';
+import {
+  buildEditorSelectionStorageKey,
+  resolveStartupSelectedFile,
+} from '../workbench/editorRecovery';
+import { type WorkspaceFileSearchResponse } from '../workbench/fileSearch';
+import {
+  createFailedProjectMountRecoveryState,
+  createIdleProjectMountRecoveryState,
+  createRecoveredProjectMountRecoveryState,
+  createRecoveringProjectMountRecoveryState,
+  resolveProjectMountRecoverySource,
+  type ProjectMountRecoveryState,
+} from '../workbench/projectMountRecovery';
+import { resolveSelectedFileAfterMutation } from '../workbench/fileSelectionMutation';
+import {
+  beginFileContentRequest,
+  beginSearchRequest,
+  beginFileTreeRequest,
+  completeFileContentRequest,
+  completeFileTreeRequest,
+  completeSearchRequest,
+  createFileSystemRequestGuardState,
+  hasPendingFileContentRequests,
+  hasPendingSearchRequests,
+  hasPendingFileTreeRequests,
+  isLatestFileContentRequestForGuard,
+  isLatestSearchRequestForGuard,
+  isLatestFileTreeRequestForGuard,
+  isProjectActiveForRequestGuard,
+  resetFileSystemRequestGuardState,
+} from '../workbench/fileSystemRequestGuard';
 
-function findFirstFile(nodes: IFileNode[]): string | null {
-  for (const node of nodes) {
-    if (node.type === 'file') {
-      return node.path;
-    }
-    if (node.children && node.children.length > 0) {
-      const childFile = findFirstFile(node.children);
-      if (childFile) {
-        return childFile;
-      }
-    }
-  }
-  return null;
-}
+const EDITOR_RECOVERY_SCOPE = 'workbench.editor';
+const MAX_FILE_SEARCH_RESULTS = 200;
+const MAX_FILE_SEARCH_SNIPPET_LENGTH = 160;
 
-export function useFileSystem(projectId: string) {
+export function useFileSystem(projectId: string, projectPath?: string) {
   const { fileSystemService } = useIDEServices();
+  const normalizedProjectId = projectId.trim();
   const [files, setFiles] = useState<IFileNode[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string>('');
   const [isLoadingContent, setIsLoadingContent] = useState(false);
-  const [currentProjectId, setCurrentProjectId] = useState(projectId);
+  const [isSearchingFiles, setIsSearchingFiles] = useState(false);
+  const [isSelectionHydrated, setIsSelectionHydrated] = useState(false);
+  const [mountRecoveryState, setMountRecoveryState] = useState<ProjectMountRecoveryState>(
+    createIdleProjectMountRecoveryState,
+  );
+  const selectionStorageKey = buildEditorSelectionStorageKey(normalizedProjectId);
+  const selectedFileRef = useRef<string | null>(null);
+  const searchAbortControllerRef = useRef<AbortController | null>(null);
+  const requestGuardRef = useRef(createFileSystemRequestGuardState(projectId));
 
-  if (projectId !== currentProjectId) {
-    setCurrentProjectId(projectId);
+  const isProjectActive = useCallback(
+    (candidateProjectId: string) =>
+      isProjectActiveForRequestGuard(requestGuardRef.current, candidateProjectId),
+    [],
+  );
+
+  const beginFileTreeRequestVersion = useCallback(() => {
+    const nextRequest = beginFileTreeRequest(requestGuardRef.current);
+    requestGuardRef.current = nextRequest.state;
+    setIsLoading(hasPendingFileTreeRequests(nextRequest.state));
+    return nextRequest.requestVersion;
+  }, []);
+
+  const beginFileContentRequestVersion = useCallback(() => {
+    const nextRequest = beginFileContentRequest(requestGuardRef.current);
+    requestGuardRef.current = nextRequest.state;
+    setIsLoadingContent(hasPendingFileContentRequests(nextRequest.state));
+    return nextRequest.requestVersion;
+  }, []);
+
+  const beginSearchRequestVersion = useCallback(() => {
+    const nextRequest = beginSearchRequest(requestGuardRef.current);
+    requestGuardRef.current = nextRequest.state;
+    setIsSearchingFiles(hasPendingSearchRequests(nextRequest.state));
+    return nextRequest.requestVersion;
+  }, []);
+
+  const completeFileTreeRequestVersion = useCallback((candidateProjectId: string) => {
+    const nextState = completeFileTreeRequest(requestGuardRef.current, candidateProjectId);
+    requestGuardRef.current = nextState;
+    setIsLoading(hasPendingFileTreeRequests(nextState));
+  }, []);
+
+  const completeFileContentRequestVersion = useCallback((candidateProjectId: string) => {
+    const nextState = completeFileContentRequest(requestGuardRef.current, candidateProjectId);
+    requestGuardRef.current = nextState;
+    setIsLoadingContent(hasPendingFileContentRequests(nextState));
+  }, []);
+
+  const completeSearchRequestVersion = useCallback((candidateProjectId: string) => {
+    const nextState = completeSearchRequest(requestGuardRef.current, candidateProjectId);
+    requestGuardRef.current = nextState;
+    setIsSearchingFiles(hasPendingSearchRequests(nextState));
+  }, []);
+
+  const isLatestFileTreeRequest = useCallback(
+    (candidateProjectId: string, requestVersion: number) =>
+      isLatestFileTreeRequestForGuard(
+        requestGuardRef.current,
+        candidateProjectId,
+        requestVersion,
+      ),
+    [],
+  );
+
+  const isLatestFileContentRequest = useCallback(
+    (candidateProjectId: string, requestVersion: number) =>
+      isLatestFileContentRequestForGuard(
+        requestGuardRef.current,
+        candidateProjectId,
+        requestVersion,
+      ),
+    [],
+  );
+
+  const isLatestSearchRequest = useCallback(
+    (candidateProjectId: string, requestVersion: number) =>
+      isLatestSearchRequestForGuard(
+        requestGuardRef.current,
+        candidateProjectId,
+        requestVersion,
+      ),
+    [],
+  );
+
+  const commitSelectedFile = useCallback((nextSelectedFile: string | null) => {
+    selectedFileRef.current = nextSelectedFile;
+    setSelectedFile(nextSelectedFile);
+  }, []);
+
+  const syncFilesAndSelection = useCallback(
+    (nextFiles: IFileNode[], candidateSelectedFilePath: string | null) => {
+      setFiles(nextFiles);
+      const nextSelectedFile = resolveStartupSelectedFile({
+        files: nextFiles,
+        persistedSelectedFilePath: candidateSelectedFilePath,
+      });
+      commitSelectedFile(nextSelectedFile);
+      setIsSelectionHydrated(true);
+      if (!nextSelectedFile) {
+        setFileContent('');
+      }
+    },
+    [commitSelectedFile],
+  );
+
+  useLayoutEffect(() => {
+    searchAbortControllerRef.current?.abort();
+    searchAbortControllerRef.current = null;
+    requestGuardRef.current = resetFileSystemRequestGuardState(
+      requestGuardRef.current,
+      normalizedProjectId,
+    );
+    selectedFileRef.current = null;
+    setFiles([]);
+    setIsLoading(false);
     setSelectedFile(null);
     setFileContent('');
-  }
+    setIsLoadingContent(false);
+    setIsSearchingFiles(false);
+    setIsSelectionHydrated(false);
+    setMountRecoveryState(createIdleProjectMountRecoveryState());
+  }, [projectId]);
+
+  useEffect(() => () => {
+    searchAbortControllerRef.current?.abort();
+    searchAbortControllerRef.current = null;
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
+    const requestProjectId = normalizedProjectId;
+    const recoveryMountSource = resolveProjectMountRecoverySource(projectPath);
     const loadFiles = async () => {
-      setIsLoading(true);
+      if (!isProjectActive(requestProjectId)) {
+        return;
+      }
+
+      const requestVersion = beginFileTreeRequestVersion();
+      const canCommitMountRecoveryState = () =>
+        isMounted && isLatestFileTreeRequest(requestProjectId, requestVersion);
+
       try {
-        const data = await fileSystemService.getFiles(projectId);
-        if (isMounted) {
-          setFiles(data);
-          if (data.length > 0 && !selectedFile) {
-            const defaultFile = findFirstFile(data);
-            setSelectedFile(defaultFile);
-          } else if (data.length === 0) {
-            setSelectedFile(null);
-            setFileContent('');
+        const persistedSelectedFilePath = await getStoredJson<string | null>(
+          EDITOR_RECOVERY_SCOPE,
+          selectionStorageKey,
+          null,
+        ).catch(() => null);
+        if (recoveryMountSource) {
+          if (canCommitMountRecoveryState()) {
+            setMountRecoveryState(
+              createRecoveringProjectMountRecoveryState(recoveryMountSource.path),
+            );
           }
+          try {
+            await fileSystemService.mountFolder(requestProjectId, recoveryMountSource);
+            if (canCommitMountRecoveryState()) {
+              setMountRecoveryState(
+                createRecoveredProjectMountRecoveryState(recoveryMountSource.path),
+              );
+            }
+          } catch (error) {
+            if (canCommitMountRecoveryState()) {
+              setMountRecoveryState(
+                createFailedProjectMountRecoveryState(recoveryMountSource.path, error),
+              );
+            }
+            console.error('Failed to recover mounted project root', error);
+          }
+        } else if (canCommitMountRecoveryState()) {
+          setMountRecoveryState(createIdleProjectMountRecoveryState());
+        }
+        const data = await fileSystemService.getFiles(requestProjectId);
+        if (isMounted && isLatestFileTreeRequest(requestProjectId, requestVersion)) {
+          syncFilesAndSelection(data, persistedSelectedFilePath);
         }
       } catch (error) {
         console.error("Failed to load files", error);
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (isMounted) {
+          completeFileTreeRequestVersion(requestProjectId);
+        }
       }
     };
 
-    if (projectId) {
-      loadFiles();
-    } else {
-      setFiles([]);
-      setSelectedFile(null);
-      setFileContent('');
+    if (!requestProjectId) {
+      return () => {
+        isMounted = false;
+      };
     }
+
+    void loadFiles();
     return () => { isMounted = false; };
-  }, [projectId]);
+  }, [
+    beginFileTreeRequestVersion,
+    completeFileTreeRequestVersion,
+    fileSystemService,
+    isLatestFileTreeRequest,
+    isProjectActive,
+    normalizedProjectId,
+    projectPath,
+    selectionStorageKey,
+    syncFilesAndSelection,
+  ]);
+
+  useEffect(() => {
+    if (!normalizedProjectId || !isSelectionHydrated) {
+      return;
+    }
+
+    if (!selectedFile) {
+      void removeStoredValue(EDITOR_RECOVERY_SCOPE, selectionStorageKey).catch((error) => {
+        console.error("Failed to clear persisted selected file", error);
+      });
+      return;
+    }
+
+    void setStoredJson(EDITOR_RECOVERY_SCOPE, selectionStorageKey, selectedFile).catch((error) => {
+      console.error("Failed to persist selected file", error);
+    });
+  }, [isSelectionHydrated, normalizedProjectId, selectedFile, selectionStorageKey]);
 
   // Load content when selectedFile changes
   useEffect(() => {
     let isMounted = true;
+    const requestProjectId = normalizedProjectId;
+    const requestSelectedFile = selectedFile;
     const loadContent = async () => {
-      if (!selectedFile) return;
-      setIsLoadingContent(true);
+      if (!requestSelectedFile) return;
+      if (!isProjectActive(requestProjectId)) {
+        return;
+      }
+
+      const requestVersion = beginFileContentRequestVersion();
       try {
-        const content = await fileSystemService.getFileContent(projectId, selectedFile);
-        if (isMounted) setFileContent(content);
+        const content = await fileSystemService.getFileContent(requestProjectId, requestSelectedFile);
+        if (isMounted && isLatestFileContentRequest(requestProjectId, requestVersion)) {
+          setFileContent(content);
+        }
       } catch (error) {
-        if (isMounted) setFileContent('// File content not found');
+        if (isMounted && isLatestFileContentRequest(requestProjectId, requestVersion)) {
+          setFileContent('// File content not found');
+        }
       } finally {
-        if (isMounted) setIsLoadingContent(false);
+        if (isMounted) {
+          completeFileContentRequestVersion(requestProjectId);
+        }
       }
     };
 
-    loadContent();
+    void loadContent();
     return () => { isMounted = false; };
-  }, [projectId, selectedFile]);
+  }, [
+    beginFileContentRequestVersion,
+    completeFileContentRequestVersion,
+    fileSystemService,
+    isLatestFileContentRequest,
+    isProjectActive,
+    normalizedProjectId,
+    selectedFile,
+  ]);
 
   const selectFile = useCallback((path: string) => {
-    setSelectedFile(path);
-  }, []);
+    commitSelectedFile(path);
+  }, [commitSelectedFile]);
 
   const saveFileContent = useCallback(async (path: string, content: string) => {
+    const mutationProjectId = normalizedProjectId;
     try {
-      await fileSystemService.saveFileContent(projectId, path, content);
-      if (selectedFile === path) {
+      await fileSystemService.saveFileContent(mutationProjectId, path, content);
+      if (!isProjectActive(mutationProjectId)) {
+        return;
+      }
+
+      if (selectedFileRef.current === path) {
         setFileContent(content);
       }
     } catch (error) {
       console.error("Failed to save file content", error);
     }
-  }, [projectId, selectedFile]);
+  }, [fileSystemService, isProjectActive, normalizedProjectId]);
 
   const saveFile = useCallback(async (content: string) => {
     if (!selectedFile) return;
@@ -106,134 +334,326 @@ export function useFileSystem(projectId: string) {
   }, [selectedFile, saveFileContent]);
 
   const createFile = useCallback(async (path: string) => {
+    const mutationProjectId = normalizedProjectId;
+    const requestVersion = beginFileTreeRequestVersion();
     try {
-      await fileSystemService.createFile(projectId, path);
-      const data = await fileSystemService.getFiles(projectId);
-      setFiles(data);
-      setSelectedFile(path);
+      await fileSystemService.createFile(mutationProjectId, path);
+      const data = await fileSystemService.getFiles(mutationProjectId);
+      if (!isLatestFileTreeRequest(mutationProjectId, requestVersion)) {
+        return;
+      }
+
+      syncFilesAndSelection(
+        data,
+        resolveSelectedFileAfterMutation({
+          currentSelectedFilePath: selectedFileRef.current,
+          mutation: {
+            type: 'create-file',
+            path,
+          },
+        }),
+      );
     } catch (error) {
       console.error("Failed to create file", error);
+    } finally {
+      completeFileTreeRequestVersion(mutationProjectId);
     }
-  }, [projectId]);
+  }, [
+    beginFileTreeRequestVersion,
+    completeFileTreeRequestVersion,
+    fileSystemService,
+    isLatestFileTreeRequest,
+    normalizedProjectId,
+    syncFilesAndSelection,
+  ]);
 
   const createFolder = useCallback(async (path: string) => {
+    const mutationProjectId = normalizedProjectId;
+    const requestVersion = beginFileTreeRequestVersion();
     try {
-      await fileSystemService.createFolder(projectId, path);
-      const data = await fileSystemService.getFiles(projectId);
-      setFiles(data);
+      await fileSystemService.createFolder(mutationProjectId, path);
+      const data = await fileSystemService.getFiles(mutationProjectId);
+      if (!isLatestFileTreeRequest(mutationProjectId, requestVersion)) {
+        return;
+      }
+
+      syncFilesAndSelection(
+        data,
+        resolveSelectedFileAfterMutation({
+          currentSelectedFilePath: selectedFileRef.current,
+          mutation: {
+            type: 'create-folder',
+            path,
+          },
+        }),
+      );
     } catch (error) {
       console.error("Failed to create folder", error);
+    } finally {
+      completeFileTreeRequestVersion(mutationProjectId);
     }
-  }, [projectId]);
+  }, [
+    beginFileTreeRequestVersion,
+    completeFileTreeRequestVersion,
+    fileSystemService,
+    isLatestFileTreeRequest,
+    normalizedProjectId,
+    syncFilesAndSelection,
+  ]);
 
   const deleteFile = useCallback(async (path: string) => {
+    const mutationProjectId = normalizedProjectId;
+    const requestVersion = beginFileTreeRequestVersion();
     try {
-      await fileSystemService.deleteFile(projectId, path);
-      const data = await fileSystemService.getFiles(projectId);
-      setFiles(data);
-      if (selectedFile === path) {
-        setSelectedFile(null);
-        setFileContent('');
+      await fileSystemService.deleteFile(mutationProjectId, path);
+      const data = await fileSystemService.getFiles(mutationProjectId);
+      if (!isLatestFileTreeRequest(mutationProjectId, requestVersion)) {
+        return;
       }
+
+      syncFilesAndSelection(
+        data,
+        resolveSelectedFileAfterMutation({
+          currentSelectedFilePath: selectedFileRef.current,
+          mutation: {
+            type: 'delete-file',
+            path,
+          },
+        }),
+      );
     } catch (error) {
       console.error("Failed to delete file", error);
+    } finally {
+      completeFileTreeRequestVersion(mutationProjectId);
     }
-  }, [projectId, selectedFile]);
+  }, [
+    beginFileTreeRequestVersion,
+    completeFileTreeRequestVersion,
+    fileSystemService,
+    isLatestFileTreeRequest,
+    normalizedProjectId,
+    syncFilesAndSelection,
+  ]);
 
   const deleteFolder = useCallback(async (path: string) => {
+    const mutationProjectId = normalizedProjectId;
+    const requestVersion = beginFileTreeRequestVersion();
     try {
-      await fileSystemService.deleteFolder(projectId, path);
-      const data = await fileSystemService.getFiles(projectId);
-      setFiles(data);
-      if (selectedFile?.startsWith(`${path}/`)) {
-        setSelectedFile(null);
-        setFileContent('');
+      await fileSystemService.deleteFolder(mutationProjectId, path);
+      const data = await fileSystemService.getFiles(mutationProjectId);
+      if (!isLatestFileTreeRequest(mutationProjectId, requestVersion)) {
+        return;
       }
+
+      syncFilesAndSelection(
+        data,
+        resolveSelectedFileAfterMutation({
+          currentSelectedFilePath: selectedFileRef.current,
+          mutation: {
+            type: 'delete-folder',
+            path,
+          },
+        }),
+      );
     } catch (error) {
       console.error("Failed to delete folder", error);
+    } finally {
+      completeFileTreeRequestVersion(mutationProjectId);
     }
-  }, [projectId, selectedFile]);
+  }, [
+    beginFileTreeRequestVersion,
+    completeFileTreeRequestVersion,
+    fileSystemService,
+    isLatestFileTreeRequest,
+    normalizedProjectId,
+    syncFilesAndSelection,
+  ]);
 
   const renameNode = useCallback(async (oldPath: string, newPath: string) => {
+    const mutationProjectId = normalizedProjectId;
+    const requestVersion = beginFileTreeRequestVersion();
     try {
-      await fileSystemService.renameNode(projectId, oldPath, newPath);
-      const data = await fileSystemService.getFiles(projectId);
-      setFiles(data);
-      if (selectedFile === oldPath) {
-        setSelectedFile(newPath);
-      } else if (selectedFile?.startsWith(`${oldPath}/`)) {
-        setSelectedFile(selectedFile.replace(`${oldPath}/`, `${newPath}/`));
+      await fileSystemService.renameNode(mutationProjectId, oldPath, newPath);
+      const data = await fileSystemService.getFiles(mutationProjectId);
+      if (!isLatestFileTreeRequest(mutationProjectId, requestVersion)) {
+        return;
       }
+
+      syncFilesAndSelection(
+        data,
+        resolveSelectedFileAfterMutation({
+          currentSelectedFilePath: selectedFileRef.current,
+          mutation: {
+            type: 'rename-node',
+            oldPath,
+            newPath,
+          },
+        }),
+      );
     } catch (error) {
       console.error("Failed to rename node", error);
-    }
-  }, [projectId, selectedFile]);
-
-  const searchFiles = useCallback(async (query: string): Promise<{ path: string, line: number, content: string }[]> => {
-    if (!query.trim()) return [];
-    const results: { path: string, line: number, content: string }[] = [];
-    
-    const traverseAndSearch = async (nodes: IFileNode[]) => {
-      for (const node of nodes) {
-        if (node.type === 'file') {
-          try {
-            const content = await fileSystemService.getFileContent(projectId, node.path);
-            const lines = content.split('\n');
-            lines.forEach((line, index) => {
-              if (line.toLowerCase().includes(query.toLowerCase())) {
-                results.push({ path: node.path, line: index + 1, content: line.trim() });
-              }
-            });
-          } catch (e) {
-            console.error(`Failed to read ${node.path} for searching`, e);
-          }
-        } else if (node.children) {
-          await traverseAndSearch(node.children);
-        }
-      }
-    };
-    
-    setIsLoading(true);
-    try {
-      await traverseAndSearch(files);
     } finally {
-      setIsLoading(false);
+      completeFileTreeRequestVersion(mutationProjectId);
     }
-    return results;
-  }, [projectId, files, fileSystemService]);
+  }, [
+    beginFileTreeRequestVersion,
+    completeFileTreeRequestVersion,
+    fileSystemService,
+    isLatestFileTreeRequest,
+    normalizedProjectId,
+    syncFilesAndSelection,
+  ]);
+
+  const searchFiles = useCallback(async (query: string): Promise<WorkspaceFileSearchResponse> => {
+    searchAbortControllerRef.current?.abort();
+    searchAbortControllerRef.current = null;
+
+    if (!query.trim()) {
+      return {
+        status: 'completed',
+        limitReached: false,
+        results: [],
+      };
+    }
+
+    const searchProjectId = normalizedProjectId;
+    const requestVersion = beginSearchRequestVersion();
+    const searchAbortController =
+      typeof AbortController === 'undefined' ? null : new AbortController();
+    searchAbortControllerRef.current = searchAbortController;
+
+    try {
+      const results = await fileSystemService.searchFiles(searchProjectId, {
+        query,
+        maxResults: MAX_FILE_SEARCH_RESULTS,
+        maxSnippetLength: MAX_FILE_SEARCH_SNIPPET_LENGTH,
+        signal: searchAbortController?.signal,
+      });
+
+      if (!isLatestSearchRequest(searchProjectId, requestVersion)) {
+        return {
+          status: 'stale',
+          limitReached: false,
+          results: [],
+        };
+      }
+
+      return {
+        status: 'completed',
+        limitReached: results.limitReached,
+        results: results.results,
+      };
+    } finally {
+      if (searchAbortControllerRef.current === searchAbortController) {
+        searchAbortControllerRef.current = null;
+      }
+      completeSearchRequestVersion(searchProjectId);
+    }
+  }, [
+    beginSearchRequestVersion,
+    completeSearchRequestVersion,
+    fileSystemService,
+    isLatestSearchRequest,
+    normalizedProjectId,
+  ]);
 
   const mountFolder = useCallback(async (targetProjectId: string, folderInfo: LocalFolderMountSource) => {
+    const requestVersion = beginFileTreeRequestVersion();
+    const isTrackingCurrentProjectMountRecovery =
+      targetProjectId === normalizedProjectId && isProjectActive(targetProjectId);
     try {
+      if (
+        isTrackingCurrentProjectMountRecovery &&
+        folderInfo.type === 'tauri' &&
+        isLatestFileTreeRequest(targetProjectId, requestVersion)
+      ) {
+        setMountRecoveryState(createRecoveringProjectMountRecoveryState(folderInfo.path));
+      }
       await fileSystemService.mountFolder(targetProjectId, folderInfo);
-      if (targetProjectId !== projectId) {
+      if (targetProjectId !== normalizedProjectId || !isProjectActive(targetProjectId)) {
         return;
       }
+      if (!isLatestFileTreeRequest(targetProjectId, requestVersion)) {
+        return;
+      }
+      setMountRecoveryState(
+        folderInfo.type === 'tauri'
+          ? createRecoveredProjectMountRecoveryState(folderInfo.path)
+          : createIdleProjectMountRecoveryState(),
+      );
       const data = await fileSystemService.getFiles(targetProjectId);
-      setFiles(data);
-      if (data.length === 0) {
-        setSelectedFile(null);
-        setFileContent('');
+      if (!isLatestFileTreeRequest(targetProjectId, requestVersion)) {
         return;
       }
-      if (!selectedFile) {
-        setSelectedFile(findFirstFile(data));
-      }
+
+      syncFilesAndSelection(
+        data,
+        resolveSelectedFileAfterMutation({
+          currentSelectedFilePath: selectedFileRef.current,
+          mutation: {
+            type: 'mount-folder',
+          },
+        }),
+      );
     } catch (error) {
+      if (
+        isTrackingCurrentProjectMountRecovery &&
+        folderInfo.type === 'tauri' &&
+        isLatestFileTreeRequest(targetProjectId, requestVersion)
+      ) {
+        setMountRecoveryState(createFailedProjectMountRecoveryState(folderInfo.path, error));
+      }
       console.error("Failed to mount folder", error);
+      throw error;
+    } finally {
+      completeFileTreeRequestVersion(targetProjectId);
     }
-  }, [projectId, selectedFile, fileSystemService]);
+  }, [
+    beginFileTreeRequestVersion,
+    completeFileTreeRequestVersion,
+    fileSystemService,
+    isLatestFileTreeRequest,
+    isProjectActive,
+    normalizedProjectId,
+    syncFilesAndSelection,
+  ]);
 
   const refreshFiles = useCallback(async () => {
-    setIsLoading(true);
+    const requestProjectId = normalizedProjectId;
+    if (!isProjectActive(requestProjectId)) {
+      return;
+    }
+
+    const requestVersion = beginFileTreeRequestVersion();
     try {
-      const data = await fileSystemService.getFiles(projectId);
-      setFiles(data);
+      const data = await fileSystemService.getFiles(requestProjectId);
+      if (!isLatestFileTreeRequest(requestProjectId, requestVersion)) {
+        return;
+      }
+
+      syncFilesAndSelection(
+        data,
+        resolveSelectedFileAfterMutation({
+          currentSelectedFilePath: selectedFileRef.current,
+          mutation: {
+            type: 'refresh-files',
+          },
+        }),
+      );
     } catch (error) {
       console.error("Failed to refresh files", error);
     } finally {
-      setIsLoading(false);
+      completeFileTreeRequestVersion(requestProjectId);
     }
-  }, [projectId, fileSystemService]);
+  }, [
+    beginFileTreeRequestVersion,
+    completeFileTreeRequestVersion,
+    fileSystemService,
+    isLatestFileTreeRequest,
+    isProjectActive,
+    normalizedProjectId,
+    syncFilesAndSelection,
+  ]);
 
   return {
     files,
@@ -241,6 +661,8 @@ export function useFileSystem(projectId: string) {
     selectedFile,
     fileContent,
     isLoadingContent,
+    isSearchingFiles,
+    mountRecoveryState,
     selectFile,
     saveFile,
     saveFileContent,

@@ -2,17 +2,24 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from '../governance-regression-report.mjs';
 import { buildQualityGateMatrixReport } from '../quality-gate-matrix-report.mjs';
 
 export const RELEASE_QUALITY_EVIDENCE_DIR = 'quality';
 export const RELEASE_QUALITY_EVIDENCE_FILENAME = 'quality-gate-matrix-report.json';
 export const RELEASE_QUALITY_EXECUTION_EVIDENCE_FILENAME = 'quality-gate-execution-report.json';
+const DEFAULT_WORKSPACE_QUALITY_EXECUTION_REPORT_PATH = path.join(
+  'artifacts',
+  RELEASE_QUALITY_EVIDENCE_DIR,
+  RELEASE_QUALITY_EXECUTION_EVIDENCE_FILENAME,
+);
 const LOOP_SCORE_ITEMS = Object.freeze([
   'architecture_alignment',
   'implementation_completeness',
   'test_closure',
   'commercial_readiness',
 ]);
+const RELEASE_GOVERNANCE_CHECK_COUNT = Math.max(ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS.length, 1);
 
 function normalizeStringList(values) {
   const normalized = [];
@@ -79,7 +86,7 @@ function buildLoopScoreboardNextFocus({
   summary = {},
 } = {}) {
   if (lowestScoreItem === 'architecture_alignment') {
-    return 'Close workflow-binding or contract-drift gaps before adding new delivery slices.';
+    return 'Close workflow or manifest binding gaps before adding new delivery slices.';
   }
 
   if (lowestScoreItem === 'implementation_completeness') {
@@ -91,6 +98,11 @@ function buildLoopScoreboardNextFocus({
   }
 
   if (lowestScoreItem === 'commercial_readiness') {
+    const releaseReadinessSignals = normalizeStringList(summary.releaseReadinessSignals ?? []);
+    if (releaseReadinessSignals.length > 0) {
+      return `Clear release-readiness blockers (${releaseReadinessSignals.join('; ')}) and rerun finalize smoke.`;
+    }
+
     const blockingDiagnosticIds = normalizeStringList(summary.blockingDiagnosticIds ?? []);
     if (blockingDiagnosticIds.length > 0) {
       return `Clear blocking diagnostics (${blockingDiagnosticIds.map((diagnosticId) => `\`${diagnosticId}\``).join(', ')}) and rerun quality gates.`;
@@ -105,17 +117,27 @@ function buildLoopScoreboardNextFocus({
 export function summarizeQualityLoopScoreboard(summary = {}) {
   const totalTiers = Math.max(1, Number(summary.totalTiers ?? 0));
   const workflowBoundTiers = Math.max(0, Number(summary.workflowBoundTiers ?? 0));
+  const manifestBoundTiers = Math.max(
+    0,
+    Number(summary.manifestBoundTiers ?? summary.workflowBoundTiers ?? 0),
+  );
   const tierIds = normalizeStringList(summary.tierIds ?? []);
   const releaseGovernanceCheckIds = normalizeStringList(summary.releaseGovernanceCheckIds ?? []);
   const blockingDiagnosticIds = normalizeStringList(summary.blockingDiagnosticIds ?? []);
+  const releaseReadinessSignals = normalizeStringList(summary.releaseReadinessSignals ?? []);
   const executionStatus = String(summary.executionStatus ?? '').trim().toLowerCase();
   const executionBlockingTierIds = normalizeStringList(summary.executionBlockingTierIds ?? []);
   const executionFailedTierIds = normalizeStringList(summary.executionFailedTierIds ?? []);
   const executionSkippedTierIds = normalizeStringList(summary.executionSkippedTierIds ?? []);
 
-  const architectureAlignment = clampScore((workflowBoundTiers / totalTiers) * 100);
+  const architectureAlignment = clampScore(
+    (Math.min(workflowBoundTiers, manifestBoundTiers) / totalTiers) * 100,
+  );
   const implementationCoverage = Math.min(tierIds.length / 3, 1);
-  const governanceCoverage = Math.min(releaseGovernanceCheckIds.length / 4, 1);
+  const governanceCoverage = Math.min(
+    releaseGovernanceCheckIds.length / RELEASE_GOVERNANCE_CHECK_COUNT,
+    1,
+  );
   const implementationCompleteness = clampScore(
     ((implementationCoverage * 0.6) + (governanceCoverage * 0.4)) * 100,
   );
@@ -132,6 +154,7 @@ export function summarizeQualityLoopScoreboard(summary = {}) {
   const testClosure = clampScore(100 - testPenalty);
 
   let commercialPenalty = blockingDiagnosticIds.length * 25;
+  commercialPenalty += releaseReadinessSignals.length * 20;
   if (executionStatus === 'blocked') {
     commercialPenalty += 15;
   } else if (executionStatus === 'failed') {
@@ -207,6 +230,36 @@ export function resolveReleaseQualityExecutionEvidencePath({ releaseAssetsDir } 
   );
 }
 
+function resolveQualityExecutionReportSourcePath({
+  releaseAssetsDir,
+  qualityExecutionReportPath = '',
+} = {}) {
+  const normalizedRequestedPath = String(qualityExecutionReportPath ?? '').trim();
+  if (normalizedRequestedPath) {
+    return path.resolve(process.cwd(), normalizedRequestedPath);
+  }
+
+  const packagedReportPath = resolveReleaseQualityExecutionEvidencePath({
+    releaseAssetsDir,
+  });
+  if (fs.existsSync(packagedReportPath)) {
+    return packagedReportPath;
+  }
+
+  const workspaceReportPath = path.resolve(
+    process.cwd(),
+    DEFAULT_WORKSPACE_QUALITY_EXECUTION_REPORT_PATH,
+  );
+  if (
+    path.resolve(workspaceReportPath) !== path.resolve(packagedReportPath)
+    && fs.existsSync(workspaceReportPath)
+  ) {
+    return workspaceReportPath;
+  }
+
+  return '';
+}
+
 function summarizeQualityExecutionEvidence(report = {}) {
   const status = String(report.status ?? '').trim();
   if (!status) {
@@ -238,6 +291,11 @@ export function summarizeQualityGateReleaseEvidence(report = {}, executionReport
     workflowBoundTiers: typeof report.summary?.workflowBoundTiers === 'number'
       ? report.summary.workflowBoundTiers
       : 0,
+    missingWorkflowBindings: normalizeStringList(report.summary?.missingWorkflowBindings ?? []),
+    manifestBoundTiers: typeof report.summary?.manifestBoundTiers === 'number'
+      ? report.summary.manifestBoundTiers
+      : 0,
+    missingManifestBindings: normalizeStringList(report.summary?.missingManifestBindings ?? []),
     tierIds: normalizeStringList((report.tiers ?? []).map((tier) => tier?.id)),
     failureClassificationIds: normalizeStringList(
       (report.failureClassifications ?? []).map((classification) => classification?.id),
@@ -266,12 +324,14 @@ function copyOptionalExecutionReport({
   releaseAssetsDir,
   qualityExecutionReportPath = '',
 } = {}) {
-  const normalizedSourcePath = String(qualityExecutionReportPath ?? '').trim();
-  if (!normalizedSourcePath) {
+  const resolvedSourcePath = resolveQualityExecutionReportSourcePath({
+    releaseAssetsDir,
+    qualityExecutionReportPath,
+  });
+  if (!resolvedSourcePath) {
     return null;
   }
 
-  const resolvedSourcePath = path.resolve(process.cwd(), normalizedSourcePath);
   if (!fs.existsSync(resolvedSourcePath)) {
     return null;
   }
@@ -375,6 +435,13 @@ export function normalizeQualityEvidenceSummary(summary = {}) {
     workflowBoundTiers: typeof summary.workflowBoundTiers === 'number'
       ? summary.workflowBoundTiers
       : 0,
+    missingWorkflowBindings: normalizeStringList(summary.missingWorkflowBindings ?? []),
+    manifestBoundTiers: typeof summary.manifestBoundTiers === 'number'
+      ? summary.manifestBoundTiers
+      : typeof summary.workflowBoundTiers === 'number'
+        ? summary.workflowBoundTiers
+        : 0,
+    missingManifestBindings: normalizeStringList(summary.missingManifestBindings ?? []),
     tierIds: normalizeStringList(summary.tierIds ?? []),
     failureClassificationIds: normalizeStringList(summary.failureClassificationIds ?? []),
     environmentDiagnostics: typeof summary.environmentDiagnostics === 'number'
@@ -385,6 +452,11 @@ export function normalizeQualityEvidenceSummary(summary = {}) {
     blockingDiagnostics: (summary.blockingDiagnostics ?? [])
       .map((diagnostic) => normalizeBlockingDiagnostic(diagnostic)),
   };
+
+  const releaseReadinessSignals = normalizeStringList(summary.releaseReadinessSignals ?? []);
+  if (releaseReadinessSignals.length > 0) {
+    normalized.releaseReadinessSignals = releaseReadinessSignals;
+  }
 
   const executionArchiveRelativePath = String(summary.executionArchiveRelativePath ?? '')
     .trim()
@@ -426,5 +498,22 @@ export function normalizeQualityEvidenceSummary(summary = {}) {
 
   normalized.loopScoreboard = normalizeLoopScoreboard(summary.loopScoreboard ?? null, normalized);
 
+  return normalized;
+}
+
+export function enrichQualityEvidenceSummary(summary = {}, options = {}) {
+  const mergedReleaseReadinessSignals = normalizeStringList([
+    ...(summary?.releaseReadinessSignals ?? []),
+    ...(options?.releaseReadinessSignals ?? []),
+  ]);
+
+  const normalized = normalizeQualityEvidenceSummary({
+    ...summary,
+    ...(mergedReleaseReadinessSignals.length > 0
+      ? { releaseReadinessSignals: mergedReleaseReadinessSignals }
+      : {}),
+  });
+
+  normalized.loopScoreboard = summarizeQualityLoopScoreboard(normalized);
   return normalized;
 }

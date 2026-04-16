@@ -1,21 +1,30 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
+  buildFileChangeRestorePlan,
   buildTerminalProfileBlockedMessage,
   getDefaultRunConfigurations,
   globalEventBus,
+  importLocalFolderProject,
+  rebindLocalFolderProject,
   normalizeWorkbenchCodeEngineId,
   normalizeWorkbenchCodeModelId,
+  resolveProjectMountRecoverySource,
   resolveRunConfigurationTerminalLaunch,
   resolveWorkbenchChatSelection,
   useFileSystem,
   useIDEServices,
   useProjectRunConfigurations,
   useProjects,
+  useSessionRefreshActions,
   useCodingSessionActions,
   useToast,
   useWorkbenchPreferences,
-} from '@sdkwork/birdcoder-commons';
-import type { RunConfigurationRecord, TerminalCommandRequest } from '@sdkwork/birdcoder-commons';
+  ensureStoredNativeCodexSessionMirror,
+} from '@sdkwork/birdcoder-commons/workbench';
+import type {
+  RunConfigurationRecord,
+  TerminalCommandRequest,
+} from '@sdkwork/birdcoder-commons/workbench';
 import { FileChange } from '@sdkwork/birdcoder-types';
 import { useTranslation } from 'react-i18next';
 import {
@@ -59,19 +68,25 @@ import {
 interface StudioPageProps {
   workspaceId?: string;
   projectId?: string;
+  initialCodingSessionId?: string;
   onProjectChange?: (projectId: string) => void;
+  onCodingSessionChange?: (codingSessionId: string) => void;
+  onSessionInventoryRefresh?: () => Promise<void>;
 }
-export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPageProps) {
+export function StudioPage({
+  workspaceId,
+  projectId,
+  initialCodingSessionId,
+  onProjectChange,
+  onCodingSessionChange,
+  onSessionInventoryRefresh,
+}: StudioPageProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'preview' | 'simulator' | 'code'>('preview');
   const [inputValue, setInputValue] = useState('');
-  const { switchChatEngine } = useIDEServices();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
   const selectedEngineId = preferences.codeEngineId;
   const selectedModelId = preferences.codeModelId;
-  useEffect(() => {
-    switchChatEngine(selectedEngineId);
-  }, [selectedEngineId, switchChatEngine]);
   const setSelectedEngineId = (engineId: string) => {
     updatePreferences((previousState) =>
       resolveWorkbenchChatSelection({
@@ -85,6 +100,11 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
       codeModelId: normalizeWorkbenchCodeModelId(previousState.codeEngineId, modelId),
     }));
   };
+  const createCodingSessionWithSelection = (projectId: string, title: string) =>
+    createCodingSession(projectId, title, {
+      engineId: selectedEngineId,
+      modelId: selectedModelId,
+    });
   const {
     projects: filteredProjects,
     searchQuery: projectSearchQuery,
@@ -92,10 +112,13 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
     sendMessage,
     createProject,
     createCodingSession,
+    updateProject,
     addCodingSessionMessage,
     editCodingSessionMessage,
     deleteCodingSessionMessage,
+    refreshProjects,
   } = useProjects(workspaceId);
+  const { coreReadService, projectService } = useIDEServices();
   const { addToast } = useToast();
   
   const [selectedCodingSessionId, setSelectedThreadId] = useState<string>('');
@@ -118,6 +141,7 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
   }, []);
   const [isFindVisible, setIsFindVisible] = useState(false);
   const [isQuickOpenVisible, setIsQuickOpenVisible] = useState(false);
+  const [isMountRecoveryActionPending, setIsMountRecoveryActionPending] = useState(false);
   
   const [isAnalyzeModalVisible, setIsAnalyzeModalVisible] = useState(false);
   const [analyzeReport, setAnalyzeReport] = useState<StudioAnalyzeReport | null>(null);
@@ -206,7 +230,10 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
     const handleCreateNewCodingSession = async () => {
       if (currentProjectId) {
         try {
-          const newThread = await createCodingSession(currentProjectId, t('studio.newThread'));
+          const newThread = await createCodingSessionWithSelection(
+            currentProjectId,
+            t('studio.newThread'),
+          );
           setSelectedThreadId(newThread.id);
           addToast(t('studio.newThreadCreated'), 'success');
         } catch (error) {
@@ -224,10 +251,8 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
       setIsDebugConfigVisible(true);
     };
     const handleRunWithoutDebugging = () => {
-      import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-        globalEventBus.emit('openTerminal');
-        globalEventBus.emit('terminalRequest', { command: 'npm start', timestamp: Date.now() });
-      });
+      globalEventBus.emit('openTerminal');
+      globalEventBus.emit('terminalRequest', { command: 'npm start', timestamp: Date.now() });
       addToast(t('studio.startingApplication'), 'info');
     };
     const handleAddRunConfiguration = () => {
@@ -247,50 +272,52 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
       setIsQuickOpenVisible(true);
     };
     
-    import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-      globalEventBus.on('openTerminal', handleOpenTerminal);
-      globalEventBus.on('closeTerminal', handleCloseTerminal);
-      globalEventBus.on('toggleTerminal', handleToggleTerminal);
-      globalEventBus.on('splitTerminal', handleSplitTerminal);
-      globalEventBus.on('terminalRequest', handleTerminalRequest);
-      globalEventBus.on('saveActiveFile', handleSaveActiveFile);
-      globalEventBus.on('saveAllFiles', handleSaveAllFiles);
-      globalEventBus.on('previousCodingSession', handlePreviousCodingSession);
-      globalEventBus.on('nextCodingSession', handleNextCodingSession);
-      globalEventBus.on('revealInExplorer', handleRevealInExplorer);
-      globalEventBus.on('createNewCodingSession', handleCreateNewCodingSession);
-      globalEventBus.on('runTask', handleRunTask);
-      globalEventBus.on('startDebugging', handleStartDebugging);
-      globalEventBus.on('runWithoutDebugging', handleRunWithoutDebugging);
-      globalEventBus.on('addRunConfiguration', handleAddRunConfiguration);
-      globalEventBus.on('toggleDiffPanel', handleToggleDiffPanel);
-      globalEventBus.on('findInFiles', handleFindInFiles);
-      globalEventBus.on('openQuickOpen', handleOpenQuickOpen);
-    });
+    globalEventBus.on('openTerminal', handleOpenTerminal);
+    globalEventBus.on('closeTerminal', handleCloseTerminal);
+    globalEventBus.on('toggleTerminal', handleToggleTerminal);
+    globalEventBus.on('splitTerminal', handleSplitTerminal);
+    globalEventBus.on('terminalRequest', handleTerminalRequest);
+    globalEventBus.on('saveActiveFile', handleSaveActiveFile);
+    globalEventBus.on('saveAllFiles', handleSaveAllFiles);
+    globalEventBus.on('previousCodingSession', handlePreviousCodingSession);
+    globalEventBus.on('nextCodingSession', handleNextCodingSession);
+    globalEventBus.on('revealInExplorer', handleRevealInExplorer);
+    globalEventBus.on('createNewCodingSession', handleCreateNewCodingSession);
+    globalEventBus.on('runTask', handleRunTask);
+    globalEventBus.on('startDebugging', handleStartDebugging);
+    globalEventBus.on('runWithoutDebugging', handleRunWithoutDebugging);
+    globalEventBus.on('addRunConfiguration', handleAddRunConfiguration);
+    globalEventBus.on('toggleDiffPanel', handleToggleDiffPanel);
+    globalEventBus.on('findInFiles', handleFindInFiles);
+    globalEventBus.on('openQuickOpen', handleOpenQuickOpen);
     
     return () => {
-      import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-        globalEventBus.off('openTerminal', handleOpenTerminal);
-        globalEventBus.off('closeTerminal', handleCloseTerminal);
-        globalEventBus.off('toggleTerminal', handleToggleTerminal);
-        globalEventBus.off('splitTerminal', handleSplitTerminal);
-        globalEventBus.off('terminalRequest', handleTerminalRequest);
-        globalEventBus.off('saveActiveFile', handleSaveActiveFile);
-        globalEventBus.off('saveAllFiles', handleSaveAllFiles);
-        globalEventBus.off('previousCodingSession', handlePreviousCodingSession);
-        globalEventBus.off('nextCodingSession', handleNextCodingSession);
-        globalEventBus.off('revealInExplorer', handleRevealInExplorer);
-        globalEventBus.off('createNewCodingSession', handleCreateNewCodingSession);
-        globalEventBus.off('runTask', handleRunTask);
-        globalEventBus.off('startDebugging', handleStartDebugging);
-        globalEventBus.off('runWithoutDebugging', handleRunWithoutDebugging);
-        globalEventBus.off('addRunConfiguration', handleAddRunConfiguration);
-        globalEventBus.off('toggleDiffPanel', handleToggleDiffPanel);
-        globalEventBus.off('findInFiles', handleFindInFiles);
-        globalEventBus.off('openQuickOpen', handleOpenQuickOpen);
-      });
+      globalEventBus.off('openTerminal', handleOpenTerminal);
+      globalEventBus.off('closeTerminal', handleCloseTerminal);
+      globalEventBus.off('toggleTerminal', handleToggleTerminal);
+      globalEventBus.off('splitTerminal', handleSplitTerminal);
+      globalEventBus.off('terminalRequest', handleTerminalRequest);
+      globalEventBus.off('saveActiveFile', handleSaveActiveFile);
+      globalEventBus.off('saveAllFiles', handleSaveAllFiles);
+      globalEventBus.off('previousCodingSession', handlePreviousCodingSession);
+      globalEventBus.off('nextCodingSession', handleNextCodingSession);
+      globalEventBus.off('revealInExplorer', handleRevealInExplorer);
+      globalEventBus.off('createNewCodingSession', handleCreateNewCodingSession);
+      globalEventBus.off('runTask', handleRunTask);
+      globalEventBus.off('startDebugging', handleStartDebugging);
+      globalEventBus.off('runWithoutDebugging', handleRunWithoutDebugging);
+      globalEventBus.off('addRunConfiguration', handleAddRunConfiguration);
+      globalEventBus.off('toggleDiffPanel', handleToggleDiffPanel);
+      globalEventBus.off('findInFiles', handleFindInFiles);
+      globalEventBus.off('openQuickOpen', handleOpenQuickOpen);
     };
-  }, [selectedCodingSessionId, filteredProjects, currentProjectId, createCodingSession, addToast]);
+  }, [
+    selectedCodingSessionId,
+    filteredProjects,
+    currentProjectId,
+    createCodingSessionWithSelection,
+    addToast,
+  ]);
   
   const [chatWidth, setChatWidth] = useState(450);
   const [deleteConfirmation, setDeleteConfirmation] = useState<StudioDeleteConfirmation | null>(null);
@@ -301,6 +328,28 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
       onProjectChange(threadProjectId);
     }
   }, [threadProjectId, projectId, onProjectChange]);
+
+  useEffect(() => {
+    const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
+    if (!normalizedInitialCodingSessionId) {
+      return;
+    }
+
+    if (
+      normalizedInitialCodingSessionId !== selectedCodingSessionId &&
+      filteredProjects.some((project) =>
+        project.codingSessions.some(
+          (codingSession) => codingSession.id === normalizedInitialCodingSessionId,
+        ),
+      )
+    ) {
+      setSelectedThreadId(normalizedInitialCodingSessionId);
+    }
+  }, [filteredProjects, initialCodingSessionId, selectedCodingSessionId]);
+
+  useEffect(() => {
+    onCodingSessionChange?.(selectedCodingSessionId);
+  }, [onCodingSessionChange, selectedCodingSessionId]);
 
   useEffect(() => {
     if (filteredProjects.length > 0) {
@@ -335,11 +384,26 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
     .find((project) => project.id === currentProjectId)
     ?.codingSessions.find((codingSession) => codingSession.id === selectedCodingSessionId);
   const messages = currentThread?.messages || [];
+  const currentProject = filteredProjects.find((project) => project.id === currentProjectId);
+  const restoreSelectionAfterRefresh = (
+    targetProjectId: string,
+    targetCodingSessionId: string,
+  ) => {
+    if (targetProjectId) {
+      onProjectChange?.(targetProjectId);
+      setMenuActiveProjectId(targetProjectId);
+    }
+    if (targetCodingSessionId) {
+      setSelectedThreadId(targetCodingSessionId);
+    }
+  };
 
   const {
     files,
     selectedFile,
     fileContent,
+    isSearchingFiles,
+    mountRecoveryState,
     selectFile,
     saveFile,
     saveFileContent,
@@ -350,9 +414,73 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
     renameNode,
     searchFiles,
     mountFolder,
-  } = useFileSystem(currentProjectId);
+  } = useFileSystem(currentProjectId, currentProject?.path);
+  const previousMountRecoveryStatusRef = useRef(mountRecoveryState.status);
 
-  useCodingSessionActions(currentProjectId, createCodingSession, setSelectedThreadId);
+  useEffect(() => {
+    if (
+      mountRecoveryState.status === 'failed' &&
+      previousMountRecoveryStatusRef.current !== 'failed'
+    ) {
+      addToast(mountRecoveryState.message ?? 'Unable to reopen the local project folder.', 'error');
+    }
+    previousMountRecoveryStatusRef.current = mountRecoveryState.status;
+  }, [addToast, mountRecoveryState.message, mountRecoveryState.status]);
+
+  useCodingSessionActions(
+    currentProjectId,
+    createCodingSessionWithSelection,
+    setSelectedThreadId,
+  );
+
+  const syncNativeCodexSessionsForWorkspace = async () => {
+    const normalizedWorkspaceId = workspaceId?.trim() ?? '';
+    if (!normalizedWorkspaceId) {
+      return;
+    }
+
+    try {
+      await ensureStoredNativeCodexSessionMirror({
+        projectService,
+        workspaceId: normalizedWorkspaceId,
+      });
+      await Promise.all([refreshProjects(), onSessionInventoryRefresh?.()]);
+    } catch (error) {
+      console.error('Failed to synchronize imported native Codex sessions', error);
+    }
+  };
+  const {
+    handleRefreshCodingSessionMessages,
+    handleRefreshProjectSessions,
+    refreshingCodingSessionId,
+    refreshingProjectId,
+  } = useSessionRefreshActions({
+    addToast,
+    coreReadService,
+    getPreservedSelection: () => ({
+      codingSessionId: selectedCodingSessionId,
+      projectId: currentProjectId,
+    }),
+    messages: {
+      failedToRefreshProjectSessions: t('studio.failedToRefreshProjectSessions'),
+      failedToRefreshSessionMessages: t('studio.failedToRefreshSessionMessages'),
+      projectSessionsRefreshed: (projectName: string) =>
+        t('studio.projectSessionsRefreshed', { name: projectName }),
+      sessionMessagesRefreshed: (codingSessionTitle: string) =>
+        t('studio.sessionMessagesRefreshed', { name: codingSessionTitle }),
+    },
+    onSessionInventoryRefresh,
+    projectService,
+    refreshProjects,
+    resolveCodingSessionTitle: (codingSessionId: string) =>
+      filteredProjects
+        .flatMap((project) => project.codingSessions)
+        .find((codingSession) => codingSession.id === codingSessionId)?.title ?? codingSessionId,
+    resolveProjectName: (targetProjectId: string) =>
+      filteredProjects.find((project) => project.id === targetProjectId)?.name ?? targetProjectId,
+    restoreSelectionAfterRefresh,
+    workspaceId,
+  });
 
   useEffect(() => {
     if (!isRunConfigVisible) {
@@ -689,13 +817,20 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
       .flatMap((project) => project.codingSessions)
       .find((codingSession) => codingSession.id === threadId);
     const msg = thread?.messages?.find(m => m.id === messageId);
-    if (msg && msg.fileChanges) {
-      for (const change of msg.fileChanges) {
-        if (change.originalContent !== undefined) {
-          await saveFileContent(change.path, change.originalContent);
-        }
+    const restorePlan = buildFileChangeRestorePlan(msg?.fileChanges);
+    if (!restorePlan.restorable) {
+      addToast('This checkpoint cannot be safely restored.', 'error');
+      return;
+    }
+
+    try {
+      for (const operation of restorePlan.operations) {
+        await saveFileContent(operation.path, operation.content);
       }
       addToast(t('studio.restoredFiles'), 'success');
+    } catch (error) {
+      console.error('Failed to restore files from checkpoint', error);
+      addToast('Failed to restore files from checkpoint', 'error');
     }
   };
 
@@ -717,7 +852,7 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
 
     if (!currentThreadId) {
       const newTitle = inputValue.slice(0, 20) + (inputValue.length > 20 ? '...' : '');
-      const newThread = await createCodingSession(projectIdToUse, newTitle);
+      const newThread = await createCodingSessionWithSelection(projectIdToUse, newTitle);
       currentThreadId = newThread.id;
       if (onProjectChange) onProjectChange(projectIdToUse);
       setSelectedThreadId(currentThreadId);
@@ -743,7 +878,6 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
     }
   };
 
-  const currentProject = filteredProjects.find((project) => project.id === currentProjectId);
   const currentProjectName = currentProject?.name;
   const publicShareUrl = `https://ide.sdkwork.com/p/${currentProjectId || 'demo'}`;
   const handlePreviewAppPlatformChange = (platform: 'ios' | 'android' | 'harmony') => {
@@ -852,31 +986,96 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
 
   const handleOpenSidebarFolder = async () => {
     try {
-      const { openLocalFolder } = await import('@sdkwork/birdcoder-commons');
+      const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
       const folderInfo = await openLocalFolder();
       if (!folderInfo) {
         return;
       }
 
-      let projectName = t('studio.localFolder');
-      if (folderInfo.type === 'browser') {
-        projectName = folderInfo.handle.name;
-      } else {
-        const parts = folderInfo.path.split(/[/\\]/);
-        projectName = parts[parts.length - 1] || t('studio.localFolder');
-      }
+      const normalizedWorkspaceId = workspaceId?.trim() ?? '';
 
-      const newProject = await createProject(projectName);
-      await mountFolder(newProject.id, folderInfo);
+      const importedProject = await importLocalFolderProject({
+        createProject,
+        fallbackProjectName: t('studio.localFolder'),
+        folderInfo,
+        getProjects: () =>
+          normalizedWorkspaceId
+            ? projectService.getProjects(normalizedWorkspaceId)
+            : Promise.resolve([]),
+        mountFolder,
+        updateProject,
+      });
 
+      await syncNativeCodexSessionsForWorkspace();
       if (onProjectChange) {
-        onProjectChange(newProject.id);
+        onProjectChange(importedProject.projectId);
       }
-      setMenuActiveProjectId(newProject.id);
-      addToast(t('studio.openedFolder', { name: projectName }), 'success');
+      setMenuActiveProjectId(importedProject.projectId);
+      addToast(t('studio.openedFolder', { name: importedProject.projectName }), 'success');
     } catch (error) {
       console.error('Failed to open folder', error);
       addToast(t('studio.failedToOpenFolder'), 'error');
+    }
+  };
+
+  const handleRetryMountRecovery = async () => {
+    const recoveryMountSource = resolveProjectMountRecoverySource(currentProject?.path);
+    if (!currentProjectId || !recoveryMountSource) {
+      addToast('No persisted local folder is available to retry.', 'error');
+      return;
+    }
+
+    setIsMountRecoveryActionPending(true);
+    try {
+      await mountFolder(currentProjectId, recoveryMountSource);
+      addToast(t('studio.openedFolder', { name: currentProject?.name ?? recoveryMountSource.path }), 'success');
+    } catch (error) {
+      console.error('Failed to retry local project folder recovery', error);
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to reconnect the local project folder.',
+        'error',
+      );
+    } finally {
+      setIsMountRecoveryActionPending(false);
+    }
+  };
+
+  const handleReimportProjectFolder = async () => {
+    if (!currentProjectId) {
+      addToast(t('studio.pleaseSelectProject'), 'error');
+      return;
+    }
+
+    setIsMountRecoveryActionPending(true);
+    try {
+      const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
+      const folderInfo = await openLocalFolder();
+      if (!folderInfo) {
+        return;
+      }
+
+      const reboundProject = await rebindLocalFolderProject({
+        projectId: currentProjectId,
+        fallbackProjectName: currentProject?.name ?? t('studio.localFolder'),
+        folderInfo,
+        mountFolder,
+        updateProject,
+      });
+
+      await syncNativeCodexSessionsForWorkspace();
+      addToast(t('studio.openedFolder', { name: reboundProject.projectName }), 'success');
+    } catch (error) {
+      console.error('Failed to rebind local project folder', error);
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : t('studio.failedToOpenFolder'),
+        'error',
+      );
+    } finally {
+      setIsMountRecoveryActionPending(false);
     }
   };
 
@@ -887,16 +1086,17 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
     }
 
     try {
-      const newThread = await createCodingSession(targetProjectId, t('studio.newThread'));
+      const newThread = await createCodingSessionWithSelection(
+        targetProjectId,
+        t('studio.newThread'),
+      );
       if (onProjectChange) {
         onProjectChange(targetProjectId);
       }
       setSelectedThreadId(newThread.id);
       addToast(t('studio.newThreadCreated'), 'success');
       setTimeout(() => {
-        import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-          globalEventBus.emit('focusChatInput');
-        });
+        globalEventBus.emit('focusChatInput');
       }, 100);
     } catch (error) {
       console.error('Failed to create thread', error);
@@ -931,6 +1131,10 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
         onCreateProject={handleCreateSidebarProject}
         onOpenFolder={handleOpenSidebarFolder}
         onCreateCodingSession={handleCreateSidebarCodingSession}
+        onRefreshProjectSessions={handleRefreshProjectSessions}
+        onRefreshCodingSessionMessages={handleRefreshCodingSessionMessages}
+        refreshingProjectId={refreshingProjectId}
+        refreshingCodingSessionId={refreshingCodingSessionId}
         onViewChanges={(file) => {
           setViewingDiff(file);
           setActiveTab('code');
@@ -962,12 +1166,21 @@ export function StudioPage({ workspaceId, projectId, onProjectChange }: StudioPa
       <div className="flex-1 flex flex-col relative bg-[#0e0e11] overflow-hidden">
         <StudioWorkspaceOverlays
           files={files}
+          mountRecoveryState={mountRecoveryState}
+          isMountRecoveryActionPending={isMountRecoveryActionPending}
           isFindVisible={isFindVisible}
+          isSearchingFiles={isSearchingFiles}
           isQuickOpenVisible={isQuickOpenVisible}
           searchFiles={searchFiles}
           onSelectFile={(path) => {
             selectFile(path);
             setViewingDiff(null);
+          }}
+          onRetryMountRecovery={() => {
+            void handleRetryMountRecovery();
+          }}
+          onReimportProjectFolder={() => {
+            void handleReimportProjectFolder();
           }}
           onCloseFind={() => setIsFindVisible(false)}
           onCloseQuickOpen={() => setIsQuickOpenVisible(false)}

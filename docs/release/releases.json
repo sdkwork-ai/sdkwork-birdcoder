@@ -3142,6 +3142,195 @@
                          "carryForward":  [
                                               "release-2026-04-14-17"
                                           ]
+                     },
+                     {
+                         "tag":  "release-2026-04-14-19",
+                         "title":  "SDKWork BirdCoder release-2026-04-14-19",
+                         "date":  "2026-04-14",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining Step 12 and Step 19 evidence drift by freezing workspace quality-matrix freshness on stable tier/workflow truth and preserving governance command-runner `spawn EPERM` as a structured blocked diagnostic instead of a failed repository regression.",
+                         "notesFile":  "release-2026-04-14-19.md",
+                         "carryForward":  [
+                                              "release-2026-04-14-18"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-14-20",
+                         "title":  "SDKWork BirdCoder release-2026-04-14-20",
+                         "date":  "2026-04-14",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining direct quality-tier execution-truth drift by recording that direct shell `fast` and `standard` gates pass on this host while direct `release` now stops only at the tail governance command-runner blocker, and by backwriting that split truth into active docs and the release registry.",
+                         "notesFile":  "release-2026-04-14-20.md",
+                         "carryForward":  [
+                                              "release-2026-04-14-19"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-01",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-01",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining governance-report entrypoint and docs-baseline drift by removing the CLI top-level-await deadlock, realigning active docs to the `101`-check governance baseline, and regenerating the official blocked-runner artifact for this host.",
+                         "notesFile":  "release-2026-04-15-01.md",
+                         "carryForward":  [
+                                              "release-2026-04-14-20"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-02",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-02",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining executable-runner top-level-await drift by hardening the quality execution and PostgreSQL live-smoke CLIs, removing host-coupled runner assumptions from contract tests, and re-verifying their blocked-state exit semantics on this host.",
+                         "notesFile":  "release-2026-04-15-02.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-01"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-03",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-03",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining governed package-script import-side-effect drift by hardening the architecture, structure, and Rust engine-catalog CLIs behind direct-entry guards, wiring that contract into release-flow, and regenerating the shared Rust host engine catalog to current `sdk-stream` truth.",
+                         "notesFile":  "release-2026-04-15-03.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-02"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-04",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-04",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining package-script contract discoverability and topology drift by promoting `check:package-script-entrypoints` to a root verification command and freezing that contract inside both the repository structure and top-level architecture standards.",
+                         "notesFile":  "release-2026-04-15-04.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-03"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-05",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-05",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining root package-script topology drift by deriving repo-local script targets directly from `package.json`, adding a structure behavior contract for missing script references, and wiring that contract into release-flow and architecture governance.",
+                         "notesFile":  "release-2026-04-15-05.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-04"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-06",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-06",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining governance-regression topology blind spot by preflighting repo-local check targets and root `pnpm run` bindings before execution, while wiring the governance runner contract directly into release-flow.",
+                         "notesFile":  "release-2026-04-15-06.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-05"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-07",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-07",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining quality-execution topology blind spot by preflighting root `check:quality:*` bindings before execution and wiring the quality execution runner contract directly into release-flow.",
+                         "notesFile":  "release-2026-04-15-07.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-06"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-08",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-08",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining quality-matrix manifest-topology blind spot by freezing root `check:quality:*` bindings into Step 12 reports, packaged release evidence, loop scoring, and rendered release notes.",
+                         "notesFile":  "release-2026-04-15-08.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-07"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-09",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-09",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining canonical release-asset freshness blind spot by enforcing current Step 12 quality evidence on `artifacts/release-openapi-canonical` and wiring that freshness contract into release-flow.",
+                         "notesFile":  "release-2026-04-15-09.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-08"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-10",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-10",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining packaged quality-evidence diagnosability gap by preserving missing binding tier ids through finalized manifests, rendered release notes, and canonical release assets.",
+                         "notesFile":  "release-2026-04-15-10.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-09"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-11",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-11",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining packaged runtime-evidence and checksum-integrity gap by preserving quality execution truth through repeated finalize runs and auto-refreshing SHA256SUMS when release notes are rendered into release assets.",
+                         "notesFile":  "release-2026-04-15-11.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-10"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-12",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-12",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining release-note stop-ship blind spot by promoting packaged runtime blocked tiers and runtime blockers into the operator-facing release decision summary.",
+                         "notesFile":  "release-2026-04-15-12.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-11"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-13",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-13",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining Windows runner-diagnostic drift by aligning Step 12 and Step 19 runtime blockers to the real blocked `cmd.exe` shell boundary and refreshing canonical quality evidence.",
+                         "notesFile":  "release-2026-04-15-13.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-12"
+                                          ]
+                     },
+                     {
+                         "tag":  "release-2026-04-15-14",
+                         "title":  "SDKWork BirdCoder release-2026-04-15-14",
+                         "date":  "2026-04-15",
+                         "status":  "pending",
+                         "summary":  "Closes the remaining blocker-classification drift by promoting governed Vite or esbuild host failures into Step 12 and Step 19 evidence, refreshing canonical release assets, and re-syncing active docs with the 2026-04-15 split truth.",
+                         "notesFile":  "release-2026-04-15-14.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-13"
+                                          ],
+                         "stopShipSignals":  [
+                                                 "runtime blocked tiers `fast`",
+                                                 "runtime blockers `vite-host-build-preflight`"
+                                             ],
+                         "promotionReadiness":  {
+                                                    "currentReleaseKind":  "canary",
+                                                    "currentRolloutStage":  "ring-1",
+                                                    "formalOrGaStatus":  "blocked",
+                                                    "stopShipSignals":  [
+                                                                            "runtime blocked tiers `fast`",
+                                                                            "runtime blockers `vite-host-build-preflight`"
+                                                                        ]
+                                                }
                      }
                  ]
 }

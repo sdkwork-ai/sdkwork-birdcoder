@@ -167,6 +167,75 @@ export interface ChatCanonicalEvent {
   artifact?: ChatCanonicalArtifact;
 }
 
+export type ChatEngineIntegrationClass =
+  | 'official-sdk'
+  | 'official-protocol'
+  | 'source-derived';
+
+export type ChatEngineRuntimeMode =
+  | 'sdk'
+  | 'headless'
+  | 'remote-control'
+  | 'protocol-fallback';
+
+export type ChatEngineHealthStatus = 'ready' | 'degraded' | 'missing';
+export type ChatEngineSourceMirrorStatus = 'mirrored' | 'sdk-only' | 'missing';
+export type ChatEngineCapabilityName = keyof BirdCoderEngineCapabilityMatrix;
+
+export interface ChatEngineOfficialEntry {
+  packageName: string;
+  packageVersion?: string;
+  sdkPath?: string | null;
+  cliPackageName?: string | null;
+  sourceMirrorPath?: string | null;
+  supplementalLanes?: readonly string[];
+}
+
+export interface ChatEngineIntegrationDescriptor {
+  engineId: BirdCoderCodeEngineKey;
+  integrationClass: ChatEngineIntegrationClass;
+  runtimeMode: ChatEngineRuntimeMode;
+  officialEntry: ChatEngineOfficialEntry;
+  transportKinds: readonly BirdCoderEngineTransportKind[];
+  sourceMirrorPath: string | null;
+  sourceMirrorStatus: ChatEngineSourceMirrorStatus;
+  notes?: string;
+}
+
+export interface ChatEngineHealthReport {
+  status: ChatEngineHealthStatus;
+  runtimeMode: ChatEngineRuntimeMode;
+  officialEntry: ChatEngineOfficialEntry;
+  sdkAvailable: boolean;
+  cliAvailable: boolean;
+  authConfigured: boolean;
+  fallbackActive: boolean;
+  sourceMirrorStatus: ChatEngineSourceMirrorStatus;
+  diagnostics: readonly string[];
+  checkedAt: number;
+}
+
+export interface ChatEngineCapabilitySnapshot {
+  runtimeMode: ChatEngineRuntimeMode;
+  sdkAvailable: boolean;
+  fallbackActive: boolean;
+  declaredCapabilities: readonly ChatEngineCapabilityName[];
+  detectedCapabilities: readonly ChatEngineCapabilityName[];
+  experimentalCapabilities: readonly string[];
+  disabledCapabilities: readonly ChatEngineCapabilityName[];
+}
+
+export interface ChatEngineRawExtensionDescriptor {
+  channel: 'extensions/raw';
+  provider: BirdCoderCodeEngineKey;
+  primaryLane: string;
+  supplementalLanes: readonly string[];
+  nativeEventModel: readonly string[];
+  nativeArtifactModel?: readonly string[];
+  experimentalFeatures: readonly string[];
+  notes?: string;
+}
+
 export interface IChatSession {
   id: string;
   projectId: string;
@@ -203,10 +272,14 @@ export interface IChatEngine {
   sendMessage(messages: ChatMessage[], options?: ChatOptions): Promise<ChatResponse>;
   sendMessageStream(messages: ChatMessage[], options?: ChatOptions): AsyncGenerator<ChatStreamChunk, void, unknown>;
   describeRuntime?(options?: ChatOptions): ChatCanonicalRuntimeDescriptor;
+  describeIntegration?(): ChatEngineIntegrationDescriptor;
+  getCapabilities?(): Promise<ChatEngineCapabilitySnapshot> | ChatEngineCapabilitySnapshot;
+  describeRawExtensions?(): ChatEngineRawExtensionDescriptor;
   sendCanonicalEvents?(
     messages: ChatMessage[],
     options?: ChatOptions,
   ): AsyncGenerator<ChatCanonicalEvent, void, unknown>;
+  getHealth?(): Promise<ChatEngineHealthReport> | ChatEngineHealthReport;
   
   // Session & Coding Session Management (Optional, if engine manages state remotely)
   createSession?(projectId: string): Promise<IChatSession>;

@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  getDefaultBirdCoderIdeServicesRuntimeConfig,
   getTerminalShellSettingValue,
   normalizeWorkbenchCodeEngineId,
   normalizeWorkbenchTerminalProfileId,
@@ -20,14 +21,15 @@ import {
   GitSettings,
   EnvironmentSettings,
   WorktreeSettings,
-  ArchivedSettings
+  ArchivedSettings,
+  type AppSettings,
 } from '../components';
 
 interface SettingsPageProps {
   onBack?: () => void;
 }
 
-const DEFAULT_SETTINGS = {
+const DEFAULT_SETTINGS: AppSettings = {
   defaultOpenTarget: 'VS Code',
   agentEnvironment: 'Windows native',
   integratedTerminalShell: 'PowerShell',
@@ -43,6 +45,7 @@ const DEFAULT_SETTINGS = {
   codeFontSize: '12',
   approvalPolicy: 'On request',
   sandboxSettings: 'Read only',
+  serverBaseUrl: '',
   codeSnippetStyle: 'Auto',
   showLineNumbers: true,
   wordWrap: true,
@@ -77,8 +80,22 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const { logout } = useAuth();
-  const [settings, setSettings] = usePersistedState('settings', 'app', DEFAULT_SETTINGS);
+  const [settings, setSettings, areSettingsHydrated] = usePersistedState<AppSettings>(
+    'settings',
+    'app',
+    DEFAULT_SETTINGS,
+  );
   const { preferences, updatePreferences, isHydrated: isWorkbenchHydrated } = useWorkbenchPreferences();
+  const currentServerBaseUrl = getDefaultBirdCoderIdeServicesRuntimeConfig().apiBaseUrl ?? '';
+  const bootServerBaseUrlOverrideRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!areSettingsHydrated || bootServerBaseUrlOverrideRef.current !== null) {
+      return;
+    }
+
+    bootServerBaseUrlOverrideRef.current = settings.serverBaseUrl ?? '';
+  }, [areSettingsHydrated, settings.serverBaseUrl]);
 
   useEffect(() => {
     if (!isWorkbenchHydrated) {
@@ -120,7 +137,13 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   };
 
   const renderContent = () => {
-    const props = { settings, updateSetting };
+    const props = {
+      settings,
+      updateSetting,
+      currentServerBaseUrl,
+      bootServerBaseUrlOverride:
+        bootServerBaseUrlOverrideRef.current ?? (areSettingsHydrated ? settings.serverBaseUrl : undefined),
+    };
     switch (activeTab) {
       case 'general':
         return <GeneralSettings {...props} />;

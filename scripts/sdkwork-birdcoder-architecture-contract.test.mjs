@@ -49,13 +49,20 @@ const requiredPaths = [
   'scripts/ci-flow-contract.test.mjs',
   'scripts/check-release-closure.mjs',
   'scripts/check-sdkwork-birdcoder-structure.mjs',
+  'scripts/check-sdkwork-birdcoder-structure-contract.test.mjs',
   'scripts/check-arch-boundaries.mjs',
+  'scripts/provider-sdk-import-governance-contract.test.mjs',
+  'scripts/provider-sdk-package-manifest-contract.test.mjs',
+  'scripts/provider-adapter-browser-safety-contract.test.mjs',
+  'scripts/engine-experimental-capability-gating-contract.test.ts',
+  'scripts/engine-canonical-registry-governance-contract.test.ts',
   'scripts/package-governance-contract.test.mjs',
   'scripts/sdkwork-appbase-parity-contract.test.mjs',
   'scripts/governance-regression-report.mjs',
   'scripts/governance-regression-report.test.mjs',
   'scripts/quality-gate-execution-report.mjs',
   'scripts/quality-gate-execution-report.test.mjs',
+  'scripts/package-script-entrypoints-contract.test.mjs',
   'scripts/run-vite-host.mjs',
   'scripts/run-vite-host.test.mjs',
   'scripts/vite-host-preflight.mjs',
@@ -81,6 +88,8 @@ const requiredPaths = [
   'scripts/prepare-shared-sdk-packages.mjs',
   'scripts/run-claw-server-build.mjs',
   'scripts/run-birdcoder-server-build.mjs',
+  'scripts/run-release-flow-check.mjs',
+  'scripts/run-release-flow-check.test.mjs',
   'scripts/run-vitepress.mjs',
   'scripts/shared-sdk-mode.mjs',
   'scripts/release-flow-contract.test.mjs',
@@ -130,80 +139,50 @@ for (const relativePath of requiredPaths) {
 const rootPackageJson = JSON.parse(
   fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'),
 );
+const structureCheckSource = fs.readFileSync(
+  path.join(rootDir, 'scripts', 'check-sdkwork-birdcoder-structure.mjs'),
+  'utf8',
+);
 
 assert.equal(rootPackageJson.name, '@sdkwork/birdcoder-workspace');
 assert.equal(rootPackageJson.scripts?.['server:build'], 'node scripts/run-birdcoder-server-build.mjs');
 assert.equal(rootPackageJson.scripts?.['prepare:shared-sdk'], 'node scripts/prepare-shared-sdk-packages.mjs');
 assert.match(
   rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /sdkwork-birdcoder-architecture-contract\.test\.mjs/,
+  /run-release-flow-check\.mjs/,
 );
 assert.match(
   rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /host-runtime-contract\.test\.ts/,
+  /^node scripts\/run-release-flow-check\.mjs$/,
 );
 assert.match(
   rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /host-studio-preview-contract\.test\.ts/,
-);
-assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /host-studio-simulator-contract\.test\.ts/,
-);
-assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /studio-preview-execution-contract\.test\.ts/,
-);
-assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /studio-preview-evidence-store-contract\.test\.ts/,
-);
-assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /studio-build-execution-contract\.test\.ts/,
-);
-assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /studio-build-evidence-store-contract\.test\.ts/,
-);
-assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /studio-test-execution-contract\.test\.ts/,
-);
-assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /studio-test-evidence-store-contract\.test\.ts/,
-);
-assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /studio-simulator-execution-contract\.test\.ts/,
-);
-assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /studio-simulator-evidence-store-contract\.test\.ts/,
-);
-assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /studio-simulator-ui-contract\.test\.ts/,
-);
-assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /studio-evidence-viewer-contract\.test\.ts/,
-);
-assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /studio-evidence-viewer-ui-contract\.test\.ts/,
+  /^node scripts\/run-release-flow-check\.mjs$/,
 );
 assert.ok(rootPackageJson.scripts?.['docs:build'], 'Missing docs:build script');
 assert.ok(rootPackageJson.scripts?.['check:ci-flow'], 'Missing check:ci-flow script');
 assert.ok(rootPackageJson.scripts?.['check:multi-mode'], 'Missing check:multi-mode script');
 assert.ok(rootPackageJson.scripts?.['check:appbase-parity'], 'Missing check:appbase-parity script');
+assert.equal(
+  rootPackageJson.scripts?.['check:sdkwork-birdcoder-structure-contract'],
+  'node scripts/check-sdkwork-birdcoder-structure-contract.test.mjs',
+  'Root package must expose the sdkwork-birdcoder structure behavior contract as a first-class verification command.',
+);
 assert.ok(rootPackageJson.scripts?.['check:package-governance'], 'Missing check:package-governance script');
+assert.ok(
+  rootPackageJson.scripts?.['test:provider-sdk-package-manifest-contract'],
+  'Missing test:provider-sdk-package-manifest-contract script',
+);
 assert.ok(rootPackageJson.scripts?.['check:vite-config-esm'], 'Missing check:vite-config-esm script');
 assert.ok(rootPackageJson.scripts?.['check:vite-host-preflight'], 'Missing check:vite-host-preflight script');
 assert.ok(rootPackageJson.scripts?.['check:vite-windows-realpath'], 'Missing check:vite-windows-realpath script');
 assert.ok(rootPackageJson.scripts?.['check:governance-regression'], 'Missing check:governance-regression script');
 assert.ok(rootPackageJson.scripts?.['check:governance-regression-contract'], 'Missing check:governance-regression-contract script');
+assert.equal(
+  rootPackageJson.scripts?.['check:package-script-entrypoints'],
+  'node scripts/package-script-entrypoints-contract.test.mjs',
+  'Root package must expose the package script entrypoint contract as a first-class verification command.',
+);
 assert.ok(rootPackageJson.scripts?.['quality:execution-report'], 'Missing quality:execution-report script');
 assert.ok(rootPackageJson.scripts?.['release:finalize'], 'Missing release:finalize script');
 assert.match(
@@ -211,9 +190,40 @@ assert.match(
   /pnpm check:package-governance/,
   'Root lint must include check:package-governance.',
 );
+assert.equal(
+  rootPackageJson.scripts?.['check:release-flow'],
+  'node scripts/run-release-flow-check.mjs',
+  'check:release-flow must delegate to the bounded runner script so Windows command invocation stays stable.',
+);
 assert.match(
-  rootPackageJson.scripts?.['check:release-flow'] ?? '',
-  /sdkwork-appbase-parity-contract\.test\.mjs/,
+  structureCheckSource,
+  /collectRootPackageScriptTargetPaths/,
+  'structure check must derive repo-local script targets from the root manifest so package.json script topology drift cannot bypass repository governance.',
+);
+assert.match(
+  structureCheckSource,
+  /Root package script .* references missing repo file:/,
+  'structure check must report missing root package script targets with the owning script name for direct diagnosis.',
+);
+assert.match(
+  structureCheckSource,
+  /'scripts\/run-release-flow-check\.mjs'/,
+  'structure check must require the release-flow runner script so repository topology cannot drop the bounded runner.',
+);
+assert.match(
+  structureCheckSource,
+  /'scripts\/run-release-flow-check\.test\.mjs'/,
+  'structure check must require the release-flow runner contract so repository topology cannot drop runner governance.',
+);
+assert.match(
+  structureCheckSource,
+  /'scripts\/package-script-entrypoints-contract\.test\.mjs'/,
+  'structure check must require the package script entrypoint contract so governed CLI import safety cannot drift out of the repo topology.',
+);
+assert.match(
+  structureCheckSource,
+  /'scripts\/provider-sdk-package-manifest-contract\.test\.mjs'/,
+  'structure check must require provider SDK package manifest governance so adapter package contracts cannot drift.',
 );
 
 const shellPackageJson = JSON.parse(

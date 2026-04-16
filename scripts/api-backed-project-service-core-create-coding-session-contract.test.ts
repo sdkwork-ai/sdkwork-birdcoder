@@ -156,13 +156,31 @@ try {
     storageProvider: provider,
   });
 
-  const createdSession = await services.projectService.createCodingSession(
+  const createdSession = await (services.projectService.createCodingSession as (
+    projectId: string,
+    title: string,
+    options?: { engineId?: string; modelId?: string },
+  ) => Promise<Awaited<ReturnType<typeof services.projectService.createCodingSession>>> )(
     'project-core-write-contract',
     'Remote Authoritative Session',
+    {
+      engineId: 'claude-code',
+      modelId: 'claude-code',
+    },
   );
 
   assert.equal(createdSession.id, 'coding-session-server-authoritative');
   assert.equal(createdSession.projectId, 'project-core-write-contract');
+  assert.equal(
+    createdSession.engineId,
+    'claude-code',
+    'remote authoritative session metadata must reflect the requested engine when the user selected a non-default code engine.',
+  );
+  assert.equal(
+    createdSession.modelId,
+    'claude-code',
+    'remote authoritative session metadata must reflect the requested model so follow-up turns stay aligned with the selected provider runtime.',
+  );
 
   const projects = await services.projectService.getProjects('workspace-core-write-contract');
   const project = projects.find((candidate) => candidate.id === 'project-core-write-contract');
@@ -174,13 +192,15 @@ try {
       projectId: 'project-core-write-contract',
       title: 'Remote Authoritative Session',
       hostMode: undefined,
-      engineId: undefined,
-      modelId: undefined,
+      engineId: 'claude-code',
+      modelId: 'claude-code',
     },
   ]);
   assert.deepEqual(
     project?.codingSessions.map((session) => ({
       id: session.id,
+      engineId: session.engineId,
+      modelId: session.modelId,
       projectId: session.projectId,
       title: session.title,
       workspaceId: session.workspaceId,
@@ -188,6 +208,8 @@ try {
     [
       {
         id: 'coding-session-server-authoritative',
+        engineId: 'claude-code',
+        modelId: 'claude-code',
         workspaceId: 'workspace-core-write-contract',
         projectId: 'project-core-write-contract',
         title: 'Remote Authoritative Session',

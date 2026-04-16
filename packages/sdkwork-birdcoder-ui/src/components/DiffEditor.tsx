@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { DiffEditor as MonacoDiffEditor, useMonaco } from '@monaco-editor/react';
 import { Loader2, WrapText, Columns, LayoutTemplate } from 'lucide-react';
 import { useToast } from '@sdkwork/birdcoder-commons';
+import { resolveMonacoOverflowWidgetsDomNode } from './monacoOverflowWidgets';
 
 interface DiffEditorProps {
   language: string;
@@ -18,6 +19,7 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
   const { addToast } = useToast();
 
   const editorRef = useRef<any>(null);
+  const overflowWidgetsDomNode = React.useMemo(() => resolveMonacoOverflowWidgetsDomNode(), []);
 
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
@@ -171,6 +173,8 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
         loading={loadingComponent}
         onMount={handleEditorDidMount}
         options={{
+          overflowWidgetsDomNode: overflowWidgetsDomNode,
+          fixedOverflowWidgets: true,
           minimap: { enabled: true, scale: 0.75, renderCharacters: false },
           fontSize: 14,
           fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace",

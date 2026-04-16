@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import {
+  ensureStoredRunConfigurations,
   getDefaultRunConfigurations,
-  listStoredRunConfigurations,
   type RunConfigurationRecord,
   upsertStoredRunConfiguration,
 } from '../terminal/runConfigs.ts';
@@ -17,7 +17,7 @@ export function useProjectRunConfigurations(projectId: string | null | undefined
     let isMounted = true;
     setIsHydrated(false);
 
-    void listStoredRunConfigurations(projectId)
+    void ensureStoredRunConfigurations(projectId)
       .then((configurations) => {
         if (!isMounted) {
           return;

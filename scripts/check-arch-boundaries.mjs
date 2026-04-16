@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const rootDir = process.cwd();
 const packagesDir = path.join(rootDir, 'packages');
@@ -106,7 +107,6 @@ const allowedInternalDependencies = new Map([
 ]);
 
 const dependencySections = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
-const errors = [];
 
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(rootDir, relativePath), 'utf8'));
@@ -116,59 +116,79 @@ function resolvePackageDirName(packageName) {
   return String(packageName).replace(/^@sdkwork\/birdcoder-/u, 'sdkwork-birdcoder-');
 }
 
-if (!fs.existsSync(packagesDir)) {
-  console.error('Architecture boundary check failed:');
-  console.error('- Missing packages directory.');
-  process.exit(1);
-}
+export function runArchitectureBoundaryCheck({
+  stderr = console.error,
+  stdout = console.log,
+} = {}) {
+  const errors = [];
 
-const packageJsonPaths = fs
-  .readdirSync(packagesDir, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory() && entry.name.startsWith('sdkwork-birdcoder-'))
-  .map((entry) => path.join('packages', entry.name, 'package.json'))
-  .filter((relativePath) => fs.existsSync(path.join(rootDir, relativePath)));
-
-for (const relativePath of packageJsonPaths) {
-  const pkg = readJson(relativePath);
-  const packageName = String(pkg.name ?? '');
-  const allowedDependencies = allowedInternalDependencies.get(packageName);
-
-  if (!allowedDependencies) {
-    errors.push(`Missing architecture policy for ${packageName} in ${relativePath}`);
-    continue;
+  if (!fs.existsSync(packagesDir)) {
+    stderr('Architecture boundary check failed:');
+    stderr('- Missing packages directory.');
+    return 1;
   }
 
-  for (const section of dependencySections) {
-    const deps = pkg[section];
-    if (!deps || typeof deps !== 'object') {
+  const packageJsonPaths = fs
+    .readdirSync(packagesDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith('sdkwork-birdcoder-'))
+    .map((entry) => path.join('packages', entry.name, 'package.json'))
+    .filter((relativePath) => fs.existsSync(path.join(rootDir, relativePath)));
+
+  for (const relativePath of packageJsonPaths) {
+    const pkg = readJson(relativePath);
+    const packageName = String(pkg.name ?? '');
+    const allowedDependencies = allowedInternalDependencies.get(packageName);
+
+    if (!allowedDependencies) {
+      errors.push(`Missing architecture policy for ${packageName} in ${relativePath}`);
       continue;
     }
 
-    for (const dependencyName of Object.keys(deps)) {
-      if (!dependencyName.startsWith('@sdkwork/birdcoder-') || dependencyName === packageName) {
+    for (const section of dependencySections) {
+      const deps = pkg[section];
+      if (!deps || typeof deps !== 'object') {
         continue;
       }
 
-      if (!allowedDependencies.has(dependencyName)) {
-        errors.push(`${packageName} must not depend on ${dependencyName} in ${relativePath}`);
+      for (const dependencyName of Object.keys(deps)) {
+        if (!dependencyName.startsWith('@sdkwork/birdcoder-') || dependencyName === packageName) {
+          continue;
+        }
+
+        if (!allowedDependencies.has(dependencyName)) {
+          errors.push(`${packageName} must not depend on ${dependencyName} in ${relativePath}`);
+        }
       }
     }
   }
-}
 
-for (const packageName of allowedInternalDependencies.keys()) {
-  const packageJsonPath = path.join(rootDir, 'packages', resolvePackageDirName(packageName), 'package.json');
-  if (!fs.existsSync(packageJsonPath)) {
-    errors.push(`Architecture policy expects missing package: packages/${resolvePackageDirName(packageName)}/package.json`);
+  for (const packageName of allowedInternalDependencies.keys()) {
+    const packageJsonPath = path.join(rootDir, 'packages', resolvePackageDirName(packageName), 'package.json');
+    if (!fs.existsSync(packageJsonPath)) {
+      errors.push(`Architecture policy expects missing package: packages/${resolvePackageDirName(packageName)}/package.json`);
+    }
   }
-}
 
-if (errors.length > 0) {
-  console.error('Architecture boundary check failed:');
-  for (const error of errors) {
-    console.error(`- ${error}`);
+  if (errors.length > 0) {
+    stderr('Architecture boundary check failed:');
+    for (const error of errors) {
+      stderr(`- ${error}`);
+    }
+    return 1;
   }
-  process.exit(1);
+
+  stdout('Architecture boundary check passed.');
+  return 0;
 }
 
-console.log('Architecture boundary check passed.');
+export async function runArchitectureBoundaryCheckCli() {
+  process.exit(runArchitectureBoundaryCheck());
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void runArchitectureBoundaryCheckCli().catch((error) => {
+    const message = error instanceof Error ? error.stack || error.message : String(error);
+    console.error(message);
+    process.exit(1);
+  });
+}

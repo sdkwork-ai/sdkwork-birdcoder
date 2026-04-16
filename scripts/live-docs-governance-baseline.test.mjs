@@ -3,24 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+import { GOVERNANCE_REGRESSION_CHECKS } from './governance-regression-report.mjs';
+
 const rootDir = process.cwd();
 const docsDir = path.join(rootDir, 'docs');
-const governanceRegressionReportSource = fs.readFileSync(
-  path.join(rootDir, 'scripts', 'governance-regression-report.mjs'),
-  'utf8',
-);
-const governanceChecksArrayMatch = governanceRegressionReportSource.match(
-  /export const GOVERNANCE_REGRESSION_CHECKS = \[(?<body>[\s\S]*?)\n\];/,
-);
-
-assert.ok(
-  governanceChecksArrayMatch?.groups?.body,
-  'governance regression report must expose a parsable GOVERNANCE_REGRESSION_CHECKS array.',
-);
-
-const expectedCheckCount = Array.from(
-  governanceChecksArrayMatch.groups.body.matchAll(/\bid:\s*'/g),
-).length;
+const expectedCheckCount = GOVERNANCE_REGRESSION_CHECKS.length;
 const releaseAndDeploymentSource = fs.readFileSync(
   path.join(docsDir, 'core', 'release-and-deployment.md'),
   'utf8',

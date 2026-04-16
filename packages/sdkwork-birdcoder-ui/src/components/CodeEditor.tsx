@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { Loader2, AlignLeft, WrapText, Copy, Check, Map } from 'lucide-react';
 import { useToast } from '@sdkwork/birdcoder-commons';
+import { resolveMonacoOverflowWidgetsDomNode } from './monacoOverflowWidgets';
 
 interface CodeEditorProps {
   language: string;
@@ -17,6 +18,7 @@ export function CodeEditor({ language, value, onChange, readOnly = false }: Code
   const [showMinimap, setShowMinimap] = useState(true);
   const [copied, setCopied] = useState(false);
   const { addToast } = useToast();
+  const overflowWidgetsDomNode = React.useMemo(() => resolveMonacoOverflowWidgetsDomNode(), []);
 
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
@@ -203,6 +205,8 @@ export function CodeEditor({ language, value, onChange, readOnly = false }: Code
         loading={loadingComponent}
         onMount={handleEditorDidMount}
         options={{
+          overflowWidgetsDomNode: overflowWidgetsDomNode,
+          fixedOverflowWidgets: true,
           minimap: { enabled: showMinimap, scale: 0.75, renderCharacters: false },
           fontSize: 14,
           fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace",

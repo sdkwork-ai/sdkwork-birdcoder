@@ -6,12 +6,12 @@ import {
   type BirdCoderCoreReadApiClient,
   type BirdCoderCoreWriteApiClient,
 } from '@sdkwork/birdcoder-types';
-import type { BirdHostDescriptor } from '@sdkwork/birdcoder-host-core';
 import {
   createBirdCoderStorageProvider,
   type BirdCoderTransactionalStorageProvider,
 } from '../storage/dataKernel.ts';
 import { createBirdCoderConsoleRepositories } from '../storage/appConsoleRepository.ts';
+import { createBirdCoderCodingSessionRepositories } from '../storage/codingSessionRepository.ts';
 import { createBirdCoderPromptSkillTemplateEvidenceRepositories } from '../storage/promptSkillTemplateEvidenceRepository.ts';
 import { createBirdCoderAppAdminConsoleQueries } from './appAdminConsoleQueries.ts';
 import {
@@ -46,6 +46,7 @@ import type { IProjectService } from './interfaces/IProjectService.ts';
 import type { IReleaseService } from './interfaces/IReleaseService.ts';
 import type { ITeamService } from './interfaces/ITeamService.ts';
 import type { IWorkspaceService } from './interfaces/IWorkspaceService.ts';
+import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 
 export interface BirdCoderDefaultIdeServices {
   adminDeploymentService: IAdminDeploymentService;
@@ -70,48 +71,16 @@ export interface CreateBirdCoderDefaultIdeServicesOptions {
   storageProvider?: BirdCoderTransactionalStorageProvider;
 }
 
-export interface BirdCoderDefaultIdeServicesRuntimeConfig {
-  apiBaseUrl?: string;
-  appAdminClient?: BirdCoderAppAdminApiClient;
-  coreReadClient?: BirdCoderCoreReadApiClient;
-  coreWriteClient?: BirdCoderCoreWriteApiClient;
-}
-
-export interface BindDefaultBirdCoderIdeServicesRuntimeOptions {
-  apiBaseUrl?: string;
-  appAdminClient?: BirdCoderAppAdminApiClient;
-  coreReadClient?: BirdCoderCoreReadApiClient;
-  coreWriteClient?: BirdCoderCoreWriteApiClient;
-  host?: BirdHostDescriptor;
-}
-
-let defaultIdeServicesRuntimeConfig: BirdCoderDefaultIdeServicesRuntimeConfig = {};
-
-function normalizeApiBaseUrl(apiBaseUrl?: string): string | undefined {
-  const normalizedApiBaseUrl = apiBaseUrl?.trim();
-  return normalizedApiBaseUrl ? normalizedApiBaseUrl : undefined;
-}
-
-function resolveBoundApiBaseUrl(
-  options: BindDefaultBirdCoderIdeServicesRuntimeOptions,
-): string | undefined {
-  const explicitApiBaseUrl = normalizeApiBaseUrl(options.apiBaseUrl);
-  if (explicitApiBaseUrl) {
-    return explicitApiBaseUrl;
-  }
-
-  return normalizeApiBaseUrl(options.host?.apiBaseUrl);
-}
-
 function resolveRuntimeAppAdminClient(): BirdCoderAppAdminApiClient | undefined {
-  if (defaultIdeServicesRuntimeConfig.appAdminClient) {
-    return defaultIdeServicesRuntimeConfig.appAdminClient;
+  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
+  if (runtimeConfig.appAdminClient) {
+    return runtimeConfig.appAdminClient;
   }
 
-  if (defaultIdeServicesRuntimeConfig.apiBaseUrl) {
+  if (runtimeConfig.apiBaseUrl) {
     return createBirdCoderGeneratedAppAdminApiClient({
       transport: createBirdCoderHttpApiTransport({
-        baseUrl: defaultIdeServicesRuntimeConfig.apiBaseUrl,
+        baseUrl: runtimeConfig.apiBaseUrl,
       }),
     });
   }
@@ -120,14 +89,15 @@ function resolveRuntimeAppAdminClient(): BirdCoderAppAdminApiClient | undefined 
 }
 
 function resolveRuntimeCoreReadClient(): BirdCoderCoreReadApiClient | undefined {
-  if (defaultIdeServicesRuntimeConfig.coreReadClient) {
-    return defaultIdeServicesRuntimeConfig.coreReadClient;
+  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
+  if (runtimeConfig.coreReadClient) {
+    return runtimeConfig.coreReadClient;
   }
 
-  if (defaultIdeServicesRuntimeConfig.apiBaseUrl) {
+  if (runtimeConfig.apiBaseUrl) {
     return createBirdCoderGeneratedCoreReadApiClient({
       transport: createBirdCoderHttpApiTransport({
-        baseUrl: defaultIdeServicesRuntimeConfig.apiBaseUrl,
+        baseUrl: runtimeConfig.apiBaseUrl,
       }),
     });
   }
@@ -136,14 +106,15 @@ function resolveRuntimeCoreReadClient(): BirdCoderCoreReadApiClient | undefined 
 }
 
 function resolveRuntimeCoreWriteClient(): BirdCoderCoreWriteApiClient | undefined {
-  if (defaultIdeServicesRuntimeConfig.coreWriteClient) {
-    return defaultIdeServicesRuntimeConfig.coreWriteClient;
+  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
+  if (runtimeConfig.coreWriteClient) {
+    return runtimeConfig.coreWriteClient;
   }
 
-  if (defaultIdeServicesRuntimeConfig.apiBaseUrl) {
+  if (runtimeConfig.apiBaseUrl) {
     return createBirdCoderGeneratedCoreWriteApiClient({
       transport: createBirdCoderHttpApiTransport({
-        baseUrl: defaultIdeServicesRuntimeConfig.apiBaseUrl,
+        baseUrl: runtimeConfig.apiBaseUrl,
       }),
     });
   }
@@ -209,37 +180,15 @@ function createUnavailableBirdCoderCoreWriteClient(): BirdCoderCoreWriteApiClien
   };
 }
 
-export function configureDefaultBirdCoderIdeServicesRuntime(
-  config: BirdCoderDefaultIdeServicesRuntimeConfig = {},
-): void {
-  defaultIdeServicesRuntimeConfig = {
-    appAdminClient: config.appAdminClient,
-    coreReadClient: config.coreReadClient,
-    coreWriteClient: config.coreWriteClient,
-    apiBaseUrl: normalizeApiBaseUrl(config.apiBaseUrl),
-  };
-}
-
-export function bindDefaultBirdCoderIdeServicesRuntime(
-  options: BindDefaultBirdCoderIdeServicesRuntimeOptions = {},
-): void {
-  configureDefaultBirdCoderIdeServicesRuntime({
-    appAdminClient: options.appAdminClient,
-    coreReadClient: options.coreReadClient,
-    coreWriteClient: options.coreWriteClient,
-    apiBaseUrl: resolveBoundApiBaseUrl(options),
-  });
-}
-
-export function resetDefaultBirdCoderIdeServicesRuntimeForTests(): void {
-  defaultIdeServicesRuntimeConfig = {};
-}
-
 export function createDefaultBirdCoderIdeServices(
   options: CreateBirdCoderDefaultIdeServicesOptions = {},
 ): BirdCoderDefaultIdeServices {
   const provider = options.storageProvider ?? createBirdCoderStorageProvider('sqlite');
   const repositories = createBirdCoderConsoleRepositories({
+    providerId: provider.providerId,
+    storage: provider,
+  });
+  const codingSessionRepositories = createBirdCoderCodingSessionRepositories({
     providerId: provider.providerId,
     storage: provider,
   });
@@ -268,6 +217,7 @@ export function createDefaultBirdCoderIdeServices(
     repository: repositories.workspaces,
   });
   const providerBackedProjectService = new ProviderBackedProjectService({
+    codingSessionRepositories,
     evidenceRepositories: promptSkillTemplateEvidenceRepositories,
     repository: repositories.projects,
   });

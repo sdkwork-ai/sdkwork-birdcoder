@@ -16,10 +16,10 @@ BirdCoder keeps its AI IDE business modules such as `code`, `studio`, `terminal`
 ## Quality gates
 
 - Step 12 now freezes explicit `fast`, `standard`, and `release` quality gates at the workspace root through `check:quality:fast`, `check:quality:standard`, and `check:quality:release`.
-- `scripts/quality-gate-matrix-report.mjs` emits `artifacts/quality/quality-gate-matrix-report.json`, so CI and release tier drift becomes machine-verifiable alongside governance and appbase parity.
+- `scripts/quality-gate-matrix-report.mjs` emits `artifacts/quality/quality-gate-matrix-report.json`, so CI and release tier drift becomes machine-verifiable alongside governance and appbase parity across both workflow bindings and root `package.json` quality-tier bindings.
 - The same quality report now carries `environmentDiagnostics` and `blockingDiagnosticIds`, which turns host-specific `toolchain-platform` blockers into structured evidence instead of release-note-only narrative.
 - `scripts/quality-gate-execution-report.mjs` adds the runtime side of Step 12 by recording the real `fast -> standard -> release` cascade into `artifacts/quality/quality-gate-execution-report.json`.
-- Release finalization now republishes the matrix evidence into `quality/quality-gate-matrix-report.json`, optionally archives the runtime report as `quality/quality-gate-execution-report.json`, freezes a normalized `qualityEvidence` summary in `release-manifest.json`, preserves Step 18 `releaseGovernanceCheckIds`, and lets rendered release notes reuse the same blocker data.
+- Release finalization now republishes the matrix evidence into `quality/quality-gate-matrix-report.json`, optionally archives the runtime report as `quality/quality-gate-execution-report.json`, freezes a normalized `qualityEvidence` summary in `release-manifest.json`, preserves Step 18 `releaseGovernanceCheckIds`, keeps manifest-bound counts beside workflow-bound counts, and lets rendered release notes reuse the same blocker and topology data.
 
 ## Canonical docs
 

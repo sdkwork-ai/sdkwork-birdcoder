@@ -11,6 +11,22 @@
       "import": "./src/index.ts",
       "types": "./src/index.ts"
     },
+    "./runtime/defaultIdeServices": {
+      "import": "./src/services/defaultIdeServicesRuntime.ts",
+      "types": "./src/services/defaultIdeServicesRuntime.ts"
+    },
+    "./services/defaultIdeServices": {
+      "import": "./src/services/defaultIdeServices.ts",
+      "types": "./src/services/defaultIdeServices.ts"
+    },
+    "./platform/openLocalFolder": {
+      "import": "./src/platform/openLocalFolder.ts",
+      "types": "./src/platform/openLocalFolder.ts"
+    },
+    "./storage/runtime": {
+      "import": "./src/storage/runtime.ts",
+      "types": "./src/storage/runtime.ts"
+    },
     "./storage/dataKernel": {
       "import": "./src/storage/dataKernel.ts",
       "types": "./src/storage/dataKernel.ts"

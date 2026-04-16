@@ -14,6 +14,7 @@ const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
+const DESKTOP_SQLITE_OVERRIDE_ENV = 'BIRDCODER_CODING_SERVER_SQLITE_FILE';
 
 function resolveFromRequire(requireImpl, specifier) {
   try {
@@ -86,6 +87,21 @@ function parseArgs(argv = []) {
   };
 }
 
+function resolveDesktopDevSqlitePath({
+  cwd = process.cwd(),
+  args = [],
+} = {}) {
+  if (path.basename(cwd) !== 'sdkwork-birdcoder-desktop') {
+    return undefined;
+  }
+
+  if (args[0] !== 'dev') {
+    return undefined;
+  }
+
+  return path.join(cwd, '.local', 'sdkwork-birdcoder.sqlite3');
+}
+
 export function createTauriCliPlan({
   argv = [],
   env = process.env,
@@ -104,6 +120,10 @@ export function createTauriCliPlan({
   const tauriCliEntrypoint = typeof resolveTauriCliEntrypoint === 'function'
     ? resolveTauriCliEntrypoint({ cwd })
     : '';
+  const explicitDesktopSqlitePath = String(tauriEnv[DESKTOP_SQLITE_OVERRIDE_ENV] ?? '').trim();
+  const desktopDevSqlitePath = explicitDesktopSqlitePath
+    ? explicitDesktopSqlitePath
+    : resolveDesktopDevSqlitePath({ cwd, args });
 
   if (!tauriCliEntrypoint) {
     throw new Error('Unable to resolve the local @tauri-apps/cli entrypoint.');
@@ -116,6 +136,9 @@ export function createTauriCliPlan({
     env: {
       ...tauriEnv,
       SDKWORK_VITE_MODE: resolvedMode,
+      ...(desktopDevSqlitePath
+        ? { [DESKTOP_SQLITE_OVERRIDE_ENV]: desktopDevSqlitePath }
+        : {}),
     },
     shell: false,
   };

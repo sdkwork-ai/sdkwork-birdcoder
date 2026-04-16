@@ -10,9 +10,14 @@ import {
   executeQualityGateTier,
   runQualityGateExecutionReport,
 } from './quality-gate-execution-report.mjs';
+import { runWindowsShellCommandWithOutputCapture } from './windows-shell-command-runner.mjs';
 
 const rootDir = process.cwd();
 const rootPackageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+const qualityGateExecutionReportSource = fs.readFileSync(
+  path.join(rootDir, 'scripts', 'quality-gate-execution-report.mjs'),
+  'utf8',
+);
 
 assert.equal(
   DEFAULT_QUALITY_GATE_EXECUTION_REPORT_FILE,
@@ -26,33 +31,85 @@ assert.equal(
   rootPackageJson.scripts['quality:execution-report'],
   'node scripts/quality-gate-execution-report.mjs',
 );
+assert.doesNotMatch(
+  qualityGateExecutionReportSource,
+  /const report = await runQualityGateExecutionReport\(/,
+  'quality gate execution CLI must not block module evaluation behind a top-level await on runQualityGateExecutionReport.',
+);
+assert.match(
+  qualityGateExecutionReportSource,
+  /void runQualityGateExecutionReport\(/,
+  'quality gate execution CLI must launch the async report runner without turning the module itself into a top-level-await dependency.',
+);
 
 if (process.platform === 'win32') {
   const tempCommandDir = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-quality-gate-command-'));
-  const fakePnpmPath = path.join(tempCommandDir, 'pnpm.cmd');
-  fs.writeFileSync(fakePnpmPath, '@echo off\r\nexit /b 7\r\n', 'utf8');
-
-  const originalPath = process.env.PATH;
-  try {
-    process.env.PATH = `${tempCommandDir};${originalPath ?? ''}`;
-    const failedTierResult = await executeQualityGateTier(
-      {
-        id: 'fast',
-        label: 'Fast quality gate',
-        scriptName: 'check:quality:fast',
-        command: 'pnpm check:quality:fast',
+  const invocations = [];
+  const helperInvocations = [];
+  const helperOutputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-quality-gate-shell-helper-'));
+  const helperResult = runWindowsShellCommandWithOutputCapture(
+    'pnpm check:quality:fast',
+    {
+      cwd: tempCommandDir,
+      tempDir: helperOutputDir,
+      cleanup: false,
+      runner(command, options) {
+        helperInvocations.push({ command, options });
+        const match = /1>"([^"]+)" 2>"([^"]+)"/.exec(command);
+        assert.ok(match, 'windows shell capture runner must redirect stdout and stderr to files.');
+        fs.writeFileSync(match[1], 'fast ok\n', 'utf8');
+        fs.writeFileSync(match[2], 'fast warn\n', 'utf8');
+        return {
+          status: 0,
+          stdout: '',
+          stderr: '',
+        };
       },
-      {
-        rootDir: tempCommandDir,
-        platform: 'win32',
-      },
-    );
+    },
+  );
 
-    assert.equal(failedTierResult.status, 'failed');
-    assert.equal(failedTierResult.exitCode, 7);
-  } finally {
-    process.env.PATH = originalPath;
-  }
+  assert.equal(helperResult.status, 0);
+  assert.equal(helperResult.error, null);
+  assert.equal(helperResult.stdout, 'fast ok');
+  assert.equal(helperResult.stderr, 'fast warn');
+  assert.equal(helperInvocations.length, 1);
+  assert.match(helperInvocations[0]?.command ?? '', /^\(pnpm check:quality:fast\) 1>"/);
+  assert.equal(helperInvocations[0]?.options.cwd, tempCommandDir);
+  assert.equal(helperInvocations[0]?.options.shell, true);
+  assert.equal(helperInvocations[0]?.options.stdio, 'ignore');
+  assert.equal(helperInvocations[0]?.options.windowsHide, true);
+  fs.rmSync(helperOutputDir, { recursive: true, force: true });
+
+  const failedTierResult = await executeQualityGateTier(
+    {
+      id: 'fast',
+      label: 'Fast quality gate',
+      scriptName: 'check:quality:fast',
+      command: 'pnpm check:quality:fast',
+    },
+    {
+      rootDir: tempCommandDir,
+      platform: 'win32',
+      spawnSyncImpl(command, args, options) {
+        invocations.push({ command, args, options });
+        return {
+          status: 7,
+          stdout: '',
+          stderr: 'tier failed',
+        };
+      },
+    },
+  );
+
+  assert.equal(failedTierResult.status, 'failed');
+  assert.equal(failedTierResult.exitCode, 7);
+  assert.equal(invocations.length, 1);
+  assert.match(invocations[0]?.command ?? '', /^\(pnpm check:quality:fast\) 1>"/);
+  assert.equal(invocations[0]?.options, undefined);
+  assert.equal(invocations[0]?.args.cwd, tempCommandDir);
+  assert.equal(invocations[0]?.args.shell, true);
+  assert.equal(invocations[0]?.args.stdio, 'ignore');
+  assert.equal(invocations[0]?.args.windowsHide, true);
 }
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-quality-gate-execution-'));
@@ -98,6 +155,77 @@ assert.deepEqual(
   ],
 );
 assert.ok(fs.existsSync(passedOutputPath));
+
+const warningOnlyOutputPath = path.join(tempDir, 'quality-gate-execution-report.warning-only.json');
+const executedWarningOnlyTiers = [];
+const warningOnlyReport = await runQualityGateExecutionReport({
+  rootDir,
+  outputPath: warningOnlyOutputPath,
+  now,
+  platform: 'win32',
+  preflightReport: {
+    ok: false,
+    status: 'failed',
+    checks: [
+      {
+        id: 'shell-exec',
+        label: 'Windows command shell',
+        command: 'C:\\Windows\\System32\\cmd.exe',
+        args: ['/d', '/s', '/c', 'echo sdkwork-birdcoder-vite-host-preflight'],
+        status: 'failed',
+        error: {
+          code: 'EPERM',
+          errno: -4048,
+          syscall: 'spawnSync C:\\Windows\\System32\\cmd.exe',
+          message: 'spawn EPERM',
+        },
+        exitCode: null,
+        signal: '',
+        stdout: '',
+        stderr: '',
+      },
+      {
+        id: 'esbuild-binary',
+        label: 'Esbuild native binary',
+        command: 'D:\\repo\\node_modules\\@esbuild\\win32-x64\\esbuild.exe',
+        args: ['--version'],
+        status: 'failed',
+        error: {
+          code: 'EPERM',
+          errno: -4048,
+          syscall: 'spawnSync D:\\repo\\node_modules\\@esbuild\\win32-x64\\esbuild.exe',
+          message: 'spawn EPERM',
+        },
+        exitCode: null,
+        signal: '',
+        stdout: '',
+        stderr: '',
+      },
+    ],
+  },
+  runner: async (tier) => {
+    executedWarningOnlyTiers.push(tier.id);
+    return {
+      status: 'passed',
+      exitCode: 0,
+      stdout: `${tier.id} ok`,
+      stderr: '',
+      durationMs: 9,
+    };
+  },
+});
+
+assert.deepEqual(executedWarningOnlyTiers, ['fast', 'standard', 'release']);
+assert.equal(warningOnlyReport.status, 'passed');
+assert.equal(warningOnlyReport.summary.executedCount, 3);
+assert.equal(warningOnlyReport.summary.passedCount, 3);
+assert.equal(warningOnlyReport.summary.blockedCount, 0);
+assert.equal(warningOnlyReport.summary.failedCount, 0);
+assert.equal(warningOnlyReport.summary.skippedCount, 0);
+assert.deepEqual(warningOnlyReport.summary.blockingTierIds, []);
+assert.deepEqual(warningOnlyReport.summary.blockingDiagnosticIds, []);
+assert.deepEqual(warningOnlyReport.environmentDiagnostics, []);
+assert.ok(fs.existsSync(warningOnlyOutputPath));
 
 const executedBlockedTiers = [];
 const blockedReport = await runQualityGateExecutionReport({
@@ -147,12 +275,15 @@ const blockedReport = await runQualityGateExecutionReport({
   },
   runner: async (tier) => {
     executedBlockedTiers.push(tier.id);
-    if (tier.id === 'standard') {
+    if (tier.id === 'fast') {
       return {
         status: 'failed',
         exitCode: 1,
         stdout: '',
-        stderr: 'cmd.exe spawn EPERM\nesbuild.exe spawn EPERM',
+        stderr: [
+          '[vite:define] spawn EPERM',
+          'at ensureServiceIsRunning (D:\\repo\\node_modules\\esbuild\\lib\\main.js:1978:29)',
+        ].join('\n'),
         durationMs: 19,
       };
     }
@@ -167,37 +298,38 @@ const blockedReport = await runQualityGateExecutionReport({
   },
 });
 
-assert.deepEqual(executedBlockedTiers, ['fast', 'standard']);
+assert.deepEqual(executedBlockedTiers, ['fast']);
 assert.equal(blockedReport.status, 'blocked');
-assert.equal(blockedReport.summary.executedCount, 2);
-assert.equal(blockedReport.summary.passedCount, 1);
+assert.equal(blockedReport.summary.executedCount, 1);
+assert.equal(blockedReport.summary.passedCount, 0);
 assert.equal(blockedReport.summary.blockedCount, 1);
 assert.equal(blockedReport.summary.failedCount, 0);
-assert.equal(blockedReport.summary.skippedCount, 1);
-assert.equal(blockedReport.summary.lastExecutedTierId, 'standard');
-assert.deepEqual(blockedReport.summary.blockingTierIds, ['standard']);
+assert.equal(blockedReport.summary.skippedCount, 2);
+assert.equal(blockedReport.summary.lastExecutedTierId, 'fast');
+assert.deepEqual(blockedReport.summary.blockingTierIds, ['fast']);
 assert.deepEqual(blockedReport.summary.failedTierIds, []);
-assert.deepEqual(blockedReport.summary.skippedTierIds, ['release']);
+assert.deepEqual(blockedReport.summary.skippedTierIds, ['standard', 'release']);
 assert.deepEqual(blockedReport.summary.blockingDiagnosticIds, ['vite-host-build-preflight']);
 assert.deepEqual(blockedReport.environmentDiagnostics.map((entry) => entry.id), ['vite-host-build-preflight']);
 
-const blockedStandardTier = blockedReport.tiers.find((tier) => tier.id === 'standard');
-assert.equal(blockedStandardTier?.status, 'blocked');
-assert.equal(blockedStandardTier?.failureClassification, 'toolchain-platform');
-assert.deepEqual(blockedStandardTier?.blockingDiagnosticIds, ['vite-host-build-preflight']);
-assert.deepEqual(blockedStandardTier?.requiredCapabilities, [
+const blockedFastTier = blockedReport.tiers.find((tier) => tier.id === 'fast');
+assert.equal(blockedFastTier?.status, 'blocked');
+assert.equal(blockedFastTier?.failureClassification, 'toolchain-platform');
+assert.deepEqual(blockedFastTier?.blockingDiagnosticIds, ['vite-host-build-preflight']);
+assert.deepEqual(blockedFastTier?.requiredCapabilities, [
   'cmd.exe shell execution',
   'esbuild.exe process launch',
 ]);
-assert.deepEqual(blockedStandardTier?.rerunCommands, [
+assert.deepEqual(blockedFastTier?.rerunCommands, [
+  'pnpm check:quality:fast',
   'pnpm check:quality:standard',
   'pnpm check:quality:release',
 ]);
 
-const skippedReleaseTier = blockedReport.tiers.find((tier) => tier.id === 'release');
-assert.equal(skippedReleaseTier?.status, 'skipped');
-assert.equal(skippedReleaseTier?.blockedByTierId, 'standard');
-assert.equal(skippedReleaseTier?.skipReason, 'upstream-tier-not-passed');
+const skippedStandardTier = blockedReport.tiers.find((tier) => tier.id === 'standard');
+assert.equal(skippedStandardTier?.status, 'skipped');
+assert.equal(skippedStandardTier?.blockedByTierId, 'fast');
+assert.equal(skippedStandardTier?.skipReason, 'upstream-tier-not-passed');
 
 const executedRunnerBlockedTiers = [];
 const runnerBlockedReport = await runQualityGateExecutionReport({
@@ -251,7 +383,7 @@ const runnerBlockedReport = await runQualityGateExecutionReport({
       status: 'failed',
       exitCode: 1,
       stdout: '',
-      stderr: 'Error: spawnSync powershell.exe EPERM',
+      stderr: 'Error: spawnSync cmd.exe EPERM',
       durationMs: 3,
     };
   },
@@ -274,7 +406,7 @@ const runnerBlockedFastTier = runnerBlockedReport.tiers.find((tier) => tier.id =
 assert.equal(runnerBlockedFastTier?.status, 'blocked');
 assert.equal(runnerBlockedFastTier?.failureClassification, 'toolchain-platform');
 assert.deepEqual(runnerBlockedFastTier?.blockingDiagnosticIds, ['quality-gate-command-runner']);
-assert.deepEqual(runnerBlockedFastTier?.requiredCapabilities, ['powershell.exe child-process execution']);
+assert.deepEqual(runnerBlockedFastTier?.requiredCapabilities, ['cmd.exe shell execution']);
 assert.deepEqual(runnerBlockedFastTier?.rerunCommands, [
   'pnpm check:quality:fast',
   'pnpm check:quality:standard',
@@ -287,5 +419,109 @@ const runnerBlockedDiagnostic = runnerBlockedReport.environmentDiagnostics.find(
 assert.equal(runnerBlockedDiagnostic?.status, 'blocked');
 assert.equal(runnerBlockedDiagnostic?.classification, 'toolchain-platform');
 assert.deepEqual(runnerBlockedDiagnostic?.appliesTo, ['fast', 'standard', 'release']);
+
+const invalidTopologyRootDir = fs.mkdtempSync(path.join(tempDir, 'quality-gate-invalid-topology-'));
+fs.writeFileSync(
+  path.join(invalidTopologyRootDir, 'package.json'),
+  JSON.stringify(
+    {
+      name: '@sdkwork/birdcoder-workspace',
+      private: true,
+      scripts: {
+        'check:quality:standard': 'echo present',
+        'check:quality:release': 'echo present',
+      },
+    },
+    null,
+    2,
+  ),
+  'utf8',
+);
+
+const invalidTopologyOutputPath = path.join(tempDir, 'quality-gate-execution-report.invalid-topology.json');
+const executedInvalidTopologyTiers = [];
+const invalidTopologyReport = await runQualityGateExecutionReport({
+  rootDir: invalidTopologyRootDir,
+  outputPath: invalidTopologyOutputPath,
+  now,
+  platform: 'win32',
+  preflightReport: {
+    ok: false,
+    status: 'failed',
+    checks: [
+      {
+        id: 'shell-exec',
+        label: 'Windows command shell',
+        command: 'C:\\Windows\\System32\\cmd.exe',
+        args: ['/d', '/s', '/c', 'echo sdkwork-birdcoder-vite-host-preflight'],
+        status: 'failed',
+        error: {
+          code: 'EPERM',
+          errno: -4048,
+          syscall: 'spawnSync C:\\Windows\\System32\\cmd.exe',
+          message: 'spawn EPERM',
+        },
+        exitCode: null,
+        signal: '',
+        stdout: '',
+        stderr: '',
+      },
+      {
+        id: 'esbuild-binary',
+        label: 'Esbuild native binary',
+        command: 'D:\\repo\\node_modules\\@esbuild\\win32-x64\\esbuild.exe',
+        args: ['--version'],
+        status: 'failed',
+        error: {
+          code: 'EPERM',
+          errno: -4048,
+          syscall: 'spawnSync D:\\repo\\node_modules\\@esbuild\\win32-x64\\esbuild.exe',
+          message: 'spawn EPERM',
+        },
+        exitCode: null,
+        signal: '',
+        stdout: '',
+        stderr: '',
+      },
+    ],
+  },
+  runner: async (tier) => {
+    executedInvalidTopologyTiers.push(tier.id);
+    return {
+      status: 'failed',
+      exitCode: 1,
+      stdout: '',
+      stderr: 'Error: spawnSync cmd.exe EPERM',
+      durationMs: 2,
+    };
+  },
+});
+
+assert.equal(invalidTopologyReport.status, 'failed');
+assert.equal(invalidTopologyReport.summary.executedCount, 1);
+assert.equal(invalidTopologyReport.summary.passedCount, 0);
+assert.equal(invalidTopologyReport.summary.blockedCount, 0);
+assert.equal(invalidTopologyReport.summary.failedCount, 1);
+assert.equal(invalidTopologyReport.summary.skippedCount, 2);
+assert.equal(invalidTopologyReport.summary.lastExecutedTierId, 'fast');
+assert.deepEqual(invalidTopologyReport.summary.blockingTierIds, []);
+assert.deepEqual(invalidTopologyReport.summary.failedTierIds, ['fast']);
+assert.deepEqual(invalidTopologyReport.summary.skippedTierIds, ['standard', 'release']);
+assert.deepEqual(executedInvalidTopologyTiers, []);
+
+const invalidFastTier = invalidTopologyReport.tiers.find((tier) => tier.id === 'fast');
+assert.equal(invalidFastTier?.status, 'failed');
+assert.equal(invalidFastTier?.exitCode, 1);
+assert.match(
+  invalidFastTier?.stderr ?? '',
+  /Quality gate tier fast references missing root package script: check:quality:fast/,
+);
+
+const invalidSkippedStandardTier = invalidTopologyReport.tiers.find((tier) => tier.id === 'standard');
+assert.equal(invalidSkippedStandardTier?.status, 'skipped');
+assert.equal(invalidSkippedStandardTier?.blockedByTierId, 'fast');
+assert.equal(invalidSkippedStandardTier?.skipReason, 'upstream-tier-not-passed');
+
+assert.ok(fs.existsSync(invalidTopologyOutputPath));
 
 console.log('quality gate execution report contract passed.');

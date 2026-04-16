@@ -1,21 +1,5 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { Plus, ChevronDown, ChevronUp, GripVertical, Check, Mic, ArrowUp, Edit, CheckCircle2, RotateCcw, Settings, Edit2, Copy, Trash2, Zap, Hexagon, FileUp, FolderUp, Image as ImageIcon, Square, Lightbulb, BookOpen, List } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import SyntaxHighlighter from 'react-syntax-highlighter/dist/esm/prism-light';
-import bash from 'react-syntax-highlighter/dist/esm/languages/prism/bash';
-import diff from 'react-syntax-highlighter/dist/esm/languages/prism/diff';
-import javascript from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
-import json from 'react-syntax-highlighter/dist/esm/languages/prism/json';
-import jsx from 'react-syntax-highlighter/dist/esm/languages/prism/jsx';
-import markdown from 'react-syntax-highlighter/dist/esm/languages/prism/markdown';
-import markup from 'react-syntax-highlighter/dist/esm/languages/prism/markup';
-import python from 'react-syntax-highlighter/dist/esm/languages/prism/python';
-import rust from 'react-syntax-highlighter/dist/esm/languages/prism/rust';
-import sql from 'react-syntax-highlighter/dist/esm/languages/prism/sql';
-import tsx from 'react-syntax-highlighter/dist/esm/languages/prism/tsx';
-import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
-import yaml from 'react-syntax-highlighter/dist/esm/languages/prism/yaml';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import React, { Suspense, lazy, useRef, useEffect, useState } from 'react';
+import { Plus, ChevronDown, ChevronUp, GripVertical, Check, Mic, ArrowUp, Edit, CheckCircle2, RotateCcw, Settings, Edit2, Copy, Trash2, Zap, FileUp, FolderUp, Image as ImageIcon, Square, Lightbulb, BookOpen, List } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
 import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-types';
@@ -24,6 +8,7 @@ import {
   deleteStoredPromptHistoryEntry,
   getWorkbenchCodeEngineDefinition,
   globalEventBus,
+  hasRestorableFileChanges,
   listChatInputHistory,
   listSavedPrompts,
   listStoredPromptHistory,
@@ -67,113 +52,14 @@ export interface UniversalChatProps {
   disabled?: boolean;
 }
 
-const LANGUAGE_ALIASES = new Map<string, string>([
-  ['bash', 'bash'],
-  ['sh', 'bash'],
-  ['shell', 'bash'],
-  ['shell-session', 'bash'],
-  ['diff', 'diff'],
-  ['javascript', 'javascript'],
-  ['js', 'javascript'],
-  ['json', 'json'],
-  ['jsx', 'jsx'],
-  ['markdown', 'markdown'],
-  ['md', 'markdown'],
-  ['markup', 'markup'],
-  ['html', 'markup'],
-  ['xml', 'markup'],
-  ['python', 'python'],
-  ['py', 'python'],
-  ['rust', 'rust'],
-  ['rs', 'rust'],
-  ['sql', 'sql'],
-  ['typescript', 'typescript'],
-  ['ts', 'typescript'],
-  ['tsx', 'tsx'],
-  ['yaml', 'yaml'],
-  ['yml', 'yaml'],
-]);
+const UniversalChatMarkdown = lazy(async () => {
+  const module = await import('./UniversalChatMarkdown');
+  return { default: module.UniversalChatMarkdown };
+});
 
-const LANGUAGE_REGISTRATIONS = [
-  ['bash', bash],
-  ['diff', diff],
-  ['javascript', javascript],
-  ['json', json],
-  ['jsx', jsx],
-  ['markdown', markdown],
-  ['markup', markup],
-  ['python', python],
-  ['rust', rust],
-  ['sql', sql],
-  ['tsx', tsx],
-  ['typescript', typescript],
-  ['yaml', yaml],
-] as const;
-
-let languagesRegistered = false;
-
-function ensureLanguagesRegistered() {
-  if (languagesRegistered) {
-    return;
-  }
-
-  for (const [name, language] of LANGUAGE_REGISTRATIONS) {
-    SyntaxHighlighter.registerLanguage(name, language);
-  }
-
-  languagesRegistered = true;
+function MarkdownMessageLoader({ content }: { content: string }) {
+  return <div className="whitespace-pre-wrap break-words">{content}</div>;
 }
-
-function resolveLanguage(language: string) {
-  return LANGUAGE_ALIASES.get(language.trim().toLowerCase()) ?? 'markup';
-}
-
-const CodeBlock = ({ language, children, className, ...props }: any) => {
-  const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
-
-  ensureLanguagesRegistered();
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="relative group/code rounded-xl overflow-hidden border border-white/10 my-4 bg-[#0d0d0d] shadow-lg">
-      <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
-        <span className="text-xs font-mono text-gray-400">{language || 'text'}</span>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-6 w-6 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors opacity-0 group-hover/code:opacity-100"
-            onClick={handleCopy}
-            title={t('chat.copyCode')}
-          >
-            {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
-          </Button>
-        </div>
-      </div>
-      <div className="overflow-x-auto custom-scrollbar text-[13px] leading-relaxed font-mono">
-        <SyntaxHighlighter
-          language={resolveLanguage(language || 'text')}
-          style={vscDarkPlus}
-          customStyle={{
-            margin: 0,
-            padding: '1rem',
-            background: 'transparent',
-            fontSize: '13px',
-          }}
-          {...props}
-        >
-          {String(children).replace(/\n$/, '')}
-        </SyntaxHighlighter>
-      </div>
-    </div>
-  );
-};
 
 export function UniversalChat({
   chatId,
@@ -548,45 +434,18 @@ export function UniversalChat({
     }
   };
 
-  const processContent = (content: string) => {
-    let processed = content;
-    processed = processed.replace(/Skill\s*([a-zA-Z0-9\s]+?)(?=[,.!\n]|\sas|$)/g, '[$1](skill://$1)');
-    return processed;
-  };
-
-  const markdownComponents = {
-    a: ({ node, ...props }: any) => {
-      if (props.href?.startsWith('skill://')) {
-        const skillName = decodeURIComponent(props.href.replace('skill://', '')).trim();
-        const skill = skills?.find(s => s.name.toLowerCase() === skillName.toLowerCase()) || { name: skillName, desc: `Provides specialized capabilities for ${skillName}.` };
-        return (
-          <span 
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 cursor-help group relative mx-1 align-middle"
-          >
-            <Hexagon size={12} className="text-purple-400 fill-purple-400/20" />
-            <span className="font-medium text-[13px]">{skill.name}</span>
-            
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-[#18181b] text-gray-200 text-xs rounded shadow-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-normal">
-              {skill.desc}
-            </span>
-          </span>
-        );
-      }
-      return <a {...props} className="text-blue-400 hover:underline" />;
-    },
-    code: ({ node, inline, className, children, ...props }: any) => {
-      const match = /language-(\w+)/.exec(className || '');
-      const language = match ? match[1] : '';
-      const isInline = inline || !match;
-
-      if (isInline) {
-        return <code className="bg-white/10 px-1.5 py-0.5 rounded-md text-[13px] font-mono text-gray-200" {...props}>{children}</code>;
-      }
-
-      return <CodeBlock language={language} className={className} {...props}>{children}</CodeBlock>;
-    },
-    pre: ({ children }: any) => <>{children}</>,
-  };
+  const renderMarkdownContent = (
+    content: string,
+    mode: 'basic' | 'rich' = 'rich',
+  ) => (
+    <Suspense fallback={<MarkdownMessageLoader content={content} />}>
+      <UniversalChatMarkdown
+        content={content}
+        skills={skills}
+        mode={mode}
+      />
+    </Suspense>
+  );
 
   const renderSidebarMessage = (msg: BirdCoderChatMessage, idx: number) => (
     <div 
@@ -596,7 +455,7 @@ export function UniversalChat({
     >
       <div className={`${msg.role === 'user' ? 'max-w-[90%] bg-white/5 text-gray-200 rounded-2xl rounded-tr-sm px-4 py-3' : 'text-gray-300 w-full'}`}>
         <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[14px] w-full">
-          <ReactMarkdown components={markdownComponents}>{processContent(msg.content)}</ReactMarkdown>
+          {renderMarkdownContent(msg.content)}
         </div>
 
         {msg.role === 'user' && (
@@ -669,12 +528,14 @@ export function UniversalChat({
                 >
                   View changes
                 </span>
-                <span 
-                  className="hover:text-gray-300 cursor-pointer flex items-center gap-1"
-                  onClick={() => onRestore && onRestore(msg.id)}
-                >
-                  <RotateCcw size={12}/> Restore
-                </span>
+                {hasRestorableFileChanges(msg.fileChanges) && onRestore && (
+                  <span 
+                    className="hover:text-gray-300 cursor-pointer flex items-center gap-1"
+                    onClick={() => onRestore(msg.id)}
+                  >
+                    <RotateCcw size={12}/> Restore
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -745,7 +606,7 @@ export function UniversalChat({
           <div className="flex flex-col items-end max-w-[85%] md:max-w-2xl">
             <div className="bg-white/5 text-gray-200 px-5 py-3.5 rounded-3xl text-[15px] whitespace-pre-wrap leading-relaxed">
               <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-p:first:mt-0 prose-p:last:mb-0 prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none text-[15px]">
-                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                {renderMarkdownContent(msg.content, 'basic')}
               </div>
             </div>
             
@@ -790,7 +651,7 @@ export function UniversalChat({
         ) : (
           <div className="flex-1 min-w-0 flex flex-col w-full">
             <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[15px] text-gray-300 w-full">
-              <ReactMarkdown components={markdownComponents}>{processContent(msg.content)}</ReactMarkdown>
+              {renderMarkdownContent(msg.content)}
             </div>
             
             {/* Assistant Message Actions */}
@@ -858,12 +719,14 @@ export function UniversalChat({
                 <div className="flex items-center justify-between text-xs text-gray-500 px-1">
                   <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-green-500/50"/> Checkpoint saved</div>
                   <div className="flex gap-4">
-                    <span 
-                      className="hover:text-gray-300 cursor-pointer flex items-center gap-1.5 transition-colors"
-                      onClick={() => onRestore && onRestore(msg.id)}
-                    >
-                      <RotateCcw size={12}/> Restore
-                    </span>
+                    {hasRestorableFileChanges(msg.fileChanges) && onRestore && (
+                      <span 
+                        className="hover:text-gray-300 cursor-pointer flex items-center gap-1.5 transition-colors"
+                        onClick={() => onRestore(msg.id)}
+                      >
+                        <RotateCcw size={12}/> Restore
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

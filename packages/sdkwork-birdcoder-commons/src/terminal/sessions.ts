@@ -6,8 +6,7 @@ import { getTerminalProfile, type TerminalProfileId } from './profiles.ts';
 import type { TerminalHostSessionStatus } from './runtime.ts';
 import {
   BIRDCODER_TERMINAL_SESSION_STORAGE_BINDING,
-  getBirdCoderEntityDefinition,
-} from '@sdkwork/birdcoder-types';
+} from '@sdkwork/birdcoder-types/storageBindings';
 
 const MAX_COMMAND_HISTORY = 50;
 const MAX_OUTPUT_LINES = 40;
@@ -84,7 +83,6 @@ interface ListStoredTerminalSessionsOptions {
 const terminalSessionRepository: BirdCoderJsonRecordRepository<TerminalSessionRecord[]> =
   createJsonRecordRepository<TerminalSessionRecord[]>({
     binding: BIRDCODER_TERMINAL_SESSION_STORAGE_BINDING,
-    definition: getBirdCoderEntityDefinition('terminal_session'),
     fallback: [],
     normalize(value) {
       return normalizeStoredTerminalSessionCollection(value);

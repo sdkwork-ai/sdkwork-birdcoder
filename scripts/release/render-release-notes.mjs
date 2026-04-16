@@ -6,6 +6,13 @@ import { fileURLToPath } from 'node:url';
 import { DEFAULT_RELEASE_PROFILE_ID, resolveReleaseProfile } from './release-profiles.mjs';
 import { normalizeQualityEvidenceSummary } from './quality-gate-release-evidence.mjs';
 import { normalizeCodingServerOpenApiEvidenceSummary } from './coding-server-openapi-release-evidence.mjs';
+import {
+  buildPromotionReadinessSummary,
+  collectReleaseStopShipSignals,
+  normalizePromotionReadinessSummary,
+  normalizeStopShipSignals,
+} from './release-stop-ship-governance.mjs';
+import { refreshReleaseChecksumsIfPresent as refreshReleaseAssetChecksumsIfPresent } from './release-checksums.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -101,6 +108,7 @@ export function buildReleaseNotesMarkdown({
     `- Profile: ${profileId}`,
     `- Asset families: ${families.length > 0 ? families.join(', ') : 'pending'}`,
     `- Finalized at: ${generatedAt || 'pending'}`,
+    ...buildFinalizedReleaseReadinessOverviewLines(manifest),
     '',
     ...buildManifestEvidenceSections({
       manifest,
@@ -110,6 +118,32 @@ export function buildReleaseNotesMarkdown({
       notesFile: releaseTag !== 'release-local' ? `${releaseTag}.md` : '',
     }),
   ].join('\n');
+}
+
+function buildFinalizedReleaseReadinessOverviewLines(manifest = null) {
+  if (!manifest?.qualityEvidence) {
+    return [];
+  }
+
+  const normalized = normalizeQualityEvidenceSummary(manifest.qualityEvidence);
+  const stopShipSignals = Array.isArray(manifest.stopShipSignals)
+    ? normalizeStopShipSignals(manifest.stopShipSignals)
+    : collectReleaseStopShipSignals({
+      qualityEvidence: manifest.qualityEvidence,
+      governanceEvidence: manifest.governanceEvidence ?? null,
+      assets: manifest.assets ?? [],
+    });
+  const finalizedReadinessSignals = normalizeStopShipSignals([
+    ...stopShipSignals,
+    ...(Array.isArray(normalized.releaseReadinessSignals)
+      ? normalized.releaseReadinessSignals
+      : []),
+  ]);
+
+  return [
+    `- Finalized release readiness: \`${finalizedReadinessSignals.length > 0 ? 'blocked' : 'clear'}\``,
+    `- Finalized readiness signals: ${finalizedReadinessSignals.length > 0 ? finalizedReadinessSignals.join('; ') : '`none`'}`,
+  ];
 }
 
 function readFinalizedReleaseManifest({
@@ -149,9 +183,22 @@ function buildQualityEvidenceSummaryLines(qualityEvidence) {
     `- Report: \`${normalized.archiveRelativePath || 'pending'}\``,
     `- Quality tiers: ${tierSummary}`,
     `- Workflow-bound tiers: \`${normalized.workflowBoundTiers}/${normalized.totalTiers}\``,
+    `- Manifest-bound tiers: \`${normalized.manifestBoundTiers}/${normalized.totalTiers}\``,
     `- Environment diagnostics: \`${normalized.environmentDiagnostics}\``,
     `- Blocking diagnostics: ${blockingSummary}`,
   ];
+
+  if (normalized.missingWorkflowBindings.length > 0) {
+    lines.push(
+      `- Missing workflow bindings: ${normalized.missingWorkflowBindings.map((tierId) => `\`${tierId}\``).join(', ')}`,
+    );
+  }
+
+  if (normalized.missingManifestBindings.length > 0) {
+    lines.push(
+      `- Missing manifest bindings: ${normalized.missingManifestBindings.map((tierId) => `\`${tierId}\``).join(', ')}`,
+    );
+  }
 
   if (normalized.releaseGovernanceCheckIds.length > 0) {
     lines.push(
@@ -205,6 +252,11 @@ function buildQualityEvidenceSummaryLines(qualityEvidence) {
   if ((normalized.executionBlockingDiagnosticIds ?? []).length > 0) {
     lines.push(
       `- Runtime blocking diagnostics: ${normalized.executionBlockingDiagnosticIds.map((entry) => `\`${entry}\``).join(', ')}`,
+    );
+  }
+  if ((normalized.releaseReadinessSignals ?? []).length > 0) {
+    lines.push(
+      `- Release readiness signals: ${normalized.releaseReadinessSignals.join('; ')}`,
     );
   }
 
@@ -263,6 +315,27 @@ function normalizeNotePath(targetPath) {
   return displayPath.replace(/\\/g, '/');
 }
 
+function formatBooleanReadiness(value, { truthy = 'ready', falsy = 'not-ready' } = {}) {
+  if (value === true) {
+    return `\`${truthy}\``;
+  }
+  if (value === false) {
+    return `\`${falsy}\``;
+  }
+  return '`pending`';
+}
+
+function formatCheckSummary(checks) {
+  return Array.isArray(checks) && checks.length > 0
+    ? checks
+      .map((entry) => String(entry ?? '').trim())
+      .filter(Boolean)
+      .sort((left, right) => left.localeCompare(right))
+      .map((entry) => `\`${entry}\``)
+      .join(', ')
+    : '`pending`';
+}
+
 function resolveObservationGoal(releaseKind) {
   switch (String(releaseKind ?? '').trim()) {
     case 'canary':
@@ -288,8 +361,55 @@ function resolveFallbackRollbackEntryCommand({
   return `pnpm release:rollback:plan -- --release-tag ${normalizedReleaseTag} --release-assets-dir ${normalizedReleaseAssetsDir}`;
 }
 
+function isPathInside(parentPath, childPath) {
+  const relativePath = path.relative(parentPath, childPath);
+  return relativePath === ''
+    || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath));
+}
+
+function refreshRenderedReleaseChecksumsIfPresent({
+  outputPath = '',
+  releaseAssetsDir = '',
+  profileId = DEFAULT_RELEASE_PROFILE_ID,
+} = {}) {
+  const normalizedOutputPath = String(outputPath ?? '').trim();
+  const normalizedReleaseAssetsDir = String(releaseAssetsDir ?? '').trim();
+  if (!normalizedOutputPath || !normalizedReleaseAssetsDir) {
+    return;
+  }
+
+  const resolvedOutputPath = path.resolve(process.cwd(), normalizedOutputPath);
+  const resolvedReleaseAssetsDir = path.resolve(process.cwd(), normalizedReleaseAssetsDir);
+  if (!isPathInside(resolvedReleaseAssetsDir, resolvedOutputPath)) {
+    return;
+  }
+
+  const manifest = readFinalizedReleaseManifest({
+    profileId,
+    releaseAssetsDir: resolvedReleaseAssetsDir,
+  });
+  const checksumFileName = String(
+    manifest?.checksumFileName
+    ?? resolveReleaseProfile(profileId).release.globalChecksumsFileName,
+  ).trim();
+  if (!checksumFileName) {
+    return;
+  }
+
+  const checksumsPath = path.join(resolvedReleaseAssetsDir, checksumFileName);
+  if (!fs.existsSync(checksumsPath)) {
+    return;
+  }
+
+  refreshReleaseAssetChecksumsIfPresent({
+    releaseAssetsDir: resolvedReleaseAssetsDir,
+    checksumFileName,
+  });
+}
+
 function buildPostReleaseOperationsLines({
   manifest = null,
+  assets = [],
   releaseTag = 'release-local',
   releaseAssetsDir = '',
   docsDir = defaultReleaseDocsDir,
@@ -301,22 +421,16 @@ function buildPostReleaseOperationsLines({
 
   const releaseControl = manifest.releaseControl ?? {};
   const governanceEvidence = manifest.governanceEvidence ?? null;
-  const normalizedQualityEvidence = normalizeQualityEvidenceSummary(manifest.qualityEvidence ?? null);
   const rollbackEntryCommand = String(releaseControl.rollbackCommand ?? '').trim()
     || resolveFallbackRollbackEntryCommand({
       releaseTag,
       releaseAssetsDir,
     });
-  const blockedGovernanceRecords = Number(governanceEvidence?.blockedRecords ?? 0);
-  const stopShipSignals = [];
-  if (normalizedQualityEvidence.blockingDiagnosticIds.length > 0) {
-    stopShipSignals.push(
-      `quality blockers ${normalizedQualityEvidence.blockingDiagnosticIds.map((entry) => `\`${entry}\``).join(', ')}`,
-    );
-  }
-  if (blockedGovernanceRecords > 0) {
-    stopShipSignals.push(`governance blocked records \`${blockedGovernanceRecords}\``);
-  }
+  const stopShipSignals = collectReleaseStopShipSignals({
+    qualityEvidence: manifest.qualityEvidence ?? null,
+    governanceEvidence,
+    assets,
+  });
 
   const registryTarget = normalizeNotePath(path.join(docsDir, 'releases.json'));
   const notesTarget = notesFile
@@ -367,8 +481,18 @@ function buildManifestEvidenceSections({
       const smokeState = entry.desktopStartupSmoke?.status
         || entry.releaseSmoke?.status
         || 'pending';
+      const detailParts = [`smoke: \`${smokeState}\``];
 
-      return `- \`${entry.family}\`${targetLabel ? ` [${targetLabel}]` : ''}: \`${entry.file}\` (smoke: \`${smokeState}\`)`;
+      if (entry.family === 'desktop' && entry.desktopStartupReadinessSummary) {
+        detailParts.push(
+          `startup readiness: ${formatBooleanReadiness(entry.desktopStartupReadinessSummary.ready)}`,
+          `shell mounted: ${formatBooleanReadiness(entry.desktopStartupReadinessSummary.shellMounted, { truthy: 'yes', falsy: 'no' })}`,
+          `workspace bootstrap: ${formatCheckSummary(entry.desktopStartupReadinessSummary.workspaceBootstrapChecks)}`,
+          `local project recovery: ${formatCheckSummary(entry.desktopStartupReadinessSummary.localProjectRecoveryChecks)}`,
+        );
+      }
+
+      return `- \`${entry.family}\`${targetLabel ? ` [${targetLabel}]` : ''}: \`${entry.file}\` (${detailParts.join('; ')})`;
     })
     : ['- Release assets will be listed after finalize step runs.'];
   const releaseControlSummaryLines = releaseControl
@@ -406,6 +530,7 @@ function buildManifestEvidenceSections({
     ...buildQualityEvidenceSummaryLines(qualityEvidence),
     ...buildPostReleaseOperationsLines({
       manifest,
+      assets,
       releaseTag,
       releaseAssetsDir,
       docsDir,
@@ -426,6 +551,7 @@ export function readReleaseRegistry(docsDir) {
   }
 
   return {
+    registry,
     registryPath,
     releases: registry.releases,
   };
@@ -451,6 +577,72 @@ function readReleaseNotesMarkdown(entry, docsDir) {
   }
 
   return fs.readFileSync(notesPath, 'utf8').trim();
+}
+
+function buildRegistryPromotionMetadata(manifest = null) {
+  if (!manifest?.qualityEvidence) {
+    return null;
+  }
+
+  const stopShipSignals = Array.isArray(manifest.stopShipSignals)
+    ? normalizeStopShipSignals(manifest.stopShipSignals)
+    : collectReleaseStopShipSignals({
+      qualityEvidence: manifest.qualityEvidence,
+      governanceEvidence: manifest.governanceEvidence ?? null,
+      assets: manifest.assets ?? [],
+    });
+  const promotionReadiness = manifest.promotionReadiness
+    ? normalizePromotionReadinessSummary(manifest.promotionReadiness)
+    : buildPromotionReadinessSummary({
+      releaseControl: manifest.releaseControl ?? null,
+      stopShipSignals,
+    });
+
+  return {
+    stopShipSignals,
+    promotionReadiness,
+  };
+}
+
+function writeReleaseRegistryPromotionMetadata({
+  docsDir = defaultReleaseDocsDir,
+  releaseTag = '',
+  finalizedManifest = null,
+} = {}) {
+  const normalizedReleaseTag = String(releaseTag ?? '').trim();
+  if (!normalizedReleaseTag || !finalizedManifest?.qualityEvidence) {
+    return false;
+  }
+
+  const promotionMetadata = buildRegistryPromotionMetadata(finalizedManifest);
+  if (!promotionMetadata) {
+    return false;
+  }
+
+  const { registry, registryPath, releases } = readReleaseRegistry(docsDir);
+  const releaseIndex = releases.findIndex((candidate) => candidate?.tag === normalizedReleaseTag);
+  if (releaseIndex < 0) {
+    return false;
+  }
+
+  const nextEntry = {
+    ...releases[releaseIndex],
+    ...promotionMetadata,
+  };
+  const nextReleases = releases.slice();
+  nextReleases[releaseIndex] = nextEntry;
+  const nextRegistry = {
+    ...registry,
+    releases: nextReleases,
+  };
+  const previousSerialized = fs.readFileSync(registryPath, 'utf8').trim();
+  const nextSerialized = JSON.stringify(nextRegistry, null, 2);
+  if (previousSerialized === nextSerialized) {
+    return false;
+  }
+
+  fs.writeFileSync(registryPath, `${nextSerialized}\n`, 'utf8');
+  return true;
 }
 
 function renderDocsReleaseNotes({
@@ -479,6 +671,9 @@ function renderDocsReleaseNotes({
 
   if (typeof entry.summary === 'string' && entry.summary.trim().length > 0) {
     sections.push(`- Summary: ${entry.summary.trim()}`);
+  }
+  if (finalizedManifest) {
+    sections.push(...buildFinalizedReleaseReadinessOverviewLines(finalizedManifest));
   }
 
   sections.push('', readReleaseNotesMarkdown(entry, docsDir));
@@ -579,6 +774,20 @@ export function renderReleaseNotes(rawOptions = {}) {
   if (options.output) {
     fs.mkdirSync(path.dirname(options.output), { recursive: true });
     fs.writeFileSync(options.output, markdown);
+    const finalizedManifest = readFinalizedReleaseManifest({
+      profileId: options.profileId,
+      releaseAssetsDir: options.releaseAssetsDir,
+    });
+    writeReleaseRegistryPromotionMetadata({
+      docsDir: options.docsDir,
+      releaseTag: options.releaseTag,
+      finalizedManifest,
+    });
+    refreshRenderedReleaseChecksumsIfPresent({
+      outputPath: options.output,
+      releaseAssetsDir: options.releaseAssetsDir,
+      profileId: options.profileId,
+    });
   }
 
   return markdown;

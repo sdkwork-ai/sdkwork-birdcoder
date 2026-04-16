@@ -3,10 +3,10 @@ import { defineLocaleModule } from '../../resource.ts';
 export default defineLocaleModule('app/menu', {
   "app": {
     "menu": {
-      "previousThread": "上一个对话",
-      "nextThread": "下一个对话",
+      "previousThread": "上一个会话",
+      "nextThread": "下一个会话",
       "file": "文件",
-      "newThread": "新对话",
+      "newThread": "新会话",
       "openFolder": "打开文件夹...",
       "save": "保存",
       "saveAll": "全部保存",

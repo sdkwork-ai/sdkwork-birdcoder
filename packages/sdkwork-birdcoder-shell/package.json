@@ -39,6 +39,17 @@
     "typescript": "catalog:"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./app": {
+      "import": "./src/app.ts",
+      "types": "./src/app.ts"
+    },
+    "./runtime": {
+      "import": "./src/runtime.ts",
+      "types": "./src/runtime.ts"
+    }
   }
 }

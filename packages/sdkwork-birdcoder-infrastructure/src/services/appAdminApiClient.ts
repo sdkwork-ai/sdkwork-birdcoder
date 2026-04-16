@@ -224,12 +224,17 @@ export function createBirdCoderHttpApiTransport({
   const resolvedFetch = resolveFetchLike(fetchImpl);
   return {
     async request<TResponse>(request: BirdCoderApiTransportRequest): Promise<TResponse> {
+      const headers: Record<string, string> = {
+        Accept: 'application/json',
+      };
+
+      if (request.body !== undefined) {
+        headers['Content-Type'] = 'application/json';
+      }
+
       const response = await resolvedFetch(buildUrl(baseUrl, request), {
         method: request.method,
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: request.body === undefined ? undefined : JSON.stringify(request.body),
       });
 

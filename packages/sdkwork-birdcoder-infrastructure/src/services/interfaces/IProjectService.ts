@@ -1,17 +1,45 @@
 import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
+  BirdCoderCodingSessionSummary,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 
+export interface CreateCodingSessionOptions {
+  engineId?: BirdCoderCodingSession['engineId'];
+  modelId?: string;
+}
+
+export interface BirdCoderCodingSessionMirrorSnapshot extends BirdCoderCodingSessionSummary {
+  archived?: boolean;
+  displayTime: string;
+  messageCount: number;
+  nativeTranscriptUpdatedAt?: string | null;
+  pinned?: boolean;
+  unread?: boolean;
+}
+
+export interface BirdCoderProjectMirrorSnapshot extends Omit<BirdCoderProject, 'codingSessions'> {
+  codingSessions: BirdCoderCodingSessionMirrorSnapshot[];
+}
+
 export interface IProjectService {
   getProjects(workspaceId?: string): Promise<BirdCoderProject[]>;
+  getProjectMirrorSnapshots?(workspaceId?: string): Promise<BirdCoderProjectMirrorSnapshot[]>;
   createProject(workspaceId: string, name: string): Promise<BirdCoderProject>;
   renameProject(projectId: string, name: string): Promise<void>;
   updateProject(projectId: string, updates: Partial<BirdCoderProject>): Promise<void>;
   deleteProject(projectId: string): Promise<void>;
 
-  createCodingSession(projectId: string, title: string): Promise<BirdCoderCodingSession>;
+  createCodingSession(
+    projectId: string,
+    title: string,
+    options?: CreateCodingSessionOptions,
+  ): Promise<BirdCoderCodingSession>;
+  upsertCodingSession?(
+    projectId: string,
+    codingSession: BirdCoderCodingSession,
+  ): Promise<void>;
   renameCodingSession(projectId: string, codingSessionId: string, title: string): Promise<void>;
   updateCodingSession(
     projectId: string,

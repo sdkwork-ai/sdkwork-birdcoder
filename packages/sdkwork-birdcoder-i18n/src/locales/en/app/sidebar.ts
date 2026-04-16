@@ -2,7 +2,7 @@ import { defineLocaleModule } from '../../resource.ts';
 
 export default defineLocaleModule('app/sidebar', {
   "app": {
-    "threads": "Threads",
+    "threads": "Sessions",
     "organize": "Organize",
     "byProject": "By Project",
     "chronological": "Chronological",
@@ -10,8 +10,11 @@ export default defineLocaleModule('app/sidebar', {
     "created": "Created",
     "updated": "Updated",
     "show": "Show",
-    "allThreads": "All Threads",
+    "allThreads": "All Sessions",
     "relevant": "Relevant",
-    "searchThreads": "Search threads..."
+    "searchThreads": "Search sessions...",
+    "newSessionInCurrentProject": "Create a new session in the current project",
+    "searchSessionsTitle": "Search sessions",
+    "noSessions": "No sessions"
   }
 });

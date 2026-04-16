@@ -21,7 +21,7 @@ const descriptorFixture: BirdCoderCodingServerDescriptor = {
 
 const runtimeFixture: BirdCoderCoreRuntimeSummary = {
   host: '127.0.0.1',
-  port: 18989,
+  port: 10240,
   configFileName: 'birdcoder.local.json',
 };
 

@@ -13,8 +13,8 @@
         "server"
       ],
       "transportKinds": [
-        "cli-jsonl",
-        "json-rpc-v2"
+        "sdk-stream",
+        "cli-jsonl"
       ],
       "capabilityMatrix": {
         "chat": true,
@@ -115,6 +115,7 @@
         "server"
       ],
       "transportKinds": [
+        "sdk-stream",
         "openapi-http",
         "cli-jsonl"
       ],
@@ -145,8 +146,8 @@
       "status": "active",
       "defaultForEngine": true,
       "transportKinds": [
-        "cli-jsonl",
-        "json-rpc-v2"
+        "sdk-stream",
+        "cli-jsonl"
       ],
       "capabilityMatrix": {}
     },
@@ -157,8 +158,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "cli-jsonl",
-        "json-rpc-v2"
+        "sdk-stream",
+        "cli-jsonl"
       ],
       "capabilityMatrix": {
         "previewArtifacts": false
@@ -171,8 +172,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "cli-jsonl",
-        "json-rpc-v2"
+        "sdk-stream",
+        "cli-jsonl"
       ],
       "capabilityMatrix": {
         "previewArtifacts": false
@@ -185,8 +186,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "cli-jsonl",
-        "json-rpc-v2"
+        "sdk-stream",
+        "cli-jsonl"
       ],
       "capabilityMatrix": {
         "planning": false,
@@ -295,6 +296,7 @@
       "status": "active",
       "defaultForEngine": true,
       "transportKinds": [
+        "sdk-stream",
         "openapi-http",
         "cli-jsonl"
       ],

@@ -117,6 +117,7 @@ export interface BirdCoderTeam {
 export * from './coding-session.ts';
 export * from './data.ts';
 export * from './engine.ts';
+export * from './fileSearch.ts';
 export * from './generated/coding-server-openapi.ts';
 export * from './generated/coding-server-client.ts';
 export * from './governance.ts';

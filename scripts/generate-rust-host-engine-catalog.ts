@@ -1,6 +1,7 @@
+import process from 'node:process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   listBirdCoderCodingServerEngines,
@@ -12,18 +13,36 @@ const outputUrl = new URL(
   import.meta.url,
 );
 
-mkdirSync(dirname(fileURLToPath(outputUrl)), { recursive: true });
-writeFileSync(
-  outputUrl,
-  `${JSON.stringify(
-    {
-      engines: listBirdCoderCodingServerEngines(),
-      models: listBirdCoderCodingServerModels(),
-    },
-    null,
-    2,
-  )}\n`,
-  'utf8',
-);
+export function generateRustHostEngineCatalog({
+  targetUrl = outputUrl,
+}: {
+  targetUrl?: URL;
+} = {}): string {
+  mkdirSync(dirname(fileURLToPath(targetUrl)), { recursive: true });
+  writeFileSync(
+    targetUrl,
+    `${JSON.stringify(
+      {
+        engines: listBirdCoderCodingServerEngines(),
+        models: listBirdCoderCodingServerModels(),
+      },
+      null,
+      2,
+    )}\n`,
+    'utf8',
+  );
 
-console.log(fileURLToPath(outputUrl));
+  return fileURLToPath(targetUrl);
+}
+
+export async function generateRustHostEngineCatalogCli(): Promise<void> {
+  console.log(generateRustHostEngineCatalog());
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void generateRustHostEngineCatalogCli().catch((error) => {
+    const message = error instanceof Error ? error.stack || error.message : String(error);
+    console.error(message);
+    process.exit(1);
+  });
+}

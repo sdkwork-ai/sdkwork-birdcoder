@@ -4,6 +4,8 @@ import path from 'node:path';
 import process from 'node:process';
 
 const rootDir = process.cwd();
+const rootPackageJsonPath = path.join(rootDir, 'package.json');
+const npmrcPath = path.join(rootDir, '.npmrc');
 const desktopPackageJsonPath = path.join(
   rootDir,
   'packages',
@@ -74,6 +76,7 @@ const tauriRustToolchainScriptPath = path.join(rootDir, 'scripts', 'ensure-tauri
 const tauriDevPortGuardScriptPath = path.join(rootDir, 'scripts', 'ensure-tauri-dev-port-free.mjs');
 const tauriCliRunnerScriptPath = path.join(rootDir, 'scripts', 'run-tauri-cli.mjs');
 const tauriTargetCleanScriptPath = path.join(rootDir, 'scripts', 'ensure-tauri-target-clean.mjs');
+const workspacePackageScriptRunnerPath = path.join(rootDir, 'scripts', 'run-workspace-package-script.mjs');
 const appSourcePath = path.join(rootDir, 'src', 'App.tsx');
 const codeTopBarPath = path.join(
   rootDir,
@@ -103,6 +106,8 @@ const desktopTauriIconPaths = [
   'icons/icon.ico',
 ];
 
+const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, 'utf8'));
+const npmrcSource = fs.readFileSync(npmrcPath, 'utf8');
 const desktopPackageJson = JSON.parse(fs.readFileSync(desktopPackageJsonPath, 'utf8'));
 const tauriConfig = JSON.parse(fs.readFileSync(tauriConfigPath, 'utf8'));
 const tauriTestConfig = JSON.parse(fs.readFileSync(tauriTestConfigPath, 'utf8'));
@@ -114,6 +119,60 @@ const desktopViteHostSource = fs.readFileSync(desktopViteHostPath, 'utf8');
 const appSource = fs.readFileSync(appSourcePath, 'utf8');
 const codeTopBarSource = fs.readFileSync(codeTopBarPath, 'utf8');
 const desktopIndexHtmlSource = fs.readFileSync(desktopIndexHtmlPath, 'utf8');
+const workspacePackageScriptRunnerSource = fs.existsSync(workspacePackageScriptRunnerPath)
+  ? fs.readFileSync(workspacePackageScriptRunnerPath, 'utf8')
+  : '';
+
+assert.match(
+  npmrcSource,
+  /shell-emulator\s*=\s*true/,
+  'Workspace pnpm config must enable shell-emulator so Windows pnpm scripts can resolve node-backed entrypoints without depending on cmd.exe PATH forwarding.',
+);
+
+assert.equal(
+  rootPackageJson.scripts['tauri:dev'],
+  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-desktop tauri:dev',
+  'Root tauri:dev must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
+);
+assert.equal(
+  rootPackageJson.scripts['tauri:dev:test'],
+  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-desktop tauri:dev:test',
+  'Root tauri:dev:test must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
+);
+assert.equal(
+  rootPackageJson.scripts['tauri:build'],
+  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-desktop tauri:build',
+  'Root tauri:build must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
+);
+assert.equal(
+  rootPackageJson.scripts['tauri:build:test'],
+  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-desktop tauri:build:test',
+  'Root tauri:build:test must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
+);
+assert.equal(
+  rootPackageJson.scripts['tauri:build:prod'],
+  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-desktop tauri:build:prod',
+  'Root tauri:build:prod must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
+);
+assert.equal(
+  rootPackageJson.scripts['tauri:info'],
+  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-desktop tauri:info',
+  'Root tauri:info must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
+);
+assert.ok(
+  fs.existsSync(workspacePackageScriptRunnerPath),
+  'Desktop tauri dev contract requires the shared workspace package-script runner to exist at the workspace root.',
+);
+assert.match(
+  workspacePackageScriptRunnerSource,
+  /export function createWorkspacePackageScriptPlan\(/,
+  'Workspace package-script runner must expose an explicit plan builder so root desktop entrypoints stay verifiable.',
+);
+assert.match(
+  workspacePackageScriptRunnerSource,
+  /runWorkspacePackageScriptCli/u,
+  'Workspace package-script runner must expose a direct CLI path for the root tauri:* scripts.',
+);
 
 assert.equal(
   tauriConfig.build.beforeDevCommand,
@@ -415,6 +474,11 @@ assert.match(
   'Desktop Cargo manifest must include the Tauri shell plugin crate so window reveal and git shell commands are backed by a registered Rust plugin.',
 );
 assert.match(
+  desktopCargoTomlSource,
+  /^sdkwork-birdcoder-server\s*=\s*\{\s*path\s*=\s*"\.\.\/\.\.\/sdkwork-birdcoder-server\/src-host"\s*\}$/m,
+  'Desktop Cargo manifest must depend on the local sdkwork-birdcoder-server crate so the desktop shell can bootstrap the embedded localhost API without requiring a separately managed sidecar process.',
+);
+assert.match(
   desktopLibRsSource,
   /\.plugin\(tauri_plugin_dialog::init\(\)\)/,
   'Desktop runtime must register the dialog plugin so frontend folder-open calls can cross the Tauri boundary.',
@@ -423,6 +487,16 @@ assert.match(
   desktopLibRsSource,
   /\.plugin\(tauri_plugin_shell::init\(\)\)/,
   'Desktop runtime must register the shell plugin so frontend open and command execution calls can cross the Tauri boundary.',
+);
+assert.match(
+  desktopLibRsSource,
+  /\.setup\(/,
+  'Desktop runtime must attach a setup hook so the local BirdCoder server can start before the window bootstraps API-backed workbench data.',
+);
+assert.match(
+  desktopLibRsSource,
+  /start_embedded_coding_server\(/,
+  'Desktop runtime setup must call an embedded server bootstrap helper so localhost API requests do not race against an unstarted Rust server.',
 );
 assert.ok(
   fs.existsSync(desktopCapabilityPath),
@@ -492,6 +566,7 @@ assert.ok(
 const desktopAppPermissionsSource = fs.readFileSync(desktopAppPermissionsPath, 'utf8');
 for (const command of [
   'host_mode',
+  'desktop_runtime_config',
   'local_store_get',
   'local_store_set',
   'local_store_delete',

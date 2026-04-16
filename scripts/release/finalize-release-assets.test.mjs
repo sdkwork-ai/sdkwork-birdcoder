@@ -3,8 +3,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from '../governance-regression-report.mjs';
 import { finalizeReleaseAssets } from './finalize-release-assets.mjs';
 import { summarizeQualityLoopScoreboard } from './quality-gate-release-evidence.mjs';
+import {
+  buildPromotionReadinessSummary,
+  collectReleaseStopShipSignals,
+} from './release-stop-ship-governance.mjs';
 
 const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-finalize-'));
 const releaseAssetsDir = path.join(fixtureRoot, 'assets');
@@ -75,6 +80,22 @@ fs.writeFileSync(
     arch: 'x64',
     status: 'passed',
     phase: 'shell-mounted',
+    readinessEvidence: {
+      ready: true,
+      shellMounted: true,
+      workspaceBootstrap: {
+        defaultWorkspaceReady: true,
+        defaultProjectReady: true,
+        recoverySnapshotReady: true,
+      },
+      localProjectRecovery: {
+        autoRemountSupported: true,
+        recoveringStateVisible: true,
+        failedStateVisible: true,
+        retrySupported: true,
+        reimportSupported: true,
+      },
+    },
   }, null, 2),
 );
 fs.writeFileSync(
@@ -342,6 +363,40 @@ assert.equal(manifest.assets[2].family, 'server');
 assert.equal(manifest.assets[0].releaseSmoke.status, 'passed');
 assert.equal(manifest.assets[1].desktopStartupSmoke.status, 'passed');
 assert.equal(manifest.assets[2].releaseSmoke.status, 'passed');
+assert.deepEqual(manifest.assets[1].desktopStartupReadinessSummary, {
+  ready: true,
+  shellMounted: true,
+  workspaceBootstrapReady: true,
+  localProjectRecoveryReady: true,
+  workspaceBootstrapChecks: [
+    'defaultProjectReady',
+    'defaultWorkspaceReady',
+    'recoverySnapshotReady',
+  ],
+  localProjectRecoveryChecks: [
+    'autoRemountSupported',
+    'failedStateVisible',
+    'recoveringStateVisible',
+    'reimportSupported',
+    'retrySupported',
+  ],
+});
+assert.deepEqual(manifest.assets[1].desktopStartupEvidence.readinessEvidence, {
+  ready: true,
+  shellMounted: true,
+  workspaceBootstrap: {
+    defaultWorkspaceReady: true,
+    defaultProjectReady: true,
+    recoverySnapshotReady: true,
+  },
+  localProjectRecovery: {
+    autoRemountSupported: true,
+    recoveringStateVisible: true,
+    failedStateVisible: true,
+    retrySupported: true,
+    reimportSupported: true,
+  },
+});
 assert.deepEqual(manifest.codingServerOpenApiEvidence, {
   canonicalRelativePath: 'server/windows/x64/openapi/coding-server-v1.json',
   mirroredRelativePaths: ['server/windows/x64/openapi/coding-server-v1.json'],
@@ -397,8 +452,9 @@ const qualityReport = JSON.parse(fs.readFileSync(qualityReportPath, 'utf8'));
 const expectedLoopScoreboard = summarizeQualityLoopScoreboard({
   totalTiers: qualityReport.summary.totalTiers,
   workflowBoundTiers: qualityReport.summary.workflowBoundTiers,
+  manifestBoundTiers: qualityReport.summary.manifestBoundTiers,
   tierIds: qualityReport.tiers.map((tier) => tier.id),
-  releaseGovernanceCheckIds: ['engine-runtime-adapter', 'engine-conformance', 'tool-protocol', 'engine-resume-recovery'],
+  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
   blockingDiagnosticIds: qualityReport.summary.blockingDiagnosticIds,
   executionStatus: 'blocked',
   executionBlockingTierIds: ['standard'],
@@ -409,11 +465,14 @@ assert.deepEqual(manifest.qualityEvidence, {
   archiveRelativePath: 'quality/quality-gate-matrix-report.json',
   totalTiers: qualityReport.summary.totalTiers,
   workflowBoundTiers: qualityReport.summary.workflowBoundTiers,
+  missingWorkflowBindings: qualityReport.summary.missingWorkflowBindings,
+  manifestBoundTiers: qualityReport.summary.manifestBoundTiers,
+  missingManifestBindings: qualityReport.summary.missingManifestBindings,
   tierIds: qualityReport.tiers.map((tier) => tier.id),
   failureClassificationIds: qualityReport.failureClassifications.map((classification) => classification.id),
   environmentDiagnostics: qualityReport.summary.environmentDiagnostics,
   blockingDiagnosticIds: qualityReport.summary.blockingDiagnosticIds,
-  releaseGovernanceCheckIds: ['engine-runtime-adapter', 'engine-conformance', 'tool-protocol', 'engine-resume-recovery'],
+  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
   blockingDiagnostics: qualityReport.environmentDiagnostics
     .filter((diagnostic) => diagnostic.status === 'blocked')
     .map((diagnostic) => ({
@@ -429,11 +488,138 @@ assert.deepEqual(manifest.qualityEvidence, {
   executionStatus: 'blocked',
   lastExecutedTierId: 'standard',
   executionBlockingTierIds: ['standard'],
-  executionFailedTierIds: [],
   executionSkippedTierIds: ['release'],
   executionBlockingDiagnosticIds: ['vite-host-build-preflight'],
   loopScoreboard: expectedLoopScoreboard,
 });
+const expectedManifestStopShipSignals = collectReleaseStopShipSignals({
+  qualityEvidence: manifest.qualityEvidence,
+  governanceEvidence: manifest.governanceEvidence,
+  assets: manifest.assets,
+});
+assert.deepEqual(manifest.stopShipSignals, expectedManifestStopShipSignals);
+assert.deepEqual(manifest.promotionReadiness, buildPromotionReadinessSummary({
+  releaseControl: manifest.releaseControl,
+  stopShipSignals: expectedManifestStopShipSignals,
+}));
 assert.ok(fs.existsSync(path.join(releaseAssetsDir, 'quality', 'quality-gate-execution-report.json')));
+
+const rerunResult = finalizeReleaseAssets({
+  profile: 'sdkwork-birdcoder',
+  'release-tag': 'release-local',
+  'release-kind': 'canary',
+  'rollout-stage': 'ring-1',
+  'monitoring-window-minutes': '45',
+  'rollback-runbook-ref': 'docs/step/13-é™æˆç«·çè¾©åŽ-github-flow-éæ¿å®³é¥ç‚´ç²´é—‚î… å¹†.md',
+  'rollback-command': 'gh workflow run rollback.yml --ref main',
+  'release-assets-dir': releaseAssetsDir,
+});
+
+assert.ok(fs.existsSync(rerunResult.manifestPath));
+const rerunManifest = JSON.parse(fs.readFileSync(rerunResult.manifestPath, 'utf8'));
+assert.equal(rerunManifest.qualityEvidence.executionArchiveRelativePath, 'quality/quality-gate-execution-report.json');
+assert.equal(rerunManifest.qualityEvidence.executionStatus, 'blocked');
+assert.equal(rerunManifest.qualityEvidence.lastExecutedTierId, 'standard');
+assert.deepEqual(rerunManifest.qualityEvidence.executionBlockingTierIds, ['standard']);
+assert.deepEqual(rerunManifest.qualityEvidence.executionFailedTierIds ?? [], []);
+assert.deepEqual(rerunManifest.qualityEvidence.executionSkippedTierIds, ['release']);
+assert.deepEqual(rerunManifest.qualityEvidence.executionBlockingDiagnosticIds, ['vite-host-build-preflight']);
+assert.deepEqual(rerunManifest.qualityEvidence.loopScoreboard, expectedLoopScoreboard);
+const expectedRerunStopShipSignals = collectReleaseStopShipSignals({
+  qualityEvidence: rerunManifest.qualityEvidence,
+  governanceEvidence: rerunManifest.governanceEvidence,
+  assets: rerunManifest.assets,
+});
+assert.deepEqual(rerunManifest.stopShipSignals, expectedRerunStopShipSignals);
+assert.deepEqual(rerunManifest.promotionReadiness, buildPromotionReadinessSummary({
+  releaseControl: rerunManifest.releaseControl,
+  stopShipSignals: expectedRerunStopShipSignals,
+}));
+
+fs.writeFileSync(
+  path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'desktop-startup-evidence.json'),
+  JSON.stringify({
+    platform: 'windows',
+    arch: 'x64',
+    status: 'passed',
+    phase: 'shell-mounted',
+    readinessEvidence: {
+      ready: false,
+      shellMounted: true,
+      workspaceBootstrap: {
+        defaultWorkspaceReady: true,
+        defaultProjectReady: true,
+        recoverySnapshotReady: true,
+      },
+      localProjectRecovery: {
+        autoRemountSupported: true,
+        recoveringStateVisible: true,
+        failedStateVisible: true,
+        retrySupported: false,
+        reimportSupported: false,
+      },
+    },
+  }, null, 2),
+);
+const degradedResult = finalizeReleaseAssets({
+  profile: 'sdkwork-birdcoder',
+  'release-tag': 'release-local',
+  'release-kind': 'canary',
+  'rollout-stage': 'ring-1',
+  'monitoring-window-minutes': '45',
+  'rollback-runbook-ref': 'docs/step/13-é™æˆç«·çè¾©åŽ-github-flow-éæ¿å®³é¥ç‚´ç²´é—‚î… å¹†.md',
+  'rollback-command': 'gh workflow run rollback.yml --ref main',
+  'release-assets-dir': releaseAssetsDir,
+});
+assert.ok(fs.existsSync(degradedResult.manifestPath));
+const degradedManifest = JSON.parse(fs.readFileSync(degradedResult.manifestPath, 'utf8'));
+assert.deepEqual(degradedManifest.qualityEvidence.releaseReadinessSignals, [
+  'desktop local project recovery `windows/x64` is `not-ready`',
+]);
+const expectedDegradedStopShipSignals = collectReleaseStopShipSignals({
+  qualityEvidence: degradedManifest.qualityEvidence,
+  governanceEvidence: degradedManifest.governanceEvidence,
+  assets: degradedManifest.assets,
+});
+assert.deepEqual(degradedManifest.stopShipSignals, expectedDegradedStopShipSignals);
+assert.deepEqual(degradedManifest.promotionReadiness, buildPromotionReadinessSummary({
+  releaseControl: degradedManifest.releaseControl,
+  stopShipSignals: expectedDegradedStopShipSignals,
+}));
+assert.deepEqual(
+  degradedManifest.qualityEvidence.loopScoreboard,
+  summarizeQualityLoopScoreboard({
+    totalTiers: qualityReport.summary.totalTiers,
+    workflowBoundTiers: qualityReport.summary.workflowBoundTiers,
+    manifestBoundTiers: qualityReport.summary.manifestBoundTiers,
+    tierIds: qualityReport.tiers.map((tier) => tier.id),
+    releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+    blockingDiagnosticIds: qualityReport.summary.blockingDiagnosticIds,
+    executionStatus: 'blocked',
+    executionBlockingTierIds: ['standard'],
+    executionFailedTierIds: [],
+    executionSkippedTierIds: ['release'],
+    releaseReadinessSignals: ['desktop local project recovery `windows/x64` is `not-ready`'],
+  }),
+);
+assert.throws(
+  () => finalizeReleaseAssets({
+    profile: 'sdkwork-birdcoder',
+    'release-tag': 'release-local',
+    'release-kind': 'formal',
+    'release-assets-dir': releaseAssetsDir,
+  }),
+  /Formal or general-availability release finalization requires clear stop-ship evidence/,
+);
+assert.throws(
+  () => finalizeReleaseAssets({
+    profile: 'sdkwork-birdcoder',
+    'release-tag': 'release-local',
+    'release-kind': 'canary',
+    'rollout-stage': 'general-availability',
+    'release-assets-dir': releaseAssetsDir,
+  }),
+  /Formal or general-availability release finalization requires clear stop-ship evidence/,
+);
 
 console.log('finalize release assets contract passed.');

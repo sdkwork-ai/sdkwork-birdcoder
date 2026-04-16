@@ -198,6 +198,6 @@ export function formatViteHostPreflightFailure(report) {
     'The current Windows host blocks child-process execution required by the Vite build pipeline.',
     `Checks: ${summary}`,
     'Expected capabilities: cmd.exe shell execution and esbuild.exe process launch.',
-    'Resolution: run Step 12 standard/release gates on a host where Node child_process spawning is permitted.',
+    'Resolution: rerun the affected Vite-backed quality gates on a host where Node child_process spawning is permitted.',
   ].join('\n');
 }

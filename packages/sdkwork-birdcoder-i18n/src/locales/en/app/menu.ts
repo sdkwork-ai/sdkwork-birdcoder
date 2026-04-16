@@ -3,10 +3,10 @@ import { defineLocaleModule } from '../../resource.ts';
 export default defineLocaleModule('app/menu', {
   "app": {
     "menu": {
-      "previousThread": "Previous Thread",
-      "nextThread": "Next Thread",
+      "previousThread": "Previous Session",
+      "nextThread": "Next Session",
       "file": "File",
-      "newThread": "New Thread",
+      "newThread": "New Session",
       "openFolder": "Open Folder...",
       "save": "Save",
       "saveAll": "Save All",

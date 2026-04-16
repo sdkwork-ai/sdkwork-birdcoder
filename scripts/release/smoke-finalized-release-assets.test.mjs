@@ -4,12 +4,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from '../governance-regression-report.mjs';
 import { smokeFinalizedReleaseAssets } from './smoke-finalized-release-assets.mjs';
 
 const releaseAssetsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-finalized-smoke-'));
 
 fs.mkdirSync(path.join(releaseAssetsDir, 'studio', 'build'), { recursive: true });
 fs.mkdirSync(path.join(releaseAssetsDir, 'studio', 'preview'), { recursive: true });
+fs.mkdirSync(path.join(releaseAssetsDir, 'desktop', 'windows', 'x64'), { recursive: true });
 fs.mkdirSync(path.join(releaseAssetsDir, 'server', 'windows', 'x64', 'openapi'), { recursive: true });
 fs.mkdirSync(path.join(releaseAssetsDir, 'studio', 'simulator'), { recursive: true });
 fs.mkdirSync(path.join(releaseAssetsDir, 'studio', 'test'), { recursive: true });
@@ -121,6 +123,31 @@ fs.writeFileSync(
   }, null, 2),
 );
 fs.writeFileSync(
+  path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'desktop-startup-evidence.json'),
+  JSON.stringify({
+    platform: 'windows',
+    arch: 'x64',
+    status: 'passed',
+    phase: 'shell-mounted',
+    readinessEvidence: {
+      ready: true,
+      shellMounted: true,
+      workspaceBootstrap: {
+        defaultWorkspaceReady: true,
+        defaultProjectReady: true,
+        recoverySnapshotReady: true,
+      },
+      localProjectRecovery: {
+        autoRemountSupported: true,
+        recoveringStateVisible: true,
+        failedStateVisible: true,
+        retrySupported: true,
+        reimportSupported: true,
+      },
+    },
+  }, null, 2),
+);
+fs.writeFileSync(
   path.join(releaseAssetsDir, 'quality', 'quality-gate-matrix-report.json'),
   JSON.stringify({
     generatedAt: '2026-04-08T13:15:00.000Z',
@@ -128,6 +155,8 @@ fs.writeFileSync(
       totalTiers: 3,
       workflowBoundTiers: 3,
       missingWorkflowBindings: [],
+      manifestBoundTiers: 3,
+      missingManifestBindings: [],
       failureClassifications: 4,
       environmentDiagnostics: 1,
       blockingDiagnosticIds: ['vite-host-build-preflight'],
@@ -137,12 +166,7 @@ fs.writeFileSync(
       { id: 'standard' },
       {
         id: 'release',
-        governanceCheckIds: [
-          'engine-runtime-adapter',
-          'engine-conformance',
-          'tool-protocol',
-          'engine-resume-recovery',
-        ],
+        governanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
       },
     ],
     failureClassifications: [
@@ -236,7 +260,61 @@ fs.writeFileSync(
     profileId: 'sdkwork-birdcoder',
     releaseTag: 'release-local',
     generatedAt: '2026-04-08T13:10:00.000Z',
+    releaseControl: {
+      releaseKind: 'canary',
+      rolloutStage: 'ring-1',
+      monitoringWindowMinutes: 45,
+      rollbackRunbookRef: 'docs/runbooks/canary-rollback.md',
+      rollbackCommand: '',
+    },
     assets: [
+      {
+        family: 'desktop',
+        platform: 'windows',
+        arch: 'x64',
+        desktopStartupSmoke: {
+          status: 'passed',
+        },
+        desktopStartupEvidence: {
+          capturedEvidenceRelativePath: 'desktop/windows/x64/desktop-startup-evidence.json',
+          status: 'passed',
+          phase: 'shell-mounted',
+          readinessEvidence: {
+            ready: true,
+            shellMounted: true,
+            workspaceBootstrap: {
+              defaultWorkspaceReady: true,
+              defaultProjectReady: true,
+              recoverySnapshotReady: true,
+            },
+            localProjectRecovery: {
+              autoRemountSupported: true,
+              recoveringStateVisible: true,
+              failedStateVisible: true,
+              retrySupported: true,
+              reimportSupported: true,
+            },
+          },
+        },
+        desktopStartupReadinessSummary: {
+          ready: true,
+          shellMounted: true,
+          workspaceBootstrapReady: true,
+          localProjectRecoveryReady: true,
+          workspaceBootstrapChecks: [
+            'defaultProjectReady',
+            'defaultWorkspaceReady',
+            'recoverySnapshotReady',
+          ],
+          localProjectRecoveryChecks: [
+            'autoRemountSupported',
+            'failedStateVisible',
+            'recoveringStateVisible',
+            'reimportSupported',
+            'retrySupported',
+          ],
+        },
+      },
       {
         family: 'server',
         platform: 'windows',
@@ -300,11 +378,14 @@ fs.writeFileSync(
       archiveRelativePath: 'quality/quality-gate-matrix-report.json',
       totalTiers: 3,
       workflowBoundTiers: 3,
+      missingWorkflowBindings: [],
+      manifestBoundTiers: 3,
+      missingManifestBindings: [],
       tierIds: ['fast', 'standard', 'release'],
       failureClassificationIds: ['contract-drift', 'toolchain-platform', 'artifact-integrity', 'evidence-gap'],
       environmentDiagnostics: 1,
       blockingDiagnosticIds: ['vite-host-build-preflight'],
-      releaseGovernanceCheckIds: ['engine-runtime-adapter', 'engine-conformance', 'tool-protocol', 'engine-resume-recovery'],
+      releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
       blockingDiagnostics: [
         {
           id: 'vite-host-build-preflight',
@@ -332,7 +413,28 @@ fs.writeFileSync(
         next_focus: 'Clear blocking diagnostics (`vite-host-build-preflight`) and rerun quality gates.',
       },
     },
+    stopShipSignals: [
+      'quality blockers `vite-host-build-preflight`',
+      'runtime blocked tiers `standard`',
+      'runtime blockers `vite-host-build-preflight`',
+      'governance blocked records `1`',
+    ],
+    promotionReadiness: {
+      currentReleaseKind: 'canary',
+      currentRolloutStage: 'ring-1',
+      formalOrGaStatus: 'blocked',
+      stopShipSignals: [
+        'quality blockers `vite-host-build-preflight`',
+        'runtime blocked tiers `standard`',
+        'runtime blockers `vite-host-build-preflight`',
+        'governance blocked records `1`',
+      ],
+    },
   }, null, 2),
+);
+fs.writeFileSync(
+  path.join(releaseAssetsDir, 'SHA256SUMS.txt'),
+  'stale-digest  release-manifest.json\n',
 );
 
 const result = smokeFinalizedReleaseAssets({
@@ -389,15 +491,56 @@ assert.deepEqual(result.governanceEvidence, {
   approvalPolicies: ['Restricted'],
   latestRecordedAt: 1712577840000,
 });
+assert.deepEqual(result.desktopStartupReadiness, [
+  {
+    target: 'windows/x64',
+    ready: true,
+    shellMounted: true,
+    workspaceBootstrapReady: true,
+    localProjectRecoveryReady: true,
+    workspaceBootstrapChecks: [
+      'defaultProjectReady',
+      'defaultWorkspaceReady',
+      'recoverySnapshotReady',
+    ],
+    localProjectRecoveryChecks: [
+      'autoRemountSupported',
+      'failedStateVisible',
+      'recoveringStateVisible',
+      'reimportSupported',
+      'retrySupported',
+    ],
+  },
+]);
+assert.deepEqual(result.stopShipSignals, [
+  'quality blockers `vite-host-build-preflight`',
+  'runtime blocked tiers `standard`',
+  'runtime blockers `vite-host-build-preflight`',
+  'governance blocked records `1`',
+]);
+assert.deepEqual(result.promotionReadiness, {
+  currentReleaseKind: 'canary',
+  currentRolloutStage: 'ring-1',
+  formalOrGaStatus: 'blocked',
+  stopShipSignals: [
+    'quality blockers `vite-host-build-preflight`',
+    'runtime blocked tiers `standard`',
+    'runtime blockers `vite-host-build-preflight`',
+    'governance blocked records `1`',
+  ],
+});
 assert.deepEqual(result.qualityEvidence, {
   archiveRelativePath: 'quality/quality-gate-matrix-report.json',
   totalTiers: 3,
   workflowBoundTiers: 3,
+  missingWorkflowBindings: [],
+  manifestBoundTiers: 3,
+  missingManifestBindings: [],
   tierIds: ['fast', 'standard', 'release'],
   failureClassificationIds: ['contract-drift', 'toolchain-platform', 'artifact-integrity', 'evidence-gap'],
   environmentDiagnostics: 1,
   blockingDiagnosticIds: ['vite-host-build-preflight'],
-  releaseGovernanceCheckIds: ['engine-runtime-adapter', 'engine-conformance', 'tool-protocol', 'engine-resume-recovery'],
+  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
   blockingDiagnostics: [
     {
       id: 'vite-host-build-preflight',
@@ -426,7 +569,28 @@ assert.deepEqual(result.qualityEvidence, {
 });
 
 const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
+const smokeReportSha256 = crypto
+  .createHash('sha256')
+  .update(fs.readFileSync(result.reportPath))
+  .digest('hex');
 assert.equal(report.status, 'passed');
+assert.deepEqual(report.stopShipSignals, [
+  'quality blockers `vite-host-build-preflight`',
+  'runtime blocked tiers `standard`',
+  'runtime blockers `vite-host-build-preflight`',
+  'governance blocked records `1`',
+]);
+assert.deepEqual(report.promotionReadiness, {
+  currentReleaseKind: 'canary',
+  currentRolloutStage: 'ring-1',
+  formalOrGaStatus: 'blocked',
+  stopShipSignals: [
+    'quality blockers `vite-host-build-preflight`',
+    'runtime blocked tiers `standard`',
+    'runtime blockers `vite-host-build-preflight`',
+    'governance blocked records `1`',
+  ],
+});
 assert.equal(
   report.checks.find((entry) => entry.id === 'coding-server-openapi-evidence-summary-match')?.status,
   'passed',
@@ -455,8 +619,43 @@ assert.equal(
   report.checks.find((entry) => entry.id === 'quality-evidence-summary-match')?.status,
   'passed',
 );
+assert.equal(
+  report.checks.find((entry) => entry.id === 'desktop-startup-readiness-summary-match')?.status,
+  'passed',
+);
+assert.match(
+  fs.readFileSync(path.join(releaseAssetsDir, 'SHA256SUMS.txt'), 'utf8'),
+  new RegExp(`^${smokeReportSha256}  finalized-release-smoke-report\\.json$`, 'm'),
+);
 
 const manifestPath = path.join(releaseAssetsDir, 'release-manifest.json');
+const gatedPromotionManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+gatedPromotionManifest.releaseControl = {
+  ...gatedPromotionManifest.releaseControl,
+  releaseKind: 'formal',
+  rolloutStage: 'general-availability',
+};
+gatedPromotionManifest.promotionReadiness = {
+  ...gatedPromotionManifest.promotionReadiness,
+  currentReleaseKind: 'formal',
+  currentRolloutStage: 'general-availability',
+};
+fs.writeFileSync(manifestPath, `${JSON.stringify(gatedPromotionManifest, null, 2)}\n`);
+assert.throws(
+  () => smokeFinalizedReleaseAssets({
+    releaseAssetsDir,
+  }),
+  /Formal or general-availability finalized release manifests require clear stop-ship evidence/,
+);
+gatedPromotionManifest.releaseControl = {
+  releaseKind: 'canary',
+  rolloutStage: 'ring-1',
+  monitoringWindowMinutes: 45,
+  rollbackRunbookRef: 'docs/runbooks/canary-rollback.md',
+  rollbackCommand: '',
+};
+fs.writeFileSync(manifestPath, `${JSON.stringify(gatedPromotionManifest, null, 2)}\n`);
+
 const missingQualityManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 delete missingQualityManifest.qualityEvidence;
 fs.writeFileSync(manifestPath, `${JSON.stringify(missingQualityManifest, null, 2)}\n`);
@@ -467,11 +666,78 @@ assert.throws(
   /Missing finalized manifest qualityEvidence summary/,
 );
 
+const missingStopShipManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+missingStopShipManifest.qualityEvidence = {
+  archiveRelativePath: 'quality/quality-gate-matrix-report.json',
+  totalTiers: 3,
+  workflowBoundTiers: 3,
+  missingWorkflowBindings: [],
+  manifestBoundTiers: 3,
+  missingManifestBindings: [],
+  tierIds: ['fast', 'standard', 'release'],
+  failureClassificationIds: ['contract-drift', 'toolchain-platform', 'artifact-integrity', 'evidence-gap'],
+  environmentDiagnostics: 1,
+  blockingDiagnosticIds: ['vite-host-build-preflight'],
+  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+  blockingDiagnostics: [
+    {
+      id: 'vite-host-build-preflight',
+      label: 'Vite host build preflight',
+      classification: 'toolchain-platform',
+      appliesTo: ['standard', 'release'],
+      summary: 'Windows host cannot spawn cmd.exe or esbuild.exe (spawn EPERM).',
+      requiredCapabilities: ['cmd.exe shell execution', 'esbuild.exe process launch'],
+      rerunCommands: ['pnpm check:quality:standard', 'pnpm check:quality:release'],
+    },
+  ],
+  executionArchiveRelativePath: 'quality/quality-gate-execution-report.json',
+  executionStatus: 'blocked',
+  lastExecutedTierId: 'standard',
+  executionBlockingTierIds: ['standard'],
+  executionSkippedTierIds: ['release'],
+  executionBlockingDiagnosticIds: ['vite-host-build-preflight'],
+  loopScoreboard: {
+    architecture_alignment: 100,
+    implementation_completeness: 100,
+    test_closure: 70,
+    commercial_readiness: 60,
+    lowest_score_item: 'commercial_readiness',
+    next_focus: 'Clear blocking diagnostics (`vite-host-build-preflight`) and rerun quality gates.',
+  },
+};
+delete missingStopShipManifest.stopShipSignals;
+fs.writeFileSync(manifestPath, `${JSON.stringify(missingStopShipManifest, null, 2)}\n`);
+assert.throws(
+  () => smokeFinalizedReleaseAssets({
+    releaseAssetsDir,
+  }),
+  /Missing finalized manifest stopShipSignals summary/,
+);
+
+const missingPromotionReadinessManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+missingPromotionReadinessManifest.stopShipSignals = [
+  'quality blockers `vite-host-build-preflight`',
+  'runtime blocked tiers `standard`',
+  'runtime blockers `vite-host-build-preflight`',
+  'governance blocked records `1`',
+];
+delete missingPromotionReadinessManifest.promotionReadiness;
+fs.writeFileSync(manifestPath, `${JSON.stringify(missingPromotionReadinessManifest, null, 2)}\n`);
+assert.throws(
+  () => smokeFinalizedReleaseAssets({
+    releaseAssetsDir,
+  }),
+  /Missing finalized manifest promotionReadiness summary/,
+);
+
 const missingOpenApiManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 missingOpenApiManifest.qualityEvidence = {
   archiveRelativePath: 'quality/quality-gate-matrix-report.json',
   totalTiers: 3,
   workflowBoundTiers: 3,
+  missingWorkflowBindings: [],
+  manifestBoundTiers: 3,
+  missingManifestBindings: [],
   tierIds: ['fast', 'standard', 'release'],
   failureClassificationIds: ['contract-drift', 'toolchain-platform', 'artifact-integrity', 'evidence-gap'],
   environmentDiagnostics: 1,
@@ -501,6 +767,23 @@ missingOpenApiManifest.qualityEvidence = {
     lowest_score_item: 'commercial_readiness',
     next_focus: 'Clear blocking diagnostics (`vite-host-build-preflight`) and rerun quality gates.',
   },
+};
+missingOpenApiManifest.stopShipSignals = [
+  'quality blockers `vite-host-build-preflight`',
+  'runtime blocked tiers `standard`',
+  'runtime blockers `vite-host-build-preflight`',
+  'governance blocked records `1`',
+];
+missingOpenApiManifest.promotionReadiness = {
+  currentReleaseKind: 'canary',
+  currentRolloutStage: 'ring-1',
+  formalOrGaStatus: 'blocked',
+  stopShipSignals: [
+    'quality blockers `vite-host-build-preflight`',
+    'runtime blocked tiers `standard`',
+    'runtime blockers `vite-host-build-preflight`',
+    'governance blocked records `1`',
+  ],
 };
 delete missingOpenApiManifest.codingServerOpenApiEvidence;
 fs.writeFileSync(manifestPath, `${JSON.stringify(missingOpenApiManifest, null, 2)}\n`);

@@ -1,4 +1,4 @@
-import { BIRDCODER_APPBASE_VIP_SUBSCRIPTION_STORAGE_BINDING } from '@sdkwork/birdcoder-types';
+import { BIRDCODER_APPBASE_VIP_SUBSCRIPTION_STORAGE_BINDING } from '@sdkwork/birdcoder-types/storageBindings';
 
 type BirdCoderAppbaseManifestHost = 'browser' | 'tauri' | 'server';
 

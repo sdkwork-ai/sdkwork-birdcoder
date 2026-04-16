@@ -1,4 +1,9 @@
-import type { IFileNode, LocalFolderMountSource } from '@sdkwork/birdcoder-types';
+import type {
+  IFileNode,
+  LocalFolderMountSource,
+  WorkspaceFileSearchExecutionResult,
+  WorkspaceFileSearchOptions,
+} from '@sdkwork/birdcoder-types';
 
 export interface IFileSystemService {
   /**
@@ -57,6 +62,16 @@ export interface IFileSystemService {
    * @param newPath The new path of the file or folder.
    */
   renameNode(projectId: string, oldPath: string, newPath: string): Promise<void>;
+
+  /**
+   * Searches files within a project.
+   * @param projectId The ID of the project.
+   * @param options Search query and result shaping options.
+   */
+  searchFiles(
+    projectId: string,
+    options: WorkspaceFileSearchOptions,
+  ): Promise<WorkspaceFileSearchExecutionResult>;
 
   /**
    * Mounts a local folder to the project's file system.

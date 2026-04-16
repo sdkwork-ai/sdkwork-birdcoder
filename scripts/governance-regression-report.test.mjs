@@ -74,9 +74,11 @@ assert.equal(
 const windowsPnpmInvocation = resolveGovernanceRegressionCommandInvocation('pnpm run build', {
   platform: 'win32',
 });
-assert.equal(windowsPnpmInvocation.command, 'powershell.exe');
-assert.deepEqual(windowsPnpmInvocation.args.slice(0, 2), ['-NoProfile', '-Command']);
-assert.match(windowsPnpmInvocation.args[2], /'pnpm\.cmd' 'run' 'build'/);
+assert.equal(windowsPnpmInvocation.command, 'pnpm run build');
+assert.deepEqual(windowsPnpmInvocation.args, []);
+assert.equal(windowsPnpmInvocation.shell, true);
+assert.equal(windowsPnpmInvocation.diagnosticCommand, 'cmd.exe');
+assert.equal(windowsPnpmInvocation.requiredCapability, 'cmd.exe shell execution');
 
 const fakeNodeDir = path.join(tempDir, 'fake-node-home');
 fs.mkdirSync(fakeNodeDir, { recursive: true });
@@ -174,7 +176,20 @@ assert.deepEqual(
     'chat-runtime',
     'local-store',
     'gemini-engine',
+    'engine-official-sdk',
+    'engine-official-sdk-runtime-selection',
     'engine-runtime-adapter',
+    'engine-kernel',
+    'engine-environment-health',
+    'engine-capability-extension',
+    'engine-experimental-capability-gating',
+    'engine-canonical-registry-governance',
+    'provider-sdk-import-governance',
+    'provider-sdk-package-manifest',
+    'provider-adapter-browser-safety',
+    'engine-official-sdk-error-propagation',
+    'provider-official-sdk-bridge',
+    'opencode-official-sdk-bridge',
     'engine-conformance',
     'tool-protocol',
     'engine-resume-recovery',
@@ -239,9 +254,12 @@ assert.deepEqual(
 assert.deepEqual(executedChecks, GOVERNANCE_REGRESSION_CHECKS.map((check) => check.id));
 assert.equal(passedReport.status, 'passed');
 assert.equal(passedReport.generatedAt, '2026-04-08T15:30:00.000Z');
-assert.equal(passedReport.summary.totalChecks, 88);
-assert.equal(passedReport.summary.passedCount, 88);
+assert.equal(passedReport.summary.totalChecks, 101);
+assert.equal(passedReport.summary.passedCount, 101);
+assert.equal(passedReport.summary.blockedCount, 0);
 assert.equal(passedReport.summary.failedCount, 0);
+assert.deepEqual(passedReport.summary.blockedCheckIds, []);
+assert.deepEqual(passedReport.summary.failedCheckIds, []);
 assert.ok(fs.existsSync(outputPath));
 
 const persistedPassedReport = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
@@ -277,7 +295,20 @@ assert.deepEqual(
     'node scripts/chat-runtime-contract.test.ts',
     'node scripts/local-store-contract.test.ts',
     'node scripts/gemini-engine-contract.test.ts',
+    'pnpm run test:engine-official-sdk-contract',
+    'pnpm run test:engine-official-sdk-runtime-selection-contract',
     'pnpm run test:engine-runtime-adapter',
+    'pnpm run test:engine-kernel-contract',
+    'pnpm run test:engine-environment-health-contract',
+    'pnpm run test:engine-capability-extension-contract',
+    'pnpm run test:engine-experimental-capability-gating-contract',
+    'pnpm run test:engine-canonical-registry-governance-contract',
+    'pnpm run test:provider-sdk-import-governance-contract',
+    'pnpm run test:provider-sdk-package-manifest-contract',
+    'pnpm run test:provider-adapter-browser-safety-contract',
+    'pnpm run test:engine-official-sdk-error-propagation-contract',
+    'pnpm run test:provider-official-sdk-bridge-contract',
+    'pnpm run test:opencode-official-sdk-bridge-contract',
     'pnpm run test:engine-conformance',
     'pnpm run test:tool-protocol-contract',
     'pnpm run test:engine-resume-recovery-contract',
@@ -354,15 +385,241 @@ const failedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(failedReport.status, 'failed');
+assert.equal(failedReport.summary.blockedCount, 0);
 assert.equal(failedReport.summary.failedCount, 1);
+assert.deepEqual(failedReport.summary.blockedCheckIds, []);
+assert.deepEqual(failedReport.summary.failedCheckIds, ['release-closure']);
 assert.ok(fs.existsSync(failedOutputPath));
 assert.equal(
   failedReport.checks.find((check) => check.id === 'release-closure')?.status,
   'failed',
 );
 
+const blockedOutputPath = path.join(tempDir, 'governance-regression-report.blocked.json');
+const blockedReport = await runGovernanceRegressionReport({
+  outputPath: blockedOutputPath,
+  now,
+  platform: 'win32',
+  runner: (check) => ({
+    status: check.id === 'web-bundle-budget' ? 'failed' : 'passed',
+    exitCode: check.id === 'web-bundle-budget' ? 1 : 0,
+    stdout: check.id === 'web-bundle-budget'
+      ? [
+          '> @sdkwork/birdcoder-workspace@0.1.0 build D:\\repo',
+          '> node scripts/prepare-shared-sdk-packages.mjs && pnpm --dir packages/sdkwork-birdcoder-web exec node ../../scripts/run-vite-host.mjs build --mode production && node scripts/web-bundle-budget.test.mjs',
+        ].join('\n')
+      : '',
+    stderr: check.id === 'web-bundle-budget'
+      ? [
+          '[vite:define] spawn EPERM',
+          'at ensureServiceIsRunning (D:\\repo\\node_modules\\esbuild\\lib\\main.js:1978:29)',
+        ].join('\n')
+      : '',
+    errorCode: '',
+    errorSyscall: '',
+    durationMs: 5,
+  }),
+});
+
+assert.equal(blockedReport.status, 'blocked');
+assert.equal(blockedReport.summary.passedCount, 100);
+assert.equal(blockedReport.summary.blockedCount, 1);
+assert.equal(blockedReport.summary.failedCount, 0);
+assert.deepEqual(blockedReport.summary.blockedCheckIds, ['web-bundle-budget']);
+assert.deepEqual(blockedReport.summary.failedCheckIds, []);
+assert.deepEqual(
+  blockedReport.summary.blockingDiagnosticIds,
+  ['vite-host-build-preflight'],
+);
+assert.deepEqual(
+  blockedReport.environmentDiagnostics.map((entry) => entry.id),
+  ['vite-host-build-preflight'],
+);
+
+const blockedWebBundleCheck = blockedReport.checks.find((check) => check.id === 'web-bundle-budget');
+assert.equal(blockedWebBundleCheck?.status, 'blocked');
+assert.equal(blockedWebBundleCheck?.failureClassification, 'toolchain-platform');
+assert.deepEqual(
+  blockedWebBundleCheck?.blockingDiagnosticIds,
+  ['vite-host-build-preflight'],
+);
+assert.deepEqual(
+  blockedWebBundleCheck?.requiredCapabilities,
+  ['cmd.exe shell execution', 'esbuild.exe process launch'],
+);
+assert.deepEqual(
+  blockedWebBundleCheck?.rerunCommands,
+  ['pnpm run build'],
+);
+
+const blockedToolchainDiagnostic = blockedReport.environmentDiagnostics.find(
+  (entry) => entry.id === 'vite-host-build-preflight',
+);
+assert.equal(blockedToolchainDiagnostic?.status, 'blocked');
+assert.equal(blockedToolchainDiagnostic?.classification, 'toolchain-platform');
+assert.deepEqual(blockedToolchainDiagnostic?.appliesTo, ['web-bundle-budget']);
+assert.deepEqual(
+  blockedToolchainDiagnostic?.requiredCapabilities,
+  ['cmd.exe shell execution', 'esbuild.exe process launch'],
+);
+assert.deepEqual(blockedToolchainDiagnostic?.rerunCommands, ['pnpm run build']);
+
+const runnerBlockedOutputPath = path.join(tempDir, 'governance-regression-report.runner-blocked.json');
+const runnerBlockedReport = await runGovernanceRegressionReport({
+  outputPath: runnerBlockedOutputPath,
+  now,
+  platform: 'win32',
+  runner: (check) => ({
+    status: check.id === 'web-bundle-budget' ? 'failed' : 'passed',
+    exitCode: check.id === 'web-bundle-budget' ? 1 : 0,
+    stdout: '',
+    stderr: check.id === 'web-bundle-budget' ? 'Error: spawnSync C:\\Windows\\System32\\cmd.exe EPERM' : '',
+    errorCode: check.id === 'web-bundle-budget' ? 'EPERM' : '',
+    errorSyscall: check.id === 'web-bundle-budget' ? 'spawnSync C:\\Windows\\System32\\cmd.exe' : '',
+    durationMs: 5,
+  }),
+});
+
+assert.equal(runnerBlockedReport.status, 'blocked');
+assert.equal(runnerBlockedReport.summary.passedCount, 100);
+assert.equal(runnerBlockedReport.summary.blockedCount, 1);
+assert.equal(runnerBlockedReport.summary.failedCount, 0);
+assert.deepEqual(runnerBlockedReport.summary.blockedCheckIds, ['web-bundle-budget']);
+assert.deepEqual(runnerBlockedReport.summary.failedCheckIds, []);
+assert.deepEqual(
+  runnerBlockedReport.summary.blockingDiagnosticIds,
+  ['governance-regression-command-runner'],
+);
+assert.deepEqual(
+  runnerBlockedReport.environmentDiagnostics.map((entry) => entry.id),
+  ['governance-regression-command-runner'],
+);
+
+const runnerBlockedWebBundleCheck = runnerBlockedReport.checks.find((check) => check.id === 'web-bundle-budget');
+assert.equal(runnerBlockedWebBundleCheck?.status, 'blocked');
+assert.equal(runnerBlockedWebBundleCheck?.failureClassification, 'toolchain-platform');
+assert.deepEqual(
+  runnerBlockedWebBundleCheck?.blockingDiagnosticIds,
+  ['governance-regression-command-runner'],
+);
+assert.deepEqual(
+  runnerBlockedWebBundleCheck?.requiredCapabilities,
+  ['cmd.exe shell execution'],
+);
+assert.deepEqual(
+  runnerBlockedWebBundleCheck?.rerunCommands,
+  ['pnpm run build'],
+);
+
+const blockedRunnerDiagnostic = runnerBlockedReport.environmentDiagnostics.find(
+  (entry) => entry.id === 'governance-regression-command-runner',
+);
+assert.equal(blockedRunnerDiagnostic?.status, 'blocked');
+assert.equal(blockedRunnerDiagnostic?.classification, 'toolchain-platform');
+assert.deepEqual(blockedRunnerDiagnostic?.appliesTo, ['web-bundle-budget']);
+
+const invalidTopologyRootDir = fs.mkdtempSync(path.join(tempDir, 'invalid-topology-root-'));
+fs.mkdirSync(path.join(invalidTopologyRootDir, 'scripts'), { recursive: true });
+fs.writeFileSync(
+  path.join(invalidTopologyRootDir, 'package.json'),
+  JSON.stringify(
+    {
+      name: '@sdkwork/birdcoder-workspace',
+      private: true,
+      scripts: {
+        build: 'node scripts/present-check.mjs',
+      },
+    },
+    null,
+    2,
+  ),
+  'utf8',
+);
+fs.writeFileSync(
+  path.join(invalidTopologyRootDir, 'scripts', 'present-check.mjs'),
+  "console.log('present-topology-check');\n",
+  'utf8',
+);
+
+const invalidTopologyOutputPath = path.join(tempDir, 'governance-regression-report.invalid-topology.json');
+const executedValidTopologyChecks = [];
+const invalidTopologyReport = await runGovernanceRegressionReport({
+  rootDir: invalidTopologyRootDir,
+  outputPath: invalidTopologyOutputPath,
+  now,
+  checks: [
+    {
+      id: 'missing-script-file',
+      label: 'Missing script file check',
+      scriptPath: 'scripts/missing-check.mjs',
+      command: 'node scripts/missing-check.mjs',
+    },
+    {
+      id: 'missing-pnpm-script',
+      label: 'Missing pnpm script check',
+      scriptPath: 'scripts/present-check.mjs',
+      command: 'pnpm run test:missing-governance-topology',
+    },
+    {
+      id: 'present-topology-check',
+      label: 'Present topology check',
+      scriptPath: 'scripts/present-check.mjs',
+      command: 'node scripts/present-check.mjs',
+    },
+  ],
+  runner: (check) => {
+    executedValidTopologyChecks.push(check.id);
+    return {
+      status: 'passed',
+      exitCode: 0,
+      stdout: `${check.id} ok`,
+      stderr: '',
+      durationMs: 3,
+    };
+  },
+});
+
+assert.equal(invalidTopologyReport.status, 'failed');
+assert.equal(invalidTopologyReport.summary.totalChecks, 3);
+assert.equal(invalidTopologyReport.summary.passedCount, 1);
+assert.equal(invalidTopologyReport.summary.blockedCount, 0);
+assert.equal(invalidTopologyReport.summary.failedCount, 2);
+assert.deepEqual(
+  invalidTopologyReport.summary.failedCheckIds,
+  ['missing-script-file', 'missing-pnpm-script'],
+);
+assert.deepEqual(
+  executedValidTopologyChecks,
+  ['present-topology-check'],
+  'governance regression report must skip executing checks whose declared topology is already invalid.',
+);
+
+const invalidMissingScriptCheck = invalidTopologyReport.checks.find((check) => check.id === 'missing-script-file');
+assert.equal(invalidMissingScriptCheck?.status, 'failed');
+assert.equal(invalidMissingScriptCheck?.exitCode, 1);
+assert.match(
+  invalidMissingScriptCheck?.stderr ?? '',
+  /Governance regression check missing-script-file references missing repo file: scripts\/missing-check\.mjs/,
+);
+
+const invalidMissingPnpmCheck = invalidTopologyReport.checks.find((check) => check.id === 'missing-pnpm-script');
+assert.equal(invalidMissingPnpmCheck?.status, 'failed');
+assert.equal(invalidMissingPnpmCheck?.exitCode, 1);
+assert.match(
+  invalidMissingPnpmCheck?.stderr ?? '',
+  /Governance regression check missing-pnpm-script references missing root package script: test:missing-governance-topology/,
+);
+
+const validTopologyCheck = invalidTopologyReport.checks.find((check) => check.id === 'present-topology-check');
+assert.equal(validTopologyCheck?.status, 'passed');
+assert.ok(fs.existsSync(invalidTopologyOutputPath));
+
 const rootPackageJson = JSON.parse(
   fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'),
+);
+const governanceRegressionReportSource = fs.readFileSync(
+  path.join(process.cwd(), 'scripts', 'governance-regression-report.mjs'),
+  'utf8',
 );
 assert.equal(
   rootPackageJson.scripts['check:governance-regression'],
@@ -379,6 +636,17 @@ assert.equal(
 assert.equal(
   rootPackageJson.scripts['check:quality-loop-scoreboard'],
   'node scripts/quality-loop-scoreboard-contract.test.mjs',
+);
+
+assert.doesNotMatch(
+  governanceRegressionReportSource,
+  /const report = await runGovernanceRegressionReport\(/,
+  'governance regression CLI must not block module evaluation behind a top-level await on runGovernanceRegressionReport.',
+);
+assert.match(
+  governanceRegressionReportSource,
+  /void runGovernanceRegressionReport\(/,
+  'governance regression CLI must launch the async report runner without turning the module itself into a top-level-await dependency.',
 );
 
 console.log('governance regression report contract passed.');

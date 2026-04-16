@@ -3,7 +3,14 @@ import type {
   BirdCoderCodingSession,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
-import { IProjectService } from '../interfaces/IProjectService';
+import type {
+  BirdCoderCodingSessionMirrorSnapshot,
+  BirdCoderProjectMirrorSnapshot,
+  CreateCodingSessionOptions,
+  IProjectService,
+} from '../interfaces/IProjectService';
+
+const CODEX_NATIVE_MESSAGE_ID_SEGMENT = ':native-message:';
 
 function createIsoTimestamp(offsetMs = 0): string {
   return new Date(Date.now() + offsetMs).toISOString();
@@ -173,6 +180,50 @@ export class MockProjectService implements IProjectService {
     });
   }
 
+  async getProjectMirrorSnapshots(workspaceId?: string): Promise<BirdCoderProjectMirrorSnapshot[]> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const visibleProjects = workspaceId
+          ? this.projects.filter((project) => project.workspaceId === workspaceId)
+          : this.projects;
+
+        resolve(visibleProjects.map((project) => ({
+          id: project.id,
+          workspaceId: project.workspaceId,
+          name: project.name,
+          description: project.description,
+          path: project.path,
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+          archived: project.archived,
+          codingSessions: project.codingSessions.map((codingSession): BirdCoderCodingSessionMirrorSnapshot => ({
+            id: codingSession.id,
+            workspaceId: codingSession.workspaceId,
+            projectId: codingSession.projectId,
+            title: codingSession.title,
+            status: codingSession.status,
+            hostMode: codingSession.hostMode,
+            engineId: codingSession.engineId,
+            modelId: codingSession.modelId,
+            createdAt: codingSession.createdAt,
+            updatedAt: codingSession.updatedAt,
+            lastTurnAt: codingSession.lastTurnAt,
+            displayTime: codingSession.displayTime,
+            pinned: codingSession.pinned,
+            archived: codingSession.archived,
+            unread: codingSession.unread,
+            messageCount: codingSession.messages.length,
+            nativeTranscriptUpdatedAt:
+              [...codingSession.messages]
+                .reverse()
+                .find((message) => message.id.includes(CODEX_NATIVE_MESSAGE_ID_SEGMENT))
+                ?.createdAt ?? null,
+          })),
+        })));
+      }, 100);
+    });
+  }
+
   async createProject(workspaceId: string, name: string): Promise<BirdCoderProject> {
     const now = createIsoTimestamp();
     const newProject: BirdCoderProject = {
@@ -209,6 +260,7 @@ export class MockProjectService implements IProjectService {
   async createCodingSession(
     projectId: string,
     title: string,
+    options?: CreateCodingSessionOptions,
   ): Promise<BirdCoderCodingSession> {
     const project = this.projects.find((candidate) => candidate.id === projectId);
     if (!project) {
@@ -217,10 +269,39 @@ export class MockProjectService implements IProjectService {
 
     const codingSession = createCodingSession(projectId, project.workspaceId, title, {
       displayTime: 'Just now',
+      engineId: options?.engineId ?? 'codex',
+      modelId: options?.modelId ?? options?.engineId ?? 'codex',
     });
     project.codingSessions.push(codingSession);
     project.updatedAt = createIsoTimestamp();
     return structuredClone(codingSession);
+  }
+
+  async upsertCodingSession(projectId: string, codingSession: BirdCoderCodingSession): Promise<void> {
+    const project = this.projects.find((candidate) => candidate.id === projectId);
+    if (!project) {
+      throw new Error(`Project with ID ${projectId} not found`);
+    }
+
+    const nextCodingSession = structuredClone(codingSession);
+    const existingIndex = project.codingSessions.findIndex(
+      (candidate) => candidate.id === nextCodingSession.id,
+    );
+    const existingCodingSession = existingIndex >= 0 ? project.codingSessions[existingIndex] : undefined;
+
+    if (nextCodingSession.messages.length === 0 && existingCodingSession?.messages.length) {
+      nextCodingSession.messages = existingCodingSession.messages.map((message) =>
+        structuredClone(message),
+      );
+    }
+
+    if (existingIndex >= 0) {
+      project.codingSessions.splice(existingIndex, 1, nextCodingSession);
+    } else {
+      project.codingSessions.push(nextCodingSession);
+    }
+
+    project.updatedAt = createIsoTimestamp();
   }
 
   async renameCodingSession(

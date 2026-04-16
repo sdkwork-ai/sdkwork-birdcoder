@@ -25,6 +25,31 @@ assert.deepEqual(getTerminalCliProfileDefinition('claude-code'), {
 assert.equal(normalizeTerminalCliExecutable('gemini', ''), 'gemini');
 assert.equal(normalizeTerminalCliExecutable('gemini', 'gemini-cli'), 'gemini');
 assert.equal(normalizeTerminalCliExecutable('opencode', 'custom-opencode'), 'custom-opencode');
+assert.equal(
+  normalizeTerminalCliExecutable('codex', ''),
+  process.platform === 'win32' ? 'codex.cmd' : 'codex',
+);
+
+const terminalRuntime = globalThis as typeof globalThis & {
+  process?: NodeJS.Process;
+};
+const originalProcess = terminalRuntime.process;
+
+assert.equal(
+  Reflect.deleteProperty(terminalRuntime, 'process'),
+  true,
+  'terminal registry browser-safety contract requires process to be removable from the runtime global.',
+);
+
+try {
+  assert.equal(
+    normalizeTerminalCliExecutable('codex', ''),
+    'codex',
+    'codex executable normalization should remain browser-safe when process is unavailable.',
+  );
+} finally {
+  terminalRuntime.process = originalProcess;
+}
 
 const launchProfiles = listTerminalLaunchProfileOptions();
 const codexLaunchProfile = launchProfiles.find((profile) => profile.id === 'codex');
@@ -32,7 +57,7 @@ const powershellLaunchProfile = launchProfiles.find((profile) => profile.id === 
 
 assert.ok(codexLaunchProfile, 'codex launch profile must be present');
 assert.equal(codexLaunchProfile?.kind, 'cli');
-assert.equal(codexLaunchProfile?.executable, 'codex');
+assert.equal(codexLaunchProfile?.executable, process.platform === 'win32' ? 'codex.cmd' : 'codex');
 assert.equal(
   codexLaunchProfile?.installHint,
   'Install Codex CLI and ensure the codex command is on PATH.',
@@ -150,6 +175,16 @@ assert.equal(
   codePageSource.includes('is unavailable.') || codeRunEntryHookSource.includes('is unavailable.'),
   false,
   'CodePage should not keep page-local blocked-launch toast copy after the run-entry boundary split.',
+);
+
+const terminalRegistrySource = await readFile(
+  new URL('../packages/sdkwork-birdcoder-commons/src/terminal/registry.ts', import.meta.url),
+  'utf8',
+);
+assert.equal(
+  /\bprocess\./.test(terminalRegistrySource),
+  false,
+  'terminal registry should not directly access process.* because it is bundled into browser runtimes.',
 );
 
 const studioPageSource = await readFile(

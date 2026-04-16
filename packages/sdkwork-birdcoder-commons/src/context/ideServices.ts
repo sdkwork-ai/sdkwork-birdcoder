@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
-import type { IChatEngine } from '@sdkwork/birdcoder-chat';
 import type {
+  BirdCoderDefaultIdeServices,
   IAdminDeploymentService,
   IAdminPolicyService,
   IAuthService,
@@ -15,10 +15,7 @@ import type {
   ITeamService,
   IWorkspaceService,
 } from '@sdkwork/birdcoder-infrastructure';
-import {
-  createDefaultBirdCoderIdeServices,
-} from '@sdkwork/birdcoder-infrastructure';
-import { createChatEngineById } from '../workbench/engines.ts';
+import { createLazyDefaultIdeServices } from './lazyDefaultIdeServices.ts';
 
 export interface IIDEContext {
   adminDeploymentService: IAdminDeploymentService;
@@ -34,13 +31,10 @@ export interface IIDEContext {
   teamService: ITeamService;
   fileSystemService: IFileSystemService;
   authService: IAuthService;
-  chatEngine: IChatEngine;
-  setChatEngine: (engine: IChatEngine) => void;
-  switchChatEngine: (name: string) => void;
 }
 
 export function createDefaultIdeContextValue(): IIDEContext {
-  const defaultIdeServices = createDefaultBirdCoderIdeServices();
+  const defaultIdeServices: BirdCoderDefaultIdeServices = createLazyDefaultIdeServices();
   return {
     adminDeploymentService: defaultIdeServices.adminDeploymentService,
     adminPolicyService: defaultIdeServices.adminPolicyService,
@@ -55,9 +49,6 @@ export function createDefaultIdeContextValue(): IIDEContext {
     teamService: defaultIdeServices.teamService,
     fileSystemService: defaultIdeServices.fileSystemService,
     authService: defaultIdeServices.authService,
-    chatEngine: createChatEngineById('codex'),
-    setChatEngine: () => {},
-    switchChatEngine: () => {},
   };
 }
 

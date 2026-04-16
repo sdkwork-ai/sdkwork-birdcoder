@@ -23,6 +23,7 @@ const testPlan = createTauriCliPlan({
   argv: ['dev', '--config', 'src-tauri/tauri.test.conf.json', '--vite-mode', 'test'],
   env: {},
   platform: 'win32',
+  cwd: 'D:\\workspace\\sdkwork-birdcoder\\packages\\sdkwork-birdcoder-desktop',
   execPath: 'C:\\Program Files\\nodejs\\node.exe',
   resolveTauriCliEntrypoint: () => 'D:\\workspace\\sdkwork-birdcoder\\node_modules\\@tauri-apps\\cli\\tauri.js',
 });
@@ -33,6 +34,10 @@ assert.deepEqual(
   ['D:\\workspace\\sdkwork-birdcoder\\node_modules\\@tauri-apps\\cli\\tauri.js', 'dev', '--config', 'src-tauri/tauri.test.conf.json'],
 );
 assert.equal(testPlan.env.SDKWORK_VITE_MODE, 'test');
+assert.equal(
+  testPlan.env.BIRDCODER_CODING_SERVER_SQLITE_FILE,
+  'D:\\workspace\\sdkwork-birdcoder\\packages\\sdkwork-birdcoder-desktop\\.local\\sdkwork-birdcoder.sqlite3',
+);
 assert.equal(testPlan.shell, false);
 
 assert.throws(

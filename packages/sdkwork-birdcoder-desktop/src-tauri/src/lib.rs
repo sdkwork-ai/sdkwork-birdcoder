@@ -1,11 +1,17 @@
 use rusqlite::{params, Connection};
+use sdkwork_birdcoder_server::{
+    build_app_from_sqlite_file, BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV,
+    BIRD_SERVER_DEFAULT_BIND_ADDRESS, BIRD_SERVER_DEFAULT_HOST,
+};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
+use std::sync::OnceLock;
 use tauri::{AppHandle, Manager};
 
 const CODING_SERVER_AUTHORITY_BACKFILL_MIGRATION_ID: &str = "coding-server-authority-backfill-v1";
 const LOCAL_STORE_SQLITE_TABLE_PREFIX: &str = "table.sqlite.";
+const LOCAL_STORE_WORKSPACES_KEY: &str = "table.sqlite.workspaces.v1";
 const LOCAL_STORE_CODING_SESSIONS_KEY: &str = "table.sqlite.coding-sessions.v1";
 const LOCAL_STORE_CODING_SESSION_RUNTIMES_KEY: &str = "table.sqlite.coding-session-runtimes.v1";
 const LOCAL_STORE_CODING_SESSION_RUNTIMES_KEY_PREFIX: &str =
@@ -20,6 +26,18 @@ const LOCAL_STORE_CODING_SESSION_OPERATIONS_KEY_PREFIX: &str =
 const LOCAL_STORE_PROJECTS_KEY: &str = "table.sqlite.projects.v1";
 const LOCAL_STORE_TEAMS_KEY: &str = "table.sqlite.teams.v1";
 const LOCAL_STORE_RELEASE_RECORDS_KEY: &str = "table.sqlite.release-records.v1";
+const DEFAULT_BOOTSTRAP_WORKSPACE_ID: &str = "workspace-default";
+const DEFAULT_BOOTSTRAP_WORKSPACE_NAME: &str = "Default Workspace";
+const DEFAULT_BOOTSTRAP_WORKSPACE_DESCRIPTION: &str = "Primary local workspace for BirdCoder.";
+const DEFAULT_BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID: &str = "identity-local-default";
+
+static DESKTOP_RUNTIME_CONFIG: OnceLock<DesktopRuntimeConfig> = OnceLock::new();
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopRuntimeConfig {
+    api_base_url: String,
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -214,6 +232,18 @@ struct StoredCodingSessionOperationRecord {
     stream_kind: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StoredWorkspaceRecord {
+    id: String,
+    name: String,
+    description: Option<String>,
+    owner_identity_id: Option<String>,
+    status: Option<String>,
+    created_at: Option<String>,
+    updated_at: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct StoredProjectRecord {
@@ -252,15 +282,173 @@ struct StoredReleaseRecord {
     updated_at: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FileSystemSnapshotResponse {
+    root_virtual_path: String,
+    tree: FileSystemNode,
+}
+
+#[derive(Debug, Serialize)]
+struct FileSystemNode {
+    name: String,
+    #[serde(rename = "type")]
+    kind: String,
+    path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    children: Option<Vec<FileSystemNode>>,
+}
+
+fn build_virtual_child_path(parent_path: &str, name: &str) -> String {
+    if parent_path == "/" {
+        format!("/{name}")
+    } else {
+        format!("{parent_path}/{name}")
+    }
+}
+
+fn sort_file_system_nodes(nodes: &mut [FileSystemNode]) {
+    nodes.sort_by(|left, right| {
+        if left.kind != right.kind {
+            return if left.kind == "directory" {
+                std::cmp::Ordering::Less
+            } else {
+                std::cmp::Ordering::Greater
+            };
+        }
+
+        left.name.cmp(&right.name)
+    });
+}
+
+fn resolve_root_directory_path(root_path: &str) -> Result<PathBuf, String> {
+    let normalized_root_path = root_path.trim();
+    if normalized_root_path.is_empty() {
+        return Err("root path must not be empty".to_string());
+    }
+
+    let root_directory = PathBuf::from(normalized_root_path);
+    if !root_directory.exists() {
+        return Err(format!(
+            "mounted root directory does not exist: {}",
+            root_directory.display()
+        ));
+    }
+
+    if !root_directory.is_dir() {
+        return Err(format!(
+            "mounted root path must be a directory: {}",
+            root_directory.display()
+        ));
+    }
+
+    Ok(root_directory)
+}
+
+fn resolve_root_directory_name(root_directory: &Path) -> String {
+    root_directory
+        .file_name()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "mounted-folder".to_string())
+}
+
+fn normalize_relative_path(relative_path: &str) -> Result<PathBuf, String> {
+    let trimmed_relative_path = relative_path.trim();
+    if trimmed_relative_path.is_empty() {
+        return Err("relative path must not be empty".to_string());
+    }
+
+    let mut normalized_path = PathBuf::new();
+    for component in Path::new(trimmed_relative_path).components() {
+        match component {
+            Component::CurDir => {}
+            Component::Normal(value) => normalized_path.push(value),
+            Component::ParentDir => {
+                return Err("relative path must not traverse outside the mounted root".to_string())
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                return Err("relative path must stay relative to the mounted root".to_string())
+            }
+        }
+    }
+
+    if normalized_path.as_os_str().is_empty() {
+        return Err("relative path must not be empty".to_string());
+    }
+
+    Ok(normalized_path)
+}
+
+fn resolve_scoped_path(root_path: &str, relative_path: &str) -> Result<PathBuf, String> {
+    let root_directory = resolve_root_directory_path(root_path)?;
+    let normalized_relative_path = normalize_relative_path(relative_path)?;
+    Ok(root_directory.join(normalized_relative_path))
+}
+
+fn build_directory_snapshot(directory_path: &Path, virtual_path: &str) -> Result<FileSystemNode, String> {
+    let mut children = Vec::new();
+    let entries = fs::read_dir(directory_path)
+        .map_err(|error| format!("failed to enumerate directory '{}': {error}", directory_path.display()))?;
+
+    for entry in entries {
+        let entry =
+            entry.map_err(|error| format!("failed to inspect directory entry '{}': {error}", directory_path.display()))?;
+        let entry_path = entry.path();
+        let entry_name = entry.file_name().to_string_lossy().to_string();
+        let entry_type = entry
+            .file_type()
+            .map_err(|error| format!("failed to inspect entry type '{}': {error}", entry_path.display()))?;
+        let child_virtual_path = build_virtual_child_path(virtual_path, &entry_name);
+
+        if entry_type.is_dir() {
+            children.push(build_directory_snapshot(&entry_path, &child_virtual_path)?);
+        } else if entry_type.is_file() {
+            children.push(FileSystemNode {
+                name: entry_name,
+                kind: "file".to_string(),
+                path: child_virtual_path,
+                children: None,
+            });
+        }
+    }
+
+    sort_file_system_nodes(&mut children);
+
+    Ok(FileSystemNode {
+        name: resolve_root_directory_name(directory_path),
+        kind: "directory".to_string(),
+        path: virtual_path.to_string(),
+        children: Some(children),
+    })
+}
+
 fn local_database_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let mut app_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("failed to resolve app data directory: {error}"))?;
-    fs::create_dir_all(&app_dir)
-        .map_err(|error| format!("failed to create app data directory: {error}"))?;
-    app_dir.push("sdkwork-birdcoder.sqlite3");
-    Ok(app_dir)
+    let database_path = if let Some(configured_path) = std::env::var_os(BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV)
+        .map(PathBuf::from)
+        .filter(|path| !path.as_os_str().is_empty())
+    {
+        configured_path
+    } else {
+        let mut app_dir = app
+            .path()
+            .app_data_dir()
+            .map_err(|error| format!("failed to resolve app data directory: {error}"))?;
+        app_dir.push("sdkwork-birdcoder.sqlite3");
+        app_dir
+    };
+
+    let parent_directory = database_path.parent().ok_or_else(|| {
+        format!(
+            "failed to resolve parent directory for sqlite database path: {}",
+            database_path.display()
+        )
+    })?;
+    fs::create_dir_all(parent_directory)
+        .map_err(|error| format!("failed to create sqlite database directory: {error}"))?;
+
+    Ok(database_path)
 }
 
 fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
@@ -426,6 +614,18 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 stream_url TEXT NOT NULL DEFAULT '',
                 stream_kind TEXT NOT NULL DEFAULT 'sse',
                 artifact_refs_json TEXT NOT NULL DEFAULT '[]'
+            );
+
+            CREATE TABLE IF NOT EXISTS workspaces (
+                id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                version INTEGER NOT NULL DEFAULT 0,
+                is_deleted INTEGER NOT NULL DEFAULT 0,
+                name TEXT NOT NULL,
+                description TEXT NULL,
+                owner_identity_id TEXT NULL,
+                status TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS projects (
@@ -650,6 +850,11 @@ fn clear_local_store_table_rows(
                         format!("failed to clear scoped coding_session_operations mirror: {error}")
                     })?;
             }
+        }
+        ("workspace", LOCAL_STORE_WORKSPACES_KEY) => {
+            connection
+                .execute("DELETE FROM workspaces", [])
+                .map_err(|error| format!("failed to clear workspaces mirror: {error}"))?;
         }
         ("workspace", LOCAL_STORE_PROJECTS_KEY) => {
             connection
@@ -1109,6 +1314,46 @@ fn sync_local_store_table_rows(
         return Ok(());
     }
 
+    if scope == "workspace" && key == LOCAL_STORE_WORKSPACES_KEY {
+        let records =
+            parse_local_store_table_records::<StoredWorkspaceRecord>(value, "workspace records")?;
+        for record in records {
+            connection
+                .execute(
+                    r#"
+                    INSERT INTO workspaces (
+                        id, created_at, updated_at, version, is_deleted,
+                        name, description, owner_identity_id, status
+                    )
+                    VALUES (
+                        ?1, COALESCE(?2, CURRENT_TIMESTAMP), COALESCE(?3, CURRENT_TIMESTAMP), 0, 0,
+                        ?4, ?5, ?6, ?7
+                    )
+                    ON CONFLICT(id)
+                    DO UPDATE SET
+                        updated_at = COALESCE(excluded.updated_at, CURRENT_TIMESTAMP),
+                        name = excluded.name,
+                        description = excluded.description,
+                        owner_identity_id = excluded.owner_identity_id,
+                        status = excluded.status,
+                        is_deleted = 0
+                    "#,
+                    params![
+                        record.id,
+                        record.created_at,
+                        record.updated_at,
+                        record.name,
+                        record.description,
+                        record.owner_identity_id,
+                        record.status.unwrap_or_else(|| "active".to_string()),
+                    ],
+                )
+                .map_err(|error| format!("failed to mirror workspace record: {error}"))?;
+        }
+
+        return Ok(());
+    }
+
     if scope == "workspace" && key == LOCAL_STORE_PROJECTS_KEY {
         let records =
             parse_local_store_table_records::<StoredProjectRecord>(value, "project records")?;
@@ -1270,6 +1515,49 @@ fn backfill_provider_tables_from_kv_store(connection: &Connection) -> Result<(),
     mark_backfill_applied(connection)
 }
 
+fn ensure_bootstrap_workspace_authority(connection: &Connection) -> Result<(), String> {
+    let workspace_count: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM workspaces WHERE is_deleted = 0",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("failed to count bootstrap workspaces: {error}"))?;
+    if workspace_count > 0 {
+        return Ok(());
+    }
+
+    let default_workspace_payload = serde_json::to_string(&vec![StoredWorkspaceRecord {
+        id: DEFAULT_BOOTSTRAP_WORKSPACE_ID.to_string(),
+        name: DEFAULT_BOOTSTRAP_WORKSPACE_NAME.to_string(),
+        description: Some(DEFAULT_BOOTSTRAP_WORKSPACE_DESCRIPTION.to_string()),
+        owner_identity_id: Some(DEFAULT_BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID.to_string()),
+        status: Some("active".to_string()),
+        created_at: None,
+        updated_at: None,
+    }])
+    .map_err(|error| format!("failed to serialize bootstrap workspace payload: {error}"))?;
+
+    connection
+        .execute(
+            r#"
+            INSERT INTO kv_store (scope, key, value, updated_at)
+            VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP)
+            ON CONFLICT(scope, key)
+            DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+            "#,
+            params!["workspace", LOCAL_STORE_WORKSPACES_KEY, &default_workspace_payload],
+        )
+        .map_err(|error| format!("failed to persist bootstrap workspace payload: {error}"))?;
+
+    sync_local_store_table_rows(
+        connection,
+        "workspace",
+        LOCAL_STORE_WORKSPACES_KEY,
+        &default_workspace_payload,
+    )
+}
+
 fn open_database(app: &AppHandle) -> Result<Connection, String> {
     let database_path = local_database_path(app)?;
     let connection = Connection::open(database_path)
@@ -1278,8 +1566,104 @@ fn open_database(app: &AppHandle) -> Result<Connection, String> {
     migrate_terminal_sessions_schema(&connection)?;
     initialize_database_schema(&connection)?;
     backfill_provider_tables_from_kv_store(&connection)?;
+    ensure_bootstrap_workspace_authority(&connection)?;
 
     Ok(connection)
+}
+
+fn normalize_api_base_url(api_base_url: &str) -> Option<String> {
+    let normalized_api_base_url = api_base_url.trim();
+    if normalized_api_base_url.is_empty() {
+        None
+    } else {
+        Some(normalized_api_base_url.to_string())
+    }
+}
+
+fn read_explicit_api_base_url() -> Option<String> {
+    std::env::var("VITE_BIRDCODER_API_BASE_URL")
+        .ok()
+        .as_deref()
+        .and_then(normalize_api_base_url)
+        .or_else(|| {
+            std::env::var("BIRDCODER_API_BASE_URL")
+                .ok()
+                .as_deref()
+                .and_then(normalize_api_base_url)
+        })
+}
+
+fn resolve_listener_api_base_url(listener: &std::net::TcpListener) -> Result<String, String> {
+    let local_address = listener
+        .local_addr()
+        .map_err(|error| format!("failed to resolve embedded coding server local address: {error}"))?;
+    Ok(format!("http://{local_address}"))
+}
+
+fn bind_embedded_coding_server_listener(
+    preferred_bind_address: &str,
+    fallback_host: &str,
+) -> Result<(std::net::TcpListener, String), String> {
+    match std::net::TcpListener::bind(preferred_bind_address) {
+        Ok(listener) => {
+            let api_base_url = resolve_listener_api_base_url(&listener)?;
+            Ok((listener, api_base_url))
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
+            let listener = std::net::TcpListener::bind((fallback_host, 0)).map_err(|fallback_error| {
+                format!(
+                    "failed to bind embedded coding server on {preferred_bind_address} or a fallback loopback port: {fallback_error}"
+                )
+            })?;
+            let api_base_url = resolve_listener_api_base_url(&listener)?;
+            eprintln!(
+                "embedded coding server default port {preferred_bind_address} is unavailable; using {api_base_url} instead."
+            );
+            Ok((listener, api_base_url))
+        }
+        Err(error) => Err(format!(
+            "failed to bind embedded coding server on {preferred_bind_address}: {error}"
+        )),
+    }
+}
+
+fn start_embedded_coding_server(app: &AppHandle) -> Result<(), String> {
+    if DESKTOP_RUNTIME_CONFIG.get().is_some() {
+        return Ok(());
+    }
+
+    if let Some(api_base_url) = read_explicit_api_base_url() {
+        let _ = DESKTOP_RUNTIME_CONFIG.set(DesktopRuntimeConfig { api_base_url });
+        return Ok(());
+    }
+
+    let connection = open_database(app)?;
+    drop(connection);
+
+    let database_path = local_database_path(app)?;
+    let router = build_app_from_sqlite_file(&database_path)?;
+    let (listener, api_base_url) =
+        bind_embedded_coding_server_listener(BIRD_SERVER_DEFAULT_BIND_ADDRESS, BIRD_SERVER_DEFAULT_HOST)?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|error| format!("failed to configure embedded coding server listener: {error}"))?;
+
+    tauri::async_runtime::spawn(async move {
+        let listener = match tokio::net::TcpListener::from_std(listener) {
+            Ok(listener) => listener,
+            Err(error) => {
+                eprintln!("failed to adopt embedded coding server listener: {error}");
+                return;
+            }
+        };
+
+        if let Err(error) = axum::serve(listener, router).await {
+            eprintln!("embedded coding server stopped unexpectedly: {error}");
+        }
+    });
+
+    let _ = DESKTOP_RUNTIME_CONFIG.set(DesktopRuntimeConfig { api_base_url });
+    Ok(())
 }
 
 fn migrate_terminal_sessions_schema(connection: &Connection) -> Result<(), String> {
@@ -1504,6 +1888,14 @@ fn host_mode() -> &'static str {
 }
 
 #[tauri::command]
+fn desktop_runtime_config() -> Result<DesktopRuntimeConfig, String> {
+    DESKTOP_RUNTIME_CONFIG
+        .get()
+        .cloned()
+        .ok_or_else(|| "desktop runtime config is unavailable".to_string())
+}
+
+#[tauri::command]
 fn local_store_get(app: AppHandle, scope: String, key: String) -> Result<Option<String>, String> {
     let connection = open_database(&app)?;
     let mut statement = connection
@@ -1593,6 +1985,175 @@ fn local_store_list(app: AppHandle, scope: String) -> Result<Vec<LocalStoreEntry
     }
 
     Ok(entries)
+}
+
+#[tauri::command]
+fn fs_snapshot_folder(root_path: String) -> Result<FileSystemSnapshotResponse, String> {
+    let root_directory = resolve_root_directory_path(&root_path)?;
+    let root_virtual_path = format!("/{}", resolve_root_directory_name(&root_directory));
+    let tree = build_directory_snapshot(&root_directory, &root_virtual_path)?;
+
+    Ok(FileSystemSnapshotResponse {
+        root_virtual_path,
+        tree,
+    })
+}
+
+#[tauri::command]
+fn fs_read_file(root_path: String, relative_path: String) -> Result<String, String> {
+    let file_path = resolve_scoped_path(&root_path, &relative_path)?;
+    fs::read_to_string(&file_path)
+        .map_err(|error| format!("failed to read mounted file '{}': {error}", file_path.display()))
+}
+
+#[tauri::command]
+fn fs_write_file(root_path: String, relative_path: String, content: String) -> Result<(), String> {
+    let file_path = resolve_scoped_path(&root_path, &relative_path)?;
+    fs::write(&file_path, content)
+        .map_err(|error| format!("failed to write mounted file '{}': {error}", file_path.display()))
+}
+
+#[tauri::command]
+fn fs_create_file(root_path: String, relative_path: String) -> Result<(), String> {
+    let file_path = resolve_scoped_path(&root_path, &relative_path)?;
+    if file_path.exists() {
+        if file_path.is_file() {
+            return Ok(());
+        }
+
+        return Err(format!(
+            "cannot create file because a directory already exists at '{}'",
+            file_path.display()
+        ));
+    }
+
+    let parent_directory = file_path.parent().ok_or_else(|| {
+        format!(
+            "cannot create mounted file without a parent directory: {}",
+            file_path.display()
+        )
+    })?;
+
+    if !parent_directory.exists() {
+        return Err(format!(
+            "parent directory does not exist for mounted file '{}'",
+            file_path.display()
+        ));
+    }
+
+    fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(false)
+        .open(&file_path)
+        .map_err(|error| format!("failed to create mounted file '{}': {error}", file_path.display()))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn fs_create_directory(root_path: String, relative_path: String) -> Result<(), String> {
+    let directory_path = resolve_scoped_path(&root_path, &relative_path)?;
+    if directory_path.exists() {
+        if directory_path.is_dir() {
+            return Ok(());
+        }
+
+        return Err(format!(
+            "cannot create directory because a file already exists at '{}'",
+            directory_path.display()
+        ));
+    }
+
+    let parent_directory = directory_path.parent().ok_or_else(|| {
+        format!(
+            "cannot create mounted directory without a parent directory: {}",
+            directory_path.display()
+        )
+    })?;
+
+    if !parent_directory.exists() {
+        return Err(format!(
+            "parent directory does not exist for mounted directory '{}'",
+            directory_path.display()
+        ));
+    }
+
+    fs::create_dir(&directory_path).map_err(|error| {
+        format!(
+            "failed to create mounted directory '{}': {error}",
+            directory_path.display()
+        )
+    })?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn fs_delete_entry(
+    root_path: String,
+    relative_path: String,
+    recursive: bool,
+) -> Result<(), String> {
+    let entry_path = resolve_scoped_path(&root_path, &relative_path)?;
+    let metadata = fs::metadata(&entry_path)
+        .map_err(|error| format!("failed to inspect mounted entry '{}': {error}", entry_path.display()))?;
+
+    if metadata.is_dir() {
+        if recursive {
+            fs::remove_dir_all(&entry_path).map_err(|error| {
+                format!(
+                    "failed to delete mounted directory '{}': {error}",
+                    entry_path.display()
+                )
+            })?;
+        } else {
+            fs::remove_dir(&entry_path).map_err(|error| {
+                format!(
+                    "failed to delete mounted directory '{}': {error}",
+                    entry_path.display()
+                )
+            })?;
+        }
+    } else {
+        fs::remove_file(&entry_path)
+            .map_err(|error| format!("failed to delete mounted file '{}': {error}", entry_path.display()))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn fs_rename_entry(
+    root_path: String,
+    old_relative_path: String,
+    new_relative_path: String,
+) -> Result<(), String> {
+    let old_path = resolve_scoped_path(&root_path, &old_relative_path)?;
+    let new_path = resolve_scoped_path(&root_path, &new_relative_path)?;
+    let new_parent_directory = new_path.parent().ok_or_else(|| {
+        format!(
+            "cannot rename mounted entry without a destination parent directory: {}",
+            new_path.display()
+        )
+    })?;
+
+    if !new_parent_directory.exists() {
+        return Err(format!(
+            "destination parent directory does not exist for mounted entry '{}'",
+            new_path.display()
+        ));
+    }
+
+    fs::rename(&old_path, &new_path).map_err(|error| {
+        format!(
+            "failed to rename mounted entry '{}' to '{}': {error}",
+            old_path.display(),
+            new_path.display()
+        )
+    })?;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -1831,12 +2392,24 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .setup(|app| {
+            start_embedded_coding_server(app.handle())?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             host_mode,
+            desktop_runtime_config,
             local_store_get,
             local_store_set,
             local_store_delete,
             local_store_list,
+            fs_snapshot_folder,
+            fs_read_file,
+            fs_write_file,
+            fs_create_file,
+            fs_create_directory,
+            fs_delete_entry,
+            fs_rename_entry,
             terminal_session_upsert,
             terminal_session_delete,
             terminal_session_list,
@@ -1853,6 +2426,27 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bind_embedded_coding_server_listener_falls_back_to_ephemeral_loopback_port_when_preferred_port_is_occupied(
+    ) {
+        let blocking_listener =
+            std::net::TcpListener::bind((BIRD_SERVER_DEFAULT_HOST, 0)).expect("bind blocking listener");
+        let occupied_address = blocking_listener
+            .local_addr()
+            .expect("read blocking listener local address");
+
+        let (listener, api_base_url) = bind_embedded_coding_server_listener(
+            &occupied_address.to_string(),
+            BIRD_SERVER_DEFAULT_HOST,
+        )
+        .expect("bind fallback embedded coding server listener");
+        let local_address = listener.local_addr().expect("read fallback listener local address");
+
+        assert_eq!(local_address.ip().to_string(), BIRD_SERVER_DEFAULT_HOST);
+        assert_ne!(local_address.port(), occupied_address.port());
+        assert_eq!(api_base_url, format!("http://{local_address}"));
+    }
 
     fn table_exists(connection: &Connection, table_name: &str) -> bool {
         let mut statement = connection
@@ -1885,6 +2479,7 @@ mod tests {
             "coding_session_artifacts",
             "coding_session_checkpoints",
             "coding_session_operations",
+            "workspaces",
             "projects",
             "teams",
             "release_records",
@@ -2016,6 +2611,19 @@ mod tests {
         sync_local_store_table_rows(
             &connection,
             "workspace",
+            "table.sqlite.workspaces.v1",
+            r#"[{
+                "id":"workspace-sqlite",
+                "name":"SQLite authority workspace",
+                "description":"Authority-backed app workspace list item",
+                "ownerIdentityId":"identity-sqlite-owner",
+                "status":"active"
+            }]"#,
+        )
+        .expect("sync workspaces");
+        sync_local_store_table_rows(
+            &connection,
+            "workspace",
             "table.sqlite.projects.v1",
             r#"[{
                 "id":"project-sqlite",
@@ -2072,6 +2680,7 @@ mod tests {
             query_count(&connection, "SELECT COUNT(*) FROM coding_session_operations"),
             1
         );
+        assert_eq!(query_count(&connection, "SELECT COUNT(*) FROM workspaces"), 1);
         assert_eq!(query_count(&connection, "SELECT COUNT(*) FROM projects"), 1);
         assert_eq!(query_count(&connection, "SELECT COUNT(*) FROM teams"), 1);
         assert_eq!(query_count(&connection, "SELECT COUNT(*) FROM release_records"), 1);
@@ -2108,6 +2717,26 @@ mod tests {
                 "#,
                 params![
                     "workspace",
+                    "table.sqlite.workspaces.v1",
+                    r#"[{
+                        "id":"workspace-backfill",
+                        "name":"Backfill workspace",
+                        "description":"Recovered from kv_store",
+                        "ownerIdentityId":"identity-backfill-owner",
+                        "status":"active"
+                    }]"#
+                ],
+            )
+            .expect("insert kv_store workspace fixture");
+
+        connection
+            .execute(
+                r#"
+                INSERT INTO kv_store (scope, key, value, updated_at)
+                VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP)
+                "#,
+                params![
+                    "workspace",
                     "table.sqlite.projects.v1",
                     r#"[{
                         "id":"project-backfill",
@@ -2124,6 +2753,7 @@ mod tests {
         backfill_provider_tables_from_kv_store(&connection).expect("run first backfill");
         backfill_provider_tables_from_kv_store(&connection).expect("run second backfill");
 
+        assert_eq!(query_count(&connection, "SELECT COUNT(*) FROM workspaces"), 1);
         assert_eq!(query_count(&connection, "SELECT COUNT(*) FROM projects"), 1);
         assert_eq!(
             query_count(

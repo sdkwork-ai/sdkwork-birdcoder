@@ -2,20 +2,20 @@ import { defineLocaleModule } from '../../resource.ts';
 
 export default defineLocaleModule('studio/workspace', {
   "studio": {
-    "searchProjects": "搜索项目或对话...",
+    "searchProjects": "搜索项目或会话...",
     "projects": "项目",
     "noProjectsFound": "未找到项目",
-    "threads": "对话",
+    "threads": "会话",
     "newProject": "新项目",
-    "newThread": "新对话",
+    "newThread": "新会话",
     "openFolder": "打开文件夹",
     "new": "新建",
     "open": "打开",
     "fileSaved": "文件已保存",
     "allFilesSaved": "所有文件已保存",
     "revealedInExplorer": "已在资源管理器中显示: {{path}}",
-    "newThreadCreated": "新对话已创建",
-    "failedToCreateThread": "创建对话失败",
+    "newThreadCreated": "新会话已创建",
+    "failedToCreateThread": "创建会话失败",
     "pleaseSelectProject": "请先选择一个项目",
     "startingApplication": "正在启动应用...",
     "noActiveDiff": "没有可显示的差异",
@@ -37,5 +37,13 @@ export default defineLocaleModule('studio/workspace', {
     "noMatchingFiles": "未找到匹配的文件",
     "fileMatch": "文件匹配",
     "ranFor": "运行了 {{time}}"
+    ,"refreshSessions": "\u5237\u65b0\u4f1a\u8bdd"
+    ,"refreshingSessions": "\u6b63\u5728\u5237\u65b0\u4f1a\u8bdd"
+    ,"refreshMessages": "\u5237\u65b0\u6d88\u606f"
+    ,"refreshingMessages": "\u6b63\u5728\u5237\u65b0\u6d88\u606f"
+    ,"projectSessionsRefreshed": "\u5df2\u5237\u65b0\u9879\u76ee\u4f1a\u8bdd\uff1a{{name}}"
+    ,"sessionMessagesRefreshed": "\u5df2\u5237\u65b0\u4f1a\u8bdd\u6d88\u606f\uff1a{{name}}"
+    ,"failedToRefreshProjectSessions": "\u5237\u65b0\u9879\u76ee\u4f1a\u8bdd\u5931\u8d25"
+    ,"failedToRefreshSessionMessages": "\u5237\u65b0\u4f1a\u8bdd\u6d88\u606f\u5931\u8d25"
   }
 });

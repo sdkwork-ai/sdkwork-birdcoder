@@ -1,3 +1,7 @@
+import {
+  createCapabilitySnapshot,
+  resolveTransportKindForRuntimeMode,
+} from '../../../sdkwork-birdcoder-chat/src/index.ts';
 import type {
   ChatCanonicalArtifact,
   ChatCanonicalEvent,
@@ -163,6 +167,26 @@ function buildRuntimeDescriptor(
   };
 }
 
+async function resolveStreamingRuntimeDescriptor(
+  engine: IChatEngine,
+  binding: WorkbenchCanonicalRuntimeBinding,
+  options?: ChatOptions,
+): Promise<ChatCanonicalRuntimeDescriptor> {
+  const runtimeDescriptor = buildRuntimeDescriptor(binding, options);
+  const health = await engine.getHealth?.();
+  if (!health) {
+    return runtimeDescriptor;
+  }
+
+  return {
+    ...runtimeDescriptor,
+    transportKind: resolveTransportKindForRuntimeMode(
+      binding.descriptor.transportKinds,
+      health.runtimeMode,
+    ),
+  };
+}
+
 function proxyMethod<TMethod extends ((...args: never[]) => unknown) | undefined>(
   method: TMethod,
   engine: IChatEngine,
@@ -191,11 +215,40 @@ export function createWorkbenchCanonicalChatEngine(
     sendMessage,
     sendMessageStream,
     describeRuntime: (options?: ChatOptions) => buildRuntimeDescriptor(binding, options),
+    describeIntegration: proxyMethod<() => ReturnType<NonNullable<IChatEngine['describeIntegration']>>>(
+      engine.describeIntegration,
+      engine,
+    ),
+    getCapabilities: async () => {
+      const health = await engine.getHealth?.();
+      return createCapabilitySnapshot({
+        capabilityMatrix: binding.descriptor.capabilityMatrix,
+        health: health ?? {
+          status: 'missing',
+          runtimeMode: 'protocol-fallback',
+          officialEntry: {
+            packageName: 'unavailable',
+          },
+          sdkAvailable: false,
+          cliAvailable: false,
+          authConfigured: false,
+          fallbackActive: true,
+          sourceMirrorStatus: 'missing',
+          diagnostics: ['Provider did not expose health diagnostics.'],
+          checkedAt: Date.now(),
+        },
+        experimentalCapabilities: engine.describeRawExtensions?.()?.experimentalFeatures ?? [],
+      });
+    },
+    describeRawExtensions: proxyMethod<() => ReturnType<NonNullable<IChatEngine['describeRawExtensions']>>>(
+      engine.describeRawExtensions,
+      engine,
+    ),
     async *sendCanonicalEvents(
       messages: ChatMessage[],
       options?: ChatOptions,
     ): AsyncGenerator<ChatCanonicalEvent, void, unknown> {
-      const runtime = buildRuntimeDescriptor(binding, options);
+      const runtime = await resolveStreamingRuntimeDescriptor(engine, binding, options);
       let sequence = 0;
       let combinedContent = '';
       let sawToolCall = false;
@@ -297,6 +350,10 @@ export function createWorkbenchCanonicalChatEngine(
         finishReason: sawToolCall ? 'tool_calls' : 'stop',
       });
     },
+    getHealth: proxyMethod<() => ReturnType<NonNullable<IChatEngine['getHealth']>>>(
+      engine.getHealth,
+      engine,
+    ),
     createSession: proxyMethod<(projectId: string) => Promise<IChatSession>>(engine.createSession, engine),
     getSession: proxyMethod<(sessionId: string) => Promise<IChatSession | null>>(engine.getSession, engine),
     createCodingSession: proxyMethod<

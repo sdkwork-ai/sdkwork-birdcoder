@@ -9,6 +9,10 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./storageBindings": {
+      "import": "./src/storageBindings.ts",
+      "types": "./src/storageBindings.ts"
     }
   },
   "scripts": {

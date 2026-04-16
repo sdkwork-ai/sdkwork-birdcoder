@@ -1,4 +1,4 @@
-import { BIRDCODER_APPBASE_AUTH_STORAGE_BINDING } from '@sdkwork/birdcoder-types';
+import { BIRDCODER_APPBASE_AUTH_STORAGE_BINDING } from '@sdkwork/birdcoder-types/storageBindings';
 
 type BirdCoderAppbaseManifestHost = 'browser' | 'tauri' | 'server';
 export type BirdCoderAuthRouteId =

@@ -1,4 +1,4 @@
-import { BIRDCODER_APPBASE_USER_PROFILE_STORAGE_BINDING } from '@sdkwork/birdcoder-types';
+import { BIRDCODER_APPBASE_USER_PROFILE_STORAGE_BINDING } from '@sdkwork/birdcoder-types/storageBindings';
 
 type BirdCoderAppbaseManifestHost = 'browser' | 'tauri' | 'server';
 export type BirdCoderUserSectionId = 'overview' | 'profile' | 'security' | 'membership';

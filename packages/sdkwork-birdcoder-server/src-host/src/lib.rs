@@ -1,32 +1,37 @@
 use std::{
     collections::BTreeMap,
     fs,
+    io::Write,
     path::{Path as FsPath, PathBuf},
+    process::{Command, Stdio},
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc, OnceLock, RwLock,
     },
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use axum::{
     extract::{Path as AxumPath, State},
-    http::StatusCode,
+    http::{header, HeaderValue, Method, StatusCode},
     routing::{get, post},
     Json, Router,
 };
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Deserializer, Serialize};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 
 pub const BIRD_SERVER_DEFAULT_HOST: &str = "127.0.0.1";
-pub const BIRD_SERVER_DEFAULT_PORT: u16 = 18989;
+pub const BIRD_SERVER_DEFAULT_PORT: u16 = 10240;
 pub const BIRD_SERVER_DEFAULT_CONFIG_FILE_NAME: &str = "bird-server.config.json";
-pub const BIRD_SERVER_DEFAULT_BIND_ADDRESS: &str = "127.0.0.1:18989";
+pub const BIRD_SERVER_DEFAULT_BIND_ADDRESS: &str = "127.0.0.1:10240";
 pub const CODING_SERVER_API_VERSION: &str = "v1";
 pub const CODING_SERVER_OPENAPI_PATH: &str = "/openapi/coding-server-v1.json";
 pub const BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV: &str = "BIRDCODER_CODING_SERVER_SQLITE_FILE";
 pub const BIRDCODER_CODING_SERVER_SNAPSHOT_FILE_ENV: &str =
     "BIRDCODER_CODING_SERVER_SNAPSHOT_FILE";
+pub const BIRDCODER_CODING_SERVER_ALLOWED_ORIGINS_ENV: &str =
+    "BIRDCODER_CODING_SERVER_ALLOWED_ORIGINS";
 
 const CODING_SESSION_PROJECTION_SCOPE: &str = "coding-session";
 const SQLITE_PROJECTION_KEY_SUFFIX: &str = ".v1";
@@ -40,6 +45,7 @@ const PROJECT_DOCUMENTS_SCOPE: &str = "project-documents";
 const DEPLOYMENT_SCOPE: &str = "deployment";
 const COLLABORATION_SCOPE: &str = "collaboration";
 const GOVERNANCE_SCOPE: &str = "governance";
+const SQLITE_WORKSPACES_KEY: &str = "table.sqlite.workspaces.v1";
 const SQLITE_PROJECTS_KEY: &str = "table.sqlite.projects.v1";
 const SQLITE_DOCUMENTS_KEY: &str = "table.sqlite.project-documents.v1";
 const SQLITE_DEPLOYMENT_TARGETS_KEY: &str = "table.sqlite.deployment-targets.v1";
@@ -56,6 +62,7 @@ const PROVIDER_CODING_SESSION_EVENTS_TABLE: &str = "coding_session_events";
 const PROVIDER_CODING_SESSION_ARTIFACTS_TABLE: &str = "coding_session_artifacts";
 const PROVIDER_CODING_SESSION_CHECKPOINTS_TABLE: &str = "coding_session_checkpoints";
 const PROVIDER_CODING_SESSION_OPERATIONS_TABLE: &str = "coding_session_operations";
+const PROVIDER_WORKSPACES_TABLE: &str = "workspaces";
 const PROVIDER_PROJECTS_TABLE: &str = "projects";
 const PROVIDER_PROJECT_DOCUMENTS_TABLE: &str = "project_documents";
 const PROVIDER_DEPLOYMENT_TARGETS_TABLE: &str = "deployment_targets";
@@ -65,6 +72,16 @@ const PROVIDER_TEAM_MEMBERS_TABLE: &str = "team_members";
 const PROVIDER_RELEASE_RECORDS_TABLE: &str = "release_records";
 const PROVIDER_AUDIT_EVENTS_TABLE: &str = "audit_events";
 const PROVIDER_GOVERNANCE_POLICIES_TABLE: &str = "governance_policies";
+const BOOTSTRAP_WORKSPACE_ID: &str = "workspace-default";
+const BOOTSTRAP_WORKSPACE_NAME: &str = "Default Workspace";
+const BOOTSTRAP_WORKSPACE_DESCRIPTION: &str = "Primary local workspace for BirdCoder.";
+const BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID: &str = "identity-local-default";
+const BOOTSTRAP_PROJECT_ID: &str = "project-default";
+const BOOTSTRAP_PROJECT_NAME: &str = "Starter Project";
+const BOOTSTRAP_PROJECT_DESCRIPTION: &str = "Starter project created for first-run BirdCoder.";
+const TAURI_LOCALHOST_ORIGIN: &str = "tauri://localhost";
+const TAURI_WEBVIEW_HTTP_ORIGIN: &str = "http://tauri.localhost";
+const TAURI_WEBVIEW_HTTPS_ORIGIN: &str = "https://tauri.localhost";
 const SQLITE_PROVIDER_AUTHORITY_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS coding_sessions (
     id TEXT PRIMARY KEY,
@@ -168,6 +185,18 @@ CREATE TABLE IF NOT EXISTS coding_session_operations (
     stream_url TEXT NOT NULL,
     stream_kind TEXT NOT NULL,
     artifact_refs_json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS workspaces (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    owner_identity_id TEXT NULL,
+    status TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS projects (
@@ -297,6 +326,7 @@ DELETE FROM coding_session_artifacts;
 DELETE FROM coding_session_events;
 DELETE FROM coding_session_runtimes;
 DELETE FROM coding_sessions;
+DELETE FROM workspaces;
 DELETE FROM release_records;
 DELETE FROM team_members;
 DELETE FROM teams;
@@ -371,6 +401,16 @@ struct ProblemDetailsPayload {
     code: &'static str,
     message: String,
     retryable: bool,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspacePayload {
+    id: String,
+    name: String,
+    description: Option<String>,
+    owner_identity_id: Option<String>,
+    status: String,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -851,6 +891,21 @@ struct AppState {
     documents: Vec<DocumentPayload>,
     members: Vec<TeamMemberPayload>,
     policies: Vec<PolicyPayload>,
+    workspaces: Vec<WorkspacePayload>,
+    projects: Vec<ProjectPayload>,
+    teams: Vec<TeamPayload>,
+    releases: Vec<ReleasePayload>,
+}
+
+#[derive(Clone)]
+struct AppAdminReadState {
+    audits: Vec<AuditPayload>,
+    deployments: Vec<DeploymentPayload>,
+    targets: Vec<DeploymentTargetPayload>,
+    documents: Vec<DocumentPayload>,
+    members: Vec<TeamMemberPayload>,
+    policies: Vec<PolicyPayload>,
+    workspaces: Vec<WorkspacePayload>,
     projects: Vec<ProjectPayload>,
     teams: Vec<TeamPayload>,
     releases: Vec<ReleasePayload>,
@@ -1136,6 +1191,7 @@ fn sqlite_has_direct_projection_provider_tables(connection: &Connection) -> Resu
 
 fn sqlite_has_direct_app_admin_provider_tables(connection: &Connection) -> Result<bool, String> {
     for table_name in [
+        PROVIDER_WORKSPACES_TABLE,
         PROVIDER_PROJECTS_TABLE,
         PROVIDER_PROJECT_DOCUMENTS_TABLE,
         PROVIDER_DEPLOYMENT_TARGETS_TABLE,
@@ -1442,6 +1498,38 @@ fn load_provider_operation_rows(
         records.push(
             row.map_err(|error| format!("read coding_session_operations row failed: {error}"))?,
         );
+    }
+    Ok(records)
+}
+
+fn load_provider_workspace_payloads(
+    connection: &Connection,
+) -> Result<Vec<WorkspacePayload>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT id, name, description, owner_identity_id, status
+            FROM workspaces
+            WHERE is_deleted = 0
+            ORDER BY updated_at DESC, id ASC
+            "#,
+        )
+        .map_err(|error| format!("prepare workspaces query failed: {error}"))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(WorkspacePayload {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                owner_identity_id: row.get(3)?,
+                status: row.get(4)?,
+            })
+        })
+        .map_err(|error| format!("query workspaces failed: {error}"))?;
+
+    let mut records = Vec::new();
+    for row in rows {
+        records.push(row.map_err(|error| format!("read workspaces row failed: {error}"))?);
     }
     Ok(records)
 }
@@ -1814,6 +1902,171 @@ fn next_event_sequence(snapshot: &ProjectionSnapshot) -> usize {
         .max()
         .map(|sequence| sequence + 1)
         .unwrap_or(0)
+}
+
+fn build_codex_cli_prompt(request_kind: &str, input_summary: &str) -> String {
+    if request_kind == "chat" {
+        input_summary.to_owned()
+    } else {
+        format!("Request kind: {request_kind}\n\n{input_summary}")
+    }
+}
+
+fn create_codex_cli_command() -> Command {
+    if cfg!(windows) {
+        let mut command = Command::new("cmd");
+        command.arg("/C").arg("codex.cmd");
+        command
+    } else {
+        Command::new("codex")
+    }
+}
+
+fn execute_codex_cli_turn(
+    model_id: Option<&str>,
+    working_directory: Option<&FsPath>,
+    request_kind: &str,
+    input_summary: &str,
+) -> Result<String, String> {
+    let mut command = create_codex_cli_command();
+    command
+        .arg("exec")
+        .arg("--json")
+        .arg("--full-auto")
+        .arg("--skip-git-repo-check")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    if let Some(model_id) = model_id.filter(|model_id| !model_id.trim().is_empty()) {
+        command.arg("--model").arg(model_id);
+    }
+
+    if let Some(directory) = working_directory.filter(|directory| directory.exists()) {
+        command.arg("--cd").arg(directory);
+        command.current_dir(directory);
+    }
+
+    let mut child = command
+        .spawn()
+        .map_err(|error| format!("spawn codex cli failed: {error}"))?;
+
+    let prompt = build_codex_cli_prompt(request_kind, input_summary);
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(prompt.as_bytes())
+            .map_err(|error| format!("write codex cli prompt failed: {error}"))?;
+    }
+
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("wait for codex cli failed: {error}"))?;
+    let stdout = String::from_utf8(output.stdout)
+        .map_err(|error| format!("decode codex cli stdout failed: {error}"))?;
+    let stderr = String::from_utf8(output.stderr)
+        .map_err(|error| format!("decode codex cli stderr failed: {error}"))?;
+
+    let mut assistant_content: Option<String> = None;
+    let mut turn_error: Option<String> = None;
+
+    for line in stdout.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        let parsed: serde_json::Value = serde_json::from_str(line)
+            .map_err(|error| format!("parse codex cli jsonl event failed: {error}; line: {line}"))?;
+        match parsed.get("type").and_then(serde_json::Value::as_str) {
+            Some("item.updated") | Some("item.completed") => {
+                let item = parsed.get("item").and_then(serde_json::Value::as_object);
+                if item
+                    .and_then(|item| item.get("type"))
+                    .and_then(serde_json::Value::as_str)
+                    == Some("agent_message")
+                {
+                    if let Some(text) = item
+                        .and_then(|item| item.get("text"))
+                        .and_then(serde_json::Value::as_str)
+                    {
+                        assistant_content = Some(text.to_owned());
+                    }
+                }
+            }
+            Some("turn.failed") => {
+                update_codex_cli_turn_error(
+                    &mut turn_error,
+                    parsed
+                        .get("error")
+                        .and_then(|error| error.get("message"))
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("Codex CLI turn failed."),
+                );
+            }
+            Some("error") => {
+                update_codex_cli_turn_error(
+                    &mut turn_error,
+                    parsed
+                        .get("message")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("Codex CLI stream failed."),
+                );
+            }
+            _ => {}
+        }
+    }
+
+    if let Some(turn_error) = turn_error {
+        return Err(format_codex_cli_error(&turn_error));
+    }
+
+    if !output.status.success() {
+        let detail = stderr.trim();
+        return Err(if detail.is_empty() {
+            format!("codex cli exited with status {}", output.status)
+        } else {
+            format!(
+                "codex cli exited with status {}: {}",
+                output.status,
+                format_codex_cli_error(detail)
+            )
+        });
+    }
+
+    assistant_content.ok_or_else(|| "Codex CLI did not return an assistant response.".to_owned())
+}
+
+fn update_codex_cli_turn_error(turn_error: &mut Option<String>, candidate: &str) {
+    let candidate = candidate.trim();
+    if candidate.is_empty() {
+        return;
+    }
+
+    match turn_error {
+        Some(existing) if is_codex_cli_authentication_error(existing) => {}
+        Some(_) if is_codex_cli_authentication_error(candidate) => {
+            *turn_error = Some(candidate.to_owned());
+        }
+        None => {
+            *turn_error = Some(candidate.to_owned());
+        }
+        Some(_) => {}
+    }
+}
+
+fn format_codex_cli_error(message: &str) -> String {
+    let trimmed = message.trim();
+    if is_codex_cli_authentication_error(trimmed) {
+        "Codex CLI authentication is not configured. BirdCoder reuses your existing Codex auth from `CODEX_HOME` or `~/.codex`; if none is configured, set `OPENAI_API_KEY` or run `codex login --with-api-key`.".to_owned()
+    } else if trimmed.is_empty() {
+        "Codex CLI turn failed.".to_owned()
+    } else {
+        trimmed.to_owned()
+    }
+}
+
+fn is_codex_cli_authentication_error(message: &str) -> bool {
+    let normalized = message.trim().to_ascii_lowercase();
+    normalized.contains("401 unauthorized")
+        || normalized.contains("missing bearer or basic authentication")
+        || normalized.contains("login")
+        || normalized.contains("api key")
+        || normalized.contains("authentication")
 }
 
 fn build_completed_turn_assistant_content(request_kind: &str, input_summary: &str) -> String {
@@ -2621,6 +2874,7 @@ fn ensure_sqlite_provider_authority(
     let has_app_admin_tables = sqlite_has_direct_app_admin_provider_tables(connection)?;
 
     if has_projection_tables && has_app_admin_tables {
+        ensure_sqlite_bootstrap_user_context(connection)?;
         return Ok(());
     }
 
@@ -2642,6 +2896,107 @@ fn ensure_sqlite_provider_authority(
         ));
     }
 
+    ensure_sqlite_bootstrap_user_context(connection)?;
+
+    Ok(())
+}
+
+fn ensure_sqlite_bootstrap_user_context(connection: &mut Connection) -> Result<(), String> {
+    let workspace_count: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM workspaces WHERE is_deleted = 0",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("count bootstrap workspaces failed: {error}"))?;
+    let project_count: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM projects WHERE is_deleted = 0",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("count bootstrap projects failed: {error}"))?;
+
+    if workspace_count > 0 && project_count > 0 {
+        return Ok(());
+    }
+
+    let preferred_workspace_id = if workspace_count > 0 {
+        connection
+            .query_row(
+                r#"
+                SELECT id
+                FROM workspaces
+                WHERE is_deleted = 0
+                ORDER BY updated_at DESC, id ASC
+                LIMIT 1
+                "#,
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .map_err(|error| format!("resolve bootstrap workspace id failed: {error}"))?
+    } else {
+        BOOTSTRAP_WORKSPACE_ID.to_owned()
+    };
+
+    let bootstrap_timestamp = current_storage_timestamp();
+    let transaction = connection
+        .transaction()
+        .map_err(|error| format!("open bootstrap user context transaction failed: {error}"))?;
+
+    if workspace_count == 0 {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO workspaces (
+                    id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                "#,
+                params![
+                    BOOTSTRAP_WORKSPACE_ID,
+                    &bootstrap_timestamp,
+                    &bootstrap_timestamp,
+                    0_i64,
+                    0_i64,
+                    BOOTSTRAP_WORKSPACE_NAME,
+                    BOOTSTRAP_WORKSPACE_DESCRIPTION,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    "active",
+                ],
+            )
+            .map_err(|error| format!("insert bootstrap workspace failed: {error}"))?;
+    }
+
+    if project_count == 0 {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO projects (
+                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, root_path, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                "#,
+                params![
+                    BOOTSTRAP_PROJECT_ID,
+                    &bootstrap_timestamp,
+                    &bootstrap_timestamp,
+                    0_i64,
+                    0_i64,
+                    &preferred_workspace_id,
+                    BOOTSTRAP_PROJECT_NAME,
+                    BOOTSTRAP_PROJECT_DESCRIPTION,
+                    Option::<String>::None,
+                    "active",
+                ],
+            )
+            .map_err(|error| format!("insert bootstrap project failed: {error}"))?;
+    }
+
+    transaction
+        .commit()
+        .map_err(|error| format!("commit bootstrap user context transaction failed: {error}"))?;
+
     Ok(())
 }
 
@@ -2649,6 +3004,11 @@ fn materialize_legacy_kv_authority_into_provider_tables(
     connection: &mut Connection,
 ) -> Result<(), String> {
     let projections = ProjectionReadState::from_sqlite_kv_connection(connection)?;
+    let workspaces = load_global_table_records_with_scope::<WorkspacePayload>(
+        connection,
+        WORKSPACE_SCOPE,
+        SQLITE_WORKSPACES_KEY,
+    )?;
     let projects =
         load_global_table_records_with_scope::<ProjectPayload>(connection, WORKSPACE_SCOPE, SQLITE_PROJECTS_KEY)?;
     let documents = load_global_table_records_with_scope::<DocumentPayload>(
@@ -2901,6 +3261,35 @@ fn materialize_legacy_kv_authority_into_provider_tables(
     }
 
     let migrated_at = current_storage_timestamp();
+
+    for workspace in workspaces {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO workspaces (
+                    id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                "#,
+                params![
+                    workspace.id,
+                    migrated_at,
+                    migrated_at,
+                    0_i64,
+                    0_i64,
+                    workspace.name,
+                    workspace.description,
+                    workspace.owner_identity_id,
+                    workspace.status,
+                ],
+            )
+            .map_err(|error| {
+                format!(
+                    "insert migrated workspace {} failed: {error}",
+                    workspace.id
+                )
+            })?;
+    }
 
     for project in projects {
         transaction
@@ -3766,6 +4155,7 @@ impl ProjectionAuthorityState {
         &self,
         coding_session_id: &str,
         input: CreateCodingSessionTurnInput,
+        working_directory: Option<&FsPath>,
     ) -> Result<CodingSessionTurnPayload, String> {
         let snapshot = self
             .session_snapshot(coding_session_id)
@@ -3802,8 +4192,16 @@ impl ProjectionAuthorityState {
         let request_kind = input.request_kind;
         let input_summary = input.input_summary;
         let completed_at = current_unix_millis_string();
-        let assistant_content =
-            build_completed_turn_assistant_content(&request_kind, &input_summary);
+        let assistant_content = if session.engine_id == "codex" {
+            execute_codex_cli_turn(
+                session.model_id.as_deref(),
+                working_directory,
+                &request_kind,
+                &input_summary,
+            )?
+        } else {
+            build_completed_turn_assistant_content(&request_kind, &input_summary)
+        };
         let base_sequence = next_event_sequence(&snapshot);
         let turn = CodingSessionTurnPayload {
             id: turn_id.clone(),
@@ -3978,6 +4376,55 @@ impl ProjectionAuthorityState {
 }
 
 impl AppState {
+    fn cached_app_admin_read_state(&self) -> AppAdminReadState {
+        AppAdminReadState {
+            audits: self.audits.clone(),
+            deployments: self.deployments.clone(),
+            targets: self.targets.clone(),
+            documents: self.documents.clone(),
+            members: self.members.clone(),
+            policies: self.policies.clone(),
+            workspaces: self.workspaces.clone(),
+            projects: self.projects.clone(),
+            teams: self.teams.clone(),
+            releases: self.releases.clone(),
+        }
+    }
+
+    fn load_live_app_admin_read_state(&self) -> Result<Option<AppAdminReadState>, String> {
+        let Some(sqlite_file) = self.projections.sqlite_file.as_deref() else {
+            return Ok(None);
+        };
+
+        let mut connection = Connection::open(sqlite_file).map_err(|error| {
+            format!(
+                "open sqlite app/admin authority file {} failed: {error}",
+                sqlite_file.display()
+            )
+        })?;
+        ensure_sqlite_provider_authority(&mut connection, sqlite_file)?;
+
+        Ok(Some(AppAdminReadState {
+            audits: load_provider_audit_payloads(&connection)?,
+            deployments: load_provider_deployment_payloads(&connection)?,
+            targets: load_provider_deployment_target_payloads(&connection)?,
+            documents: load_provider_document_payloads(&connection)?,
+            members: load_provider_team_member_payloads(&connection)?,
+            policies: load_provider_policy_payloads(&connection)?,
+            workspaces: load_provider_workspace_payloads(&connection)?,
+            projects: load_provider_project_payloads(&connection)?,
+            teams: load_provider_team_payloads(&connection)?,
+            releases: load_provider_release_payloads(&connection)?,
+        }))
+    }
+
+    fn read_app_admin_state(&self) -> AppAdminReadState {
+        self.load_live_app_admin_read_state()
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| self.cached_app_admin_read_state())
+    }
+
     fn demo() -> Self {
         Self {
             projections: ProjectionAuthorityState::new(ProjectionReadState::demo(), None),
@@ -4004,6 +4451,13 @@ impl AppState {
                 rationale: Some("Demo terminal lane requires explicit approval for codex.".to_owned()),
                 status: "active".to_owned(),
                 updated_at: "2026-04-10T13:06:00Z".to_owned(),
+            }],
+            workspaces: vec![WorkspacePayload {
+                id: "demo-workspace".to_owned(),
+                name: "Demo Workspace".to_owned(),
+                description: Some("Default embedded workspace for the local desktop authority.".to_owned()),
+                owner_identity_id: Some("identity-demo-owner".to_owned()),
+                status: "active".to_owned(),
             }],
             documents: vec![DocumentPayload {
                 id: "doc-architecture-demo".to_owned(),
@@ -4085,6 +4539,7 @@ impl AppState {
                 documents: load_provider_document_payloads(&connection)?,
                 members: load_provider_team_member_payloads(&connection)?,
                 policies: load_provider_policy_payloads(&connection)?,
+                workspaces: load_provider_workspace_payloads(&connection)?,
                 projects: load_provider_project_payloads(&connection)?,
                 teams: load_provider_team_payloads(&connection)?,
                 releases: load_provider_release_payloads(&connection)?,
@@ -4100,6 +4555,7 @@ impl AppState {
             documents: demo.documents,
             members: demo.members,
             policies: demo.policies,
+            workspaces: demo.workspaces,
             projects: demo.projects,
             teams: demo.teams,
             releases: demo.releases,
@@ -4420,46 +4876,47 @@ async fn core_models() -> Json<ApiListEnvelope<ModelCatalogEntryPayload>> {
     Json(create_list_envelope("core-models", build_model_catalog()))
 }
 
-async fn app_workspaces() -> Json<ApiListEnvelope<()>> {
-    Json(create_list_envelope("app-workspaces", Vec::new()))
+async fn app_workspaces(State(state): State<AppState>) -> Json<ApiListEnvelope<WorkspacePayload>> {
+    let app_admin_state = state.read_app_admin_state();
+    Json(create_list_envelope("app-workspaces", app_admin_state.workspaces))
 }
 
 async fn app_projects(State(state): State<AppState>) -> Json<ApiListEnvelope<ProjectPayload>> {
-    Json(create_list_envelope(
-        "app-projects",
-        state.projects.clone(),
-    ))
+    let app_admin_state = state.read_app_admin_state();
+    Json(create_list_envelope("app-projects", app_admin_state.projects))
 }
 
 async fn app_documents(State(state): State<AppState>) -> Json<ApiListEnvelope<DocumentPayload>> {
-    Json(create_list_envelope(
-        "app-documents",
-        state.documents.clone(),
-    ))
+    let app_admin_state = state.read_app_admin_state();
+    Json(create_list_envelope("app-documents", app_admin_state.documents))
 }
 
 async fn app_deployments(
     State(state): State<AppState>,
 ) -> Json<ApiListEnvelope<DeploymentPayload>> {
+    let app_admin_state = state.read_app_admin_state();
     Json(create_list_envelope(
         "app-deployments",
-        state.deployments.clone(),
+        app_admin_state.deployments,
     ))
 }
 
 async fn app_teams(State(state): State<AppState>) -> Json<ApiListEnvelope<TeamPayload>> {
-    Json(create_list_envelope("app-teams", state.teams.clone()))
+    let app_admin_state = state.read_app_admin_state();
+    Json(create_list_envelope("app-teams", app_admin_state.teams))
 }
 
 async fn admin_teams(State(state): State<AppState>) -> Json<ApiListEnvelope<TeamPayload>> {
-    Json(create_list_envelope("admin-teams", state.teams.clone()))
+    let app_admin_state = state.read_app_admin_state();
+    Json(create_list_envelope("admin-teams", app_admin_state.teams))
 }
 
 async fn admin_deployment_targets(
     AxumPath(project_id): AxumPath<String>,
     State(state): State<AppState>,
 ) -> Json<ApiListEnvelope<DeploymentTargetPayload>> {
-    let targets = state
+    let app_admin_state = state.read_app_admin_state();
+    let targets = app_admin_state
         .targets
         .iter()
         .filter(|target| target.project_id == project_id)
@@ -4472,7 +4929,8 @@ async fn admin_team_members(
     AxumPath(team_id): AxumPath<String>,
     State(state): State<AppState>,
 ) -> Json<ApiListEnvelope<TeamMemberPayload>> {
-    let members = state
+    let app_admin_state = state.read_app_admin_state();
+    let members = app_admin_state
         .members
         .iter()
         .filter(|member| member.team_id == team_id)
@@ -4482,29 +4940,33 @@ async fn admin_team_members(
 }
 
 async fn admin_releases(State(state): State<AppState>) -> Json<ApiListEnvelope<ReleasePayload>> {
+    let app_admin_state = state.read_app_admin_state();
     Json(create_list_envelope(
         "admin-releases",
-        state.releases.clone(),
+        app_admin_state.releases,
     ))
 }
 
 async fn admin_audit(State(state): State<AppState>) -> Json<ApiListEnvelope<AuditPayload>> {
-    Json(create_list_envelope("admin-audit", state.audits.clone()))
+    let app_admin_state = state.read_app_admin_state();
+    Json(create_list_envelope("admin-audit", app_admin_state.audits))
 }
 
 async fn admin_policies(State(state): State<AppState>) -> Json<ApiListEnvelope<PolicyPayload>> {
+    let app_admin_state = state.read_app_admin_state();
     Json(create_list_envelope(
         "admin-policies",
-        state.policies.clone(),
+        app_admin_state.policies,
     ))
 }
 
 async fn admin_deployments(
     State(state): State<AppState>,
 ) -> Json<ApiListEnvelope<DeploymentPayload>> {
+    let app_admin_state = state.read_app_admin_state();
     Json(create_list_envelope(
         "admin-deployments",
-        state.deployments.clone(),
+        app_admin_state.deployments,
     ))
 }
 
@@ -4627,10 +5089,22 @@ async fn core_create_turn(
             "Coding session projection was not found.",
         ));
     }
+    let project_root_path = state
+        .projections
+        .session(&coding_session_id)
+        .and_then(|session| {
+            state
+                .projects
+                .iter()
+                .find(|project| project.id == session.project_id)
+                .and_then(|project| project.root_path.as_deref())
+                .map(FsPath::new)
+                .map(FsPath::to_path_buf)
+        });
 
     let turn = state
         .projections
-        .create_coding_session_turn(&coding_session_id, input)
+        .create_coding_session_turn(&coding_session_id, input, project_root_path.as_deref())
         .map_err(|error| {
             problem_response(
                 "create-coding-session-turn-failed",
@@ -4766,6 +5240,13 @@ pub fn build_app() -> Router {
     build_app_with_state(AppState::demo())
 }
 
+pub fn build_app_from_sqlite_file(path: impl AsRef<FsPath>) -> Result<Router, String> {
+    Ok(build_app_with_state(AppState::load(&AuthorityBootstrapConfig {
+        sqlite_file: Some(path.as_ref().to_path_buf()),
+        snapshot_file: None,
+    })?))
+}
+
 pub fn build_app_from_env() -> Result<Router, String> {
     let bootstrap = resolve_authority_bootstrap()?;
     Ok(build_app_with_state(AppState::load(&bootstrap)?))
@@ -4819,14 +5300,71 @@ fn build_app_with_state(state: AppState) -> Router {
         .route("/api/admin/v1/teams/{team_id}/members", get(admin_team_members))
         .route("/api/admin/v1/releases", get(admin_releases))
         .route("/api/admin/v1/deployments", get(admin_deployments))
+        .layer(build_local_cors_layer())
         .with_state(state)
+}
+
+fn is_origin_with_optional_port(origin: &str, prefix: &str) -> bool {
+    origin == prefix || origin.strip_prefix(prefix).is_some_and(|suffix| suffix.starts_with(':'))
+}
+
+fn is_allowed_default_browser_origin(origin: &str) -> bool {
+    let normalized_origin = origin.trim().to_ascii_lowercase();
+
+    normalized_origin == TAURI_LOCALHOST_ORIGIN
+        || is_origin_with_optional_port(&normalized_origin, "http://127.0.0.1")
+        || is_origin_with_optional_port(&normalized_origin, "https://127.0.0.1")
+        || is_origin_with_optional_port(&normalized_origin, "http://localhost")
+        || is_origin_with_optional_port(&normalized_origin, "https://localhost")
+        || is_origin_with_optional_port(&normalized_origin, "http://[::1]")
+        || is_origin_with_optional_port(&normalized_origin, "https://[::1]")
+        || is_origin_with_optional_port(&normalized_origin, TAURI_WEBVIEW_HTTP_ORIGIN)
+        || is_origin_with_optional_port(&normalized_origin, TAURI_WEBVIEW_HTTPS_ORIGIN)
+}
+
+fn parse_configured_allowed_browser_origins() -> Vec<String> {
+    std::env::var(BIRDCODER_CODING_SERVER_ALLOWED_ORIGINS_ENV)
+        .ok()
+        .map(|value| {
+            value
+                .split([',', ';', '\n'])
+                .map(|entry| entry.trim())
+                .filter(|entry| !entry.is_empty())
+                .map(|entry| entry.to_ascii_lowercase())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn build_local_cors_layer() -> CorsLayer {
+    let configured_allowed_origins = parse_configured_allowed_browser_origins();
+
+    CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers([
+            header::ACCEPT,
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+        ])
+        .allow_origin(AllowOrigin::predicate(
+            move |origin: &HeaderValue, _request_parts| {
+                origin.to_str().ok().is_some_and(|origin_value| {
+                    let normalized_origin = origin_value.trim().to_ascii_lowercase();
+                    is_allowed_default_browser_origin(&normalized_origin)
+                        || configured_allowed_origins
+                            .iter()
+                            .any(|allowed_origin| allowed_origin == &normalized_origin)
+                })
+            },
+        ))
+        .max_age(Duration::from_secs(60 * 10))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use std::{fs, sync::Mutex};
+    use std::{ffi::OsString, fs, path::PathBuf, sync::Mutex};
 
     use axum::{
         body::{to_bytes, Body},
@@ -4837,9 +5375,105 @@ mod tests {
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
+    struct FakeCodexCliGuard {
+        fixture_directory: PathBuf,
+        original_path: Option<OsString>,
+    }
+
+    impl FakeCodexCliGuard {
+        fn install(directory_name: &str, assistant_content: &str) -> Self {
+            let fake_codex_path = write_fake_codex_cli_fixture(directory_name, assistant_content);
+            let fixture_directory = fake_codex_path
+                .parent()
+                .expect("fake codex fixture directory")
+                .to_path_buf();
+            let original_path = std::env::var_os("PATH");
+            let joined_path = match &original_path {
+                Some(existing_path) => {
+                    std::env::join_paths([fixture_directory.as_os_str(), existing_path])
+                        .expect("join fake codex PATH")
+                }
+                None => std::env::join_paths([fixture_directory.as_os_str()])
+                    .expect("create fake codex PATH"),
+            };
+            std::env::set_var("PATH", joined_path);
+
+            Self {
+                fixture_directory,
+                original_path,
+            }
+        }
+
+        fn project_root(&self) -> &FsPath {
+            &self.fixture_directory
+        }
+    }
+
+    impl Drop for FakeCodexCliGuard {
+        fn drop(&mut self) {
+            if let Some(path) = self.original_path.take() {
+                std::env::set_var("PATH", path);
+            } else {
+                std::env::remove_var("PATH");
+            }
+
+            if self.fixture_directory.exists() {
+                fs::remove_dir_all(&self.fixture_directory)
+                    .expect("remove fake codex fixture directory");
+            }
+        }
+    }
+
+    fn override_project_root_path(state: &mut AppState, project_id: &str, root_path: &FsPath) {
+        let project = state
+            .projects
+            .iter_mut()
+            .find(|project| project.id == project_id)
+            .expect("project exists for fake codex fixture");
+        project.root_path = Some(root_path.display().to_string());
+    }
+
     fn generated_engine_catalog_json() -> serde_json::Value {
         serde_json::from_str(include_str!("../generated/engine-catalog.json"))
             .expect("parse generated engine catalog fixture")
+    }
+
+    #[test]
+    fn codex_cli_error_helpers_prioritize_authentication_failures() {
+        let mut turn_error = None;
+
+        update_codex_cli_turn_error(
+            &mut turn_error,
+            "Reconnecting... 2/5 (unexpected status 401 Unauthorized: Missing bearer or basic authentication in header)",
+        );
+        update_codex_cli_turn_error(
+            &mut turn_error,
+            "stream disconnected before completion: error sending request for url (https://api.openai.com/v1/responses)",
+        );
+
+        assert_eq!(
+            format_codex_cli_error(turn_error.as_deref().expect("turn error")),
+            "Codex CLI authentication is not configured. BirdCoder reuses your existing Codex auth from `CODEX_HOME` or `~/.codex`; if none is configured, set `OPENAI_API_KEY` or run `codex login --with-api-key`."
+        );
+    }
+
+    #[test]
+    fn codex_cli_error_helpers_preserve_non_authentication_failures() {
+        let mut turn_error = None;
+
+        update_codex_cli_turn_error(
+            &mut turn_error,
+            "stream disconnected before completion: error sending request for url (https://api.openai.com/v1/responses)",
+        );
+        update_codex_cli_turn_error(
+            &mut turn_error,
+            "Codex CLI turn failed.",
+        );
+
+        assert_eq!(
+            format_codex_cli_error(turn_error.as_deref().expect("turn error")),
+            "stream disconnected before completion: error sending request for url (https://api.openai.com/v1/responses)"
+        );
     }
 
     fn write_snapshot_fixture(file_name: &str, body: &str) -> std::path::PathBuf {
@@ -4847,6 +5481,59 @@ mod tests {
         path.push(file_name);
         fs::write(&path, body).expect("write snapshot fixture");
         path
+    }
+
+    fn write_fake_codex_cli_fixture(
+        directory_name: &str,
+        assistant_content: &str,
+    ) -> std::path::PathBuf {
+        let mut directory = std::env::temp_dir();
+        directory.push(directory_name);
+
+        if directory.exists() {
+            fs::remove_dir_all(&directory).expect("remove existing fake codex fixture directory");
+        }
+        fs::create_dir_all(&directory).expect("create fake codex fixture directory");
+
+        let script_name = if cfg!(windows) { "codex.cmd" } else { "codex" };
+        let script_path = directory.join(script_name);
+        let encoded_assistant_content =
+            serde_json::to_string(assistant_content).expect("encode fake codex assistant content");
+
+        let script_body = if cfg!(windows) {
+            format!(
+                "@echo off\r\n\
+setlocal\r\n\
+echo {{\"type\":\"thread.started\",\"thread_id\":\"fake-codex-thread\"}}\r\n\
+echo {{\"type\":\"turn.started\"}}\r\n\
+echo {{\"type\":\"item.completed\",\"item\":{{\"id\":\"fake-codex-message\",\"type\":\"agent_message\",\"text\":{encoded_assistant_content}}}}}\r\n\
+echo {{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"cached_input_tokens\":0,\"output_tokens\":1}}}}\r\n"
+            )
+        } else {
+            format!(
+                "#!/bin/sh\n\
+printf '%s\\n' '{{\"type\":\"thread.started\",\"thread_id\":\"fake-codex-thread\"}}'\n\
+printf '%s\\n' '{{\"type\":\"turn.started\"}}'\n\
+printf '%s\\n' '{{\"type\":\"item.completed\",\"item\":{{\"id\":\"fake-codex-message\",\"type\":\"agent_message\",\"text\":{encoded_assistant_content}}}}}'\n\
+printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"cached_input_tokens\":0,\"output_tokens\":1}}}}'\n"
+            )
+        };
+
+        fs::write(&script_path, script_body).expect("write fake codex fixture script");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let mut permissions = fs::metadata(&script_path)
+                .expect("read fake codex fixture metadata")
+                .permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&script_path, permissions)
+                .expect("set fake codex fixture permissions");
+        }
+
+        script_path
     }
 
     fn write_sqlite_projection_fixture(file_name: &str) -> std::path::PathBuf {
@@ -4940,6 +5627,17 @@ mod tests {
                     "resumable":true,
                     "state":{"approvalId":"approval-1","reason":"Need confirmation"},
                     "createdAt":"2026-04-10T12:00:03Z"
+                }]"#,
+            ),
+            (
+                "workspace",
+                "table.sqlite.workspaces.v1",
+                r#"[{
+                    "id":"workspace-sqlite",
+                    "name":"SQLite authority workspace",
+                    "description":"Authority-backed app workspace list item",
+                    "ownerIdentityId":"identity-sqlite-owner",
+                    "status":"active"
                 }]"#,
             ),
             (
@@ -5078,6 +5776,21 @@ mod tests {
         path
     }
 
+    fn write_empty_sqlite_provider_authority_fixture(file_name: &str) -> std::path::PathBuf {
+        let mut path = std::env::temp_dir();
+        path.push(file_name);
+
+        if path.exists() {
+            fs::remove_file(&path).expect("remove existing empty sqlite provider fixture");
+        }
+
+        let connection = Connection::open(&path).expect("open empty sqlite provider fixture");
+        connection
+            .execute_batch(SQLITE_PROVIDER_AUTHORITY_SCHEMA)
+            .expect("create empty sqlite provider authority schema");
+        path
+    }
+
     fn write_sqlite_provider_authority_fixture(file_name: &str) -> std::path::PathBuf {
         let mut path = std::env::temp_dir();
         path.push(file_name);
@@ -5192,6 +5905,18 @@ mod tests {
                     stream_url TEXT NOT NULL,
                     stream_kind TEXT NOT NULL,
                     artifact_refs_json TEXT NOT NULL
+                );
+
+                CREATE TABLE workspaces (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    name TEXT NOT NULL,
+                    description TEXT NULL,
+                    owner_identity_id TEXT NULL,
+                    status TEXT NOT NULL
                 );
 
                 CREATE TABLE projects (
@@ -5493,6 +6218,28 @@ mod tests {
         connection
             .execute(
                 r#"
+                INSERT INTO workspaces (
+                    id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                "#,
+                params![
+                    "workspace-provider",
+                    "2026-04-10T13:00:00Z",
+                    "2026-04-10T13:00:00Z",
+                    0_i64,
+                    0_i64,
+                    "Provider authority workspace",
+                    "Provider-backed app workspace list item",
+                    "identity-provider-owner",
+                    "active",
+                ],
+            )
+            .expect("insert provider workspace");
+
+        connection
+            .execute(
+                r#"
                 INSERT INTO projects (
                     id, created_at, updated_at, version, is_deleted, workspace_id, name, description, root_path, status
                 )
@@ -5770,6 +6517,16 @@ mod tests {
 
     #[tokio::test]
     async fn representative_app_and_admin_real_list_routes_return_runtime_data() {
+        let app_workspaces_response = build_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/workspaces")
+                    .body(Body::empty())
+                    .expect("build request"),
+            )
+            .await
+            .expect("serve request");
+
         let app_deployments_response = build_app()
             .oneshot(
                 Request::builder()
@@ -5880,6 +6637,7 @@ mod tests {
             .await
             .expect("serve request");
 
+        assert_eq!(app_workspaces_response.status(), StatusCode::OK);
         assert_eq!(app_deployments_response.status(), StatusCode::OK);
         assert_eq!(app_documents_response.status(), StatusCode::OK);
         assert_eq!(app_projects_response.status(), StatusCode::OK);
@@ -5891,6 +6649,12 @@ mod tests {
         assert_eq!(admin_audit_response.status(), StatusCode::OK);
         assert_eq!(admin_policies_response.status(), StatusCode::OK);
         assert_eq!(admin_deployments_response.status(), StatusCode::OK);
+
+        let app_workspaces_body = to_bytes(app_workspaces_response.into_body(), usize::MAX)
+            .await
+            .expect("read body");
+        let app_workspaces_json: serde_json::Value =
+            serde_json::from_slice(&app_workspaces_body).expect("parse workspaces response");
 
         let app_documents_body = to_bytes(app_documents_response.into_body(), usize::MAX)
             .await
@@ -5962,6 +6726,13 @@ mod tests {
         let admin_policies_json: serde_json::Value =
             serde_json::from_slice(&admin_policies_body).expect("parse policies response");
 
+        assert_eq!(app_workspaces_json["items"][0]["id"], "demo-workspace");
+        assert_eq!(app_workspaces_json["items"][0]["name"], "Demo Workspace");
+        assert_eq!(
+            app_workspaces_json["items"][0]["ownerIdentityId"],
+            "identity-demo-owner"
+        );
+        assert_eq!(app_workspaces_json["items"][0]["status"], "active");
         assert_eq!(app_deployments_json["items"][0]["id"], "deployment-demo");
         assert_eq!(app_deployments_json["items"][0]["projectId"], "demo-project");
         assert_eq!(app_deployments_json["items"][0]["targetId"], "target-demo-web");
@@ -6005,32 +6776,31 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn representative_list_routes_return_unified_empty_list_envelopes() {
-        for route in ["/api/app/v1/workspaces"] {
-            let response = build_app()
-                .oneshot(
-                    Request::builder()
-                        .uri(route)
-                        .body(Body::empty())
-                        .expect("build request"),
-                )
-                .await
-                .expect("serve request");
+    async fn representative_workspace_route_returns_unified_runtime_list_envelope() {
+        let response = build_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/workspaces")
+                    .body(Body::empty())
+                    .expect("build request"),
+            )
+            .await
+            .expect("serve request");
 
-            assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::OK);
 
-            let body = to_bytes(response.into_body(), usize::MAX)
-                .await
-                .expect("read body");
-            let json: serde_json::Value =
-                serde_json::from_slice(&body).expect("parse list response");
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read body");
+        let json: serde_json::Value =
+            serde_json::from_slice(&body).expect("parse list response");
 
-            assert_eq!(json["items"], serde_json::json!([]));
-            assert_eq!(json["meta"]["page"], 1);
-            assert_eq!(json["meta"]["pageSize"], 0);
-            assert_eq!(json["meta"]["total"], 0);
-            assert_eq!(json["meta"]["version"], CODING_SERVER_API_VERSION);
-        }
+        assert_eq!(json["items"][0]["id"], "demo-workspace");
+        assert_eq!(json["items"][0]["name"], "Demo Workspace");
+        assert_eq!(json["meta"]["page"], 1);
+        assert_eq!(json["meta"]["pageSize"], 1);
+        assert_eq!(json["meta"]["total"], 1);
+        assert_eq!(json["meta"]["version"], CODING_SERVER_API_VERSION);
     }
 
     #[tokio::test]
@@ -6492,7 +7262,14 @@ mod tests {
 
     #[tokio::test]
     async fn create_coding_session_turn_route_returns_created_turn_and_makes_projection_readable() {
-        let app = build_app();
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let fake_codex = FakeCodexCliGuard::install(
+            "birdcoder-fake-codex-cli-demo-create-turn",
+            "Codex CLI executed for the demo create-turn route.",
+        );
+        let mut state = AppState::demo();
+        override_project_root_path(&mut state, "demo-project", fake_codex.project_root());
+        let app = build_app_with_state(state);
         let request_body = serde_json::json!({
             "requestKind": "chat",
             "inputSummary": "Implement terminal command palette",
@@ -6626,11 +7403,86 @@ mod tests {
             serde_json::json!("Implement terminal command palette")
         );
         assert_eq!(created_events[1]["kind"], "message.completed");
-        assert!(created_events[1]["payload"]["content"].is_string());
+        assert_eq!(
+            created_events[1]["payload"]["content"],
+            "Codex CLI executed for the demo create-turn route."
+        );
         assert_eq!(created_events[2]["kind"], "operation.updated");
         assert_eq!(created_events[2]["payload"]["status"], "succeeded");
         assert_eq!(created_events[3]["kind"], "turn.completed");
         assert_eq!(created_events[3]["payload"]["finishReason"], "stop");
+    }
+
+    #[tokio::test]
+    async fn create_coding_session_turn_route_executes_codex_cli_for_codex_sessions() {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let fake_codex = FakeCodexCliGuard::install(
+            "birdcoder-fake-codex-cli",
+            "Codex CLI executed from the local server bridge.",
+        );
+        let mut state = AppState::demo();
+        override_project_root_path(&mut state, "demo-project", fake_codex.project_root());
+        let app = build_app_with_state(state);
+        let request_body = serde_json::json!({
+            "requestKind": "chat",
+            "inputSummary": "Use the real Codex CLI lane.",
+        });
+
+        let create_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/core/v1/coding-sessions/demo-coding-session/turns")
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build create coding session turn request"),
+            )
+            .await
+            .expect("serve create coding session turn request");
+
+        assert_eq!(create_response.status(), StatusCode::CREATED);
+
+        let create_body = to_bytes(create_response.into_body(), usize::MAX)
+            .await
+            .expect("read create coding session turn body");
+        let create_json: serde_json::Value =
+            serde_json::from_slice(&create_body).expect("parse create coding session turn response");
+        let created_turn_id = create_json["data"]["id"]
+            .as_str()
+            .expect("created turn id")
+            .to_owned();
+
+        let events_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/core/v1/coding-sessions/demo-coding-session/events")
+                    .body(Body::empty())
+                    .expect("build get coding session events request"),
+            )
+            .await
+            .expect("serve get coding session events request");
+        let events_body = to_bytes(events_response.into_body(), usize::MAX)
+            .await
+            .expect("read get coding session events body");
+        let events_json: serde_json::Value =
+            serde_json::from_slice(&events_body).expect("parse get coding session events response");
+        let created_events = events_json["items"]
+            .as_array()
+            .expect("events items")
+            .iter()
+            .filter(|event| event["turnId"] == created_turn_id)
+            .collect::<Vec<_>>();
+
+        assert_eq!(created_events[1]["kind"], "message.completed");
+        assert_eq!(
+            created_events[1]["payload"]["content"],
+            "Codex CLI executed from the local server bridge."
+        );
+        assert_ne!(
+            created_events[1]["payload"]["content"],
+            "Completed chat request: Use the real Codex CLI lane."
+        );
     }
 
     #[tokio::test]
@@ -6666,15 +7518,20 @@ mod tests {
 
     #[tokio::test]
     async fn create_coding_session_turn_route_persists_into_sqlite_provider_authority() {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let fake_codex = FakeCodexCliGuard::install(
+            "birdcoder-fake-codex-cli-provider-create-turn",
+            "Codex CLI executed for the provider-backed create-turn route.",
+        );
         let sqlite_path =
             write_sqlite_provider_authority_fixture("birdcoder-create-coding-session-turn.sqlite");
-        let app = build_app_with_state(
-            AppState::load(&AuthorityBootstrapConfig {
+        let mut state = AppState::load(&AuthorityBootstrapConfig {
                 sqlite_file: Some(sqlite_path.clone()),
                 snapshot_file: None,
             })
-            .expect("load provider-backed app state"),
-        );
+            .expect("load provider-backed app state");
+        override_project_root_path(&mut state, "project-provider", fake_codex.project_root());
+        let app = build_app_with_state(state);
         let request_body = serde_json::json!({
             "requestKind": "review",
             "inputSummary": "Review unified app/admin facade parity",
@@ -7203,6 +8060,17 @@ mod tests {
             .await
             .expect("serve request");
 
+        let app_workspaces_response = build_app_from_env()
+            .expect("load env app")
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/workspaces")
+                    .body(Body::empty())
+                    .expect("build request"),
+            )
+            .await
+            .expect("serve request");
+
         let app_deployments_response = build_app_from_env()
             .expect("load env app")
             .oneshot(
@@ -7337,6 +8205,11 @@ mod tests {
             "legacy kv_store authority should be materialized into coding_session_runtimes"
         );
         assert!(
+            sqlite_table_exists(&migrated_connection, PROVIDER_WORKSPACES_TABLE)
+                .expect("probe migrated workspaces"),
+            "legacy kv_store authority should be materialized into workspaces"
+        );
+        assert!(
             sqlite_table_exists(&migrated_connection, PROVIDER_PROJECTS_TABLE)
                 .expect("probe migrated projects"),
             "legacy kv_store authority should be materialized into projects"
@@ -7383,6 +8256,7 @@ mod tests {
         assert_eq!(session_response.status(), StatusCode::OK);
         assert_eq!(events_response.status(), StatusCode::OK);
         assert_eq!(checkpoints_response.status(), StatusCode::OK);
+        assert_eq!(app_workspaces_response.status(), StatusCode::OK);
         assert_eq!(app_deployments_response.status(), StatusCode::OK);
         assert_eq!(admin_deployments_response.status(), StatusCode::OK);
         assert_eq!(app_projects_response.status(), StatusCode::OK);
@@ -7426,6 +8300,12 @@ mod tests {
             .expect("read body");
         let checkpoints_json: serde_json::Value =
             serde_json::from_slice(&checkpoints_body).expect("parse checkpoints response");
+
+        let app_workspaces_body = to_bytes(app_workspaces_response.into_body(), usize::MAX)
+            .await
+            .expect("read body");
+        let app_workspaces_json: serde_json::Value =
+            serde_json::from_slice(&app_workspaces_body).expect("parse workspaces response");
 
         let app_deployments_body = to_bytes(app_deployments_response.into_body(), usize::MAX)
             .await
@@ -7499,6 +8379,12 @@ mod tests {
 
         assert_eq!(checkpoints_json["items"][0]["id"], "sqlite-checkpoint:1");
         assert_eq!(checkpoints_json["items"][0]["checkpointKind"], "approval");
+        assert_eq!(app_workspaces_json["items"][0]["id"], "workspace-sqlite");
+        assert_eq!(app_workspaces_json["items"][0]["name"], "SQLite authority workspace");
+        assert_eq!(
+            app_workspaces_json["items"][0]["ownerIdentityId"],
+            "identity-sqlite-owner"
+        );
         assert_eq!(app_deployments_json["items"][0]["id"], "deployment-sqlite");
         assert_eq!(app_deployments_json["items"][0]["projectId"], "project-sqlite");
         assert_eq!(app_deployments_json["items"][0]["targetId"], "target-sqlite-web");
@@ -7581,6 +8467,17 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .uri("/api/core/v1/coding-sessions/provider-session/checkpoints")
+                    .body(Body::empty())
+                    .expect("build request"),
+            )
+            .await
+            .expect("serve request");
+
+        let app_workspaces_response = build_app_from_env()
+            .expect("load env app")
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/workspaces")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -7715,6 +8612,7 @@ mod tests {
         assert_eq!(session_response.status(), StatusCode::OK);
         assert_eq!(events_response.status(), StatusCode::OK);
         assert_eq!(checkpoints_response.status(), StatusCode::OK);
+        assert_eq!(app_workspaces_response.status(), StatusCode::OK);
         assert_eq!(app_deployments_response.status(), StatusCode::OK);
         assert_eq!(admin_deployments_response.status(), StatusCode::OK);
         assert_eq!(app_projects_response.status(), StatusCode::OK);
@@ -7750,6 +8648,12 @@ mod tests {
             .expect("read body");
         let checkpoints_json: serde_json::Value =
             serde_json::from_slice(&checkpoints_body).expect("parse checkpoints response");
+
+        let app_workspaces_body = to_bytes(app_workspaces_response.into_body(), usize::MAX)
+            .await
+            .expect("read body");
+        let app_workspaces_json: serde_json::Value =
+            serde_json::from_slice(&app_workspaces_body).expect("parse workspaces response");
 
         let app_deployments_body = to_bytes(app_deployments_response.into_body(), usize::MAX)
             .await
@@ -7829,6 +8733,12 @@ mod tests {
             "provider-runtime:provider-turn:event:0"
         );
         assert_eq!(checkpoints_json["items"][0]["id"], "provider-checkpoint:1");
+        assert_eq!(app_workspaces_json["items"][0]["id"], "workspace-provider");
+        assert_eq!(app_workspaces_json["items"][0]["name"], "Provider authority workspace");
+        assert_eq!(
+            app_workspaces_json["items"][0]["ownerIdentityId"],
+            "identity-provider-owner"
+        );
         assert_eq!(app_deployments_json["items"][0]["id"], "deployment-provider");
         assert_eq!(app_deployments_json["items"][0]["projectId"], "project-provider");
         assert_eq!(app_deployments_json["items"][0]["targetId"], "target-provider-web");
@@ -7859,6 +8769,246 @@ mod tests {
             "OnRequest"
         );
         assert_eq!(admin_policies_json["items"][0]["targetId"], "claude-code");
+    }
+
+    #[tokio::test]
+    async fn build_app_from_sqlite_file_reads_live_workspace_and_project_authority_from_sqlite() {
+        let sqlite_path =
+            write_sqlite_provider_authority_fixture("birdcoder-coding-server-live.sqlite3");
+        let app = build_app_from_sqlite_file(&sqlite_path).expect("load sqlite file app");
+
+        let connection = Connection::open(&sqlite_path).expect("open sqlite live authority fixture");
+        connection
+            .execute(
+                r#"
+                INSERT INTO workspaces (
+                    id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                "#,
+                params![
+                    "workspace-live",
+                    "2026-04-10T13:10:00Z",
+                    "2026-04-10T13:10:00Z",
+                    0_i64,
+                    0_i64,
+                    "Live authority workspace",
+                    "Workspace inserted after router bootstrap",
+                    "identity-live-owner",
+                    "active",
+                ],
+            )
+            .expect("insert live workspace");
+        connection
+            .execute(
+                r#"
+                INSERT INTO projects (
+                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, root_path, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                "#,
+                params![
+                    "project-live",
+                    "2026-04-10T13:10:01Z",
+                    "2026-04-10T13:10:01Z",
+                    0_i64,
+                    0_i64,
+                    "workspace-live",
+                    "Live authority project",
+                    "Project inserted after router bootstrap",
+                    "E:/sdkwork/project-live",
+                    "active",
+                ],
+            )
+            .expect("insert live project");
+        drop(connection);
+
+        let workspaces_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/workspaces")
+                    .body(Body::empty())
+                    .expect("build workspaces request"),
+            )
+            .await
+            .expect("serve workspaces request");
+        let projects_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/projects")
+                    .body(Body::empty())
+                    .expect("build projects request"),
+            )
+            .await
+            .expect("serve projects request");
+
+        fs::remove_file(sqlite_path).expect("remove sqlite live fixture");
+
+        let workspaces_body = to_bytes(workspaces_response.into_body(), usize::MAX)
+            .await
+            .expect("read workspaces body");
+        let workspaces_json: serde_json::Value =
+            serde_json::from_slice(&workspaces_body).expect("parse workspaces response");
+        let projects_body = to_bytes(projects_response.into_body(), usize::MAX)
+            .await
+            .expect("read projects body");
+        let projects_json: serde_json::Value =
+            serde_json::from_slice(&projects_body).expect("parse projects response");
+
+        assert!(
+            workspaces_json["items"]
+                .as_array()
+                .expect("workspace items array")
+                .iter()
+                .any(|item| item["id"] == "workspace-live"),
+            "live workspace row should be visible without rebuilding the router"
+        );
+        assert!(
+            projects_json["items"]
+                .as_array()
+                .expect("project items array")
+                .iter()
+                .any(|item| item["id"] == "project-live"),
+            "live project row should be visible without rebuilding the router"
+        );
+    }
+
+    #[tokio::test]
+    async fn build_app_from_sqlite_file_bootstraps_default_workspace_and_project_when_authority_empty() {
+        let sqlite_path = write_empty_sqlite_provider_authority_fixture(
+            "birdcoder-coding-server-bootstrap-empty.sqlite3",
+        );
+        let app = build_app_from_sqlite_file(&sqlite_path).expect("load sqlite bootstrap app");
+
+        let workspaces_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/workspaces")
+                    .body(Body::empty())
+                    .expect("build workspaces request"),
+            )
+            .await
+            .expect("serve workspaces request");
+        let projects_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/projects")
+                    .body(Body::empty())
+                    .expect("build projects request"),
+            )
+            .await
+            .expect("serve projects request");
+
+        let connection = Connection::open(&sqlite_path).expect("open sqlite bootstrap fixture");
+        let persisted_workspace_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM workspaces WHERE is_deleted = 0",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read persisted workspace count");
+        let persisted_project_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM projects WHERE is_deleted = 0",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read persisted project count");
+        drop(connection);
+        fs::remove_file(sqlite_path).expect("remove sqlite bootstrap fixture");
+
+        let workspaces_body = to_bytes(workspaces_response.into_body(), usize::MAX)
+            .await
+            .expect("read workspaces body");
+        let workspaces_json: serde_json::Value =
+            serde_json::from_slice(&workspaces_body).expect("parse workspaces response");
+        let projects_body = to_bytes(projects_response.into_body(), usize::MAX)
+            .await
+            .expect("read projects body");
+        let projects_json: serde_json::Value =
+            serde_json::from_slice(&projects_body).expect("parse projects response");
+
+        assert_eq!(persisted_workspace_count, 1);
+        assert_eq!(persisted_project_count, 1);
+        assert_eq!(workspaces_json["items"][0]["id"], "workspace-default");
+        assert_eq!(workspaces_json["items"][0]["name"], "Default Workspace");
+        assert_eq!(projects_json["items"][0]["id"], "project-default");
+        assert_eq!(projects_json["items"][0]["workspaceId"], "workspace-default");
+        assert_eq!(projects_json["items"][0]["name"], "Starter Project");
+    }
+
+    #[tokio::test]
+    async fn build_app_from_sqlite_file_bootstraps_starter_project_into_existing_workspace_when_projects_missing() {
+        let sqlite_path = write_empty_sqlite_provider_authority_fixture(
+            "birdcoder-coding-server-bootstrap-project.sqlite3",
+        );
+        let connection =
+            Connection::open(&sqlite_path).expect("open sqlite bootstrap project fixture");
+        connection
+            .execute(
+                r#"
+                INSERT INTO workspaces (
+                    id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                "#,
+                params![
+                    "workspace-existing",
+                    "2026-04-15T18:30:00Z",
+                    "2026-04-15T18:30:00Z",
+                    0_i64,
+                    0_i64,
+                    "Existing Workspace",
+                    "Pre-existing local workspace",
+                    "identity-existing",
+                    "active",
+                ],
+            )
+            .expect("insert existing workspace");
+        drop(connection);
+
+        let app = build_app_from_sqlite_file(&sqlite_path).expect("load sqlite bootstrap app");
+        let projects_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/projects")
+                    .body(Body::empty())
+                    .expect("build projects request"),
+            )
+            .await
+            .expect("serve projects request");
+
+        let connection = Connection::open(&sqlite_path).expect("open sqlite bootstrap fixture");
+        let persisted_workspace_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM workspaces WHERE is_deleted = 0",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read persisted workspace count");
+        let persisted_project_row: (String, String, String) = connection
+            .query_row(
+                "SELECT id, workspace_id, name FROM projects WHERE is_deleted = 0 LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("read persisted starter project");
+        drop(connection);
+        fs::remove_file(sqlite_path).expect("remove sqlite bootstrap fixture");
+
+        let projects_body = to_bytes(projects_response.into_body(), usize::MAX)
+            .await
+            .expect("read projects body");
+        let projects_json: serde_json::Value =
+            serde_json::from_slice(&projects_body).expect("parse projects response");
+
+        assert_eq!(persisted_workspace_count, 1);
+        assert_eq!(persisted_project_row.0, "project-default");
+        assert_eq!(persisted_project_row.1, "workspace-existing");
+        assert_eq!(persisted_project_row.2, "Starter Project");
+        assert_eq!(projects_json["items"][0]["workspaceId"], "workspace-existing");
     }
 
     #[tokio::test]
@@ -7986,5 +9136,37 @@ mod tests {
             .expect("serve request");
 
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn app_routes_accept_loopback_cors_preflight_requests() {
+        let response = build_app()
+            .oneshot(
+                Request::builder()
+                    .method("OPTIONS")
+                    .uri("/api/app/v1/workspaces")
+                    .header("origin", "http://127.0.0.1:1520")
+                    .header("access-control-request-method", "GET")
+                    .header("access-control-request-headers", "content-type")
+                    .body(Body::empty())
+                    .expect("build request"),
+            )
+            .await
+            .expect("serve request");
+
+        assert_eq!(
+            response.status().is_success(),
+            true,
+            "browser-hosted local clients must receive a successful CORS preflight response from the loopback coding server.",
+        );
+        assert_eq!(
+            response.headers().get("access-control-allow-origin"),
+            Some(&"http://127.0.0.1:1520".parse().expect("origin header")),
+        );
+        assert_eq!(
+            response.headers().get("access-control-allow-methods").is_some(),
+            true,
+            "preflight responses must advertise the allowed methods so local web/desktop shells can call app APIs.",
+        );
     }
 }

@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { Component, lazy, Suspense, type ErrorInfo, useState, useRef, useEffect } from 'react';
+import React, { Component, lazy, Suspense, type ErrorInfo, useState, useRef, useEffect, useCallback } from 'react';
 import { Code2, Sparkles, Terminal, Settings, UserCircle, Shield, Zap, LayoutTemplate, Minus, Square, X, ChevronDown, Folder, Briefcase, Globe, User, Plus, Trash2, AlertTriangle, ChevronRight, Check, Edit } from 'lucide-react';
+import { usePersistedState } from '@sdkwork/birdcoder-commons';
 import {
   useWorkspaces,
   IDEProvider,
@@ -16,54 +17,72 @@ import {
   useProjects,
   useIDEServices,
 } from '@sdkwork/birdcoder-commons/shell';
-import { Button, TopMenu } from '@sdkwork/birdcoder-ui';
+import {
+  DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
+  buildWorkbenchRecoveryAnnouncement,
+  buildWorkbenchRecoverySnapshot,
+  ensureNativeCodexSessionMirror,
+  ensureStoredNativeCodexSessionMirror,
+  importLocalFolderProject,
+  listStoredSessionInventory,
+  normalizeWorkbenchRecoverySnapshot,
+  recoverySnapshotsEqual,
+  resolveStartupCodingSessionId,
+  resolveStartupProjectId,
+  resolveStartupWorkspaceId,
+  type WorkbenchRecoverySnapshot,
+  type WorkbenchSessionInventoryRecord,
+} from '@sdkwork/birdcoder-commons/workbench';
+import { setStoredJson } from '@sdkwork/birdcoder-commons/storage/localStore';
+import { Button, TopMenu } from '@sdkwork/birdcoder-ui/shell';
 import type { AppTab } from '@sdkwork/birdcoder-types';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-commons/shell';
 import { useTranslation } from 'react-i18next';
+import { createAppHeaderWindowDragController } from './appHeaderWindowDrag.ts';
 
 const CodePage = lazy(async () => {
-  const module = await import('@sdkwork/birdcoder-code');
-  return { default: module.CodePage };
+  const { loadCodePage } = await import('./pageLoaders.ts');
+  return loadCodePage();
 });
 
 const StudioPage = lazy(async () => {
-  const module = await import('@sdkwork/birdcoder-studio');
-  return { default: module.StudioPage };
+  const { loadStudioPage } = await import('./pageLoaders.ts');
+  return loadStudioPage();
 });
 
 const TerminalPage = lazy(async () => {
-  const module = await import('@sdkwork/birdcoder-terminal');
-  return { default: module.TerminalPage };
+  const { loadTerminalPage } = await import('./pageLoaders.ts');
+  return loadTerminalPage();
 });
 
 const SettingsPage = lazy(async () => {
-  const module = await import('@sdkwork/birdcoder-settings');
-  return { default: module.SettingsPage };
+  const { loadSettingsPage } = await import('./pageLoaders.ts');
+  return loadSettingsPage();
 });
 
 const AuthPage = lazy(async () => {
-  const module = await import('@sdkwork/birdcoder-appbase');
-  return { default: module.AuthPage };
+  const { loadAuthPage } = await import('./pageLoaders.ts');
+  return loadAuthPage();
 });
 
 const UserCenterPage = lazy(async () => {
-  const module = await import('@sdkwork/birdcoder-appbase');
-  return { default: module.UserCenterPage };
+  const { loadUserCenterPage } = await import('./pageLoaders.ts');
+  return loadUserCenterPage();
 });
 
 const VipPage = lazy(async () => {
-  const module = await import('@sdkwork/birdcoder-appbase');
-  return { default: module.VipPage };
+  const { loadVipPage } = await import('./pageLoaders.ts');
+  return loadVipPage();
 });
 
 const SkillsPage = lazy(async () => {
-  const module = await import('@sdkwork/birdcoder-skills');
-  return { default: module.SkillsPage };
+  const { loadSkillsPage } = await import('./pageLoaders.ts');
+  return loadSkillsPage();
 });
 
 const TemplatesPage = lazy(async () => {
-  const module = await import('@sdkwork/birdcoder-templates');
-  return { default: module.TemplatesPage };
+  const { loadTemplatesPage } = await import('./pageLoaders.ts');
+  return loadTemplatesPage();
 });
 
 type ErrorBoundaryProps = {
@@ -134,6 +153,10 @@ function SurfaceLoader({ fullScreen = false }: { fullScreen?: boolean }) {
   );
 }
 
+function createWorkbenchRecoverySessionId() {
+  return `recovery-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export default function App() {
   return (
     <ErrorBoundaryWithTranslation>
@@ -150,22 +173,34 @@ export default function App() {
 
 function AppContent() {
   const { t } = useTranslation();
-  const { fileSystemService } = useIDEServices();
+  const { fileSystemService, projectService } = useIDEServices();
   const { user, isLoading: isAuthLoading, logout } = useAuth();
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<AppTab>('code');
+  const [recoverySnapshot, setRecoverySnapshot, isRecoveryHydrated] = usePersistedState<WorkbenchRecoverySnapshot>(
+    'workbench',
+    'recovery-context',
+    DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
+  );
   const { workspaces, isLoading: isWorkspacesLoading, createWorkspace, updateWorkspace, deleteWorkspace } = useWorkspaces();
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('ws-1');
+  const normalizedRecoverySnapshot = normalizeWorkbenchRecoverySnapshot(recoverySnapshot);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
   const [activeProjectId, setActiveProjectId] = useState<string>('');
+  const [activeCodingSessionId, setActiveCodingSessionId] = useState<string>('');
+  const [isSessionInventoryHydrated, setIsSessionInventoryHydrated] = useState(false);
+  const [sessionInventory, setSessionInventory] = useState<WorkbenchSessionInventoryRecord[]>([]);
   
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
-  const [menuActiveWorkspaceId, setMenuActiveWorkspaceId] = useState<string>('ws-1');
+  const [menuActiveWorkspaceId, setMenuActiveWorkspaceId] = useState<string>('');
   
   // Fetch projects for the workspace currently selected in the dropdown menu
   const { projects: menuProjects, createProject, updateProject, deleteProject } = useProjects(menuActiveWorkspaceId);
   
   // Also fetch projects for the active workspace to know the active project's name
-  const { projects: activeProjects } = useProjects(activeWorkspaceId);
+  const {
+    projects: activeProjects,
+    refreshProjects: refreshActiveProjects,
+  } = useProjects(activeWorkspaceId);
 
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
@@ -184,12 +219,127 @@ function AppContent() {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showWhatsNewModal, setShowWhatsNewModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const titleBarWindowDragControllerRef = useRef<ReturnType<typeof createAppHeaderWindowDragController> | null>(null);
+  const hasAppliedRecoveredTabRef = useRef(false);
+  const hasAnnouncedRecoveryRef = useRef(false);
+  const hasMirroredNativeCodexSessionsRef = useRef(false);
+
+  const resolvedWorkspaceId = resolveStartupWorkspaceId({
+    workspaces,
+    recoverySnapshot: normalizedRecoverySnapshot,
+    inventory: sessionInventory,
+  });
+  const resolvedProjectId = resolveStartupProjectId({
+    workspaceId: activeWorkspaceId,
+    projects: activeProjects,
+    recoverySnapshot: normalizedRecoverySnapshot,
+    inventory: sessionInventory,
+  });
+  const resolvedCodingSessionId = resolveStartupCodingSessionId({
+    projectId: activeProjectId || resolvedProjectId,
+    projects: activeProjects,
+    recoverySnapshot: normalizedRecoverySnapshot,
+    inventory: sessionInventory,
+  });
+  const recoveryAnnouncement = buildWorkbenchRecoveryAnnouncement({
+    recoverySnapshot: normalizedRecoverySnapshot,
+    activeWorkspaceId: activeWorkspaceId || resolvedWorkspaceId,
+    activeProjectId: activeProjectId || resolvedProjectId,
+    activeCodingSessionId: activeCodingSessionId || resolvedCodingSessionId,
+  });
+  const reloadSessionInventory = useCallback(async () => {
+    try {
+      const records = await listStoredSessionInventory({ includeGlobal: true, limit: 25 });
+      setSessionInventory(records);
+    } catch (error) {
+      console.error('Failed to reload session inventory', error);
+    } finally {
+      setIsSessionInventoryHydrated(true);
+    }
+  }, []);
 
   useEffect(() => {
-    if (workspaces.length > 0 && !workspaces.find(w => w.id === activeWorkspaceId)) {
-      setActiveWorkspaceId(workspaces[0].id);
+    void reloadSessionInventory();
+  }, [reloadSessionInventory]);
+
+  useEffect(() => {
+    if (hasMirroredNativeCodexSessionsRef.current || !isSessionInventoryHydrated) {
+      return;
     }
-  }, [workspaces, activeWorkspaceId]);
+
+    const workspaceIdToMirror = activeWorkspaceId || resolvedWorkspaceId;
+    if (!workspaceIdToMirror) {
+      return;
+    }
+
+    let isMounted = true;
+    hasMirroredNativeCodexSessionsRef.current = true;
+
+    void ensureNativeCodexSessionMirror({
+      inventory: sessionInventory,
+      projectService,
+      workspaceId: workspaceIdToMirror,
+    })
+      .then(async (result) => {
+        if (!isMounted) {
+          return;
+        }
+
+        await reloadSessionInventory();
+        if (result && activeWorkspaceId === workspaceIdToMirror) {
+          await refreshActiveProjects();
+        }
+      })
+      .catch((error) => {
+        hasMirroredNativeCodexSessionsRef.current = false;
+        if (isMounted) {
+          console.error('Failed to mirror discovered native Codex sessions', error);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    activeWorkspaceId,
+    isSessionInventoryHydrated,
+    projectService,
+    reloadSessionInventory,
+    refreshActiveProjects,
+    resolvedWorkspaceId,
+    sessionInventory,
+  ]);
+
+  useEffect(() => {
+    if (!isRecoveryHydrated || hasAppliedRecoveredTabRef.current) {
+      return;
+    }
+
+    hasAppliedRecoveredTabRef.current = true;
+    setActiveTab(normalizedRecoverySnapshot.activeTab);
+  }, [isRecoveryHydrated, normalizedRecoverySnapshot.activeTab]);
+
+  useEffect(() => {
+    if (!isRecoveryHydrated || hasAnnouncedRecoveryRef.current || !recoveryAnnouncement) {
+      return;
+    }
+
+    hasAnnouncedRecoveryRef.current = true;
+    addToast(recoveryAnnouncement, 'info');
+  }, [addToast, isRecoveryHydrated, recoveryAnnouncement]);
+
+  useEffect(() => {
+    if (workspaces.length === 0) {
+      if (activeWorkspaceId) {
+        setActiveWorkspaceId('');
+      }
+      return;
+    }
+
+    if (!workspaces.find((workspace) => workspace.id === activeWorkspaceId) && resolvedWorkspaceId) {
+      setActiveWorkspaceId(resolvedWorkspaceId);
+    }
+  }, [activeWorkspaceId, resolvedWorkspaceId, workspaces]);
 
   useEffect(() => {
     if (showWorkspaceMenu) {
@@ -198,13 +348,126 @@ function AppContent() {
   }, [showWorkspaceMenu, activeWorkspaceId]);
 
   useEffect(() => {
-    // Auto-select first project if none is selected
-    if (activeProjects.length > 0 && (!activeProjectId || !activeProjects.find(p => p.id === activeProjectId))) {
-      setActiveProjectId(activeProjects[0].id);
-    } else if (activeProjects.length === 0) {
-      setActiveProjectId('');
+    if (activeProjects.length === 0) {
+      if (activeProjectId) {
+        setActiveProjectId('');
+      }
+      return;
     }
-  }, [activeProjects, activeProjectId]);
+
+    if (!activeProjects.find((project) => project.id === activeProjectId) && resolvedProjectId) {
+      setActiveProjectId(resolvedProjectId);
+    }
+  }, [activeProjectId, activeProjects, resolvedProjectId]);
+
+  useEffect(() => {
+    const activeProjectCodingSessions =
+      activeProjects.find((project) => project.id === activeProjectId)?.codingSessions ?? [];
+
+    if (activeProjectCodingSessions.length === 0) {
+      if (activeCodingSessionId) {
+        setActiveCodingSessionId('');
+      }
+      return;
+    }
+
+    if (
+      !activeProjectCodingSessions.find(
+        (codingSession) => codingSession.id === activeCodingSessionId,
+      ) &&
+      resolvedCodingSessionId
+    ) {
+      setActiveCodingSessionId(resolvedCodingSessionId);
+      return;
+    }
+
+    if (
+      activeCodingSessionId &&
+      !activeProjectCodingSessions.find(
+        (codingSession) => codingSession.id === activeCodingSessionId,
+      )
+    ) {
+      setActiveCodingSessionId('');
+    }
+  }, [
+    activeCodingSessionId,
+    activeProjectId,
+    activeProjects,
+    resolvedCodingSessionId,
+  ]);
+
+  useEffect(() => {
+    if (!isRecoveryHydrated) {
+      return;
+    }
+
+    const nextRecoverySnapshot = buildWorkbenchRecoverySnapshot({
+      sessionId: normalizedRecoverySnapshot.sessionId || createWorkbenchRecoverySessionId(),
+      activeTab,
+      activeWorkspaceId,
+      activeProjectId,
+      activeCodingSessionId,
+      cleanExit: false,
+    });
+
+    if (recoverySnapshotsEqual(normalizedRecoverySnapshot, nextRecoverySnapshot)) {
+      return;
+    }
+
+    setRecoverySnapshot(nextRecoverySnapshot);
+  }, [
+    activeProjectId,
+    activeCodingSessionId,
+    activeTab,
+    activeWorkspaceId,
+    isRecoveryHydrated,
+    normalizedRecoverySnapshot,
+    setRecoverySnapshot,
+  ]);
+
+  useEffect(() => {
+    if (!isRecoveryHydrated || typeof window === 'undefined') {
+      return;
+    }
+
+    const handleBeforeUnload = () => {
+      void setStoredJson(
+        'workbench',
+        'recovery-context',
+        buildWorkbenchRecoverySnapshot({
+          sessionId: normalizedRecoverySnapshot.sessionId || createWorkbenchRecoverySessionId(),
+          activeTab,
+          activeWorkspaceId,
+          activeProjectId,
+          activeCodingSessionId,
+          cleanExit: true,
+        }),
+      );
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [
+    activeProjectId,
+    activeCodingSessionId,
+    activeTab,
+    activeWorkspaceId,
+    isRecoveryHydrated,
+    normalizedRecoverySnapshot.sessionId,
+  ]);
+
+  useEffect(() => {
+    if (showWorkspaceMenu) {
+      setMenuActiveWorkspaceId(activeWorkspaceId || resolvedWorkspaceId);
+      return;
+    }
+
+    if (!menuActiveWorkspaceId && (activeWorkspaceId || resolvedWorkspaceId)) {
+      setMenuActiveWorkspaceId(activeWorkspaceId || resolvedWorkspaceId);
+    }
+  }, [activeWorkspaceId, menuActiveWorkspaceId, resolvedWorkspaceId, showWorkspaceMenu]);
 
   useEffect(() => {
     const handleOpenTerminal = (path?: string, command?: string) => {
@@ -465,6 +728,30 @@ function AppContent() {
     return getCurrentWindow();
   };
 
+  if (titleBarWindowDragControllerRef.current === null) {
+    titleBarWindowDragControllerRef.current = createAppHeaderWindowDragController({
+      startDragging: async () => {
+        try {
+          const desktopWindow = await getDesktopWindow();
+          if (!desktopWindow) {
+            return;
+          }
+
+          await desktopWindow.startDragging();
+        } catch (error) {
+          console.warn('Failed to start window dragging', error);
+        }
+      },
+    });
+  }
+
+  useEffect(() => {
+    const titleBarWindowDragController = titleBarWindowDragControllerRef.current;
+    return () => {
+      titleBarWindowDragController?.dispose();
+    };
+  }, []);
+
   const handleMinimize = async () => {
     try {
       const desktopWindow = await getDesktopWindow();
@@ -507,49 +794,38 @@ function AppContent() {
   };
 
   const handleTitleBarMouseDown = async (event: React.MouseEvent<HTMLDivElement>) => {
-    if (event.button !== 0) {
-      return;
-    }
-
-    const target = event.target as HTMLElement | null;
-    if (target?.closest('[data-no-drag="true"]')) {
-      return;
-    }
-
-    try {
-      const desktopWindow = await getDesktopWindow();
-      if (!desktopWindow) {
-        return;
-      }
-
-      await desktopWindow.startDragging();
-    } catch (error) {
-      console.warn('Failed to start window dragging', error);
-    }
+    titleBarWindowDragControllerRef.current?.handleMouseDown({
+      button: event.button,
+      target: event.target,
+    });
   };
 
   const handleOpenFolder = async () => {
     try {
-      const { openLocalFolder } = await import('@sdkwork/birdcoder-commons');
+      const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
       const folderInfo = await openLocalFolder();
       if (folderInfo) {
-        let projectName = t('app.localFolder');
-        if (folderInfo.type === 'browser' && folderInfo.handle) {
-          projectName = folderInfo.handle.name;
-        } else if (folderInfo.type === 'tauri' && folderInfo.path) {
-          const parts = folderInfo.path.split(/[/\\]/);
-          projectName = parts[parts.length - 1] || t('app.localFolder');
+        const importedProject = await importLocalFolderProject({
+          createProject,
+          fallbackProjectName: t('app.localFolder'),
+          folderInfo,
+          mountFolder: (projectId, nextFolderInfo) =>
+            fileSystemService.mountFolder(projectId, nextFolderInfo),
+          updateProject,
+        });
+
+        try {
+          await ensureStoredNativeCodexSessionMirror({
+            projectService,
+            workspaceId: menuActiveWorkspaceId,
+          });
+          await refreshActiveProjects();
+        } catch (error) {
+          console.error('Failed to synchronize imported native Codex sessions', error);
         }
-        
-        const newProject = await createProject(projectName);
-        
-        if (fileSystemService && 'mountFolder' in fileSystemService) {
-          await (fileSystemService as any).mountFolder(newProject.id, folderInfo);
-        }
-        
         setActiveWorkspaceId(menuActiveWorkspaceId);
-        setActiveProjectId(newProject.id);
-        addToast(t('app.openedFolder', { name: projectName }), 'success');
+        setActiveProjectId(importedProject.projectId);
+        addToast(t('app.openedFolder', { name: importedProject.projectName }), 'success');
       }
     } catch (e) {
       console.error("Failed to open folder", e);
@@ -1047,8 +1323,26 @@ function AppContent() {
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden relative bg-[#0e0e11]">
           <Suspense fallback={<SurfaceLoader />}>
-            {activeTab === 'code' && <CodePage workspaceId={activeWorkspaceId} projectId={activeProjectId} onProjectChange={setActiveProjectId} />}
-            {activeTab === 'studio' && <StudioPage workspaceId={activeWorkspaceId} projectId={activeProjectId} onProjectChange={setActiveProjectId} />}
+            {activeTab === 'code' && (
+              <CodePage
+                workspaceId={activeWorkspaceId}
+                projectId={activeProjectId}
+                initialCodingSessionId={activeCodingSessionId}
+                onProjectChange={setActiveProjectId}
+                onCodingSessionChange={setActiveCodingSessionId}
+                onSessionInventoryRefresh={reloadSessionInventory}
+              />
+            )}
+            {activeTab === 'studio' && (
+              <StudioPage
+                workspaceId={activeWorkspaceId}
+                projectId={activeProjectId}
+                initialCodingSessionId={activeCodingSessionId}
+                onProjectChange={setActiveProjectId}
+                onCodingSessionChange={setActiveCodingSessionId}
+                onSessionInventoryRefresh={reloadSessionInventory}
+              />
+            )}
             {activeTab === 'terminal' && (
               <TerminalPage
                 terminalRequest={terminalRequest}

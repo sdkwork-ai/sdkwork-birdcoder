@@ -46,7 +46,51 @@ function fuzzyScore(pattern: string, str: string): number {
   return patternIdx === patternLen ? score : 0;
 }
 
-export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, onCreateFolder, onDeleteFile, onDeleteFolder, onRenameNode, basePath = '/workspace/project' }: FileExplorerProps) {
+const FILE_EXPLORER_CONTEXT_MENU_Z_INDEX = 2147483647;
+
+function trimTrailingPathSeparators(path: string): string {
+  const trimmedPath = path.trim();
+  if (!trimmedPath) {
+    return '';
+  }
+
+  if (/^[a-zA-Z]:[\\/]?$/.test(trimmedPath)) {
+    return `${trimmedPath[0].toUpperCase()}:`;
+  }
+
+  return trimmedPath.replace(/[\\/]+$/, '');
+}
+
+function normalizeRelativeNodePath(path: string): string {
+  return path.trim().replace(/^[/\\]+/, '').replace(/[\\/]+/g, '/');
+}
+
+function resolveAbsoluteExplorerPath(basePath: string | undefined, nodePath: string): string | null {
+  const normalizedBasePath = trimTrailingPathSeparators(basePath ?? '');
+  if (!normalizedBasePath) {
+    return null;
+  }
+
+  const normalizedNodePath = normalizeRelativeNodePath(nodePath);
+  if (!normalizedNodePath) {
+    return normalizedBasePath;
+  }
+
+  const separator = normalizedBasePath.includes('\\') ? '\\' : '/';
+  return `${normalizedBasePath}${separator}${normalizedNodePath.split('/').join(separator)}`;
+}
+
+function resolveRelativeParentPath(path: string): string {
+  const normalizedPath = normalizeRelativeNodePath(path);
+  const lastSeparatorIndex = normalizedPath.lastIndexOf('/');
+  if (lastSeparatorIndex === -1) {
+    return '';
+  }
+
+  return normalizedPath.slice(0, lastSeparatorIndex);
+}
+
+export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, onCreateFolder, onDeleteFile, onDeleteFolder, onRenameNode, basePath = '' }: FileExplorerProps) {
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,6 +102,14 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
   const [renamingNode, setRenamingNode] = useState<{ path: string, name: string } | null>(null);
   const [inputValue, setInputValue] = useState('');
   const { addToast } = useToast();
+
+  const resolveProjectBasePath = () => resolveAbsoluteExplorerPath(basePath, '');
+  const resolveNodeAbsolutePath = (nodePath: string) => resolveAbsoluteExplorerPath(basePath, nodePath);
+  const resolveNodeDirectoryPath = (node: FileNode) =>
+    node.type === 'directory'
+      ? resolveNodeAbsolutePath(node.path)
+      : resolveAbsoluteExplorerPath(basePath, resolveRelativeParentPath(node.path));
+  const notifyMissingProjectPath = () => addToast('Project folder path is unavailable', 'error');
 
   useEffect(() => {
     const handleClickOutside = () => {
@@ -509,7 +561,7 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
       {rootContextMenu && (
         <div 
           className="fixed bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 w-56 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
-          style={{ top: rootContextMenu.y, left: rootContextMenu.x }}
+          style={{ top: rootContextMenu.y, left: rootContextMenu.x, zIndex: FILE_EXPLORER_CONTEXT_MENU_Z_INDEX }}
           onClick={(e) => e.stopPropagation()}
         >
           <div 
@@ -538,8 +590,14 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
+              const projectBasePath = resolveProjectBasePath();
+              if (!projectBasePath) {
+                notifyMissingProjectPath();
+                setRootContextMenu(null);
+                return;
+              }
               import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-                globalEventBus.emit('openTerminal', basePath);
+                globalEventBus.emit('openTerminal', projectBasePath);
               });
               setRootContextMenu(null);
             }}
@@ -550,14 +608,20 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
+              const projectBasePath = resolveProjectBasePath();
+              if (!projectBasePath) {
+                notifyMissingProjectPath();
+                setRootContextMenu(null);
+                return;
+              }
               import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-                globalEventBus.emit('revealInExplorer', basePath);
+                globalEventBus.emit('revealInExplorer', projectBasePath);
               });
               setRootContextMenu(null);
             }}
           >
             <ExternalLink size={14} className="text-gray-400" />
-            <span>Reveal in OS Explorer</span>
+            <span>Open in File Explorer</span>
           </div>
         </div>
       )}
@@ -565,7 +629,7 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
       {contextMenu && (
         <div 
           className="fixed bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 w-56 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          style={{ top: contextMenu.y, left: contextMenu.x, zIndex: FILE_EXPLORER_CONTEXT_MENU_Z_INDEX }}
           onClick={(e) => e.stopPropagation()}
         >
           {contextMenu.node.type === 'directory' && (
@@ -611,8 +675,12 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
-              // Full path
-              const fullPath = `${basePath}${contextMenu.node.path}`;
+              const fullPath = resolveNodeAbsolutePath(contextMenu.node.path);
+              if (!fullPath) {
+                notifyMissingProjectPath();
+                setContextMenu(null);
+                return;
+              }
               navigator.clipboard.writeText(fullPath);
               setContextMenu(null);
               addToast('Copied full path', 'success');
@@ -649,10 +717,13 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
+              const targetPath = resolveNodeDirectoryPath(contextMenu.node);
+              if (!targetPath) {
+                notifyMissingProjectPath();
+                setContextMenu(null);
+                return;
+              }
               import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-                const targetPath = contextMenu.node.type === 'file' 
-                  ? `${basePath}${contextMenu.node.path.substring(0, contextMenu.node.path.lastIndexOf('/'))}`
-                  : `${basePath}${contextMenu.node.path}`;
                 globalEventBus.emit('openTerminal', targetPath);
               });
               setContextMenu(null);
@@ -664,15 +735,20 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
+              const targetPath = resolveNodeDirectoryPath(contextMenu.node);
+              if (!targetPath) {
+                notifyMissingProjectPath();
+                setContextMenu(null);
+                return;
+              }
               import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-                const targetPath = `${basePath}${contextMenu.node.path}`;
                 globalEventBus.emit('revealInExplorer', targetPath);
               });
               setContextMenu(null);
             }}
           >
             <ExternalLink size={14} className="text-gray-400" />
-            <span>Reveal in OS Explorer</span>
+            <span>Open in File Explorer</span>
           </div>
         </div>
       )}
