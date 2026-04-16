@@ -4,6 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@sdkwork/birdcoder-commons';
 import { Button } from '@sdkwork/birdcoder-ui';
 
+const DEV_QUICK_LOGIN_ACCOUNT = {
+  email: 'dev@birdcoder.local',
+  name: 'BirdCoder Dev',
+  password: 'dev123456',
+} as const;
+
 export function AuthPage() {
   const { t } = useTranslation();
   const {
@@ -18,6 +24,7 @@ export function AuthPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isDevMode = import.meta.env.DEV;
   const supportsLocalCredentials = authConfig?.supportsLocalCredentials ?? true;
   const supportsSessionExchange = authConfig?.supportsSessionExchange ?? false;
   const resolvedExternalProviderKey = authConfig?.providerKey?.trim() || 'external';
@@ -38,6 +45,37 @@ export function AuthPage() {
       } else {
         await register(email, password, name);
       }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleQuickDevLogin = async () => {
+    if (!isDevMode) {
+      return;
+    }
+
+    setIsLogin(true);
+    setEmail(DEV_QUICK_LOGIN_ACCOUNT.email);
+    setPassword(DEV_QUICK_LOGIN_ACCOUNT.password);
+    setName(DEV_QUICK_LOGIN_ACCOUNT.name);
+    setIsSubmitting(true);
+    try {
+      if (supportsLocalCredentials) {
+        await login(DEV_QUICK_LOGIN_ACCOUNT.email, DEV_QUICK_LOGIN_ACCOUNT.password);
+        return;
+      }
+
+      if (!supportsSessionExchange) {
+        throw new Error('Current user center provider does not support development quick login.');
+      }
+
+      await exchangeUserCenterSession({
+        email: DEV_QUICK_LOGIN_ACCOUNT.email,
+        name: DEV_QUICK_LOGIN_ACCOUNT.name,
+        providerKey: resolvedExternalProviderKey,
+        subject: `${resolvedExternalProviderKey}:dev-quick-login`,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -121,6 +159,31 @@ export function AuthPage() {
           </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-6">
+            {isDevMode ? (
+              <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-300">
+                      Development Quick Login
+                    </p>
+                    <p className="mt-2 text-gray-200">{DEV_QUICK_LOGIN_ACCOUNT.email}</p>
+                    <p className="mt-1 text-xs text-gray-400">
+                      {supportsLocalCredentials
+                        ? `Password: ${DEV_QUICK_LOGIN_ACCOUNT.password}`
+                        : `Provider: ${resolvedExternalProviderKey}`}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => void handleQuickDevLogin()}
+                    className="shrink-0 bg-emerald-300 text-emerald-950 hover:bg-emerald-200 disabled:opacity-60"
+                  >
+                    Direct Login
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             {!supportsLocalCredentials || !isLogin ? (
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wider">
