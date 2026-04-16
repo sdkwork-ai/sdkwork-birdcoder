@@ -53,6 +53,13 @@ export * from './workbench/preferences';
 export * from './workbench/recovery';
 export * from './workbench/runtime';
 export * from './workbench/sessionRefresh';
-export * from '@sdkwork/birdcoder-infrastructure';
 export * from './workbench/sessionInventory';
+export {
+  bindDefaultBirdCoderIdeServicesRuntime,
+  configureDefaultBirdCoderIdeServicesRuntime,
+  getDefaultBirdCoderIdeServicesRuntimeConfig,
+  resetDefaultBirdCoderIdeServicesRuntimeForTests,
+  type BindDefaultBirdCoderIdeServicesRuntimeOptions,
+  type BirdCoderDefaultIdeServicesRuntimeConfig,
+} from '@sdkwork/birdcoder-infrastructure/runtime/defaultIdeServices';
 export { default as i18n } from '@sdkwork/birdcoder-i18n';

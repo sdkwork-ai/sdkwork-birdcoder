@@ -2,7 +2,7 @@ import { initCore } from '@sdkwork/birdcoder-core';
 import { bindDefaultBirdCoderIdeServicesRuntime } from '@sdkwork/birdcoder-infrastructure/runtime/defaultIdeServices';
 import type { BirdHostDescriptor } from '@sdkwork/birdcoder-host-core';
 import type { BirdCoderAppAdminApiClient } from '@sdkwork/birdcoder-types';
-import { bootstrapShellUserState } from './bootstrapShellUserState';
+import { bootstrapShellUserState } from './bootstrapShellUserState.ts';
 
 let bootstrapped = false;
 

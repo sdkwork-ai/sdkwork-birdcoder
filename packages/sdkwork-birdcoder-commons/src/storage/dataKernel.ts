@@ -12,4 +12,4 @@ export {
   setStoredRawValue,
   type BirdCoderJsonRecordRepository,
   type CreateBirdCoderJsonRecordRepositoryOptions,
-} from '@sdkwork/birdcoder-infrastructure/storage/dataKernel';
+} from '@sdkwork/birdcoder-infrastructure/storage/runtime';

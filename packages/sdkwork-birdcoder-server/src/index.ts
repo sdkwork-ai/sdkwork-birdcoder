@@ -122,6 +122,11 @@ const BIRD_SERVER_DISTRIBUTIONS = {
   },
 } as const;
 
+const BIRD_SERVER_RUNTIME_TRANSPORT_BASE_URLS: Record<BirdServerDistributionId, string> = {
+  global: BIRDCODER_DEFAULT_LOCAL_API_BASE_URL,
+  cn: 'https://cn.sdkwork.local/birdcoder',
+};
+
 export interface BirdServerRuntime extends BirdHostDescriptor {
   host: string;
   port: number;
@@ -404,9 +409,12 @@ export function bindBirdCoderServerRuntimeTransport(
   options: BindBirdCoderServerRuntimeTransportOptions = {},
 ): BirdServerRuntime {
   const host = options.host ?? resolveServerRuntime(options.distributionId);
+  const distributionId = options.distributionId ?? (host.distributionId as BirdServerDistributionId);
   bindDefaultBirdCoderIdeServicesRuntime({
     appAdminClient: options.appAdminClient,
-    apiBaseUrl: options.apiBaseUrl,
+    apiBaseUrl:
+      options.apiBaseUrl ??
+      (options.host ? undefined : BIRD_SERVER_RUNTIME_TRANSPORT_BASE_URLS[distributionId]),
     host,
   });
   return host;

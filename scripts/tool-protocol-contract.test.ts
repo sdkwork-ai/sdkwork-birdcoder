@@ -7,6 +7,7 @@ import {
   BIRDCODER_CODING_SESSION_ARTIFACT_KINDS,
   BIRDCODER_CODING_SESSION_EVENT_KINDS,
 } from '../packages/sdkwork-birdcoder-types/src/coding-session.ts';
+import { withMockCodexCliJsonl } from './test-support/mockCodexCli.ts';
 
 assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('tool.call.requested'), true);
 assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('tool.call.completed'), true);
@@ -25,23 +26,31 @@ for (const engine of listWorkbenchCliEngines()) {
   const runtime = createChatEngineById(engine.id);
   const toolCalls: ToolCall[] = [];
 
-  for await (const chunk of runtime.sendMessageStream(
-    [
+  const collectToolCalls = async () => {
+    for await (const chunk of runtime.sendMessageStream(
+      [
+        {
+          id: 'msg-user-1',
+          role: 'user',
+          content: 'Use a tool to inspect or modify the workspace.',
+          timestamp: Date.now(),
+        },
+      ],
       {
-        id: 'msg-user-1',
-        role: 'user',
-        content: 'Use a tool to inspect or modify the workspace.',
-        timestamp: Date.now(),
+        model: engine.defaultModelId,
+        context: {
+          workspaceRoot: 'D:/workspace',
+        },
       },
-    ],
-    {
-      model: engine.defaultModelId,
-      context: {
-        workspaceRoot: 'D:/workspace',
-      },
-    },
-  )) {
-    toolCalls.push(...(chunk.choices[0]?.delta?.tool_calls ?? []));
+    )) {
+      toolCalls.push(...(chunk.choices[0]?.delta?.tool_calls ?? []));
+    }
+  };
+
+  if (engine.id === 'codex') {
+    await withMockCodexCliJsonl(collectToolCalls);
+  } else {
+    await collectToolCalls();
   }
 
   assert.equal(toolCalls.length > 0, true, `${engine.id} must emit at least one tool call`);

@@ -9,4 +9,4 @@ export {
   serializeStoredValue,
   setStoredJson,
   setStoredRawValue,
-} from './dataKernel.ts';
+} from '@sdkwork/birdcoder-infrastructure/storage/runtime';

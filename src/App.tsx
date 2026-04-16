@@ -5,8 +5,8 @@
 
 import React, { Component, lazy, Suspense, type ErrorInfo, useState, useRef, useEffect, useCallback } from 'react';
 import { Code2, Sparkles, Terminal, Settings, UserCircle, Shield, Zap, LayoutTemplate, Minus, Square, X, ChevronDown, Folder, Briefcase, Globe, User, Plus, Trash2, AlertTriangle, ChevronRight, Check, Edit } from 'lucide-react';
-import { usePersistedState } from '@sdkwork/birdcoder-commons';
 import {
+  usePersistedState,
   useWorkspaces,
   IDEProvider,
   useAuth,

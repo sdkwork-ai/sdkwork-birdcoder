@@ -8,6 +8,7 @@ import {
   BIRDCODER_CODING_SESSION_ARTIFACT_KINDS,
   BIRDCODER_CODING_SESSION_EVENT_KINDS,
 } from '../packages/sdkwork-birdcoder-types/src/coding-session.ts';
+import { withMockCodexCliJsonl } from './test-support/mockCodexCli.ts';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -62,32 +63,40 @@ for (const engine of listWorkbenchCliEngines()) {
   const emittedEventKinds = new Set<string>();
   const emittedArtifactKinds = new Set<string>();
 
-  for await (const event of runtime.sendCanonicalEvents?.(messages, {
-    model: engine.defaultModelId,
-    context: {
-      workspaceRoot: 'D:/workspace',
-      currentFile: {
-        path: 'src/App.tsx',
-        content: 'export default function App() { return null; }',
-        language: 'tsx',
+  const collectCanonicalEvents = async () => {
+    for await (const event of runtime.sendCanonicalEvents?.(messages, {
+      model: engine.defaultModelId,
+      context: {
+        workspaceRoot: 'D:/workspace',
+        currentFile: {
+          path: 'src/App.tsx',
+          content: 'export default function App() { return null; }',
+          language: 'tsx',
+        },
       },
-    },
-  }) ?? []) {
-    emittedEventKinds.add(event.kind);
-    assert.equal(
-      eventKindRegistry.has(event.kind),
-      true,
-      `${engine.id} canonical runtime must only emit registered event kinds`,
-    );
-
-    if (event.artifact) {
-      emittedArtifactKinds.add(event.artifact.kind);
+    }) ?? []) {
+      emittedEventKinds.add(event.kind);
       assert.equal(
-        artifactKindRegistry.has(event.artifact.kind),
+        eventKindRegistry.has(event.kind),
         true,
-        `${engine.id} canonical runtime must only emit registered artifact kinds`,
+        `${engine.id} canonical runtime must only emit registered event kinds`,
       );
+
+      if (event.artifact) {
+        emittedArtifactKinds.add(event.artifact.kind);
+        assert.equal(
+          artifactKindRegistry.has(event.artifact.kind),
+          true,
+          `${engine.id} canonical runtime must only emit registered artifact kinds`,
+        );
+      }
     }
+  };
+
+  if (engine.id === 'codex') {
+    await withMockCodexCliJsonl(collectCanonicalEvents);
+  } else {
+    await collectCanonicalEvents();
   }
 
   assert.equal(

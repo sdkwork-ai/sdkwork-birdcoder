@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { ChatMessage } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
 import { createChatEngineById } from '../packages/sdkwork-birdcoder-commons/src/workbench/engines.ts';
 import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-commons/src/workbench/kernel.ts';
+import { withMockCodexCliJsonl } from './test-support/mockCodexCli.ts';
 
 const messages: ChatMessage[] = [
   {
@@ -19,33 +20,41 @@ for (const engine of listWorkbenchCliEngines()) {
   assert.equal(typeof runtime.sendMessage, 'function');
   assert.equal(typeof runtime.sendMessageStream, 'function');
 
-  const response = await runtime.sendMessage(messages, {
-    model: engine.defaultModelId,
-    context: {
-      workspaceRoot: 'D:/workspace',
-    },
-  });
-
-  assert.equal(response.object, 'chat.completion');
-  assert.equal(response.model, engine.defaultModelId);
-  assert.ok(response.id.length > 0);
-  assert.equal(response.choices.length > 0, true);
-  assert.equal(response.choices[0]?.message.role, 'assistant');
-  assert.ok(response.choices[0]?.message.content.length > 0);
-
   const chunks = [];
-  for await (const chunk of runtime.sendMessageStream(messages, {
-    model: engine.defaultModelId,
-    context: {
-      workspaceRoot: 'D:/workspace',
-      currentFile: {
-        path: 'src/App.tsx',
-        content: 'export default function App() { return null; }',
-        language: 'tsx',
+  const exerciseRuntime = async () => {
+    const response = await runtime.sendMessage(messages, {
+      model: engine.defaultModelId,
+      context: {
+        workspaceRoot: 'D:/workspace',
       },
-    },
-  })) {
-    chunks.push(chunk);
+    });
+
+    assert.equal(response.object, 'chat.completion');
+    assert.equal(response.model, engine.defaultModelId);
+    assert.ok(response.id.length > 0);
+    assert.equal(response.choices.length > 0, true);
+    assert.equal(response.choices[0]?.message.role, 'assistant');
+    assert.ok(response.choices[0]?.message.content.length > 0);
+
+    for await (const chunk of runtime.sendMessageStream(messages, {
+      model: engine.defaultModelId,
+      context: {
+        workspaceRoot: 'D:/workspace',
+        currentFile: {
+          path: 'src/App.tsx',
+          content: 'export default function App() { return null; }',
+          language: 'tsx',
+        },
+      },
+    })) {
+      chunks.push(chunk);
+    }
+  };
+
+  if (engine.id === 'codex') {
+    await withMockCodexCliJsonl(exerciseRuntime);
+  } else {
+    await exerciseRuntime();
   }
 
   assert.equal(chunks.length > 0, true, `${engine.id} must emit stream chunks`);

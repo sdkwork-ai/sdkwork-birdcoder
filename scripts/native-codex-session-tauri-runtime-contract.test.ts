@@ -86,7 +86,7 @@ async function withTauriOnlyRuntime<T>(operation: () => Promise<T>): Promise<T> 
           throw new Error(`Unexpected Tauri command: ${command}`);
         },
       },
-    } as Window & typeof globalThis,
+    } as unknown as Window & typeof globalThis,
   });
 
   Object.defineProperty(globalThis, 'process', {
