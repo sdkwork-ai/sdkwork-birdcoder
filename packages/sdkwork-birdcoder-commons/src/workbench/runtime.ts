@@ -191,6 +191,10 @@ export function createWorkbenchCanonicalChatEngine(
     sendMessage,
     sendMessageStream,
     describeRuntime: (options?: ChatOptions) => buildRuntimeDescriptor(binding, options),
+    describeIntegration: proxyMethod<() => ReturnType<NonNullable<IChatEngine['describeIntegration']>>>(
+      engine.describeIntegration,
+      engine,
+    ),
     async *sendCanonicalEvents(
       messages: ChatMessage[],
       options?: ChatOptions,
@@ -297,6 +301,10 @@ export function createWorkbenchCanonicalChatEngine(
         finishReason: sawToolCall ? 'tool_calls' : 'stop',
       });
     },
+    getHealth: proxyMethod<() => ReturnType<NonNullable<IChatEngine['getHealth']>>>(
+      engine.getHealth,
+      engine,
+    ),
     createSession: proxyMethod<(projectId: string) => Promise<IChatSession>>(engine.createSession, engine),
     getSession: proxyMethod<(sessionId: string) => Promise<IChatSession | null>>(engine.getSession, engine),
     createCodingSession: proxyMethod<

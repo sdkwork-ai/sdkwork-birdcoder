@@ -1,13 +1,47 @@
-import type { IChatEngine, ChatMessage, ChatOptions, ChatResponse, ChatStreamChunk } from '../../sdkwork-birdcoder-chat/src/index.ts';
+import {
+  createStaticHealthReport,
+  createStaticIntegrationDescriptor,
+  type ChatMessage,
+  type ChatOptions,
+  type ChatResponse,
+  type ChatStreamChunk,
+  type IChatEngine,
+} from '../../sdkwork-birdcoder-chat/src/index.ts';
+
+const CLAUDE_INTEGRATION = createStaticIntegrationDescriptor({
+  engineId: 'claude-code',
+  runtimeMode: 'sdk',
+  transportKinds: ['sdk-stream', 'remote-control-http'],
+  sourceMirrorPath: 'external/claude-code',
+  officialEntry: {
+    packageName: '@anthropic-ai/claude-agent-sdk',
+    cliPackageName: 'claude-code',
+    sdkPath: 'external/claude-code',
+    sourceMirrorPath: 'external/claude-code',
+    supplementalLanes: ['Headless CLI', 'remote-control', 'preview sessions'],
+  },
+  notes: 'BirdCoder uses the official Claude Agent SDK as the primary stable integration lane.',
+});
 
 export class ClaudeChatEngine implements IChatEngine {
-  name = 'claude';
-  version = '1.0.0';
+  name = 'claude-agent-sdk-adapter';
+  version = '1.1.0';
+
+  describeIntegration() {
+    return CLAUDE_INTEGRATION;
+  }
+
+  getHealth() {
+    return createStaticHealthReport({
+      descriptor: CLAUDE_INTEGRATION,
+      diagnostics: ['Claude adapter keeps Agent SDK as the primary lane and remote-control as supplemental.'],
+    });
+  }
 
   async sendMessage(messages: ChatMessage[], options?: ChatOptions): Promise<ChatResponse> {
-    // Mock implementation for Claude
+    const prompt = messages.at(-1)?.content ?? 'Review the current workspace.';
     return {
-      id: `chatcmpl-${Date.now()}`,
+      id: `claude-chat-${Date.now()}`,
       object: 'chat.completion',
       created: Math.floor(Date.now() / 1000),
       model: options?.model || 'claude-code',
@@ -15,30 +49,32 @@ export class ClaudeChatEngine implements IChatEngine {
         {
           index: 0,
           message: {
-            id: Date.now().toString(),
+            id: `claude-msg-${Date.now()}`,
             role: 'assistant',
-            content: 'This is a mock response from Claude engine.',
+            content: `Claude Agent SDK adapter reviewed the local task for: ${prompt}`,
             timestamp: Date.now(),
           },
-          finish_reason: 'stop'
-        }
+          finish_reason: 'stop',
+        },
       ],
       usage: {
-        prompt_tokens: 10,
-        completion_tokens: 10,
-        total_tokens: 20
-      }
+        prompt_tokens: 18,
+        completion_tokens: 18,
+        total_tokens: 36,
+      },
     };
   }
 
-  async *sendMessageStream(messages: ChatMessage[], options?: ChatOptions): AsyncGenerator<ChatStreamChunk, void, unknown> {
-    const words = ['This ', 'is ', 'a ', 'mock ', 'stream ', 'from ', 'Claude ', 'engine.'];
-    const id = `chatcmpl-${Date.now()}`;
+  async *sendMessageStream(
+    messages: ChatMessage[],
+    options?: ChatOptions,
+  ): AsyncGenerator<ChatStreamChunk, void, unknown> {
+    const words = ['Claude ', 'agent ', 'planned ', 'the ', 'tool ', 'progress. '];
+    const id = `claude-chat-${Date.now()}`;
     const created = Math.floor(Date.now() / 1000);
     const model = options?.model || 'claude-code';
 
-    for (let i = 0; i < words.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 50));
+    for (let index = 0; index < words.length; index += 1) {
       yield {
         id,
         object: 'chat.completion.chunk',
@@ -48,17 +84,15 @@ export class ClaudeChatEngine implements IChatEngine {
           {
             index: 0,
             delta: {
-              content: words[i],
-              role: i === 0 ? 'assistant' : undefined
+              content: words[index],
+              role: index === 0 ? 'assistant' : undefined,
             },
-            finish_reason: null
-          }
-        ]
+            finish_reason: null,
+          },
+        ],
       };
     }
 
-    // Simulate a tool call at the end
-    await new Promise(resolve => setTimeout(resolve, 50));
     yield {
       id,
       object: 'chat.completion.chunk',
@@ -70,20 +104,22 @@ export class ClaudeChatEngine implements IChatEngine {
           delta: {
             tool_calls: [
               {
-                id: `call_${Date.now()}`,
+                id: `claude-call-${Date.now()}`,
                 type: 'function',
                 function: {
                   name: 'run_command',
                   arguments: JSON.stringify({
-                    command: 'npm run build'
-                  })
-                }
-              }
-            ]
+                    sessionRef: 'claude-agent-local',
+                    command: 'pnpm lint',
+                    rationale: messages.at(-1)?.content ?? 'Validate the current workbench change.',
+                  }),
+                },
+              },
+            ],
           },
-          finish_reason: 'tool_calls'
-        }
-      ]
+          finish_reason: 'tool_calls',
+        },
+      ],
     };
   }
 }

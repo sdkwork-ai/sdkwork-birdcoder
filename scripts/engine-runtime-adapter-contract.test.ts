@@ -4,6 +4,13 @@ import type { ChatMessage } from '../packages/sdkwork-birdcoder-chat/src/types.t
 import { createChatEngineById } from '../packages/sdkwork-birdcoder-commons/src/workbench/engines.ts';
 import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-commons/src/workbench/kernel.ts';
 
+const EXPECTED_OFFICIAL_PACKAGES = {
+  codex: '@openai/codex-sdk',
+  'claude-code': '@anthropic-ai/claude-agent-sdk',
+  gemini: '@google/gemini-cli-sdk',
+  opencode: '@opencode-ai/sdk',
+} as const;
+
 const messages: ChatMessage[] = [
   {
     id: 'msg-user-1',
@@ -26,12 +33,26 @@ for (const engine of listWorkbenchCliEngines()) {
     'function',
     `${engine.id} must expose a canonical runtime event stream`,
   );
+  assert.equal(
+    typeof runtime.describeIntegration,
+    'function',
+    `${engine.id} must preserve provider integration metadata through the canonical wrapper`,
+  );
+  assert.equal(
+    typeof runtime.getHealth,
+    'function',
+    `${engine.id} must preserve provider health diagnostics through the canonical wrapper`,
+  );
 
   const descriptor = runtime.describeRuntime?.({
     model: engine.defaultModelId,
   });
+  const integration = runtime.describeIntegration?.();
+  const health = await runtime.getHealth?.();
 
   assert.ok(descriptor, `${engine.id} runtime descriptor must be available`);
+  assert.ok(integration, `${engine.id} integration descriptor must be available`);
+  assert.ok(health, `${engine.id} health report must be available`);
   assert.equal(descriptor?.engineId, engine.id);
   assert.equal(descriptor?.modelId, engine.defaultModelId);
   assert.ok(
@@ -41,6 +62,18 @@ for (const engine of listWorkbenchCliEngines()) {
     `${engine.id} transportKind must stay inside the shared kernel descriptor`,
   );
   assert.equal(descriptor?.approvalPolicy, 'OnRequest');
+  assert.equal(integration?.integrationClass, 'official-sdk');
+  assert.equal(integration?.officialEntry.packageName, EXPECTED_OFFICIAL_PACKAGES[engine.id]);
+  assert.equal(
+    integration?.transportKinds.includes(descriptor?.transportKind ?? 'missing'),
+    true,
+    `${engine.id} integration transports must contain the canonical runtime transport`,
+  );
+  assert.equal(
+    health?.runtimeMode,
+    integration?.runtimeMode,
+    `${engine.id} health runtime mode must stay aligned with integration metadata`,
+  );
 
   const events = [];
   for await (const event of runtime.sendCanonicalEvents?.(messages, {

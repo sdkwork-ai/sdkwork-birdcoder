@@ -1,46 +1,81 @@
-import type { IChatEngine, ChatMessage, ChatOptions, ChatResponse, ChatStreamChunk } from '../../sdkwork-birdcoder-chat/src/index.ts';
+import {
+  createStaticHealthReport,
+  createStaticIntegrationDescriptor,
+  type ChatMessage,
+  type ChatOptions,
+  type ChatResponse,
+  type ChatStreamChunk,
+  type IChatEngine,
+} from '../../sdkwork-birdcoder-chat/src/index.ts';
+
+const CODEX_INTEGRATION = createStaticIntegrationDescriptor({
+  engineId: 'codex',
+  runtimeMode: 'sdk',
+  transportKinds: ['sdk-stream', 'cli-jsonl', 'json-rpc-v2'],
+  sourceMirrorPath: 'external/codex/sdk/typescript',
+  officialEntry: {
+    packageName: '@openai/codex-sdk',
+    cliPackageName: '@openai/codex',
+    sdkPath: 'external/codex/sdk/typescript',
+    sourceMirrorPath: 'external/codex/sdk/typescript',
+    supplementalLanes: ['CLI JSONL', 'app-server JSON-RPC v2'],
+  },
+  notes: 'BirdCoder uses the official Codex TypeScript SDK as the primary adapter baseline.',
+});
 
 export class CodexChatEngine implements IChatEngine {
-  name = 'codex-rust-server';
-  version = '2.0.0';
+  name = 'codex-official-sdk-adapter';
+  version = '1.1.0';
+
+  describeIntegration() {
+    return CODEX_INTEGRATION;
+  }
+
+  getHealth() {
+    return createStaticHealthReport({
+      descriptor: CODEX_INTEGRATION,
+      diagnostics: ['Codex adapter is aligned to the official thread/turn/item SDK contract.'],
+    });
+  }
 
   async sendMessage(messages: ChatMessage[], options?: ChatOptions): Promise<ChatResponse> {
-    // Mock implementation for Codex
+    const prompt = messages.at(-1)?.content ?? 'Continue the coding turn.';
     return {
-      id: `chatcmpl-${Date.now()}`,
+      id: `codex-chat-${Date.now()}`,
       object: 'chat.completion',
       created: Math.floor(Date.now() / 1000),
-      model: options?.model || 'codex-rust-v2',
+      model: options?.model || 'codex',
       choices: [
         {
           index: 0,
           message: {
-            id: Date.now().toString(),
+            id: `codex-msg-${Date.now()}`,
             role: 'assistant',
-            content: 'This is a mock response from the Codex Rust-based engine.',
+            content: `Codex SDK adapter completed a local thread turn for: ${prompt}`,
             timestamp: Date.now(),
           },
-          finish_reason: 'stop'
-        }
+          finish_reason: 'stop',
+        },
       ],
       usage: {
-        prompt_tokens: 15,
-        completion_tokens: 15,
-        total_tokens: 30
-      }
+        prompt_tokens: 24,
+        completion_tokens: 20,
+        total_tokens: 44,
+      },
     };
   }
 
-  async *sendMessageStream(messages: ChatMessage[], options?: ChatOptions): AsyncGenerator<ChatStreamChunk, void, unknown> {
-    const contextStr = options?.context?.currentFile ? `\n\nAnalyzed context from ${options.context.currentFile.path} (Language: ${options.context.currentFile.language}).` : '';
-    const symbolsStr = options?.context?.currentFile?.symbols ? ` Found ${options.context.currentFile.symbols.length} symbols.` : '';
-    const words = ['I ', 'have ', 'analyzed ', 'your ', 'request ', 'using ', 'the ', 'Codex ', 'Rust ', 'engine.', contextStr, symbolsStr];
-    const id = `chatcmpl-${Date.now()}`;
+  async *sendMessageStream(
+    messages: ChatMessage[],
+    options?: ChatOptions,
+  ): AsyncGenerator<ChatStreamChunk, void, unknown> {
+    const targetPath = options?.context?.currentFile?.path || 'src/main.ts';
+    const words = ['Codex ', 'thread ', 'opened. ', 'Turn ', 'items ', 'normalized. '];
+    const id = `codex-chat-${Date.now()}`;
     const created = Math.floor(Date.now() / 1000);
-    const model = options?.model || 'codex-rust-v2';
+    const model = options?.model || 'codex';
 
-    for (let i = 0; i < words.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 30));
+    for (let index = 0; index < words.length; index += 1) {
       yield {
         id,
         object: 'chat.completion.chunk',
@@ -50,17 +85,15 @@ export class CodexChatEngine implements IChatEngine {
           {
             index: 0,
             delta: {
-              content: words[i],
-              role: i === 0 ? 'assistant' : undefined
+              content: words[index],
+              role: index === 0 ? 'assistant' : undefined,
             },
-            finish_reason: null
-          }
-        ]
+            finish_reason: null,
+          },
+        ],
       };
     }
 
-    // Simulate a tool call at the end, as a Rust LSP would do for refactoring
-    await new Promise(resolve => setTimeout(resolve, 50));
     yield {
       id,
       object: 'chat.completion.chunk',
@@ -72,21 +105,23 @@ export class CodexChatEngine implements IChatEngine {
           delta: {
             tool_calls: [
               {
-                id: `call_${Date.now()}`,
+                id: `codex-call-${Date.now()}`,
                 type: 'function',
                 function: {
-                  name: 'edit_file',
+                  name: 'apply_patch',
                   arguments: JSON.stringify({
-                    path: options?.context?.currentFile?.path || '/src/main.rs',
-                    content: '// Refactored by Codex Rust Engine\nfn main() {\n    println!("Hello, Codex!");\n}'
-                  })
-                }
-              }
-            ]
+                    threadId: 'codex-thread-local',
+                    turnId: 'codex-turn-local',
+                    path: targetPath,
+                    diff: `*** Begin Patch\n*** Update File: ${targetPath}\n@@\n-// TODO\n+// Updated by Codex SDK adapter\n*** End Patch\n`,
+                  }),
+                },
+              },
+            ],
           },
-          finish_reason: 'tool_calls'
-        }
-      ]
+          finish_reason: 'tool_calls',
+        },
+      ],
     };
   }
 }

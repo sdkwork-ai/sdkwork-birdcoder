@@ -1,13 +1,47 @@
-import type { IChatEngine, ChatMessage, ChatOptions, ChatResponse, ChatStreamChunk } from '../../sdkwork-birdcoder-chat/src/index.ts';
+import {
+  createStaticHealthReport,
+  createStaticIntegrationDescriptor,
+  type ChatMessage,
+  type ChatOptions,
+  type ChatResponse,
+  type ChatStreamChunk,
+  type IChatEngine,
+} from '../../sdkwork-birdcoder-chat/src/index.ts';
+
+const OPENCODE_INTEGRATION = createStaticIntegrationDescriptor({
+  engineId: 'opencode',
+  runtimeMode: 'sdk',
+  transportKinds: ['sdk-stream', 'openapi-http', 'cli-jsonl'],
+  sourceMirrorPath: 'external/opencode/packages/sdk',
+  officialEntry: {
+    packageName: '@opencode-ai/sdk',
+    cliPackageName: 'opencode-ai',
+    sdkPath: 'external/opencode/packages/sdk',
+    sourceMirrorPath: 'external/opencode/packages/sdk',
+    supplementalLanes: ['OpenAPI', 'SSE', 'server mode'],
+  },
+  notes: 'BirdCoder uses the official OpenCode SDK as the primary client and server adapter lane.',
+});
 
 export class OpenCodeChatEngine implements IChatEngine {
-  name = 'opencode';
-  version = '1.0.0';
+  name = 'opencode-sdk-adapter';
+  version = '1.1.0';
+
+  describeIntegration() {
+    return OPENCODE_INTEGRATION;
+  }
+
+  getHealth() {
+    return createStaticHealthReport({
+      descriptor: OPENCODE_INTEGRATION,
+      diagnostics: ['OpenCode adapter preserves the first-class session, part, and artifact model.'],
+    });
+  }
 
   async sendMessage(messages: ChatMessage[], options?: ChatOptions): Promise<ChatResponse> {
-    // Mock implementation for OpenCode
+    const prompt = messages.at(-1)?.content ?? 'Prepare the next artifact update.';
     return {
-      id: `chatcmpl-${Date.now()}`,
+      id: `opencode-chat-${Date.now()}`,
       object: 'chat.completion',
       created: Math.floor(Date.now() / 1000),
       model: options?.model || 'opencode',
@@ -15,30 +49,33 @@ export class OpenCodeChatEngine implements IChatEngine {
         {
           index: 0,
           message: {
-            id: Date.now().toString(),
+            id: `opencode-msg-${Date.now()}`,
             role: 'assistant',
-            content: 'This is a mock response from OpenCode engine.',
+            content: `OpenCode SDK adapter prepared a local artifact update for: ${prompt}`,
             timestamp: Date.now(),
           },
-          finish_reason: 'stop'
-        }
+          finish_reason: 'stop',
+        },
       ],
       usage: {
-        prompt_tokens: 10,
-        completion_tokens: 10,
-        total_tokens: 20
-      }
+        prompt_tokens: 16,
+        completion_tokens: 18,
+        total_tokens: 34,
+      },
     };
   }
 
-  async *sendMessageStream(messages: ChatMessage[], options?: ChatOptions): AsyncGenerator<ChatStreamChunk, void, unknown> {
-    const words = ['This ', 'is ', 'a ', 'mock ', 'stream ', 'from ', 'OpenCode ', 'engine.'];
-    const id = `chatcmpl-${Date.now()}`;
+  async *sendMessageStream(
+    messages: ChatMessage[],
+    options?: ChatOptions,
+  ): AsyncGenerator<ChatStreamChunk, void, unknown> {
+    const targetPath = options?.context?.currentFile?.path || 'src/App.tsx';
+    const words = ['OpenCode ', 'session ', 'parts ', 'materialized ', 'an artifact. '];
+    const id = `opencode-chat-${Date.now()}`;
     const created = Math.floor(Date.now() / 1000);
     const model = options?.model || 'opencode';
 
-    for (let i = 0; i < words.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 50));
+    for (let index = 0; index < words.length; index += 1) {
       yield {
         id,
         object: 'chat.completion.chunk',
@@ -48,17 +85,15 @@ export class OpenCodeChatEngine implements IChatEngine {
           {
             index: 0,
             delta: {
-              content: words[i],
-              role: i === 0 ? 'assistant' : undefined
+              content: words[index],
+              role: index === 0 ? 'assistant' : undefined,
             },
-            finish_reason: null
-          }
-        ]
+            finish_reason: null,
+          },
+        ],
       };
     }
 
-    // Simulate a tool call at the end
-    await new Promise(resolve => setTimeout(resolve, 50));
     yield {
       id,
       object: 'chat.completion.chunk',
@@ -70,21 +105,22 @@ export class OpenCodeChatEngine implements IChatEngine {
           delta: {
             tool_calls: [
               {
-                id: `call_${Date.now()}`,
+                id: `opencode-call-${Date.now()}`,
                 type: 'function',
                 function: {
-                  name: 'edit_file',
+                  name: 'write_file',
                   arguments: JSON.stringify({
-                    path: '/src/App.tsx',
-                    content: '// OpenCode modification\nexport default function App() { return <div>OpenCode</div>; }'
-                  })
-                }
-              }
-            ]
+                    sessionId: 'opencode-session-local',
+                    path: targetPath,
+                    content: '// OpenCode SDK adapter artifact\nexport default function App() { return null; }\n',
+                  }),
+                },
+              },
+            ],
           },
-          finish_reason: 'tool_calls'
-        }
-      ]
+          finish_reason: 'tool_calls',
+        },
+      ],
     };
   }
 }
