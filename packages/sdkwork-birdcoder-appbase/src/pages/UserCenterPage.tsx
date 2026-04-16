@@ -49,6 +49,7 @@ export function UserCenterPage({ onOpenVip }: UserCenterPageProps) {
 
       setBio(profile.bio);
       setCompany(profile.company);
+      setDisplayName(profile.displayName || user?.name || '');
       setLocation(profile.location);
       setWebsite(profile.website);
     });
@@ -74,6 +75,7 @@ export function UserCenterPage({ onOpenVip }: UserCenterPageProps) {
     await writeBirdCoderUserProfile({
       bio,
       company,
+      displayName,
       location,
       website,
     });

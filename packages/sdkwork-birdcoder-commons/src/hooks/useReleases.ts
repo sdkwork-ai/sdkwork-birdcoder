@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { BirdCoderReleaseSummary } from '@sdkwork/birdcoder-types';
-import { useIDEServices } from '../context/IDEContext';
+import { useIDEServices } from '../context/IDEContext.ts';
 
 export function useReleases() {
   const { releaseService } = useIDEServices();

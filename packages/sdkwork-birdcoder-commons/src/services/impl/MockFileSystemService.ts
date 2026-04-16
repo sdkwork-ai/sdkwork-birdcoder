@@ -5,7 +5,7 @@ import {
   type WorkspaceFileSearchExecutionResult,
   type WorkspaceFileSearchOptions,
 } from '@sdkwork/birdcoder-types';
-import type { IFileSystemService } from '../interfaces/IFileSystemService';
+import type { IFileSystemService } from '../interfaces/IFileSystemService.ts';
 
 const MOCK_FILES: IFileNode[] = [
   { name: '.env.example', type: 'file', path: '/.env.example' },

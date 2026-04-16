@@ -141,8 +141,8 @@ export default defineConfig(({ mode }) => ({
 
           if (
             id.includes('/packages/sdkwork-birdcoder-commons/src/context/ideServices.ts') ||
-            id.includes('/packages/sdkwork-birdcoder-commons/src/context/IDEContext.tsx') ||
-            id.includes('/packages/sdkwork-birdcoder-commons/src/context/AuthContext.tsx') ||
+            id.includes('/packages/sdkwork-birdcoder-commons/src/context/IDEContext.ts') ||
+            id.includes('/packages/sdkwork-birdcoder-commons/src/context/AuthContext.ts') ||
             id.includes('/packages/sdkwork-birdcoder-commons/src/contexts/ToastProvider.tsx') ||
             id.includes('/packages/sdkwork-birdcoder-commons/src/hooks/useWorkspaces.ts') ||
             id.includes('/packages/sdkwork-birdcoder-commons/src/hooks/useProjects.ts') ||

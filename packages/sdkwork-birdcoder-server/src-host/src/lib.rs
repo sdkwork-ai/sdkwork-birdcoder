@@ -11,15 +11,24 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+mod user_center;
+
 use axum::{
-    extract::{Path as AxumPath, State},
-    http::{header, HeaderValue, Method, StatusCode},
-    routing::{get, post},
+    extract::{Path as AxumPath, Query, State},
+    http::{header, HeaderMap, HeaderName, HeaderValue, Method, StatusCode},
+    routing::{get, patch, post},
     Json, Router,
 };
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Deserializer, Serialize};
 use tower_http::cors::{AllowOrigin, CorsLayer};
+use user_center::{
+    ensure_sqlite_user_center_bootstrap_identity, ensure_sqlite_user_center_schema,
+    UpdateUserCenterProfileRequest, UpdateUserCenterVipMembershipRequest,
+    UserCenterLoginRequest, UserCenterMetadataPayload, UserCenterProfilePayload,
+    UserCenterRegisterRequest, UserCenterSessionExchangeRequest, UserCenterSessionPayload,
+    UserCenterState, UserCenterVipMembershipPayload, BIRDCODER_SESSION_HEADER_NAME,
+};
 
 pub const BIRD_SERVER_DEFAULT_HOST: &str = "127.0.0.1";
 pub const BIRD_SERVER_DEFAULT_PORT: u16 = 10240;
@@ -196,6 +205,7 @@ CREATE TABLE IF NOT EXISTS workspaces (
     name TEXT NOT NULL,
     description TEXT NULL,
     owner_identity_id TEXT NULL,
+    created_by_identity_id TEXT NULL,
     status TEXT NOT NULL
 );
 
@@ -209,6 +219,8 @@ CREATE TABLE IF NOT EXISTS projects (
     name TEXT NOT NULL,
     description TEXT NULL,
     root_path TEXT NULL,
+    owner_identity_id TEXT NULL,
+    created_by_identity_id TEXT NULL,
     status TEXT NOT NULL
 );
 
@@ -262,6 +274,8 @@ CREATE TABLE IF NOT EXISTS teams (
     workspace_id TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT NULL,
+    owner_identity_id TEXT NULL,
+    created_by_identity_id TEXT NULL,
     status TEXT NOT NULL
 );
 
@@ -274,6 +288,39 @@ CREATE TABLE IF NOT EXISTS team_members (
     team_id TEXT NOT NULL,
     identity_id TEXT NOT NULL,
     role TEXT NOT NULL,
+    created_by_identity_id TEXT NULL,
+    granted_by_identity_id TEXT NULL,
+    status TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS workspace_members (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    workspace_id TEXT NOT NULL,
+    identity_id TEXT NOT NULL,
+    team_id TEXT NULL,
+    role TEXT NOT NULL,
+    created_by_identity_id TEXT NULL,
+    granted_by_identity_id TEXT NULL,
+    status TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS project_collaborators (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    project_id TEXT NOT NULL,
+    workspace_id TEXT NOT NULL,
+    identity_id TEXT NOT NULL,
+    team_id TEXT NULL,
+    role TEXT NOT NULL,
+    created_by_identity_id TEXT NULL,
+    granted_by_identity_id TEXT NULL,
     status TEXT NOT NULL
 );
 
@@ -327,9 +374,11 @@ DELETE FROM coding_session_events;
 DELETE FROM coding_session_runtimes;
 DELETE FROM coding_sessions;
 DELETE FROM workspaces;
+DELETE FROM workspace_members;
 DELETE FROM release_records;
 DELETE FROM team_members;
 DELETE FROM teams;
+DELETE FROM project_collaborators;
 DELETE FROM deployment_targets;
 DELETE FROM deployment_records;
 DELETE FROM project_documents;
@@ -410,18 +459,84 @@ struct WorkspacePayload {
     name: String,
     description: Option<String>,
     owner_identity_id: Option<String>,
+    created_by_identity_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    member_count: Option<usize>,
     status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    viewer_role: Option<String>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ProjectPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    created_at: Option<String>,
     id: String,
     workspace_id: String,
     name: String,
     description: Option<String>,
     root_path: Option<String>,
+    owner_identity_id: Option<String>,
+    created_by_identity_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    collaborator_count: Option<usize>,
     status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    updated_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    viewer_role: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceScopedQuery {
+    identity_id: Option<String>,
+    workspace_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateWorkspaceRequest {
+    name: String,
+    description: Option<String>,
+    owner_identity_id: Option<String>,
+    created_by_identity_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateWorkspaceRequest {
+    name: Option<String>,
+    description: Option<String>,
+    status: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateProjectRequest {
+    workspace_id: String,
+    name: String,
+    description: Option<String>,
+    root_path: Option<String>,
+    owner_identity_id: Option<String>,
+    created_by_identity_id: Option<String>,
+    status: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateProjectRequest {
+    name: Option<String>,
+    description: Option<String>,
+    root_path: Option<String>,
+    status: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DeleteEntityPayload {
+    id: String,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -460,6 +575,8 @@ struct TeamPayload {
     workspace_id: String,
     name: String,
     description: Option<String>,
+    owner_identity_id: Option<String>,
+    created_by_identity_id: Option<String>,
     status: String,
 }
 
@@ -470,7 +587,66 @@ struct TeamMemberPayload {
     team_id: String,
     identity_id: String,
     role: String,
+    created_by_identity_id: Option<String>,
+    granted_by_identity_id: Option<String>,
     status: String,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceMemberPayload {
+    id: String,
+    workspace_id: String,
+    identity_id: String,
+    team_id: Option<String>,
+    role: String,
+    status: String,
+    created_by_identity_id: Option<String>,
+    granted_by_identity_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    created_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    updated_at: Option<String>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProjectCollaboratorPayload {
+    id: String,
+    project_id: String,
+    workspace_id: String,
+    identity_id: String,
+    team_id: Option<String>,
+    role: String,
+    status: String,
+    created_by_identity_id: Option<String>,
+    granted_by_identity_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    created_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    updated_at: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpsertWorkspaceMemberRequest {
+    identity_id: String,
+    team_id: Option<String>,
+    role: Option<String>,
+    status: Option<String>,
+    created_by_identity_id: Option<String>,
+    granted_by_identity_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpsertProjectCollaboratorRequest {
+    identity_id: String,
+    team_id: Option<String>,
+    role: Option<String>,
+    status: Option<String>,
+    created_by_identity_id: Option<String>,
+    granted_by_identity_id: Option<String>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -885,11 +1061,14 @@ struct ProjectionAuthorityState {
 #[derive(Clone)]
 struct AppState {
     projections: ProjectionAuthorityState,
+    user_center: UserCenterState,
     audits: Vec<AuditPayload>,
     deployments: Vec<DeploymentPayload>,
     targets: Vec<DeploymentTargetPayload>,
     documents: Vec<DocumentPayload>,
     members: Vec<TeamMemberPayload>,
+    workspace_members: Vec<WorkspaceMemberPayload>,
+    project_collaborators: Vec<ProjectCollaboratorPayload>,
     policies: Vec<PolicyPayload>,
     workspaces: Vec<WorkspacePayload>,
     projects: Vec<ProjectPayload>,
@@ -904,6 +1083,8 @@ struct AppAdminReadState {
     targets: Vec<DeploymentTargetPayload>,
     documents: Vec<DocumentPayload>,
     members: Vec<TeamMemberPayload>,
+    workspace_members: Vec<WorkspaceMemberPayload>,
+    project_collaborators: Vec<ProjectCollaboratorPayload>,
     policies: Vec<PolicyPayload>,
     workspaces: Vec<WorkspacePayload>,
     projects: Vec<ProjectPayload>,
@@ -1013,6 +1194,133 @@ fn normalize_optional_string(value: Option<String>) -> Option<String> {
     value.and_then(normalize_required_string)
 }
 
+fn normalize_workspace_status(value: Option<String>) -> Result<Option<String>, &'static str> {
+    let normalized_value = normalize_optional_string(value);
+    if normalized_value
+        .as_deref()
+        .is_some_and(|status| !matches!(status, "active" | "archived"))
+    {
+        return Err("workspace status must be active or archived.");
+    }
+
+    Ok(normalized_value)
+}
+
+fn normalize_project_status(value: Option<String>) -> Result<Option<String>, &'static str> {
+    let normalized_value = normalize_optional_string(value);
+    if normalized_value
+        .as_deref()
+        .is_some_and(|status| !matches!(status, "active" | "archived"))
+    {
+        return Err("project status must be active or archived.");
+    }
+
+    Ok(normalized_value)
+}
+
+fn normalize_collaboration_role(value: Option<String>) -> Result<Option<String>, &'static str> {
+    let normalized_value = normalize_optional_string(value);
+    if normalized_value.as_deref().is_some_and(|role| {
+        !matches!(role, "owner" | "admin" | "member" | "viewer")
+    }) {
+        return Err("collaboration role must be owner/admin/member/viewer.");
+    }
+
+    Ok(normalized_value)
+}
+
+fn normalize_collaboration_status(value: Option<String>) -> Result<Option<String>, &'static str> {
+    let normalized_value = normalize_optional_string(value);
+    if normalized_value.as_deref().is_some_and(|status| {
+        !matches!(status, "invited" | "active" | "suspended" | "removed")
+    }) {
+        return Err("collaboration status must be invited/active/suspended/removed.");
+    }
+
+    Ok(normalized_value)
+}
+
+fn collapse_project_path_separators(value: &str, preserve_double_leading: bool) -> String {
+    let mut result = String::new();
+    let mut characters = value.chars().peekable();
+    let mut leading_slashes = 0usize;
+
+    while characters.peek().is_some_and(|character| *character == '/') {
+        leading_slashes += 1;
+        characters.next();
+    }
+
+    if preserve_double_leading && leading_slashes >= 2 {
+        result.push_str("//");
+    } else if leading_slashes > 0 {
+        result.push('/');
+    }
+
+    let mut previous_was_slash = false;
+    for character in characters {
+        if character == '/' {
+            if !previous_was_slash {
+                result.push(character);
+                previous_was_slash = true;
+            }
+        } else {
+            result.push(character);
+            previous_was_slash = false;
+        }
+    }
+
+    result
+}
+
+fn normalize_project_root_path_for_identity(value: &str) -> String {
+    let trimmed_value = value.trim();
+    let is_windows_style_path = trimmed_value.starts_with("\\\\")
+        || trimmed_value.starts_with("//")
+        || trimmed_value.contains('\\')
+        || trimmed_value.chars().nth(1).is_some_and(|character| character == ':');
+    let normalized_separators = trimmed_value.replace('\\', "/");
+    let collapsed_path =
+        collapse_project_path_separators(&normalized_separators, normalized_separators.starts_with("//"));
+    let without_trailing_separator = if collapsed_path == "/" {
+        collapsed_path
+    } else {
+        collapsed_path.trim_end_matches('/').to_owned()
+    };
+
+    if is_windows_style_path {
+        without_trailing_separator.to_ascii_lowercase()
+    } else {
+        without_trailing_separator
+    }
+}
+
+fn find_provider_project_payload_by_workspace_and_root_path(
+    connection: &Connection,
+    workspace_id: &str,
+    root_path: &str,
+    excluded_project_id: Option<&str>,
+) -> Result<Option<ProjectPayload>, String> {
+    let normalized_root_path = normalize_project_root_path_for_identity(root_path);
+    let projects = load_provider_project_payloads(connection)?;
+
+    Ok(projects.into_iter().find(|project| {
+        if project.workspace_id != workspace_id {
+            return false;
+        }
+
+        if excluded_project_id.is_some_and(|project_id| project.id == project_id) {
+            return false;
+        }
+
+        project
+            .root_path
+            .as_deref()
+            .is_some_and(|candidate_root_path| {
+                normalize_project_root_path_for_identity(candidate_root_path) == normalized_root_path
+            })
+    }))
+}
+
 fn resolve_authority_path(base_dir: &FsPath, path: PathBuf) -> PathBuf {
     if path.is_absolute() {
         path
@@ -1053,6 +1361,11 @@ fn load_authority_bootstrap_from_config_file(
 }
 
 fn resolve_authority_bootstrap() -> Result<AuthorityBootstrapConfig, String> {
+    let env_bootstrap = load_authority_bootstrap_from_env();
+    if env_bootstrap.sqlite_file.is_some() || env_bootstrap.snapshot_file.is_some() {
+        return Ok(env_bootstrap);
+    }
+
     let runtime_config_path = std::env::current_dir()
         .map_err(|error| format!("resolve current working directory failed: {error}"))?
         .join(BIRD_SERVER_DEFAULT_CONFIG_FILE_NAME);
@@ -1061,7 +1374,7 @@ fn resolve_authority_bootstrap() -> Result<AuthorityBootstrapConfig, String> {
         return load_authority_bootstrap_from_config_file(&runtime_config_path);
     }
 
-    Ok(load_authority_bootstrap_from_env())
+    Ok(env_bootstrap)
 }
 
 #[derive(Deserialize)]
@@ -1169,6 +1482,115 @@ fn sqlite_table_exists(connection: &Connection, table_name: &str) -> Result<bool
     rows.next()
         .map(|row| row.is_some())
         .map_err(|error| format!("read sqlite table probe for {table_name} failed: {error}"))
+}
+
+fn sqlite_column_exists(
+    connection: &Connection,
+    table_name: &str,
+    column_name: &str,
+) -> Result<bool, String> {
+    let pragma = format!("PRAGMA table_info({table_name})");
+    let mut statement = connection
+        .prepare(&pragma)
+        .map_err(|error| format!("prepare sqlite table info for {table_name} failed: {error}"))?;
+    let rows = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("query sqlite table info for {table_name} failed: {error}"))?;
+
+    for row in rows {
+        let existing_column_name =
+            row.map_err(|error| format!("read sqlite table info for {table_name} failed: {error}"))?;
+        if existing_column_name == column_name {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+fn ensure_sqlite_table_column(
+    connection: &Connection,
+    table_name: &str,
+    column_name: &str,
+    column_sql: &str,
+) -> Result<(), String> {
+    if sqlite_column_exists(connection, table_name, column_name)? {
+        return Ok(());
+    }
+
+    connection
+        .execute(
+            &format!("ALTER TABLE {table_name} ADD COLUMN {column_sql}"),
+            [],
+        )
+        .map_err(|error| {
+            format!(
+                "alter sqlite table {table_name} add column {column_name} failed: {error}"
+            )
+        })?;
+
+    Ok(())
+}
+
+fn ensure_sqlite_provider_authority_schema_upgrade(
+    connection: &Connection,
+) -> Result<(), String> {
+    connection
+        .execute_batch(SQLITE_PROVIDER_AUTHORITY_SCHEMA)
+        .map_err(|error| format!("create sqlite provider authority schema failed: {error}"))?;
+
+    if sqlite_table_exists(connection, PROVIDER_WORKSPACES_TABLE)? {
+        ensure_sqlite_table_column(
+            connection,
+            PROVIDER_WORKSPACES_TABLE,
+            "created_by_identity_id",
+            "created_by_identity_id TEXT NULL",
+        )?;
+    }
+    if sqlite_table_exists(connection, PROVIDER_PROJECTS_TABLE)? {
+        ensure_sqlite_table_column(
+            connection,
+            PROVIDER_PROJECTS_TABLE,
+            "owner_identity_id",
+            "owner_identity_id TEXT NULL",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            PROVIDER_PROJECTS_TABLE,
+            "created_by_identity_id",
+            "created_by_identity_id TEXT NULL",
+        )?;
+    }
+    if sqlite_table_exists(connection, PROVIDER_TEAMS_TABLE)? {
+        ensure_sqlite_table_column(
+            connection,
+            PROVIDER_TEAMS_TABLE,
+            "owner_identity_id",
+            "owner_identity_id TEXT NULL",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            PROVIDER_TEAMS_TABLE,
+            "created_by_identity_id",
+            "created_by_identity_id TEXT NULL",
+        )?;
+    }
+    if sqlite_table_exists(connection, PROVIDER_TEAM_MEMBERS_TABLE)? {
+        ensure_sqlite_table_column(
+            connection,
+            PROVIDER_TEAM_MEMBERS_TABLE,
+            "created_by_identity_id",
+            "created_by_identity_id TEXT NULL",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            PROVIDER_TEAM_MEMBERS_TABLE,
+            "granted_by_identity_id",
+            "granted_by_identity_id TEXT NULL",
+        )?;
+    }
+
+    Ok(())
 }
 
 fn sqlite_has_direct_projection_provider_tables(connection: &Connection) -> Result<bool, String> {
@@ -1508,7 +1930,7 @@ fn load_provider_workspace_payloads(
     let mut statement = connection
         .prepare(
             r#"
-            SELECT id, name, description, owner_identity_id, status
+            SELECT id, name, description, owner_identity_id, created_by_identity_id, status
             FROM workspaces
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
@@ -1522,7 +1944,10 @@ fn load_provider_workspace_payloads(
                 name: row.get(1)?,
                 description: row.get(2)?,
                 owner_identity_id: row.get(3)?,
-                status: row.get(4)?,
+                created_by_identity_id: row.get(4)?,
+                member_count: None,
+                status: row.get(5)?,
+                viewer_role: None,
             })
         })
         .map_err(|error| format!("query workspaces failed: {error}"))?;
@@ -1538,7 +1963,7 @@ fn load_provider_project_payloads(connection: &Connection) -> Result<Vec<Project
     let mut statement = connection
         .prepare(
             r#"
-            SELECT id, workspace_id, name, description, root_path, status
+            SELECT id, workspace_id, name, description, root_path, owner_identity_id, created_by_identity_id, status, created_at, updated_at
             FROM projects
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
@@ -1553,7 +1978,13 @@ fn load_provider_project_payloads(connection: &Connection) -> Result<Vec<Project
                 name: row.get(2)?,
                 description: row.get(3)?,
                 root_path: row.get(4)?,
-                status: row.get(5)?,
+                owner_identity_id: row.get(5)?,
+                created_by_identity_id: row.get(6)?,
+                collaborator_count: None,
+                status: row.get(7)?,
+                created_at: Some(row.get(8)?),
+                updated_at: Some(row.get(9)?),
+                viewer_role: None,
             })
         })
         .map_err(|error| format!("query projects failed: {error}"))?;
@@ -1563,6 +1994,82 @@ fn load_provider_project_payloads(connection: &Connection) -> Result<Vec<Project
         records.push(row.map_err(|error| format!("read projects row failed: {error}"))?);
     }
     Ok(records)
+}
+
+fn load_provider_workspace_payload_by_id(
+    connection: &Connection,
+    workspace_id: &str,
+) -> Result<Option<WorkspacePayload>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT id, name, description, owner_identity_id, created_by_identity_id, status
+            FROM workspaces
+            WHERE is_deleted = 0 AND id = ?1
+            LIMIT 1
+            "#,
+        )
+        .map_err(|error| format!("prepare workspace by id query failed: {error}"))?;
+    let mut rows = statement
+        .query(params![workspace_id])
+        .map_err(|error| format!("query workspace by id failed: {error}"))?;
+
+    rows.next()
+        .map_err(|error| format!("read workspace by id row failed: {error}"))?
+        .map(|row| {
+            Ok(WorkspacePayload {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                owner_identity_id: row.get(3)?,
+                created_by_identity_id: row.get(4)?,
+                member_count: None,
+                status: row.get(5)?,
+                viewer_role: None,
+            })
+        })
+        .transpose()
+        .map_err(|error: rusqlite::Error| format!("map workspace by id row failed: {error}"))
+}
+
+fn load_provider_project_payload_by_id(
+    connection: &Connection,
+    project_id: &str,
+) -> Result<Option<ProjectPayload>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT id, workspace_id, name, description, root_path, owner_identity_id, created_by_identity_id, status, created_at, updated_at
+            FROM projects
+            WHERE is_deleted = 0 AND id = ?1
+            LIMIT 1
+            "#,
+        )
+        .map_err(|error| format!("prepare project by id query failed: {error}"))?;
+    let mut rows = statement
+        .query(params![project_id])
+        .map_err(|error| format!("query project by id failed: {error}"))?;
+
+    rows.next()
+        .map_err(|error| format!("read project by id row failed: {error}"))?
+        .map(|row| {
+            Ok(ProjectPayload {
+                id: row.get(0)?,
+                workspace_id: row.get(1)?,
+                name: row.get(2)?,
+                description: row.get(3)?,
+                root_path: row.get(4)?,
+                owner_identity_id: row.get(5)?,
+                created_by_identity_id: row.get(6)?,
+                collaborator_count: None,
+                status: row.get(7)?,
+                created_at: Some(row.get(8)?),
+                updated_at: Some(row.get(9)?),
+                viewer_role: None,
+            })
+        })
+        .transpose()
+        .map_err(|error: rusqlite::Error| format!("map project by id row failed: {error}"))
 }
 
 fn load_provider_document_payloads(connection: &Connection) -> Result<Vec<DocumentPayload>, String> {
@@ -1675,7 +2182,7 @@ fn load_provider_team_payloads(connection: &Connection) -> Result<Vec<TeamPayloa
     let mut statement = connection
         .prepare(
             r#"
-            SELECT id, workspace_id, name, description, status
+            SELECT id, workspace_id, name, description, owner_identity_id, created_by_identity_id, status
             FROM teams
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
@@ -1689,7 +2196,9 @@ fn load_provider_team_payloads(connection: &Connection) -> Result<Vec<TeamPayloa
                 workspace_id: row.get(1)?,
                 name: row.get(2)?,
                 description: row.get(3)?,
-                status: row.get(4)?,
+                owner_identity_id: row.get(4)?,
+                created_by_identity_id: row.get(5)?,
+                status: row.get(6)?,
             })
         })
         .map_err(|error| format!("query teams failed: {error}"))?;
@@ -1707,7 +2216,7 @@ fn load_provider_team_member_payloads(
     let mut statement = connection
         .prepare(
             r#"
-            SELECT id, team_id, identity_id, role, status
+            SELECT id, team_id, identity_id, role, created_by_identity_id, granted_by_identity_id, status
             FROM team_members
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
@@ -1721,7 +2230,9 @@ fn load_provider_team_member_payloads(
                 team_id: row.get(1)?,
                 identity_id: row.get(2)?,
                 role: row.get(3)?,
-                status: row.get(4)?,
+                created_by_identity_id: row.get(4)?,
+                granted_by_identity_id: row.get(5)?,
+                status: row.get(6)?,
             })
         })
         .map_err(|error| format!("query team_members failed: {error}"))?;
@@ -1731,6 +2242,251 @@ fn load_provider_team_member_payloads(
         records.push(row.map_err(|error| format!("read team_members row failed: {error}"))?);
     }
     Ok(records)
+}
+
+fn load_provider_workspace_member_payloads(
+    connection: &Connection,
+) -> Result<Vec<WorkspaceMemberPayload>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT id, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status, created_at, updated_at
+            FROM workspace_members
+            WHERE is_deleted = 0
+            ORDER BY updated_at DESC, id ASC
+            "#,
+        )
+        .map_err(|error| format!("prepare workspace_members query failed: {error}"))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(WorkspaceMemberPayload {
+                id: row.get(0)?,
+                workspace_id: row.get(1)?,
+                identity_id: row.get(2)?,
+                team_id: row.get(3)?,
+                role: row.get(4)?,
+                created_by_identity_id: row.get(5)?,
+                granted_by_identity_id: row.get(6)?,
+                status: row.get(7)?,
+                created_at: Some(row.get(8)?),
+                updated_at: Some(row.get(9)?),
+            })
+        })
+        .map_err(|error| format!("query workspace_members failed: {error}"))?;
+
+    let mut records = Vec::new();
+    for row in rows {
+        records.push(row.map_err(|error| format!("read workspace_members row failed: {error}"))?);
+    }
+    Ok(records)
+}
+
+fn load_provider_project_collaborator_payloads(
+    connection: &Connection,
+) -> Result<Vec<ProjectCollaboratorPayload>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT id, project_id, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status, created_at, updated_at
+            FROM project_collaborators
+            WHERE is_deleted = 0
+            ORDER BY updated_at DESC, id ASC
+            "#,
+        )
+        .map_err(|error| format!("prepare project_collaborators query failed: {error}"))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(ProjectCollaboratorPayload {
+                id: row.get(0)?,
+                project_id: row.get(1)?,
+                workspace_id: row.get(2)?,
+                identity_id: row.get(3)?,
+                team_id: row.get(4)?,
+                role: row.get(5)?,
+                created_by_identity_id: row.get(6)?,
+                granted_by_identity_id: row.get(7)?,
+                status: row.get(8)?,
+                created_at: Some(row.get(9)?),
+                updated_at: Some(row.get(10)?),
+            })
+        })
+        .map_err(|error| format!("query project_collaborators failed: {error}"))?;
+
+    let mut records = Vec::new();
+    for row in rows {
+        records.push(
+            row.map_err(|error| format!("read project_collaborators row failed: {error}"))?,
+        );
+    }
+    Ok(records)
+}
+
+fn is_active_collaboration_status(status: &str) -> bool {
+    matches!(status, "active" | "invited")
+}
+
+fn collaboration_role_rank(role: &str) -> usize {
+    match role {
+        "owner" => 4,
+        "admin" => 3,
+        "member" => 2,
+        "viewer" => 1,
+        _ => 0,
+    }
+}
+
+fn choose_preferred_role(current: Option<String>, candidate: &str) -> Option<String> {
+    if current
+        .as_deref()
+        .is_some_and(|existing| collaboration_role_rank(existing) >= collaboration_role_rank(candidate))
+    {
+        return current;
+    }
+
+    Some(candidate.to_owned())
+}
+
+fn identity_belongs_to_team(
+    team_members: &[TeamMemberPayload],
+    team_id: &str,
+    identity_id: &str,
+) -> bool {
+    team_members.iter().any(|member| {
+        member.team_id == team_id
+            && member.identity_id == identity_id
+            && is_active_collaboration_status(&member.status)
+    })
+}
+
+fn resolve_workspace_viewer_role(
+    workspace: &WorkspacePayload,
+    workspace_members: &[WorkspaceMemberPayload],
+    team_members: &[TeamMemberPayload],
+    identity_id: &str,
+) -> Option<String> {
+    let mut role = None;
+
+    if workspace.owner_identity_id.as_deref() == Some(identity_id) {
+        role = choose_preferred_role(role, "owner");
+    } else if workspace.created_by_identity_id.as_deref() == Some(identity_id) {
+        role = choose_preferred_role(role, "admin");
+    }
+
+    for member in workspace_members.iter().filter(|member| {
+        member.workspace_id == workspace.id && is_active_collaboration_status(&member.status)
+    }) {
+        let direct_match = member.identity_id == identity_id;
+        let team_match = member
+            .team_id
+            .as_deref()
+            .is_some_and(|team_id| identity_belongs_to_team(team_members, team_id, identity_id));
+        if direct_match || team_match {
+            role = choose_preferred_role(role, &member.role);
+        }
+    }
+
+    role
+}
+
+fn workspace_is_visible_to_identity(
+    workspace: &WorkspacePayload,
+    workspace_members: &[WorkspaceMemberPayload],
+    team_members: &[TeamMemberPayload],
+    identity_id: &str,
+) -> bool {
+    resolve_workspace_viewer_role(workspace, workspace_members, team_members, identity_id).is_some()
+}
+
+fn count_active_workspace_members(
+    workspace_members: &[WorkspaceMemberPayload],
+    workspace_id: &str,
+) -> usize {
+    workspace_members
+        .iter()
+        .filter(|member| {
+            member.workspace_id == workspace_id && is_active_collaboration_status(&member.status)
+        })
+        .count()
+}
+
+fn resolve_project_viewer_role(
+    project: &ProjectPayload,
+    workspace_lookup: &BTreeMap<String, WorkspacePayload>,
+    workspace_members: &[WorkspaceMemberPayload],
+    project_collaborators: &[ProjectCollaboratorPayload],
+    team_members: &[TeamMemberPayload],
+    identity_id: &str,
+) -> Option<String> {
+    let mut role = None;
+
+    if project.owner_identity_id.as_deref() == Some(identity_id) {
+        role = choose_preferred_role(role, "owner");
+    } else if project.created_by_identity_id.as_deref() == Some(identity_id) {
+        role = choose_preferred_role(role, "admin");
+    }
+
+    for collaborator in project_collaborators.iter().filter(|collaborator| {
+        collaborator.project_id == project.id && is_active_collaboration_status(&collaborator.status)
+    }) {
+        let direct_match = collaborator.identity_id == identity_id;
+        let team_match = collaborator
+            .team_id
+            .as_deref()
+            .is_some_and(|team_id| identity_belongs_to_team(team_members, team_id, identity_id));
+        if direct_match || team_match {
+            role = choose_preferred_role(role, &collaborator.role);
+        }
+    }
+
+    if let Some(workspace) = workspace_lookup.get(&project.workspace_id) {
+        if let Some(workspace_role) =
+            resolve_workspace_viewer_role(workspace, workspace_members, team_members, identity_id)
+        {
+            role = choose_preferred_role(role, &workspace_role);
+        }
+    }
+
+    role
+}
+
+fn project_is_visible_to_identity(
+    project: &ProjectPayload,
+    workspace_lookup: &BTreeMap<String, WorkspacePayload>,
+    workspace_members: &[WorkspaceMemberPayload],
+    project_collaborators: &[ProjectCollaboratorPayload],
+    team_members: &[TeamMemberPayload],
+    identity_id: &str,
+) -> bool {
+    resolve_project_viewer_role(
+        project,
+        workspace_lookup,
+        workspace_members,
+        project_collaborators,
+        team_members,
+        identity_id,
+    )
+    .is_some()
+}
+
+fn count_active_project_collaborators(
+    project_collaborators: &[ProjectCollaboratorPayload],
+    project_id: &str,
+) -> usize {
+    project_collaborators
+        .iter()
+        .filter(|collaborator| {
+            collaborator.project_id == project_id
+                && is_active_collaboration_status(&collaborator.status)
+        })
+        .count()
+}
+
+fn workspace_lookup_map(workspaces: &[WorkspacePayload]) -> BTreeMap<String, WorkspacePayload> {
+    workspaces
+        .iter()
+        .cloned()
+        .map(|workspace| (workspace.id.clone(), workspace))
+        .collect()
 }
 
 fn load_provider_release_payloads(connection: &Connection) -> Result<Vec<ReleasePayload>, String> {
@@ -2874,6 +3630,7 @@ fn ensure_sqlite_provider_authority(
     let has_app_admin_tables = sqlite_has_direct_app_admin_provider_tables(connection)?;
 
     if has_projection_tables && has_app_admin_tables {
+        ensure_sqlite_provider_authority_schema_upgrade(connection)?;
         ensure_sqlite_bootstrap_user_context(connection)?;
         return Ok(());
     }
@@ -2896,6 +3653,9 @@ fn ensure_sqlite_provider_authority(
         ));
     }
 
+    ensure_sqlite_provider_authority_schema_upgrade(connection)?;
+    ensure_sqlite_user_center_schema(connection)?;
+    ensure_sqlite_user_center_bootstrap_identity(connection)?;
     ensure_sqlite_bootstrap_user_context(connection)?;
 
     Ok(())
@@ -2938,6 +3698,23 @@ fn ensure_sqlite_bootstrap_user_context(connection: &mut Connection) -> Result<(
     } else {
         BOOTSTRAP_WORKSPACE_ID.to_owned()
     };
+    let preferred_project_id = if project_count > 0 {
+        connection
+            .query_row(
+                r#"
+                SELECT id
+                FROM projects
+                WHERE is_deleted = 0
+                ORDER BY updated_at DESC, id ASC
+                LIMIT 1
+                "#,
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .map_err(|error| format!("resolve bootstrap project id failed: {error}"))?
+    } else {
+        BOOTSTRAP_PROJECT_ID.to_owned()
+    };
 
     let bootstrap_timestamp = current_storage_timestamp();
     let transaction = connection
@@ -2949,9 +3726,9 @@ fn ensure_sqlite_bootstrap_user_context(connection: &mut Connection) -> Result<(
             .execute(
                 r#"
                 INSERT INTO workspaces (
-                    id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, status
+                    id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, created_by_identity_id, status
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
                 "#,
                 params![
                     BOOTSTRAP_WORKSPACE_ID,
@@ -2961,6 +3738,7 @@ fn ensure_sqlite_bootstrap_user_context(connection: &mut Connection) -> Result<(
                     0_i64,
                     BOOTSTRAP_WORKSPACE_NAME,
                     BOOTSTRAP_WORKSPACE_DESCRIPTION,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
                     BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
                     "active",
                 ],
@@ -2973,9 +3751,9 @@ fn ensure_sqlite_bootstrap_user_context(connection: &mut Connection) -> Result<(
             .execute(
                 r#"
                 INSERT INTO projects (
-                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, root_path, status
+                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, root_path, owner_identity_id, created_by_identity_id, status
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
                 "#,
                 params![
                     BOOTSTRAP_PROJECT_ID,
@@ -2987,10 +3765,139 @@ fn ensure_sqlite_bootstrap_user_context(connection: &mut Connection) -> Result<(
                     BOOTSTRAP_PROJECT_NAME,
                     BOOTSTRAP_PROJECT_DESCRIPTION,
                     Option::<String>::None,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
                     "active",
                 ],
             )
             .map_err(|error| format!("insert bootstrap project failed: {error}"))?;
+    }
+
+    let bootstrap_team_count: i64 = transaction
+        .query_row(
+            "SELECT COUNT(*) FROM teams WHERE is_deleted = 0 AND workspace_id = ?1",
+            params![&preferred_workspace_id],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("count bootstrap teams failed: {error}"))?;
+    if bootstrap_team_count == 0 {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO teams (
+                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, owner_identity_id, created_by_identity_id, status
+                )
+                VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9)
+                "#,
+                params![
+                    "team-default",
+                    &bootstrap_timestamp,
+                    &bootstrap_timestamp,
+                    &preferred_workspace_id,
+                    "Default Workspace Owners",
+                    Some("Bootstrap workspace owner team.".to_owned()),
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    "active",
+                ],
+            )
+            .map_err(|error| format!("insert bootstrap team failed: {error}"))?;
+    }
+
+    let bootstrap_team_member_count: i64 = transaction
+        .query_row(
+            "SELECT COUNT(*) FROM team_members WHERE is_deleted = 0 AND team_id = 'team-default'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("count bootstrap team members failed: {error}"))?;
+    if bootstrap_team_member_count == 0 {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO team_members (
+                    id, created_at, updated_at, version, is_deleted, team_id, identity_id, role, created_by_identity_id, granted_by_identity_id, status
+                )
+                VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9)
+                "#,
+                params![
+                    "team-member-default-owner",
+                    &bootstrap_timestamp,
+                    &bootstrap_timestamp,
+                    "team-default",
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    "owner",
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    "active",
+                ],
+            )
+            .map_err(|error| format!("insert bootstrap team member failed: {error}"))?;
+    }
+
+    let bootstrap_workspace_member_count: i64 = transaction
+        .query_row(
+            "SELECT COUNT(*) FROM workspace_members WHERE is_deleted = 0 AND workspace_id = ?1",
+            params![&preferred_workspace_id],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("count bootstrap workspace members failed: {error}"))?;
+    if bootstrap_workspace_member_count == 0 {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO workspace_members (
+                    id, created_at, updated_at, version, is_deleted, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
+                )
+                VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                "#,
+                params![
+                    "workspace-member-default-owner",
+                    &bootstrap_timestamp,
+                    &bootstrap_timestamp,
+                    &preferred_workspace_id,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    "team-default",
+                    "owner",
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    "active",
+                ],
+            )
+            .map_err(|error| format!("insert bootstrap workspace member failed: {error}"))?;
+    }
+
+    let bootstrap_project_collaborator_count: i64 = transaction
+        .query_row(
+            "SELECT COUNT(*) FROM project_collaborators WHERE is_deleted = 0 AND project_id = ?1",
+            params![&preferred_project_id],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("count bootstrap project collaborators failed: {error}"))?;
+    if bootstrap_project_collaborator_count == 0 {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO project_collaborators (
+                    id, created_at, updated_at, version, is_deleted, project_id, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
+                )
+                VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                "#,
+                params![
+                    "project-collaborator-default-owner",
+                    &bootstrap_timestamp,
+                    &bootstrap_timestamp,
+                    &preferred_project_id,
+                    &preferred_workspace_id,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    "team-default",
+                    "owner",
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    "active",
+                ],
+            )
+            .map_err(|error| format!("insert bootstrap project collaborator failed: {error}"))?;
     }
 
     transaction
@@ -3267,9 +4174,9 @@ fn materialize_legacy_kv_authority_into_provider_tables(
             .execute(
                 r#"
                 INSERT INTO workspaces (
-                    id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, status
+                    id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, created_by_identity_id, status
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
                 "#,
                 params![
                     workspace.id,
@@ -3279,7 +4186,11 @@ fn materialize_legacy_kv_authority_into_provider_tables(
                     0_i64,
                     workspace.name,
                     workspace.description,
-                    workspace.owner_identity_id,
+                    workspace.owner_identity_id.clone(),
+                    workspace
+                        .created_by_identity_id
+                        .clone()
+                        .or_else(|| workspace.owner_identity_id.clone()),
                     workspace.status,
                 ],
             )
@@ -3296,9 +4207,9 @@ fn materialize_legacy_kv_authority_into_provider_tables(
             .execute(
                 r#"
                 INSERT INTO projects (
-                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, root_path, status
+                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, root_path, owner_identity_id, created_by_identity_id, status
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
                 "#,
                 params![
                     project.id,
@@ -3310,6 +4221,8 @@ fn materialize_legacy_kv_authority_into_provider_tables(
                     project.name,
                     project.description,
                     project.root_path,
+                    project.owner_identity_id,
+                    project.created_by_identity_id,
                     project.status,
                 ],
             )
@@ -3423,9 +4336,9 @@ fn materialize_legacy_kv_authority_into_provider_tables(
             .execute(
                 r#"
                 INSERT INTO teams (
-                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, status
+                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, owner_identity_id, created_by_identity_id, status
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
                 "#,
                 params![
                     team.id,
@@ -3436,6 +4349,8 @@ fn materialize_legacy_kv_authority_into_provider_tables(
                     team.workspace_id,
                     team.name,
                     team.description,
+                    team.owner_identity_id,
+                    team.created_by_identity_id,
                     team.status,
                 ],
             )
@@ -3447,9 +4362,9 @@ fn materialize_legacy_kv_authority_into_provider_tables(
             .execute(
                 r#"
                 INSERT INTO team_members (
-                    id, created_at, updated_at, version, is_deleted, team_id, identity_id, role, status
+                    id, created_at, updated_at, version, is_deleted, team_id, identity_id, role, created_by_identity_id, granted_by_identity_id, status
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
                 "#,
                 params![
                     member.id,
@@ -3460,6 +4375,8 @@ fn materialize_legacy_kv_authority_into_provider_tables(
                     member.team_id,
                     member.identity_id,
                     member.role,
+                    member.created_by_identity_id,
+                    member.granted_by_identity_id,
                     member.status,
                 ],
             )
@@ -4383,6 +5300,8 @@ impl AppState {
             targets: self.targets.clone(),
             documents: self.documents.clone(),
             members: self.members.clone(),
+            workspace_members: self.workspace_members.clone(),
+            project_collaborators: self.project_collaborators.clone(),
             policies: self.policies.clone(),
             workspaces: self.workspaces.clone(),
             projects: self.projects.clone(),
@@ -4410,6 +5329,8 @@ impl AppState {
             targets: load_provider_deployment_target_payloads(&connection)?,
             documents: load_provider_document_payloads(&connection)?,
             members: load_provider_team_member_payloads(&connection)?,
+            workspace_members: load_provider_workspace_member_payloads(&connection)?,
+            project_collaborators: load_provider_project_collaborator_payloads(&connection)?,
             policies: load_provider_policy_payloads(&connection)?,
             workspaces: load_provider_workspace_payloads(&connection)?,
             projects: load_provider_project_payloads(&connection)?,
@@ -4425,9 +5346,25 @@ impl AppState {
             .unwrap_or_else(|| self.cached_app_admin_read_state())
     }
 
+    fn open_authority_connection_for_write(&self) -> Result<Connection, String> {
+        let Some(sqlite_file) = self.projections.sqlite_file.as_deref() else {
+            return Err("App/admin authority writes require a configured sqlite authority file.".to_owned());
+        };
+
+        let mut connection = Connection::open(sqlite_file).map_err(|error| {
+            format!(
+                "open sqlite app/admin authority file {} failed: {error}",
+                sqlite_file.display()
+            )
+        })?;
+        ensure_sqlite_provider_authority(&mut connection, sqlite_file)?;
+        Ok(connection)
+    }
+
     fn demo() -> Self {
         Self {
             projections: ProjectionAuthorityState::new(ProjectionReadState::demo(), None),
+            user_center: UserCenterState::from_env(),
             audits: vec![AuditPayload {
                 id: "audit-demo-release".to_owned(),
                 scope_type: "workspace".to_owned(),
@@ -4457,7 +5394,10 @@ impl AppState {
                 name: "Demo Workspace".to_owned(),
                 description: Some("Default embedded workspace for the local desktop authority.".to_owned()),
                 owner_identity_id: Some("identity-demo-owner".to_owned()),
+                created_by_identity_id: Some("identity-demo-owner".to_owned()),
+                member_count: Some(1),
                 status: "active".to_owned(),
+                viewer_role: Some("owner".to_owned()),
             }],
             documents: vec![DocumentPayload {
                 id: "doc-architecture-demo".to_owned(),
@@ -4469,12 +5409,18 @@ impl AppState {
                 updated_at: "2026-04-10T13:00:00Z".to_owned(),
             }],
             projects: vec![ProjectPayload {
+                created_at: Some("2026-04-10T12:59:00Z".to_owned()),
                 id: "demo-project".to_owned(),
                 workspace_id: "demo-workspace".to_owned(),
                 name: "Demo IDE workspace project".to_owned(),
                 description: Some("Representative app project list item.".to_owned()),
                 root_path: Some("E:/sdkwork/demo-project".to_owned()),
+                owner_identity_id: Some("identity-demo-owner".to_owned()),
+                created_by_identity_id: Some("identity-demo-owner".to_owned()),
+                collaborator_count: Some(1),
                 status: "active".to_owned(),
+                updated_at: Some("2026-04-10T13:00:00Z".to_owned()),
+                viewer_role: Some("owner".to_owned()),
             }],
             deployments: vec![DeploymentPayload {
                 id: "deployment-demo".to_owned(),
@@ -4499,13 +5445,42 @@ impl AppState {
                 team_id: "demo-team".to_owned(),
                 identity_id: "identity-demo-owner".to_owned(),
                 role: "owner".to_owned(),
+                created_by_identity_id: Some("identity-demo-owner".to_owned()),
+                granted_by_identity_id: Some("identity-demo-owner".to_owned()),
                 status: "active".to_owned(),
+            }],
+            workspace_members: vec![WorkspaceMemberPayload {
+                id: "workspace-member-demo-owner".to_owned(),
+                workspace_id: "demo-workspace".to_owned(),
+                identity_id: "identity-demo-owner".to_owned(),
+                team_id: Some("demo-team".to_owned()),
+                role: "owner".to_owned(),
+                status: "active".to_owned(),
+                created_by_identity_id: Some("identity-demo-owner".to_owned()),
+                granted_by_identity_id: Some("identity-demo-owner".to_owned()),
+                created_at: Some("2026-04-10T12:58:00Z".to_owned()),
+                updated_at: Some("2026-04-10T12:58:00Z".to_owned()),
+            }],
+            project_collaborators: vec![ProjectCollaboratorPayload {
+                id: "project-collaborator-demo-owner".to_owned(),
+                project_id: "demo-project".to_owned(),
+                workspace_id: "demo-workspace".to_owned(),
+                identity_id: "identity-demo-owner".to_owned(),
+                team_id: Some("demo-team".to_owned()),
+                role: "owner".to_owned(),
+                status: "active".to_owned(),
+                created_by_identity_id: Some("identity-demo-owner".to_owned()),
+                granted_by_identity_id: Some("identity-demo-owner".to_owned()),
+                created_at: Some("2026-04-10T12:59:00Z".to_owned()),
+                updated_at: Some("2026-04-10T12:59:00Z".to_owned()),
             }],
             teams: vec![TeamPayload {
                 id: "demo-team".to_owned(),
                 workspace_id: "demo-workspace".to_owned(),
                 name: "Demo collaboration team".to_owned(),
                 description: Some("Representative admin team list item.".to_owned()),
+                owner_identity_id: Some("identity-demo-owner".to_owned()),
+                created_by_identity_id: Some("identity-demo-owner".to_owned()),
                 status: "active".to_owned(),
             }],
             releases: vec![ReleasePayload {
@@ -4533,11 +5508,14 @@ impl AppState {
                     ProjectionReadState::from_sqlite_provider_connection(&connection)?,
                     Some(path.to_path_buf()),
                 ),
+                user_center: UserCenterState::from_env(),
                 audits: load_provider_audit_payloads(&connection)?,
                 deployments: load_provider_deployment_payloads(&connection)?,
                 targets: load_provider_deployment_target_payloads(&connection)?,
                 documents: load_provider_document_payloads(&connection)?,
                 members: load_provider_team_member_payloads(&connection)?,
+                workspace_members: load_provider_workspace_member_payloads(&connection)?,
+                project_collaborators: load_provider_project_collaborator_payloads(&connection)?,
                 policies: load_provider_policy_payloads(&connection)?,
                 workspaces: load_provider_workspace_payloads(&connection)?,
                 projects: load_provider_project_payloads(&connection)?,
@@ -4549,11 +5527,14 @@ impl AppState {
         let demo = Self::demo();
         Ok(Self {
             projections: ProjectionAuthorityState::new(ProjectionReadState::load(bootstrap)?, None),
+            user_center: UserCenterState::from_env(),
             audits: demo.audits,
             deployments: demo.deployments,
             targets: demo.targets,
             documents: demo.documents,
             members: demo.members,
+            workspace_members: demo.workspace_members,
+            project_collaborators: demo.project_collaborators,
             policies: demo.policies,
             workspaces: demo.workspaces,
             projects: demo.projects,
@@ -4563,7 +5544,7 @@ impl AppState {
     }
 }
 
-const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 26] = [
+const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 46] = [
     RouteSpec {
         method: "get",
         operation_id: "core.getDescriptor",
@@ -4664,9 +5645,100 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 26] = [
     },
     RouteSpec {
         method: "get",
+        operation_id: "app.getUserCenterConfig",
+        path: "/api/app/v1/auth/config",
+        summary: "Get user center provider metadata",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "get",
+        operation_id: "app.getCurrentUserSession",
+        path: "/api/app/v1/auth/session",
+        summary: "Get current user center session",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "post",
+        operation_id: "app.login",
+        path: "/api/app/v1/auth/login",
+        summary: "Create user center session with local credentials",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "post",
+        operation_id: "app.register",
+        path: "/api/app/v1/auth/register",
+        summary: "Register local user center identity",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "post",
+        operation_id: "app.logout",
+        path: "/api/app/v1/auth/logout",
+        summary: "Revoke current user center session",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "post",
+        operation_id: "app.exchangeUserCenterSession",
+        path: "/api/app/v1/auth/session/exchange",
+        summary: "Exchange third-party identity into a BirdCoder session",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "get",
+        operation_id: "app.getCurrentUserProfile",
+        path: "/api/app/v1/user-center/profile",
+        summary: "Get current user profile",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "patch",
+        operation_id: "app.updateCurrentUserProfile",
+        path: "/api/app/v1/user-center/profile",
+        summary: "Update current user profile",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "get",
+        operation_id: "app.getCurrentUserMembership",
+        path: "/api/app/v1/user-center/membership",
+        summary: "Get current user membership",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "patch",
+        operation_id: "app.updateCurrentUserMembership",
+        path: "/api/app/v1/user-center/membership",
+        summary: "Update current user membership",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "get",
         operation_id: "app.listWorkspaces",
         path: "/api/app/v1/workspaces",
         summary: "List workspaces",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "post",
+        operation_id: "app.createWorkspace",
+        path: "/api/app/v1/workspaces",
+        summary: "Create workspace",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "patch",
+        operation_id: "app.updateWorkspace",
+        path: "/api/app/v1/workspaces/:workspaceId",
+        summary: "Update workspace",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "delete",
+        operation_id: "app.deleteWorkspace",
+        path: "/api/app/v1/workspaces/:workspaceId",
+        summary: "Delete workspace",
         tag: "app",
     },
     RouteSpec {
@@ -4674,6 +5746,41 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 26] = [
         operation_id: "app.listProjects",
         path: "/api/app/v1/projects",
         summary: "List projects",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "get",
+        operation_id: "app.listProjectCollaborators",
+        path: "/api/app/v1/projects/:projectId/collaborators",
+        summary: "List project collaborators",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "post",
+        operation_id: "app.upsertProjectCollaborator",
+        path: "/api/app/v1/projects/:projectId/collaborators",
+        summary: "Upsert project collaborator",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "post",
+        operation_id: "app.createProject",
+        path: "/api/app/v1/projects",
+        summary: "Create project",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "patch",
+        operation_id: "app.updateProject",
+        path: "/api/app/v1/projects/:projectId",
+        summary: "Update project",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "delete",
+        operation_id: "app.deleteProject",
+        path: "/api/app/v1/projects/:projectId",
+        summary: "Delete project",
         tag: "app",
     },
     RouteSpec {
@@ -4688,6 +5795,20 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 26] = [
         operation_id: "app.listTeams",
         path: "/api/app/v1/teams",
         summary: "List workspace teams",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "get",
+        operation_id: "app.listWorkspaceMembers",
+        path: "/api/app/v1/workspaces/:workspaceId/members",
+        summary: "List workspace members",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "post",
+        operation_id: "app.upsertWorkspaceMember",
+        path: "/api/app/v1/workspaces/:workspaceId/members",
+        summary: "Upsert workspace member",
         tag: "app",
     },
     RouteSpec {
@@ -4876,14 +5997,1962 @@ async fn core_models() -> Json<ApiListEnvelope<ModelCatalogEntryPayload>> {
     Json(create_list_envelope("core-models", build_model_catalog()))
 }
 
-async fn app_workspaces(State(state): State<AppState>) -> Json<ApiListEnvelope<WorkspacePayload>> {
-    let app_admin_state = state.read_app_admin_state();
-    Json(create_list_envelope("app-workspaces", app_admin_state.workspaces))
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BooleanResultPayload {
+    success: bool,
 }
 
-async fn app_projects(State(state): State<AppState>) -> Json<ApiListEnvelope<ProjectPayload>> {
+fn try_resolve_current_user_center_session(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Option<UserCenterSessionPayload> {
+    let connection = state.open_authority_connection_for_write().ok()?;
+    state.user_center.resolve_session(&connection, headers).ok().flatten()
+}
+
+fn resolve_current_user_center_session(
+    state: &AppState,
+    headers: &HeaderMap,
+    unavailable_seed: &str,
+    unauthorized_seed: &str,
+) -> Result<
+    (Connection, UserCenterSessionPayload),
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let connection = state.open_authority_connection_for_write().map_err(|error| {
+        problem_response(
+            unavailable_seed,
+            StatusCode::NOT_IMPLEMENTED,
+            "system_error",
+            error,
+        )
+    })?;
+    let session = state
+        .user_center
+        .resolve_session(&connection, headers)
+        .map_err(|error| {
+            problem_response(
+                unavailable_seed,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .ok_or_else(|| {
+            problem_response(
+                unauthorized_seed,
+                StatusCode::UNAUTHORIZED,
+                "unauthorized",
+                "A valid user center session is required.",
+            )
+        })?;
+    Ok((connection, session))
+}
+
+async fn app_user_center_config(
+    State(state): State<AppState>,
+) -> Json<ApiEnvelope<UserCenterMetadataPayload>> {
+    Json(create_envelope(
+        "app-user-center-config",
+        state.user_center.metadata(),
+    ))
+}
+
+async fn app_user_center_session(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Json<ApiEnvelope<Option<UserCenterSessionPayload>>> {
+    let session = state
+        .open_authority_connection_for_write()
+        .ok()
+        .and_then(|connection| state.user_center.resolve_session(&connection, &headers).ok())
+        .flatten();
+    Json(create_envelope("app-user-center-session", session))
+}
+
+async fn app_user_center_login(
+    State(state): State<AppState>,
+    Json(request): Json<UserCenterLoginRequest>,
+) -> Result<Json<ApiEnvelope<UserCenterSessionPayload>>, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)>
+{
+    let mut connection = state.open_authority_connection_for_write().map_err(|error| {
+        problem_response(
+            "app-user-center-login-unavailable",
+            StatusCode::NOT_IMPLEMENTED,
+            "system_error",
+            error,
+        )
+    })?;
+    let session = state
+        .user_center
+        .login(&mut connection, &request)
+        .map_err(|error| {
+            problem_response(
+                "app-user-center-login-failed",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                error,
+            )
+        })?;
+    Ok(Json(create_envelope("app-user-center-login", session)))
+}
+
+async fn app_user_center_register(
+    State(state): State<AppState>,
+    Json(request): Json<UserCenterRegisterRequest>,
+) -> Result<Json<ApiEnvelope<UserCenterSessionPayload>>, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)>
+{
+    let mut connection = state.open_authority_connection_for_write().map_err(|error| {
+        problem_response(
+            "app-user-center-register-unavailable",
+            StatusCode::NOT_IMPLEMENTED,
+            "system_error",
+            error,
+        )
+    })?;
+    let session = state
+        .user_center
+        .register(&mut connection, &request)
+        .map_err(|error| {
+            problem_response(
+                "app-user-center-register-failed",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                error,
+            )
+        })?;
+    Ok(Json(create_envelope("app-user-center-register", session)))
+}
+
+async fn app_user_center_logout(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<ApiEnvelope<BooleanResultPayload>>, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)>
+{
+    if let Ok(mut connection) = state.open_authority_connection_for_write() {
+        let session_id = headers
+            .get(BIRDCODER_SESSION_HEADER_NAME)
+            .and_then(|value| value.to_str().ok())
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        state
+            .user_center
+            .logout(&mut connection, session_id)
+            .map_err(|error| {
+                problem_response(
+                    "app-user-center-logout-failed",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "system_error",
+                    error,
+                )
+            })?;
+    }
+
+    Ok(Json(create_envelope(
+        "app-user-center-logout",
+        BooleanResultPayload { success: true },
+    )))
+}
+
+async fn app_user_center_exchange_session(
+    State(state): State<AppState>,
+    Json(request): Json<UserCenterSessionExchangeRequest>,
+) -> Result<Json<ApiEnvelope<UserCenterSessionPayload>>, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)>
+{
+    let mut connection = state.open_authority_connection_for_write().map_err(|error| {
+        problem_response(
+            "app-user-center-session-exchange-unavailable",
+            StatusCode::NOT_IMPLEMENTED,
+            "system_error",
+            error,
+        )
+    })?;
+    let session = state
+        .user_center
+        .exchange_session(&mut connection, &request)
+        .map_err(|error| {
+            problem_response(
+                "app-user-center-session-exchange-failed",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                error,
+            )
+        })?;
+    Ok(Json(create_envelope(
+        "app-user-center-session-exchange",
+        session,
+    )))
+}
+
+async fn app_user_center_profile(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<ApiEnvelope<UserCenterProfilePayload>>, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)>
+{
+    let (connection, session) = resolve_current_user_center_session(
+        &state,
+        &headers,
+        "app-user-center-profile-unavailable",
+        "app-user-center-profile-unauthorized",
+    )?;
+    let profile = state.user_center.read_profile(&connection, &session).map_err(|error| {
+        problem_response(
+            "app-user-center-profile-read-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            error,
+        )
+    })?;
+    Ok(Json(create_envelope("app-user-center-profile", profile)))
+}
+
+async fn app_update_user_center_profile(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<UpdateUserCenterProfileRequest>,
+) -> Result<Json<ApiEnvelope<UserCenterProfilePayload>>, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)>
+{
+    let (mut connection, session) = resolve_current_user_center_session(
+        &state,
+        &headers,
+        "app-user-center-profile-update-unavailable",
+        "app-user-center-profile-update-unauthorized",
+    )?;
+    let profile = state
+        .user_center
+        .update_profile(&mut connection, &session, &request)
+        .map_err(|error| {
+            problem_response(
+                "app-user-center-profile-update-failed",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                error,
+            )
+        })?;
+    Ok(Json(create_envelope("app-user-center-profile-update", profile)))
+}
+
+async fn app_user_center_membership(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<ApiEnvelope<UserCenterVipMembershipPayload>>, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)>
+{
+    let (connection, session) = resolve_current_user_center_session(
+        &state,
+        &headers,
+        "app-user-center-membership-unavailable",
+        "app-user-center-membership-unauthorized",
+    )?;
+    let membership = state
+        .user_center
+        .read_vip_membership(&connection, &session)
+        .map_err(|error| {
+            problem_response(
+                "app-user-center-membership-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?;
+    Ok(Json(create_envelope(
+        "app-user-center-membership",
+        membership,
+    )))
+}
+
+async fn app_update_user_center_membership(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<UpdateUserCenterVipMembershipRequest>,
+) -> Result<Json<ApiEnvelope<UserCenterVipMembershipPayload>>, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)>
+{
+    let (mut connection, session) = resolve_current_user_center_session(
+        &state,
+        &headers,
+        "app-user-center-membership-update-unavailable",
+        "app-user-center-membership-update-unauthorized",
+    )?;
+    let membership = state
+        .user_center
+        .update_vip_membership(&mut connection, &session, &request)
+        .map_err(|error| {
+            problem_response(
+                "app-user-center-membership-update-failed",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                error,
+            )
+        })?;
+    Ok(Json(create_envelope(
+        "app-user-center-membership-update",
+        membership,
+    )))
+}
+
+async fn app_workspaces(
+    Query(query): Query<WorkspaceScopedQuery>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Json<ApiListEnvelope<WorkspacePayload>> {
     let app_admin_state = state.read_app_admin_state();
-    Json(create_list_envelope("app-projects", app_admin_state.projects))
+    let identity_filter = normalize_optional_string(query.identity_id)
+        .or_else(|| try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id));
+    let workspaces = app_admin_state
+        .workspaces
+        .into_iter()
+        .filter_map(|workspace| {
+            if identity_filter.as_deref().is_some_and(|identity_id| {
+                !workspace_is_visible_to_identity(
+                    &workspace,
+                    &app_admin_state.workspace_members,
+                    &app_admin_state.members,
+                    identity_id,
+                )
+            }) {
+                return None;
+            }
+
+            let member_count =
+                count_active_workspace_members(&app_admin_state.workspace_members, &workspace.id);
+            let viewer_role = identity_filter.as_deref().and_then(|identity_id| {
+                resolve_workspace_viewer_role(
+                    &workspace,
+                    &app_admin_state.workspace_members,
+                    &app_admin_state.members,
+                    identity_id,
+                )
+            });
+
+            Some(WorkspacePayload {
+                member_count: Some(member_count),
+                viewer_role,
+                ..workspace
+            })
+        })
+        .collect::<Vec<_>>();
+    Json(create_list_envelope("app-workspaces", workspaces))
+}
+
+async fn app_create_workspace(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<CreateWorkspaceRequest>,
+) -> Result<
+    (StatusCode, Json<ApiEnvelope<WorkspacePayload>>),
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let name = normalize_required_string(request.name)
+        .ok_or_else(|| {
+            problem_response(
+                "create-workspace-invalid",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                "Workspace name is required.",
+            )
+        })?;
+    let description = normalize_optional_string(request.description);
+    let current_identity_id =
+        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
+    let owner_identity_id = current_identity_id
+        .clone()
+        .or_else(|| normalize_optional_string(request.owner_identity_id))
+        .or_else(|| normalize_optional_string(request.created_by_identity_id.clone()))
+        .unwrap_or_else(|| BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID.to_owned());
+    let created_by_identity_id = current_identity_id
+        .or_else(|| normalize_optional_string(request.created_by_identity_id))
+        .unwrap_or_else(|| owner_identity_id.clone());
+    let now = current_storage_timestamp();
+
+    let mut connection = state
+        .open_authority_connection_for_write()
+        .map_err(|error| {
+            problem_response(
+                "create-workspace-authority-unavailable",
+                StatusCode::NOT_IMPLEMENTED,
+                "system_error",
+                error,
+            )
+        })?;
+    let workspace_id = create_identifier("workspace");
+    let default_team_id = create_identifier("team");
+    let default_team_member_id = create_identifier("team-member");
+    let default_workspace_member_id = create_identifier("workspace-member");
+    let transaction = connection.transaction().map_err(|error| {
+        problem_response(
+            "create-workspace-transaction-open-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to open workspace authority transaction: {error}"),
+        )
+    })?;
+
+    transaction
+        .execute(
+            r#"
+            INSERT INTO workspaces (
+                id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, created_by_identity_id, status
+            ) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8)
+            "#,
+            params![
+                &workspace_id,
+                &now,
+                &now,
+                &name,
+                &description,
+                &owner_identity_id,
+                &created_by_identity_id,
+                "active",
+            ],
+        )
+        .and_then(|_| {
+            transaction.execute(
+                r#"
+                INSERT INTO teams (
+                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, owner_identity_id, created_by_identity_id, status
+                ) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9)
+                "#,
+                params![
+                    &default_team_id,
+                    &now,
+                    &now,
+                    &workspace_id,
+                    format!("{name} Owners"),
+                    Some("Default workspace owner team.".to_owned()),
+                    &owner_identity_id,
+                    &created_by_identity_id,
+                    "active",
+                ],
+            )
+        })
+        .and_then(|_| {
+            transaction.execute(
+                r#"
+                INSERT INTO team_members (
+                    id, created_at, updated_at, version, is_deleted, team_id, identity_id, role, created_by_identity_id, granted_by_identity_id, status
+                ) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9)
+                "#,
+                params![
+                    &default_team_member_id,
+                    &now,
+                    &now,
+                    &default_team_id,
+                    &owner_identity_id,
+                    "owner",
+                    &created_by_identity_id,
+                    &created_by_identity_id,
+                    "active",
+                ],
+            )
+        })
+        .and_then(|_| {
+            transaction.execute(
+                r#"
+                INSERT INTO workspace_members (
+                    id, created_at, updated_at, version, is_deleted, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
+                ) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                "#,
+                params![
+                    &default_workspace_member_id,
+                    &now,
+                    &now,
+                    &workspace_id,
+                    &owner_identity_id,
+                    &default_team_id,
+                    "owner",
+                    &created_by_identity_id,
+                    &created_by_identity_id,
+                    "active",
+                ],
+            )
+        })
+        .map_err(|error| {
+            problem_response(
+                "create-workspace-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to persist workspace authority: {error}"),
+            )
+        })?;
+
+    transaction.commit().map_err(|error| {
+        problem_response(
+            "create-workspace-transaction-commit-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to commit workspace authority: {error}"),
+        )
+    })?;
+
+    let workspace = load_provider_workspace_payload_by_id(&connection, &workspace_id)
+        .map_err(|error| {
+            problem_response(
+                "create-workspace-readback-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .ok_or_else(|| {
+            problem_response(
+                "create-workspace-readback-missing",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                "Workspace authority readback was not found.",
+            )
+        })?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(create_envelope("app-create-workspace", workspace)),
+    ))
+}
+
+async fn app_update_workspace(
+    AxumPath(workspace_id): AxumPath<String>,
+    State(state): State<AppState>,
+    Json(request): Json<UpdateWorkspaceRequest>,
+) -> Result<
+    Json<ApiEnvelope<WorkspacePayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let normalized_workspace_id = normalize_required_string(workspace_id)
+        .ok_or_else(|| {
+            problem_response(
+                "update-workspace-invalid",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                "workspaceId is required.",
+            )
+        })?;
+    let normalized_status = normalize_workspace_status(request.status).map_err(|message| {
+        problem_response(
+            "update-workspace-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            message,
+        )
+    })?;
+
+    let connection = state
+        .open_authority_connection_for_write()
+        .map_err(|error| {
+            problem_response(
+                "update-workspace-authority-unavailable",
+                StatusCode::NOT_IMPLEMENTED,
+                "system_error",
+                error,
+            )
+        })?;
+    let existing_workspace = load_provider_workspace_payload_by_id(&connection, &normalized_workspace_id)
+        .map_err(|error| {
+            problem_response(
+                "update-workspace-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .ok_or_else(|| {
+            problem_response(
+                "update-workspace-not-found",
+                StatusCode::NOT_FOUND,
+                "not_found",
+                "Workspace authority was not found.",
+            )
+        })?;
+
+    let next_name = request
+        .name
+        .and_then(normalize_required_string)
+        .unwrap_or(existing_workspace.name);
+    let next_description = match request.description {
+        Some(description) => normalize_optional_string(Some(description)),
+        None => existing_workspace.description,
+    };
+    let next_status = normalized_status.unwrap_or(existing_workspace.status);
+
+    connection
+        .execute(
+            r#"
+            UPDATE workspaces
+            SET updated_at = ?2, name = ?3, description = ?4, status = ?5
+            WHERE id = ?1 AND is_deleted = 0
+            "#,
+            params![
+                normalized_workspace_id,
+                current_storage_timestamp(),
+                next_name,
+                next_description,
+                next_status,
+            ],
+        )
+        .map_err(|error| {
+            problem_response(
+                "update-workspace-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to persist workspace authority: {error}"),
+            )
+        })?;
+
+    let workspace = load_provider_workspace_payload_by_id(&connection, &normalized_workspace_id)
+        .map_err(|error| {
+            problem_response(
+                "update-workspace-readback-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .ok_or_else(|| {
+            problem_response(
+                "update-workspace-readback-missing",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                "Workspace authority readback was not found.",
+            )
+        })?;
+
+    Ok(Json(create_envelope("app-update-workspace", workspace)))
+}
+
+async fn app_delete_workspace(
+    AxumPath(workspace_id): AxumPath<String>,
+    State(state): State<AppState>,
+) -> Result<
+    Json<ApiEnvelope<DeleteEntityPayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let normalized_workspace_id = normalize_required_string(workspace_id)
+        .ok_or_else(|| {
+            problem_response(
+                "delete-workspace-invalid",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                "workspaceId is required.",
+            )
+        })?;
+    let connection = state
+        .open_authority_connection_for_write()
+        .map_err(|error| {
+            problem_response(
+                "delete-workspace-authority-unavailable",
+                StatusCode::NOT_IMPLEMENTED,
+                "system_error",
+                error,
+            )
+        })?;
+    let deleted_at = current_storage_timestamp();
+    let deleted_count = connection
+        .execute(
+            r#"
+            UPDATE workspaces
+            SET is_deleted = 1, updated_at = ?2
+            WHERE id = ?1 AND is_deleted = 0
+            "#,
+            params![normalized_workspace_id, deleted_at],
+        )
+        .map_err(|error| {
+            problem_response(
+                "delete-workspace-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to delete workspace authority: {error}"),
+            )
+        })?;
+
+    if deleted_count == 0 {
+        return Err(problem_response(
+            "delete-workspace-not-found",
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "Workspace authority was not found.",
+        ));
+    }
+
+    connection
+        .execute(
+            r#"
+            UPDATE projects
+            SET is_deleted = 1, updated_at = ?2
+            WHERE workspace_id = ?1 AND is_deleted = 0
+            "#,
+            params![normalized_workspace_id, deleted_at],
+        )
+        .map_err(|error| {
+            problem_response(
+                "delete-workspace-projects-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to cascade workspace project deletion: {error}"),
+            )
+        })?;
+
+    connection
+        .execute(
+            r#"
+            UPDATE project_collaborators
+            SET is_deleted = 1, updated_at = ?2
+            WHERE workspace_id = ?1 AND is_deleted = 0
+            "#,
+            params![normalized_workspace_id, deleted_at],
+        )
+        .map_err(|error| {
+            problem_response(
+                "delete-workspace-collaborators-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to cascade workspace collaborator deletion: {error}"),
+            )
+        })?;
+
+    connection
+        .execute(
+            r#"
+            UPDATE workspace_members
+            SET is_deleted = 1, updated_at = ?2
+            WHERE workspace_id = ?1 AND is_deleted = 0
+            "#,
+            params![normalized_workspace_id, deleted_at],
+        )
+        .map_err(|error| {
+            problem_response(
+                "delete-workspace-members-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to cascade workspace member deletion: {error}"),
+            )
+        })?;
+
+    connection
+        .execute(
+            r#"
+            UPDATE team_members
+            SET is_deleted = 1, updated_at = ?2
+            WHERE team_id IN (
+                SELECT id
+                FROM teams
+                WHERE workspace_id = ?1 AND is_deleted = 0
+            ) AND is_deleted = 0
+            "#,
+            params![normalized_workspace_id, deleted_at],
+        )
+        .map_err(|error| {
+            problem_response(
+                "delete-workspace-team-members-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to cascade workspace team member deletion: {error}"),
+            )
+        })?;
+
+    connection
+        .execute(
+            r#"
+            UPDATE teams
+            SET is_deleted = 1, updated_at = ?2
+            WHERE workspace_id = ?1 AND is_deleted = 0
+            "#,
+            params![normalized_workspace_id, deleted_at],
+        )
+        .map_err(|error| {
+            problem_response(
+                "delete-workspace-teams-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to cascade workspace team deletion: {error}"),
+            )
+        })?;
+
+    Ok(Json(create_envelope(
+        "app-delete-workspace",
+        DeleteEntityPayload {
+            id: normalized_workspace_id,
+        },
+    )))
+}
+
+async fn app_projects(
+    Query(query): Query<WorkspaceScopedQuery>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Json<ApiListEnvelope<ProjectPayload>> {
+    let app_admin_state = state.read_app_admin_state();
+    let workspace_filter = normalize_optional_string(query.workspace_id);
+    let identity_filter = normalize_optional_string(query.identity_id)
+        .or_else(|| try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id));
+    let workspace_lookup = workspace_lookup_map(&app_admin_state.workspaces);
+    let projects = app_admin_state
+        .projects
+        .into_iter()
+        .filter_map(|project| {
+            if workspace_filter
+                .as_deref()
+                .is_some_and(|workspace_id| project.workspace_id != workspace_id)
+            {
+                return None;
+            }
+
+            if identity_filter.as_deref().is_some_and(|identity_id| {
+                !project_is_visible_to_identity(
+                    &project,
+                    &workspace_lookup,
+                    &app_admin_state.workspace_members,
+                    &app_admin_state.project_collaborators,
+                    &app_admin_state.members,
+                    identity_id,
+                )
+            }) {
+                return None;
+            }
+
+            let collaborator_count = count_active_project_collaborators(
+                &app_admin_state.project_collaborators,
+                &project.id,
+            );
+            let viewer_role = identity_filter.as_deref().and_then(|identity_id| {
+                resolve_project_viewer_role(
+                    &project,
+                    &workspace_lookup,
+                    &app_admin_state.workspace_members,
+                    &app_admin_state.project_collaborators,
+                    &app_admin_state.members,
+                    identity_id,
+                )
+            });
+
+            Some(ProjectPayload {
+                collaborator_count: Some(collaborator_count),
+                viewer_role,
+                ..project
+            })
+        })
+        .collect::<Vec<_>>();
+    Json(create_list_envelope("app-projects", projects))
+}
+
+async fn app_create_project(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<CreateProjectRequest>,
+) -> Result<
+    (StatusCode, Json<ApiEnvelope<ProjectPayload>>),
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let workspace_id = normalize_required_string(request.workspace_id).ok_or_else(|| {
+        problem_response(
+            "create-project-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            "workspaceId is required.",
+        )
+    })?;
+    let name = normalize_required_string(request.name).ok_or_else(|| {
+        problem_response(
+            "create-project-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            "Project name is required.",
+        )
+    })?;
+    let description = normalize_optional_string(request.description);
+    let root_path = normalize_optional_string(request.root_path);
+    let current_identity_id =
+        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
+    let requested_owner_identity_id = normalize_optional_string(request.owner_identity_id);
+    let requested_created_by_identity_id = normalize_optional_string(request.created_by_identity_id);
+    let status = normalize_project_status(request.status)
+        .map_err(|message| {
+            problem_response(
+                "create-project-invalid",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                message,
+            )
+        })?
+        .unwrap_or_else(|| "active".to_owned());
+    let now = current_storage_timestamp();
+
+    let mut connection = state
+        .open_authority_connection_for_write()
+        .map_err(|error| {
+            problem_response(
+                "create-project-authority-unavailable",
+                StatusCode::NOT_IMPLEMENTED,
+                "system_error",
+                error,
+            )
+        })?;
+
+    let workspace = load_provider_workspace_payload_by_id(&connection, &workspace_id)
+        .map_err(|error| {
+            problem_response(
+                "create-project-workspace-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?;
+
+    let workspace = if let Some(workspace) = workspace {
+        workspace
+    } else {
+        return Err(problem_response(
+            "create-project-workspace-not-found",
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "Workspace authority was not found.",
+        ));
+    };
+
+    let owner_identity_id = current_identity_id
+        .clone()
+        .or(requested_owner_identity_id)
+        .or_else(|| workspace.owner_identity_id.clone())
+        .or_else(|| requested_created_by_identity_id.clone())
+        .unwrap_or_else(|| BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID.to_owned());
+    let created_by_identity_id = current_identity_id
+        .or(requested_created_by_identity_id)
+        .or_else(|| workspace.created_by_identity_id.clone())
+        .unwrap_or_else(|| owner_identity_id.clone());
+
+    if let Some(existing_project) = root_path
+        .as_deref()
+        .map(|normalized_root_path| {
+            find_provider_project_payload_by_workspace_and_root_path(
+                &connection,
+                &workspace_id,
+                normalized_root_path,
+                None,
+            )
+        })
+        .transpose()
+        .map_err(|error| {
+            problem_response(
+                "create-project-conflict-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .flatten()
+    {
+        return Ok((
+            StatusCode::OK,
+            Json(create_envelope("app-create-project-existing", existing_project)),
+        ));
+    }
+
+    let project_id = create_identifier("project");
+    let project_collaborator_id = create_identifier("project-collaborator");
+    let project_owner_team_id = load_provider_team_payloads(&connection)
+        .map_err(|error| {
+            problem_response(
+                "create-project-team-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .into_iter()
+        .find(|team| {
+            team.workspace_id == workspace_id
+                && team.owner_identity_id.as_deref() == Some(owner_identity_id.as_str())
+        })
+        .map(|team| team.id);
+    let transaction = connection.transaction().map_err(|error| {
+        problem_response(
+            "create-project-transaction-open-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to open project authority transaction: {error}"),
+        )
+    })?;
+
+    transaction
+        .execute(
+            r#"
+            INSERT INTO projects (
+                id, created_at, updated_at, version, is_deleted, workspace_id, name, description, root_path, owner_identity_id, created_by_identity_id, status
+            ) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            "#,
+            params![
+                &project_id,
+                &now,
+                &now,
+                &workspace_id,
+                &name,
+                &description,
+                &root_path,
+                &owner_identity_id,
+                &created_by_identity_id,
+                &status,
+            ],
+        )
+        .and_then(|_| {
+            transaction.execute(
+                r#"
+                INSERT INTO project_collaborators (
+                    id, created_at, updated_at, version, is_deleted, project_id, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
+                ) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                "#,
+                params![
+                    &project_collaborator_id,
+                    &now,
+                    &now,
+                    &project_id,
+                    &workspace_id,
+                    &owner_identity_id,
+                    &project_owner_team_id,
+                    "owner",
+                    &created_by_identity_id,
+                    &created_by_identity_id,
+                    "active",
+                ],
+            )
+        })
+        .map_err(|error| {
+            problem_response(
+                "create-project-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to persist project authority: {error}"),
+            )
+        })?;
+
+    transaction.commit().map_err(|error| {
+        problem_response(
+            "create-project-transaction-commit-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to commit project authority: {error}"),
+        )
+    })?;
+
+    let project = load_provider_project_payload_by_id(&connection, &project_id)
+        .map_err(|error| {
+            problem_response(
+                "create-project-readback-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .ok_or_else(|| {
+            problem_response(
+                "create-project-readback-missing",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                "Project authority readback was not found.",
+            )
+        })?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(create_envelope("app-create-project", project)),
+    ))
+}
+
+async fn app_update_project(
+    AxumPath(project_id): AxumPath<String>,
+    State(state): State<AppState>,
+    Json(request): Json<UpdateProjectRequest>,
+) -> Result<
+    Json<ApiEnvelope<ProjectPayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let normalized_project_id = normalize_required_string(project_id)
+        .ok_or_else(|| {
+            problem_response(
+                "update-project-invalid",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                "projectId is required.",
+            )
+        })?;
+    let normalized_status = normalize_project_status(request.status).map_err(|message| {
+        problem_response(
+            "update-project-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            message,
+        )
+    })?;
+
+    let connection = state
+        .open_authority_connection_for_write()
+        .map_err(|error| {
+            problem_response(
+                "update-project-authority-unavailable",
+                StatusCode::NOT_IMPLEMENTED,
+                "system_error",
+                error,
+            )
+        })?;
+    let existing_project = load_provider_project_payload_by_id(&connection, &normalized_project_id)
+        .map_err(|error| {
+            problem_response(
+                "update-project-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .ok_or_else(|| {
+            problem_response(
+                "update-project-not-found",
+                StatusCode::NOT_FOUND,
+                "not_found",
+                "Project authority was not found.",
+            )
+        })?;
+    let existing_workspace_id = existing_project.workspace_id.clone();
+
+    let next_name = request
+        .name
+        .and_then(normalize_required_string)
+        .unwrap_or(existing_project.name);
+    let next_description = match request.description {
+        Some(description) => normalize_optional_string(Some(description)),
+        None => existing_project.description,
+    };
+    let next_root_path = match request.root_path {
+        Some(root_path) => normalize_optional_string(Some(root_path)),
+        None => existing_project.root_path,
+    };
+    let next_status = normalized_status.unwrap_or(existing_project.status);
+
+    if let Some(conflicting_project) = next_root_path
+        .as_deref()
+        .map(|normalized_root_path| {
+            find_provider_project_payload_by_workspace_and_root_path(
+                &connection,
+                &existing_workspace_id,
+                normalized_root_path,
+                Some(&normalized_project_id),
+            )
+        })
+        .transpose()
+        .map_err(|error| {
+            problem_response(
+                "update-project-conflict-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .flatten()
+    {
+        return Err(problem_response(
+            "update-project-root-path-conflict",
+            StatusCode::CONFLICT,
+            "already_exists",
+            format!(
+                "Workspace already contains project \"{}\" for rootPath \"{}\".",
+                conflicting_project.name,
+                next_root_path.as_deref().unwrap_or_default(),
+            ),
+        ));
+    }
+
+    connection
+        .execute(
+            r#"
+            UPDATE projects
+            SET updated_at = ?2, name = ?3, description = ?4, root_path = ?5, status = ?6
+            WHERE id = ?1 AND is_deleted = 0
+            "#,
+            params![
+                normalized_project_id,
+                current_storage_timestamp(),
+                next_name,
+                next_description,
+                next_root_path,
+                next_status,
+            ],
+        )
+        .map_err(|error| {
+            problem_response(
+                "update-project-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to persist project authority: {error}"),
+            )
+        })?;
+
+    let project = load_provider_project_payload_by_id(&connection, &normalized_project_id)
+        .map_err(|error| {
+            problem_response(
+                "update-project-readback-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .ok_or_else(|| {
+            problem_response(
+                "update-project-readback-missing",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                "Project authority readback was not found.",
+            )
+        })?;
+
+    Ok(Json(create_envelope("app-update-project", project)))
+}
+
+async fn app_delete_project(
+    AxumPath(project_id): AxumPath<String>,
+    State(state): State<AppState>,
+) -> Result<
+    Json<ApiEnvelope<DeleteEntityPayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let normalized_project_id = normalize_required_string(project_id)
+        .ok_or_else(|| {
+            problem_response(
+                "delete-project-invalid",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                "projectId is required.",
+            )
+        })?;
+    let connection = state
+        .open_authority_connection_for_write()
+        .map_err(|error| {
+            problem_response(
+                "delete-project-authority-unavailable",
+                StatusCode::NOT_IMPLEMENTED,
+                "system_error",
+                error,
+            )
+        })?;
+    let deleted_count = connection
+        .execute(
+            r#"
+            UPDATE projects
+            SET is_deleted = 1, updated_at = ?2
+            WHERE id = ?1 AND is_deleted = 0
+            "#,
+            params![normalized_project_id, current_storage_timestamp()],
+        )
+        .map_err(|error| {
+            problem_response(
+                "delete-project-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to delete project authority: {error}"),
+            )
+        })?;
+
+    if deleted_count == 0 {
+        return Err(problem_response(
+            "delete-project-not-found",
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "Project authority was not found.",
+        ));
+    }
+
+    connection
+        .execute(
+            r#"
+            UPDATE project_collaborators
+            SET is_deleted = 1, updated_at = ?2
+            WHERE project_id = ?1 AND is_deleted = 0
+            "#,
+            params![normalized_project_id, current_storage_timestamp()],
+        )
+        .map_err(|error| {
+            problem_response(
+                "delete-project-collaborators-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to delete project collaborator authority: {error}"),
+            )
+        })?;
+
+    Ok(Json(create_envelope(
+        "app-delete-project",
+        DeleteEntityPayload {
+            id: normalized_project_id,
+        },
+    )))
+}
+
+async fn app_workspace_members(
+    AxumPath(workspace_id): AxumPath<String>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<
+    Json<ApiListEnvelope<WorkspaceMemberPayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let normalized_workspace_id = normalize_required_string(workspace_id).ok_or_else(|| {
+        problem_response(
+            "workspace-members-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            "workspaceId is required.",
+        )
+    })?;
+    let app_admin_state = state.read_app_admin_state();
+    let workspace = app_admin_state
+        .workspaces
+        .iter()
+        .find(|workspace| workspace.id == normalized_workspace_id)
+        .cloned();
+    let Some(workspace) = workspace else {
+        return Err(problem_response(
+            "workspace-members-workspace-not-found",
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "Workspace authority was not found.",
+        ));
+    };
+    if let Some(current_identity_id) =
+        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id)
+    {
+        let viewer_role = resolve_workspace_viewer_role(
+            &workspace,
+            &app_admin_state.workspace_members,
+            &app_admin_state.members,
+            &current_identity_id,
+        );
+        if viewer_role.is_none() {
+            return Err(problem_response(
+                "workspace-members-forbidden",
+                StatusCode::FORBIDDEN,
+                "forbidden",
+                "Current user is not allowed to read workspace members.",
+            ));
+        }
+    }
+
+    let members = app_admin_state
+        .workspace_members
+        .into_iter()
+        .filter(|member| member.workspace_id == normalized_workspace_id)
+        .collect::<Vec<_>>();
+    Ok(Json(create_list_envelope("app-workspace-members", members)))
+}
+
+async fn app_upsert_workspace_member(
+    AxumPath(workspace_id): AxumPath<String>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<UpsertWorkspaceMemberRequest>,
+) -> Result<
+    (StatusCode, Json<ApiEnvelope<WorkspaceMemberPayload>>),
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let normalized_workspace_id = normalize_required_string(workspace_id).ok_or_else(|| {
+        problem_response(
+            "workspace-member-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            "workspaceId is required.",
+        )
+    })?;
+    let identity_id = normalize_required_string(request.identity_id).ok_or_else(|| {
+        problem_response(
+            "workspace-member-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            "identityId is required.",
+        )
+    })?;
+    let role = normalize_collaboration_role(request.role)
+        .map_err(|message| {
+            problem_response(
+                "workspace-member-invalid",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                message,
+            )
+        })?
+        .unwrap_or_else(|| "member".to_owned());
+    let status = normalize_collaboration_status(request.status)
+        .map_err(|message| {
+            problem_response(
+                "workspace-member-invalid",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                message,
+            )
+        })?
+        .unwrap_or_else(|| "active".to_owned());
+    let team_id = normalize_optional_string(request.team_id);
+    let current_identity_id =
+        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
+    let app_admin_state = state.read_app_admin_state();
+    let workspace_projection = app_admin_state
+        .workspaces
+        .iter()
+        .find(|workspace| workspace.id == normalized_workspace_id)
+        .cloned();
+    if let (Some(workspace), Some(actor_identity_id)) =
+        (workspace_projection.as_ref(), current_identity_id.as_deref())
+    {
+        let viewer_role = resolve_workspace_viewer_role(
+            workspace,
+            &app_admin_state.workspace_members,
+            &app_admin_state.members,
+            actor_identity_id,
+        );
+        if !matches!(viewer_role.as_deref(), Some("owner" | "admin")) {
+            return Err(problem_response(
+                "workspace-member-forbidden",
+                StatusCode::FORBIDDEN,
+                "forbidden",
+                "Current user is not allowed to manage workspace members.",
+            ));
+        }
+    }
+    let mut connection = state
+        .open_authority_connection_for_write()
+        .map_err(|error| {
+            problem_response(
+                "workspace-member-authority-unavailable",
+                StatusCode::NOT_IMPLEMENTED,
+                "system_error",
+                error,
+            )
+        })?;
+
+    let workspace = load_provider_workspace_payload_by_id(&connection, &normalized_workspace_id)
+        .map_err(|error| {
+            problem_response(
+                "workspace-member-workspace-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .ok_or_else(|| {
+            problem_response(
+                "workspace-member-workspace-not-found",
+                StatusCode::NOT_FOUND,
+                "not_found",
+                "Workspace authority was not found.",
+            )
+        })?;
+
+    if let Some(normalized_team_id) = team_id.as_deref() {
+        let team_exists = load_provider_team_payloads(&connection)
+            .map_err(|error| {
+                problem_response(
+                    "workspace-member-team-read-failed",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "system_error",
+                    error,
+                )
+            })?
+            .into_iter()
+            .any(|team| team.id == normalized_team_id && team.workspace_id == normalized_workspace_id);
+        if !team_exists {
+            return Err(problem_response(
+                "workspace-member-team-not-found",
+                StatusCode::NOT_FOUND,
+                "not_found",
+                "Team authority was not found for the workspace.",
+            ));
+        }
+    }
+
+    let now = current_storage_timestamp();
+    let created_by_identity_id = current_identity_id
+        .clone()
+        .or_else(|| normalize_optional_string(request.created_by_identity_id))
+        .or_else(|| workspace.created_by_identity_id.clone())
+        .or_else(|| workspace.owner_identity_id.clone())
+        .unwrap_or_else(|| BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID.to_owned());
+    let granted_by_identity_id = current_identity_id
+        .or_else(|| normalize_optional_string(request.granted_by_identity_id))
+        .unwrap_or_else(|| created_by_identity_id.clone());
+    let existing_member = load_provider_workspace_member_payloads(&connection)
+        .map_err(|error| {
+            problem_response(
+                "workspace-member-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .into_iter()
+        .find(|member| {
+            member.workspace_id == normalized_workspace_id && member.identity_id == identity_id
+        });
+
+    let transaction = connection.transaction().map_err(|error| {
+        problem_response(
+            "workspace-member-transaction-open-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to open workspace member transaction: {error}"),
+        )
+    })?;
+
+    let member_id = existing_member
+        .as_ref()
+        .map(|member| member.id.clone())
+        .unwrap_or_else(|| create_identifier("workspace-member"));
+    let created_at = existing_member
+        .as_ref()
+        .and_then(|member| member.created_at.clone())
+        .unwrap_or_else(|| now.clone());
+
+    if existing_member.is_some() {
+        transaction
+            .execute(
+                r#"
+                UPDATE workspace_members
+                SET updated_at = ?2, team_id = ?3, role = ?4, created_by_identity_id = ?5, granted_by_identity_id = ?6, status = ?7, is_deleted = 0
+                WHERE id = ?1
+                "#,
+                params![
+                    &member_id,
+                    &now,
+                    &team_id,
+                    &role,
+                    &created_by_identity_id,
+                    &granted_by_identity_id,
+                    &status,
+                ],
+            )
+            .map_err(|error| {
+                problem_response(
+                    "workspace-member-upsert-failed",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "system_error",
+                    format!("Failed to update workspace member authority: {error}"),
+                )
+            })?;
+    } else {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO workspace_members (
+                    id, created_at, updated_at, version, is_deleted, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
+                ) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                "#,
+                params![
+                    &member_id,
+                    &created_at,
+                    &now,
+                    &normalized_workspace_id,
+                    &identity_id,
+                    &team_id,
+                    &role,
+                    &created_by_identity_id,
+                    &granted_by_identity_id,
+                    &status,
+                ],
+            )
+            .map_err(|error| {
+                problem_response(
+                    "workspace-member-upsert-failed",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "system_error",
+                    format!("Failed to create workspace member authority: {error}"),
+                )
+            })?;
+    }
+
+    if role == "owner" {
+        transaction
+            .execute(
+                r#"
+                UPDATE workspaces
+                SET updated_at = ?2, owner_identity_id = ?3
+                WHERE id = ?1 AND is_deleted = 0
+                "#,
+                params![&normalized_workspace_id, &now, &identity_id],
+            )
+            .map_err(|error| {
+                problem_response(
+                    "workspace-member-owner-sync-failed",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "system_error",
+                    format!("Failed to sync workspace owner authority: {error}"),
+                )
+            })?;
+    }
+
+    transaction.commit().map_err(|error| {
+        problem_response(
+            "workspace-member-transaction-commit-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to commit workspace member authority: {error}"),
+        )
+    })?;
+
+    Ok((
+        if existing_member.is_some() {
+            StatusCode::OK
+        } else {
+            StatusCode::CREATED
+        },
+        Json(create_envelope(
+            "app-upsert-workspace-member",
+            WorkspaceMemberPayload {
+                id: member_id,
+                workspace_id: normalized_workspace_id,
+                identity_id,
+                team_id,
+                role,
+                status,
+                created_by_identity_id: Some(created_by_identity_id),
+                granted_by_identity_id: Some(granted_by_identity_id),
+                created_at: Some(created_at),
+                updated_at: Some(now),
+            },
+        )),
+    ))
+}
+
+async fn app_project_collaborators(
+    AxumPath(project_id): AxumPath<String>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<
+    Json<ApiListEnvelope<ProjectCollaboratorPayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let normalized_project_id = normalize_required_string(project_id).ok_or_else(|| {
+        problem_response(
+            "project-collaborators-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            "projectId is required.",
+        )
+    })?;
+    let app_admin_state = state.read_app_admin_state();
+    let project = app_admin_state
+        .projects
+        .iter()
+        .find(|project| project.id == normalized_project_id)
+        .cloned();
+    let Some(project) = project else {
+        return Err(problem_response(
+            "project-collaborators-project-not-found",
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "Project authority was not found.",
+        ));
+    };
+    if let Some(current_identity_id) =
+        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id)
+    {
+        let viewer_role = resolve_project_viewer_role(
+            &project,
+            &workspace_lookup_map(&app_admin_state.workspaces),
+            &app_admin_state.workspace_members,
+            &app_admin_state.project_collaborators,
+            &app_admin_state.members,
+            &current_identity_id,
+        );
+        if viewer_role.is_none() {
+            return Err(problem_response(
+                "project-collaborators-forbidden",
+                StatusCode::FORBIDDEN,
+                "forbidden",
+                "Current user is not allowed to read project collaborators.",
+            ));
+        }
+    }
+
+    let collaborators = app_admin_state
+        .project_collaborators
+        .into_iter()
+        .filter(|collaborator| collaborator.project_id == normalized_project_id)
+        .collect::<Vec<_>>();
+    Ok(Json(create_list_envelope(
+        "app-project-collaborators",
+        collaborators,
+    )))
+}
+
+async fn app_upsert_project_collaborator(
+    AxumPath(project_id): AxumPath<String>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<UpsertProjectCollaboratorRequest>,
+) -> Result<
+    (StatusCode, Json<ApiEnvelope<ProjectCollaboratorPayload>>),
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let normalized_project_id = normalize_required_string(project_id).ok_or_else(|| {
+        problem_response(
+            "project-collaborator-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            "projectId is required.",
+        )
+    })?;
+    let identity_id = normalize_required_string(request.identity_id).ok_or_else(|| {
+        problem_response(
+            "project-collaborator-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            "identityId is required.",
+        )
+    })?;
+    let role = normalize_collaboration_role(request.role)
+        .map_err(|message| {
+            problem_response(
+                "project-collaborator-invalid",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                message,
+            )
+        })?
+        .unwrap_or_else(|| "member".to_owned());
+    let status = normalize_collaboration_status(request.status)
+        .map_err(|message| {
+            problem_response(
+                "project-collaborator-invalid",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                message,
+            )
+        })?
+        .unwrap_or_else(|| "active".to_owned());
+    let team_id = normalize_optional_string(request.team_id);
+    let current_identity_id =
+        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
+    let app_admin_state = state.read_app_admin_state();
+    let project_projection = app_admin_state
+        .projects
+        .iter()
+        .find(|project| project.id == normalized_project_id)
+        .cloned();
+    if let (Some(project), Some(actor_identity_id)) =
+        (project_projection.as_ref(), current_identity_id.as_deref())
+    {
+        let viewer_role = resolve_project_viewer_role(
+            project,
+            &workspace_lookup_map(&app_admin_state.workspaces),
+            &app_admin_state.workspace_members,
+            &app_admin_state.project_collaborators,
+            &app_admin_state.members,
+            actor_identity_id,
+        );
+        if !matches!(viewer_role.as_deref(), Some("owner" | "admin")) {
+            return Err(problem_response(
+                "project-collaborator-forbidden",
+                StatusCode::FORBIDDEN,
+                "forbidden",
+                "Current user is not allowed to manage project collaborators.",
+            ));
+        }
+    }
+    let mut connection = state
+        .open_authority_connection_for_write()
+        .map_err(|error| {
+            problem_response(
+                "project-collaborator-authority-unavailable",
+                StatusCode::NOT_IMPLEMENTED,
+                "system_error",
+                error,
+            )
+        })?;
+
+    let project = load_provider_project_payload_by_id(&connection, &normalized_project_id)
+        .map_err(|error| {
+            problem_response(
+                "project-collaborator-project-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .ok_or_else(|| {
+            problem_response(
+                "project-collaborator-project-not-found",
+                StatusCode::NOT_FOUND,
+                "not_found",
+                "Project authority was not found.",
+            )
+        })?;
+
+    if let Some(normalized_team_id) = team_id.as_deref() {
+        let team_exists = load_provider_team_payloads(&connection)
+            .map_err(|error| {
+                problem_response(
+                    "project-collaborator-team-read-failed",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "system_error",
+                    error,
+                )
+            })?
+            .into_iter()
+            .any(|team| team.id == normalized_team_id && team.workspace_id == project.workspace_id);
+        if !team_exists {
+            return Err(problem_response(
+                "project-collaborator-team-not-found",
+                StatusCode::NOT_FOUND,
+                "not_found",
+                "Team authority was not found for the project workspace.",
+            ));
+        }
+    }
+
+    let now = current_storage_timestamp();
+    let created_by_identity_id = current_identity_id
+        .clone()
+        .or_else(|| normalize_optional_string(request.created_by_identity_id))
+        .or_else(|| project.created_by_identity_id.clone())
+        .or_else(|| project.owner_identity_id.clone())
+        .unwrap_or_else(|| BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID.to_owned());
+    let granted_by_identity_id = current_identity_id
+        .or_else(|| normalize_optional_string(request.granted_by_identity_id))
+        .unwrap_or_else(|| created_by_identity_id.clone());
+    let existing_collaborator = load_provider_project_collaborator_payloads(&connection)
+        .map_err(|error| {
+            problem_response(
+                "project-collaborator-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .into_iter()
+        .find(|collaborator| {
+            collaborator.project_id == normalized_project_id
+                && collaborator.identity_id == identity_id
+        });
+
+    let transaction = connection.transaction().map_err(|error| {
+        problem_response(
+            "project-collaborator-transaction-open-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to open project collaborator transaction: {error}"),
+        )
+    })?;
+
+    let collaborator_id = existing_collaborator
+        .as_ref()
+        .map(|collaborator| collaborator.id.clone())
+        .unwrap_or_else(|| create_identifier("project-collaborator"));
+    let created_at = existing_collaborator
+        .as_ref()
+        .and_then(|collaborator| collaborator.created_at.clone())
+        .unwrap_or_else(|| now.clone());
+
+    if existing_collaborator.is_some() {
+        transaction
+            .execute(
+                r#"
+                UPDATE project_collaborators
+                SET updated_at = ?2, team_id = ?3, role = ?4, created_by_identity_id = ?5, granted_by_identity_id = ?6, status = ?7, is_deleted = 0
+                WHERE id = ?1
+                "#,
+                params![
+                    &collaborator_id,
+                    &now,
+                    &team_id,
+                    &role,
+                    &created_by_identity_id,
+                    &granted_by_identity_id,
+                    &status,
+                ],
+            )
+            .map_err(|error| {
+                problem_response(
+                    "project-collaborator-upsert-failed",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "system_error",
+                    format!("Failed to update project collaborator authority: {error}"),
+                )
+            })?;
+    } else {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO project_collaborators (
+                    id, created_at, updated_at, version, is_deleted, project_id, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
+                ) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                "#,
+                params![
+                    &collaborator_id,
+                    &created_at,
+                    &now,
+                    &normalized_project_id,
+                    &project.workspace_id,
+                    &identity_id,
+                    &team_id,
+                    &role,
+                    &created_by_identity_id,
+                    &granted_by_identity_id,
+                    &status,
+                ],
+            )
+            .map_err(|error| {
+                problem_response(
+                    "project-collaborator-upsert-failed",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "system_error",
+                    format!("Failed to create project collaborator authority: {error}"),
+                )
+            })?;
+    }
+
+    if role == "owner" {
+        transaction
+            .execute(
+                r#"
+                UPDATE projects
+                SET updated_at = ?2, owner_identity_id = ?3
+                WHERE id = ?1 AND is_deleted = 0
+                "#,
+                params![&normalized_project_id, &now, &identity_id],
+            )
+            .map_err(|error| {
+                problem_response(
+                    "project-collaborator-owner-sync-failed",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "system_error",
+                    format!("Failed to sync project owner authority: {error}"),
+                )
+            })?;
+    }
+
+    transaction.commit().map_err(|error| {
+        problem_response(
+            "project-collaborator-transaction-commit-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to commit project collaborator authority: {error}"),
+        )
+    })?;
+
+    Ok((
+        if existing_collaborator.is_some() {
+            StatusCode::OK
+        } else {
+            StatusCode::CREATED
+        },
+        Json(create_envelope(
+            "app-upsert-project-collaborator",
+            ProjectCollaboratorPayload {
+                id: collaborator_id,
+                project_id: normalized_project_id,
+                workspace_id: project.workspace_id,
+                identity_id,
+                team_id,
+                role,
+                status,
+                created_by_identity_id: Some(created_by_identity_id),
+                granted_by_identity_id: Some(granted_by_identity_id),
+                created_at: Some(created_at),
+                updated_at: Some(now),
+            },
+        )),
+    ))
 }
 
 async fn app_documents(State(state): State<AppState>) -> Json<ApiListEnvelope<DocumentPayload>> {
@@ -4901,14 +7970,82 @@ async fn app_deployments(
     ))
 }
 
-async fn app_teams(State(state): State<AppState>) -> Json<ApiListEnvelope<TeamPayload>> {
+async fn app_teams(
+    Query(query): Query<WorkspaceScopedQuery>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Json<ApiListEnvelope<TeamPayload>> {
     let app_admin_state = state.read_app_admin_state();
-    Json(create_list_envelope("app-teams", app_admin_state.teams))
+    let workspace_filter = normalize_optional_string(query.workspace_id);
+    let identity_filter = normalize_optional_string(query.identity_id)
+        .or_else(|| try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id));
+    let teams = app_admin_state
+        .teams
+        .into_iter()
+        .filter(|team| {
+            if workspace_filter
+                .as_deref()
+                .is_some_and(|workspace_id| team.workspace_id != workspace_id)
+            {
+                return false;
+            }
+
+            identity_filter.as_deref().is_none_or(|identity_id| {
+                app_admin_state.members.iter().any(|member| {
+                    member.team_id == team.id
+                        && member.identity_id == identity_id
+                        && is_active_collaboration_status(&member.status)
+                }) || app_admin_state.workspaces.iter().find(|workspace| workspace.id == team.workspace_id).is_some_and(|workspace| {
+                    workspace_is_visible_to_identity(
+                        workspace,
+                        &app_admin_state.workspace_members,
+                        &app_admin_state.members,
+                        identity_id,
+                    )
+                })
+            })
+        })
+        .collect::<Vec<_>>();
+    Json(create_list_envelope("app-teams", teams))
 }
 
-async fn admin_teams(State(state): State<AppState>) -> Json<ApiListEnvelope<TeamPayload>> {
+async fn admin_teams(
+    Query(query): Query<WorkspaceScopedQuery>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Json<ApiListEnvelope<TeamPayload>> {
     let app_admin_state = state.read_app_admin_state();
-    Json(create_list_envelope("admin-teams", app_admin_state.teams))
+    let workspace_filter = normalize_optional_string(query.workspace_id);
+    let identity_filter = normalize_optional_string(query.identity_id)
+        .or_else(|| try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id));
+    let teams = app_admin_state
+        .teams
+        .into_iter()
+        .filter(|team| {
+            if workspace_filter
+                .as_deref()
+                .is_some_and(|workspace_id| team.workspace_id != workspace_id)
+            {
+                return false;
+            }
+
+            identity_filter.as_deref().is_none_or(|identity_id| {
+                app_admin_state.members.iter().any(|member| {
+                    member.team_id == team.id
+                        && member.identity_id == identity_id
+                        && is_active_collaboration_status(&member.status)
+                }) || app_admin_state.workspaces.iter().find(|workspace| workspace.id == team.workspace_id).is_some_and(|workspace| {
+                    workspace_is_visible_to_identity(
+                        workspace,
+                        &app_admin_state.workspace_members,
+                        &app_admin_state.members,
+                        identity_id,
+                    )
+                })
+            })
+        })
+        .collect::<Vec<_>>();
+    Json(create_list_envelope("admin-teams", teams))
 }
 
 async fn admin_deployment_targets(
@@ -5285,8 +8422,47 @@ fn build_app_with_state(state: AppState) -> Router {
             post(core_submit_approval_decision),
         )
         .route("/api/core/v1/operations/{operation_id}", get(core_operation))
-        .route("/api/app/v1/workspaces", get(app_workspaces))
-        .route("/api/app/v1/projects", get(app_projects))
+        .route("/api/app/v1/auth/config", get(app_user_center_config))
+        .route("/api/app/v1/auth/session", get(app_user_center_session))
+        .route("/api/app/v1/auth/login", post(app_user_center_login))
+        .route("/api/app/v1/auth/register", post(app_user_center_register))
+        .route("/api/app/v1/auth/logout", post(app_user_center_logout))
+        .route(
+            "/api/app/v1/auth/session/exchange",
+            post(app_user_center_exchange_session),
+        )
+        .route(
+            "/api/app/v1/user-center/profile",
+            get(app_user_center_profile).patch(app_update_user_center_profile),
+        )
+        .route(
+            "/api/app/v1/user-center/membership",
+            get(app_user_center_membership).patch(app_update_user_center_membership),
+        )
+        .route(
+            "/api/app/v1/workspaces",
+            get(app_workspaces).post(app_create_workspace),
+        )
+        .route(
+            "/api/app/v1/workspaces/{workspace_id}",
+            patch(app_update_workspace).delete(app_delete_workspace),
+        )
+        .route(
+            "/api/app/v1/workspaces/{workspace_id}/members",
+            get(app_workspace_members).post(app_upsert_workspace_member),
+        )
+        .route(
+            "/api/app/v1/projects",
+            get(app_projects).post(app_create_project),
+        )
+        .route(
+            "/api/app/v1/projects/{project_id}",
+            patch(app_update_project).delete(app_delete_project),
+        )
+        .route(
+            "/api/app/v1/projects/{project_id}/collaborators",
+            get(app_project_collaborators).post(app_upsert_project_collaborator),
+        )
         .route("/api/app/v1/documents", get(app_documents))
         .route("/api/app/v1/teams", get(app_teams))
         .route("/api/app/v1/deployments", get(app_deployments))
@@ -5340,11 +8516,18 @@ fn build_local_cors_layer() -> CorsLayer {
     let configured_allowed_origins = parse_configured_allowed_browser_origins();
 
     CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         .allow_headers([
             header::ACCEPT,
             header::AUTHORIZATION,
             header::CONTENT_TYPE,
+            HeaderName::from_static(BIRDCODER_SESSION_HEADER_NAME),
         ])
         .allow_origin(AllowOrigin::predicate(
             move |origin: &HeaderValue, _request_parts| {

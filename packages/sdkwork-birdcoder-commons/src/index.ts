@@ -1,31 +1,31 @@
 export const APP_NAME = 'SDKWork BirdCoder';
 export const APP_VERSION = '1.0.0';
 
-export * from './hooks/useDebounce';
-export * from './hooks/useWorkspaces';
-export * from './hooks/useProjects';
-export * from './hooks/useDocuments';
-export * from './hooks/useDeployments';
-export * from './hooks/useAdminDeployments';
-export * from './hooks/useAdminPolicies';
-export * from './hooks/useAuditEvents';
-export * from './hooks/useReleases';
-export * from './hooks/useCodingServerOverview';
-export * from './hooks/useCodingSessionProjection';
-export * from './hooks/useFileSystem';
-export * from './hooks/usePersistedState';
-export * from './hooks/useProjectRunConfigurations';
-export * from './hooks/useSessionRefreshActions';
-export * from './hooks/useWorkbenchPreferences';
-export * from './hooks/useCodingSessionActions';
-export * from './context/AuthContext';
-export * from './context/IDEContext';
-export * from './contexts/ToastProvider';
-export * from './utils/EventBus';
-export * from './storage/dataKernel';
-export * from './storage/localStore';
-export * from './chat/persistence';
-export * from './terminal/profiles';
+export * from './hooks/useDebounce.ts';
+export * from './hooks/useWorkspaces.ts';
+export * from './hooks/useProjects.ts';
+export * from './hooks/useDocuments.ts';
+export * from './hooks/useDeployments.ts';
+export * from './hooks/useAdminDeployments.ts';
+export * from './hooks/useAdminPolicies.ts';
+export * from './hooks/useAuditEvents.ts';
+export * from './hooks/useReleases.ts';
+export * from './hooks/useCodingServerOverview.ts';
+export * from './hooks/useCodingSessionProjection.ts';
+export * from './hooks/useFileSystem.ts';
+export * from './hooks/usePersistedState.ts';
+export * from './hooks/useProjectRunConfigurations.ts';
+export * from './hooks/useSessionRefreshActions.ts';
+export * from './hooks/useWorkbenchPreferences.ts';
+export * from './hooks/useCodingSessionActions.ts';
+export * from './context/AuthContext.ts';
+export * from './context/IDEContext.ts';
+export * from './contexts/ToastProvider.ts';
+export * from './utils/EventBus.ts';
+export * from './storage/dataKernel.ts';
+export * from './storage/localStore.ts';
+export * from './chat/persistence.ts';
+export * from './terminal/profiles.ts';
 export {
   TERMINAL_CLI_PROFILE_IDS,
   TERMINAL_CLI_PROFILE_REGISTRY,
@@ -33,27 +33,27 @@ export {
   isTerminalCliProfileId,
   normalizeTerminalCliExecutable,
   type TerminalCliProfileDefinition,
-} from './terminal/registry';
-export * from './terminal/runtime';
-export * from './terminal/auditStore';
-export * from './terminal/runConfigs';
-export * from './terminal/sessions';
-export * from './workbench/engines';
-export * from './workbench/editorRecovery';
-export * from './workbench/fileChangeRestore';
-export * from './workbench/fileSearch';
-export * from './workbench/localFolderProjectImport';
-export * from './workbench/projectMountRecovery';
-export * from './workbench/fileSelectionMutation';
-export * from './workbench/fileSystemRequestGuard';
-export * from './workbench/kernel';
-export * from './workbench/nativeCodexSessionStore';
-export * from './workbench/nativeCodexSessionMirror';
-export * from './workbench/preferences';
-export * from './workbench/recovery';
-export * from './workbench/runtime';
-export * from './workbench/sessionRefresh';
-export * from './workbench/sessionInventory';
+} from './terminal/registry.ts';
+export * from './terminal/runtime.ts';
+export * from './terminal/auditStore.ts';
+export * from './terminal/runConfigs.ts';
+export * from './terminal/sessions.ts';
+export * from './workbench/engines.ts';
+export * from './workbench/editorRecovery.ts';
+export * from './workbench/fileChangeRestore.ts';
+export * from './workbench/fileSearch.ts';
+export * from './workbench/localFolderProjectImport.ts';
+export * from './workbench/projectMountRecovery.ts';
+export * from './workbench/fileSelectionMutation.ts';
+export * from './workbench/fileSystemRequestGuard.ts';
+export * from './workbench/kernel.ts';
+export * from './workbench/nativeCodexSessionStore.ts';
+export * from './workbench/nativeCodexSessionMirror.ts';
+export * from './workbench/preferences.ts';
+export * from './workbench/recovery.ts';
+export * from './workbench/runtime.ts';
+export * from './workbench/sessionRefresh.ts';
+export * from './workbench/sessionInventory.ts';
 export {
   bindDefaultBirdCoderIdeServicesRuntime,
   configureDefaultBirdCoderIdeServicesRuntime,

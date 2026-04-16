@@ -1,4 +1,5 @@
 import type {
+  BirdCoderProjectSummary,
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderProject,
@@ -8,6 +9,7 @@ import type {
   BirdCoderCodingSessionMirrorSnapshot,
   BirdCoderProjectMirrorSnapshot,
   CreateCodingSessionOptions,
+  CreateProjectOptions,
   IProjectService,
 } from '../interfaces/IProjectService.ts';
 import type { BirdCoderTableRecordRepository } from '../../storage/dataKernel.ts';
@@ -27,6 +29,34 @@ const CODEX_NATIVE_MESSAGE_ID_SEGMENT = ':native-message:';
 
 function createIdentifier(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeProjectPathForComparison(path: string | null | undefined): string | null {
+  if (typeof path !== 'string') {
+    return null;
+  }
+
+  const trimmedPath = path.trim();
+  if (!trimmedPath) {
+    return null;
+  }
+
+  const isWindowsStylePath =
+    /^[a-zA-Z]:/u.test(trimmedPath) ||
+    trimmedPath.includes('\\') ||
+    trimmedPath.startsWith('\\\\');
+  const normalizedSeparators = trimmedPath.replace(/\\/gu, '/');
+  const collapsedPath = normalizedSeparators.startsWith('//')
+    ? `//${normalizedSeparators.slice(2).replace(/\/+/gu, '/')}`
+    : normalizedSeparators.replace(/\/+/gu, '/');
+  const withoutTrailingSeparator =
+    collapsedPath === '/'
+      ? collapsedPath
+      : collapsedPath.replace(/\/+$/u, '') || collapsedPath;
+
+  return isWindowsStylePath
+    ? withoutTrailingSeparator.toLowerCase()
+    : withoutTrailingSeparator;
 }
 
 function toDisplayTime(updatedAt: string): string {
@@ -195,7 +225,11 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     );
   }
 
-  async createProject(workspaceId: string, name: string): Promise<BirdCoderProject> {
+  async createProject(
+    workspaceId: string,
+    name: string,
+    options?: CreateProjectOptions,
+  ): Promise<BirdCoderProject> {
     const normalizedName = name.trim();
     if (!workspaceId.trim()) {
       throw new Error('Workspace ID is required to create a project');
@@ -204,13 +238,21 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       throw new Error('Project name is required');
     }
 
+    const existingProjectByPath = await this.findProjectByWorkspaceAndPath(workspaceId, options?.path);
+    if (existingProjectByPath) {
+      const sessions = await this.readProjectSessions(existingProjectByPath.id, {
+        refresh: true,
+      });
+      return this.mapProjectRecord(existingProjectByPath, sessions);
+    }
+
     const now = createTimestamp();
     const record = await this.repository.save({
       id: createIdentifier('project'),
       workspaceId,
       name: normalizedName,
-      description: undefined,
-      rootPath: undefined,
+      description: options?.description?.trim() || undefined,
+      rootPath: options?.path,
       status: 'active',
       createdAt: now,
       updatedAt: now,
@@ -219,6 +261,24 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     await this.recordTemplateInstantiationEvidence(record);
     this.sessionsByProjectId.set(record.id, []);
     return this.mapProjectRecord(record, []);
+  }
+
+  async syncProjectSummary(summary: BirdCoderProjectSummary): Promise<BirdCoderProject> {
+    const existingRecord = await this.repository.findById(summary.id);
+    const record = await this.repository.save({
+      id: summary.id,
+      workspaceId: summary.workspaceId,
+      name: summary.name.trim() || existingRecord?.name || summary.id,
+      description: summary.description?.trim() || existingRecord?.description,
+      rootPath: summary.rootPath?.trim() || existingRecord?.rootPath,
+      status: summary.status,
+      createdAt: existingRecord?.createdAt || summary.createdAt || createTimestamp(),
+      updatedAt: summary.updatedAt || createTimestamp(),
+    });
+    const sessions = await this.readProjectSessions(summary.id, {
+      refresh: true,
+    });
+    return this.mapProjectRecord(record, sessions);
   }
 
   async renameProject(projectId: string, name: string): Promise<void> {
@@ -232,6 +292,17 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
 
   async updateProject(projectId: string, updates: Partial<BirdCoderProject>): Promise<void> {
     const record = await this.readProjectRecord(projectId);
+    const conflictingProject = await this.findProjectByWorkspaceAndPath(
+      record.workspaceId,
+      updates.path,
+      projectId,
+    );
+    if (conflictingProject) {
+      throw new Error(
+        `Workspace already contains project "${conflictingProject.name}" for path "${updates.path}".`,
+      );
+    }
+
     await this.repository.save({
       ...record,
       name: updates.name?.trim() || record.name,
@@ -246,6 +317,28 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     await this.repository.delete(projectId);
     await this.deletePersistedProjectSessions(projectId);
     this.sessionsByProjectId.delete(projectId);
+  }
+
+  private async findProjectByWorkspaceAndPath(
+    workspaceId: string,
+    path: string | null | undefined,
+    excludedProjectId?: string,
+  ): Promise<BirdCoderRepresentativeProjectRecord | null> {
+    const normalizedPath = normalizeProjectPathForComparison(path);
+    if (!normalizedPath) {
+      return null;
+    }
+
+    const records = await this.repository.list();
+    return (
+      records.find((candidate) => {
+        if (candidate.workspaceId !== workspaceId || candidate.id === excludedProjectId) {
+          return false;
+        }
+
+        return normalizeProjectPathForComparison(candidate.rootPath) === normalizedPath;
+      }) ?? null
+    );
   }
 
   async createCodingSession(

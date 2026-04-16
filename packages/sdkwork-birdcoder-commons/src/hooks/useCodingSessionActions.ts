@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { globalEventBus } from '../utils/EventBus';
-import { useToast } from '../contexts/ToastProvider';
+import { globalEventBus } from '../utils/EventBus.ts';
+import { useToast } from '../contexts/ToastProvider.ts';
 
 export function useCodingSessionActions(
   currentProjectId: string | undefined,

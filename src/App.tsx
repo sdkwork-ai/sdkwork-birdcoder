@@ -620,6 +620,27 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeTab]);
 
+  const selectFolderAndImportProject = async (fallbackProjectName: string) => {
+    const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
+    const folderInfo = await openLocalFolder();
+    if (!folderInfo) {
+      return null;
+    }
+
+    return importLocalFolderProject({
+      createProject,
+      fallbackProjectName,
+      folderInfo,
+      getProjects: () =>
+        menuActiveWorkspaceId
+          ? projectService.getProjects(menuActiveWorkspaceId)
+          : Promise.resolve([]),
+      mountFolder: (projectId, nextFolderInfo) =>
+        fileSystemService.mountFolder(projectId, nextFolderInfo),
+      updateProject,
+    });
+  };
+
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWorkspaceName.trim()) return;
@@ -639,9 +660,33 @@ function AppContent() {
     e.preventDefault();
     if (!newProjectName.trim()) return;
     try {
-      const newProject = await createProject(newProjectName.trim());
+      const normalizedProjectName = newProjectName.trim();
+      const importedProject = await selectFolderAndImportProject(normalizedProjectName);
+      if (!importedProject) {
+        return;
+      }
+
+      if (
+        !importedProject.reusedExistingProject &&
+        importedProject.projectName !== normalizedProjectName
+      ) {
+        await updateProject(importedProject.projectId, {
+          name: normalizedProjectName,
+        });
+      }
+
+      try {
+        await ensureStoredNativeCodexSessionMirror({
+          projectService,
+          workspaceId: menuActiveWorkspaceId,
+        });
+        await refreshActiveProjects();
+      } catch (error) {
+        console.error('Failed to synchronize imported native Codex sessions', error);
+      }
+
       setActiveWorkspaceId(menuActiveWorkspaceId);
-      setActiveProjectId(newProject.id);
+      setActiveProjectId(importedProject.projectId);
       setIsCreatingProject(false);
       setNewProjectName('');
       setShowWorkspaceMenu(false);
@@ -802,18 +847,8 @@ function AppContent() {
 
   const handleOpenFolder = async () => {
     try {
-      const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
-      const folderInfo = await openLocalFolder();
-      if (folderInfo) {
-        const importedProject = await importLocalFolderProject({
-          createProject,
-          fallbackProjectName: t('app.localFolder'),
-          folderInfo,
-          mountFolder: (projectId, nextFolderInfo) =>
-            fileSystemService.mountFolder(projectId, nextFolderInfo),
-          updateProject,
-        });
-
+      const importedProject = await selectFolderAndImportProject(t('app.localFolder'));
+      if (importedProject) {
         try {
           await ensureStoredNativeCodexSessionMirror({
             projectService,

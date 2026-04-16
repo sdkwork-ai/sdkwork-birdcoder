@@ -2,9 +2,11 @@ import {
   createBirdCoderGeneratedAppAdminApiClient,
   createBirdCoderGeneratedCoreReadApiClient,
   createBirdCoderGeneratedCoreWriteApiClient,
+  createBirdCoderGeneratedUserCenterApiClient,
   type BirdCoderAppAdminApiClient,
   type BirdCoderCoreReadApiClient,
   type BirdCoderCoreWriteApiClient,
+  type BirdCoderUserCenterApiClient,
 } from '@sdkwork/birdcoder-types';
 import {
   createBirdCoderStorageProvider,
@@ -18,7 +20,7 @@ import {
   createBirdCoderHttpApiTransport,
   createBirdCoderInProcessAppAdminApiTransport,
 } from './appAdminApiClient.ts';
-import { MockAuthService } from './impl/MockAuthService.ts';
+import { resolveRuntimeServerSessionHeaders } from './runtimeServerSession.ts';
 import { ApiBackedAdminDeploymentService } from './impl/ApiBackedAdminDeploymentService.ts';
 import { ApiBackedAdminPolicyService } from './impl/ApiBackedAdminPolicyService.ts';
 import { ApiBackedAuditService } from './impl/ApiBackedAuditService.ts';
@@ -26,7 +28,8 @@ import { ApiBackedCoreReadService } from './impl/ApiBackedCoreReadService.ts';
 import { ApiBackedCoreWriteService } from './impl/ApiBackedCoreWriteService.ts';
 import { ApiBackedDeploymentService } from './impl/ApiBackedDeploymentService.ts';
 import { ApiBackedDocumentService } from './impl/ApiBackedDocumentService.ts';
-import { MockFileSystemService } from './impl/MockFileSystemService.ts';
+import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
+import { RuntimeAuthService } from './impl/RuntimeAuthService.ts';
 import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
 import { ApiBackedReleaseService } from './impl/ApiBackedReleaseService.ts';
 import { ApiBackedTeamService } from './impl/ApiBackedTeamService.ts';
@@ -81,6 +84,7 @@ function resolveRuntimeAppAdminClient(): BirdCoderAppAdminApiClient | undefined 
     return createBirdCoderGeneratedAppAdminApiClient({
       transport: createBirdCoderHttpApiTransport({
         baseUrl: runtimeConfig.apiBaseUrl,
+        resolveHeaders: resolveRuntimeServerSessionHeaders,
       }),
     });
   }
@@ -98,6 +102,7 @@ function resolveRuntimeCoreReadClient(): BirdCoderCoreReadApiClient | undefined 
     return createBirdCoderGeneratedCoreReadApiClient({
       transport: createBirdCoderHttpApiTransport({
         baseUrl: runtimeConfig.apiBaseUrl,
+        resolveHeaders: resolveRuntimeServerSessionHeaders,
       }),
     });
   }
@@ -115,11 +120,80 @@ function resolveRuntimeCoreWriteClient(): BirdCoderCoreWriteApiClient | undefine
     return createBirdCoderGeneratedCoreWriteApiClient({
       transport: createBirdCoderHttpApiTransport({
         baseUrl: runtimeConfig.apiBaseUrl,
+        resolveHeaders: resolveRuntimeServerSessionHeaders,
       }),
     });
   }
 
   return undefined;
+}
+
+function resolveRuntimeUserCenterClient(): BirdCoderUserCenterApiClient | undefined {
+  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
+  if (!runtimeConfig.apiBaseUrl) {
+    return undefined;
+  }
+
+  return createBirdCoderGeneratedUserCenterApiClient({
+    transport: createBirdCoderHttpApiTransport({
+      baseUrl: runtimeConfig.apiBaseUrl,
+      resolveHeaders: resolveRuntimeServerSessionHeaders,
+    }),
+  });
+}
+
+export function createInProcessBirdCoderAppAdminClient(
+  queries: ReturnType<typeof createBirdCoderAppAdminConsoleQueries>,
+): BirdCoderAppAdminApiClient {
+  return createBirdCoderGeneratedAppAdminApiClient({
+    transport: createBirdCoderInProcessAppAdminApiTransport({
+      queries,
+    }),
+  });
+}
+
+function createUnavailableBirdCoderAppAdminClient(): BirdCoderAppAdminApiClient {
+  const createUnavailableError = () =>
+    new Error('App/admin service requires a bound coding-server runtime or an injected appAdminClient.');
+
+  return {
+    async listAdminDeployments() {
+      throw createUnavailableError();
+    },
+    async listAdminTeams() {
+      throw createUnavailableError();
+    },
+    async listAuditEvents() {
+      throw createUnavailableError();
+    },
+    async listDeploymentTargets() {
+      throw createUnavailableError();
+    },
+    async listDeployments() {
+      throw createUnavailableError();
+    },
+    async listDocuments() {
+      throw createUnavailableError();
+    },
+    async listPolicies() {
+      throw createUnavailableError();
+    },
+    async listProjects() {
+      throw createUnavailableError();
+    },
+    async listReleases() {
+      throw createUnavailableError();
+    },
+    async listTeamMembers() {
+      throw createUnavailableError();
+    },
+    async listTeams() {
+      throw createUnavailableError();
+    },
+    async listWorkspaces() {
+      throw createUnavailableError();
+    },
+  };
 }
 
 function createUnavailableBirdCoderCoreReadClient(): BirdCoderCoreReadApiClient {
@@ -183,6 +257,7 @@ function createUnavailableBirdCoderCoreWriteClient(): BirdCoderCoreWriteApiClien
 export function createDefaultBirdCoderIdeServices(
   options: CreateBirdCoderDefaultIdeServicesOptions = {},
 ): BirdCoderDefaultIdeServices {
+  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
   const provider = options.storageProvider ?? createBirdCoderStorageProvider('sqlite');
   const repositories = createBirdCoderConsoleRepositories({
     providerId: provider.providerId,
@@ -197,22 +272,19 @@ export function createDefaultBirdCoderIdeServices(
       providerId: provider.providerId,
       storage: provider,
     });
-  const queries = createBirdCoderAppAdminConsoleQueries({
-    repositories,
-  });
   const appAdminClient =
     options.appAdminClient ??
     resolveRuntimeAppAdminClient() ??
-    createBirdCoderGeneratedAppAdminApiClient({
-      transport: createBirdCoderInProcessAppAdminApiTransport({
-        queries,
-      }),
-    });
+    createUnavailableBirdCoderAppAdminClient();
   const projectServiceCoreReadClient = options.coreReadClient ?? resolveRuntimeCoreReadClient();
   const coreReadClient =
     projectServiceCoreReadClient ?? createUnavailableBirdCoderCoreReadClient();
   const coreWriteClient = options.coreWriteClient ?? resolveRuntimeCoreWriteClient();
   const exposedCoreWriteClient = coreWriteClient ?? createUnavailableBirdCoderCoreWriteClient();
+  const preferRemoteAuthorityWrites =
+    options.appAdminClient === undefined &&
+    typeof runtimeConfig.apiBaseUrl === 'string' &&
+    runtimeConfig.apiBaseUrl.trim().length > 0;
   const providerBackedWorkspaceService = new ProviderBackedWorkspaceService({
     repository: repositories.workspaces,
   });
@@ -220,6 +292,9 @@ export function createDefaultBirdCoderIdeServices(
     codingSessionRepositories,
     evidenceRepositories: promptSkillTemplateEvidenceRepositories,
     repository: repositories.projects,
+  });
+  const authService = new RuntimeAuthService({
+    client: resolveRuntimeUserCenterClient(),
   });
 
   return {
@@ -229,7 +304,7 @@ export function createDefaultBirdCoderIdeServices(
     adminPolicyService: new ApiBackedAdminPolicyService({
       client: appAdminClient,
     }),
-    authService: new MockAuthService(),
+    authService,
     auditService: new ApiBackedAuditService({
       client: appAdminClient,
     }),
@@ -245,12 +320,15 @@ export function createDefaultBirdCoderIdeServices(
     documentService: new ApiBackedDocumentService({
       client: appAdminClient,
     }),
-    fileSystemService: new MockFileSystemService(),
+    fileSystemService: new RuntimeFileSystemService(),
     projectService: new ApiBackedProjectService({
       client: appAdminClient,
       codingSessionMirror: providerBackedProjectService,
       coreReadClient: projectServiceCoreReadClient,
       coreWriteClient,
+      identityProvider: authService,
+      preferRemoteWrites: preferRemoteAuthorityWrites,
+      projectMirror: providerBackedProjectService,
       writeService: providerBackedProjectService,
     }),
     releaseService: new ApiBackedReleaseService({
@@ -258,9 +336,13 @@ export function createDefaultBirdCoderIdeServices(
     }),
     teamService: new ApiBackedTeamService({
       client: appAdminClient,
+      identityProvider: authService,
     }),
     workspaceService: new ApiBackedWorkspaceService({
       client: appAdminClient,
+      identityProvider: authService,
+      preferRemoteWrites: preferRemoteAuthorityWrites,
+      workspaceMirror: providerBackedWorkspaceService,
       writeService: providerBackedWorkspaceService,
     }),
   };

@@ -32,6 +32,9 @@ export interface IWorkspace {
   name: string;
   description?: string;
   icon?: string;
+  ownerIdentityId?: string;
+  createdByIdentityId?: string;
+  viewerRole?: 'owner' | 'admin' | 'member' | 'viewer';
 }
 
 export interface FileChange {
@@ -100,6 +103,9 @@ export interface BirdCoderProject {
   name: string;
   description?: string;
   path?: string;
+  ownerIdentityId?: string;
+  createdByIdentityId?: string;
+  viewerRole?: 'owner' | 'admin' | 'member' | 'viewer';
   createdAt: string;
   updatedAt: string;
   codingSessions: BirdCoderCodingSession[];
@@ -112,6 +118,8 @@ export interface BirdCoderTeam {
   name: string;
   description?: string;
   status: 'active' | 'archived';
+  ownerIdentityId?: string;
+  createdByIdentityId?: string;
 }
 
 export * from './coding-session.ts';

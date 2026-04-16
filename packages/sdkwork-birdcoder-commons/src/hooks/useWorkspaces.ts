@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { IWorkspace } from '@sdkwork/birdcoder-types';
-import { useIDEServices } from '../context/IDEContext';
+import type { IWorkspace } from '@sdkwork/birdcoder-types';
+import { useIDEServices } from '../context/IDEContext.ts';
 
 export function useWorkspaces() {
   const { workspaceService } = useIDEServices();

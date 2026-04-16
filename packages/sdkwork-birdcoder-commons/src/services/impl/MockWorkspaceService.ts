@@ -1,5 +1,5 @@
-import { IWorkspace } from '@sdkwork/birdcoder-types';
-import { IWorkspaceService } from '../interfaces/IWorkspaceService';
+import type { IWorkspace } from '@sdkwork/birdcoder-types';
+import type { IWorkspaceService } from '../interfaces/IWorkspaceService.ts';
 
 const MOCK_WORKSPACES: IWorkspace[] = [
   { id: 'ws-1', name: 'Personal', description: 'My personal projects', icon: 'User' },

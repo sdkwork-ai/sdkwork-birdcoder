@@ -26,6 +26,7 @@ export interface CreateBirdCoderInProcessAppAdminApiTransportOptions {
 export interface CreateBirdCoderHttpApiTransportOptions {
   baseUrl: string;
   fetchImpl?: typeof fetch;
+  resolveHeaders?: () => Record<string, string | undefined>;
 }
 
 type BirdCoderFetchLike = typeof fetch;
@@ -220,6 +221,7 @@ function resolveFetchLike(fetchImpl?: BirdCoderFetchLike): BirdCoderFetchLike {
 export function createBirdCoderHttpApiTransport({
   baseUrl,
   fetchImpl,
+  resolveHeaders,
 }: CreateBirdCoderHttpApiTransportOptions): BirdCoderApiTransport {
   const resolvedFetch = resolveFetchLike(fetchImpl);
   return {
@@ -227,6 +229,16 @@ export function createBirdCoderHttpApiTransport({
       const headers: Record<string, string> = {
         Accept: 'application/json',
       };
+      for (const [key, value] of Object.entries(resolveHeaders?.() ?? {})) {
+        if (typeof value === 'string' && value.trim().length > 0) {
+          headers[key] = value;
+        }
+      }
+      for (const [key, value] of Object.entries(request.headers ?? {})) {
+        if (typeof value === 'string' && value.trim().length > 0) {
+          headers[key] = value;
+        }
+      }
 
       if (request.body !== undefined) {
         headers['Content-Type'] = 'application/json';

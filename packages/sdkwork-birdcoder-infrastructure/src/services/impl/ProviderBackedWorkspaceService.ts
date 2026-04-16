@@ -1,4 +1,4 @@
-import type { IWorkspace } from '@sdkwork/birdcoder-types';
+import type { BirdCoderWorkspaceSummary, IWorkspace } from '@sdkwork/birdcoder-types';
 import type { IWorkspaceService } from '../interfaces/IWorkspaceService.ts';
 import type { BirdCoderTableRecordRepository } from '../../storage/dataKernel.ts';
 import type { BirdCoderWorkspaceRecord } from '../../storage/appConsoleRepository.ts';
@@ -55,6 +55,23 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
       description: description?.trim() || undefined,
       ownerIdentityId: this.defaultOwnerIdentityId,
       createdAt: now,
+      updatedAt: now,
+    });
+    return mapWorkspaceRecordToWorkspace(record);
+  }
+
+  async syncWorkspaceSummary(summary: BirdCoderWorkspaceSummary): Promise<IWorkspace> {
+    const existingRecord = await this.repository.findById(summary.id);
+    const now = createTimestamp();
+    const record = await this.repository.save({
+      id: summary.id,
+      name: summary.name.trim() || existingRecord?.name || summary.id,
+      description: summary.description?.trim() || existingRecord?.description,
+      ownerIdentityId:
+        summary.ownerIdentityId?.trim() ||
+        existingRecord?.ownerIdentityId ||
+        this.defaultOwnerIdentityId,
+      createdAt: existingRecord?.createdAt || now,
       updatedAt: now,
     });
     return mapWorkspaceRecordToWorkspace(record);

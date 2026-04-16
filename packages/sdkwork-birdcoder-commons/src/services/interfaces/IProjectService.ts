@@ -10,6 +10,11 @@ export interface CreateCodingSessionOptions {
   modelId?: string;
 }
 
+export interface CreateProjectOptions {
+  description?: string;
+  path?: string;
+}
+
 export interface BirdCoderCodingSessionMirrorSnapshot extends BirdCoderCodingSessionSummary {
   archived?: boolean;
   displayTime: string;
@@ -26,7 +31,11 @@ export interface BirdCoderProjectMirrorSnapshot extends Omit<BirdCoderProject, '
 export interface IProjectService {
   getProjects(workspaceId?: string): Promise<BirdCoderProject[]>;
   getProjectMirrorSnapshots?(workspaceId?: string): Promise<BirdCoderProjectMirrorSnapshot[]>;
-  createProject(workspaceId: string, name: string): Promise<BirdCoderProject>;
+  createProject(
+    workspaceId: string,
+    name: string,
+    options?: CreateProjectOptions,
+  ): Promise<BirdCoderProject>;
   renameProject(projectId: string, name: string): Promise<void>;
   updateProject(projectId: string, updates: Partial<BirdCoderProject>): Promise<void>;
   deleteProject(projectId: string): Promise<void>;

@@ -9,7 +9,12 @@ import {
   Star,
   Tag,
 } from 'lucide-react';
-import { useProjects, useToast } from '@sdkwork/birdcoder-commons';
+import {
+  importLocalFolderProject,
+  useIDEServices,
+  useProjects,
+  useToast,
+} from '@sdkwork/birdcoder-commons';
 
 interface Template {
   id: string;
@@ -193,7 +198,8 @@ interface TemplatesPageProps {
 }
 
 export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPageProps) {
-  const { createProject } = useProjects(workspaceId);
+  const { createProject, updateProject } = useProjects(workspaceId);
+  const { fileSystemService, projectService } = useIDEServices();
   const { addToast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | Template['category']>('all');
@@ -213,6 +219,29 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
     });
   }, [activeCategory, searchQuery]);
 
+  async function selectFolderAndImportProject(fallbackProjectName: string) {
+    const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
+    const folderInfo = await openLocalFolder();
+    if (!folderInfo) {
+      return null;
+    }
+
+    const normalizedWorkspaceId = workspaceId?.trim() ?? '';
+
+    return importLocalFolderProject({
+      createProject,
+      fallbackProjectName,
+      folderInfo,
+      getProjects: () =>
+        normalizedWorkspaceId
+          ? projectService.getProjects(normalizedWorkspaceId)
+          : Promise.resolve([]),
+      mountFolder: (projectId, nextFolderInfo) =>
+        fileSystemService.mountFolder(projectId, nextFolderInfo),
+      updateProject,
+    });
+  }
+
   async function handleCreateProjectFromTemplate(template: Template) {
     if (!workspaceId) {
       addToast('Select a workspace before creating a project from a template.', 'error');
@@ -221,9 +250,17 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
 
     setSelectedTemplateId(template.id);
     try {
-      const project = await createProject(template.title);
+      const project = await selectFolderAndImportProject(template.title);
+      if (!project) {
+        return;
+      }
+      if (!project.reusedExistingProject && project.projectName !== template.title) {
+        await updateProject(project.projectId, {
+          name: template.title,
+        });
+      }
       addToast(`Created "${template.title}" from templates.`, 'success');
-      onProjectCreated?.(project.id);
+      onProjectCreated?.(project.projectId);
     } catch (error) {
       addToast(`Failed to create "${template.title}".`, 'error');
     } finally {

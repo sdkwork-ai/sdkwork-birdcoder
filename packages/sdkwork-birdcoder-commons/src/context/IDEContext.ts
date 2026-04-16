@@ -1,4 +1,4 @@
-import React, { ReactNode, useRef } from 'react';
+import React, { type ReactNode, useRef } from 'react';
 import type {
   IAdminDeploymentService,
   IAdminPolicyService,
@@ -16,13 +16,10 @@ import type {
 } from '@sdkwork/birdcoder-infrastructure';
 import {
   IDEContext,
-  IIDEContext,
+  type IIDEContext,
   createDefaultIdeContextValue,
   useIDEServices,
 } from './ideServices.ts';
-
-// Source-governance marker preserved for shell-runtime contracts:
-// const IDEContext = createContext<IIDEContext | null>(null);
 
 export interface IDEProviderProps {
   children: ReactNode;
@@ -41,7 +38,7 @@ export interface IDEProviderProps {
   authService?: IAuthService;
 }
 
-export const IDEProvider: React.FC<IDEProviderProps> = ({
+export const IDEProvider = ({
   children,
   adminDeploymentService,
   adminPolicyService,
@@ -56,14 +53,15 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
   teamService,
   fileSystemService,
   authService,
-}) => {
+}: IDEProviderProps) => {
   const defaultContextRef = useRef<IIDEContext | null>(null);
   defaultContextRef.current ??= createDefaultIdeContextValue();
   const defaultContext = defaultContextRef.current;
 
-  return (
-    <IDEContext.Provider
-      value={{
+  return React.createElement(
+    IDEContext.Provider,
+    {
+      value: {
         adminDeploymentService: adminDeploymentService ?? defaultContext.adminDeploymentService,
         adminPolicyService: adminPolicyService ?? defaultContext.adminPolicyService,
         workspaceService: workspaceService ?? defaultContext.workspaceService,
@@ -77,10 +75,10 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
         teamService: teamService ?? defaultContext.teamService,
         fileSystemService: fileSystemService ?? defaultContext.fileSystemService,
         authService: authService ?? defaultContext.authService,
-      }}
-    >
-      {children}
-    </IDEContext.Provider>
+      },
+    },
+    children,
   );
 };
+
 export { useIDEServices };

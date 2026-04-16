@@ -7,6 +7,7 @@ import type {
   BirdCoderCodingSessionMirrorSnapshot,
   BirdCoderProjectMirrorSnapshot,
   CreateCodingSessionOptions,
+  CreateProjectOptions,
   IProjectService,
 } from '../interfaces/IProjectService.ts';
 
@@ -224,12 +225,18 @@ export class MockProjectService implements IProjectService {
     });
   }
 
-  async createProject(workspaceId: string, name: string): Promise<BirdCoderProject> {
+  async createProject(
+    workspaceId: string,
+    name: string,
+    options?: CreateProjectOptions,
+  ): Promise<BirdCoderProject> {
     const now = createIsoTimestamp();
     const newProject: BirdCoderProject = {
       id: `p-${Date.now()}`,
       workspaceId,
       name,
+      description: options?.description,
+      path: options?.path,
       createdAt: now,
       updatedAt: now,
       codingSessions: [],

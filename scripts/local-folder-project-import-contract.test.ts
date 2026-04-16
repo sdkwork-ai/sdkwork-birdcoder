@@ -20,8 +20,8 @@ const browserFolderInfo = {
 
 const browserCalls: string[] = [];
 const browserImportResult = await importLocalFolderProject({
-  createProject: async (name: string) => {
-    browserCalls.push(`create:${name}`);
+  createProject: async (name: string, options?: { path?: string }) => {
+    browserCalls.push(`create:${name}:${options?.path ?? ''}`);
     return { id: 'browser-project' };
   },
   fallbackProjectName: 'Local Folder',
@@ -38,11 +38,11 @@ assert.deepEqual(browserImportResult, {
   projectId: 'browser-project',
   projectName: 'sample-browser-app',
   projectPath: '/sample-browser-app',
+  reusedExistingProject: false,
 });
 assert.deepEqual(browserCalls, [
-  'create:sample-browser-app',
+  'create:sample-browser-app:/sample-browser-app',
   'mount:browser-project:browser',
-  'update:browser-project:/sample-browser-app',
 ]);
 
 const tauriFolderInfo = {
@@ -52,12 +52,13 @@ const tauriFolderInfo = {
 
 const tauriCalls: string[] = [];
 const tauriImportResult = await importLocalFolderProject({
-  createProject: async (name: string) => {
-    tauriCalls.push(`create:${name}`);
+  createProject: async (name: string, options?: { path?: string }) => {
+    tauriCalls.push(`create:${name}:${options?.path ?? ''}`);
     return { id: 'desktop-project' };
   },
   fallbackProjectName: 'Local Folder',
   folderInfo: tauriFolderInfo,
+  getProjects: async () => [],
   mountFolder: async (projectId: string, folderInfo: LocalFolderMountSource) => {
     tauriCalls.push(`mount:${projectId}:${folderInfo.type}:${folderInfo.type === 'tauri' ? folderInfo.path : folderInfo.handle.name}`);
   },
@@ -70,11 +71,11 @@ assert.deepEqual(tauriImportResult, {
   projectId: 'desktop-project',
   projectName: 'sample-desktop-app',
   projectPath: 'D:\\repos\\sample-desktop-app',
+  reusedExistingProject: false,
 });
 assert.deepEqual(tauriCalls, [
-  'create:sample-desktop-app',
+  'create:sample-desktop-app:D:\\repos\\sample-desktop-app',
   'mount:desktop-project:tauri:D:\\repos\\sample-desktop-app',
-  'update:desktop-project:D:\\repos\\sample-desktop-app',
 ]);
 
 const rebindBrowserCalls: string[] = [];
@@ -94,6 +95,7 @@ assert.deepEqual(reboundBrowserProject, {
   projectId: 'existing-browser-project',
   projectName: 'sample-browser-app',
   projectPath: '/sample-browser-app',
+  reusedExistingProject: false,
 });
 assert.deepEqual(rebindBrowserCalls, [
   'mount:existing-browser-project:browser',
@@ -119,6 +121,7 @@ assert.deepEqual(reboundTauriProject, {
   projectId: 'existing-desktop-project',
   projectName: 'sample-desktop-app',
   projectPath: 'D:\\repos\\sample-desktop-app',
+  reusedExistingProject: false,
 });
 assert.deepEqual(rebindTauriCalls, [
   'mount:existing-desktop-project:tauri:D:\\repos\\sample-desktop-app',

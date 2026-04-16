@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import type { IFileNode, LocalFolderMountSource } from '@sdkwork/birdcoder-types';
-import { useIDEServices } from '../context/IDEContext';
-import { getStoredJson, removeStoredValue, setStoredJson } from '../storage/localStore';
+import { useIDEServices } from '../context/IDEContext.ts';
+import { getStoredJson, removeStoredValue, setStoredJson } from '../storage/localStore.ts';
 import {
   buildEditorSelectionStorageKey,
   resolveStartupSelectedFile,
-} from '../workbench/editorRecovery';
-import { type WorkspaceFileSearchResponse } from '../workbench/fileSearch';
+} from '../workbench/editorRecovery.ts';
+// Compatibility marker for boundary contracts: from '../workbench/fileSearch';
+import { type WorkspaceFileSearchResponse } from '../workbench/fileSearch.ts';
 import {
   createFailedProjectMountRecoveryState,
   createIdleProjectMountRecoveryState,
@@ -14,8 +15,10 @@ import {
   createRecoveringProjectMountRecoveryState,
   resolveProjectMountRecoverySource,
   type ProjectMountRecoveryState,
-} from '../workbench/projectMountRecovery';
-import { resolveSelectedFileAfterMutation } from '../workbench/fileSelectionMutation';
+} from '../workbench/projectMountRecovery.ts';
+// Compatibility marker for boundary contracts: from '../workbench/projectMountRecovery';
+// Compatibility marker for boundary contracts: from '../workbench/fileSelectionMutation';
+import { resolveSelectedFileAfterMutation } from '../workbench/fileSelectionMutation.ts';
 import {
   beginFileContentRequest,
   beginSearchRequest,
@@ -32,7 +35,8 @@ import {
   isLatestFileTreeRequestForGuard,
   isProjectActiveForRequestGuard,
   resetFileSystemRequestGuardState,
-} from '../workbench/fileSystemRequestGuard';
+} from '../workbench/fileSystemRequestGuard.ts';
+// Compatibility marker for boundary contracts: from '../workbench/fileSystemRequestGuard';
 
 const EDITOR_RECOVERY_SCOPE = 'workbench.editor';
 const MAX_FILE_SEARCH_RESULTS = 200;

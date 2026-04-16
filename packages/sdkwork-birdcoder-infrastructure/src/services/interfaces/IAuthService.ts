@@ -1,8 +1,16 @@
-import type { User } from '@sdkwork/birdcoder-types';
+import type {
+  BirdCoderUserCenterMetadataSummary,
+  BirdCoderUserCenterSessionExchangeRequest,
+  User,
+} from '@sdkwork/birdcoder-types';
 
 export interface IAuthService {
-  login(email: string, password?: string): Promise<User>;
-  register(email: string, password?: string, name?: string): Promise<User>;
-  logout(): Promise<void>;
+  exchangeUserCenterSession?(
+    request: BirdCoderUserCenterSessionExchangeRequest,
+  ): Promise<User>;
+  getUserCenterConfig?(): Promise<BirdCoderUserCenterMetadataSummary | null>;
   getCurrentUser(): Promise<User | null>;
+  login(email: string, password?: string): Promise<User>;
+  logout(): Promise<void>;
+  register(email: string, password?: string, name?: string): Promise<User>;
 }

@@ -7,7 +7,12 @@ interface ProjectIdentifier {
 type ProjectPathCandidate = Pick<BirdCoderProject, 'id' | 'name' | 'path'>;
 
 export interface ImportLocalFolderProjectOptions {
-  createProject: (name: string) => Promise<ProjectIdentifier>;
+  createProject: (
+    name: string,
+    options?: {
+      path?: string;
+    },
+  ) => Promise<ProjectIdentifier>;
   fallbackProjectName: string;
   folderInfo: LocalFolderMountSource;
   getProjects?: () => Promise<ProjectPathCandidate[]>;
@@ -19,6 +24,7 @@ export interface ImportedLocalFolderProject {
   projectId: string;
   projectName: string;
   projectPath: string;
+  reusedExistingProject: boolean;
 }
 
 export interface RebindLocalFolderProjectOptions {
@@ -29,22 +35,47 @@ export interface RebindLocalFolderProjectOptions {
   updateProject: (projectId: string, updates: { path?: string }) => Promise<void>;
 }
 
+function isWindowsDriveRootPath(path: string): boolean {
+  return /^[a-zA-Z]:[\\/]?$/u.test(path);
+}
+
+function isPosixRootPath(path: string): boolean {
+  return /^\/+$/u.test(path);
+}
+
+function isAbsoluteTauriFolderPath(path: string): boolean {
+  return /^[a-zA-Z]:[\\/]/u.test(path) || path.startsWith('\\\\') || path.startsWith('/');
+}
+
 function trimTrailingPathSeparators(path: string): string {
   const normalizedPath = path.trim();
   if (!normalizedPath) {
     return normalizedPath;
   }
 
-  if (/^[a-zA-Z]:[\\/]?$/.test(normalizedPath)) {
-    return normalizedPath[0].toUpperCase() + ':';
+  if (isWindowsDriveRootPath(normalizedPath)) {
+    return `${normalizedPath[0].toUpperCase()}:\\`;
+  }
+
+  if (isPosixRootPath(normalizedPath)) {
+    return '/';
   }
 
   return normalizedPath.replace(/[\\/]+$/, '');
 }
 
 function resolveTauriFolderPath(path: string): string {
-  const normalizedPath = trimTrailingPathSeparators(path);
-  return normalizedPath || path.trim();
+  const trimmedPath = path.trim();
+  if (!trimmedPath) {
+    return trimmedPath;
+  }
+
+  const normalizedPath = trimTrailingPathSeparators(trimmedPath) || trimmedPath;
+  if (!isAbsoluteTauriFolderPath(normalizedPath)) {
+    throw new Error('Local folder import requires an absolute folder path.');
+  }
+
+  return normalizedPath;
 }
 
 function resolveTauriFolderName(path: string, fallbackProjectName: string): string {
@@ -120,12 +151,38 @@ function findExistingProjectByPath(
     return null;
   }
 
-  return (
-    projects.find((project) => {
-      const normalizedProjectPath = normalizeProjectPathForComparison(project.path);
-      return normalizedProjectPath === normalizedImportedPath;
-    }) ?? null
-  );
+  const matchingProjects = projects
+    .map((project) => {
+      const trimmedProjectPath = project.path?.trim() ?? '';
+      const normalizedProjectPath = normalizeProjectPathForComparison(trimmedProjectPath);
+
+      if (!normalizedProjectPath || normalizedProjectPath !== normalizedImportedPath) {
+        return null;
+      }
+
+      const isExactPathMatch = trimmedProjectPath === projectPath;
+      const isCanonicalPathMatch =
+        !isExactPathMatch &&
+        trimmedProjectPath.length > 0 &&
+        resolveTauriFolderPath(trimmedProjectPath) === projectPath;
+
+      return {
+        project,
+        score: isExactPathMatch ? 2 : isCanonicalPathMatch ? 1 : 0,
+      };
+    })
+    .filter((candidate): candidate is { project: ProjectPathCandidate; score: number } => {
+      return candidate !== null;
+    })
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+
+      return left.project.id.localeCompare(right.project.id);
+    });
+
+  return matchingProjects[0]?.project ?? null;
 }
 
 export async function importLocalFolderProject(
@@ -137,23 +194,36 @@ export async function importLocalFolderProject(
     options.fallbackProjectName,
   );
   const projectPath = resolveImportedProjectPath(normalizedFolderInfo);
-  const existingProject =
-    normalizedFolderInfo.type === 'tauri' && options.getProjects
-      ? findExistingProjectByPath(await options.getProjects(), projectPath)
-      : null;
+  let existingProject: ProjectPathCandidate | null = null;
+
+  if (normalizedFolderInfo.type === 'tauri') {
+    if (!options.getProjects) {
+      throw new Error(
+        'Tauri local folder import requires workspace project lookup for absolute-path deduplication.',
+      );
+    }
+
+    existingProject = findExistingProjectByPath(await options.getProjects(), projectPath);
+  }
+
+  const reusedExistingProject = existingProject !== null;
   const targetProjectId =
-    existingProject?.id ?? (await options.createProject(projectName)).id;
+    existingProject?.id ??
+    (await options.createProject(projectName, { path: projectPath })).id;
   const resolvedProjectName = existingProject?.name.trim() || projectName;
 
   await options.mountFolder(targetProjectId, normalizedFolderInfo);
-  await options.updateProject(targetProjectId, {
-    path: projectPath,
-  });
+  if (reusedExistingProject) {
+    await options.updateProject(targetProjectId, {
+      path: projectPath,
+    });
+  }
 
   return {
     projectId: targetProjectId,
     projectName: resolvedProjectName,
     projectPath,
+    reusedExistingProject,
   };
 }
 
@@ -176,5 +246,6 @@ export async function rebindLocalFolderProject(
     projectId: options.projectId,
     projectName,
     projectPath,
+    reusedExistingProject: false,
   };
 }

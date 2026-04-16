@@ -1,4 +1,4 @@
-import { IWorkspace } from '@sdkwork/birdcoder-types';
+import type { IWorkspace } from '@sdkwork/birdcoder-types';
 
 export interface IWorkspaceService {
   getWorkspaces(): Promise<IWorkspace[]>;

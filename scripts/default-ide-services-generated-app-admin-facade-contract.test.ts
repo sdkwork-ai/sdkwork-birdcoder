@@ -28,8 +28,14 @@ assert.match(
 
 assert.match(
   source,
-  /createBirdCoderGeneratedAppAdminApiClient\(\{\s*transport:\s*createBirdCoderInProcessAppAdminApiTransport\(/s,
-  'in-process fallback composition must build the shared generated facade directly from the in-process transport.',
+  /export function createInProcessBirdCoderAppAdminClient[\s\S]*createBirdCoderGeneratedAppAdminApiClient\(\{\s*transport:\s*createBirdCoderInProcessAppAdminApiTransport\(/s,
+  'test helpers may still expose an explicit in-process app/admin client builder for isolated contracts.',
+);
+
+assert.match(
+  source,
+  /const appAdminClient =[\s\S]*resolveRuntimeAppAdminClient\(\)[\s\S]*createUnavailableBirdCoderAppAdminClient\(\);/s,
+  'defaultIdeServices must require a bound runtime server client instead of silently falling back to an in-process app/admin authority.',
 );
 
 console.log('default IDE services generated app/admin facade contract passed.');

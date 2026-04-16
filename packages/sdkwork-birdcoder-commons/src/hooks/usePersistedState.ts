@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { getStoredJson, setStoredJson } from '../storage/localStore';
+import { getStoredJson, setStoredJson } from '../storage/localStore.ts';
 
 type StateUpdater<T> = T | ((previousState: T) => T);
 

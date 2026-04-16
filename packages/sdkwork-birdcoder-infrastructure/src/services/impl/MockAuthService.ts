@@ -1,6 +1,8 @@
 import {
   BIRDCODER_APPBASE_AUTH_STORAGE_BINDING,
   getBirdCoderEntityDefinition,
+  type BirdCoderUserCenterMetadataSummary,
+  type BirdCoderUserCenterSessionExchangeRequest,
   type User,
 } from '@sdkwork/birdcoder-types';
 import { createJsonRecordRepository } from '../../storage/dataKernel.ts';
@@ -69,6 +71,16 @@ export class MockAuthService implements IAuthService {
     return this.currentUser;
   }
 
+  async getUserCenterConfig(): Promise<BirdCoderUserCenterMetadataSummary> {
+    return {
+      mode: 'local',
+      providerKey: 'mock-local',
+      sessionHeaderName: 'x-birdcoder-session-id',
+      supportsLocalCredentials: true,
+      supportsSessionExchange: false,
+    };
+  }
+
   async register(email: string, password?: string, name?: string): Promise<User> {
     void password;
     await this.hydrateFromStorage();
@@ -78,6 +90,24 @@ export class MockAuthService implements IAuthService {
       name: name || email.split('@')[0] || 'New User',
       email,
       avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${Date.now()}`,
+    };
+    await authSessionRepository.write(this.currentUser);
+    return this.currentUser;
+  }
+
+  async exchangeUserCenterSession(
+    request: BirdCoderUserCenterSessionExchangeRequest,
+  ): Promise<User> {
+    const email = request.email.trim();
+    if (!email) {
+      throw new Error('Email is required for mock session exchange.');
+    }
+
+    this.currentUser = {
+      id: request.identityId?.trim() || `mock-external-${Date.now()}`,
+      name: request.name?.trim() || email.split('@')[0] || 'External User',
+      email,
+      avatarUrl: request.avatarUrl,
     };
     await authSessionRepository.write(this.currentUser);
     return this.currentUser;

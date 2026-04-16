@@ -105,6 +105,27 @@ export function StudioPage({
       engineId: selectedEngineId,
       modelId: selectedModelId,
     });
+  const selectFolderAndImportProject = async (fallbackProjectName: string) => {
+    const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
+    const folderInfo = await openLocalFolder();
+    if (!folderInfo) {
+      return null;
+    }
+
+    const normalizedWorkspaceId = workspaceId?.trim() ?? '';
+
+    return importLocalFolderProject({
+      createProject,
+      fallbackProjectName,
+      folderInfo,
+      getProjects: () =>
+        normalizedWorkspaceId
+          ? projectService.getProjects(normalizedWorkspaceId)
+          : Promise.resolve([]),
+      mountFolder,
+      updateProject,
+    });
+  };
   const {
     projects: filteredProjects,
     searchQuery: projectSearchQuery,
@@ -120,15 +141,12 @@ export function StudioPage({
   } = useProjects(workspaceId);
   const { coreReadService, projectService } = useIDEServices();
   const { addToast } = useToast();
-  
   const [selectedCodingSessionId, setSelectedThreadId] = useState<string>('');
   const [menuActiveProjectId, setMenuActiveProjectId] = useState<string>('');
-  
   const [viewingDiff, setViewingDiff] = useState<FileChange | null>(null);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   const [terminalHeight, setTerminalHeight] = useState(256);
   const [terminalRequest, setTerminalRequest] = useState<TerminalCommandRequest>();
-  
   const [isRunTaskVisible, setIsRunTaskVisible] = useState(false);
   const [isRunConfigVisible, setIsRunConfigVisible] = useState(false);
   const [isDebugConfigVisible, setIsDebugConfigVisible] = useState(false);
@@ -142,14 +160,11 @@ export function StudioPage({
   const [isFindVisible, setIsFindVisible] = useState(false);
   const [isQuickOpenVisible, setIsQuickOpenVisible] = useState(false);
   const [isMountRecoveryActionPending, setIsMountRecoveryActionPending] = useState(false);
-  
   const [isAnalyzeModalVisible, setIsAnalyzeModalVisible] = useState(false);
   const [analyzeReport, setAnalyzeReport] = useState<StudioAnalyzeReport | null>(null);
-
   const [showShareModal, setShowShareModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [shareAccess, setShareAccess] = useState<'private' | 'public'>('private');
-
   const [previewPlatform, setPreviewPlatform] = useState<'web' | 'miniprogram' | 'app'>('web');
   const [previewWebDevice, setPreviewWebDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [previewMpPlatform, setPreviewMpPlatform] = useState<'wechat' | 'douyin' | 'alipay'>('wechat');
@@ -158,8 +173,6 @@ export function StudioPage({
   const [previewIsLandscape, setPreviewIsLandscape] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
   const [previewUrl, setPreviewUrl] = useState('about:blank');
-  
-  // Determine the current project ID based on selected thread, or the prop
   const threadProjectId = filteredProjects.find((project) =>
     project.codingSessions.some((codingSession) => codingSession.id === selectedCodingSessionId),
   )?.id;
@@ -842,9 +855,13 @@ export function StudioPage({
 
     if (!projectIdToUse) {
       if (filteredProjects.length === 0) {
-        const newProject = await createProject(t('studio.newProject'));
-        projectIdToUse = newProject.id;
-        setMenuActiveProjectId(newProject.id);
+        const importedProject = await selectFolderAndImportProject(t('studio.newProject'));
+        if (!importedProject) {
+          return;
+        }
+        await syncNativeCodexSessionsForWorkspace();
+        projectIdToUse = importedProject.projectId;
+        setMenuActiveProjectId(importedProject.projectId);
       } else {
         projectIdToUse = filteredProjects[0].id;
       }
@@ -972,11 +989,15 @@ export function StudioPage({
 
   const handleCreateSidebarProject = async () => {
     try {
-      const newProject = await createProject(t('studio.newProject'));
-      if (onProjectChange) {
-        onProjectChange(newProject.id);
+      const newProject = await selectFolderAndImportProject(t('studio.newProject'));
+      if (!newProject) {
+        return;
       }
-      setMenuActiveProjectId(newProject.id);
+      await syncNativeCodexSessionsForWorkspace();
+      if (onProjectChange) {
+        onProjectChange(newProject.projectId);
+      }
+      setMenuActiveProjectId(newProject.projectId);
       addToast(t('studio.projectCreated'), 'success');
     } catch (error) {
       console.error('Failed to create project', error);
@@ -986,25 +1007,10 @@ export function StudioPage({
 
   const handleOpenSidebarFolder = async () => {
     try {
-      const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
-      const folderInfo = await openLocalFolder();
-      if (!folderInfo) {
+      const importedProject = await selectFolderAndImportProject(t('studio.localFolder'));
+      if (!importedProject) {
         return;
       }
-
-      const normalizedWorkspaceId = workspaceId?.trim() ?? '';
-
-      const importedProject = await importLocalFolderProject({
-        createProject,
-        fallbackProjectName: t('studio.localFolder'),
-        folderInfo,
-        getProjects: () =>
-          normalizedWorkspaceId
-            ? projectService.getProjects(normalizedWorkspaceId)
-            : Promise.resolve([]),
-        mountFolder,
-        updateProject,
-      });
 
       await syncNativeCodexSessionsForWorkspace();
       if (onProjectChange) {
