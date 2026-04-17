@@ -56,6 +56,7 @@ import {
   type StudioDeleteConfirmation,
 } from './StudioPageDialogs';
 import { StudioChatSidebar } from './StudioChatSidebar';
+import { useStudioCodingSessionSync } from './useStudioCodingSessionSync';
 import { StudioTerminalIntegrationPanel } from './StudioTerminalIntegrationPanel';
 import { StudioWorkspaceOverlays } from './StudioWorkspaceOverlays';
 import { useStudioChatSelection } from './useStudioChatSelection';
@@ -361,27 +362,13 @@ export function StudioPage({
     onProjectChange(normalizedThreadProjectId);
   }, [normalizedProjectId, normalizedThreadProjectId, onProjectChange]);
 
-  useEffect(() => {
-    const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
-    if (!normalizedInitialCodingSessionId) {
-      return;
-    }
-
-    if (
-      normalizedInitialCodingSessionId !== selectedCodingSessionId &&
-      filteredProjects.some((project) =>
-        project.codingSessions.some(
-          (codingSession) => codingSession.id === normalizedInitialCodingSessionId,
-        ),
-      )
-    ) {
-      setSelectedThreadId(normalizedInitialCodingSessionId);
-    }
-  }, [filteredProjects, initialCodingSessionId, selectedCodingSessionId]);
-
-  useEffect(() => {
-    onCodingSessionChange?.(selectedCodingSessionId);
-  }, [onCodingSessionChange, selectedCodingSessionId]);
+  useStudioCodingSessionSync({
+    filteredProjects,
+    initialCodingSessionId,
+    onCodingSessionChange,
+    selectedCodingSessionId,
+    setSelectedThreadId,
+  });
 
   useEffect(() => {
     if (filteredProjects.length > 0) {

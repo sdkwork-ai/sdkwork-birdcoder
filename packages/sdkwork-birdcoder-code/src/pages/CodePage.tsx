@@ -187,6 +187,15 @@ export function CodePage({
       return;
     }
 
+    const hasSelectedCodingSession =
+      !!selectedCodingSessionId &&
+      projects.some((project) =>
+        project.codingSessions.some((codingSession) => codingSession.id === selectedCodingSessionId),
+      );
+    if (hasSelectedCodingSession) {
+      return;
+    }
+
     if (
       normalizedInitialCodingSessionId !== selectedCodingSessionId &&
       projects.some((project) =>
@@ -200,8 +209,14 @@ export function CodePage({
   }, [initialCodingSessionId, projects, selectedCodingSessionId]);
 
   useEffect(() => {
-    onCodingSessionChange?.(selectedCodingSessionId ?? '');
-  }, [onCodingSessionChange, selectedCodingSessionId]);
+    const nextCodingSessionId = selectedCodingSessionId ?? '';
+    const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
+    if (nextCodingSessionId === normalizedInitialCodingSessionId) {
+      return;
+    }
+
+    onCodingSessionChange?.(nextCodingSessionId);
+  }, [initialCodingSessionId, onCodingSessionChange, selectedCodingSessionId]);
 
   // Clear selectedCodingSessionId if it's no longer in the current projects (e.g., workspace changed)
   useEffect(() => {

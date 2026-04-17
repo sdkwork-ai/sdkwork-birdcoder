@@ -63,6 +63,14 @@ function isServerImplementedEngineId(engineId: string): boolean {
   return SERVER_IMPLEMENTED_ENGINE_IDS.has(engineId.trim().toLowerCase());
 }
 
+function areStringListsEqual(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
+}
+
 function resolveServerUnavailableEngineMessage(engineId: string): string {
   const engine = getWorkbenchCodeEngineDefinition(engineId);
   return `${engine.label} server adapter is not implemented yet. BirdCoder currently routes real coding turns through the Rust server, and only Codex plus OpenCode are enabled right now.`;
@@ -144,17 +152,30 @@ export function UniversalChat({
 
   useEffect(() => {
     if (!chatId) {
-      setChatHistory([]);
+      setChatHistory((previousHistory) =>
+        previousHistory.length === 0 ? previousHistory : [],
+      );
       return;
     }
 
+    let isMounted = true;
     void listChatInputHistory(chatId)
       .then((history) => {
-        setChatHistory(history);
+        if (!isMounted) {
+          return;
+        }
+
+        setChatHistory((previousHistory) =>
+          areStringListsEqual(previousHistory, history) ? previousHistory : history,
+        );
       })
       .catch((error) => {
         console.error('Failed to load chat history', error);
       });
+
+    return () => {
+      isMounted = false;
+    };
   }, [chatId]);
 
   const formatTime = (ts: number) => {
@@ -362,7 +383,9 @@ export function UniversalChat({
       if (chatId) {
         void saveChatInputHistoryEntry(chatId, fullText)
           .then((history) => {
-            setChatHistory(history);
+            setChatHistory((previousHistory) =>
+              areStringListsEqual(previousHistory, history) ? previousHistory : history,
+            );
           })
           .catch((error) => {
             console.error('Failed to save chat history', error);
