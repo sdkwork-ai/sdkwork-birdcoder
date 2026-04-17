@@ -37,6 +37,11 @@ assert.equal(
   true,
   'release-flow runner must execute the canonical release quality evidence contract before downstream lanes',
 );
+assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node --experimental-strip-types scripts/coding-server-openapi-snapshot-drift.test.ts'),
+  true,
+  'release-flow runner must execute the coding-server OpenAPI snapshot drift contract before downstream codegen lanes',
+);
 
 {
   const invocations = [];

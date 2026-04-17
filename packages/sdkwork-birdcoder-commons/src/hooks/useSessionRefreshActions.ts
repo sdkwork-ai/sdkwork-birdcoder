@@ -73,6 +73,7 @@ export function useSessionRefreshActions({
     setRefreshingProjectId(targetProjectId);
     try {
       const result = await refreshProjectSessions({
+        coreReadService,
         projectService,
         workspaceId: normalizedWorkspaceId,
       });
@@ -97,6 +98,7 @@ export function useSessionRefreshActions({
     addToast,
     getPreservedSelection,
     messages,
+    coreReadService,
     projectService,
     reloadProjectsAndInventory,
     resolveProjectName,

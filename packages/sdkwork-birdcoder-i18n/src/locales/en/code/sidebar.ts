@@ -34,6 +34,7 @@ export default defineLocaleModule('code/sidebar', {
     "sessionMessagesRefreshed": "Refreshed messages for session: {{name}}",
     "failedToRefreshProjectSessions": "Failed to refresh project sessions",
     "failedToRefreshSessionMessages": "Failed to refresh session messages",
+    "projectRemoved": "Project removed from workspace",
     "unpinThread": "Unpin session",
     "pinThread": "Pin session",
     "renameThread": "Rename Session",

@@ -18,7 +18,7 @@ import {
   useCodingSessionActions,
   useToast,
   useWorkbenchPreferences,
-  ensureStoredNativeCodexSessionMirror,
+  ensureStoredNativeSessionMirror,
 } from '@sdkwork/birdcoder-commons/workbench';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-commons/workbench';
 import { ResizeHandle } from '@sdkwork/birdcoder-ui';
@@ -76,13 +76,33 @@ export function CodePage({
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [activeTab, setActiveTab] = useState<'ai' | 'editor'>('ai');
-  const selectedEngineId = preferences.codeEngineId;
-  const selectedModelId = preferences.codeModelId;
+  const selectedEngineId = preferences.codeEngineId === 'opencode'
+    ? 'opencode'
+    : 'codex';
+  const selectedModelId = normalizeWorkbenchCodeModelId(
+    selectedEngineId,
+    preferences.codeModelId,
+  );
   
   const setSelectedEngineId = (engineId: string) => {
+    const normalizedEngineId = normalizeWorkbenchCodeEngineId(engineId);
+    if (normalizedEngineId !== 'codex' && normalizedEngineId !== 'opencode') {
+      addToast(
+        'Only Codex and OpenCode are currently available through the Rust server. Other code engines remain server TODO items.',
+        'error',
+      );
+      updatePreferences((previousState) =>
+        resolveWorkbenchChatSelection({
+          codeEngineId: 'codex',
+          codeModelId: previousState.codeModelId,
+        }),
+      );
+      return;
+    }
+
     updatePreferences((previousState) =>
       resolveWorkbenchChatSelection({
-        codeEngineId: normalizeWorkbenchCodeEngineId(engineId),
+        codeEngineId: normalizedEngineId,
         codeModelId: previousState.codeModelId,
       }),
     );
@@ -119,8 +139,28 @@ export function CodePage({
   const threadProjectId = projects.find((project) =>
     project.codingSessions.some((codingSession) => codingSession.id === selectedCodingSessionId),
   )?.id;
-  const currentProjectId = threadProjectId || projectId || '';
+  const normalizedProjectId = projectId?.trim() ?? '';
+  const normalizedThreadProjectId = threadProjectId?.trim() ?? '';
+  const currentProjectId = normalizedProjectId || normalizedThreadProjectId;
   const currentProject = projects.find((project) => project.id === currentProjectId);
+  const {
+    runConfigurations,
+    runConfigurationDraft,
+    setRunConfigurationDraft,
+    handleSubmitRunConfiguration,
+    handleRunTaskExecution,
+    handleRunWithoutDebugging,
+    handleSaveDebugConfiguration,
+  } = useCodeRunEntryActions({
+    currentProjectId,
+    currentProjectPath: currentProject?.path,
+    defaultWorkingDirectory: preferences.defaultWorkingDirectory,
+    isRunConfigVisible,
+    setIsRunConfigVisible,
+    setIsDebugConfigVisible,
+    setIsRunTaskVisible,
+    addToast,
+  });
   const restoreSelectionAfterRefresh = (
     targetProjectId: string,
     targetCodingSessionId: string | null,
@@ -133,12 +173,13 @@ export function CodePage({
     }
   };
 
-  // Sync the current project ID up to the AppContent state if it changes due to thread selection
   useEffect(() => {
-    if (threadProjectId && threadProjectId !== projectId && onProjectChange) {
-      onProjectChange(threadProjectId);
+    if (!normalizedThreadProjectId || normalizedProjectId || !onProjectChange) {
+      return;
     }
-  }, [threadProjectId, projectId, onProjectChange]);
+
+    onProjectChange(normalizedThreadProjectId);
+  }, [normalizedProjectId, normalizedThreadProjectId, onProjectChange]);
 
   useEffect(() => {
     const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
@@ -178,6 +219,8 @@ export function CodePage({
     projects,
     selectedCodingSessionId,
     currentProjectId,
+    currentProjectPath: currentProject?.path,
+    defaultWorkingDirectory: preferences.defaultWorkingDirectory,
     createCodingSession: createCodingSessionWithSelection,
     setSelectedCodingSessionId: setSelectedThreadId,
     setViewingDiff,
@@ -189,6 +232,7 @@ export function CodePage({
     setIsRunConfigVisible,
     setIsDebugConfigVisible,
     setIsRunTaskVisible,
+    onRunWithoutDebugging: handleRunWithoutDebugging,
     addToast,
   });
 
@@ -281,20 +325,21 @@ export function CodePage({
     });
   };
 
-  const syncNativeCodexSessionsForWorkspace = async () => {
+  const syncNativeSessionsForWorkspace = async () => {
     const normalizedWorkspaceId = workspaceId?.trim() ?? '';
     if (!normalizedWorkspaceId) {
       return;
     }
 
     try {
-      await ensureStoredNativeCodexSessionMirror({
+      await ensureStoredNativeSessionMirror({
+        coreReadService,
         projectService,
         workspaceId: normalizedWorkspaceId,
       });
       await Promise.all([refreshProjects(), onSessionInventoryRefresh?.()]);
     } catch (error) {
-      console.error('Failed to synchronize imported native Codex sessions', error);
+      console.error('Failed to synchronize imported native engine sessions', error);
     }
   };
   const {
@@ -328,24 +373,6 @@ export function CodePage({
       projects.find((project) => project.id === targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
     workspaceId,
-  });
-
-  const {
-    runConfigurations,
-    runConfigurationDraft,
-    setRunConfigurationDraft,
-    handleSubmitRunConfiguration,
-    handleRunTaskExecution,
-    handleSaveDebugConfiguration,
-  } = useCodeRunEntryActions({
-    currentProjectId,
-    currentProjectName: currentProject?.name,
-    defaultWorkingDirectory: preferences.defaultWorkingDirectory,
-    isRunConfigVisible,
-    setIsRunConfigVisible,
-    setIsDebugConfigVisible,
-    setIsRunTaskVisible,
-    addToast,
   });
 
   const handleRenameThread = async (threadId: string, newName?: string) => {
@@ -395,7 +422,10 @@ export function CodePage({
     ) {
       setSelectedThreadId(null);
     }
-    addToast('Project deleted successfully', 'success');
+    if (currentProjectId === projectId) {
+      onProjectChange?.('');
+    }
+    addToast(t('code.projectRemoved'), 'success');
   };
 
   const handleNewProject = async () => {
@@ -405,7 +435,7 @@ export function CodePage({
         return undefined;
       }
 
-      await syncNativeCodexSessionsForWorkspace();
+      await syncNativeSessionsForWorkspace();
 
       if (onProjectChange) {
         onProjectChange(importedProject.projectId);
@@ -423,7 +453,7 @@ export function CodePage({
     try {
       const importedProject = await selectFolderAndImportProject('Local Folder');
       if (importedProject) {
-        await syncNativeCodexSessionsForWorkspace();
+        await syncNativeSessionsForWorkspace();
         if (onProjectChange) {
           onProjectChange(importedProject.projectId);
         }
@@ -481,7 +511,7 @@ export function CodePage({
         updateProject,
       });
 
-      await syncNativeCodexSessionsForWorkspace();
+      await syncNativeSessionsForWorkspace();
       addToast(`Opened folder: ${reboundProject.projectName}`, 'success');
     } catch (error) {
       console.error('Failed to rebind local project folder', error);

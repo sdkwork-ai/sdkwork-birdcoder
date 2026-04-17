@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
+  BirdCoderApiRouteCatalogEntry,
   BirdCoderCodingServerDescriptor,
   BirdCoderCoreHealthSummary,
   BirdCoderCoreRuntimeSummary,
@@ -16,6 +17,7 @@ export interface BirdCoderCodingServerOverviewData {
   engineCapabilities: Record<string, BirdCoderEngineCapabilityMatrix>;
   health: BirdCoderCoreHealthSummary | null;
   models: BirdCoderModelCatalogEntry[];
+  routes: BirdCoderApiRouteCatalogEntry[];
   runtime: BirdCoderCoreRuntimeSummary | null;
 }
 
@@ -29,6 +31,7 @@ const INITIAL_DATA: BirdCoderCodingServerOverviewData = {
   engineCapabilities: {},
   health: null,
   models: [],
+  routes: [],
   runtime: null,
 };
 
@@ -45,17 +48,19 @@ type BirdCoderCodingServerOverviewReader = Pick<
   | 'getRuntime'
   | 'listEngines'
   | 'listModels'
+  | 'listRoutes'
 >;
 
 export async function loadCodingServerOverview(
   coreReadService: BirdCoderCodingServerOverviewReader,
 ): Promise<BirdCoderCodingServerOverviewData> {
-  const [descriptor, runtime, health, engines, models] = await Promise.all([
+  const [descriptor, runtime, health, engines, models, routes] = await Promise.all([
     coreReadService.getDescriptor(),
     coreReadService.getRuntime(),
     coreReadService.getHealth(),
     coreReadService.listEngines(),
     coreReadService.listModels(),
+    coreReadService.listRoutes(),
   ]);
 
   const engineCapabilityEntries = await Promise.all(
@@ -71,6 +76,7 @@ export async function loadCodingServerOverview(
     engineCapabilities: Object.fromEntries(engineCapabilityEntries),
     health,
     models,
+    routes,
     runtime,
   };
 }

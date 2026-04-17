@@ -24,6 +24,8 @@ import {
 import { bindDefaultBirdCoderIdeServicesRuntime } from '../../sdkwork-birdcoder-infrastructure/src/index.ts';
 import type {
   BirdCoderApiEnvelope,
+  BirdCoderApiGatewaySummary,
+  BirdCoderApiRouteCatalogEntry,
   BirdCoderApiRouteDefinition,
   BirdCoderAdminApiContract,
   BirdCoderApiSurface,
@@ -48,6 +50,10 @@ export const BIRD_SERVER_DEFAULT_PORT = BIRDCODER_DEFAULT_LOCAL_API_PORT;
 export const BIRD_SERVER_DEFAULT_CONFIG_FILE_NAME = 'bird-server.config.json';
 export const BIRDCODER_CODING_SERVER_API_VERSION = BIRDCODER_CODING_SERVER_API_VERSION_VALUE;
 export const BIRDCODER_CODING_SERVER_OPENAPI_PATH = '/openapi/coding-server-v1.json';
+export const BIRDCODER_CODING_SERVER_LIVE_OPENAPI_PATH = '/openapi.json';
+export const BIRDCODER_CODING_SERVER_DOCS_PATH = '/docs';
+export const BIRDCODER_CODING_SERVER_GATEWAY_BASE_PATH = '/api';
+export const BIRDCODER_CODING_SERVER_ROUTE_CATALOG_PATH = '/api/core/v1/routes';
 
 export type BirdServerDistributionId = 'cn' | 'global';
 
@@ -89,9 +95,19 @@ export interface BirdCoderCodingServerOpenApiDocumentSeed {
   info: {
     title: 'SDKWork BirdCoder Coding Server API';
     version: typeof BIRDCODER_CODING_SERVER_API_VERSION;
+    description: string;
   };
-  servers: Array<{ url: string }>;
-  tags: Array<{ name: BirdCoderApiSurface }>;
+  servers: Array<{ url: string; description: string }>;
+  tags: Array<{ name: BirdCoderApiSurface; description: string }>;
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: 'http';
+        scheme: 'bearer';
+        bearerFormat: 'Bearer token';
+      };
+    };
+  };
   paths: Record<
     string,
     Partial<
@@ -100,11 +116,32 @@ export interface BirdCoderCodingServerOpenApiDocumentSeed {
         {
           operationId: string;
           summary: string;
+          description: string;
           tags: BirdCoderApiSurface[];
+          responses: Record<string, { description: string }>;
+          security?: Array<{ bearerAuth: [] }>;
+          'x-sdkwork-auth-mode': BirdCoderApiRouteDefinition['authMode'];
+          'x-sdkwork-surface': BirdCoderApiSurface;
         }
       >
     >
   >;
+  'x-sdkwork-api-gateway': {
+    basePath: typeof BIRDCODER_CODING_SERVER_GATEWAY_BASE_PATH;
+    compatibilityOpenApiPaths: string[];
+    docsPath: typeof BIRDCODER_CODING_SERVER_DOCS_PATH;
+    liveOpenApiPath: typeof BIRDCODER_CODING_SERVER_LIVE_OPENAPI_PATH;
+    routeCatalogPath: typeof BIRDCODER_CODING_SERVER_ROUTE_CATALOG_PATH;
+    routeCount: number;
+    routesBySurface: Record<BirdCoderApiSurface, number>;
+    surfaces: Array<{
+      authMode: BirdCoderApiRouteDefinition['authMode'];
+      basePath: string;
+      description: string;
+      name: BirdCoderApiSurface;
+      routeCount: number;
+    }>;
+  };
 }
 
 const BIRD_SERVER_DISTRIBUTIONS = {
@@ -160,6 +197,180 @@ function createRoute(
     path,
     surface,
     summary,
+  };
+}
+
+function getSurfaceDescription(surface: BirdCoderApiSurface): string {
+  switch (surface) {
+    case 'core':
+      return 'Core coding runtime, engine catalog, session execution, and operation control.';
+    case 'app':
+      return 'Application-facing workspace, project, collaboration, and user-center routes.';
+    case 'admin':
+      return 'Administrative governance, audit, release, deployment, and team-management routes.';
+    default:
+      return 'Unified BirdCoder API surface.';
+  }
+}
+
+function toOpenApiPathTemplate(path: string): string {
+  const normalizedPath = path.trim();
+  if (!normalizedPath.startsWith('/')) {
+    return normalizedPath;
+  }
+
+  return normalizedPath
+    .split('/')
+    .map((segment) => {
+      if (!segment.startsWith(':')) {
+        return segment;
+      }
+
+      const parameterName = segment.slice(1).trim();
+      return parameterName ? `{${parameterName}}` : segment;
+    })
+    .join('/');
+}
+
+function buildOpenApiResponses(): Record<string, { description: string }> {
+  return {
+    '200': {
+      description: 'Successful response',
+    },
+    default: {
+      description: 'Problem response',
+    },
+  };
+}
+
+function getSurfaceBasePath(surface: BirdCoderApiSurface): string {
+  switch (surface) {
+    case 'core':
+      return '/api/core/v1';
+    case 'app':
+      return '/api/app/v1';
+    case 'admin':
+      return '/api/admin/v1';
+    default:
+      return BIRDCODER_CODING_SERVER_GATEWAY_BASE_PATH;
+  }
+}
+
+function buildOpenApiOperationDescription(route: BirdCoderApiRouteDefinition): string {
+  const authDescription =
+    route.authMode === 'host'
+      ? 'No user session is required; this route is available on the host runtime surface.'
+      : route.authMode === 'user'
+        ? 'Requires an authenticated BirdCoder user session.'
+        : 'Requires an authenticated BirdCoder admin session.';
+
+  return `${route.summary}. ${authDescription}`;
+}
+
+function buildOpenApiOperationSecurity(
+  route: BirdCoderApiRouteDefinition,
+): Array<{ bearerAuth: [] }> | undefined {
+  return route.authMode === 'host' ? undefined : [{ bearerAuth: [] }];
+}
+
+function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
+  const operationIds = new Map<string, string>([
+    ['GET /api/core/v1/descriptor', 'core.getDescriptor'],
+    ['GET /api/core/v1/routes', 'core.listRoutes'],
+    ['GET /api/core/v1/engines', 'core.listEngines'],
+    ['GET /api/core/v1/native-sessions', 'core.listNativeSessions'],
+    ['GET /api/core/v1/native-sessions/:id', 'core.getNativeSession'],
+    ['GET /api/core/v1/engines/:engineKey/capabilities', 'core.getEngineCapabilities'],
+    ['GET /api/core/v1/models', 'core.listModels'],
+    ['GET /api/core/v1/runtime', 'core.getRuntime'],
+    ['GET /api/core/v1/health', 'core.getHealth'],
+    ['POST /api/core/v1/coding-sessions', 'core.createCodingSession'],
+    ['GET /api/core/v1/coding-sessions/:id', 'core.getCodingSession'],
+    ['POST /api/core/v1/coding-sessions/:id/turns', 'core.createCodingSessionTurn'],
+    ['GET /api/core/v1/coding-sessions/:id/events', 'core.listCodingSessionEvents'],
+    ['GET /api/core/v1/coding-sessions/:id/artifacts', 'core.listCodingSessionArtifacts'],
+    ['GET /api/core/v1/coding-sessions/:id/checkpoints', 'core.listCodingSessionCheckpoints'],
+    ['POST /api/core/v1/approvals/:approvalId/decision', 'core.submitApprovalDecision'],
+    ['GET /api/core/v1/operations/:operationId', 'core.getOperation'],
+    ['GET /api/app/v1/auth/config', 'app.getUserCenterConfig'],
+    ['GET /api/app/v1/auth/session', 'app.getCurrentUserSession'],
+    ['POST /api/app/v1/auth/login', 'app.login'],
+    ['POST /api/app/v1/auth/register', 'app.register'],
+    ['POST /api/app/v1/auth/logout', 'app.logout'],
+    ['POST /api/app/v1/auth/session/exchange', 'app.exchangeUserCenterSession'],
+    ['GET /api/app/v1/user-center/profile', 'app.getCurrentUserProfile'],
+    ['PATCH /api/app/v1/user-center/profile', 'app.updateCurrentUserProfile'],
+    ['GET /api/app/v1/user-center/membership', 'app.getCurrentUserMembership'],
+    ['PATCH /api/app/v1/user-center/membership', 'app.updateCurrentUserMembership'],
+    ['GET /api/app/v1/workspaces', 'app.listWorkspaces'],
+    ['POST /api/app/v1/workspaces', 'app.createWorkspace'],
+    ['PATCH /api/app/v1/workspaces/:workspaceId', 'app.updateWorkspace'],
+    ['DELETE /api/app/v1/workspaces/:workspaceId', 'app.deleteWorkspace'],
+    ['GET /api/app/v1/projects', 'app.listProjects'],
+    ['GET /api/app/v1/projects/:projectId/collaborators', 'app.listProjectCollaborators'],
+    ['POST /api/app/v1/projects/:projectId/collaborators', 'app.upsertProjectCollaborator'],
+    ['POST /api/app/v1/projects', 'app.createProject'],
+    ['PATCH /api/app/v1/projects/:projectId', 'app.updateProject'],
+    ['DELETE /api/app/v1/projects/:projectId', 'app.deleteProject'],
+    ['GET /api/app/v1/documents', 'app.listDocuments'],
+    ['GET /api/app/v1/teams', 'app.listTeams'],
+    ['GET /api/app/v1/workspaces/:workspaceId/members', 'app.listWorkspaceMembers'],
+    ['POST /api/app/v1/workspaces/:workspaceId/members', 'app.upsertWorkspaceMember'],
+    ['POST /api/app/v1/projects/:projectId/publish', 'app.publishProject'],
+    ['GET /api/app/v1/deployments', 'app.listDeployments'],
+    ['GET /api/admin/v1/audit', 'admin.listAuditEvents'],
+    ['GET /api/admin/v1/policies', 'admin.listPolicies'],
+    ['GET /api/admin/v1/teams', 'admin.listTeams'],
+    ['GET /api/admin/v1/teams/:teamId/members', 'admin.listTeamMembers'],
+    ['GET /api/admin/v1/projects/:projectId/deployment-targets', 'admin.listDeploymentTargets'],
+    ['GET /api/admin/v1/releases', 'admin.listReleases'],
+    ['GET /api/admin/v1/deployments', 'admin.listDeployments'],
+  ]);
+
+  return (
+    operationIds.get(`${route.method} ${route.path}`) ??
+    `${route.surface}.${route.method.toLowerCase()}.${route.path}`
+  );
+}
+
+export function listBirdCoderCodingServerRouteCatalogEntries(): BirdCoderApiRouteCatalogEntry[] {
+  return listBirdCoderCodingServerRoutes().map((route) => ({
+    ...route,
+    openApiPath: toOpenApiPathTemplate(route.path),
+    operationId: getOperationIdForRoute(route),
+  }));
+}
+
+function buildBirdCoderApiGatewaySummary(): BirdCoderApiGatewaySummary {
+  const routeCatalog = listBirdCoderCodingServerRouteCatalogEntries();
+  const routesBySurface = routeCatalog.reduce<Record<BirdCoderApiSurface, number>>(
+    (accumulator, route) => {
+      accumulator[route.surface] += 1;
+      return accumulator;
+    },
+    {
+      core: 0,
+      app: 0,
+      admin: 0,
+    },
+  );
+
+  return {
+    basePath: BIRDCODER_CODING_SERVER_GATEWAY_BASE_PATH,
+    docsPath: BIRDCODER_CODING_SERVER_DOCS_PATH,
+    liveOpenApiPath: BIRDCODER_CODING_SERVER_LIVE_OPENAPI_PATH,
+    openApiPath: BIRDCODER_CODING_SERVER_OPENAPI_PATH,
+    routeCatalogPath: BIRDCODER_CODING_SERVER_ROUTE_CATALOG_PATH,
+    routeCount: routeCatalog.length,
+    routesBySurface,
+    surfaces: (['core', 'app', 'admin'] as const).map((surface) => ({
+      authMode:
+        surface === 'core' ? 'host' : surface === 'app' ? 'user' : 'admin',
+      basePath: getSurfaceBasePath(surface),
+      description: getSurfaceDescription(surface),
+      name: surface,
+      routeCount: routesBySurface[surface],
+    })),
   };
 }
 
@@ -286,6 +497,13 @@ function resolveOperationStatus(
 }
 
 const CORE_API_CONTRACT: BirdCoderCoreApiContract = {
+  codingSession: createRoute(
+    'core',
+    'host',
+    'GET',
+    '/api/core/v1/coding-sessions/:id',
+    'Get coding session',
+  ),
   descriptor: createRoute('core', 'host', 'GET', '/api/core/v1/descriptor', 'Get coding-server descriptor'),
   engineCapabilities: createRoute(
     'core',
@@ -295,6 +513,20 @@ const CORE_API_CONTRACT: BirdCoderCoreApiContract = {
     'Get runtime capabilities for one engine',
   ),
   engines: createRoute('core', 'host', 'GET', '/api/core/v1/engines', 'List available engines'),
+  nativeSession: createRoute(
+    'core',
+    'host',
+    'GET',
+    '/api/core/v1/native-sessions/:id',
+    'Get discovered native engine session detail',
+  ),
+  nativeSessions: createRoute(
+    'core',
+    'host',
+    'GET',
+    '/api/core/v1/native-sessions',
+    'List discovered native engine sessions',
+  ),
   events: createRoute(
     'core',
     'host',
@@ -303,6 +535,7 @@ const CORE_API_CONTRACT: BirdCoderCoreApiContract = {
     'Replay or subscribe to coding session events',
   ),
   health: createRoute('core', 'host', 'GET', '/api/core/v1/health', 'Get coding-server health'),
+  models: createRoute('core', 'host', 'GET', '/api/core/v1/models', 'List model catalog'),
   operations: createRoute(
     'core',
     'host',
@@ -317,6 +550,7 @@ const CORE_API_CONTRACT: BirdCoderCoreApiContract = {
     '/api/core/v1/approvals/:approvalId/decision',
     'Submit approval decision',
   ),
+  routes: createRoute('core', 'host', 'GET', BIRDCODER_CODING_SERVER_ROUTE_CATALOG_PATH, 'List unified API routes'),
   runtime: createRoute('core', 'host', 'GET', '/api/core/v1/runtime', 'Get runtime metadata'),
   sessions: createRoute(
     'core',
@@ -406,6 +640,13 @@ const APP_API_CONTRACT: BirdCoderAppApiContract = {
   ),
   login: createRoute('app', 'user', 'POST', '/api/app/v1/auth/login', 'Create local user center session'),
   logout: createRoute('app', 'user', 'POST', '/api/app/v1/auth/logout', 'Revoke current user center session'),
+  publishProject: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/projects/:projectId/publish',
+    'Publish project release flow',
+  ),
   projectCollaborators: createRoute(
     'app',
     'user',
@@ -523,6 +764,7 @@ export function getBirdCoderCodingServerDescriptor(
 ): BirdCoderCodingServerDescriptor {
   return {
     apiVersion: BIRDCODER_CODING_SERVER_API_VERSION,
+    gateway: buildBirdCoderApiGatewaySummary(),
     hostMode,
     moduleId: 'coding-server',
     openApiPath: BIRDCODER_CODING_SERVER_OPENAPI_PATH,
@@ -568,8 +810,6 @@ export function getBirdCoderAdminApiContract(): BirdCoderAdminApiContract {
 export function listBirdCoderCodingServerRoutes(): BirdCoderApiRouteDefinition[] {
   return [
     ...Object.values(CORE_API_CONTRACT),
-    createRoute('core', 'host', 'GET', '/api/core/v1/models', 'List model catalog'),
-    createRoute('core', 'host', 'GET', '/api/core/v1/coding-sessions/:id', 'Get coding session'),
     ...Object.values(APP_API_CONTRACT),
     ...Object.values(ADMIN_API_CONTRACT),
   ];
@@ -578,69 +818,27 @@ export function listBirdCoderCodingServerRoutes(): BirdCoderApiRouteDefinition[]
 export function buildBirdCoderCodingServerOpenApiDocument(
   distributionId: BirdServerDistributionId = 'global',
 ): BirdCoderCodingServerOpenApiDocumentSeed {
-  const serverRuntime = resolveServerRuntime(distributionId);
+  void distributionId;
   const routes = listBirdCoderCodingServerRoutes();
-  const operationIds = new Map<string, string>([
-    ['GET /api/core/v1/descriptor', 'core.getDescriptor'],
-    ['GET /api/core/v1/engines', 'core.listEngines'],
-    ['GET /api/core/v1/engines/:engineKey/capabilities', 'core.getEngineCapabilities'],
-    ['GET /api/core/v1/models', 'core.listModels'],
-    ['GET /api/core/v1/runtime', 'core.getRuntime'],
-    ['GET /api/core/v1/health', 'core.getHealth'],
-    ['POST /api/core/v1/coding-sessions', 'core.createCodingSession'],
-    ['GET /api/core/v1/coding-sessions/:id', 'core.getCodingSession'],
-    ['POST /api/core/v1/coding-sessions/:id/turns', 'core.createCodingSessionTurn'],
-    ['GET /api/core/v1/coding-sessions/:id/events', 'core.listCodingSessionEvents'],
-    ['GET /api/core/v1/coding-sessions/:id/artifacts', 'core.listCodingSessionArtifacts'],
-    ['GET /api/core/v1/coding-sessions/:id/checkpoints', 'core.listCodingSessionCheckpoints'],
-    ['POST /api/core/v1/approvals/:approvalId/decision', 'core.submitApprovalDecision'],
-    ['GET /api/core/v1/operations/:operationId', 'core.getOperation'],
-    ['GET /api/app/v1/auth/config', 'app.getUserCenterConfig'],
-    ['GET /api/app/v1/auth/session', 'app.getCurrentUserSession'],
-    ['POST /api/app/v1/auth/login', 'app.login'],
-    ['POST /api/app/v1/auth/register', 'app.register'],
-    ['POST /api/app/v1/auth/logout', 'app.logout'],
-    ['POST /api/app/v1/auth/session/exchange', 'app.exchangeUserCenterSession'],
-    ['GET /api/app/v1/user-center/profile', 'app.getCurrentUserProfile'],
-    ['PATCH /api/app/v1/user-center/profile', 'app.updateCurrentUserProfile'],
-    ['GET /api/app/v1/user-center/membership', 'app.getCurrentUserMembership'],
-    ['PATCH /api/app/v1/user-center/membership', 'app.updateCurrentUserMembership'],
-    ['GET /api/app/v1/workspaces', 'app.listWorkspaces'],
-    ['POST /api/app/v1/workspaces', 'app.createWorkspace'],
-    ['PATCH /api/app/v1/workspaces/:workspaceId', 'app.updateWorkspace'],
-    ['DELETE /api/app/v1/workspaces/:workspaceId', 'app.deleteWorkspace'],
-    ['GET /api/app/v1/projects', 'app.listProjects'],
-    ['GET /api/app/v1/projects/:projectId/collaborators', 'app.listProjectCollaborators'],
-    ['POST /api/app/v1/projects/:projectId/collaborators', 'app.upsertProjectCollaborator'],
-    ['POST /api/app/v1/projects', 'app.createProject'],
-    ['PATCH /api/app/v1/projects/:projectId', 'app.updateProject'],
-    ['DELETE /api/app/v1/projects/:projectId', 'app.deleteProject'],
-    ['GET /api/app/v1/documents', 'app.listDocuments'],
-    ['GET /api/app/v1/teams', 'app.listTeams'],
-    ['GET /api/app/v1/workspaces/:workspaceId/members', 'app.listWorkspaceMembers'],
-    ['POST /api/app/v1/workspaces/:workspaceId/members', 'app.upsertWorkspaceMember'],
-    ['GET /api/app/v1/deployments', 'app.listDeployments'],
-    ['GET /api/admin/v1/audit', 'admin.listAuditEvents'],
-    ['GET /api/admin/v1/policies', 'admin.listPolicies'],
-    ['GET /api/admin/v1/teams', 'admin.listTeams'],
-    ['GET /api/admin/v1/teams/:teamId/members', 'admin.listTeamMembers'],
-    ['GET /api/admin/v1/projects/:projectId/deployment-targets', 'admin.listDeploymentTargets'],
-    ['GET /api/admin/v1/releases', 'admin.listReleases'],
-    ['GET /api/admin/v1/deployments', 'admin.listDeployments'],
-  ]);
+  const gateway = buildBirdCoderApiGatewaySummary();
 
   const paths: BirdCoderCodingServerOpenApiDocumentSeed['paths'] = {};
   for (const route of routes) {
     const method = route.method.toLowerCase() as Lowercase<BirdCoderApiRouteDefinition['method']>;
-    const operationId =
-      operationIds.get(`${route.method} ${route.path}`) ??
-      `${route.surface}.${method}.${route.path}`;
-    paths[route.path] = {
-      ...(paths[route.path] ?? {}),
+    const openApiPath = toOpenApiPathTemplate(route.path);
+    const security = buildOpenApiOperationSecurity(route);
+    const operationId = getOperationIdForRoute(route);
+    paths[openApiPath] = {
+      ...(paths[openApiPath] ?? {}),
       [method]: {
         operationId,
         summary: route.summary,
+        description: buildOpenApiOperationDescription(route),
         tags: [route.surface],
+        responses: buildOpenApiResponses(),
+        ...(security ? { security } : {}),
+        'x-sdkwork-auth-mode': route.authMode,
+        'x-sdkwork-surface': route.surface,
       },
     };
   }
@@ -650,14 +848,40 @@ export function buildBirdCoderCodingServerOpenApiDocument(
     info: {
       title: 'SDKWork BirdCoder Coding Server API',
       version: BIRDCODER_CODING_SERVER_API_VERSION,
+      description:
+        'OpenAPI 3.1 schema generated from the live BirdCoder unified same-port API gateway.',
     },
     servers: [
       {
-        url: `http://${serverRuntime.host}:${serverRuntime.port}`,
+        url: '/',
+        description: 'Unified same-port BirdCoder API gateway.',
       },
     ],
-    tags: [{ name: 'core' }, { name: 'app' }, { name: 'admin' }],
+    tags: [
+      { name: 'core', description: getSurfaceDescription('core') },
+      { name: 'app', description: getSurfaceDescription('app') },
+      { name: 'admin', description: getSurfaceDescription('admin') },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'Bearer token',
+        },
+      },
+    },
     paths,
+    'x-sdkwork-api-gateway': {
+      basePath: BIRDCODER_CODING_SERVER_GATEWAY_BASE_PATH,
+      compatibilityOpenApiPaths: [BIRDCODER_CODING_SERVER_OPENAPI_PATH],
+      docsPath: BIRDCODER_CODING_SERVER_DOCS_PATH,
+      liveOpenApiPath: BIRDCODER_CODING_SERVER_LIVE_OPENAPI_PATH,
+      routeCatalogPath: BIRDCODER_CODING_SERVER_ROUTE_CATALOG_PATH,
+      routeCount: gateway.routeCount,
+      routesBySurface: gateway.routesBySurface,
+      surfaces: [...gateway.surfaces],
+    },
   };
 }
 

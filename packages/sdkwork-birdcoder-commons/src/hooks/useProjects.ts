@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
@@ -41,33 +41,167 @@ type EditableCodingSessionMessage = Omit<
   'codingSessionId' | 'createdAt' | 'id'
 >;
 
+interface ProjectsStoreSnapshot {
+  error: string | null;
+  hasFetched: boolean;
+  isLoading: boolean;
+  projects: BirdCoderProject[];
+}
+
+interface ProjectsStore {
+  inflight: Promise<BirdCoderProject[]> | null;
+  listeners: Set<(snapshot: ProjectsStoreSnapshot) => void>;
+  snapshot: ProjectsStoreSnapshot;
+}
+
+const projectStoresByWorkspaceId = new Map<string, ProjectsStore>();
+
+function createProjectsStoreSnapshot(): ProjectsStoreSnapshot {
+  return {
+    error: null,
+    hasFetched: false,
+    isLoading: false,
+    projects: [],
+  };
+}
+
+function cloneProjects(projects: readonly BirdCoderProject[]): BirdCoderProject[] {
+  return structuredClone([...projects]);
+}
+
+function getProjectsStore(workspaceId: string): ProjectsStore {
+  let store = projectStoresByWorkspaceId.get(workspaceId);
+  if (!store) {
+    store = {
+      inflight: null,
+      listeners: new Set(),
+      snapshot: createProjectsStoreSnapshot(),
+    };
+    projectStoresByWorkspaceId.set(workspaceId, store);
+  }
+
+  return store;
+}
+
+function emitProjectsStoreSnapshot(store: ProjectsStore): void {
+  const snapshot = store.snapshot;
+  store.listeners.forEach((listener) => {
+    listener(snapshot);
+  });
+}
+
+function updateProjectsStoreSnapshot(
+  store: ProjectsStore,
+  updater: (previousSnapshot: ProjectsStoreSnapshot) => ProjectsStoreSnapshot,
+): void {
+  store.snapshot = updater(store.snapshot);
+  emitProjectsStoreSnapshot(store);
+}
+
+function setProjectsStoreError(store: ProjectsStore, message: string): void {
+  updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
+    ...previousSnapshot,
+    error: message,
+    hasFetched: true,
+    isLoading: false,
+  }));
+}
+
+async function fetchProjectsForWorkspace(
+  store: ProjectsStore,
+  workspaceId: string,
+  projectService: ReturnType<typeof useIDEServices>['projectService'],
+): Promise<BirdCoderProject[]> {
+  if (store.inflight) {
+    return store.inflight;
+  }
+
+  updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
+    ...previousSnapshot,
+    error: null,
+    isLoading: true,
+  }));
+
+  const request = projectService
+    .getProjects(workspaceId)
+    .then((projects) => {
+      const clonedProjects = cloneProjects(projects);
+      updateProjectsStoreSnapshot(store, () => ({
+        error: null,
+        hasFetched: true,
+        isLoading: false,
+        projects: clonedProjects,
+      }));
+      return clonedProjects;
+    })
+    .catch((error: unknown) => {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to fetch projects';
+      setProjectsStoreError(store, message);
+      throw error;
+    })
+    .finally(() => {
+      if (store.inflight === request) {
+        store.inflight = null;
+      }
+    });
+
+  store.inflight = request;
+  return request;
+}
+
 export function useProjects(workspaceId?: string) {
   const { projectService } = useIDEServices();
-  const [projects, setProjects] = useState<BirdCoderProject[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const normalizedWorkspaceId = workspaceId?.trim() ?? '';
+  const [storeSnapshot, setStoreSnapshot] = useState<ProjectsStoreSnapshot>(() =>
+    normalizedWorkspaceId
+      ? getProjectsStore(normalizedWorkspaceId).snapshot
+      : createProjectsStoreSnapshot(),
+  );
   const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchProjects = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data = await projectService.getProjects(workspaceId);
-      setProjects(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch projects');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    setProjects([]);
-    void fetchProjects();
-  }, [workspaceId]);
+    if (!normalizedWorkspaceId) {
+      setStoreSnapshot(createProjectsStoreSnapshot());
+      return;
+    }
+
+    const store = getProjectsStore(normalizedWorkspaceId);
+    setStoreSnapshot(store.snapshot);
+
+    const handleStoreChange = (nextSnapshot: ProjectsStoreSnapshot) => {
+      setStoreSnapshot(nextSnapshot);
+    };
+
+    const hadActiveListeners = store.listeners.size > 0;
+    store.listeners.add(handleStoreChange);
+
+    if ((!store.snapshot.hasFetched || !hadActiveListeners) && !store.inflight) {
+      void fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService).catch(() => {
+        // Error state is already propagated through the shared store snapshot.
+      });
+    }
+
+    return () => {
+      store.listeners.delete(handleStoreChange);
+    };
+  }, [normalizedWorkspaceId, projectService]);
+
+  const refreshProjects = useCallback(async () => {
+    if (!normalizedWorkspaceId) {
+      const emptySnapshot = createProjectsStoreSnapshot();
+      setStoreSnapshot(emptySnapshot);
+      return emptySnapshot.projects;
+    }
+
+    const store = getProjectsStore(normalizedWorkspaceId);
+    return fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService);
+  }, [normalizedWorkspaceId, projectService]);
 
   const filteredProjects = useMemo(() => {
+    const projects = storeSnapshot.projects;
     if (!searchQuery.trim()) {
       return projects;
     }
@@ -103,22 +237,32 @@ export function useProjects(workspaceId?: string) {
       .filter(Boolean)
       .sort((left, right) => right!.score - left!.score)
       .map((candidate) => candidate!.project);
-  }, [projects, searchQuery]);
+  }, [searchQuery, storeSnapshot.projects]);
 
   const createProject = async (name: string, options?: CreateProjectOptions) => {
-    if (!workspaceId) {
+    if (!normalizedWorkspaceId) {
       const message = 'Workspace ID is required to create a project';
-      setError(message);
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
       throw new Error(message);
     }
 
     try {
-      const newProject = await projectService.createProject(workspaceId, name, options);
-      await fetchProjects();
+      const newProject = await projectService.createProject(normalizedWorkspaceId, name, options);
+      await refreshProjects();
       return newProject;
-    } catch (err: any) {
-      setError(err.message || 'Failed to create project');
-      throw err;
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to create project';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
+      throw error;
     }
   };
 
@@ -129,38 +273,66 @@ export function useProjects(workspaceId?: string) {
   ) => {
     try {
       const codingSession = await projectService.createCodingSession(projectId, title, options);
-      await fetchProjects();
+      await refreshProjects();
       return codingSession;
-    } catch (err: any) {
-      setError(err.message || 'Failed to create coding session');
-      throw err;
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to create coding session';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
+      throw error;
     }
   };
 
   const renameProject = async (projectId: string, name: string) => {
     try {
       await projectService.renameProject(projectId, name);
-      await fetchProjects();
-    } catch (err: any) {
-      setError(err.message || 'Failed to rename project');
+      await refreshProjects();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to rename project';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
     }
   };
 
   const updateProject = async (projectId: string, updates: Partial<BirdCoderProject>) => {
     try {
       await projectService.updateProject(projectId, updates);
-      await fetchProjects();
-    } catch (err: any) {
-      setError(err.message || 'Failed to update project');
+      await refreshProjects();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to update project';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
     }
   };
 
   const deleteProject = async (projectId: string) => {
     try {
       await projectService.deleteProject(projectId);
-      await fetchProjects();
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete project');
+      await refreshProjects();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to delete project';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
     }
   };
 
@@ -171,9 +343,16 @@ export function useProjects(workspaceId?: string) {
   ) => {
     try {
       await projectService.renameCodingSession(projectId, codingSessionId, title);
-      await fetchProjects();
-    } catch (err: any) {
-      setError(err.message || 'Failed to rename coding session');
+      await refreshProjects();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to rename coding session';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
     }
   };
 
@@ -184,9 +363,16 @@ export function useProjects(workspaceId?: string) {
   ) => {
     try {
       await projectService.updateCodingSession(projectId, codingSessionId, updates);
-      await fetchProjects();
-    } catch (err: any) {
-      setError(err.message || 'Failed to update coding session');
+      await refreshProjects();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to update coding session';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
     }
   };
 
@@ -201,20 +387,34 @@ export function useProjects(workspaceId?: string) {
         codingSessionId,
         newTitle,
       );
-      await fetchProjects();
+      await refreshProjects();
       return codingSession;
-    } catch (err: any) {
-      setError(err.message || 'Failed to fork coding session');
-      throw err;
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to fork coding session';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
+      throw error;
     }
   };
 
   const deleteCodingSession = async (projectId: string, codingSessionId: string) => {
     try {
       await projectService.deleteCodingSession(projectId, codingSessionId);
-      await fetchProjects();
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete coding session');
+      await refreshProjects();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to delete coding session';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
     }
   };
 
@@ -229,11 +429,18 @@ export function useProjects(workspaceId?: string) {
         codingSessionId,
         message,
       );
-      await fetchProjects();
+      await refreshProjects();
       return newMessage;
-    } catch (err: any) {
-      setError(err.message || 'Failed to add message');
-      throw err;
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to add message';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
+      throw error;
     }
   };
 
@@ -250,9 +457,16 @@ export function useProjects(workspaceId?: string) {
         messageId,
         updates,
       );
-      await fetchProjects();
-    } catch (err: any) {
-      setError(err.message || 'Failed to edit message');
+      await refreshProjects();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to edit message';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
     }
   };
 
@@ -263,9 +477,16 @@ export function useProjects(workspaceId?: string) {
   ) => {
     try {
       await projectService.deleteCodingSessionMessage(projectId, codingSessionId, messageId);
-      await fetchProjects();
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete message');
+      await refreshProjects();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to delete message';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
     }
   };
 
@@ -282,19 +503,26 @@ export function useProjects(workspaceId?: string) {
         role: 'user',
         content,
       });
-      await fetchProjects();
+      await refreshProjects();
 
       return newMessage;
-    } catch (err: any) {
-      setError(err.message || 'Failed to send message');
-      throw err;
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to send message';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
+      throw error;
     }
   };
 
   return {
     projects: filteredProjects,
-    isLoading,
-    error,
+    isLoading: storeSnapshot.isLoading,
+    error: storeSnapshot.error,
     searchQuery,
     setSearchQuery,
     createProject,
@@ -310,6 +538,6 @@ export function useProjects(workspaceId?: string) {
     editCodingSessionMessage,
     deleteCodingSessionMessage,
     sendMessage,
-    refreshProjects: fetchProjects,
+    refreshProjects,
   };
 }

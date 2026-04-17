@@ -24,6 +24,7 @@ import { resolveRuntimeServerSessionHeaders } from './runtimeServerSession.ts';
 import { ApiBackedAdminDeploymentService } from './impl/ApiBackedAdminDeploymentService.ts';
 import { ApiBackedAdminPolicyService } from './impl/ApiBackedAdminPolicyService.ts';
 import { ApiBackedAuditService } from './impl/ApiBackedAuditService.ts';
+import { ApiBackedCollaborationService } from './impl/ApiBackedCollaborationService.ts';
 import { ApiBackedCoreReadService } from './impl/ApiBackedCoreReadService.ts';
 import { ApiBackedCoreWriteService } from './impl/ApiBackedCoreWriteService.ts';
 import { ApiBackedDeploymentService } from './impl/ApiBackedDeploymentService.ts';
@@ -40,6 +41,7 @@ import type { IAuthService } from './interfaces/IAuthService.ts';
 import type { IAdminDeploymentService } from './interfaces/IAdminDeploymentService.ts';
 import type { IAdminPolicyService } from './interfaces/IAdminPolicyService.ts';
 import type { IAuditService } from './interfaces/IAuditService.ts';
+import type { ICollaborationService } from './interfaces/ICollaborationService.ts';
 import type { ICoreReadService } from './interfaces/ICoreReadService.ts';
 import type { ICoreWriteService } from './interfaces/ICoreWriteService.ts';
 import type { IDeploymentService } from './interfaces/IDeploymentService.ts';
@@ -56,6 +58,7 @@ export interface BirdCoderDefaultIdeServices {
   adminPolicyService: IAdminPolicyService;
   authService: IAuthService;
   auditService: IAuditService;
+  collaborationService: ICollaborationService;
   coreReadService: ICoreReadService;
   coreWriteService: ICoreWriteService;
   deploymentService: IDeploymentService;
@@ -213,6 +216,9 @@ function createUnavailableBirdCoderCoreReadClient(): BirdCoderCoreReadApiClient 
     async getHealth() {
       throw createUnavailableError();
     },
+    async getNativeSession() {
+      throw createUnavailableError();
+    },
     async getOperation() {
       throw createUnavailableError();
     },
@@ -232,6 +238,12 @@ function createUnavailableBirdCoderCoreReadClient(): BirdCoderCoreReadApiClient 
       throw createUnavailableError();
     },
     async listModels() {
+      throw createUnavailableError();
+    },
+    async listNativeSessions() {
+      throw createUnavailableError();
+    },
+    async listRoutes() {
       throw createUnavailableError();
     },
   };
@@ -307,6 +319,10 @@ export function createDefaultBirdCoderIdeServices(
     authService,
     auditService: new ApiBackedAuditService({
       client: appAdminClient,
+    }),
+    collaborationService: new ApiBackedCollaborationService({
+      client: appAdminClient,
+      identityProvider: authService,
     }),
     coreReadService: new ApiBackedCoreReadService({
       client: coreReadClient,

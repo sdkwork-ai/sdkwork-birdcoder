@@ -121,6 +121,9 @@ const coreReadService: ICoreReadService = {
   async getHealth(): Promise<BirdCoderCoreHealthSummary> {
     throw new Error('not needed');
   },
+  async getNativeSession() {
+    throw new Error('not needed');
+  },
   async getOperation(): Promise<BirdCoderOperationDescriptor> {
     throw new Error('not needed');
   },
@@ -141,6 +144,12 @@ const coreReadService: ICoreReadService = {
   },
   async listModels(): Promise<BirdCoderModelCatalogEntry[]> {
     throw new Error('not needed');
+  },
+  async listNativeSessions() {
+    return [];
+  },
+  async listRoutes() {
+    return [];
   },
 };
 

@@ -33,6 +33,7 @@ function createListEnvelope<TItem>(items: readonly TItem[], requestId: string) {
 const observedRequests: Array<{
   method: string;
   path: string;
+  query?: Record<string, unknown>;
 }> = [];
 
 const { createBirdCoderGeneratedCoreReadApiClient } = await import(
@@ -41,10 +42,13 @@ const { createBirdCoderGeneratedCoreReadApiClient } = await import(
 
 const client = createBirdCoderGeneratedCoreReadApiClient({
   transport: {
-    async request<TResponse>(request: { method: string; path: string }): Promise<TResponse> {
+    async request<TResponse>(
+      request: { method: string; path: string; query?: Record<string, unknown> },
+    ): Promise<TResponse> {
       observedRequests.push({
         method: request.method,
         path: request.path,
+        ...(request.query ? { query: request.query } : {}),
       });
 
       switch (request.path) {
@@ -52,6 +56,42 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
           return createEnvelope(
             {
               apiVersion: 'v1',
+              gateway: {
+                basePath: '/api',
+                docsPath: '/docs',
+                liveOpenApiPath: '/openapi.json',
+                openApiPath: '/openapi/coding-server-v1.json',
+                routeCatalogPath: '/api/core/v1/routes',
+                routeCount: 50,
+                routesBySurface: {
+                  core: 17,
+                  app: 26,
+                  admin: 7,
+                },
+                surfaces: [
+                  {
+                    authMode: 'host',
+                    basePath: '/api/core/v1',
+                    description: 'Core coding runtime, engine catalog, session execution, and operation control.',
+                    name: 'core',
+                    routeCount: 17,
+                  },
+                  {
+                    authMode: 'user',
+                    basePath: '/api/app/v1',
+                    description: 'Application-facing workspace, project, collaboration, and user-center routes.',
+                    name: 'app',
+                    routeCount: 26,
+                  },
+                  {
+                    authMode: 'admin',
+                    basePath: '/api/admin/v1',
+                    description: 'Administrative governance, audit, release, deployment, and team-management routes.',
+                    name: 'admin',
+                    routeCount: 7,
+                  },
+                ],
+              },
               hostMode: 'server',
               moduleId: 'coding-server',
               openApiPath: '/openapi/coding-server-v1.json',
@@ -149,6 +189,77 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
             ],
             'req.core.models',
           ) as TResponse;
+        case '/api/core/v1/routes':
+          return createListEnvelope(
+            [
+              {
+                authMode: 'host',
+                method: 'GET',
+                openApiPath: '/api/core/v1/routes',
+                operationId: 'core.listRoutes',
+                path: '/api/core/v1/routes',
+                surface: 'core',
+                summary: 'List unified API routes',
+              },
+            ],
+            'req.core.routes',
+          ) as TResponse;
+        case '/api/core/v1/native-sessions':
+          return createListEnvelope(
+            [
+              {
+                createdAt: '2026-04-17T00:00:00.000Z',
+                id: 'codex-native:thread-generated-contract',
+                workspaceId: 'workspace-generated-contract',
+                projectId: 'project-generated-contract',
+                title: 'Generated native session',
+                status: 'active',
+                hostMode: 'server',
+                engineId: 'codex',
+                modelId: 'gpt-5-codex',
+                updatedAt: '2026-04-17T00:05:00.000Z',
+                lastTurnAt: '2026-04-17T00:05:00.000Z',
+                kind: 'coding',
+                nativeCwd: 'D:/workspace/generated-contract',
+                sortTimestamp: 1713312300000,
+                transcriptUpdatedAt: '2026-04-17T00:05:00.000Z',
+              },
+            ],
+            'req.core.native-sessions',
+          ) as TResponse;
+        case '/api/core/v1/native-sessions/codex-native%3Athread-generated-contract':
+          return createEnvelope(
+            {
+              summary: {
+                createdAt: '2026-04-17T00:00:00.000Z',
+                id: 'codex-native:thread-generated-contract',
+                workspaceId: 'workspace-generated-contract',
+                projectId: 'project-generated-contract',
+                title: 'Generated native session',
+                status: 'active',
+                hostMode: 'server',
+                engineId: 'codex',
+                modelId: 'gpt-5-codex',
+                updatedAt: '2026-04-17T00:05:00.000Z',
+                lastTurnAt: '2026-04-17T00:05:00.000Z',
+                kind: 'coding',
+                nativeCwd: 'D:/workspace/generated-contract',
+                sortTimestamp: 1713312300000,
+                transcriptUpdatedAt: '2026-04-17T00:05:00.000Z',
+              },
+              messages: [
+                {
+                  id: 'native-message-generated-contract',
+                  codingSessionId: 'codex-native:thread-generated-contract',
+                  turnId: 'native-turn-generated-contract',
+                  role: 'assistant',
+                  content: 'Generated native session message.',
+                  createdAt: '2026-04-17T00:05:00.000Z',
+                },
+              ],
+            },
+            'req.core.native-session',
+          ) as TResponse;
         case '/api/core/v1/operations/op-generated-core-read':
           return createEnvelope(
             {
@@ -173,14 +284,29 @@ const health = await client.getHealth();
 const engines = await client.listEngines();
 const codexCapabilities = await client.getEngineCapabilities('codex');
 const models = await client.listModels();
+const routes = await client.listRoutes();
+const nativeSessions = await client.listNativeSessions({
+  engineId: 'codex',
+  projectId: 'project-generated-contract',
+  workspaceId: 'workspace-generated-contract',
+});
+const nativeSession = await client.getNativeSession('codex-native:thread-generated-contract', {
+  engineId: 'codex',
+  projectId: 'project-generated-contract',
+  workspaceId: 'workspace-generated-contract',
+});
 const operation = await client.getOperation('op-generated-core-read');
 
 assert.equal(descriptor.moduleId, 'coding-server');
+assert.equal(descriptor.gateway.routeCatalogPath, '/api/core/v1/routes');
 assert.equal(runtime.configFileName, 'bird-server.config.json');
 assert.equal(health.status, 'healthy');
 assert.equal(engines[0]?.engineKey, 'codex');
 assert.equal(codexCapabilities.chat, true);
 assert.equal(models[0]?.modelId, 'codex');
+assert.equal(routes[0]?.operationId, 'core.listRoutes');
+assert.equal(nativeSessions[0]?.id, 'codex-native:thread-generated-contract');
+assert.equal(nativeSession.summary.id, 'codex-native:thread-generated-contract');
 assert.equal(operation.operationId, 'op-generated-core-read');
 assert.deepEqual(observedRequests, [
   {
@@ -206,6 +332,28 @@ assert.deepEqual(observedRequests, [
   {
     method: 'GET',
     path: '/api/core/v1/models',
+  },
+  {
+    method: 'GET',
+    path: '/api/core/v1/routes',
+  },
+  {
+    method: 'GET',
+    path: '/api/core/v1/native-sessions',
+    query: {
+      engineId: 'codex',
+      projectId: 'project-generated-contract',
+      workspaceId: 'workspace-generated-contract',
+    },
+  },
+  {
+    method: 'GET',
+    path: '/api/core/v1/native-sessions/codex-native%3Athread-generated-contract',
+    query: {
+      engineId: 'codex',
+      projectId: 'project-generated-contract',
+      workspaceId: 'workspace-generated-contract',
+    },
   },
   {
     method: 'GET',

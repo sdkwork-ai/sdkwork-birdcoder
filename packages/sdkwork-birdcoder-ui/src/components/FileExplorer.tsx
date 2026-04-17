@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { ChevronRight, ChevronDown, File, Folder, Search, X, Plus, FilePlus, FolderPlus, Trash2, FileJson, FileCode2, FileImage, FileText, FileType2, ListCollapse, Copy, Terminal, ExternalLink, FileEdit } from 'lucide-react';
 import { useToast } from '@sdkwork/birdcoder-commons';
 
@@ -90,6 +90,14 @@ function resolveRelativeParentPath(path: string): string {
   return normalizedPath.slice(0, lastSeparatorIndex);
 }
 
+function resolveRootCreationParentPath(files: FileNode[]): string {
+  if (files.length === 1 && files[0]?.type === 'directory') {
+    return files[0].path;
+  }
+
+  return '';
+}
+
 export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, onCreateFolder, onDeleteFile, onDeleteFolder, onRenameNode, basePath = '' }: FileExplorerProps) {
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [isSearchVisible, setIsSearchVisible] = useState(false);
@@ -110,6 +118,17 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
       ? resolveNodeAbsolutePath(node.path)
       : resolveAbsoluteExplorerPath(basePath, resolveRelativeParentPath(node.path));
   const notifyMissingProjectPath = () => addToast('Project folder path is unavailable', 'error');
+  const rootCreationParentPath = useMemo(() => resolveRootCreationParentPath(files), [files]);
+  const startCreatingRootNode = useCallback((type: 'file' | 'directory') => {
+    setCreatingNode({ parentPath: rootCreationParentPath, type });
+    setInputValue('');
+    if (rootCreationParentPath) {
+      setExpandedFolders((previousState) => ({
+        ...previousState,
+        [rootCreationParentPath]: true,
+      }));
+    }
+  }, [rootCreationParentPath]);
 
   useEffect(() => {
     const handleClickOutside = () => {
@@ -119,8 +138,7 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
     document.addEventListener('click', handleClickOutside);
 
     const handleCreateRootFile = () => {
-      setCreatingNode({ parentPath: '', type: 'file' });
-      setInputValue('');
+      startCreatingRootNode('file');
     };
 
     let unsubscribe: (() => void) | undefined;
@@ -132,7 +150,7 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
       document.removeEventListener('click', handleClickOutside);
       if (unsubscribe) unsubscribe();
     };
-  }, []);
+  }, [startCreatingRootNode]);
 
   const handleContextMenu = (e: React.MouseEvent, node: FileNode) => {
     e.preventDefault();
@@ -432,20 +450,14 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
               <FilePlus 
                 size={14} 
                 className="cursor-pointer hover:text-white transition-colors" 
-                onClick={() => {
-                  setCreatingNode({ parentPath: '', type: 'file' });
-                  setInputValue('');
-                }}
+                onClick={() => startCreatingRootNode('file')}
               />
             </div>
             <div title="New Folder">
               <FolderPlus 
                 size={14} 
                 className="cursor-pointer hover:text-white transition-colors" 
-                onClick={() => {
-                  setCreatingNode({ parentPath: '', type: 'directory' });
-                  setInputValue('');
-                }}
+                onClick={() => startCreatingRootNode('directory')}
               />
             </div>
             <div title="Collapse All">
@@ -544,10 +556,7 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
                 </div>
                 <button 
                   className="mt-2 flex items-center gap-2 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-4 py-2 rounded-md transition-colors border border-blue-500/20"
-                  onClick={() => {
-                    setCreatingNode({ parentPath: '', type: 'file' });
-                    setInputValue('');
-                  }}
+                  onClick={() => startCreatingRootNode('file')}
                 >
                   <Plus size={14} />
                   <span>Create File</span>
@@ -567,8 +576,7 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
-              setCreatingNode({ parentPath: '', type: 'file' });
-              setInputValue('');
+              startCreatingRootNode('file');
               setRootContextMenu(null);
             }}
           >
@@ -578,8 +586,7 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
-              setCreatingNode({ parentPath: '', type: 'directory' });
-              setInputValue('');
+              startCreatingRootNode('directory');
               setRootContextMenu(null);
             }}
           >

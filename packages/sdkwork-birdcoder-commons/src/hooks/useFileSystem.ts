@@ -42,6 +42,42 @@ const EDITOR_RECOVERY_SCOPE = 'workbench.editor';
 const MAX_FILE_SEARCH_RESULTS = 200;
 const MAX_FILE_SEARCH_SNIPPET_LENGTH = 160;
 
+function resolveMountedRootPathFromProjectPath(projectPath: string): string | null {
+  const normalizedProjectPath = projectPath.trim().replace(/[\\/]+$/u, '');
+  if (!normalizedProjectPath) {
+    return null;
+  }
+
+  const pathSegments = normalizedProjectPath.split(/[\\/]+/u).filter(Boolean);
+  const candidateRootName = pathSegments[pathSegments.length - 1]?.trim() || 'mounted-folder';
+  const rootName =
+    candidateRootName.endsWith(':') || candidateRootName.length === 0
+      ? 'mounted-folder'
+      : candidateRootName;
+  return `/${rootName}`;
+}
+
+function resolveMountedMutationPath(path: string, mountedRootPath: string | null): string {
+  const trimmedPath = path.trim();
+  if (!trimmedPath || !mountedRootPath) {
+    return trimmedPath;
+  }
+
+  const normalizedRootPath =
+    mountedRootPath.endsWith('/') && mountedRootPath.length > 1
+      ? mountedRootPath.slice(0, -1)
+      : mountedRootPath;
+  if (
+    trimmedPath === normalizedRootPath ||
+    trimmedPath.startsWith(`${normalizedRootPath}/`)
+  ) {
+    return trimmedPath;
+  }
+
+  const normalizedRelativePath = trimmedPath.replace(/^[/\\]+/, '').replace(/[\\/]+/g, '/');
+  return normalizedRelativePath ? `${normalizedRootPath}/${normalizedRelativePath}` : normalizedRootPath;
+}
+
 export function useFileSystem(projectId: string, projectPath?: string) {
   const { fileSystemService } = useIDEServices();
   const normalizedProjectId = projectId.trim();
@@ -58,7 +94,9 @@ export function useFileSystem(projectId: string, projectPath?: string) {
   const selectionStorageKey = buildEditorSelectionStorageKey(normalizedProjectId);
   const selectedFileRef = useRef<string | null>(null);
   const searchAbortControllerRef = useRef<AbortController | null>(null);
+  const mountRecoveryPromiseRef = useRef<Promise<void> | null>(null);
   const requestGuardRef = useRef(createFileSystemRequestGuardState(projectId));
+  const previousProjectIdRef = useRef(normalizedProjectId);
 
   const isProjectActive = useCallback(
     (candidateProjectId: string) =>
@@ -157,16 +195,23 @@ export function useFileSystem(projectId: string, projectPath?: string) {
   );
 
   useLayoutEffect(() => {
+    const nextProjectId = projectId.trim();
+    if (previousProjectIdRef.current === nextProjectId) {
+      return;
+    }
+
+    previousProjectIdRef.current = nextProjectId;
     searchAbortControllerRef.current?.abort();
     searchAbortControllerRef.current = null;
     requestGuardRef.current = resetFileSystemRequestGuardState(
       requestGuardRef.current,
-      normalizedProjectId,
+      nextProjectId,
     );
+    mountRecoveryPromiseRef.current = null;
     selectedFileRef.current = null;
     setFiles([]);
     setIsLoading(false);
-    setSelectedFile(null);
+    commitSelectedFile(null);
     setFileContent('');
     setIsLoadingContent(false);
     setIsSearchingFiles(false);
@@ -178,6 +223,73 @@ export function useFileSystem(projectId: string, projectPath?: string) {
     searchAbortControllerRef.current?.abort();
     searchAbortControllerRef.current = null;
   }, []);
+
+  const resolveProjectMountedRootPath = useCallback((): string | null => {
+    if (files.length === 1 && files[0]?.type === 'directory') {
+      return files[0].path;
+    }
+
+    const recoveryMountSource = resolveProjectMountRecoverySource(projectPath);
+    if (!recoveryMountSource || recoveryMountSource.type !== 'tauri') {
+      return null;
+    }
+
+    return resolveMountedRootPathFromProjectPath(recoveryMountSource.path);
+  }, [files, projectPath]);
+
+  const ensureMountedProjectRoot = useCallback(async (targetProjectId: string) => {
+    const recoveryMountSource = resolveProjectMountRecoverySource(projectPath);
+    if (!recoveryMountSource) {
+      return;
+    }
+
+    const mountedFiles = await fileSystemService.getFiles(targetProjectId);
+    if (mountedFiles.length > 0) {
+      return;
+    }
+
+    if (mountRecoveryPromiseRef.current) {
+      await mountRecoveryPromiseRef.current;
+      return;
+    }
+
+    const isTrackingCurrentProjectMountRecovery =
+      targetProjectId === normalizedProjectId && isProjectActive(targetProjectId);
+    const mountPromise = (async () => {
+      try {
+        if (isTrackingCurrentProjectMountRecovery) {
+          setMountRecoveryState(
+            createRecoveringProjectMountRecoveryState(recoveryMountSource.path),
+          );
+        }
+        await fileSystemService.mountFolder(targetProjectId, recoveryMountSource);
+        if (isTrackingCurrentProjectMountRecovery) {
+          setMountRecoveryState(
+            createRecoveredProjectMountRecoveryState(recoveryMountSource.path),
+          );
+        }
+      } catch (error) {
+        if (isTrackingCurrentProjectMountRecovery) {
+          setMountRecoveryState(
+            createFailedProjectMountRecoveryState(recoveryMountSource.path, error),
+          );
+        }
+        throw error;
+      }
+    })().finally(() => {
+      if (mountRecoveryPromiseRef.current === mountPromise) {
+        mountRecoveryPromiseRef.current = null;
+      }
+    });
+
+    mountRecoveryPromiseRef.current = mountPromise;
+    await mountPromise;
+  }, [
+    fileSystemService,
+    isProjectActive,
+    normalizedProjectId,
+    projectPath,
+  ]);
 
   useEffect(() => {
     let isMounted = true;
@@ -341,7 +453,9 @@ export function useFileSystem(projectId: string, projectPath?: string) {
     const mutationProjectId = normalizedProjectId;
     const requestVersion = beginFileTreeRequestVersion();
     try {
-      await fileSystemService.createFile(mutationProjectId, path);
+      const normalizedPath = resolveMountedMutationPath(path, resolveProjectMountedRootPath());
+      await ensureMountedProjectRoot(mutationProjectId);
+      await fileSystemService.createFile(mutationProjectId, normalizedPath);
       const data = await fileSystemService.getFiles(mutationProjectId);
       if (!isLatestFileTreeRequest(mutationProjectId, requestVersion)) {
         return;
@@ -353,7 +467,7 @@ export function useFileSystem(projectId: string, projectPath?: string) {
           currentSelectedFilePath: selectedFileRef.current,
           mutation: {
             type: 'create-file',
-            path,
+            path: normalizedPath,
           },
         }),
       );
@@ -365,9 +479,11 @@ export function useFileSystem(projectId: string, projectPath?: string) {
   }, [
     beginFileTreeRequestVersion,
     completeFileTreeRequestVersion,
+    ensureMountedProjectRoot,
     fileSystemService,
     isLatestFileTreeRequest,
     normalizedProjectId,
+    resolveProjectMountedRootPath,
     syncFilesAndSelection,
   ]);
 
@@ -375,7 +491,9 @@ export function useFileSystem(projectId: string, projectPath?: string) {
     const mutationProjectId = normalizedProjectId;
     const requestVersion = beginFileTreeRequestVersion();
     try {
-      await fileSystemService.createFolder(mutationProjectId, path);
+      const normalizedPath = resolveMountedMutationPath(path, resolveProjectMountedRootPath());
+      await ensureMountedProjectRoot(mutationProjectId);
+      await fileSystemService.createFolder(mutationProjectId, normalizedPath);
       const data = await fileSystemService.getFiles(mutationProjectId);
       if (!isLatestFileTreeRequest(mutationProjectId, requestVersion)) {
         return;
@@ -387,7 +505,7 @@ export function useFileSystem(projectId: string, projectPath?: string) {
           currentSelectedFilePath: selectedFileRef.current,
           mutation: {
             type: 'create-folder',
-            path,
+            path: normalizedPath,
           },
         }),
       );
@@ -399,9 +517,11 @@ export function useFileSystem(projectId: string, projectPath?: string) {
   }, [
     beginFileTreeRequestVersion,
     completeFileTreeRequestVersion,
+    ensureMountedProjectRoot,
     fileSystemService,
     isLatestFileTreeRequest,
     normalizedProjectId,
+    resolveProjectMountedRootPath,
     syncFilesAndSelection,
   ]);
 

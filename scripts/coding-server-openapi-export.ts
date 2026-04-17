@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -24,8 +25,71 @@ export interface BirdCoderCodingServerOpenApiSnapshotWriteResult {
   outputPath: string;
 }
 
+interface ReleaseManifestCodingServerOpenApiEvidence {
+  canonicalRelativePath?: string;
+  mirroredRelativePaths?: string[];
+  sha256?: string;
+  openapi?: string;
+  version?: string;
+  title?: string;
+}
+
+interface ReleaseManifestShape {
+  codingServerOpenApiEvidence?: ReleaseManifestCodingServerOpenApiEvidence;
+}
+
 function resolveSnapshotFileName(): string {
   return path.posix.basename(BIRDCODER_CODING_SERVER_OPENAPI_PATH) || 'coding-server-v1.json';
+}
+
+function computeSha256(content: string): string {
+  return crypto.createHash('sha256').update(content).digest('hex');
+}
+
+function normalizeRelativeReleasePath(value: string | undefined): string | null {
+  const normalizedValue = String(value ?? '').trim().replaceAll('\\', '/');
+  return normalizedValue.length > 0 ? normalizedValue : null;
+}
+
+function syncReleaseOpenApiSidecars(rootDir: string, serializedDocument: string): void {
+  const releaseAssetsDir = path.join(rootDir, 'artifacts', 'release');
+  const manifestPath = path.join(releaseAssetsDir, 'release-manifest.json');
+  if (!fs.existsSync(manifestPath)) {
+    return;
+  }
+
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as ReleaseManifestShape;
+  const evidence = manifest.codingServerOpenApiEvidence;
+  if (!evidence) {
+    return;
+  }
+
+  const relativePaths = Array.from(
+    new Set(
+      [
+        normalizeRelativeReleasePath(evidence.canonicalRelativePath),
+        ...(Array.isArray(evidence.mirroredRelativePaths)
+          ? evidence.mirroredRelativePaths.map(normalizeRelativeReleasePath)
+          : []),
+      ].filter((value): value is string => value !== null),
+    ),
+  );
+
+  for (const relativePath of relativePaths) {
+    const absolutePath = path.resolve(releaseAssetsDir, ...relativePath.split('/'));
+    fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+    fs.writeFileSync(absolutePath, serializedDocument, 'utf8');
+  }
+
+  const parsedDocument = JSON.parse(serializedDocument) as {
+    info?: { title?: string; version?: string };
+    openapi?: string;
+  };
+  evidence.sha256 = computeSha256(serializedDocument);
+  evidence.openapi = String(parsedDocument.openapi ?? '').trim();
+  evidence.version = String(parsedDocument.info?.version ?? '').trim();
+  evidence.title = String(parsedDocument.info?.title ?? '').trim();
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
 }
 
 export function resolveBirdCoderCodingServerOpenApiSnapshotPath(
@@ -42,11 +106,17 @@ export function resolveBirdCoderCodingServerOpenApiSnapshotPath(
 export function writeBirdCoderCodingServerOpenApiSnapshot(
   options: WriteBirdCoderCodingServerOpenApiSnapshotOptions = {},
 ): BirdCoderCodingServerOpenApiSnapshotWriteResult {
-  const outputPath = resolveBirdCoderCodingServerOpenApiSnapshotPath(options);
+  const rootDir = path.resolve(options.rootDir ?? process.cwd());
+  const outputPath = resolveBirdCoderCodingServerOpenApiSnapshotPath({
+    ...options,
+    rootDir,
+  });
   const document = buildBirdCoderCodingServerOpenApiDocument(options.distributionId ?? 'global');
+  const serializedDocument = `${JSON.stringify(document, null, 2)}\n`;
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, `${JSON.stringify(document, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(outputPath, serializedDocument, 'utf8');
+  syncReleaseOpenApiSidecars(rootDir, serializedDocument);
 
   return {
     document,

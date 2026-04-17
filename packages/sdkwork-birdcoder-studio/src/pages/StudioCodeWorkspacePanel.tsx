@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 interface StudioCodeWorkspacePanelProps {
   files: FileNode[];
   selectedFile?: string | null;
-  currentProjectName?: string;
+  currentProjectPath?: string;
   viewingDiff: FileChange | null;
   fileContent: string;
   onSelectFile: (path: string) => void;
@@ -25,7 +25,7 @@ interface StudioCodeWorkspacePanelProps {
 export function StudioCodeWorkspacePanel({
   files,
   selectedFile,
-  currentProjectName,
+  currentProjectPath,
   viewingDiff,
   fileContent,
   onSelectFile,
@@ -46,7 +46,7 @@ export function StudioCodeWorkspacePanel({
       <FileExplorer
         files={files}
         selectedFile={selectedFile || undefined}
-        basePath={`/workspace/${currentProjectName || 'project'}`}
+        basePath={currentProjectPath}
         onSelectFile={onSelectFile}
         onCreateFile={onCreateFile}
         onCreateFolder={onCreateFolder}

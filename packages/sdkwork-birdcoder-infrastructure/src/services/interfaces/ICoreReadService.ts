@@ -1,10 +1,15 @@
 import type {
+  BirdCoderApiRouteCatalogEntry,
   BirdCoderCodingServerDescriptor,
   BirdCoderCodingSessionArtifact,
   BirdCoderCodingSessionCheckpoint,
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSessionSummary,
   BirdCoderCoreHealthSummary,
+  BirdCoderGetNativeSessionRequest,
+  BirdCoderListNativeSessionsRequest,
+  BirdCoderNativeSessionDetail,
+  BirdCoderNativeSessionSummary,
   BirdCoderCoreRuntimeSummary,
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineDescriptor,
@@ -17,6 +22,10 @@ export interface ICoreReadService {
   getDescriptor(): Promise<BirdCoderCodingServerDescriptor>;
   getEngineCapabilities(engineKey: string): Promise<BirdCoderEngineCapabilityMatrix>;
   getHealth(): Promise<BirdCoderCoreHealthSummary>;
+  getNativeSession(
+    codingSessionId: string,
+    request?: BirdCoderGetNativeSessionRequest,
+  ): Promise<BirdCoderNativeSessionDetail>;
   getOperation(operationId: string): Promise<BirdCoderOperationDescriptor>;
   getRuntime(): Promise<BirdCoderCoreRuntimeSummary>;
   listCodingSessionArtifacts(codingSessionId: string): Promise<BirdCoderCodingSessionArtifact[]>;
@@ -24,4 +33,8 @@ export interface ICoreReadService {
   listCodingSessionEvents(codingSessionId: string): Promise<BirdCoderCodingSessionEvent[]>;
   listEngines(): Promise<BirdCoderEngineDescriptor[]>;
   listModels(): Promise<BirdCoderModelCatalogEntry[]>;
+  listNativeSessions(
+    request?: BirdCoderListNativeSessionsRequest,
+  ): Promise<BirdCoderNativeSessionSummary[]>;
+  listRoutes(): Promise<BirdCoderApiRouteCatalogEntry[]>;
 }

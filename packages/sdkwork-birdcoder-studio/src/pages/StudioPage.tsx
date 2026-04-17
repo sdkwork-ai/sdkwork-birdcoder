@@ -6,11 +6,8 @@ import {
   globalEventBus,
   importLocalFolderProject,
   rebindLocalFolderProject,
-  normalizeWorkbenchCodeEngineId,
-  normalizeWorkbenchCodeModelId,
   resolveProjectMountRecoverySource,
   resolveRunConfigurationTerminalLaunch,
-  resolveWorkbenchChatSelection,
   useFileSystem,
   useIDEServices,
   useProjectRunConfigurations,
@@ -19,7 +16,7 @@ import {
   useCodingSessionActions,
   useToast,
   useWorkbenchPreferences,
-  ensureStoredNativeCodexSessionMirror,
+  ensureStoredNativeSessionMirror,
 } from '@sdkwork/birdcoder-commons/workbench';
 import type {
   RunConfigurationRecord,
@@ -61,6 +58,8 @@ import {
 import { StudioChatSidebar } from './StudioChatSidebar';
 import { StudioTerminalIntegrationPanel } from './StudioTerminalIntegrationPanel';
 import { StudioWorkspaceOverlays } from './StudioWorkspaceOverlays';
+import { useStudioChatSelection } from './useStudioChatSelection';
+import { useStudioCollaboration } from './useStudioCollaboration';
 import {
   resolveHostStudioPreviewSession,
   resolveHostStudioSimulatorSession,
@@ -85,26 +84,6 @@ export function StudioPage({
   const [activeTab, setActiveTab] = useState<'preview' | 'simulator' | 'code'>('preview');
   const [inputValue, setInputValue] = useState('');
   const { preferences, updatePreferences } = useWorkbenchPreferences();
-  const selectedEngineId = preferences.codeEngineId;
-  const selectedModelId = preferences.codeModelId;
-  const setSelectedEngineId = (engineId: string) => {
-    updatePreferences((previousState) =>
-      resolveWorkbenchChatSelection({
-        codeEngineId: normalizeWorkbenchCodeEngineId(engineId),
-        codeModelId: previousState.codeModelId,
-      }),
-    );
-  };
-  const setSelectedModelId = (modelId: string) => {
-    updatePreferences((previousState) => ({
-      codeModelId: normalizeWorkbenchCodeModelId(previousState.codeEngineId, modelId),
-    }));
-  };
-  const createCodingSessionWithSelection = (projectId: string, title: string) =>
-    createCodingSession(projectId, title, {
-      engineId: selectedEngineId,
-      modelId: selectedModelId,
-    });
   const selectFolderAndImportProject = async (fallbackProjectName: string) => {
     const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
     const folderInfo = await openLocalFolder();
@@ -139,7 +118,7 @@ export function StudioPage({
     deleteCodingSessionMessage,
     refreshProjects,
   } = useProjects(workspaceId);
-  const { coreReadService, projectService } = useIDEServices();
+  const { collaborationService, coreReadService, projectService } = useIDEServices();
   const { addToast } = useToast();
   const [selectedCodingSessionId, setSelectedThreadId] = useState<string>('');
   const [menuActiveProjectId, setMenuActiveProjectId] = useState<string>('');
@@ -162,9 +141,7 @@ export function StudioPage({
   const [isMountRecoveryActionPending, setIsMountRecoveryActionPending] = useState(false);
   const [isAnalyzeModalVisible, setIsAnalyzeModalVisible] = useState(false);
   const [analyzeReport, setAnalyzeReport] = useState<StudioAnalyzeReport | null>(null);
-  const [showShareModal, setShowShareModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
-  const [shareAccess, setShareAccess] = useState<'private' | 'public'>('private');
   const [previewPlatform, setPreviewPlatform] = useState<'web' | 'miniprogram' | 'app'>('web');
   const [previewWebDevice, setPreviewWebDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [previewMpPlatform, setPreviewMpPlatform] = useState<'wechat' | 'douyin' | 'alipay'>('wechat');
@@ -176,8 +153,22 @@ export function StudioPage({
   const threadProjectId = filteredProjects.find((project) =>
     project.codingSessions.some((codingSession) => codingSession.id === selectedCodingSessionId),
   )?.id;
-  const currentProjectId = threadProjectId || projectId || '';
+  const normalizedProjectId = projectId?.trim() ?? '';
+  const normalizedThreadProjectId = threadProjectId?.trim() ?? '';
+  const currentProjectId = normalizedProjectId || normalizedThreadProjectId;
   const { runConfigurations, saveRunConfiguration } = useProjectRunConfigurations(currentProjectId || null);
+  const {
+    createCodingSessionWithSelection,
+    selectedEngineId,
+    selectedModelId,
+    setSelectedEngineId,
+    setSelectedModelId,
+  } = useStudioChatSelection({
+    addToast,
+    createCodingSession,
+    preferences,
+    updatePreferences,
+  });
 
   useEffect(() => {
     const unsubscribe = globalEventBus.on('toggleSidebar', handleToggleSidebar);
@@ -264,9 +255,34 @@ export function StudioPage({
       setIsDebugConfigVisible(true);
     };
     const handleRunWithoutDebugging = () => {
-      globalEventBus.emit('openTerminal');
-      globalEventBus.emit('terminalRequest', { command: 'npm start', timestamp: Date.now() });
-      addToast(t('studio.startingApplication'), 'info');
+      const configuration =
+        runConfigurations.find((entry) => entry.group === 'dev') ??
+        runConfigurations[0] ??
+        getDefaultRunConfigurations()[0];
+      void (async () => {
+        const launch = await resolveRunConfigurationTerminalLaunch(configuration, {
+          projectDirectory: resolveCurrentProjectDirectory(),
+          workspaceDirectory: preferences.defaultWorkingDirectory,
+        });
+
+        if (!launch.request) {
+          addToast(
+            buildTerminalProfileBlockedMessage(configuration.profileId, {
+              launchState: launch.launchPresentation,
+              blockedAction: launch.blockedAction,
+            }) ?? 'Blocked terminal profile.',
+            'error',
+          );
+          if (launch.blockedAction.actionId === 'open-settings') {
+            globalEventBus.emit('openSettings');
+          }
+          return;
+        }
+
+        globalEventBus.emit('openTerminal');
+        globalEventBus.emit('terminalRequest', launch.request);
+        addToast(t('studio.startingApplication'), 'info');
+      })();
     };
     const handleAddRunConfiguration = () => {
       setIsRunConfigVisible(true);
@@ -330,17 +346,20 @@ export function StudioPage({
     currentProjectId,
     createCodingSessionWithSelection,
     addToast,
+    preferences.defaultWorkingDirectory,
+    runConfigurations,
   ]);
   
   const [chatWidth, setChatWidth] = useState(450);
   const [deleteConfirmation, setDeleteConfirmation] = useState<StudioDeleteConfirmation | null>(null);
 
-  // Sync the current project ID up to the AppContent state if it changes due to thread selection
   useEffect(() => {
-    if (threadProjectId && threadProjectId !== projectId && onProjectChange) {
-      onProjectChange(threadProjectId);
+    if (!normalizedThreadProjectId || normalizedProjectId || !onProjectChange) {
+      return;
     }
-  }, [threadProjectId, projectId, onProjectChange]);
+
+    onProjectChange(normalizedThreadProjectId);
+  }, [normalizedProjectId, normalizedThreadProjectId, onProjectChange]);
 
   useEffect(() => {
     const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
@@ -398,6 +417,37 @@ export function StudioPage({
     ?.codingSessions.find((codingSession) => codingSession.id === selectedCodingSessionId);
   const messages = currentThread?.messages || [];
   const currentProject = filteredProjects.find((project) => project.id === currentProjectId);
+  const resolveCurrentProjectDirectory = () => {
+    const normalizedProjectPath = currentProject?.path?.trim() ?? '';
+    return normalizedProjectPath.length > 0
+      ? normalizedProjectPath
+      : preferences.defaultWorkingDirectory;
+  };
+  const {
+    handleCopyPublicLink,
+    handleInviteCollaborator,
+    inviteEmail,
+    isCollaboratorsLoading,
+    isInvitePending,
+    projectCollaborators,
+    publicShareUrl,
+    setInviteEmail,
+    setShareAccess,
+    setShowShareModal,
+    shareAccess,
+    showShareModal,
+  } = useStudioCollaboration({
+    addToast,
+    collaborationService,
+    currentProjectId,
+    messages: {
+      failedToInvite: 'Failed to invite collaborator.',
+      failedToLoad: 'Failed to load project collaborators.',
+      invitationSent: t('studio.invitationSent'),
+      linkCopied: t('studio.linkCopied'),
+      noProjectSelected: t('studio.pleaseSelectProject'),
+    },
+  });
   const restoreSelectionAfterRefresh = (
     targetProjectId: string,
     targetCodingSessionId: string,
@@ -446,20 +496,21 @@ export function StudioPage({
     setSelectedThreadId,
   );
 
-  const syncNativeCodexSessionsForWorkspace = async () => {
+  const syncNativeSessionsForWorkspace = async () => {
     const normalizedWorkspaceId = workspaceId?.trim() ?? '';
     if (!normalizedWorkspaceId) {
       return;
     }
 
     try {
-      await ensureStoredNativeCodexSessionMirror({
+      await ensureStoredNativeSessionMirror({
+        coreReadService,
         projectService,
         workspaceId: normalizedWorkspaceId,
       });
       await Promise.all([refreshProjects(), onSessionInventoryRefresh?.()]);
     } catch (error) {
-      console.error('Failed to synchronize imported native Codex sessions', error);
+      console.error('Failed to synchronize imported native engine sessions', error);
     }
   };
   const {
@@ -508,10 +559,8 @@ export function StudioPage({
   }, [isRunConfigVisible, runConfigurations]);
 
   const dispatchRunConfiguration = async (configuration: RunConfigurationRecord) => {
-    const currentProjectName = filteredProjects.find((project) => project.id === currentProjectId)?.name;
-    const projectDirectory = currentProjectName ? `/workspace/${currentProjectName}` : preferences.defaultWorkingDirectory;
     const launch = await resolveRunConfigurationTerminalLaunch(configuration, {
-      projectDirectory,
+      projectDirectory: resolveCurrentProjectDirectory(),
       workspaceDirectory: preferences.defaultWorkingDirectory,
     });
 
@@ -534,10 +583,6 @@ export function StudioPage({
   };
 
   const dispatchBuildRunConfiguration = async (configuration: RunConfigurationRecord) => {
-    const currentProjectName = filteredProjects.find((project) => project.id === currentProjectId)?.name;
-    const projectDirectory = currentProjectName
-      ? `/workspace/${currentProjectName}`
-      : preferences.defaultWorkingDirectory;
     const buildProfile = resolveStudioBuildProfile({
       platform: previewPlatform,
       webDevice: previewWebDevice,
@@ -547,7 +592,7 @@ export function StudioPage({
     const launch = await resolveStudioBuildExecutionLaunch(buildProfile, configuration, {
       projectId: currentProjectId || null,
       runConfigurationId: configuration.id,
-      projectDirectory,
+      projectDirectory: resolveCurrentProjectDirectory(),
       workspaceDirectory: preferences.defaultWorkingDirectory,
       timestamp: Date.now(),
     });
@@ -579,14 +624,10 @@ export function StudioPage({
   };
 
   const dispatchTestRunConfiguration = async (configuration: RunConfigurationRecord) => {
-    const currentProjectName = filteredProjects.find((project) => project.id === currentProjectId)?.name;
-    const projectDirectory = currentProjectName
-      ? `/workspace/${currentProjectName}`
-      : preferences.defaultWorkingDirectory;
     const launch = await resolveStudioTestExecutionLaunch(configuration, {
       projectId: currentProjectId || null,
       runConfigurationId: configuration.id,
-      projectDirectory,
+      projectDirectory: resolveCurrentProjectDirectory(),
       workspaceDirectory: preferences.defaultWorkingDirectory,
       timestamp: Date.now(),
     });
@@ -624,10 +665,6 @@ export function StudioPage({
       runConfigurations[0] ??
       getDefaultRunConfigurations()[0],
   ) => {
-    const currentProjectName = filteredProjects.find((project) => project.id === currentProjectId)?.name;
-    const projectDirectory = currentProjectName
-      ? `/workspace/${currentProjectName}`
-      : preferences.defaultWorkingDirectory;
     const previewSession = resolveHostStudioPreviewSession({
       url: resolveStudioPreviewUrl(previewUrl),
       platform: previewPlatform,
@@ -640,7 +677,7 @@ export function StudioPage({
     const launch = await resolveStudioPreviewExecutionLaunch(previewSession, configuration, {
       projectId: currentProjectId || null,
       runConfigurationId: configuration.id,
-      projectDirectory,
+      projectDirectory: resolveCurrentProjectDirectory(),
       workspaceDirectory: preferences.defaultWorkingDirectory,
       timestamp: Date.now(),
     });
@@ -683,10 +720,6 @@ export function StudioPage({
       runConfigurations[0] ??
       getDefaultRunConfigurations()[0],
   ) => {
-    const currentProjectName = filteredProjects.find((project) => project.id === currentProjectId)?.name;
-    const projectDirectory = currentProjectName
-      ? `/workspace/${currentProjectName}`
-      : preferences.defaultWorkingDirectory;
     const simulatorSession = resolveHostStudioSimulatorSession({
       platform: previewPlatform,
       webDevice: previewWebDevice,
@@ -698,7 +731,7 @@ export function StudioPage({
     const launch = await resolveStudioSimulatorExecutionLaunch(simulatorSession, configuration, {
       projectId: currentProjectId || null,
       runConfigurationId: configuration.id,
-      projectDirectory,
+      projectDirectory: resolveCurrentProjectDirectory(),
       workspaceDirectory: preferences.defaultWorkingDirectory,
       timestamp: Date.now(),
     });
@@ -859,7 +892,7 @@ export function StudioPage({
         if (!importedProject) {
           return;
         }
-        await syncNativeCodexSessionsForWorkspace();
+        await syncNativeSessionsForWorkspace();
         projectIdToUse = importedProject.projectId;
         setMenuActiveProjectId(importedProject.projectId);
       } else {
@@ -895,8 +928,6 @@ export function StudioPage({
     }
   };
 
-  const currentProjectName = currentProject?.name;
-  const publicShareUrl = `https://ide.sdkwork.com/p/${currentProjectId || 'demo'}`;
   const handlePreviewAppPlatformChange = (platform: 'ios' | 'android' | 'harmony') => {
     setPreviewAppPlatform(platform);
     if (platform === 'ios') {
@@ -961,15 +992,6 @@ export function StudioPage({
     setDeleteConfirmation(null);
   };
 
-  const handleCopyPublicLink = () => {
-    navigator.clipboard.writeText(publicShareUrl);
-    addToast(t('studio.linkCopied'), 'success');
-  };
-
-  const handleInviteCollaborator = () => {
-    addToast(t('studio.invitationSent'), 'success');
-  };
-
   const handleAcceptViewingDiff = async () => {
     if (!viewingDiff) {
       return;
@@ -993,7 +1015,7 @@ export function StudioPage({
       if (!newProject) {
         return;
       }
-      await syncNativeCodexSessionsForWorkspace();
+      await syncNativeSessionsForWorkspace();
       if (onProjectChange) {
         onProjectChange(newProject.projectId);
       }
@@ -1012,7 +1034,7 @@ export function StudioPage({
         return;
       }
 
-      await syncNativeCodexSessionsForWorkspace();
+      await syncNativeSessionsForWorkspace();
       if (onProjectChange) {
         onProjectChange(importedProject.projectId);
       }
@@ -1070,7 +1092,7 @@ export function StudioPage({
         updateProject,
       });
 
-      await syncNativeCodexSessionsForWorkspace();
+      await syncNativeSessionsForWorkspace();
       addToast(t('studio.openedFolder', { name: reboundProject.projectName }), 'success');
     } catch (error) {
       console.error('Failed to rebind local project folder', error);
@@ -1244,7 +1266,7 @@ export function StudioPage({
               <StudioCodeWorkspacePanel
                 files={files}
                 selectedFile={selectedFile}
-                currentProjectName={currentProjectName}
+                currentProjectPath={currentProject?.path}
                 viewingDiff={viewingDiff}
                 fileContent={fileContent}
                 onSelectFile={(path) => {
@@ -1303,11 +1325,18 @@ export function StudioPage({
         showShareModal={showShareModal}
         shareAccess={shareAccess}
         publicShareUrl={publicShareUrl}
+        collaborators={projectCollaborators}
+        inviteEmail={inviteEmail}
+        isCollaboratorsLoading={isCollaboratorsLoading}
+        isInvitePending={isInvitePending}
         onShareAccessChange={setShareAccess}
         onCloseShare={() => setShowShareModal(false)}
         onCopyPublicLink={handleCopyPublicLink}
+        onInviteEmailChange={setInviteEmail}
         onInviteCollaborator={handleInviteCollaborator}
         showPublishModal={showPublishModal}
+        publishProjectId={currentProjectId}
+        publishProjectName={currentProject?.name}
         onClosePublish={() => setShowPublishModal(false)}
       />
     </div>

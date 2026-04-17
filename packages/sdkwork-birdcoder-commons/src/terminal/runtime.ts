@@ -28,7 +28,7 @@ export interface TerminalExecutionResult {
   stdout: string;
   stderr: string;
   exitCode: number;
-  executedVia: 'tauri' | 'mock';
+  executedVia: 'policy-blocked' | 'tauri' | 'unsupported-runtime';
 }
 
 export interface TerminalCommandRequest {
@@ -257,7 +257,7 @@ function buildBlockedTerminalExecutionResult(
     stdout: '',
     stderr: `Blocked by governance policy. ${reason ?? 'Terminal command denied.'} traceId=${auditEvent.traceId}`,
     exitCode: 130,
-    executedVia: 'mock',
+    executedVia: 'policy-blocked',
   };
 }
 
@@ -846,8 +846,9 @@ export async function executeTerminalCommand(
     args: [...plan.args],
     cwd: plan.cwd,
     stdout: '',
-    stderr: '',
-    exitCode: 0,
-    executedVia: 'mock',
+    stderr:
+      'Terminal execution requires the desktop Tauri host or a real server terminal bridge. TODO: wire terminal commands through the Rust server API for non-Tauri runtimes.',
+    exitCode: 126,
+    executedVia: 'unsupported-runtime',
   };
 }

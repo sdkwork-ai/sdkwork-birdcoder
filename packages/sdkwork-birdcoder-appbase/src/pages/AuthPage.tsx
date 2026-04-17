@@ -5,8 +5,8 @@ import { useAuth } from '@sdkwork/birdcoder-commons';
 import { Button } from '@sdkwork/birdcoder-ui';
 
 const DEV_QUICK_LOGIN_ACCOUNT = {
-  email: 'dev@birdcoder.local',
-  name: 'BirdCoder Dev',
+  email: 'local-default@sdkwork-birdcoder.local',
+  name: 'BirdCoder Local Owner',
   password: 'dev123456',
 } as const;
 

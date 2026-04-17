@@ -28,6 +28,10 @@ export class ApiBackedCoreReadService implements ICoreReadService {
     return this.client.getHealth();
   }
 
+  async getNativeSession(codingSessionId: string, request?: Parameters<BirdCoderCoreReadApiClient['getNativeSession']>[1]) {
+    return this.client.getNativeSession(codingSessionId, request);
+  }
+
   async getOperation(operationId: string) {
     return this.client.getOperation(operationId);
   }
@@ -54,5 +58,13 @@ export class ApiBackedCoreReadService implements ICoreReadService {
 
   async listModels() {
     return this.client.listModels();
+  }
+
+  async listNativeSessions(request?: Parameters<BirdCoderCoreReadApiClient['listNativeSessions']>[0]) {
+    return this.client.listNativeSessions(request);
+  }
+
+  async listRoutes() {
+    return this.client.listRoutes();
   }
 }

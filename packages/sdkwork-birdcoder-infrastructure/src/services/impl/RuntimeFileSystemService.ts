@@ -47,6 +47,7 @@ interface BrowserDirectoryHandleLike {
 type BrowserHandleLike = BrowserDirectoryHandleLike | BrowserFileHandleLike;
 
 interface BrowserMountState {
+  cachedTree?: IFileNode[];
   directoryHandles: Map<string, BrowserDirectoryHandleLike>;
   fileHandles: Map<string, BrowserFileHandleLike>;
   rootHandle: BrowserDirectoryHandleLike;
@@ -55,6 +56,7 @@ interface BrowserMountState {
 }
 
 interface TauriMountState {
+  cachedTree?: IFileNode[];
   rootSystemPath: string;
   rootVirtualPath: string;
   tree: IFileNode;
@@ -133,6 +135,30 @@ function isPathWithinRoot(rootPath: string, path: string, includeRoot = true): b
   return path.startsWith(`${rootPath}/`);
 }
 
+function normalizeComparableLocalFolderPath(path: string): string {
+  const trimmedPath = path.trim();
+  if (!trimmedPath) {
+    return '';
+  }
+
+  const isWindowsStylePath =
+    /^[a-zA-Z]:/u.test(trimmedPath) ||
+    trimmedPath.includes('\\') ||
+    trimmedPath.startsWith('\\\\');
+  const normalizedSeparators = trimmedPath.replace(/\\/gu, '/');
+  const collapsedPath = normalizedSeparators.startsWith('//')
+    ? `//${normalizedSeparators.slice(2).replace(/\/+/gu, '/')}`
+    : normalizedSeparators.replace(/\/+/gu, '/');
+  const withoutTrailingSeparator =
+    collapsedPath === '/'
+      ? collapsedPath
+      : collapsedPath.replace(/\/+$/u, '') || collapsedPath;
+
+  return isWindowsStylePath
+    ? withoutTrailingSeparator.toLowerCase()
+    : withoutTrailingSeparator;
+}
+
 function deleteStoredPathContent(
   contentMap: Record<string, string> | undefined,
   path: string,
@@ -181,8 +207,10 @@ function renameStoredPathContent(
   });
 }
 
-function cloneMountedTree(tree: IFileNode): IFileNode[] {
-  return [structuredClone(tree)];
+function createReadonlyMountedTree(tree: IFileNode): IFileNode[] {
+  // Mounted trees are replaced wholesale on refresh, so avoid deep cloning and
+  // freezing the entire directory graph on every project switch.
+  return Object.freeze([tree]) as IFileNode[];
 }
 
 export class RuntimeFileSystemService implements IFileSystemService {
@@ -198,12 +226,18 @@ export class RuntimeFileSystemService implements IFileSystemService {
   async getFiles(projectId: string): Promise<IFileNode[]> {
     const browserMount = this.projectBrowserMounts[projectId];
     if (browserMount) {
-      return cloneMountedTree(browserMount.tree);
+      if (!browserMount.cachedTree) {
+        browserMount.cachedTree = createReadonlyMountedTree(browserMount.tree);
+      }
+      return browserMount.cachedTree;
     }
 
     const tauriMount = this.projectTauriMounts[projectId];
     if (tauriMount) {
-      return cloneMountedTree(tauriMount.tree);
+      if (!tauriMount.cachedTree) {
+        tauriMount.cachedTree = createReadonlyMountedTree(tauriMount.tree);
+      }
+      return tauriMount.cachedTree;
     }
 
     return [];
@@ -376,12 +410,28 @@ export class RuntimeFileSystemService implements IFileSystemService {
 
   async mountFolder(projectId: string, folderInfo: LocalFolderMountSource): Promise<void> {
     if (folderInfo.type === 'browser') {
+      const existingBrowserMount = this.projectBrowserMounts[projectId];
+      if (existingBrowserMount?.rootHandle === folderInfo.handle) {
+        delete this.projectTauriMounts[projectId];
+        return;
+      }
+
       const mountState = await this.buildBrowserMountState(
         folderInfo.handle as unknown as BrowserDirectoryHandleLike,
       );
       this.projectBrowserMounts[projectId] = mountState;
       delete this.projectTauriMounts[projectId];
       this.projectFileContent[projectId] = {};
+      return;
+    }
+
+    const existingTauriMount = this.projectTauriMounts[projectId];
+    if (
+      existingTauriMount &&
+      normalizeComparableLocalFolderPath(existingTauriMount.rootSystemPath) ===
+        normalizeComparableLocalFolderPath(folderInfo.path)
+    ) {
+      delete this.projectBrowserMounts[projectId];
       return;
     }
 

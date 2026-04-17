@@ -27,7 +27,6 @@ import {
   runTerminalHostSessionCommand,
   saveStoredTerminalSession,
   setStoredJson,
-  useFileSystem,
   useToast,
   useWorkbenchPreferences,
 } from '@sdkwork/birdcoder-commons';
@@ -242,7 +241,6 @@ const getPrefixColor = (profileId: string) => {
 
 export function TerminalPage({ terminalRequest, workspaceId, projectId }: TerminalPageProps) {
   const { t } = useTranslation();
-  const { refreshFiles } = useFileSystem(projectId ?? '');
   const { preferences, updatePreferences, isHydrated: isWorkbenchHydrated } = useWorkbenchPreferences();
   const preferredProfile = getTerminalProfile(preferences.terminalProfileId);
   const terminalLayoutKey = buildTerminalLayoutStorageKey(projectId);
@@ -871,9 +869,6 @@ export function TerminalPage({ terminalRequest, workspaceId, projectId }: Termin
           return tab;
         }));
 
-        if (cmd.startsWith('touch ') || cmd.startsWith('mkdir ') || cmd.startsWith('rm ') || cmd.startsWith('mv ') || cmd.startsWith('cp ')) {
-          refreshFiles();
-        }
       } catch (err) {
         setTabs(prev => prev.map(tab => {
           if (tab.id === tabId) {

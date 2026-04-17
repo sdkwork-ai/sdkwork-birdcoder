@@ -1,6 +1,7 @@
 use rusqlite::{params, Connection};
 use sdkwork_birdcoder_server::{
-    build_app_from_sqlite_file, BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV,
+    build_app_from_sqlite_file, print_coding_server_startup_summary,
+    BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV,
     BIRD_SERVER_DEFAULT_BIND_ADDRESS, BIRD_SERVER_DEFAULT_HOST,
 };
 use serde::{Deserialize, Serialize};
@@ -1634,6 +1635,9 @@ fn start_embedded_coding_server(app: &AppHandle) -> Result<(), String> {
 
     if let Some(api_base_url) = read_explicit_api_base_url() {
         let _ = DESKTOP_RUNTIME_CONFIG.set(DesktopRuntimeConfig { api_base_url });
+        if let Some(runtime_config) = DESKTOP_RUNTIME_CONFIG.get() {
+            print_coding_server_startup_summary(&runtime_config.api_base_url);
+        }
         return Ok(());
     }
 
@@ -1663,6 +1667,9 @@ fn start_embedded_coding_server(app: &AppHandle) -> Result<(), String> {
     });
 
     let _ = DESKTOP_RUNTIME_CONFIG.set(DesktopRuntimeConfig { api_base_url });
+    if let Some(runtime_config) = DESKTOP_RUNTIME_CONFIG.get() {
+        print_coding_server_startup_summary(&runtime_config.api_base_url);
+    }
     Ok(())
 }
 
@@ -1988,15 +1995,19 @@ fn local_store_list(app: AppHandle, scope: String) -> Result<Vec<LocalStoreEntry
 }
 
 #[tauri::command]
-fn fs_snapshot_folder(root_path: String) -> Result<FileSystemSnapshotResponse, String> {
-    let root_directory = resolve_root_directory_path(&root_path)?;
-    let root_virtual_path = format!("/{}", resolve_root_directory_name(&root_directory));
-    let tree = build_directory_snapshot(&root_directory, &root_virtual_path)?;
+async fn fs_snapshot_folder(root_path: String) -> Result<FileSystemSnapshotResponse, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root_directory = resolve_root_directory_path(&root_path)?;
+        let root_virtual_path = format!("/{}", resolve_root_directory_name(&root_directory));
+        let tree = build_directory_snapshot(&root_directory, &root_virtual_path)?;
 
-    Ok(FileSystemSnapshotResponse {
-        root_virtual_path,
-        tree,
+        Ok(FileSystemSnapshotResponse {
+            root_virtual_path,
+            tree,
+        })
     })
+    .await
+    .map_err(|error| format!("failed to join folder snapshot task: {error}"))?
 }
 
 #[tauri::command]

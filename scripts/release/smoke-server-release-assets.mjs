@@ -34,6 +34,31 @@ function normalizeRelativePath(targetPath) {
   return String(targetPath ?? '').split(path.sep).join('/');
 }
 
+function assertValidCodingServerOpenApiSnapshot(openApiPath) {
+  let document;
+  try {
+    document = JSON.parse(fs.readFileSync(openApiPath, 'utf8'));
+  } catch (error) {
+    throw new Error(`Invalid coding-server OpenAPI sidecar JSON at ${openApiPath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  if (String(document?.openapi ?? '').trim() !== '3.1.0') {
+    throw new Error(`Coding-server OpenAPI sidecar must expose OpenAPI 3.1.0: ${openApiPath}`);
+  }
+  if (String(document?.info?.version ?? '').trim() !== 'v1') {
+    throw new Error(`Coding-server OpenAPI sidecar must preserve API version v1: ${openApiPath}`);
+  }
+  if (String(document?.servers?.[0]?.url ?? '').trim() !== '/') {
+    throw new Error(`Coding-server OpenAPI sidecar must publish the unified same-port server URL '/': ${openApiPath}`);
+  }
+  if (String(document?.['x-sdkwork-api-gateway']?.routeCatalogPath ?? '').trim() !== '/api/core/v1/routes') {
+    throw new Error(`Coding-server OpenAPI sidecar must expose the core route catalog path: ${openApiPath}`);
+  }
+  if (String(document?.paths?.['/api/core/v1/routes']?.get?.operationId ?? '').trim() !== 'core.listRoutes') {
+    throw new Error(`Coding-server OpenAPI sidecar must expose core.listRoutes on /api/core/v1/routes: ${openApiPath}`);
+  }
+}
+
 export function smokeServerReleaseAssets({
   releaseAssetsDir = path.join(process.cwd(), 'artifacts', 'release'),
   platform = process.platform,
@@ -88,6 +113,7 @@ export function smokeServerReleaseAssets({
   if (!fs.existsSync(openApiPath)) {
     throw new Error(`Missing coding-server OpenAPI sidecar at ${openApiPath}.`);
   }
+  assertValidCodingServerOpenApiSnapshot(openApiPath);
 
   const smokeReport = writeReleaseSmokeReport({
     releaseAssetsDir,
@@ -115,6 +141,11 @@ export function smokeServerReleaseAssets({
         id: 'openapi-sidecar-present',
         status: 'passed',
         detail: 'server release assets include the generated coding-server OpenAPI snapshot sidecar',
+      },
+      {
+        id: 'openapi-sidecar-shape',
+        status: 'passed',
+        detail: 'server release OpenAPI sidecar preserves the unified same-port schema and route catalog metadata',
       },
     ],
   });

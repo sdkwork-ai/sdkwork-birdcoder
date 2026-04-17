@@ -72,7 +72,10 @@ export function parseArgs(argv: string[]) {
 }
 
 function collectPathParamNames(routePath: string): string[] {
-  return Array.from(routePath.matchAll(/:([A-Za-z0-9_]+)/g), (match) => match[1]);
+  return Array.from(
+    routePath.matchAll(/(?::([A-Za-z0-9_]+)|\{([A-Za-z0-9_]+)\})/g),
+    (match) => match[1] ?? match[2],
+  ).filter(Boolean);
 }
 
 function toPathParamsTypeSource(pathParamNames: readonly string[]): string {
@@ -205,10 +208,28 @@ function replacePathParams(
       throw new Error(\`Missing required path parameter "\${paramName}" for \${pathTemplate}.\`);
     }
 
-    resolvedPath = resolvedPath.replace(\`:\${paramName}\`, encodeURIComponent(String(rawValue)));
+    const encodedValue = encodeURIComponent(String(rawValue));
+    resolvedPath = resolvedPath
+      .replace(\`:\${paramName}\`, encodedValue)
+      .replace(\`{\${paramName}}\`, encodedValue);
   }
 
   return resolvedPath;
+}
+
+function normalizeQuery(
+  query: Record<string, BirdCoderApiQueryValue> | undefined,
+): Record<string, BirdCoderApiQueryValue> | undefined {
+  if (query === undefined) {
+    return undefined;
+  }
+
+  const normalizedEntries = Object.entries(query).filter(([, value]) => value !== undefined);
+  if (normalizedEntries.length === 0) {
+    return undefined;
+  }
+
+  return Object.fromEntries(normalizedEntries);
 }
 
 export function resolveBirdCoderFinalizedCodingServerClientOperation<
@@ -239,8 +260,9 @@ export function buildBirdCoderFinalizedCodingServerClientRequest<
     request.body = body;
   }
 
-  if (query !== undefined) {
-    request.query = query;
+  const normalizedQuery = normalizeQuery(query);
+  if (normalizedQuery !== undefined) {
+    request.query = normalizedQuery;
   }
 
   return request;

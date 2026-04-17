@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import type {
+  BirdCoderApiRouteCatalogEntry,
   BirdCoderCodingServerDescriptor,
   BirdCoderCodingSessionArtifact,
   BirdCoderCodingSessionCheckpoint,
@@ -15,8 +16,54 @@ import type {
 } from '@sdkwork/birdcoder-types';
 import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
 
+const routeFixture: BirdCoderApiRouteCatalogEntry = {
+  authMode: 'host',
+  method: 'GET',
+  openApiPath: '/api/core/v1/routes',
+  operationId: 'core.listRoutes',
+  path: '/api/core/v1/routes',
+  surface: 'core',
+  summary: 'List unified API routes',
+};
+
 const descriptorFixture: BirdCoderCodingServerDescriptor = {
   apiVersion: 'v1',
+  gateway: {
+    basePath: '/api',
+    docsPath: '/docs',
+    liveOpenApiPath: '/openapi.json',
+    openApiPath: '/openapi/coding-server-v1.json',
+    routeCatalogPath: '/api/core/v1/routes',
+    routeCount: 50,
+    routesBySurface: {
+      core: 17,
+      app: 26,
+      admin: 7,
+    },
+    surfaces: [
+      {
+        authMode: 'host',
+        basePath: '/api/core/v1',
+        description: 'Core coding runtime, engine catalog, session execution, and operation control.',
+        name: 'core',
+        routeCount: 17,
+      },
+      {
+        authMode: 'user',
+        basePath: '/api/app/v1',
+        description: 'Application-facing workspace, project, collaboration, and user-center routes.',
+        name: 'app',
+        routeCount: 26,
+      },
+      {
+        authMode: 'admin',
+        basePath: '/api/admin/v1',
+        description: 'Administrative governance, audit, release, deployment, and team-management routes.',
+        name: 'admin',
+        routeCount: 7,
+      },
+    ],
+  },
   hostMode: 'desktop',
   moduleId: 'coding-server',
   openApiPath: '/openapi/coding-server-v1.json',
@@ -154,6 +201,10 @@ const coreReadClient: BirdCoderCoreReadApiClient = {
     calls.push('getHealth');
     return healthFixture;
   },
+  async getNativeSession() {
+    calls.push('getNativeSession');
+    throw new Error('not needed');
+  },
   async getEngineCapabilities(engineKey) {
     calls.push(`getEngineCapabilities:${engineKey}`);
     return capabilityFixture;
@@ -186,6 +237,14 @@ const coreReadClient: BirdCoderCoreReadApiClient = {
     calls.push('listModels');
     return [modelFixture];
   },
+  async listNativeSessions() {
+    calls.push('listNativeSessions');
+    return [];
+  },
+  async listRoutes() {
+    calls.push('listRoutes');
+    return [routeFixture];
+  },
 };
 
 const services = createDefaultBirdCoderIdeServices({
@@ -201,6 +260,7 @@ assert.deepEqual(
   capabilityFixture,
 );
 assert.deepEqual(await services.coreReadService.listModels(), [modelFixture]);
+assert.deepEqual(await services.coreReadService.listRoutes(), [routeFixture]);
 assert.deepEqual(
   await services.coreReadService.getOperation(operationFixture.operationId),
   operationFixture,
@@ -229,6 +289,7 @@ assert.deepEqual(calls, [
   'listEngines',
   `getEngineCapabilities:${engineFixture.engineKey}`,
   'listModels',
+  'listRoutes',
   `getOperation:${operationFixture.operationId}`,
   `getCodingSession:${sessionFixture.id}`,
   `listCodingSessionEvents:${sessionFixture.id}`,

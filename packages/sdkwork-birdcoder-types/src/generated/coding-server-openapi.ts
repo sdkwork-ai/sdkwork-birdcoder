@@ -7,7 +7,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_EVIDENCE = {
   ],
   "openapi": "3.1.0",
   "releaseTag": "release-local",
-  "sha256": "041fb8b167f7203d9378c12417d8c70023ebc0058020fa48ceedf5fed2fa5d00",
+  "sha256": "0e2a1dfd73a7edcfbc4037d2db656ff13eb4a2fe744f15431cf6316c179fc817",
   "targetCount": 1,
   "targets": [
     "windows/x64"
@@ -33,16 +33,16 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   },
   {
     "method": "GET",
-    "operationId": "admin.listDeploymentTargets",
-    "path": "/api/admin/v1/projects/:projectId/deployment-targets",
-    "summary": "List deployment targets",
+    "operationId": "admin.listPolicies",
+    "path": "/api/admin/v1/policies",
+    "summary": "List governance policies",
     "surface": "admin"
   },
   {
     "method": "GET",
-    "operationId": "admin.listPolicies",
-    "path": "/api/admin/v1/policies",
-    "summary": "List governance policies",
+    "operationId": "admin.listDeploymentTargets",
+    "path": "/api/admin/v1/projects/{projectId}/deployment-targets",
+    "summary": "List deployment targets",
     "surface": "admin"
   },
   {
@@ -54,17 +54,59 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   },
   {
     "method": "GET",
+    "operationId": "admin.listTeams",
+    "path": "/api/admin/v1/teams",
+    "summary": "List teams",
+    "surface": "admin"
+  },
+  {
+    "method": "GET",
     "operationId": "admin.listTeamMembers",
-    "path": "/api/admin/v1/teams/:teamId/members",
+    "path": "/api/admin/v1/teams/{teamId}/members",
     "summary": "List team members",
     "surface": "admin"
   },
   {
     "method": "GET",
-    "operationId": "admin.listTeams",
-    "path": "/api/admin/v1/teams",
-    "summary": "List teams",
-    "surface": "admin"
+    "operationId": "app.getUserCenterConfig",
+    "path": "/api/app/v1/auth/config",
+    "summary": "Get user center provider metadata",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.login",
+    "path": "/api/app/v1/auth/login",
+    "summary": "Create local user center session",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.logout",
+    "path": "/api/app/v1/auth/logout",
+    "summary": "Revoke current user center session",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.register",
+    "path": "/api/app/v1/auth/register",
+    "summary": "Register local user center identity",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "app.getCurrentUserSession",
+    "path": "/api/app/v1/auth/session",
+    "summary": "Get current user center session",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.exchangeUserCenterSession",
+    "path": "/api/app/v1/auth/session/exchange",
+    "summary": "Exchange third-party identity into a BirdCoder session",
+    "surface": "app"
   },
   {
     "method": "GET",
@@ -88,10 +130,80 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "surface": "app"
   },
   {
+    "method": "POST",
+    "operationId": "app.createProject",
+    "path": "/api/app/v1/projects",
+    "summary": "Create project",
+    "surface": "app"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "app.updateProject",
+    "path": "/api/app/v1/projects/{projectId}",
+    "summary": "Update project",
+    "surface": "app"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "app.deleteProject",
+    "path": "/api/app/v1/projects/{projectId}",
+    "summary": "Delete project",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "app.listProjectCollaborators",
+    "path": "/api/app/v1/projects/{projectId}/collaborators",
+    "summary": "List project collaborators",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.upsertProjectCollaborator",
+    "path": "/api/app/v1/projects/{projectId}/collaborators",
+    "summary": "Upsert project collaborator",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.publishProject",
+    "path": "/api/app/v1/projects/{projectId}/publish",
+    "summary": "Publish project release flow",
+    "surface": "app"
+  },
+  {
     "method": "GET",
     "operationId": "app.listTeams",
     "path": "/api/app/v1/teams",
     "summary": "List workspace teams",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "app.getCurrentUserMembership",
+    "path": "/api/app/v1/user-center/membership",
+    "summary": "Get current user membership",
+    "surface": "app"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "app.updateCurrentUserMembership",
+    "path": "/api/app/v1/user-center/membership",
+    "summary": "Update current user membership",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "app.getCurrentUserProfile",
+    "path": "/api/app/v1/user-center/profile",
+    "summary": "Get current user profile",
+    "surface": "app"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "app.updateCurrentUserProfile",
+    "path": "/api/app/v1/user-center/profile",
+    "summary": "Update current user profile",
     "surface": "app"
   },
   {
@@ -103,8 +215,43 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   },
   {
     "method": "POST",
+    "operationId": "app.createWorkspace",
+    "path": "/api/app/v1/workspaces",
+    "summary": "Create workspace",
+    "surface": "app"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "app.updateWorkspace",
+    "path": "/api/app/v1/workspaces/{workspaceId}",
+    "summary": "Update workspace",
+    "surface": "app"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "app.deleteWorkspace",
+    "path": "/api/app/v1/workspaces/{workspaceId}",
+    "summary": "Delete workspace",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "app.listWorkspaceMembers",
+    "path": "/api/app/v1/workspaces/{workspaceId}/members",
+    "summary": "List workspace members",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.upsertWorkspaceMember",
+    "path": "/api/app/v1/workspaces/{workspaceId}/members",
+    "summary": "Upsert workspace member",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
     "operationId": "core.submitApprovalDecision",
-    "path": "/api/core/v1/approvals/:approvalId/decision",
+    "path": "/api/core/v1/approvals/{approvalId}/decision",
     "summary": "Submit approval decision",
     "surface": "core"
   },
@@ -118,35 +265,35 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   {
     "method": "GET",
     "operationId": "core.getCodingSession",
-    "path": "/api/core/v1/coding-sessions/:id",
+    "path": "/api/core/v1/coding-sessions/{id}",
     "summary": "Get coding session",
     "surface": "core"
   },
   {
     "method": "GET",
     "operationId": "core.listCodingSessionArtifacts",
-    "path": "/api/core/v1/coding-sessions/:id/artifacts",
+    "path": "/api/core/v1/coding-sessions/{id}/artifacts",
     "summary": "List coding session artifacts",
     "surface": "core"
   },
   {
     "method": "GET",
     "operationId": "core.listCodingSessionCheckpoints",
-    "path": "/api/core/v1/coding-sessions/:id/checkpoints",
+    "path": "/api/core/v1/coding-sessions/{id}/checkpoints",
     "summary": "List coding session checkpoints",
     "surface": "core"
   },
   {
     "method": "GET",
     "operationId": "core.listCodingSessionEvents",
-    "path": "/api/core/v1/coding-sessions/:id/events",
+    "path": "/api/core/v1/coding-sessions/{id}/events",
     "summary": "Replay or subscribe to coding session events",
     "surface": "core"
   },
   {
     "method": "POST",
     "operationId": "core.createCodingSessionTurn",
-    "path": "/api/core/v1/coding-sessions/:id/turns",
+    "path": "/api/core/v1/coding-sessions/{id}/turns",
     "summary": "Create coding session turn",
     "surface": "core"
   },
@@ -167,7 +314,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   {
     "method": "GET",
     "operationId": "core.getEngineCapabilities",
-    "path": "/api/core/v1/engines/:engineKey/capabilities",
+    "path": "/api/core/v1/engines/{engineKey}/capabilities",
     "summary": "Get runtime capabilities for one engine",
     "surface": "core"
   },
@@ -187,9 +334,30 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   },
   {
     "method": "GET",
+    "operationId": "core.listNativeSessions",
+    "path": "/api/core/v1/native-sessions",
+    "summary": "List discovered native engine sessions",
+    "surface": "core"
+  },
+  {
+    "method": "GET",
+    "operationId": "core.getNativeSession",
+    "path": "/api/core/v1/native-sessions/{id}",
+    "summary": "Get discovered native engine session detail",
+    "surface": "core"
+  },
+  {
+    "method": "GET",
     "operationId": "core.getOperation",
-    "path": "/api/core/v1/operations/:operationId",
+    "path": "/api/core/v1/operations/{operationId}",
     "summary": "Get operation status",
+    "surface": "core"
+  },
+  {
+    "method": "GET",
+    "operationId": "core.listRoutes",
+    "path": "/api/core/v1/routes",
+    "summary": "List unified API routes",
     "surface": "core"
   },
   {

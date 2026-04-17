@@ -10,7 +10,31 @@ const familyDir = path.join(releaseAssetsDir, 'server', 'linux', 'x64');
 fs.mkdirSync(familyDir, { recursive: true });
 fs.writeFileSync(path.join(familyDir, 'sdkwork-birdcoder-server-release-local-linux-x64.tar.gz'), 'tar');
 fs.mkdirSync(path.join(familyDir, 'openapi'), { recursive: true });
-fs.writeFileSync(path.join(familyDir, 'openapi', 'coding-server-v1.json'), '{}\n');
+fs.writeFileSync(
+  path.join(familyDir, 'openapi', 'coding-server-v1.json'),
+  JSON.stringify({
+    openapi: '3.1.0',
+    info: {
+      title: 'SDKWork BirdCoder Coding Server API',
+      version: 'v1',
+    },
+    servers: [
+      {
+        url: '/',
+      },
+    ],
+    paths: {
+      '/api/core/v1/routes': {
+        get: {
+          operationId: 'core.listRoutes',
+        },
+      },
+    },
+    'x-sdkwork-api-gateway': {
+      routeCatalogPath: '/api/core/v1/routes',
+    },
+  }, null, 2) + '\n',
+);
 fs.writeFileSync(
   path.join(familyDir, 'release-asset-manifest.json'),
   JSON.stringify({

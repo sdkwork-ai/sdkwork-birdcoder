@@ -32,13 +32,32 @@ try {
   const writtenDocument = JSON.parse(fs.readFileSync(explicitOutputPath, 'utf8'));
   assert.equal(writtenDocument.openapi, '3.1.0');
   assert.equal(writtenDocument.info.version, 'v1');
+  assert.equal(writtenDocument.servers[0]?.url, '/');
+  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCatalogPath, '/api/core/v1/routes');
+  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 50);
   assert.equal(
-    writtenDocument.paths['/api/core/v1/coding-sessions/:id/events']?.get?.operationId,
+    writtenDocument.paths['/api/core/v1/routes']?.get?.operationId,
+    'core.listRoutes',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/core/v1/native-sessions']?.get?.operationId,
+    'core.listNativeSessions',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/core/v1/native-sessions/{id}']?.get?.operationId,
+    'core.getNativeSession',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/core/v1/coding-sessions/{id}/events']?.get?.operationId,
     'core.listCodingSessionEvents',
   );
   assert.equal(
     writtenDocument.paths['/api/admin/v1/releases']?.get?.operationId,
     'admin.listReleases',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/projects/{projectId}/publish']?.post?.operationId,
+    'app.publishProject',
   );
   assert.match(fs.readFileSync(explicitOutputPath, 'utf8'), /\n$/);
 } finally {

@@ -2,23 +2,36 @@ import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderCodingSessionEvent,
+  BirdCoderGetNativeSessionRequest,
+  BirdCoderNativeSessionDetail,
   BirdCoderCodingSessionSummary,
 } from '@sdkwork/birdcoder-types';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
-import { ensureStoredNativeCodexSessionMirror } from './nativeCodexSessionMirror.ts';
-import { readNativeCodexSessionRecord } from './nativeCodexSessionStore.ts';
+import {
+  ensureStoredNativeSessionMirror,
+} from './nativeCodexSessionMirror.ts';
+import {
+  isAuthorityBackedNativeSessionId,
+  readAuthorityBackedNativeSessionRecord,
+  type NativeSessionAuthorityCoreReadService,
+} from './nativeSessionAuthority.ts';
 
-const CODEX_NATIVE_SESSION_ID_PREFIX = 'codex-native:';
-
-type CodingSessionRefreshCoreReadService = Pick<
-  {
-    getCodingSession(codingSessionId: string): Promise<BirdCoderCodingSessionSummary>;
-    listCodingSessionEvents(codingSessionId: string): Promise<BirdCoderCodingSessionEvent[]>;
-  },
-  'getCodingSession' | 'listCodingSessionEvents'
->;
+type CodingSessionRefreshCoreReadService =
+  NativeSessionAuthorityCoreReadService &
+  Pick<
+    {
+      getCodingSession(codingSessionId: string): Promise<BirdCoderCodingSessionSummary>;
+      getNativeSession(
+        codingSessionId: string,
+        request?: BirdCoderGetNativeSessionRequest,
+      ): Promise<BirdCoderNativeSessionDetail>;
+      listCodingSessionEvents(codingSessionId: string): Promise<BirdCoderCodingSessionEvent[]>;
+    },
+    'getCodingSession' | 'getNativeSession' | 'listCodingSessionEvents'
+  >;
 
 export interface RefreshProjectSessionsOptions {
+  coreReadService?: CodingSessionRefreshCoreReadService;
   projectService: IProjectService;
   workspaceId: string;
 }
@@ -33,7 +46,7 @@ export interface RefreshCodingSessionMessagesOptions {
 export interface RefreshProjectSessionsResult {
   mirroredSessionIds: string[];
   projectIds: string[];
-  source: 'native-codex' | 'project-service';
+  source: 'native-engine' | 'project-service';
   status: 'failed' | 'refreshed';
 }
 
@@ -41,7 +54,7 @@ export interface RefreshCodingSessionMessagesResult {
   codingSessionId: string;
   messageCount: number;
   projectId: string;
-  source: 'core' | 'engine' | 'native-codex';
+  source: 'core' | 'engine' | 'native-engine';
   status: 'failed' | 'not-found' | 'refreshed' | 'unsupported';
 }
 
@@ -200,7 +213,8 @@ export async function refreshProjectSessions(
       } satisfies RefreshProjectSessionsResult;
     }
 
-    const mirrorResult = await ensureStoredNativeCodexSessionMirror({
+    const mirrorResult = await ensureStoredNativeSessionMirror({
+      coreReadService: options.coreReadService,
       projectService: options.projectService,
       workspaceId: normalizedWorkspaceId,
     });
@@ -217,7 +231,7 @@ export async function refreshProjectSessions(
     return {
       mirroredSessionIds: mirrorResult.mirroredSessionIds,
       projectIds: mirrorResult.projectIds,
-      source: 'native-codex',
+      source: 'native-engine',
       status: 'refreshed',
     } satisfies RefreshProjectSessionsResult;
   });
@@ -257,14 +271,27 @@ export async function refreshCodingSessionMessages(
 
     requireProjectServiceUpsert(options.projectService);
 
-    if (resolvedLocation.codingSession.id.startsWith(CODEX_NATIVE_SESSION_ID_PREFIX)) {
-      const nativeSessionRecord = await readNativeCodexSessionRecord(normalizedCodingSessionId);
+    if (
+      isAuthorityBackedNativeSessionId(
+        normalizedCodingSessionId,
+        resolvedLocation.codingSession.engineId,
+      )
+    ) {
+      const nativeSessionRecord = await readAuthorityBackedNativeSessionRecord(
+        normalizedCodingSessionId,
+        {
+          coreReadService: options.coreReadService,
+          engineId: resolvedLocation.codingSession.engineId,
+          projectId: resolvedLocation.project.id,
+          workspaceId: resolvedLocation.project.workspaceId,
+        },
+      );
       if (!nativeSessionRecord) {
         return {
           codingSessionId: normalizedCodingSessionId,
           messageCount: resolvedLocation.codingSession.messages.length,
           projectId: resolvedLocation.project.id,
-          source: 'native-codex',
+          source: 'native-engine',
           status: 'failed',
         } satisfies RefreshCodingSessionMessagesResult;
       }
@@ -288,7 +315,7 @@ export async function refreshCodingSessionMessages(
         codingSessionId: normalizedCodingSessionId,
         messageCount: refreshedSession.messages.length,
         projectId: resolvedLocation.project.id,
-        source: 'native-codex',
+        source: 'native-engine',
         status: 'refreshed',
       } satisfies RefreshCodingSessionMessagesResult;
     }

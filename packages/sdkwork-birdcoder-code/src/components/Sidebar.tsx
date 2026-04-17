@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Edit, Clock, Zap, Folder, FolderPlus, ChevronDown, ChevronRight, Plus, ListFilter, Check, MessageSquare, Trash2, Edit2, Archive, Copy, Pin, Search, X, RefreshCw } from 'lucide-react';
+import { Edit, Clock, Zap, Folder, FolderPlus, ChevronDown, ChevronRight, Plus, ListFilter, Check, MessageSquare, Trash2, Edit2, Archive, Copy, Pin, Search, X, RefreshCw, MoreHorizontal } from 'lucide-react';
 import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-types';
 import {
   globalEventBus,
@@ -217,6 +217,32 @@ export function Sidebar({
     setProjectContextMenu({ x, y, projectId });
   };
 
+  const openProjectContextMenuFromButton = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    projectId: string,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu(null);
+    setRootContextMenu(null);
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    let x = Math.round(bounds.right - 224);
+    let y = Math.round(bounds.bottom + 6);
+
+    if (x + 224 > window.innerWidth) {
+      x = window.innerWidth - 224 - 10;
+    }
+    if (x < 10) {
+      x = 10;
+    }
+    if (y + 250 > window.innerHeight) {
+      y = Math.max(10, Math.round(bounds.top - 250 - 6));
+    }
+
+    setProjectContextMenu({ x, y, projectId });
+  };
+
   const handleRootContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -404,7 +430,7 @@ export function Sidebar({
                 style={{ animationDelay: `${index * 50 + 150}ms` }}
               >
                 <div 
-                  className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors group ${selectedProjectId === project.id ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+                  className={`relative flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors group ${selectedProjectId === project.id ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/10'}`}
                   onClick={() => selectProject(project.id)}
                   onContextMenu={(e) => handleProjectContextMenu(e, project.id)}
                 >
@@ -437,7 +463,30 @@ export function Sidebar({
                       onClick={(e) => e.stopPropagation()}
                     />
                   ) : (
-                    <span className="truncate font-medium">{project.name}</span>
+                    <span className="min-w-0 flex-1 truncate pr-14 font-medium">{project.name}</span>
+                  )}
+                  {renamingProjectId !== project.id && (
+                    <div className="absolute right-2 flex items-center gap-1 rounded-md bg-[#18181b]/80 px-1 opacity-0 transition-all group-hover:opacity-100">
+                      <button
+                        type="button"
+                        className="rounded-md p-1 text-gray-500 transition-all hover:bg-white/10 hover:text-white"
+                        title={t('code.newThreadInProject')}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onNewCodingSessionInProject(project.id);
+                        }}
+                      >
+                        <Plus size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md p-1 text-gray-500 transition-all hover:bg-white/10 hover:text-white"
+                        title={t('app.moreActions')}
+                        onClick={(event) => openProjectContextMenuFromButton(event, project.id)}
+                      >
+                        <MoreHorizontal size={12} />
+                      </button>
+                    </div>
                   )}
                 </div>
                 
@@ -793,7 +842,7 @@ export function Sidebar({
             className="px-4 py-1.5 hover:bg-red-500/10 hover:text-red-400 cursor-pointer text-red-500 transition-colors"
             onClick={() => { onDeleteProject(projectContextMenu.projectId); setProjectContextMenu(null); }}
           >
-            {t('app.deleteProject')}
+            {t('app.removeProject')}
           </div>
         </div>,
         )}

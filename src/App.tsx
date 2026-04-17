@@ -4,7 +4,7 @@
  */
 
 import React, { Component, lazy, Suspense, type ErrorInfo, useState, useRef, useEffect, useCallback } from 'react';
-import { Code2, Sparkles, Terminal, Settings, UserCircle, Shield, Zap, LayoutTemplate, Minus, Square, X, ChevronDown, Folder, Briefcase, Globe, User, Plus, Trash2, AlertTriangle, ChevronRight, Check, Edit } from 'lucide-react';
+import { Code2, Sparkles, Terminal, Settings, UserCircle, Shield, Zap, LayoutTemplate, Minus, Square, X, ChevronDown, Folder, Briefcase, Globe, User, Plus, Trash2, AlertTriangle, ChevronRight, Check, Edit, MoreHorizontal } from 'lucide-react';
 import {
   usePersistedState,
   useWorkspaces,
@@ -173,7 +173,7 @@ export default function App() {
 
 function AppContent() {
   const { t } = useTranslation();
-  const { fileSystemService, projectService } = useIDEServices();
+  const { coreReadService, fileSystemService, projectService } = useIDEServices();
   const { user, isLoading: isAuthLoading, logout } = useAuth();
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<AppTab>('code');
@@ -192,15 +192,29 @@ function AppContent() {
   
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [menuActiveWorkspaceId, setMenuActiveWorkspaceId] = useState<string>('');
+  const resolvedWorkspaceId = resolveStartupWorkspaceId({
+    workspaces,
+    recoverySnapshot: normalizedRecoverySnapshot,
+    inventory: sessionInventory,
+  });
+  const fallbackWorkspaceId = workspaces[0]?.id ?? '';
+  const effectiveWorkspaceId = (activeWorkspaceId || resolvedWorkspaceId || fallbackWorkspaceId).trim();
+  const effectiveMenuWorkspaceId = (menuActiveWorkspaceId || effectiveWorkspaceId).trim();
   
   // Fetch projects for the workspace currently selected in the dropdown menu
-  const { projects: menuProjects, createProject, updateProject, deleteProject } = useProjects(menuActiveWorkspaceId);
+  const {
+    projects: menuProjects,
+    createProject: createMenuProject,
+    createCodingSession: createMenuCodingSession,
+    updateProject: updateMenuProject,
+    deleteProject,
+  } = useProjects(effectiveMenuWorkspaceId);
   
   // Also fetch projects for the active workspace to know the active project's name
   const {
     projects: activeProjects,
     refreshProjects: refreshActiveProjects,
-  } = useProjects(activeWorkspaceId);
+  } = useProjects(effectiveWorkspaceId);
 
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
@@ -212,6 +226,7 @@ function AppContent() {
   const [renameProjectValue, setRenameProjectValue] = useState('');
   const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
+  const [projectActionsMenuId, setProjectActionsMenuId] = useState<string | null>(null);
   const workspaceMenuRef = useRef<HTMLDivElement>(null);
 
   const [terminalRequest, setTerminalRequest] = useState<TerminalCommandRequest | undefined>();
@@ -222,60 +237,63 @@ function AppContent() {
   const titleBarWindowDragControllerRef = useRef<ReturnType<typeof createAppHeaderWindowDragController> | null>(null);
   const hasAppliedRecoveredTabRef = useRef(false);
   const hasAnnouncedRecoveryRef = useRef(false);
-  const hasMirroredNativeCodexSessionsRef = useRef(false);
+  const mirroredNativeCodexWorkspaceIdsRef = useRef<Set<string>>(new Set());
 
-  const resolvedWorkspaceId = resolveStartupWorkspaceId({
-    workspaces,
-    recoverySnapshot: normalizedRecoverySnapshot,
-    inventory: sessionInventory,
-  });
   const resolvedProjectId = resolveStartupProjectId({
-    workspaceId: activeWorkspaceId,
+    workspaceId: effectiveWorkspaceId,
     projects: activeProjects,
     recoverySnapshot: normalizedRecoverySnapshot,
     inventory: sessionInventory,
   });
+  const effectiveProjectId = (activeProjectId || resolvedProjectId).trim();
   const resolvedCodingSessionId = resolveStartupCodingSessionId({
-    projectId: activeProjectId || resolvedProjectId,
+    projectId: effectiveProjectId,
     projects: activeProjects,
     recoverySnapshot: normalizedRecoverySnapshot,
     inventory: sessionInventory,
   });
+  const effectiveCodingSessionId = (activeCodingSessionId || resolvedCodingSessionId).trim();
   const recoveryAnnouncement = buildWorkbenchRecoveryAnnouncement({
     recoverySnapshot: normalizedRecoverySnapshot,
-    activeWorkspaceId: activeWorkspaceId || resolvedWorkspaceId,
-    activeProjectId: activeProjectId || resolvedProjectId,
-    activeCodingSessionId: activeCodingSessionId || resolvedCodingSessionId,
+    activeWorkspaceId: effectiveWorkspaceId,
+    activeProjectId: effectiveProjectId,
+    activeCodingSessionId: effectiveCodingSessionId,
   });
   const reloadSessionInventory = useCallback(async () => {
     try {
-      const records = await listStoredSessionInventory({ includeGlobal: true, limit: 25 });
+      const records = await listStoredSessionInventory({
+        coreReadService,
+        includeGlobal: true,
+        limit: 25,
+        workspaceId: effectiveWorkspaceId || undefined,
+      });
       setSessionInventory(records);
     } catch (error) {
       console.error('Failed to reload session inventory', error);
     } finally {
       setIsSessionInventoryHydrated(true);
     }
-  }, []);
+  }, [coreReadService, effectiveWorkspaceId]);
 
   useEffect(() => {
     void reloadSessionInventory();
   }, [reloadSessionInventory]);
 
   useEffect(() => {
-    if (hasMirroredNativeCodexSessionsRef.current || !isSessionInventoryHydrated) {
-      return;
-    }
-
-    const workspaceIdToMirror = activeWorkspaceId || resolvedWorkspaceId;
-    if (!workspaceIdToMirror) {
+    const workspaceIdToMirror = effectiveWorkspaceId;
+    if (
+      !isSessionInventoryHydrated ||
+      !workspaceIdToMirror ||
+      mirroredNativeCodexWorkspaceIdsRef.current.has(workspaceIdToMirror)
+    ) {
       return;
     }
 
     let isMounted = true;
-    hasMirroredNativeCodexSessionsRef.current = true;
+    mirroredNativeCodexWorkspaceIdsRef.current.add(workspaceIdToMirror);
 
     void ensureNativeCodexSessionMirror({
+      coreReadService,
       inventory: sessionInventory,
       projectService,
       workspaceId: workspaceIdToMirror,
@@ -286,12 +304,12 @@ function AppContent() {
         }
 
         await reloadSessionInventory();
-        if (result && activeWorkspaceId === workspaceIdToMirror) {
+        if (result && effectiveWorkspaceId === workspaceIdToMirror) {
           await refreshActiveProjects();
         }
       })
       .catch((error) => {
-        hasMirroredNativeCodexSessionsRef.current = false;
+        mirroredNativeCodexWorkspaceIdsRef.current.delete(workspaceIdToMirror);
         if (isMounted) {
           console.error('Failed to mirror discovered native Codex sessions', error);
         }
@@ -301,12 +319,12 @@ function AppContent() {
       isMounted = false;
     };
   }, [
-    activeWorkspaceId,
+    coreReadService,
+    effectiveWorkspaceId,
     isSessionInventoryHydrated,
     projectService,
     reloadSessionInventory,
     refreshActiveProjects,
-    resolvedWorkspaceId,
     sessionInventory,
   ]);
 
@@ -343,9 +361,9 @@ function AppContent() {
 
   useEffect(() => {
     if (showWorkspaceMenu) {
-      setMenuActiveWorkspaceId(activeWorkspaceId);
+      setMenuActiveWorkspaceId(effectiveWorkspaceId);
     }
-  }, [showWorkspaceMenu, activeWorkspaceId]);
+  }, [effectiveWorkspaceId, showWorkspaceMenu]);
 
   useEffect(() => {
     if (activeProjects.length === 0) {
@@ -404,9 +422,9 @@ function AppContent() {
     const nextRecoverySnapshot = buildWorkbenchRecoverySnapshot({
       sessionId: normalizedRecoverySnapshot.sessionId || createWorkbenchRecoverySessionId(),
       activeTab,
-      activeWorkspaceId,
-      activeProjectId,
-      activeCodingSessionId,
+      activeWorkspaceId: effectiveWorkspaceId,
+      activeProjectId: effectiveProjectId,
+      activeCodingSessionId: effectiveCodingSessionId,
       cleanExit: false,
     });
 
@@ -416,10 +434,10 @@ function AppContent() {
 
     setRecoverySnapshot(nextRecoverySnapshot);
   }, [
-    activeProjectId,
-    activeCodingSessionId,
     activeTab,
-    activeWorkspaceId,
+    effectiveCodingSessionId,
+    effectiveProjectId,
+    effectiveWorkspaceId,
     isRecoveryHydrated,
     normalizedRecoverySnapshot,
     setRecoverySnapshot,
@@ -437,9 +455,9 @@ function AppContent() {
         buildWorkbenchRecoverySnapshot({
           sessionId: normalizedRecoverySnapshot.sessionId || createWorkbenchRecoverySessionId(),
           activeTab,
-          activeWorkspaceId,
-          activeProjectId,
-          activeCodingSessionId,
+          activeWorkspaceId: effectiveWorkspaceId,
+          activeProjectId: effectiveProjectId,
+          activeCodingSessionId: effectiveCodingSessionId,
           cleanExit: true,
         }),
       );
@@ -450,24 +468,24 @@ function AppContent() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [
-    activeProjectId,
-    activeCodingSessionId,
     activeTab,
-    activeWorkspaceId,
+    effectiveCodingSessionId,
+    effectiveProjectId,
+    effectiveWorkspaceId,
     isRecoveryHydrated,
     normalizedRecoverySnapshot.sessionId,
   ]);
 
   useEffect(() => {
     if (showWorkspaceMenu) {
-      setMenuActiveWorkspaceId(activeWorkspaceId || resolvedWorkspaceId);
+      setMenuActiveWorkspaceId(effectiveWorkspaceId);
       return;
     }
 
-    if (!menuActiveWorkspaceId && (activeWorkspaceId || resolvedWorkspaceId)) {
-      setMenuActiveWorkspaceId(activeWorkspaceId || resolvedWorkspaceId);
+    if (!menuActiveWorkspaceId && effectiveWorkspaceId) {
+      setMenuActiveWorkspaceId(effectiveWorkspaceId);
     }
-  }, [activeWorkspaceId, menuActiveWorkspaceId, resolvedWorkspaceId, showWorkspaceMenu]);
+  }, [effectiveWorkspaceId, menuActiveWorkspaceId, showWorkspaceMenu]);
 
   useEffect(() => {
     const handleOpenTerminal = (path?: string, command?: string) => {
@@ -531,6 +549,7 @@ function AppContent() {
         setNewWorkspaceName('');
         setIsCreatingProject(false);
         setNewProjectName('');
+        setProjectActionsMenuId(null);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -627,17 +646,22 @@ function AppContent() {
       return null;
     }
 
+    const targetWorkspaceId = effectiveMenuWorkspaceId;
+    if (!targetWorkspaceId) {
+      throw new Error('Workspace is still loading. Please wait for the default workspace to initialize.');
+    }
+
     return importLocalFolderProject({
-      createProject,
+      createProject: createMenuProject,
       fallbackProjectName,
       folderInfo,
       getProjects: () =>
-        menuActiveWorkspaceId
-          ? projectService.getProjects(menuActiveWorkspaceId)
+        targetWorkspaceId
+          ? projectService.getProjects(targetWorkspaceId)
           : Promise.resolve([]),
       mountFolder: (projectId, nextFolderInfo) =>
         fileSystemService.mountFolder(projectId, nextFolderInfo),
-      updateProject,
+      updateProject: updateMenuProject,
     });
   };
 
@@ -670,22 +694,23 @@ function AppContent() {
         !importedProject.reusedExistingProject &&
         importedProject.projectName !== normalizedProjectName
       ) {
-        await updateProject(importedProject.projectId, {
+        await updateMenuProject(importedProject.projectId, {
           name: normalizedProjectName,
         });
       }
 
       try {
         await ensureStoredNativeCodexSessionMirror({
+          coreReadService,
           projectService,
-          workspaceId: menuActiveWorkspaceId,
+          workspaceId: effectiveMenuWorkspaceId,
         });
         await refreshActiveProjects();
       } catch (error) {
         console.error('Failed to synchronize imported native Codex sessions', error);
       }
 
-      setActiveWorkspaceId(menuActiveWorkspaceId);
+      setActiveWorkspaceId(effectiveMenuWorkspaceId);
       setActiveProjectId(importedProject.projectId);
       setIsCreatingProject(false);
       setNewProjectName('');
@@ -708,6 +733,7 @@ function AppContent() {
   const confirmDeleteProject = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     setProjectToDelete(id);
+    setProjectActionsMenuId(null);
     setShowWorkspaceMenu(false);
   };
 
@@ -741,7 +767,7 @@ function AppContent() {
   const handleRenameProject = async (id: string, newName: string) => {
     if (!newName.trim()) return;
     try {
-      await updateProject(id, { name: newName.trim() });
+      await updateMenuProject(id, { name: newName.trim() });
     } catch (error) {
       console.error("Failed to rename project", error);
       addToast(t('app.failedToRenameProject'), "error");
@@ -754,14 +780,59 @@ function AppContent() {
       await deleteProject(projectToDelete);
       if (activeProjectId === projectToDelete) {
         setActiveProjectId('');
+        setActiveCodingSessionId('');
       }
+      addToast(t('app.projectRemoved'), "success");
     } catch (error) {
       console.error("Failed to delete project", error);
-      addToast(t('app.failedToDeleteProject'), "error");
+      addToast(t('app.failedToRemoveProject'), "error");
     } finally {
       setProjectToDelete(null);
     }
   };
+
+  const handleOpenProjectInExplorer = useCallback(
+    (projectPath?: string, projectName?: string) => {
+      const normalizedProjectPath = projectPath?.trim() ?? '';
+      if (!normalizedProjectPath) {
+        addToast(t('app.projectPathUnavailable', { name: projectName ?? 'project' }), 'error');
+        return;
+      }
+
+      globalEventBus.emit('revealInExplorer', normalizedProjectPath);
+    },
+    [addToast, t],
+  );
+
+  const handleCreateProjectSession = useCallback(
+    async (projectId: string) => {
+      const targetProject = menuProjects.find((project) => project.id === projectId);
+      if (!targetProject) {
+        addToast(t('app.noProjectsFound'), 'error');
+        return;
+      }
+
+      try {
+        const newSession = await createMenuCodingSession(projectId, t('app.menu.newThread'));
+        setActiveWorkspaceId(effectiveMenuWorkspaceId);
+        setActiveProjectId(projectId);
+        setActiveCodingSessionId(newSession.id);
+        setActiveTab('code');
+        setProjectActionsMenuId(null);
+        setShowWorkspaceMenu(false);
+      } catch (error) {
+        console.error('Failed to create project session', error);
+        addToast(t('code.failedToCreateThread'), 'error');
+      }
+    },
+    [
+      addToast,
+      createMenuCodingSession,
+      effectiveMenuWorkspaceId,
+      menuProjects,
+      t,
+    ],
+  );
 
   const getDesktopWindow = async () => {
     const { isTauri } = await import('@tauri-apps/api/core');
@@ -851,14 +922,15 @@ function AppContent() {
       if (importedProject) {
         try {
           await ensureStoredNativeCodexSessionMirror({
+            coreReadService,
             projectService,
-            workspaceId: menuActiveWorkspaceId,
+            workspaceId: effectiveMenuWorkspaceId,
           });
           await refreshActiveProjects();
         } catch (error) {
           console.error('Failed to synchronize imported native Codex sessions', error);
         }
-        setActiveWorkspaceId(menuActiveWorkspaceId);
+        setActiveWorkspaceId(effectiveMenuWorkspaceId);
         setActiveProjectId(importedProject.projectId);
         addToast(t('app.openedFolder', { name: importedProject.projectName }), 'success');
       }
@@ -895,8 +967,8 @@ function AppContent() {
     else document.body.style.zoom = '1';
   };
 
-  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0];
-  const activeProject = activeProjects.find(p => p.id === activeProjectId);
+  const activeWorkspace = workspaces.find(w => w.id === effectiveWorkspaceId) || workspaces[0];
+  const activeProject = activeProjects.find(p => p.id === effectiveProjectId);
 
   const getWorkspaceIcon = (iconName?: string) => {
     switch(iconName) {
@@ -1060,8 +1132,8 @@ function AppContent() {
                 <div className="w-[45%] border-r border-white/10 overflow-y-auto p-2 custom-scrollbar bg-[#0e0e11]/30 flex flex-col gap-1">
                   <div className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('app.workspaces')}</div>
                   {workspaces.map((ws, idx) => {
-                    const isMenuSelected = menuActiveWorkspaceId === ws.id;
-                    const isActualSelected = activeWorkspaceId === ws.id;
+                    const isMenuSelected = effectiveMenuWorkspaceId === ws.id;
+                    const isActualSelected = effectiveWorkspaceId === ws.id;
                     return (
                       <div key={ws.id} className="flex items-center group relative">
                         <button
@@ -1142,13 +1214,16 @@ function AppContent() {
                   <div className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('app.projects')}</div>
                   {menuProjects.length > 0 ? (
                     menuProjects.map((project, idx) => {
-                      const isSelected = activeWorkspaceId === menuActiveWorkspaceId && activeProjectId === project.id;
+                      const isSelected =
+                        effectiveWorkspaceId === effectiveMenuWorkspaceId &&
+                        effectiveProjectId === project.id;
                       return (
                         <div key={project.id} className="flex items-center group relative">
                           <button
                             onClick={() => {
-                              setActiveWorkspaceId(menuActiveWorkspaceId);
+                              setActiveWorkspaceId(effectiveMenuWorkspaceId);
                               setActiveProjectId(project.id);
+                              setProjectActionsMenuId(null);
                               setShowWorkspaceMenu(false);
                             }}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all animate-in fade-in slide-in-from-left-2 fill-mode-both ${
@@ -1187,24 +1262,64 @@ function AppContent() {
                             {isSelected && <Check size={14} className="text-blue-400 shrink-0" />}
                           </button>
                           {renamingProjectId !== project.id && (
-                            <div className="absolute right-2 flex items-center opacity-0 group-hover:opacity-100 transition-all z-10 bg-[#18181b]/80 backdrop-blur-sm rounded-md px-1">
+                            <div className="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-10 bg-[#18181b]/80 backdrop-blur-sm rounded-md px-1">
                               <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleCreateProjectSession(project.id);
+                                }}
+                                className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-md transition-all"
+                                title={t('code.newThreadInProject')}
+                              >
+                                <Plus size={12} />
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setProjectActionsMenuId((currentValue) =>
+                                    currentValue === project.id ? null : project.id,
+                                  );
+                                }}
+                                className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-md transition-all"
+                                title={t('app.moreActions')}
+                              >
+                                <MoreHorizontal size={12} />
+                              </button>
+                            </div>
+                          )}
+                          {projectActionsMenuId === project.id && renamingProjectId !== project.id && (
+                            <div className="absolute right-2 top-11 z-20 w-44 overflow-hidden rounded-lg border border-white/10 bg-[#18181b]/95 py-1.5 shadow-2xl backdrop-blur-xl">
+                              <button
+                                type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setRenamingProjectId(project.id);
                                   setRenameProjectValue(project.name);
+                                  setProjectActionsMenuId(null);
                                 }}
-                                className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-md transition-all"
-                                title={t('app.renameProject')}
+                                className="flex w-full items-center px-3 py-1.5 text-left text-xs text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
                               >
-                                <Edit size={12} />
+                                {t('app.renameProject')}
                               </button>
-                              <button 
-                                onClick={(e) => confirmDeleteProject(e, project.id)}
-                                className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all"
-                                title={t('app.deleteProject')}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenProjectInExplorer(project.path, project.name);
+                                  setProjectActionsMenuId(null);
+                                  setShowWorkspaceMenu(false);
+                                }}
+                                className="flex w-full items-center px-3 py-1.5 text-left text-xs text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
                               >
-                                <Trash2 size={12} />
+                                {t('code.openInFileExplorer')}
+                              </button>
+                              <div className="my-1 h-px bg-white/10" />
+                              <button
+                                type="button"
+                                onClick={(e) => confirmDeleteProject(e, project.id)}
+                                className="flex w-full items-center px-3 py-1.5 text-left text-xs text-red-400 transition-colors hover:bg-red-500/10"
+                              >
+                                {t('app.removeProject')}
                               </button>
                             </div>
                           )}
@@ -1360,9 +1475,9 @@ function AppContent() {
           <Suspense fallback={<SurfaceLoader />}>
             {activeTab === 'code' && (
               <CodePage
-                workspaceId={activeWorkspaceId}
-                projectId={activeProjectId}
-                initialCodingSessionId={activeCodingSessionId}
+                workspaceId={effectiveWorkspaceId}
+                projectId={effectiveProjectId}
+                initialCodingSessionId={effectiveCodingSessionId}
                 onProjectChange={setActiveProjectId}
                 onCodingSessionChange={setActiveCodingSessionId}
                 onSessionInventoryRefresh={reloadSessionInventory}
@@ -1370,9 +1485,9 @@ function AppContent() {
             )}
             {activeTab === 'studio' && (
               <StudioPage
-                workspaceId={activeWorkspaceId}
-                projectId={activeProjectId}
-                initialCodingSessionId={activeCodingSessionId}
+                workspaceId={effectiveWorkspaceId}
+                projectId={effectiveProjectId}
+                initialCodingSessionId={effectiveCodingSessionId}
                 onProjectChange={setActiveProjectId}
                 onCodingSessionChange={setActiveCodingSessionId}
                 onSessionInventoryRefresh={reloadSessionInventory}
@@ -1381,12 +1496,12 @@ function AppContent() {
             {activeTab === 'terminal' && (
               <TerminalPage
                 terminalRequest={terminalRequest}
-                workspaceId={activeWorkspaceId}
-                projectId={activeProjectId || null}
+                workspaceId={effectiveWorkspaceId}
+                projectId={effectiveProjectId || null}
               />
             )}
             {activeTab === 'skills' && <SkillsPage />}
-            {activeTab === 'templates' && <TemplatesPage workspaceId={activeWorkspaceId} onProjectCreated={(id) => { setActiveProjectId(id); setActiveTab('code'); }} />}
+            {activeTab === 'templates' && <TemplatesPage workspaceId={effectiveWorkspaceId} onProjectCreated={(id) => { setActiveProjectId(id); setActiveTab('code'); }} />}
             {activeTab === 'user' && <UserCenterPage onOpenVip={() => setActiveTab('vip')} />}
             {activeTab === 'vip' && <VipPage />}
             {activeTab === 'settings' && <SettingsPage onBack={() => setActiveTab('code')} />}
@@ -1426,9 +1541,9 @@ function AppContent() {
       {projectToDelete && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
           <div className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-semibold text-white mb-2">{t('app.deleteProjectTitle')}</h3>
+            <h3 className="text-lg font-semibold text-white mb-2">{t('app.removeProjectTitle')}</h3>
             <p className="text-sm text-gray-400 mb-6">
-              {t('app.deleteProjectConfirm')}
+              {t('app.removeProjectConfirm')}
             </p>
             <div className="flex justify-end gap-3">
               <Button 
@@ -1443,7 +1558,7 @@ function AppContent() {
                 onClick={executeDeleteProject}
                 className="bg-red-500 hover:bg-red-600 text-white border-transparent"
               >
-                {t('app.delete')}
+                {t('common.remove')}
               </Button>
             </div>
           </div>

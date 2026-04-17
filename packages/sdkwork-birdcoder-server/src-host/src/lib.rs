@@ -1,21 +1,26 @@
 use std::{
     collections::BTreeMap,
     fs,
-    io::Write,
     path::{Path as FsPath, PathBuf},
-    process::{Command, Stdio},
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc, OnceLock, RwLock,
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+#[cfg(test)]
+use std::{
+    io::Write,
+    process::{Command, Stdio},
+};
 
 mod user_center;
+mod native_sessions;
 
 use axum::{
     extract::{Path as AxumPath, Query, State},
     http::{header, HeaderMap, HeaderName, HeaderValue, Method, StatusCode},
+    response::Html,
     routing::{get, patch, post},
     Json, Router,
 };
@@ -36,6 +41,13 @@ pub const BIRD_SERVER_DEFAULT_CONFIG_FILE_NAME: &str = "bird-server.config.json"
 pub const BIRD_SERVER_DEFAULT_BIND_ADDRESS: &str = "127.0.0.1:10240";
 pub const CODING_SERVER_API_VERSION: &str = "v1";
 pub const CODING_SERVER_OPENAPI_PATH: &str = "/openapi/coding-server-v1.json";
+pub const CODING_SERVER_LIVE_OPENAPI_PATH: &str = "/openapi.json";
+pub const CODING_SERVER_DOCS_PATH: &str = "/docs";
+pub const CODING_SERVER_GATEWAY_BASE_PATH: &str = "/api";
+pub const CODING_SERVER_CORE_API_PREFIX: &str = "/api/core/v1";
+pub const CODING_SERVER_APP_API_PREFIX: &str = "/api/app/v1";
+pub const CODING_SERVER_ADMIN_API_PREFIX: &str = "/api/admin/v1";
+pub const CODING_SERVER_ROUTE_CATALOG_PATH: &str = "/api/core/v1/routes";
 pub const BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV: &str = "BIRDCODER_CODING_SERVER_SQLITE_FILE";
 pub const BIRDCODER_CODING_SERVER_SNAPSHOT_FILE_ENV: &str =
     "BIRDCODER_CODING_SERVER_SNAPSHOT_FILE";
@@ -430,10 +442,54 @@ struct HealthPayload {
 #[serde(rename_all = "camelCase")]
 struct DescriptorPayload {
     api_version: &'static str,
+    gateway: GatewayDescriptorPayload,
     host_mode: &'static str,
     module_id: &'static str,
     open_api_path: &'static str,
     surfaces: [&'static str; 3],
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GatewayDescriptorPayload {
+    base_path: &'static str,
+    docs_path: &'static str,
+    live_open_api_path: &'static str,
+    open_api_path: &'static str,
+    route_catalog_path: &'static str,
+    route_count: usize,
+    routes_by_surface: GatewayRoutesBySurfacePayload,
+    surfaces: [GatewaySurfaceDescriptorPayload; 3],
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GatewayRoutesBySurfacePayload {
+    admin: usize,
+    app: usize,
+    core: usize,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GatewaySurfaceDescriptorPayload {
+    auth_mode: &'static str,
+    base_path: &'static str,
+    description: &'static str,
+    name: &'static str,
+    route_count: usize,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RouteCatalogEntryPayload {
+    auth_mode: &'static str,
+    method: &'static str,
+    open_api_path: String,
+    operation_id: &'static str,
+    path: &'static str,
+    surface: &'static str,
+    summary: &'static str,
 }
 
 #[derive(Serialize)]
@@ -598,6 +654,12 @@ struct WorkspaceMemberPayload {
     id: String,
     workspace_id: String,
     identity_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    identity_email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    identity_display_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    identity_avatar_url: Option<String>,
     team_id: Option<String>,
     role: String,
     status: String,
@@ -616,6 +678,12 @@ struct ProjectCollaboratorPayload {
     project_id: String,
     workspace_id: String,
     identity_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    identity_email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    identity_display_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    identity_avatar_url: Option<String>,
     team_id: Option<String>,
     role: String,
     status: String,
@@ -630,7 +698,8 @@ struct ProjectCollaboratorPayload {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct UpsertWorkspaceMemberRequest {
-    identity_id: String,
+    identity_id: Option<String>,
+    email: Option<String>,
     team_id: Option<String>,
     role: Option<String>,
     status: Option<String>,
@@ -641,7 +710,8 @@ struct UpsertWorkspaceMemberRequest {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct UpsertProjectCollaboratorRequest {
-    identity_id: String,
+    identity_id: Option<String>,
+    email: Option<String>,
     team_id: Option<String>,
     role: Option<String>,
     status: Option<String>,
@@ -668,6 +738,27 @@ struct ReleasePayload {
     release_kind: String,
     rollout_stage: String,
     status: String,
+}
+
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PublishProjectRequest {
+    endpoint_url: Option<String>,
+    environment_key: Option<String>,
+    release_kind: Option<String>,
+    release_version: Option<String>,
+    rollout_stage: Option<String>,
+    runtime: Option<String>,
+    target_id: Option<String>,
+    target_name: Option<String>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PublishProjectResultPayload {
+    deployment: DeploymentPayload,
+    release: ReleasePayload,
+    target: DeploymentTargetPayload,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -827,6 +918,7 @@ struct CodingSessionRuntimeRow {
     host_mode: String,
     engine_id: String,
     model_id: Option<String>,
+    native_session_id: Option<String>,
     created_at: String,
     updated_at: String,
 }
@@ -940,6 +1032,23 @@ struct CreateCodingSessionTurnRequest {
     runtime_id: Option<String>,
     request_kind: String,
     input_summary: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NativeSessionQueryParams {
+    workspace_id: Option<String>,
+    project_id: Option<String>,
+    engine_id: Option<String>,
+    limit: Option<usize>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NativeSessionLookupQueryParams {
+    workspace_id: Option<String>,
+    project_id: Option<String>,
+    engine_id: Option<String>,
 }
 
 struct CreateCodingSessionTurnInput {
@@ -1096,16 +1205,76 @@ struct AppAdminReadState {
 struct OpenApiInfo {
     title: &'static str,
     version: &'static str,
+    description: &'static str,
 }
 
 #[derive(Serialize)]
 struct OpenApiServer {
     url: String,
+    description: &'static str,
 }
 
 #[derive(Serialize)]
 struct OpenApiTag {
     name: &'static str,
+    description: &'static str,
+}
+
+#[derive(Serialize)]
+struct OpenApiResponse {
+    description: &'static str,
+}
+
+#[derive(Serialize)]
+struct OpenApiSecurityScheme {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    scheme: &'static str,
+    #[serde(rename = "bearerFormat")]
+    bearer_format: &'static str,
+}
+
+#[derive(Serialize)]
+struct OpenApiSecuritySchemes {
+    #[serde(rename = "bearerAuth")]
+    bearer_auth: OpenApiSecurityScheme,
+}
+
+#[derive(Serialize)]
+struct OpenApiComponents {
+    #[serde(rename = "securitySchemes")]
+    security_schemes: OpenApiSecuritySchemes,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OpenApiGatewaySurface {
+    auth_mode: &'static str,
+    base_path: &'static str,
+    description: &'static str,
+    name: &'static str,
+    route_count: usize,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OpenApiGatewayRoutesBySurface {
+    admin: usize,
+    app: usize,
+    core: usize,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OpenApiGatewayMetadata {
+    base_path: &'static str,
+    compatibility_open_api_paths: [&'static str; 1],
+    docs_path: &'static str,
+    live_open_api_path: &'static str,
+    route_catalog_path: &'static str,
+    route_count: usize,
+    routes_by_surface: OpenApiGatewayRoutesBySurface,
+    surfaces: [OpenApiGatewaySurface; 3],
 }
 
 #[derive(Serialize)]
@@ -1113,7 +1282,15 @@ struct OpenApiOperation {
     #[serde(rename = "operationId")]
     operation_id: &'static str,
     summary: &'static str,
+    description: String,
     tags: [&'static str; 1],
+    responses: BTreeMap<&'static str, OpenApiResponse>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    security: Option<Vec<BTreeMap<&'static str, Vec<String>>>>,
+    #[serde(rename = "x-sdkwork-auth-mode")]
+    auth_mode: &'static str,
+    #[serde(rename = "x-sdkwork-surface")]
+    surface: &'static str,
 }
 
 #[derive(Serialize)]
@@ -1122,7 +1299,10 @@ struct OpenApiDocument {
     info: OpenApiInfo,
     servers: Vec<OpenApiServer>,
     tags: Vec<OpenApiTag>,
-    paths: BTreeMap<&'static str, BTreeMap<&'static str, OpenApiOperation>>,
+    components: OpenApiComponents,
+    paths: BTreeMap<String, BTreeMap<&'static str, OpenApiOperation>>,
+    #[serde(rename = "x-sdkwork-api-gateway")]
+    gateway: OpenApiGatewayMetadata,
 }
 
 struct RouteSpec {
@@ -1131,6 +1311,378 @@ struct RouteSpec {
     path: &'static str,
     summary: &'static str,
     tag: &'static str,
+}
+
+fn surface_description(surface: &str) -> &'static str {
+    match surface {
+        "core" => "Core coding runtime, engine catalog, session execution, and operation control.",
+        "app" => "Application-facing workspace, project, collaboration, and user-center routes.",
+        "admin" => "Administrative governance, audit, release, deployment, and team-management routes.",
+        _ => "Unified BirdCoder API surface.",
+    }
+}
+
+fn surface_auth_mode(surface: &str) -> &'static str {
+    match surface {
+        "core" => "host",
+        "app" => "user",
+        "admin" => "admin",
+        _ => "host",
+    }
+}
+
+fn to_openapi_path_template(path: &str) -> String {
+    if !path.starts_with('/') {
+        return path.to_owned();
+    }
+
+    path.split('/')
+        .map(|segment| {
+            if let Some(parameter_name) = segment.strip_prefix(':') {
+                if parameter_name.is_empty() {
+                    segment.to_owned()
+                } else {
+                    format!("{{{parameter_name}}}")
+                }
+            } else {
+                segment.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn openapi_operation_description(route_spec: &RouteSpec) -> String {
+    let auth_description = match surface_auth_mode(route_spec.tag) {
+        "host" => {
+            "No user session is required; this route is available on the host runtime surface."
+        }
+        "user" => "Requires an authenticated BirdCoder user session.",
+        "admin" => "Requires an authenticated BirdCoder admin session.",
+        _ => "Authentication requirements are implementation-defined.",
+    };
+
+    format!("{}. {auth_description}", route_spec.summary)
+}
+
+fn openapi_operation_responses() -> BTreeMap<&'static str, OpenApiResponse> {
+    BTreeMap::from([
+        (
+            "200",
+            OpenApiResponse {
+                description: "Successful response",
+            },
+        ),
+        (
+            "default",
+            OpenApiResponse {
+                description: "Problem response",
+            },
+        ),
+    ])
+}
+
+fn openapi_operation_security(
+    route_spec: &RouteSpec,
+) -> Option<Vec<BTreeMap<&'static str, Vec<String>>>> {
+    match surface_auth_mode(route_spec.tag) {
+        "host" => None,
+        _ => Some(vec![BTreeMap::from([("bearerAuth", Vec::new())])]),
+    }
+}
+
+fn build_openapi_gateway_metadata() -> OpenApiGatewayMetadata {
+    let core_route_count = count_routes_for_surface("core");
+    let app_route_count = count_routes_for_surface("app");
+    let admin_route_count = count_routes_for_surface("admin");
+
+    OpenApiGatewayMetadata {
+        base_path: CODING_SERVER_GATEWAY_BASE_PATH,
+        compatibility_open_api_paths: [CODING_SERVER_OPENAPI_PATH],
+        docs_path: CODING_SERVER_DOCS_PATH,
+        live_open_api_path: CODING_SERVER_LIVE_OPENAPI_PATH,
+        route_catalog_path: CODING_SERVER_ROUTE_CATALOG_PATH,
+        route_count: CODING_SERVER_OPENAPI_ROUTE_SPECS.len(),
+        routes_by_surface: OpenApiGatewayRoutesBySurface {
+            admin: admin_route_count,
+            app: app_route_count,
+            core: core_route_count,
+        },
+        surfaces: [
+            OpenApiGatewaySurface {
+                auth_mode: "host",
+                base_path: CODING_SERVER_CORE_API_PREFIX,
+                description: surface_description("core"),
+                name: "core",
+                route_count: core_route_count,
+            },
+            OpenApiGatewaySurface {
+                auth_mode: "user",
+                base_path: CODING_SERVER_APP_API_PREFIX,
+                description: surface_description("app"),
+                name: "app",
+                route_count: app_route_count,
+            },
+            OpenApiGatewaySurface {
+                auth_mode: "admin",
+                base_path: CODING_SERVER_ADMIN_API_PREFIX,
+                description: surface_description("admin"),
+                name: "admin",
+                route_count: admin_route_count,
+            },
+        ],
+    }
+}
+
+fn count_routes_for_surface(surface: &str) -> usize {
+    CODING_SERVER_OPENAPI_ROUTE_SPECS
+        .iter()
+        .filter(|route_spec| route_spec.tag == surface)
+        .count()
+}
+
+fn build_gateway_descriptor_payload() -> GatewayDescriptorPayload {
+    let core_route_count = count_routes_for_surface("core");
+    let app_route_count = count_routes_for_surface("app");
+    let admin_route_count = count_routes_for_surface("admin");
+
+    GatewayDescriptorPayload {
+        base_path: CODING_SERVER_GATEWAY_BASE_PATH,
+        docs_path: CODING_SERVER_DOCS_PATH,
+        live_open_api_path: CODING_SERVER_LIVE_OPENAPI_PATH,
+        open_api_path: CODING_SERVER_OPENAPI_PATH,
+        route_catalog_path: CODING_SERVER_ROUTE_CATALOG_PATH,
+        route_count: CODING_SERVER_OPENAPI_ROUTE_SPECS.len(),
+        routes_by_surface: GatewayRoutesBySurfacePayload {
+            admin: admin_route_count,
+            app: app_route_count,
+            core: core_route_count,
+        },
+        surfaces: [
+            GatewaySurfaceDescriptorPayload {
+                auth_mode: "host",
+                base_path: CODING_SERVER_CORE_API_PREFIX,
+                description: surface_description("core"),
+                name: "core",
+                route_count: core_route_count,
+            },
+            GatewaySurfaceDescriptorPayload {
+                auth_mode: "user",
+                base_path: CODING_SERVER_APP_API_PREFIX,
+                description: surface_description("app"),
+                name: "app",
+                route_count: app_route_count,
+            },
+            GatewaySurfaceDescriptorPayload {
+                auth_mode: "admin",
+                base_path: CODING_SERVER_ADMIN_API_PREFIX,
+                description: surface_description("admin"),
+                name: "admin",
+                route_count: admin_route_count,
+            },
+        ],
+    }
+}
+
+fn build_route_catalog_payloads() -> Vec<RouteCatalogEntryPayload> {
+    CODING_SERVER_OPENAPI_ROUTE_SPECS
+        .iter()
+        .map(|route_spec| RouteCatalogEntryPayload {
+            auth_mode: surface_auth_mode(route_spec.tag),
+            method: route_spec.method,
+            open_api_path: to_openapi_path_template(route_spec.path),
+            operation_id: route_spec.operation_id,
+            path: route_spec.path,
+            surface: route_spec.tag,
+            summary: route_spec.summary,
+        })
+        .collect()
+}
+
+fn build_coding_server_docs_html() -> String {
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SDKWork BirdCoder Coding Server API</title>
+  <style>
+    :root {{
+      color-scheme: light;
+      --bg: #f6f2ea;
+      --panel: #fffdf9;
+      --ink: #1f2933;
+      --muted: #52606d;
+      --border: #dbcdb8;
+      --accent: #8d5a2b;
+      --accent-soft: #f1e4d1;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(141, 90, 43, 0.12), transparent 28%),
+        linear-gradient(180deg, #fcfaf6 0%, var(--bg) 100%);
+      color: var(--ink);
+    }}
+    main {{
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }}
+    .hero {{
+      background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(252,245,232,0.92));
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 18px 50px rgba(91, 63, 35, 0.08);
+    }}
+    .eyebrow {{
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }}
+    h1 {{
+      margin: 14px 0 10px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.05;
+    }}
+    p {{
+      margin: 0;
+      line-height: 1.6;
+      color: var(--muted);
+    }}
+    .panel {{
+      margin-top: 20px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 20px;
+    }}
+    .grid {{
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      margin-top: 22px;
+    }}
+    a {{
+      color: var(--accent);
+      font-weight: 600;
+      text-decoration: none;
+    }}
+    code {{
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 13px;
+      background: rgba(141, 90, 43, 0.08);
+      border-radius: 8px;
+      padding: 2px 6px;
+    }}
+    ul {{
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }}
+    li + li {{
+      margin-top: 8px;
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <span class="eyebrow">OpenAPI 3.1</span>
+      <h1>SDKWork BirdCoder Coding Server API</h1>
+      <p>The live schema follows the same single-port API gateway exposed by the BirdCoder host. Use the unified prefixes for core, app, and admin traffic.</p>
+      <div class="grid">
+        <div class="panel">
+          <strong>Live Schema</strong>
+          <p><a href="{live_openapi_path}"><code>{live_openapi_path}</code></a></p>
+        </div>
+        <div class="panel">
+          <strong>Compatibility Schema</strong>
+          <p><a href="{compat_openapi_path}"><code>{compat_openapi_path}</code></a></p>
+        </div>
+        <div class="panel">
+          <strong>Unified Gateway</strong>
+          <p><code>{gateway_base_path}</code></p>
+        </div>
+        <div class="panel">
+          <strong>Route Catalog</strong>
+          <p><a href="{route_catalog_path}"><code>{route_catalog_path}</code></a></p>
+        </div>
+      </div>
+    </section>
+    <section class="panel">
+      <strong>Gateway Surfaces</strong>
+      <ul>
+        <li><code>{core_prefix}</code> core runtime, engines, sessions, events, approvals, and operations</li>
+        <li><code>{app_prefix}</code> auth, user center, workspaces, projects, collaborators, teams, and deployments</li>
+        <li><code>{admin_prefix}</code> audit, policies, teams, releases, deployments, and governed targets</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>"#,
+        live_openapi_path = CODING_SERVER_LIVE_OPENAPI_PATH,
+        compat_openapi_path = CODING_SERVER_OPENAPI_PATH,
+        gateway_base_path = CODING_SERVER_GATEWAY_BASE_PATH,
+        route_catalog_path = CODING_SERVER_ROUTE_CATALOG_PATH,
+        core_prefix = CODING_SERVER_CORE_API_PREFIX,
+        app_prefix = CODING_SERVER_APP_API_PREFIX,
+        admin_prefix = CODING_SERVER_ADMIN_API_PREFIX,
+    )
+}
+
+pub fn build_coding_server_startup_summary_lines(api_base_url: &str) -> Vec<String> {
+    let normalized_base_url = api_base_url.trim().trim_end_matches('/');
+    let gateway_base_url = format!("{normalized_base_url}{CODING_SERVER_GATEWAY_BASE_PATH}");
+    let live_openapi_url = format!("{normalized_base_url}{CODING_SERVER_LIVE_OPENAPI_PATH}");
+    let compatibility_openapi_url = format!("{normalized_base_url}{CODING_SERVER_OPENAPI_PATH}");
+    let docs_url = format!("{normalized_base_url}{CODING_SERVER_DOCS_PATH}");
+    let route_catalog_url = format!("{normalized_base_url}{CODING_SERVER_ROUTE_CATALOG_PATH}");
+    let core_url = format!("{normalized_base_url}{CODING_SERVER_CORE_API_PREFIX}");
+    let app_url = format!("{normalized_base_url}{CODING_SERVER_APP_API_PREFIX}");
+    let admin_url = format!("{normalized_base_url}{CODING_SERVER_ADMIN_API_PREFIX}");
+    let core_route_count = count_routes_for_surface("core");
+    let app_route_count = count_routes_for_surface("app");
+    let admin_route_count = count_routes_for_surface("admin");
+
+    vec![
+        "------------------------------------------------------------".to_owned(),
+        "SDKWork BirdCoder Unified API Gateway".to_owned(),
+        format!("  Base URL: {normalized_base_url}"),
+        format!("  Unified Gateway Base: {gateway_base_url}"),
+        format!("  Live OpenAPI 3.x Schema: {live_openapi_url}"),
+        format!(
+            "  Compatibility OpenAPI Snapshot: {compatibility_openapi_url}"
+        ),
+        format!("  API Docs: {docs_url}"),
+        format!("  Route Catalog: {route_catalog_url}"),
+        format!("  Core API Prefix: {core_url}"),
+        format!("  App API Prefix: {app_url}"),
+        format!("  Admin API Prefix: {admin_url}"),
+        format!(
+            "  Route Counts: total={} core={} app={} admin={}",
+            CODING_SERVER_OPENAPI_ROUTE_SPECS.len(),
+            core_route_count,
+            app_route_count,
+            admin_route_count
+        ),
+    ]
+}
+
+pub fn print_coding_server_startup_summary(api_base_url: &str) {
+    for line in build_coding_server_startup_summary_lines(api_base_url) {
+        println!("{line}");
+    }
 }
 
 static ID_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -1589,6 +2141,34 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             "granted_by_identity_id TEXT NULL",
         )?;
     }
+    if sqlite_table_exists(connection, "workspace_members")? {
+        ensure_sqlite_table_column(
+            connection,
+            "workspace_members",
+            "created_by_identity_id",
+            "created_by_identity_id TEXT NULL",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            "workspace_members",
+            "granted_by_identity_id",
+            "granted_by_identity_id TEXT NULL",
+        )?;
+    }
+    if sqlite_table_exists(connection, "project_collaborators")? {
+        ensure_sqlite_table_column(
+            connection,
+            "project_collaborators",
+            "created_by_identity_id",
+            "created_by_identity_id TEXT NULL",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            "project_collaborators",
+            "granted_by_identity_id",
+            "granted_by_identity_id TEXT NULL",
+        )?;
+    }
 
     Ok(())
 }
@@ -1720,7 +2300,7 @@ fn load_provider_runtime_rows(connection: &Connection) -> Result<Vec<CodingSessi
     let mut statement = connection
         .prepare(
             r#"
-            SELECT id, coding_session_id, host_mode, engine_id, model_id, created_at, updated_at
+            SELECT id, coding_session_id, host_mode, engine_id, model_id, native_session_id, created_at, updated_at
             FROM coding_session_runtimes
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
@@ -1735,8 +2315,9 @@ fn load_provider_runtime_rows(connection: &Connection) -> Result<Vec<CodingSessi
                 host_mode: row.get(2)?,
                 engine_id: row.get(3)?,
                 model_id: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
+                native_session_id: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
             })
         })
         .map_err(|error| format!("query coding_session_runtimes failed: {error}"))?;
@@ -2250,10 +2831,26 @@ fn load_provider_workspace_member_payloads(
     let mut statement = connection
         .prepare(
             r#"
-            SELECT id, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status, created_at, updated_at
+            SELECT
+                workspace_members.id,
+                workspace_members.workspace_id,
+                workspace_members.identity_id,
+                identities.email,
+                identities.display_name,
+                identities.avatar_url,
+                workspace_members.team_id,
+                workspace_members.role,
+                workspace_members.created_by_identity_id,
+                workspace_members.granted_by_identity_id,
+                workspace_members.status,
+                workspace_members.created_at,
+                workspace_members.updated_at
             FROM workspace_members
-            WHERE is_deleted = 0
-            ORDER BY updated_at DESC, id ASC
+            LEFT JOIN identities
+                ON identities.id = workspace_members.identity_id
+               AND identities.is_deleted = 0
+            WHERE workspace_members.is_deleted = 0
+            ORDER BY workspace_members.updated_at DESC, workspace_members.id ASC
             "#,
         )
         .map_err(|error| format!("prepare workspace_members query failed: {error}"))?;
@@ -2263,13 +2860,16 @@ fn load_provider_workspace_member_payloads(
                 id: row.get(0)?,
                 workspace_id: row.get(1)?,
                 identity_id: row.get(2)?,
-                team_id: row.get(3)?,
-                role: row.get(4)?,
-                created_by_identity_id: row.get(5)?,
-                granted_by_identity_id: row.get(6)?,
-                status: row.get(7)?,
-                created_at: Some(row.get(8)?),
-                updated_at: Some(row.get(9)?),
+                identity_email: row.get(3)?,
+                identity_display_name: row.get(4)?,
+                identity_avatar_url: row.get(5)?,
+                team_id: row.get(6)?,
+                role: row.get(7)?,
+                created_by_identity_id: row.get(8)?,
+                granted_by_identity_id: row.get(9)?,
+                status: row.get(10)?,
+                created_at: Some(row.get(11)?),
+                updated_at: Some(row.get(12)?),
             })
         })
         .map_err(|error| format!("query workspace_members failed: {error}"))?;
@@ -2287,10 +2887,27 @@ fn load_provider_project_collaborator_payloads(
     let mut statement = connection
         .prepare(
             r#"
-            SELECT id, project_id, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status, created_at, updated_at
+            SELECT
+                project_collaborators.id,
+                project_collaborators.project_id,
+                project_collaborators.workspace_id,
+                project_collaborators.identity_id,
+                identities.email,
+                identities.display_name,
+                identities.avatar_url,
+                project_collaborators.team_id,
+                project_collaborators.role,
+                project_collaborators.created_by_identity_id,
+                project_collaborators.granted_by_identity_id,
+                project_collaborators.status,
+                project_collaborators.created_at,
+                project_collaborators.updated_at
             FROM project_collaborators
-            WHERE is_deleted = 0
-            ORDER BY updated_at DESC, id ASC
+            LEFT JOIN identities
+                ON identities.id = project_collaborators.identity_id
+               AND identities.is_deleted = 0
+            WHERE project_collaborators.is_deleted = 0
+            ORDER BY project_collaborators.updated_at DESC, project_collaborators.id ASC
             "#,
         )
         .map_err(|error| format!("prepare project_collaborators query failed: {error}"))?;
@@ -2301,13 +2918,16 @@ fn load_provider_project_collaborator_payloads(
                 project_id: row.get(1)?,
                 workspace_id: row.get(2)?,
                 identity_id: row.get(3)?,
-                team_id: row.get(4)?,
-                role: row.get(5)?,
-                created_by_identity_id: row.get(6)?,
-                granted_by_identity_id: row.get(7)?,
-                status: row.get(8)?,
-                created_at: Some(row.get(9)?),
-                updated_at: Some(row.get(10)?),
+                identity_email: row.get(4)?,
+                identity_display_name: row.get(5)?,
+                identity_avatar_url: row.get(6)?,
+                team_id: row.get(7)?,
+                role: row.get(8)?,
+                created_by_identity_id: row.get(9)?,
+                granted_by_identity_id: row.get(10)?,
+                status: row.get(11)?,
+                created_at: Some(row.get(12)?),
+                updated_at: Some(row.get(13)?),
             })
         })
         .map_err(|error| format!("query project_collaborators failed: {error}"))?;
@@ -2608,6 +3228,41 @@ fn current_storage_timestamp() -> String {
         .to_string()
 }
 
+fn build_default_publish_release_version(now: &str) -> String {
+    format!("publish-{now}")
+}
+
+fn build_default_publish_target_name(
+    project_name: &str,
+    environment_key: &str,
+    runtime: &str,
+) -> String {
+    format!("{project_name} {environment_key} {runtime}")
+}
+
+fn normalize_optional_identifier(value: Option<&str>) -> Option<String> {
+    value.and_then(|candidate| normalize_required_string(candidate.to_owned()))
+}
+
+fn resolve_effective_identity_pair(
+    owner_identity_id: Option<&str>,
+    created_by_identity_id: Option<&str>,
+    fallback_owner_identity_id: Option<&str>,
+    fallback_created_by_identity_id: Option<&str>,
+) -> (String, String) {
+    let owner_identity_id = normalize_optional_identifier(owner_identity_id)
+        .or_else(|| normalize_optional_identifier(created_by_identity_id))
+        .or_else(|| normalize_optional_identifier(fallback_owner_identity_id))
+        .or_else(|| normalize_optional_identifier(fallback_created_by_identity_id))
+        .unwrap_or_else(|| BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID.to_owned());
+    let created_by_identity_id = normalize_optional_identifier(created_by_identity_id)
+        .or_else(|| normalize_optional_identifier(Some(owner_identity_id.as_str())))
+        .or_else(|| normalize_optional_identifier(fallback_created_by_identity_id))
+        .or_else(|| normalize_optional_identifier(fallback_owner_identity_id))
+        .unwrap_or_else(|| owner_identity_id.clone());
+    (owner_identity_id, created_by_identity_id)
+}
+
 fn sqlite_has_legacy_kv_store_table(connection: &Connection) -> Result<bool, String> {
     sqlite_table_exists(connection, SQLITE_LEGACY_KV_STORE_TABLE)
 }
@@ -2650,6 +3305,19 @@ fn load_provider_runtime_row_for_session(
     Ok(select_latest_runtime_row(&runtime_rows).cloned())
 }
 
+fn resolve_native_session_id_from_snapshot(snapshot: &ProjectionSnapshot) -> Option<String> {
+    snapshot.events.iter().rev().find_map(|event| {
+        event.payload.get("nativeSessionId").and_then(|value| {
+            let normalized = value.trim();
+            if normalized.is_empty() {
+                None
+            } else {
+                Some(normalized.to_owned())
+            }
+        })
+    })
+}
+
 fn next_event_sequence(snapshot: &ProjectionSnapshot) -> usize {
     snapshot
         .events
@@ -2660,6 +3328,7 @@ fn next_event_sequence(snapshot: &ProjectionSnapshot) -> usize {
         .unwrap_or(0)
 }
 
+#[cfg(test)]
 fn build_codex_cli_prompt(request_kind: &str, input_summary: &str) -> String {
     if request_kind == "chat" {
         input_summary.to_owned()
@@ -2668,6 +3337,7 @@ fn build_codex_cli_prompt(request_kind: &str, input_summary: &str) -> String {
     }
 }
 
+#[cfg(test)]
 fn create_codex_cli_command() -> Command {
     if cfg!(windows) {
         let mut command = Command::new("cmd");
@@ -2678,6 +3348,7 @@ fn create_codex_cli_command() -> Command {
     }
 }
 
+#[cfg(test)]
 fn execute_codex_cli_turn(
     model_id: Option<&str>,
     working_directory: Option<&FsPath>,
@@ -2787,6 +3458,7 @@ fn execute_codex_cli_turn(
     assistant_content.ok_or_else(|| "Codex CLI did not return an assistant response.".to_owned())
 }
 
+#[cfg(test)]
 fn update_codex_cli_turn_error(turn_error: &mut Option<String>, candidate: &str) {
     let candidate = candidate.trim();
     if candidate.is_empty() {
@@ -2805,6 +3477,7 @@ fn update_codex_cli_turn_error(turn_error: &mut Option<String>, candidate: &str)
     }
 }
 
+#[cfg(test)]
 fn format_codex_cli_error(message: &str) -> String {
     let trimmed = message.trim();
     if is_codex_cli_authentication_error(trimmed) {
@@ -2816,6 +3489,7 @@ fn format_codex_cli_error(message: &str) -> String {
     }
 }
 
+#[cfg(test)]
 fn is_codex_cli_authentication_error(message: &str) -> bool {
     let normalized = message.trim().to_ascii_lowercase();
     normalized.contains("401 unauthorized")
@@ -2823,10 +3497,6 @@ fn is_codex_cli_authentication_error(message: &str) -> bool {
         || normalized.contains("login")
         || normalized.contains("api key")
         || normalized.contains("authentication")
-}
-
-fn build_completed_turn_assistant_content(request_kind: &str, input_summary: &str) -> String {
-    format!("Completed {request_kind} request: {input_summary}")
 }
 
 fn derive_runtime_status(snapshot: &ProjectionSnapshot, session: &CodingSessionPayload) -> String {
@@ -3245,6 +3915,7 @@ fn persist_created_coding_session_turn_to_provider(
     turn: &CodingSessionTurnPayload,
     events: &[CodingSessionEventPayload],
     operation: &OperationPayload,
+    native_session_id: Option<&str>,
 ) -> Result<(), String> {
     let updated_at = turn
         .completed_at
@@ -3295,10 +3966,16 @@ fn persist_created_coding_session_turn_to_provider(
         .execute(
             r#"
             UPDATE coding_session_runtimes
-            SET updated_at = ?2, status = ?3
+            SET updated_at = ?2, status = ?3, native_session_id = COALESCE(?5, native_session_id)
             WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
             "#,
-            params![runtime_id, updated_at, "completed", turn.coding_session_id],
+            params![
+                runtime_id,
+                updated_at,
+                "completed",
+                turn.coding_session_id,
+                native_session_id,
+            ],
         )
         .map_err(|error| {
             format!(
@@ -3631,6 +4308,8 @@ fn ensure_sqlite_provider_authority(
 
     if has_projection_tables && has_app_admin_tables {
         ensure_sqlite_provider_authority_schema_upgrade(connection)?;
+        ensure_sqlite_user_center_schema(connection)?;
+        ensure_sqlite_user_center_bootstrap_identity(connection)?;
         ensure_sqlite_bootstrap_user_context(connection)?;
         return Ok(());
     }
@@ -3677,10 +4356,6 @@ fn ensure_sqlite_bootstrap_user_context(connection: &mut Connection) -> Result<(
         )
         .map_err(|error| format!("count bootstrap projects failed: {error}"))?;
 
-    if workspace_count > 0 && project_count > 0 {
-        return Ok(());
-    }
-
     let preferred_workspace_id = if workspace_count > 0 {
         connection
             .query_row(
@@ -3722,56 +4397,14 @@ fn ensure_sqlite_bootstrap_user_context(connection: &mut Connection) -> Result<(
         .map_err(|error| format!("open bootstrap user context transaction failed: {error}"))?;
 
     if workspace_count == 0 {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO workspaces (
-                    id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, created_by_identity_id, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
-                "#,
-                params![
-                    BOOTSTRAP_WORKSPACE_ID,
-                    &bootstrap_timestamp,
-                    &bootstrap_timestamp,
-                    0_i64,
-                    0_i64,
-                    BOOTSTRAP_WORKSPACE_NAME,
-                    BOOTSTRAP_WORKSPACE_DESCRIPTION,
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    "active",
-                ],
-            )
-            .map_err(|error| format!("insert bootstrap workspace failed: {error}"))?;
+        upsert_bootstrap_workspace(&transaction, &bootstrap_timestamp)?;
     }
 
-    if project_count == 0 {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO projects (
-                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, root_path, owner_identity_id, created_by_identity_id, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
-                "#,
-                params![
-                    BOOTSTRAP_PROJECT_ID,
-                    &bootstrap_timestamp,
-                    &bootstrap_timestamp,
-                    0_i64,
-                    0_i64,
-                    &preferred_workspace_id,
-                    BOOTSTRAP_PROJECT_NAME,
-                    BOOTSTRAP_PROJECT_DESCRIPTION,
-                    Option::<String>::None,
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    "active",
-                ],
-            )
-            .map_err(|error| format!("insert bootstrap project failed: {error}"))?;
-    }
+    let preferred_project_id = if project_count == 0 {
+        upsert_bootstrap_project(&transaction, &preferred_workspace_id, &bootstrap_timestamp)?
+    } else {
+        preferred_project_id
+    };
 
     let bootstrap_team_count: i64 = transaction
         .query_row(
@@ -3781,27 +4414,7 @@ fn ensure_sqlite_bootstrap_user_context(connection: &mut Connection) -> Result<(
         )
         .map_err(|error| format!("count bootstrap teams failed: {error}"))?;
     if bootstrap_team_count == 0 {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO teams (
-                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, owner_identity_id, created_by_identity_id, status
-                )
-                VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9)
-                "#,
-                params![
-                    "team-default",
-                    &bootstrap_timestamp,
-                    &bootstrap_timestamp,
-                    &preferred_workspace_id,
-                    "Default Workspace Owners",
-                    Some("Bootstrap workspace owner team.".to_owned()),
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    "active",
-                ],
-            )
-            .map_err(|error| format!("insert bootstrap team failed: {error}"))?;
+        upsert_bootstrap_team(&transaction, &preferred_workspace_id, &bootstrap_timestamp)?;
     }
 
     let bootstrap_team_member_count: i64 = transaction
@@ -3812,27 +4425,7 @@ fn ensure_sqlite_bootstrap_user_context(connection: &mut Connection) -> Result<(
         )
         .map_err(|error| format!("count bootstrap team members failed: {error}"))?;
     if bootstrap_team_member_count == 0 {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO team_members (
-                    id, created_at, updated_at, version, is_deleted, team_id, identity_id, role, created_by_identity_id, granted_by_identity_id, status
-                )
-                VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9)
-                "#,
-                params![
-                    "team-member-default-owner",
-                    &bootstrap_timestamp,
-                    &bootstrap_timestamp,
-                    "team-default",
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    "active",
-                ],
-            )
-            .map_err(|error| format!("insert bootstrap team member failed: {error}"))?;
+        upsert_bootstrap_team_member(&transaction, &bootstrap_timestamp)?;
     }
 
     let bootstrap_workspace_member_count: i64 = transaction
@@ -3843,28 +4436,11 @@ fn ensure_sqlite_bootstrap_user_context(connection: &mut Connection) -> Result<(
         )
         .map_err(|error| format!("count bootstrap workspace members failed: {error}"))?;
     if bootstrap_workspace_member_count == 0 {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO workspace_members (
-                    id, created_at, updated_at, version, is_deleted, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
-                )
-                VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
-                "#,
-                params![
-                    "workspace-member-default-owner",
-                    &bootstrap_timestamp,
-                    &bootstrap_timestamp,
-                    &preferred_workspace_id,
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    "team-default",
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    "active",
-                ],
-            )
-            .map_err(|error| format!("insert bootstrap workspace member failed: {error}"))?;
+        upsert_bootstrap_workspace_member(
+            &transaction,
+            &preferred_workspace_id,
+            &bootstrap_timestamp,
+        )?;
     }
 
     let bootstrap_project_collaborator_count: i64 = transaction
@@ -3875,34 +4451,472 @@ fn ensure_sqlite_bootstrap_user_context(connection: &mut Connection) -> Result<(
         )
         .map_err(|error| format!("count bootstrap project collaborators failed: {error}"))?;
     if bootstrap_project_collaborator_count == 0 {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO project_collaborators (
-                    id, created_at, updated_at, version, is_deleted, project_id, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
-                )
-                VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
-                "#,
-                params![
-                    "project-collaborator-default-owner",
-                    &bootstrap_timestamp,
-                    &bootstrap_timestamp,
-                    &preferred_project_id,
-                    &preferred_workspace_id,
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    "team-default",
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
-                    "active",
-                ],
-            )
-            .map_err(|error| format!("insert bootstrap project collaborator failed: {error}"))?;
+        upsert_bootstrap_project_collaborator(
+            &transaction,
+            &preferred_project_id,
+            &preferred_workspace_id,
+            &bootstrap_timestamp,
+        )?;
     }
 
     transaction
         .commit()
         .map_err(|error| format!("commit bootstrap user context transaction failed: {error}"))?;
+
+    backfill_sqlite_authority_access_context(connection)
+}
+
+fn load_optional_string<P>(
+    connection: &rusqlite::Transaction<'_>,
+    sql: &str,
+    params: P,
+    error_context: &str,
+) -> Result<Option<String>, String>
+where
+    P: rusqlite::Params,
+{
+    match connection.query_row(sql, params, |row| row.get::<_, String>(0)) {
+        Ok(value) => Ok(Some(value)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(error) => Err(format!("{error_context}: {error}")),
+    }
+}
+
+fn upsert_bootstrap_workspace(
+    transaction: &rusqlite::Transaction<'_>,
+    bootstrap_timestamp: &str,
+) -> Result<(), String> {
+    transaction
+        .execute(
+            r#"
+            INSERT INTO workspaces (
+                id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, created_by_identity_id, status
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            ON CONFLICT(id)
+            DO UPDATE SET
+                updated_at = excluded.updated_at,
+                is_deleted = 0,
+                name = excluded.name,
+                description = excluded.description,
+                owner_identity_id = excluded.owner_identity_id,
+                created_by_identity_id = excluded.created_by_identity_id,
+                status = excluded.status
+            "#,
+            params![
+                BOOTSTRAP_WORKSPACE_ID,
+                bootstrap_timestamp,
+                bootstrap_timestamp,
+                0_i64,
+                0_i64,
+                BOOTSTRAP_WORKSPACE_NAME,
+                BOOTSTRAP_WORKSPACE_DESCRIPTION,
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                "active",
+            ],
+        )
+        .map_err(|error| format!("upsert bootstrap workspace failed: {error}"))?;
+
+    Ok(())
+}
+
+fn upsert_bootstrap_project(
+    transaction: &rusqlite::Transaction<'_>,
+    preferred_workspace_id: &str,
+    bootstrap_timestamp: &str,
+) -> Result<String, String> {
+    let existing_named_project_id = load_optional_string(
+        transaction,
+        r#"
+        SELECT id
+        FROM projects
+        WHERE workspace_id = ?1 AND name = ?2
+        ORDER BY updated_at DESC, id ASC
+        LIMIT 1
+        "#,
+        params![preferred_workspace_id, BOOTSTRAP_PROJECT_NAME],
+        "resolve bootstrap project conflict candidate failed",
+    )?;
+
+    if let Some(existing_project_id) = existing_named_project_id {
+        transaction
+            .execute(
+                r#"
+                UPDATE projects
+                SET updated_at = ?2,
+                    is_deleted = 0,
+                    workspace_id = ?3,
+                    name = ?4,
+                    description = ?5,
+                    root_path = ?6,
+                    owner_identity_id = ?7,
+                    created_by_identity_id = ?8,
+                    status = ?9
+                WHERE id = ?1
+                "#,
+                params![
+                    &existing_project_id,
+                    bootstrap_timestamp,
+                    preferred_workspace_id,
+                    BOOTSTRAP_PROJECT_NAME,
+                    BOOTSTRAP_PROJECT_DESCRIPTION,
+                    Option::<String>::None,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    "active",
+                ],
+            )
+            .map_err(|error| format!("restore bootstrap project failed: {error}"))?;
+
+        return Ok(existing_project_id);
+    }
+
+    transaction
+        .execute(
+            r#"
+            INSERT INTO projects (
+                id, created_at, updated_at, version, is_deleted, workspace_id, name, description, root_path, owner_identity_id, created_by_identity_id, status
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+            ON CONFLICT(id)
+            DO UPDATE SET
+                updated_at = excluded.updated_at,
+                is_deleted = 0,
+                workspace_id = excluded.workspace_id,
+                name = excluded.name,
+                description = excluded.description,
+                root_path = excluded.root_path,
+                owner_identity_id = excluded.owner_identity_id,
+                created_by_identity_id = excluded.created_by_identity_id,
+                status = excluded.status
+            "#,
+            params![
+                BOOTSTRAP_PROJECT_ID,
+                bootstrap_timestamp,
+                bootstrap_timestamp,
+                0_i64,
+                0_i64,
+                preferred_workspace_id,
+                BOOTSTRAP_PROJECT_NAME,
+                BOOTSTRAP_PROJECT_DESCRIPTION,
+                Option::<String>::None,
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                "active",
+            ],
+        )
+        .map_err(|error| format!("upsert bootstrap project failed: {error}"))?;
+
+    Ok(BOOTSTRAP_PROJECT_ID.to_owned())
+}
+
+fn upsert_bootstrap_team(
+    transaction: &rusqlite::Transaction<'_>,
+    preferred_workspace_id: &str,
+    bootstrap_timestamp: &str,
+) -> Result<(), String> {
+    transaction
+        .execute(
+            r#"
+            INSERT INTO teams (
+                id, created_at, updated_at, version, is_deleted, workspace_id, name, description, owner_identity_id, created_by_identity_id, status
+            )
+            VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9)
+            ON CONFLICT(id)
+            DO UPDATE SET
+                updated_at = excluded.updated_at,
+                is_deleted = 0,
+                workspace_id = excluded.workspace_id,
+                name = excluded.name,
+                description = excluded.description,
+                owner_identity_id = excluded.owner_identity_id,
+                created_by_identity_id = excluded.created_by_identity_id,
+                status = excluded.status
+            "#,
+            params![
+                "team-default",
+                bootstrap_timestamp,
+                bootstrap_timestamp,
+                preferred_workspace_id,
+                "Default Workspace Owners",
+                Some("Bootstrap workspace owner team.".to_owned()),
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                "active",
+            ],
+        )
+        .map_err(|error| format!("upsert bootstrap team failed: {error}"))?;
+
+    Ok(())
+}
+
+fn upsert_bootstrap_team_member(
+    transaction: &rusqlite::Transaction<'_>,
+    bootstrap_timestamp: &str,
+) -> Result<(), String> {
+    transaction
+        .execute(
+            r#"
+            INSERT INTO team_members (
+                id, created_at, updated_at, version, is_deleted, team_id, identity_id, role, created_by_identity_id, granted_by_identity_id, status
+            )
+            VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9)
+            ON CONFLICT(id)
+            DO UPDATE SET
+                updated_at = excluded.updated_at,
+                is_deleted = 0,
+                team_id = excluded.team_id,
+                identity_id = excluded.identity_id,
+                role = excluded.role,
+                created_by_identity_id = excluded.created_by_identity_id,
+                granted_by_identity_id = excluded.granted_by_identity_id,
+                status = excluded.status
+            "#,
+            params![
+                "team-member-default-owner",
+                bootstrap_timestamp,
+                bootstrap_timestamp,
+                "team-default",
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                "owner",
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                "active",
+            ],
+        )
+        .map_err(|error| format!("upsert bootstrap team member failed: {error}"))?;
+
+    Ok(())
+}
+
+fn upsert_bootstrap_workspace_member(
+    transaction: &rusqlite::Transaction<'_>,
+    preferred_workspace_id: &str,
+    bootstrap_timestamp: &str,
+) -> Result<(), String> {
+    transaction
+        .execute(
+            r#"
+            INSERT INTO workspace_members (
+                id, created_at, updated_at, version, is_deleted, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
+            )
+            VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            ON CONFLICT(id)
+            DO UPDATE SET
+                updated_at = excluded.updated_at,
+                is_deleted = 0,
+                workspace_id = excluded.workspace_id,
+                identity_id = excluded.identity_id,
+                team_id = excluded.team_id,
+                role = excluded.role,
+                created_by_identity_id = excluded.created_by_identity_id,
+                granted_by_identity_id = excluded.granted_by_identity_id,
+                status = excluded.status
+            "#,
+            params![
+                "workspace-member-default-owner",
+                bootstrap_timestamp,
+                bootstrap_timestamp,
+                preferred_workspace_id,
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                "team-default",
+                "owner",
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                "active",
+            ],
+        )
+        .map_err(|error| format!("upsert bootstrap workspace member failed: {error}"))?;
+
+    Ok(())
+}
+
+fn upsert_bootstrap_project_collaborator(
+    transaction: &rusqlite::Transaction<'_>,
+    preferred_project_id: &str,
+    preferred_workspace_id: &str,
+    bootstrap_timestamp: &str,
+) -> Result<(), String> {
+    transaction
+        .execute(
+            r#"
+            INSERT INTO project_collaborators (
+                id, created_at, updated_at, version, is_deleted, project_id, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
+            )
+            VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+            ON CONFLICT(id)
+            DO UPDATE SET
+                updated_at = excluded.updated_at,
+                is_deleted = 0,
+                project_id = excluded.project_id,
+                workspace_id = excluded.workspace_id,
+                identity_id = excluded.identity_id,
+                team_id = excluded.team_id,
+                role = excluded.role,
+                created_by_identity_id = excluded.created_by_identity_id,
+                granted_by_identity_id = excluded.granted_by_identity_id,
+                status = excluded.status
+            "#,
+            params![
+                "project-collaborator-default-owner",
+                bootstrap_timestamp,
+                bootstrap_timestamp,
+                preferred_project_id,
+                preferred_workspace_id,
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                "team-default",
+                "owner",
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                "active",
+            ],
+        )
+        .map_err(|error| format!("upsert bootstrap project collaborator failed: {error}"))?;
+
+    Ok(())
+}
+
+fn backfill_sqlite_authority_access_context(connection: &mut Connection) -> Result<(), String> {
+    let workspace_identity_pairs = load_provider_workspace_payloads(connection)?
+        .into_iter()
+        .map(|workspace| {
+            let (owner_identity_id, created_by_identity_id) = resolve_effective_identity_pair(
+                workspace.owner_identity_id.as_deref(),
+                workspace.created_by_identity_id.as_deref(),
+                None,
+                None,
+            );
+            (workspace.id, (owner_identity_id, created_by_identity_id))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let projects = load_provider_project_payloads(connection)?;
+    let now = current_storage_timestamp();
+    let transaction = connection
+        .transaction()
+        .map_err(|error| format!("open authority access backfill transaction failed: {error}"))?;
+
+    for (workspace_id, (owner_identity_id, created_by_identity_id)) in workspace_identity_pairs.iter()
+    {
+        transaction
+            .execute(
+                r#"
+                UPDATE workspaces
+                SET owner_identity_id = ?2, created_by_identity_id = ?3
+                WHERE id = ?1
+                  AND is_deleted = 0
+                  AND (
+                    owner_identity_id IS NULL
+                    OR TRIM(owner_identity_id) = ''
+                    OR created_by_identity_id IS NULL
+                    OR TRIM(created_by_identity_id) = ''
+                  )
+                "#,
+                params![workspace_id, owner_identity_id, created_by_identity_id],
+            )
+            .map_err(|error| format!("backfill workspace identity metadata failed: {error}"))?;
+
+        let workspace_member_count: i64 = transaction
+            .query_row(
+                "SELECT COUNT(*) FROM workspace_members WHERE is_deleted = 0 AND workspace_id = ?1",
+                params![workspace_id],
+                |row| row.get(0),
+            )
+            .map_err(|error| format!("count workspace members during backfill failed: {error}"))?;
+        if workspace_member_count == 0 {
+            let workspace_member_id = create_identifier("workspace-member");
+            transaction
+                .execute(
+                    r#"
+                    INSERT INTO workspace_members (
+                        id, created_at, updated_at, version, is_deleted, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
+                    )
+                    VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                    "#,
+                    params![
+                        &workspace_member_id,
+                        &now,
+                        &now,
+                        workspace_id,
+                        owner_identity_id,
+                        Option::<String>::None,
+                        "owner",
+                        created_by_identity_id,
+                        created_by_identity_id,
+                        "active",
+                    ],
+                )
+                .map_err(|error| format!("insert workspace access backfill member failed: {error}"))?;
+        }
+    }
+
+    for project in projects {
+        let workspace_identity_pair = workspace_identity_pairs.get(&project.workspace_id);
+        let (owner_identity_id, created_by_identity_id) = resolve_effective_identity_pair(
+            project.owner_identity_id.as_deref(),
+            project.created_by_identity_id.as_deref(),
+            workspace_identity_pair.map(|pair| pair.0.as_str()),
+            workspace_identity_pair.map(|pair| pair.1.as_str()),
+        );
+
+        transaction
+            .execute(
+                r#"
+                UPDATE projects
+                SET owner_identity_id = ?2, created_by_identity_id = ?3
+                WHERE id = ?1
+                  AND is_deleted = 0
+                  AND (
+                    owner_identity_id IS NULL
+                    OR TRIM(owner_identity_id) = ''
+                    OR created_by_identity_id IS NULL
+                    OR TRIM(created_by_identity_id) = ''
+                  )
+                "#,
+                params![&project.id, &owner_identity_id, &created_by_identity_id],
+            )
+            .map_err(|error| format!("backfill project identity metadata failed: {error}"))?;
+
+        let project_collaborator_count: i64 = transaction
+            .query_row(
+                "SELECT COUNT(*) FROM project_collaborators WHERE is_deleted = 0 AND project_id = ?1",
+                params![&project.id],
+                |row| row.get(0),
+            )
+            .map_err(|error| format!("count project collaborators during backfill failed: {error}"))?;
+        if project_collaborator_count == 0 {
+            let project_collaborator_id = create_identifier("project-collaborator");
+            transaction
+                .execute(
+                    r#"
+                    INSERT INTO project_collaborators (
+                        id, created_at, updated_at, version, is_deleted, project_id, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
+                    )
+                    VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                    "#,
+                    params![
+                        &project_collaborator_id,
+                        &now,
+                        &now,
+                        &project.id,
+                        &project.workspace_id,
+                        &owner_identity_id,
+                        Option::<String>::None,
+                        "owner",
+                        &created_by_identity_id,
+                        &created_by_identity_id,
+                        "active",
+                    ],
+                )
+                .map_err(|error| {
+                    format!("insert project access backfill collaborator failed: {error}")
+                })?;
+        }
+    }
+
+    transaction
+        .commit()
+        .map_err(|error| format!("commit authority access backfill transaction failed: {error}"))?;
 
     Ok(())
 }
@@ -3950,6 +4964,7 @@ fn materialize_legacy_kv_authority_into_provider_tables(
     connection
         .execute_batch(SQLITE_PROVIDER_AUTHORITY_SCHEMA)
         .map_err(|error| format!("create sqlite provider authority schema failed: {error}"))?;
+    ensure_sqlite_provider_authority_schema_upgrade(connection)?;
 
     let transaction = connection
         .transaction()
@@ -5082,7 +6097,7 @@ impl ProjectionAuthorityState {
             .clone()
             .ok_or_else(|| format!("coding session {coding_session_id} has no session payload"))?;
         let started_at = current_unix_millis_string();
-        let runtime_id = if let Some(sqlite_file) = self.sqlite_file.as_deref() {
+        let provider_runtime_row = if let Some(sqlite_file) = self.sqlite_file.as_deref() {
             let mut connection = Connection::open(sqlite_file).map_err(|error| {
                 format!(
                     "open sqlite coding-session turn authority {} failed: {error}",
@@ -5095,30 +6110,42 @@ impl ProjectionAuthorityState {
                 coding_session_id,
                 input.runtime_id.as_deref(),
             )?
-            .map(|runtime| runtime.id)
-            .or(input.runtime_id.clone())
-            .unwrap_or_else(|| derive_runtime_id(&snapshot, coding_session_id))
         } else {
-            input
-                .runtime_id
-                .clone()
-                .unwrap_or_else(|| derive_runtime_id(&snapshot, coding_session_id))
+            None
         };
+        let runtime_id = provider_runtime_row
+            .as_ref()
+            .map(|runtime| runtime.id.clone())
+            .or(input.runtime_id.clone())
+            .unwrap_or_else(|| derive_runtime_id(&snapshot, coding_session_id));
+        let native_session_id = provider_runtime_row
+            .as_ref()
+            .and_then(|runtime| runtime.native_session_id.clone())
+            .or_else(|| resolve_native_session_id_from_snapshot(&snapshot));
         let turn_id = create_identifier("coding-turn");
         let operation_id = format!("{turn_id}:operation");
         let request_kind = input.request_kind;
         let input_summary = input.input_summary;
         let completed_at = current_unix_millis_string();
-        let assistant_content = if session.engine_id == "codex" {
-            execute_codex_cli_turn(
-                session.model_id.as_deref(),
-                working_directory,
-                &request_kind,
-                &input_summary,
-            )?
-        } else {
-            build_completed_turn_assistant_content(&request_kind, &input_summary)
-        };
+        let native_turn_result =
+            native_sessions::execute_native_session_turn(&native_sessions::NativeSessionTurnRequest {
+                engine_id: session.engine_id.clone(),
+                model_id: session.model_id.clone(),
+                native_session_id: native_session_id.clone(),
+                request_kind: request_kind.clone(),
+                input_summary: input_summary.clone(),
+                working_directory: working_directory.map(FsPath::to_path_buf),
+                config: native_sessions::NativeSessionTurnConfig {
+                    full_auto: true,
+                    skip_git_repo_check: true,
+                    ..Default::default()
+                },
+            })?;
+        let assistant_content = native_turn_result.assistant_content.clone();
+        let resolved_native_session_id = native_turn_result
+            .native_session_id
+            .clone()
+            .or(native_session_id);
         let base_sequence = next_event_sequence(&snapshot);
         let turn = CodingSessionTurnPayload {
             id: turn_id.clone(),
@@ -5143,17 +6170,26 @@ impl ProjectionAuthorityState {
         started_payload.insert("inputSummary".to_owned(), input_summary.clone());
         started_payload.insert("operationId".to_owned(), operation_id.clone());
         started_payload.insert("runtimeStatus".to_owned(), "streaming".to_owned());
+        if let Some(native_session_id) = resolved_native_session_id.as_ref() {
+            started_payload.insert("nativeSessionId".to_owned(), native_session_id.clone());
+        }
 
         let mut message_payload = BTreeMap::new();
         message_payload.insert("role".to_owned(), "assistant".to_owned());
         message_payload.insert("content".to_owned(), assistant_content.clone());
         message_payload.insert("operationId".to_owned(), operation_id.clone());
         message_payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
+        if let Some(native_session_id) = resolved_native_session_id.as_ref() {
+            message_payload.insert("nativeSessionId".to_owned(), native_session_id.clone());
+        }
 
         let mut operation_payload = BTreeMap::new();
         operation_payload.insert("operationId".to_owned(), operation_id.clone());
         operation_payload.insert("status".to_owned(), "succeeded".to_owned());
         operation_payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
+        if let Some(native_session_id) = resolved_native_session_id.as_ref() {
+            operation_payload.insert("nativeSessionId".to_owned(), native_session_id.clone());
+        }
 
         let mut completed_payload = BTreeMap::new();
         completed_payload.insert("operationId".to_owned(), operation_id.clone());
@@ -5163,6 +6199,9 @@ impl ProjectionAuthorityState {
             assistant_content.len().to_string(),
         );
         completed_payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
+        if let Some(native_session_id) = resolved_native_session_id.as_ref() {
+            completed_payload.insert("nativeSessionId".to_owned(), native_session_id.clone());
+        }
 
         let events = vec![
             CodingSessionEventPayload {
@@ -5220,6 +6259,7 @@ impl ProjectionAuthorityState {
                 &turn,
                 &events,
                 &operation,
+                resolved_native_session_id.as_deref(),
             )?;
             let reloaded_state = ProjectionReadState::from_sqlite_provider_connection(&connection)?;
             *self
@@ -5453,6 +6493,9 @@ impl AppState {
                 id: "workspace-member-demo-owner".to_owned(),
                 workspace_id: "demo-workspace".to_owned(),
                 identity_id: "identity-demo-owner".to_owned(),
+                identity_email: Some("demo-owner@sdkwork.dev".to_owned()),
+                identity_display_name: Some("Demo Owner".to_owned()),
+                identity_avatar_url: None,
                 team_id: Some("demo-team".to_owned()),
                 role: "owner".to_owned(),
                 status: "active".to_owned(),
@@ -5466,6 +6509,9 @@ impl AppState {
                 project_id: "demo-project".to_owned(),
                 workspace_id: "demo-workspace".to_owned(),
                 identity_id: "identity-demo-owner".to_owned(),
+                identity_email: Some("demo-owner@sdkwork.dev".to_owned()),
+                identity_display_name: Some("Demo Owner".to_owned()),
+                identity_avatar_url: None,
                 team_id: Some("demo-team".to_owned()),
                 role: "owner".to_owned(),
                 status: "active".to_owned(),
@@ -5544,7 +6590,7 @@ impl AppState {
     }
 }
 
-const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 46] = [
+const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 50] = [
     RouteSpec {
         method: "get",
         operation_id: "core.getDescriptor",
@@ -5554,9 +6600,30 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 46] = [
     },
     RouteSpec {
         method: "get",
+        operation_id: "core.listRoutes",
+        path: CODING_SERVER_ROUTE_CATALOG_PATH,
+        summary: "List unified API routes",
+        tag: "core",
+    },
+    RouteSpec {
+        method: "get",
         operation_id: "core.listEngines",
         path: "/api/core/v1/engines",
         summary: "List available engines",
+        tag: "core",
+    },
+    RouteSpec {
+        method: "get",
+        operation_id: "core.listNativeSessions",
+        path: "/api/core/v1/native-sessions",
+        summary: "List discovered native engine sessions",
+        tag: "core",
+    },
+    RouteSpec {
+        method: "get",
+        operation_id: "core.getNativeSession",
+        path: "/api/core/v1/native-sessions/:id",
+        summary: "Get discovered native engine session detail",
         tag: "core",
     },
     RouteSpec {
@@ -5819,6 +6886,13 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 46] = [
         tag: "app",
     },
     RouteSpec {
+        method: "post",
+        operation_id: "app.publishProject",
+        path: "/api/app/v1/projects/:projectId/publish",
+        summary: "Publish project release flow",
+        tag: "app",
+    },
+    RouteSpec {
         method: "get",
         operation_id: "admin.listAuditEvents",
         path: "/api/admin/v1/audit",
@@ -5887,15 +6961,21 @@ fn create_envelope<T>(seed: &str, data: T) -> ApiEnvelope<T> {
 fn build_openapi_document() -> OpenApiDocument {
     let mut paths = BTreeMap::new();
     for route_spec in CODING_SERVER_OPENAPI_ROUTE_SPECS {
+        let openapi_path = to_openapi_path_template(route_spec.path);
         paths
-            .entry(route_spec.path)
+            .entry(openapi_path)
             .or_insert_with(BTreeMap::new)
             .insert(
                 route_spec.method,
                 OpenApiOperation {
                     operation_id: route_spec.operation_id,
                     summary: route_spec.summary,
+                    description: openapi_operation_description(&route_spec),
                     tags: [route_spec.tag],
+                    responses: openapi_operation_responses(),
+                    security: openapi_operation_security(&route_spec),
+                    auth_mode: surface_auth_mode(route_spec.tag),
+                    surface: route_spec.tag,
                 },
             );
     }
@@ -5905,16 +6985,38 @@ fn build_openapi_document() -> OpenApiDocument {
         info: OpenApiInfo {
             title: "SDKWork BirdCoder Coding Server API",
             version: CODING_SERVER_API_VERSION,
+            description:
+                "OpenAPI 3.1 schema generated from the live BirdCoder unified same-port API gateway.",
         },
         servers: vec![OpenApiServer {
-            url: format!("http://{BIRD_SERVER_DEFAULT_BIND_ADDRESS}"),
+            url: "/".to_owned(),
+            description: "Unified same-port BirdCoder API gateway.",
         }],
         tags: vec![
-            OpenApiTag { name: "core" },
-            OpenApiTag { name: "app" },
-            OpenApiTag { name: "admin" },
+            OpenApiTag {
+                name: "core",
+                description: surface_description("core"),
+            },
+            OpenApiTag {
+                name: "app",
+                description: surface_description("app"),
+            },
+            OpenApiTag {
+                name: "admin",
+                description: surface_description("admin"),
+            },
         ],
+        components: OpenApiComponents {
+            security_schemes: OpenApiSecuritySchemes {
+                bearer_auth: OpenApiSecurityScheme {
+                    kind: "http",
+                    scheme: "bearer",
+                    bearer_format: "Bearer token",
+                },
+            },
+        },
         paths,
+        gateway: build_openapi_gateway_metadata(),
     }
 }
 
@@ -5922,6 +7024,13 @@ async fn core_health() -> Json<ApiEnvelope<HealthPayload>> {
     Json(create_envelope(
         "core-health",
         HealthPayload { status: "healthy" },
+    ))
+}
+
+async fn core_route_catalog() -> Json<ApiListEnvelope<RouteCatalogEntryPayload>> {
+    Json(create_list_envelope(
+        "core-route-catalog",
+        build_route_catalog_payloads(),
     ))
 }
 
@@ -5949,6 +7058,7 @@ async fn core_descriptor() -> Json<ApiEnvelope<DescriptorPayload>> {
         "core-descriptor",
         DescriptorPayload {
             api_version: CODING_SERVER_API_VERSION,
+            gateway: build_gateway_descriptor_payload(),
             host_mode: "server",
             module_id: "coding-server",
             open_api_path: CODING_SERVER_OPENAPI_PATH,
@@ -7355,14 +8465,6 @@ async fn app_upsert_workspace_member(
             "workspaceId is required.",
         )
     })?;
-    let identity_id = normalize_required_string(request.identity_id).ok_or_else(|| {
-        problem_response(
-            "workspace-member-invalid",
-            StatusCode::BAD_REQUEST,
-            "argument_invalid",
-            "identityId is required.",
-        )
-    })?;
     let role = normalize_collaboration_role(request.role)
         .map_err(|message| {
             problem_response(
@@ -7460,6 +8562,25 @@ async fn app_upsert_workspace_member(
             ));
         }
     }
+
+    let resolved_identity = state
+        .user_center
+        .ensure_identity_user(
+            &mut connection,
+            request.identity_id.as_deref(),
+            request.email.as_deref(),
+            None,
+            None,
+        )
+        .map_err(|error| {
+            problem_response(
+                "workspace-member-invalid",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                error,
+            )
+        })?;
+    let identity_id = resolved_identity.id.clone();
 
     let now = current_storage_timestamp();
     let created_by_identity_id = current_identity_id
@@ -7601,6 +8722,9 @@ async fn app_upsert_workspace_member(
                 id: member_id,
                 workspace_id: normalized_workspace_id,
                 identity_id,
+                identity_email: Some(resolved_identity.email),
+                identity_display_name: Some(resolved_identity.name),
+                identity_avatar_url: resolved_identity.avatar_url,
                 team_id,
                 role,
                 status,
@@ -7690,14 +8814,6 @@ async fn app_upsert_project_collaborator(
             StatusCode::BAD_REQUEST,
             "argument_invalid",
             "projectId is required.",
-        )
-    })?;
-    let identity_id = normalize_required_string(request.identity_id).ok_or_else(|| {
-        problem_response(
-            "project-collaborator-invalid",
-            StatusCode::BAD_REQUEST,
-            "argument_invalid",
-            "identityId is required.",
         )
     })?;
     let role = normalize_collaboration_role(request.role)
@@ -7799,6 +8915,25 @@ async fn app_upsert_project_collaborator(
             ));
         }
     }
+
+    let resolved_identity = state
+        .user_center
+        .ensure_identity_user(
+            &mut connection,
+            request.identity_id.as_deref(),
+            request.email.as_deref(),
+            None,
+            None,
+        )
+        .map_err(|error| {
+            problem_response(
+                "project-collaborator-invalid",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                error,
+            )
+        })?;
+    let identity_id = resolved_identity.id.clone();
 
     let now = current_storage_timestamp();
     let created_by_identity_id = current_identity_id
@@ -7943,6 +9078,9 @@ async fn app_upsert_project_collaborator(
                 project_id: normalized_project_id,
                 workspace_id: project.workspace_id,
                 identity_id,
+                identity_email: Some(resolved_identity.email),
+                identity_display_name: Some(resolved_identity.name),
+                identity_avatar_url: resolved_identity.avatar_url,
                 team_id,
                 role,
                 status,
@@ -7968,6 +9106,380 @@ async fn app_deployments(
         "app-deployments",
         app_admin_state.deployments,
     ))
+}
+
+async fn app_publish_project(
+    AxumPath(project_id): AxumPath<String>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<PublishProjectRequest>,
+) -> Result<
+    Json<ApiEnvelope<PublishProjectResultPayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let normalized_project_id = normalize_required_string(project_id).ok_or_else(|| {
+        problem_response(
+            "project-publish-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            "projectId is required.",
+        )
+    })?;
+    let requested_target_id = normalize_optional_string(request.target_id);
+    let requested_target_name = normalize_optional_string(request.target_name);
+    let requested_environment_key = normalize_optional_string(request.environment_key);
+    let requested_runtime = normalize_optional_string(request.runtime);
+    let requested_release_kind =
+        normalize_optional_string(request.release_kind).unwrap_or_else(|| "formal".to_owned());
+    let requested_release_version = normalize_optional_string(request.release_version);
+    let requested_rollout_stage = normalize_optional_string(request.rollout_stage);
+    let requested_endpoint_url = normalize_optional_string(request.endpoint_url);
+    let current_identity_id =
+        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
+    let app_admin_state = state.read_app_admin_state();
+    let project_projection = app_admin_state
+        .projects
+        .iter()
+        .find(|project| project.id == normalized_project_id)
+        .cloned();
+    if let (Some(project), Some(actor_identity_id)) =
+        (project_projection.as_ref(), current_identity_id.as_deref())
+    {
+        let viewer_role = resolve_project_viewer_role(
+            project,
+            &workspace_lookup_map(&app_admin_state.workspaces),
+            &app_admin_state.workspace_members,
+            &app_admin_state.project_collaborators,
+            &app_admin_state.members,
+            actor_identity_id,
+        );
+        if !matches!(viewer_role.as_deref(), Some("owner" | "admin")) {
+            return Err(problem_response(
+                "project-publish-forbidden",
+                StatusCode::FORBIDDEN,
+                "forbidden",
+                "Current user is not allowed to publish the project.",
+            ));
+        }
+    }
+
+    let mut connection = state
+        .open_authority_connection_for_write()
+        .map_err(|error| {
+            problem_response(
+                "project-publish-authority-unavailable",
+                StatusCode::NOT_IMPLEMENTED,
+                "system_error",
+                error,
+            )
+        })?;
+
+    let project = load_provider_project_payload_by_id(&connection, &normalized_project_id)
+        .map_err(|error| {
+            problem_response(
+                "project-publish-project-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .ok_or_else(|| {
+            problem_response(
+                "project-publish-project-not-found",
+                StatusCode::NOT_FOUND,
+                "not_found",
+                "Project authority was not found.",
+            )
+        })?;
+
+    let active_targets = load_provider_deployment_target_payloads(&connection)
+        .map_err(|error| {
+            problem_response(
+                "project-publish-target-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                error,
+            )
+        })?
+        .into_iter()
+        .filter(|target| target.project_id == normalized_project_id && target.status == "active")
+        .collect::<Vec<_>>();
+
+    let explicit_existing_target = if let Some(target_id) = requested_target_id.as_deref() {
+        Some(
+            active_targets
+                .iter()
+                .find(|target| target.id == target_id)
+                .cloned()
+                .ok_or_else(|| {
+                    problem_response(
+                        "project-publish-target-not-found",
+                        StatusCode::NOT_FOUND,
+                        "not_found",
+                        "Deployment target was not found for the project.",
+                    )
+                })?,
+        )
+    } else {
+        None
+    };
+
+    let create_new_target = requested_target_id.is_none()
+        && (requested_target_name.is_some()
+            || requested_environment_key.is_some()
+            || requested_runtime.is_some()
+            || active_targets.is_empty());
+    let fallback_existing_target = if create_new_target {
+        None
+    } else {
+        active_targets.first().cloned()
+    };
+
+    let effective_environment_key = requested_environment_key
+        .clone()
+        .or_else(|| {
+            explicit_existing_target
+                .as_ref()
+                .map(|target| target.environment_key.clone())
+        })
+        .or_else(|| {
+            fallback_existing_target
+                .as_ref()
+                .map(|target| target.environment_key.clone())
+        })
+        .unwrap_or_else(|| "prod".to_owned());
+    let effective_runtime = requested_runtime
+        .clone()
+        .or_else(|| {
+            explicit_existing_target
+                .as_ref()
+                .map(|target| target.runtime.clone())
+        })
+        .or_else(|| {
+            fallback_existing_target
+                .as_ref()
+                .map(|target| target.runtime.clone())
+        })
+        .unwrap_or_else(|| "web".to_owned());
+    let effective_rollout_stage = requested_rollout_stage
+        .unwrap_or_else(|| effective_environment_key.clone());
+    let now = current_storage_timestamp();
+    let release_version = requested_release_version
+        .unwrap_or_else(|| build_default_publish_release_version(&now));
+
+    let created_target = if create_new_target {
+        Some(DeploymentTargetPayload {
+            id: create_identifier("target"),
+            project_id: normalized_project_id.clone(),
+            name: requested_target_name.unwrap_or_else(|| {
+                build_default_publish_target_name(
+                    &project.name,
+                    &effective_environment_key,
+                    &effective_runtime,
+                )
+            }),
+            environment_key: effective_environment_key.clone(),
+            runtime: effective_runtime.clone(),
+            status: "active".to_owned(),
+        })
+    } else {
+        None
+    };
+
+    let target = created_target
+        .clone()
+        .or(explicit_existing_target)
+        .or(fallback_existing_target)
+        .ok_or_else(|| {
+            problem_response(
+                "project-publish-target-resolution-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                "Failed to resolve a deployment target for the project.",
+            )
+        })?;
+
+    let release = ReleasePayload {
+        id: create_identifier("release"),
+        release_version: release_version.clone(),
+        release_kind: requested_release_kind.clone(),
+        rollout_stage: effective_rollout_stage.clone(),
+        status: "ready".to_owned(),
+    };
+    let deployment = DeploymentPayload {
+        id: create_identifier("deployment"),
+        project_id: normalized_project_id.clone(),
+        target_id: target.id.clone(),
+        release_record_id: Some(release.id.clone()),
+        status: "planned".to_owned(),
+        endpoint_url: requested_endpoint_url.clone(),
+        started_at: Some(now.clone()),
+        completed_at: None,
+    };
+    let created_by_identity_id = current_identity_id
+        .clone()
+        .or_else(|| project.created_by_identity_id.clone())
+        .or_else(|| project.owner_identity_id.clone())
+        .unwrap_or_else(|| BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID.to_owned());
+    let release_manifest = serde_json::json!({
+        "projectId": normalized_project_id,
+        "projectName": project.name,
+        "targetId": target.id,
+        "targetName": target.name,
+        "environmentKey": target.environment_key,
+        "runtime": target.runtime,
+        "releaseVersion": release.release_version,
+        "releaseKind": release.release_kind,
+        "rolloutStage": release.rollout_stage,
+        "endpointUrl": requested_endpoint_url,
+        "createdByIdentityId": created_by_identity_id,
+        "publishedAt": now,
+    });
+    let audit_payload = serde_json::json!({
+        "projectId": deployment.project_id,
+        "deploymentId": deployment.id,
+        "targetId": target.id,
+        "releaseId": release.id,
+        "releaseVersion": release.release_version,
+        "status": deployment.status,
+    });
+    let transaction = connection.transaction().map_err(|error| {
+        problem_response(
+            "project-publish-transaction-open-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to open project publish transaction: {error}"),
+        )
+    })?;
+
+    if let Some(target_to_insert) = created_target.as_ref() {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO deployment_targets (
+                    id, created_at, updated_at, version, is_deleted, project_id, name, environment_key, runtime, status
+                ) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8)
+                "#,
+                params![
+                    &target_to_insert.id,
+                    &now,
+                    &now,
+                    &target_to_insert.project_id,
+                    &target_to_insert.name,
+                    &target_to_insert.environment_key,
+                    &target_to_insert.runtime,
+                    &target_to_insert.status,
+                ],
+            )
+            .map_err(|error| {
+                problem_response(
+                    "project-publish-target-create-failed",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "system_error",
+                    format!("Failed to create deployment target: {error}"),
+                )
+            })?;
+    }
+
+    transaction
+        .execute(
+            r#"
+            INSERT INTO release_records (
+                id, created_at, updated_at, version, is_deleted, release_version, release_kind, rollout_stage, manifest_json, status
+            ) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8)
+            "#,
+            params![
+                &release.id,
+                &now,
+                &now,
+                &release.release_version,
+                &release.release_kind,
+                &release.rollout_stage,
+                release_manifest.to_string(),
+                &release.status,
+            ],
+        )
+        .map_err(|error| {
+            problem_response(
+                "project-publish-release-create-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to create release record: {error}"),
+            )
+        })?;
+
+    transaction
+        .execute(
+            r#"
+            INSERT INTO deployment_records (
+                id, created_at, updated_at, version, is_deleted, project_id, target_id, release_record_id, status, endpoint_url, started_at, completed_at
+            ) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            "#,
+            params![
+                &deployment.id,
+                &now,
+                &now,
+                &deployment.project_id,
+                &deployment.target_id,
+                &deployment.release_record_id,
+                &deployment.status,
+                &deployment.endpoint_url,
+                &deployment.started_at,
+                &deployment.completed_at,
+            ],
+        )
+        .map_err(|error| {
+            problem_response(
+                "project-publish-deployment-create-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to create deployment record: {error}"),
+            )
+        })?;
+
+    transaction
+        .execute(
+            r#"
+            INSERT INTO audit_events (
+                id, created_at, updated_at, version, is_deleted, scope_type, scope_id, event_type, payload_json
+            ) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7)
+            "#,
+            params![
+                create_identifier("audit"),
+                &now,
+                &now,
+                "project",
+                &deployment.project_id,
+                "project.publish.created",
+                audit_payload.to_string(),
+            ],
+        )
+        .map_err(|error| {
+            problem_response(
+                "project-publish-audit-create-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to create publish audit event: {error}"),
+            )
+        })?;
+
+    transaction.commit().map_err(|error| {
+        problem_response(
+            "project-publish-transaction-commit-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to commit project publish transaction: {error}"),
+        )
+    })?;
+
+    Ok(Json(create_envelope(
+        "app-publish-project",
+        PublishProjectResultPayload {
+            deployment,
+            release,
+            target,
+        },
+    )))
 }
 
 async fn app_teams(
@@ -8111,6 +9623,10 @@ async fn openapi_document() -> Json<OpenApiDocument> {
     Json(build_openapi_document())
 }
 
+async fn openapi_docs() -> Html<String> {
+    Html(build_coding_server_docs_html())
+}
+
 fn problem_response(
     seed: &str,
     status: StatusCode,
@@ -8150,14 +9666,280 @@ async fn core_operation(
     Ok(Json(create_envelope("core-operation", operation)))
 }
 
+fn is_native_coding_session_id(coding_session_id: &str) -> bool {
+    native_sessions::is_authority_backed_native_session_id(coding_session_id)
+}
+
+fn build_native_session_query(
+    query: NativeSessionQueryParams,
+) -> native_sessions::NativeSessionQuery {
+    native_sessions::NativeSessionQuery {
+        workspace_id: normalize_optional_string(query.workspace_id),
+        project_id: normalize_optional_string(query.project_id),
+        engine_id: normalize_optional_string(query.engine_id),
+        limit: query.limit,
+    }
+}
+
+fn build_native_session_lookup(
+    coding_session_id: String,
+    query: NativeSessionLookupQueryParams,
+) -> native_sessions::NativeSessionLookup {
+    native_sessions::NativeSessionLookup {
+        session_id: coding_session_id,
+        workspace_id: normalize_optional_string(query.workspace_id),
+        project_id: normalize_optional_string(query.project_id),
+        engine_id: normalize_optional_string(query.engine_id),
+    }
+}
+
+fn build_coding_session_payload_from_native_summary(
+    summary: &native_sessions::NativeSessionSummaryPayload,
+) -> CodingSessionPayload {
+    CodingSessionPayload {
+        id: summary.id.clone(),
+        workspace_id: summary.workspace_id.clone(),
+        project_id: summary.project_id.clone(),
+        title: summary.title.clone(),
+        status: summary.status.clone(),
+        host_mode: summary.host_mode.clone(),
+        engine_id: summary.engine_id.clone(),
+        model_id: summary.model_id.clone(),
+        created_at: summary.created_at.clone(),
+        updated_at: summary.updated_at.clone(),
+        last_turn_at: summary.last_turn_at.clone(),
+    }
+}
+
+fn build_native_session_events(
+    detail: &native_sessions::NativeSessionDetailPayload,
+) -> Vec<CodingSessionEventPayload> {
+    let runtime_id = format!("{}:runtime", detail.summary.id);
+    detail
+        .messages
+        .iter()
+        .enumerate()
+        .map(|(index, message)| {
+            let mut payload = BTreeMap::new();
+            payload.insert("role".to_owned(), message.role.clone());
+            payload.insert("content".to_owned(), message.content.clone());
+            payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
+            payload.insert("nativeSessionId".to_owned(), detail.summary.id.clone());
+            if let Some(commands) = message.commands.as_ref() {
+                if let Ok(serialized_commands) = serde_json::to_string(commands) {
+                    payload.insert("commandsJson".to_owned(), serialized_commands);
+                }
+            }
+
+            CodingSessionEventPayload {
+                id: format!("{}:{}:event:{}", runtime_id, message.turn_id.clone().unwrap_or_else(|| format!("native-turn-{index}")), index),
+                coding_session_id: detail.summary.id.clone(),
+                turn_id: message.turn_id.clone(),
+                runtime_id: Some(runtime_id.clone()),
+                kind: "message.completed".to_owned(),
+                sequence: index,
+                payload,
+                created_at: message.created_at.clone(),
+            }
+        })
+        .collect()
+}
+
+fn resolve_native_turn_working_directory(
+    detail: &native_sessions::NativeSessionDetailPayload,
+    projects: &[ProjectPayload],
+) -> Option<PathBuf> {
+    if let Some(project) = projects.iter().find(|project| project.id == detail.summary.project_id) {
+        if let Some(root_path) = project.root_path.as_deref() {
+            return Some(PathBuf::from(root_path));
+        }
+    }
+
+    detail
+        .summary
+        .native_cwd
+        .as_deref()
+        .filter(|cwd| !cwd.trim().is_empty())
+        .map(PathBuf::from)
+}
+
+fn resolve_native_turn_id(
+    before_detail: Option<&native_sessions::NativeSessionDetailPayload>,
+    after_detail: &native_sessions::NativeSessionDetailPayload,
+) -> Option<String> {
+    let before_message_ids = before_detail
+        .map(|detail| {
+            detail
+                .messages
+                .iter()
+                .map(|message| message.id.clone())
+                .collect::<std::collections::BTreeSet<_>>()
+        })
+        .unwrap_or_default();
+
+    after_detail
+        .messages
+        .iter()
+        .rev()
+        .find(|message| !before_message_ids.contains(&message.id) && message.turn_id.is_some())
+        .and_then(|message| message.turn_id.clone())
+        .or_else(|| {
+            after_detail
+                .messages
+                .iter()
+                .rev()
+                .find_map(|message| message.turn_id.clone())
+        })
+}
+
+fn create_native_coding_session_turn(
+    state: &AppState,
+    coding_session_id: &str,
+    input: &CreateCodingSessionTurnInput,
+) -> Result<CodingSessionTurnPayload, String> {
+    let app_admin_state = state.read_app_admin_state();
+    let native_engine_id = native_sessions::resolve_native_session_engine_id(coding_session_id);
+    let before_detail = native_sessions::get_native_session(
+        &app_admin_state.projects,
+        &native_sessions::NativeSessionLookup {
+            session_id: coding_session_id.to_owned(),
+            workspace_id: None,
+            project_id: None,
+            engine_id: native_engine_id.clone(),
+        },
+    )?
+    .ok_or_else(|| format!("native coding session {coding_session_id} was not found"))?;
+    let started_at = current_unix_millis_string();
+
+    let _turn_result = native_sessions::execute_native_session_turn(
+        &native_sessions::NativeSessionTurnRequest {
+            engine_id: before_detail.summary.engine_id.clone(),
+            model_id: before_detail.summary.model_id.clone(),
+            native_session_id: Some(before_detail.summary.id.clone()),
+            request_kind: input.request_kind.clone(),
+            input_summary: input.input_summary.clone(),
+            working_directory: resolve_native_turn_working_directory(
+                &before_detail,
+                &app_admin_state.projects,
+            ),
+            config: native_sessions::NativeSessionTurnConfig {
+                full_auto: true,
+                skip_git_repo_check: true,
+                ..Default::default()
+            },
+        },
+    )?;
+
+    let after_detail = native_sessions::get_native_session(
+        &app_admin_state.projects,
+        &native_sessions::NativeSessionLookup {
+            session_id: coding_session_id.to_owned(),
+            workspace_id: None,
+            project_id: None,
+            engine_id: native_engine_id,
+        },
+    )?
+    .unwrap_or(before_detail.clone());
+    let completed_at = current_unix_millis_string();
+
+    Ok(CodingSessionTurnPayload {
+        id: resolve_native_turn_id(Some(&before_detail), &after_detail)
+            .unwrap_or_else(|| create_identifier("coding-turn")),
+        coding_session_id: coding_session_id.to_owned(),
+        runtime_id: Some(format!("{coding_session_id}:runtime")),
+        request_kind: input.request_kind.clone(),
+        status: "completed".to_owned(),
+        input_summary: input.input_summary.clone(),
+        started_at: Some(started_at),
+        completed_at: Some(completed_at),
+    })
+}
+
+async fn core_native_sessions(
+    State(state): State<AppState>,
+    Query(query): Query<NativeSessionQueryParams>,
+) -> Result<
+    Json<ApiListEnvelope<native_sessions::NativeSessionSummaryPayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let app_admin_state = state.read_app_admin_state();
+    let sessions = native_sessions::list_native_sessions(
+        &app_admin_state.projects,
+        &build_native_session_query(query),
+    )
+    .map_err(|error| {
+        problem_response(
+            "native-sessions-list-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to list native sessions: {error}"),
+        )
+    })?;
+
+    Ok(Json(create_list_envelope("core-native-sessions", sessions)))
+}
+
+async fn core_native_session(
+    State(state): State<AppState>,
+    AxumPath(coding_session_id): AxumPath<String>,
+    Query(query): Query<NativeSessionLookupQueryParams>,
+) -> Result<
+    Json<ApiEnvelope<native_sessions::NativeSessionDetailPayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let app_admin_state = state.read_app_admin_state();
+    let detail = native_sessions::get_native_session(
+        &app_admin_state.projects,
+        &build_native_session_lookup(coding_session_id, query),
+    )
+    .map_err(|error| {
+        problem_response(
+            "native-session-read-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to read native session: {error}"),
+        )
+    })?
+    .ok_or_else(|| {
+        problem_response(
+            "native-session-not-found",
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "Native coding session was not found.",
+        )
+    })?;
+
+    Ok(Json(create_envelope("core-native-session", detail)))
+}
+
 async fn core_session(
     State(state): State<AppState>,
     AxumPath(coding_session_id): AxumPath<String>,
 ) -> Result<Json<ApiEnvelope<CodingSessionPayload>>, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)>
 {
-    let session = state
-        .projections
-        .session(&coding_session_id)
+    let session = if let Some(session) = state.projections.session(&coding_session_id) {
+        session
+    } else if is_native_coding_session_id(&coding_session_id) {
+        let app_admin_state = state.read_app_admin_state();
+        let detail = native_sessions::get_native_session(
+            &app_admin_state.projects,
+            &native_sessions::NativeSessionLookup {
+                session_id: coding_session_id.clone(),
+                workspace_id: None,
+                project_id: None,
+                engine_id: native_sessions::resolve_native_session_engine_id(
+                    coding_session_id.as_str(),
+                ),
+            },
+        )
+        .map_err(|error| {
+            problem_response(
+                "native-session-read-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to read native session summary: {error}"),
+            )
+        })?
         .ok_or_else(|| {
             problem_response(
                 "session-not-found",
@@ -8166,6 +9948,15 @@ async fn core_session(
                 "Coding session projection was not found.",
             )
         })?;
+        build_coding_session_payload_from_native_summary(&detail.summary)
+    } else {
+        return Err(problem_response(
+            "session-not-found",
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "Coding session projection was not found.",
+        ));
+    };
 
     Ok(Json(create_envelope("core-session", session)))
 }
@@ -8217,6 +10008,24 @@ async fn core_create_turn(
             message,
         )
     })?;
+
+    if state.projections.session(&coding_session_id).is_none() && is_native_coding_session_id(&coding_session_id) {
+        let turn = create_native_coding_session_turn(&state, &coding_session_id, &input).map_err(
+            |error| {
+                problem_response(
+                    "create-native-coding-session-turn-failed",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "system_error",
+                    format!("Failed to execute native coding session turn: {error}"),
+                )
+            },
+        )?;
+
+        return Ok((
+            StatusCode::CREATED,
+            Json(create_envelope("core-create-turn", turn)),
+        ));
+    }
 
     if state.projections.session(&coding_session_id).is_none() {
         return Err(problem_response(
@@ -8305,21 +10114,53 @@ async fn core_session_events(
     Json<ApiListEnvelope<CodingSessionEventPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
-    let snapshot = state
-        .projections
-        .session_snapshot(&coding_session_id)
-        .ok_or_else(|| {
-            problem_response(
-                "session-events-not-found",
-                StatusCode::NOT_FOUND,
-                "not_found",
-                "Coding session projection was not found.",
-            )
-        })?;
+    if let Some(snapshot) = state.projections.session_snapshot(&coding_session_id) {
+        return Ok(Json(create_list_envelope(
+            "core-session-events",
+            snapshot.events.clone(),
+        )));
+    }
+
+    if !is_native_coding_session_id(&coding_session_id) {
+        return Err(problem_response(
+            "session-events-not-found",
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "Coding session projection was not found.",
+        ));
+    }
+
+    let app_admin_state = state.read_app_admin_state();
+    let native_engine_id = native_sessions::resolve_native_session_engine_id(coding_session_id.as_str());
+    let detail = native_sessions::get_native_session(
+        &app_admin_state.projects,
+        &native_sessions::NativeSessionLookup {
+            session_id: coding_session_id,
+            workspace_id: None,
+            project_id: None,
+            engine_id: native_engine_id,
+        },
+    )
+    .map_err(|error| {
+        problem_response(
+            "native-session-events-read-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to read native session events: {error}"),
+        )
+    })?
+    .ok_or_else(|| {
+        problem_response(
+            "session-events-not-found",
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "Coding session projection was not found.",
+        )
+    })?;
 
     Ok(Json(create_list_envelope(
         "core-session-events",
-        snapshot.events.clone(),
+        build_native_session_events(&detail),
     )))
 }
 
@@ -8330,22 +10171,26 @@ async fn core_session_artifacts(
     Json<ApiListEnvelope<CodingSessionArtifactPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
-    let snapshot = state
-        .projections
-        .session_snapshot(&coding_session_id)
-        .ok_or_else(|| {
-            problem_response(
-                "session-artifacts-not-found",
-                StatusCode::NOT_FOUND,
-                "not_found",
-                "Coding session projection was not found.",
-            )
-        })?;
+    if let Some(snapshot) = state.projections.session_snapshot(&coding_session_id) {
+        return Ok(Json(create_list_envelope(
+            "core-session-artifacts",
+            snapshot.artifacts.clone(),
+        )));
+    }
 
-    Ok(Json(create_list_envelope(
-        "core-session-artifacts",
-        snapshot.artifacts.clone(),
-    )))
+    if is_native_coding_session_id(&coding_session_id) {
+        return Ok(Json(create_list_envelope(
+            "core-session-artifacts",
+            Vec::<CodingSessionArtifactPayload>::new(),
+        )));
+    }
+
+    Err(problem_response(
+        "session-artifacts-not-found",
+        StatusCode::NOT_FOUND,
+        "not_found",
+        "Coding session projection was not found.",
+    ))
 }
 
 async fn core_session_checkpoints(
@@ -8355,22 +10200,26 @@ async fn core_session_checkpoints(
     Json<ApiListEnvelope<CodingSessionCheckpointPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
-    let snapshot = state
-        .projections
-        .session_snapshot(&coding_session_id)
-        .ok_or_else(|| {
-            problem_response(
-                "session-checkpoints-not-found",
-                StatusCode::NOT_FOUND,
-                "not_found",
-                "Coding session projection was not found.",
-            )
-        })?;
+    if let Some(snapshot) = state.projections.session_snapshot(&coding_session_id) {
+        return Ok(Json(create_list_envelope(
+            "core-session-checkpoints",
+            snapshot.checkpoints.clone(),
+        )));
+    }
 
-    Ok(Json(create_list_envelope(
-        "core-session-checkpoints",
-        snapshot.checkpoints.clone(),
-    )))
+    if is_native_coding_session_id(&coding_session_id) {
+        return Ok(Json(create_list_envelope(
+            "core-session-checkpoints",
+            Vec::<CodingSessionCheckpointPayload>::new(),
+        )));
+    }
+
+    Err(problem_response(
+        "session-checkpoints-not-found",
+        StatusCode::NOT_FOUND,
+        "not_found",
+        "Coding session projection was not found.",
+    ))
 }
 
 pub fn build_app() -> Router {
@@ -8396,10 +10245,18 @@ pub fn build_app_from_runtime_config() -> Result<Router, String> {
 fn build_app_with_state(state: AppState) -> Router {
     Router::new()
         .route("/api/core/v1/descriptor", get(core_descriptor))
+        .route(CODING_SERVER_ROUTE_CATALOG_PATH, get(core_route_catalog))
         .route("/api/core/v1/runtime", get(core_runtime))
         .route("/api/core/v1/health", get(core_health))
+        .route(CODING_SERVER_LIVE_OPENAPI_PATH, get(openapi_document))
         .route(CODING_SERVER_OPENAPI_PATH, get(openapi_document))
+        .route(CODING_SERVER_DOCS_PATH, get(openapi_docs))
         .route("/api/core/v1/engines", get(core_engines))
+        .route("/api/core/v1/native-sessions", get(core_native_sessions))
+        .route(
+            "/api/core/v1/native-sessions/{id}",
+            get(core_native_session),
+        )
         .route(
             "/api/core/v1/engines/{engine_key}/capabilities",
             get(core_engine_capabilities),
@@ -8462,6 +10319,10 @@ fn build_app_with_state(state: AppState) -> Router {
         .route(
             "/api/app/v1/projects/{project_id}/collaborators",
             get(app_project_collaborators).post(app_upsert_project_collaborator),
+        )
+        .route(
+            "/api/app/v1/projects/{project_id}/publish",
+            post(app_publish_project),
         )
         .route("/api/app/v1/documents", get(app_documents))
         .route("/api/app/v1/teams", get(app_teams))
@@ -8971,6 +10832,100 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         connection
             .execute_batch(SQLITE_PROVIDER_AUTHORITY_SCHEMA)
             .expect("create empty sqlite provider authority schema");
+        path
+    }
+
+    fn write_legacy_direct_provider_authority_fixture(file_name: &str) -> std::path::PathBuf {
+        let path = write_empty_sqlite_provider_authority_fixture(file_name);
+        let connection = Connection::open(&path).expect("open legacy direct sqlite provider fixture");
+        connection
+            .execute_batch(
+                r#"
+                DROP TABLE project_collaborators;
+                DROP TABLE workspace_members;
+                DROP TABLE team_members;
+                DROP TABLE teams;
+                DROP TABLE projects;
+                DROP TABLE workspaces;
+
+                CREATE TABLE workspaces (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    name TEXT NOT NULL,
+                    description TEXT NULL,
+                    owner_identity_id TEXT NULL,
+                    status TEXT NOT NULL
+                );
+
+                CREATE TABLE projects (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    workspace_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    description TEXT NULL,
+                    root_path TEXT NULL,
+                    status TEXT NOT NULL
+                );
+
+                CREATE TABLE teams (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    workspace_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    description TEXT NULL,
+                    status TEXT NOT NULL
+                );
+
+                CREATE TABLE team_members (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    team_id TEXT NOT NULL,
+                    identity_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    status TEXT NOT NULL
+                );
+
+                CREATE TABLE workspace_members (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    workspace_id TEXT NOT NULL,
+                    identity_id TEXT NOT NULL,
+                    team_id TEXT NULL,
+                    role TEXT NOT NULL,
+                    status TEXT NOT NULL
+                );
+
+                CREATE TABLE project_collaborators (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    project_id TEXT NOT NULL,
+                    workspace_id TEXT NOT NULL,
+                    identity_id TEXT NOT NULL,
+                    team_id TEXT NULL,
+                    role TEXT NOT NULL,
+                    status TEXT NOT NULL
+                );
+                "#,
+            )
+            .expect("rewrite legacy direct provider authority schema");
         path
     }
 
@@ -9696,6 +11651,50 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         assert_eq!(json["data"]["moduleId"], "coding-server");
         assert_eq!(json["data"]["openApiPath"], "/openapi/coding-server-v1.json");
         assert_eq!(json["data"]["surfaces"], serde_json::json!(["core", "app", "admin"]));
+        assert_eq!(json["data"]["gateway"]["basePath"], CODING_SERVER_GATEWAY_BASE_PATH);
+        assert_eq!(
+            json["data"]["gateway"]["routeCatalogPath"],
+            CODING_SERVER_ROUTE_CATALOG_PATH
+        );
+        assert_eq!(json["data"]["gateway"]["routeCount"], 47);
+        assert_eq!(json["data"]["gateway"]["routesBySurface"]["core"], 15);
+        assert_eq!(json["data"]["gateway"]["routesBySurface"]["app"], 25);
+        assert_eq!(json["data"]["gateway"]["routesBySurface"]["admin"], 7);
+    }
+
+    #[tokio::test]
+    async fn route_catalog_route_returns_unified_operation_catalog() {
+        let response = build_app()
+            .oneshot(
+                Request::builder()
+                    .uri(CODING_SERVER_ROUTE_CATALOG_PATH)
+                    .body(Body::empty())
+                    .expect("build request"),
+            )
+            .await
+            .expect("serve request");
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read body");
+        let json: serde_json::Value =
+            serde_json::from_slice(&body).expect("parse route catalog response");
+
+        assert_eq!(json["items"].as_array().map(|items| items.len()), Some(47));
+        assert_eq!(json["meta"]["total"], 47);
+        assert_eq!(json["meta"]["version"], CODING_SERVER_API_VERSION);
+        assert_eq!(
+            json["items"]
+                .as_array()
+                .expect("route catalog items")
+                .iter()
+                .any(|item| item["operationId"] == "core.listRoutes"
+                    && item["openApiPath"] == "/api/core/v1/routes"
+                    && item["surface"] == "core"),
+            true
+        );
     }
 
     #[tokio::test]
@@ -12195,6 +14194,326 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
     }
 
     #[tokio::test]
+    async fn build_app_from_sqlite_file_restores_soft_deleted_bootstrap_project_rows() {
+        let sqlite_path = write_empty_sqlite_provider_authority_fixture(
+            "birdcoder-coding-server-bootstrap-project-restore.sqlite3",
+        );
+        let connection =
+            Connection::open(&sqlite_path).expect("open sqlite bootstrap restore fixture");
+        connection
+            .execute(
+                r#"
+                CREATE UNIQUE INDEX IF NOT EXISTS uk_projects_workspace_name
+                ON projects(workspace_id, name)
+                "#,
+                [],
+            )
+            .expect("create desktop-style project workspace name index");
+        connection
+            .execute(
+                r#"
+                INSERT INTO workspaces (
+                    id, created_at, updated_at, version, is_deleted, name, description, owner_identity_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                "#,
+                params![
+                    "workspace-existing",
+                    "2026-04-15T18:30:00Z",
+                    "2026-04-15T18:30:00Z",
+                    0_i64,
+                    0_i64,
+                    "Existing Workspace",
+                    "Pre-existing local workspace",
+                    "identity-existing",
+                    "active",
+                ],
+            )
+            .expect("insert existing workspace");
+        connection
+            .execute(
+                r#"
+                INSERT INTO projects (
+                    id, created_at, updated_at, version, is_deleted, workspace_id, name, description, root_path, owner_identity_id, created_by_identity_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                "#,
+                params![
+                    BOOTSTRAP_PROJECT_ID,
+                    "2026-04-15T18:31:00Z",
+                    "2026-04-15T18:31:00Z",
+                    0_i64,
+                    1_i64,
+                    "workspace-existing",
+                    BOOTSTRAP_PROJECT_NAME,
+                    "Soft-deleted starter project",
+                    Option::<String>::None,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    "archived",
+                ],
+            )
+            .expect("insert soft-deleted starter project");
+        connection
+            .execute(
+                r#"
+                INSERT INTO project_collaborators (
+                    id, created_at, updated_at, version, is_deleted, project_id, workspace_id, identity_id, team_id, role, created_by_identity_id, granted_by_identity_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                "#,
+                params![
+                    "project-collaborator-default-owner",
+                    "2026-04-15T18:31:00Z",
+                    "2026-04-15T18:31:00Z",
+                    0_i64,
+                    1_i64,
+                    BOOTSTRAP_PROJECT_ID,
+                    "workspace-existing",
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    "team-default",
+                    "owner",
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID,
+                    "archived",
+                ],
+            )
+            .expect("insert soft-deleted starter collaborator");
+        drop(connection);
+
+        let app = build_app_from_sqlite_file(&sqlite_path).expect("load sqlite bootstrap app");
+        let projects_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/projects")
+                    .body(Body::empty())
+                    .expect("build projects request"),
+            )
+            .await
+            .expect("serve projects request");
+        let collaborators_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/projects/project-default/collaborators")
+                    .body(Body::empty())
+                    .expect("build project collaborators request"),
+            )
+            .await
+            .expect("serve project collaborators request");
+
+        let connection = Connection::open(&sqlite_path).expect("open sqlite bootstrap fixture");
+        let persisted_project_row: (String, String, i64, String) = connection
+            .query_row(
+                "SELECT id, workspace_id, is_deleted, status FROM projects WHERE id = ?1",
+                params![BOOTSTRAP_PROJECT_ID],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .expect("read restored starter project");
+        let persisted_collaborator_row: (String, i64, String) = connection
+            .query_row(
+                "SELECT id, is_deleted, status FROM project_collaborators WHERE id = ?1",
+                params!["project-collaborator-default-owner"],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("read restored starter collaborator");
+        drop(connection);
+        fs::remove_file(sqlite_path).expect("remove sqlite bootstrap fixture");
+
+        let projects_body = to_bytes(projects_response.into_body(), usize::MAX)
+            .await
+            .expect("read projects body");
+        let projects_json: serde_json::Value =
+            serde_json::from_slice(&projects_body).expect("parse projects response");
+        let collaborators_body = to_bytes(collaborators_response.into_body(), usize::MAX)
+            .await
+            .expect("read collaborators body");
+        let collaborators_json: serde_json::Value =
+            serde_json::from_slice(&collaborators_body).expect("parse collaborators response");
+
+        assert_eq!(persisted_project_row.0, "project-default");
+        assert_eq!(persisted_project_row.1, "workspace-existing");
+        assert_eq!(persisted_project_row.2, 0);
+        assert_eq!(persisted_project_row.3, "active");
+        assert_eq!(persisted_collaborator_row.0, "project-collaborator-default-owner");
+        assert_eq!(persisted_collaborator_row.1, 0);
+        assert_eq!(persisted_collaborator_row.2, "active");
+        assert_eq!(projects_json["items"][0]["id"], "project-default");
+        assert_eq!(projects_json["items"][0]["workspaceId"], "workspace-existing");
+        assert_eq!(collaborators_json["items"][0]["id"], "project-collaborator-default-owner");
+    }
+
+    #[tokio::test]
+    async fn build_app_from_sqlite_file_upgrades_legacy_direct_provider_schema_before_bootstrap_writes() {
+        let sqlite_path = write_legacy_direct_provider_authority_fixture(
+            "birdcoder-coding-server-legacy-direct.sqlite3",
+        );
+        let app =
+            build_app_from_sqlite_file(&sqlite_path).expect("load legacy direct sqlite authority");
+
+        let workspaces_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/workspaces")
+                    .body(Body::empty())
+                    .expect("build workspaces request"),
+            )
+            .await
+            .expect("serve workspaces request");
+        let projects_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/projects")
+                    .body(Body::empty())
+                    .expect("build projects request"),
+            )
+            .await
+            .expect("serve projects request");
+
+        let connection = Connection::open(&sqlite_path).expect("open legacy direct sqlite fixture");
+
+        assert!(
+            sqlite_column_exists(&connection, PROVIDER_WORKSPACES_TABLE, "created_by_identity_id")
+                .expect("probe workspaces.created_by_identity_id"),
+            "legacy workspaces table should be upgraded with created_by_identity_id"
+        );
+        assert!(
+            sqlite_column_exists(&connection, PROVIDER_PROJECTS_TABLE, "owner_identity_id")
+                .expect("probe projects.owner_identity_id"),
+            "legacy projects table should be upgraded with owner_identity_id"
+        );
+        assert!(
+            sqlite_column_exists(&connection, PROVIDER_PROJECTS_TABLE, "created_by_identity_id")
+                .expect("probe projects.created_by_identity_id"),
+            "legacy projects table should be upgraded with created_by_identity_id"
+        );
+        assert!(
+            sqlite_column_exists(&connection, PROVIDER_TEAMS_TABLE, "owner_identity_id")
+                .expect("probe teams.owner_identity_id"),
+            "legacy teams table should be upgraded with owner_identity_id"
+        );
+        assert!(
+            sqlite_column_exists(&connection, PROVIDER_TEAMS_TABLE, "created_by_identity_id")
+                .expect("probe teams.created_by_identity_id"),
+            "legacy teams table should be upgraded with created_by_identity_id"
+        );
+        assert!(
+            sqlite_column_exists(&connection, PROVIDER_TEAM_MEMBERS_TABLE, "created_by_identity_id")
+                .expect("probe team_members.created_by_identity_id"),
+            "legacy team_members table should be upgraded with created_by_identity_id"
+        );
+        assert!(
+            sqlite_column_exists(&connection, PROVIDER_TEAM_MEMBERS_TABLE, "granted_by_identity_id")
+                .expect("probe team_members.granted_by_identity_id"),
+            "legacy team_members table should be upgraded with granted_by_identity_id"
+        );
+        assert!(
+            sqlite_column_exists(&connection, "workspace_members", "created_by_identity_id")
+                .expect("probe workspace_members.created_by_identity_id"),
+            "legacy workspace_members table should be upgraded with created_by_identity_id"
+        );
+        assert!(
+            sqlite_column_exists(&connection, "workspace_members", "granted_by_identity_id")
+                .expect("probe workspace_members.granted_by_identity_id"),
+            "legacy workspace_members table should be upgraded with granted_by_identity_id"
+        );
+        assert!(
+            sqlite_column_exists(&connection, "project_collaborators", "created_by_identity_id")
+                .expect("probe project_collaborators.created_by_identity_id"),
+            "legacy project_collaborators table should be upgraded with created_by_identity_id"
+        );
+        assert!(
+            sqlite_column_exists(&connection, "project_collaborators", "granted_by_identity_id")
+                .expect("probe project_collaborators.granted_by_identity_id"),
+            "legacy project_collaborators table should be upgraded with granted_by_identity_id"
+        );
+
+        let workspace_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM workspaces WHERE is_deleted = 0",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read legacy upgraded workspace count");
+        let project_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM projects WHERE is_deleted = 0",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read legacy upgraded project count");
+
+        drop(connection);
+        fs::remove_file(&sqlite_path).expect("remove legacy direct sqlite fixture");
+
+        let workspaces_body = to_bytes(workspaces_response.into_body(), usize::MAX)
+            .await
+            .expect("read workspaces body");
+        let workspaces_json: serde_json::Value =
+            serde_json::from_slice(&workspaces_body).expect("parse workspaces response");
+        let projects_body = to_bytes(projects_response.into_body(), usize::MAX)
+            .await
+            .expect("read projects body");
+        let projects_json: serde_json::Value =
+            serde_json::from_slice(&projects_body).expect("parse projects response");
+
+        assert_eq!(workspace_count, 1);
+        assert_eq!(project_count, 1);
+        assert_eq!(workspaces_json["items"][0]["id"], "workspace-default");
+        assert_eq!(projects_json["items"][0]["id"], "project-default");
+    }
+
+    #[tokio::test]
+    async fn build_app_from_sqlite_file_initializes_user_center_for_direct_provider_authority() {
+        let sqlite_path = write_empty_sqlite_provider_authority_fixture(
+            "birdcoder-coding-server-direct-user-center.sqlite3",
+        );
+
+        let _ = build_app_from_sqlite_file(&sqlite_path).expect("load direct sqlite authority");
+
+        let connection = Connection::open(&sqlite_path).expect("open direct sqlite authority");
+        let identity_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM identities WHERE is_deleted = 0",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read bootstrap identity count");
+        let profile_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM user_profiles WHERE is_deleted = 0",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read bootstrap profile count");
+        let membership_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM vip_subscriptions WHERE is_deleted = 0",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read bootstrap membership count");
+        let bootstrap_identity: (String, String, String) = connection
+            .query_row(
+                "SELECT id, email, provider_key FROM identities WHERE id = ?1",
+                params![BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("read bootstrap identity");
+
+        drop(connection);
+        fs::remove_file(sqlite_path).expect("remove direct sqlite authority fixture");
+
+        assert_eq!(identity_count, 1);
+        assert_eq!(profile_count, 1);
+        assert_eq!(membership_count, 1);
+        assert_eq!(bootstrap_identity.0, BOOTSTRAP_WORKSPACE_OWNER_IDENTITY_ID);
+        assert_eq!(bootstrap_identity.1, "local-default@sdkwork-birdcoder.local");
+        assert_eq!(bootstrap_identity.2, "local");
+    }
+
+    #[tokio::test]
     async fn build_app_loads_projection_state_from_default_runtime_config_file_when_present() {
         let _guard = ENV_LOCK.lock().expect("lock env");
         let sqlite_path = write_sqlite_projection_fixture("birdcoder-coding-server-config.sqlite3");
@@ -12283,8 +14602,29 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         let json: serde_json::Value =
             serde_json::from_slice(&body).expect("parse openapi response");
 
+        assert_eq!(json["servers"][0]["url"], "/");
         assert_eq!(
-            json["paths"]["/api/core/v1/coding-sessions/:id/events"]["get"]["operationId"],
+            json["x-sdkwork-api-gateway"]["liveOpenApiPath"],
+            CODING_SERVER_LIVE_OPENAPI_PATH
+        );
+        assert_eq!(
+            json["x-sdkwork-api-gateway"]["docsPath"],
+            CODING_SERVER_DOCS_PATH
+        );
+        assert_eq!(
+            json["x-sdkwork-api-gateway"]["routeCatalogPath"],
+            CODING_SERVER_ROUTE_CATALOG_PATH
+        );
+        assert_eq!(json["x-sdkwork-api-gateway"]["routeCount"], 47);
+        assert_eq!(json["x-sdkwork-api-gateway"]["routesBySurface"]["core"], 15);
+        assert_eq!(json["x-sdkwork-api-gateway"]["routesBySurface"]["app"], 25);
+        assert_eq!(json["x-sdkwork-api-gateway"]["routesBySurface"]["admin"], 7);
+        assert_eq!(
+            json["paths"]["/api/core/v1/routes"]["get"]["operationId"],
+            "core.listRoutes"
+        );
+        assert_eq!(
+            json["paths"]["/api/core/v1/coding-sessions/{id}/events"]["get"]["operationId"],
             "core.listCodingSessionEvents"
         );
         assert_eq!(
@@ -12292,11 +14632,11 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             "app.listWorkspaces"
         );
         assert_eq!(
-            json["paths"]["/api/admin/v1/teams/:teamId/members"]["get"]["operationId"],
+            json["paths"]["/api/admin/v1/teams/{teamId}/members"]["get"]["operationId"],
             "admin.listTeamMembers"
         );
         assert_eq!(
-            json["paths"]["/api/admin/v1/projects/:projectId/deployment-targets"]["get"]
+            json["paths"]["/api/admin/v1/projects/{projectId}/deployment-targets"]["get"]
                 ["operationId"],
             "admin.listDeploymentTargets"
         );
@@ -12304,6 +14644,35 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             json["paths"]["/api/admin/v1/releases"]["get"]["operationId"],
             "admin.listReleases"
         );
+    }
+
+    #[tokio::test]
+    async fn docs_route_exposes_live_schema_and_route_catalog_links() {
+        let response = build_app()
+            .oneshot(
+                Request::builder()
+                    .uri(CODING_SERVER_DOCS_PATH)
+                    .body(Body::empty())
+                    .expect("build request"),
+            )
+            .await
+            .expect("serve request");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE),
+            Some(&HeaderValue::from_static("text/html; charset=utf-8"))
+        );
+
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read body");
+        let html = String::from_utf8(body.to_vec()).expect("docs html");
+
+        assert_eq!(html.contains(CODING_SERVER_LIVE_OPENAPI_PATH), true);
+        assert_eq!(html.contains(CODING_SERVER_OPENAPI_PATH), true);
+        assert_eq!(html.contains(CODING_SERVER_ROUTE_CATALOG_PATH), true);
+        assert_eq!(html.contains(CODING_SERVER_GATEWAY_BASE_PATH), true);
     }
 
     #[tokio::test]

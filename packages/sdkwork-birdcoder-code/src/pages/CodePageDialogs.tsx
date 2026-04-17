@@ -46,6 +46,16 @@ export function CodePageDialogs({
   onConfirmDelete,
 }: CodePageDialogsProps) {
   const { t } = useTranslation();
+  const isProjectRemoval = deleteConfirmation?.type === 'project';
+  const deleteDialogTitle = isProjectRemoval
+    ? t('app.removeProjectTitle')
+    : `${t('app.delete')} ${
+        deleteConfirmation?.type.charAt(0).toUpperCase() ?? ''
+      }${deleteConfirmation?.type.slice(1) ?? ''}`;
+  const deleteDialogDescription = isProjectRemoval
+    ? t('app.removeProjectConfirm')
+    : `Are you sure you want to delete this ${deleteConfirmation?.type}? This action cannot be undone.`;
+  const deleteDialogActionLabel = isProjectRemoval ? t('common.remove') : t('app.delete');
 
   return (
     <>
@@ -83,11 +93,16 @@ export function CodePageDialogs({
               </button>
             </div>
             <div className="p-4 flex flex-col gap-4">
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-3 text-xs text-amber-100">
+                The Rust debugger host API is not wired yet. Debug attach remains unavailable until
+                the server-side debugger bridge is implemented.
+              </div>
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">{t('app.name')}</label>
                 <input
                   type="text"
                   defaultValue="Launch Chrome against localhost"
+                  disabled
                   className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500/50"
                 />
               </div>
@@ -96,6 +111,7 @@ export function CodePageDialogs({
                 <input
                   type="text"
                   defaultValue="http://localhost:3000"
+                  disabled
                   className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500/50"
                 />
               </div>
@@ -104,6 +120,7 @@ export function CodePageDialogs({
                 <input
                   type="text"
                   defaultValue="${workspaceFolder}/src"
+                  disabled
                   className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500/50"
                 />
               </div>
@@ -111,7 +128,12 @@ export function CodePageDialogs({
                 <Button variant="outline" size="sm" onClick={onCloseDebugConfig}>
                   {t('app.cancel')}
                 </Button>
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-white" onClick={onSaveDebugConfig}>
+                <Button
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-500 text-white"
+                  onClick={onSaveDebugConfig}
+                  disabled
+                >
                   {t('app.startDebugging')}
                 </Button>
               </div>
@@ -132,10 +154,10 @@ export function CodePageDialogs({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
           <div className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-lg font-semibold text-white mb-2">
-              {t('app.delete')} {deleteConfirmation.type.charAt(0).toUpperCase() + deleteConfirmation.type.slice(1)}
+              {deleteDialogTitle}
             </h3>
             <p className="text-sm text-gray-400 mb-6">
-              Are you sure you want to delete this {deleteConfirmation.type}? This action cannot be undone.
+              {deleteDialogDescription}
             </p>
             <div className="flex justify-end gap-3">
               <Button
@@ -150,7 +172,7 @@ export function CodePageDialogs({
                 onClick={onConfirmDelete}
                 className="bg-red-500 hover:bg-red-600 text-white border-transparent"
               >
-                {t('app.delete')}
+                {deleteDialogActionLabel}
               </Button>
             </div>
           </div>

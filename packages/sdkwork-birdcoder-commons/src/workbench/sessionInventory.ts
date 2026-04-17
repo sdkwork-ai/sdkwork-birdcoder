@@ -28,6 +28,10 @@ import {
 } from './nativeCodexSessionStore.ts';
 import type { StoredCodingSessionInventoryRecord } from './nativeCodexSessionStore.ts';
 export type { StoredCodingSessionInventoryRecord } from './nativeCodexSessionStore.ts';
+import {
+  listAuthorityBackedNativeSessions,
+  type NativeSessionAuthorityCoreReadService,
+} from './nativeSessionAuthority.ts';
 
 interface StoredCodingSessionPersistedEntry {
   createdAt?: unknown;
@@ -58,9 +62,11 @@ export interface ListStoredCodingSessionsOptions {
 }
 
 export interface ListStoredSessionInventoryOptions {
+  coreReadService?: NativeSessionAuthorityCoreReadService;
   includeGlobal?: boolean;
   limit?: number;
   projectId?: string | null;
+  workspaceId?: string | null;
 }
 
 const ZERO_TIMESTAMP = new Date(0).toISOString();
@@ -199,12 +205,12 @@ function compareSessionInventoryRecords(
 export async function listStoredSessionInventory(
   options: ListStoredSessionInventoryOptions = {},
 ): Promise<WorkbenchSessionInventoryRecord[]> {
-  const shouldIncludeNativeCodexSessions =
+  const shouldIncludeNativeSessions =
     options.projectId === undefined ||
     (options.projectId?.trim() ?? '').length === 0 ||
     options.includeGlobal !== false;
 
-  const [terminalSessions, codingSessions, nativeCodexSessions] = await Promise.all([
+  const [terminalSessions, codingSessions, nativeSessions] = await Promise.all([
     listStoredTerminalSessions({
       includeGlobal: options.includeGlobal,
       limit: undefined,
@@ -214,8 +220,17 @@ export async function listStoredSessionInventory(
       limit: undefined,
       projectId: options.projectId,
     }),
-    shouldIncludeNativeCodexSessions
-      ? listNativeCodexSessions(options.limit)
+    shouldIncludeNativeSessions
+      ? (
+        options.coreReadService
+          ? listAuthorityBackedNativeSessions({
+            coreReadService: options.coreReadService,
+            limit: options.limit,
+            projectId: options.projectId,
+            workspaceId: options.workspaceId,
+          })
+          : listNativeCodexSessions(options.limit)
+      )
       : Promise.resolve([] as StoredCodingSessionInventoryRecord[]),
   ]);
 
@@ -230,7 +245,7 @@ export async function listStoredSessionInventory(
       kind: 'coding' as const,
       sortTimestamp: resolveIsoTimestamp(session.updatedAt),
     })),
-    ...nativeCodexSessions,
+    ...nativeSessions,
   ].sort(compareSessionInventoryRecords);
 
   if (typeof options.limit === 'number') {

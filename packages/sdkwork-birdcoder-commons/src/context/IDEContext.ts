@@ -4,6 +4,7 @@ import type {
   IAdminPolicyService,
   IAuthService,
   IAuditService,
+  ICollaborationService,
   ICoreReadService,
   ICoreWriteService,
   IDeploymentService,
@@ -27,6 +28,7 @@ export interface IDEProviderProps {
   adminPolicyService?: IAdminPolicyService;
   workspaceService?: IWorkspaceService;
   projectService?: IProjectService;
+  collaborationService?: ICollaborationService;
   coreReadService?: ICoreReadService;
   coreWriteService?: ICoreWriteService;
   auditService?: IAuditService;
@@ -44,6 +46,7 @@ export const IDEProvider = ({
   adminPolicyService,
   workspaceService,
   projectService,
+  collaborationService,
   coreReadService,
   coreWriteService,
   auditService,
@@ -66,6 +69,7 @@ export const IDEProvider = ({
         adminPolicyService: adminPolicyService ?? defaultContext.adminPolicyService,
         workspaceService: workspaceService ?? defaultContext.workspaceService,
         projectService: projectService ?? defaultContext.projectService,
+        collaborationService: collaborationService ?? defaultContext.collaborationService,
         coreReadService: coreReadService ?? defaultContext.coreReadService,
         coreWriteService: coreWriteService ?? defaultContext.coreWriteService,
         auditService: auditService ?? defaultContext.auditService,

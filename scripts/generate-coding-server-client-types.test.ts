@@ -61,14 +61,14 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   {
     method: 'GET',
     operationId: 'core.getOperation',
-    path: '/api/core/v1/operations/:operationId',
+    path: '/api/core/v1/operations/{operationId}',
     summary: 'Get operation status',
     surface: 'core',
   },
   {
     method: 'POST',
     operationId: 'core.submitApprovalDecision',
-    path: '/api/core/v1/approvals/:approvalId/decision',
+    path: '/api/core/v1/approvals/{approvalId}/decision',
     summary: 'Submit approval decision',
     surface: 'core',
   },

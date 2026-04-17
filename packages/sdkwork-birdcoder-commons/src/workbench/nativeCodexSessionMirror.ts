@@ -8,21 +8,27 @@ import type {
   BirdCoderProjectMirrorSnapshot,
   IProjectService,
 } from '../services/interfaces/IProjectService.ts';
-import { readNativeCodexSessionRecord } from './nativeCodexSessionStore.ts';
 import {
   listStoredSessionInventory,
   type WorkbenchSessionInventoryRecord,
 } from './sessionInventory.ts';
+import {
+  isAuthorityBackedNativeSessionId,
+  readAuthorityBackedNativeSessionRecord,
+  type NativeSessionAuthorityCoreReadService,
+} from './nativeSessionAuthority.ts';
 
 const CODEX_NATIVE_SESSION_ID_PREFIX = 'codex-native:';
-const CODEX_NATIVE_MESSAGE_ID_SEGMENT = ':native-message:';
+const NATIVE_SESSION_MESSAGE_ID_SEGMENT = ':native-message:';
 
 export const NATIVE_CODEX_MIRROR_PROJECT_NAME = 'Codex Sessions';
 export const NATIVE_CODEX_MIRROR_PROJECT_COLLISION_SAFE_NAME = 'Codex Sessions (BirdCoder)';
 export const NATIVE_CODEX_MIRROR_PROJECT_DESCRIPTION =
   'Managed BirdCoder mirror for imported local Codex sessions.';
+const NATIVE_ENGINE_MIRROR_PROJECT_DESCRIPTION_PREFIX =
+  'Managed BirdCoder mirror for imported native engine sessions.';
 
-type NativeCodexSessionInventoryRecord = Extract<
+type NativeSessionInventoryRecord = Extract<
   WorkbenchSessionInventoryRecord,
   {
     kind: 'coding';
@@ -49,6 +55,7 @@ interface IndexedProjectFolderNameEntry {
 }
 
 export interface EnsureNativeCodexSessionMirrorOptions {
+  coreReadService?: NativeSessionAuthorityCoreReadService;
   inventory: ReadonlyArray<WorkbenchSessionInventoryRecord>;
   projectService: IProjectService;
   workspaceId: string;
@@ -60,18 +67,97 @@ export interface EnsureNativeCodexSessionMirrorResult {
   projectId: string;
 }
 
-function isNativeCodexSessionRecord(
+function normalizeNativeEngineId(value: string | null | undefined): string {
+  const normalizedValue = value?.trim().toLowerCase();
+  return normalizedValue && normalizedValue.length > 0 ? normalizedValue : 'codex';
+}
+
+function resolveNativeEngineDisplayName(engineId: string): string {
+  switch (normalizeNativeEngineId(engineId)) {
+    case 'claude-code':
+      return 'Claude Code';
+    case 'gemini':
+      return 'Gemini';
+    case 'opencode':
+      return 'OpenCode';
+    case 'codex':
+      return 'Codex';
+    default:
+      return normalizeNativeEngineId(engineId)
+        .split(/[-_\s]+/u)
+        .filter(Boolean)
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join(' ');
+  }
+}
+
+function createManagedMirrorProjectDescription(engineId: string): string {
+  const normalizedEngineId = normalizeNativeEngineId(engineId);
+  return normalizedEngineId === 'codex'
+    ? NATIVE_CODEX_MIRROR_PROJECT_DESCRIPTION
+    : `${NATIVE_ENGINE_MIRROR_PROJECT_DESCRIPTION_PREFIX} engine:${normalizedEngineId}`;
+}
+
+function resolveManagedMirrorProjectEngineId(
+  project: MirroredProjectView,
+): string | null {
+  if (project.description === NATIVE_CODEX_MIRROR_PROJECT_DESCRIPTION) {
+    return 'codex';
+  }
+
+  const description = project.description?.trim() ?? '';
+  const managedDescriptionMatch = new RegExp(
+    `^${NATIVE_ENGINE_MIRROR_PROJECT_DESCRIPTION_PREFIX.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')} engine:([a-z0-9-]+)$`,
+    'u',
+  ).exec(description);
+  return managedDescriptionMatch?.[1] ?? null;
+}
+
+function resolveManagedMirrorProjectName(engineId: string): string {
+  const normalizedEngineId = normalizeNativeEngineId(engineId);
+  if (normalizedEngineId === 'codex') {
+    return NATIVE_CODEX_MIRROR_PROJECT_NAME;
+  }
+
+  return `${resolveNativeEngineDisplayName(normalizedEngineId)} Sessions`;
+}
+
+function resolveManagedMirrorProjectCollisionSafeName(engineId: string): string {
+  const normalizedEngineId = normalizeNativeEngineId(engineId);
+  if (normalizedEngineId === 'codex') {
+    return NATIVE_CODEX_MIRROR_PROJECT_COLLISION_SAFE_NAME;
+  }
+
+  return `${resolveManagedMirrorProjectName(normalizedEngineId)} (BirdCoder)`;
+}
+
+function isNativeSessionRecord(
   record: WorkbenchSessionInventoryRecord,
-): record is NativeCodexSessionInventoryRecord {
+): record is NativeSessionInventoryRecord {
+  if (record.kind !== 'coding') {
+    return false;
+  }
+
   return (
-    record.kind === 'coding' &&
-    record.engineId === 'codex' &&
-    record.id.startsWith(CODEX_NATIVE_SESSION_ID_PREFIX)
+    'nativeCwd' in record ||
+    'transcriptUpdatedAt' in record ||
+    isAuthorityBackedNativeSessionId(record.id, record.engineId)
   );
 }
 
-function isManagedMirrorProject(project: MirroredProjectView): boolean {
-  return project.description === NATIVE_CODEX_MIRROR_PROJECT_DESCRIPTION;
+function isManagedMirrorProject(
+  project: MirroredProjectView,
+  engineId?: string,
+): boolean {
+  const managedProjectEngineId = resolveManagedMirrorProjectEngineId(project);
+  if (!managedProjectEngineId) {
+    return false;
+  }
+
+  return (
+    engineId === undefined ||
+    managedProjectEngineId === normalizeNativeEngineId(engineId)
+  );
 }
 
 function isLegacyMirrorProjectCandidate(project: MirroredProjectView): boolean {
@@ -107,7 +193,7 @@ function getMirroredSessionTranscriptUpdatedAt(
   for (let index = session.messages.length - 1; index >= 0; index -= 1) {
     const message = session.messages[index];
     if (
-      message.id.includes(CODEX_NATIVE_MESSAGE_ID_SEGMENT) &&
+      message.id.includes(NATIVE_SESSION_MESSAGE_ID_SEGMENT) &&
       typeof message.createdAt === 'string' &&
       !Number.isNaN(Date.parse(message.createdAt))
     ) {
@@ -131,7 +217,7 @@ function cloneExistingMirroredSessionMessages(
 function toMirroredCodingSession(
   workspaceId: string,
   projectId: string,
-  record: NativeCodexSessionInventoryRecord,
+  record: NativeSessionInventoryRecord,
   options: {
     existingSession?: MirroredCodingSessionView | null;
     refreshedMessages?: readonly BirdCoderChatMessage[] | null;
@@ -221,28 +307,35 @@ async function resolveManagedMirrorProject(
   workspaceId: string,
   projects: MirroredProjectView[],
   projectService: IProjectService,
+  engineId: string,
 ): Promise<MirroredProjectView> {
+  const normalizedEngineId = normalizeNativeEngineId(engineId);
   const managedProject =
-    projects.find(isManagedMirrorProject) ??
-    projects.find(isLegacyMirrorProjectCandidate);
+    projects.find((project) => isManagedMirrorProject(project, normalizedEngineId)) ??
+    (normalizedEngineId === 'codex'
+      ? projects.find(isLegacyMirrorProjectCandidate)
+      : undefined);
+  const desiredDescription = createManagedMirrorProjectDescription(normalizedEngineId);
   const hasUnsafeNameCollision = projects.some(
     (project) =>
-      project.name === NATIVE_CODEX_MIRROR_PROJECT_NAME && !isLegacyMirrorProjectCandidate(project),
+      project.name === resolveManagedMirrorProjectName(normalizedEngineId) &&
+      !isManagedMirrorProject(project, normalizedEngineId) &&
+      !(normalizedEngineId === 'codex' && isLegacyMirrorProjectCandidate(project)),
   );
   const desiredName = hasUnsafeNameCollision
-    ? NATIVE_CODEX_MIRROR_PROJECT_COLLISION_SAFE_NAME
-    : NATIVE_CODEX_MIRROR_PROJECT_NAME;
+    ? resolveManagedMirrorProjectCollisionSafeName(normalizedEngineId)
+    : resolveManagedMirrorProjectName(normalizedEngineId);
 
   if (managedProject) {
     if (
-      managedProject.description !== NATIVE_CODEX_MIRROR_PROJECT_DESCRIPTION ||
+      managedProject.description !== desiredDescription ||
       managedProject.name !== desiredName
     ) {
       await projectService.updateProject(managedProject.id, {
-        description: NATIVE_CODEX_MIRROR_PROJECT_DESCRIPTION,
+        description: desiredDescription,
         name: desiredName,
       });
-      managedProject.description = NATIVE_CODEX_MIRROR_PROJECT_DESCRIPTION;
+      managedProject.description = desiredDescription;
       managedProject.name = desiredName;
     }
 
@@ -251,24 +344,24 @@ async function resolveManagedMirrorProject(
 
   const createdProject = await projectService.createProject(workspaceId, desiredName);
   await projectService.updateProject(createdProject.id, {
-    description: NATIVE_CODEX_MIRROR_PROJECT_DESCRIPTION,
+    description: desiredDescription,
   });
 
   const managedMirrorProject = {
     ...createdProject,
-    description: NATIVE_CODEX_MIRROR_PROJECT_DESCRIPTION,
+    description: desiredDescription,
   };
   projects.push(managedMirrorProject);
   return managedMirrorProject;
 }
 
-function collectNativeCodexSessionRecords(
+function collectNativeSessionRecords(
   inventory: ReadonlyArray<WorkbenchSessionInventoryRecord>,
-): NativeCodexSessionInventoryRecord[] {
-  const nativeSessionsById = new Map<string, NativeCodexSessionInventoryRecord>();
+): NativeSessionInventoryRecord[] {
+  const nativeSessionsById = new Map<string, NativeSessionInventoryRecord>();
 
   for (const record of inventory) {
-    if (isNativeCodexSessionRecord(record)) {
+    if (isNativeSessionRecord(record)) {
       nativeSessionsById.set(record.id, record);
     }
   }
@@ -413,7 +506,7 @@ function createIndexedProjectFolderNameEntries(
 function resolveTargetProjectForNativeSession(
   indexedProjectPaths: readonly IndexedProjectPathEntry[],
   indexedProjectFolderNames: readonly IndexedProjectFolderNameEntry[],
-  record: NativeCodexSessionInventoryRecord,
+  record: NativeSessionInventoryRecord,
 ): MirroredProjectView | null {
   const normalizedNativeWorkingDirectory = normalizePathForComparison(record.nativeCwd);
   if (!normalizedNativeWorkingDirectory) {
@@ -496,7 +589,7 @@ function selectExistingMirroredSession(
 }
 
 function shouldRefreshMirroredNativeSessionTranscript(
-  record: NativeCodexSessionInventoryRecord,
+  record: NativeSessionInventoryRecord,
   existingSession: MirroredCodingSessionView | null,
   targetProjectId: string,
 ): boolean {
@@ -527,7 +620,7 @@ function shouldRefreshMirroredNativeSessionTranscript(
 function isMirroredNativeSessionSummaryEquivalent(
   workspaceId: string,
   projectId: string,
-  record: NativeCodexSessionInventoryRecord,
+  record: NativeSessionInventoryRecord,
   existingSession: MirroredCodingSessionView | null,
 ): boolean {
   if (!existingSession) {
@@ -565,6 +658,7 @@ async function removeMirroredSessionDuplicates(
 }
 
 export interface EnsureStoredNativeCodexSessionMirrorOptions {
+  coreReadService?: NativeSessionAuthorityCoreReadService;
   limit?: number;
   projectService: IProjectService;
   workspaceId: string;
@@ -574,8 +668,10 @@ export async function ensureStoredNativeCodexSessionMirror(
   options: EnsureStoredNativeCodexSessionMirrorOptions,
 ): Promise<EnsureNativeCodexSessionMirrorResult | null> {
   const inventory = await listStoredSessionInventory({
+    coreReadService: options.coreReadService,
     includeGlobal: true,
     limit: options.limit,
+    workspaceId: options.workspaceId,
   });
 
   return ensureNativeCodexSessionMirror({
@@ -593,8 +689,8 @@ export async function ensureNativeCodexSessionMirror(
     return null;
   }
 
-  const nativeCodexSessions = collectNativeCodexSessionRecords(options.inventory);
-  if (nativeCodexSessions.length === 0) {
+  const nativeSessions = collectNativeSessionRecords(options.inventory);
+  if (nativeSessions.length === 0) {
     return null;
   }
 
@@ -605,11 +701,12 @@ export async function ensureNativeCodexSessionMirror(
   const indexedProjectPaths = createIndexedProjectPathEntries(projects);
   const indexedProjectFolderNames = createIndexedProjectFolderNameEntries(projects);
   const existingMirroredSessionsById = createExistingMirroredSessionsById(projects);
-  let managedProject: MirroredProjectView | null = null;
+  const managedProjectsByEngineId = new Map<string, MirroredProjectView>();
   const mirroredProjectIds = new Set<string>();
   let fullProjectsForMessageMigration: BirdCoderProject[] | null | undefined;
 
-  for (const record of nativeCodexSessions) {
+  for (const record of nativeSessions) {
+    const resolvedEngineId = normalizeNativeEngineId(record.engineId);
     const resolvedProject =
       resolveTargetProjectForNativeSession(
         indexedProjectPaths,
@@ -617,11 +714,16 @@ export async function ensureNativeCodexSessionMirror(
         record,
       ) ??
       (
-        managedProject ??
-        await resolveManagedMirrorProject(workspaceId, projects, options.projectService)
+        managedProjectsByEngineId.get(resolvedEngineId) ??
+        await resolveManagedMirrorProject(
+          workspaceId,
+          projects,
+          options.projectService,
+          resolvedEngineId,
+        )
       );
-    if (managedProject === null && isManagedMirrorProject(resolvedProject)) {
-      managedProject = resolvedProject;
+    if (isManagedMirrorProject(resolvedProject, resolvedEngineId)) {
+      managedProjectsByEngineId.set(resolvedEngineId, resolvedProject);
     }
 
     const existingMirroredSessions = collectExistingMirroredSessions(
@@ -637,7 +739,12 @@ export async function ensureNativeCodexSessionMirror(
       retainedSession,
       resolvedProject.id,
     )
-      ? await readNativeCodexSessionRecord(record.id)
+      ? await readAuthorityBackedNativeSessionRecord(record.id, {
+        coreReadService: options.coreReadService,
+        engineId: resolvedEngineId,
+        projectId: resolvedProject.id,
+        workspaceId,
+      })
       : null;
     let retainedSessionForUpsert = retainedSession;
     if (
@@ -701,8 +808,24 @@ export async function ensureNativeCodexSessionMirror(
 
   const mirroredProjectIdCollection = [...mirroredProjectIds];
   return {
-    mirroredSessionIds: nativeCodexSessions.map((record) => record.id),
+    mirroredSessionIds: nativeSessions.map((record) => record.id),
     projectIds: mirroredProjectIdCollection,
     projectId: mirroredProjectIdCollection[0] ?? '',
   };
+}
+
+export type EnsureNativeSessionMirrorOptions = EnsureNativeCodexSessionMirrorOptions;
+export type EnsureStoredNativeSessionMirrorOptions = EnsureStoredNativeCodexSessionMirrorOptions;
+export type EnsureNativeSessionMirrorResult = EnsureNativeCodexSessionMirrorResult;
+
+export async function ensureStoredNativeSessionMirror(
+  options: EnsureStoredNativeSessionMirrorOptions,
+): Promise<EnsureNativeSessionMirrorResult | null> {
+  return ensureStoredNativeCodexSessionMirror(options);
+}
+
+export async function ensureNativeSessionMirror(
+  options: EnsureNativeSessionMirrorOptions,
+): Promise<EnsureNativeSessionMirrorResult | null> {
+  return ensureNativeCodexSessionMirror(options);
 }

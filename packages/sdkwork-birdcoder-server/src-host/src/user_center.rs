@@ -358,6 +358,55 @@ impl UserCenterState {
         self.provider.metadata()
     }
 
+    pub fn ensure_identity_user(
+        &self,
+        connection: &mut Connection,
+        identity_id: Option<&str>,
+        email: Option<&str>,
+        name: Option<&str>,
+        avatar_url: Option<&str>,
+    ) -> Result<UserCenterUserPayload, String> {
+        let normalized_identity_id = normalize_optional_text(identity_id);
+        let normalized_email = normalize_optional_text(email).map(|value| normalize_email(&value));
+
+        if normalized_identity_id.is_none() && normalized_email.is_none() {
+            return Err("identityId or email is required.".to_owned());
+        }
+
+        if let (Some(existing_identity_id), None) =
+            (normalized_identity_id.as_deref(), normalized_email.as_deref())
+        {
+            let identity = load_identity_by_id(connection, existing_identity_id)?
+                .ok_or_else(|| format!("Identity {existing_identity_id} was not found."))?;
+            ensure_default_profile_and_membership(connection, &identity.id)?;
+            return Ok(map_identity_record_to_user_payload(identity));
+        }
+
+        let normalized_email = normalized_email.ok_or_else(|| {
+            "email is required when identityId cannot be resolved directly.".to_owned()
+        })?;
+        let metadata = self.metadata();
+        let preferred_identity_id = normalized_identity_id.unwrap_or_else(|| {
+            if metadata.mode.eq_ignore_ascii_case("external") {
+                build_external_identity_id(&metadata.provider_key, None, &normalized_email)
+            } else {
+                build_local_identity_id(&normalized_email)
+            }
+        });
+        let resolved_display_name = resolve_display_name(&normalized_email, name);
+        let identity = upsert_identity_shadow(
+            connection,
+            &preferred_identity_id,
+            &normalized_email,
+            &resolved_display_name,
+            avatar_url,
+            &metadata.provider_key,
+            None,
+        )?;
+        ensure_default_profile_and_membership(connection, &identity.id)?;
+        Ok(map_identity_record_to_user_payload(identity))
+    }
+
     pub fn read_profile(
         &self,
         connection: &Connection,
@@ -554,6 +603,15 @@ fn build_avatar_url(seed: &str) -> String {
         "https://api.dicebear.com/7.x/avataaars/svg?seed={}",
         seed.replace(' ', "%20")
     )
+}
+
+fn map_identity_record_to_user_payload(identity: IdentityRecord) -> UserCenterUserPayload {
+    UserCenterUserPayload {
+        avatar_url: identity.avatar_url,
+        email: identity.email,
+        id: identity.id,
+        name: identity.display_name,
+    }
 }
 
 fn read_header_value(headers: &HeaderMap, header_name: &str) -> Option<String> {

@@ -27,7 +27,10 @@ const includedOperationIds = [
   'core.getDescriptor',
   'core.getRuntime',
   'core.getHealth',
+  'core.listRoutes',
   'core.listEngines',
+  'core.listNativeSessions',
+  'core.getNativeSession',
   'core.getEngineCapabilities',
   'core.listModels',
   'core.getOperation',
@@ -99,7 +102,10 @@ const writeClient = createBirdCoderGeneratedCoreWriteApiClient({
 assert.equal(typeof client.getDescriptor, 'function');
 assert.equal(typeof client.getRuntime, 'function');
 assert.equal(typeof client.getHealth, 'function');
+assert.equal(typeof client.listRoutes, 'function');
 assert.equal(typeof client.listEngines, 'function');
+assert.equal(typeof client.listNativeSessions, 'function');
+assert.equal(typeof client.getNativeSession, 'function');
 assert.equal(typeof client.getOperation, 'function');
 assert.equal(typeof client.getCodingSession, 'function');
 assert.equal(typeof client.listCodingSessionEvents, 'function');
@@ -132,6 +138,11 @@ assert.equal(
   'submitApprovalDecision' in client,
   false,
   'shared core read facade must stay read-only after submitApprovalDecision is promoted into the typed shared core write facade.',
+);
+assert.equal(
+  'listRoutes' in client,
+  true,
+  'shared core high-level facade must publish listRoutes once the unified route catalog is part of the real server surface.',
 );
 assert.equal(
   'getEngineCapabilities' in client,

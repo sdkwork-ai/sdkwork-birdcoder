@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 
 interface UseCodeRunEntryActionsOptions {
   currentProjectId: string;
-  currentProjectName?: string;
+  currentProjectPath?: string;
   defaultWorkingDirectory: string;
   isRunConfigVisible: boolean;
   setIsRunConfigVisible: Dispatch<SetStateAction<boolean>>;
@@ -23,7 +23,7 @@ interface UseCodeRunEntryActionsOptions {
 
 export function useCodeRunEntryActions({
   currentProjectId,
-  currentProjectName,
+  currentProjectPath,
   defaultWorkingDirectory,
   isRunConfigVisible,
   setIsRunConfigVisible,
@@ -50,9 +50,7 @@ export function useCodeRunEntryActions({
   }, [isRunConfigVisible, runConfigurations]);
 
   const dispatchRunConfiguration = async (configuration: RunConfigurationRecord) => {
-    const projectDirectory = currentProjectName
-      ? `/workspace/${currentProjectName}`
-      : defaultWorkingDirectory;
+    const projectDirectory = currentProjectPath?.trim() || defaultWorkingDirectory;
 
     const launch = await resolveRunConfigurationTerminalLaunch(configuration, {
       projectDirectory,
@@ -95,6 +93,15 @@ export function useCodeRunEntryActions({
     addToast(`Running ${configuration.name}`, 'info');
   };
 
+  const handleRunWithoutDebugging = () => {
+    const defaultRunConfiguration =
+      runConfigurations.find((configuration) => configuration.group === 'dev') ??
+      runConfigurations[0] ??
+      getDefaultRunConfigurations()[0];
+    void dispatchRunConfiguration(defaultRunConfiguration);
+    addToast(t('code.startingApplication'), 'info');
+  };
+
   const handleSaveDebugConfiguration = () => {
     setIsDebugConfigVisible(false);
     addToast(t('app.debugConfigurationUnavailable'), 'error');
@@ -106,6 +113,7 @@ export function useCodeRunEntryActions({
     setRunConfigurationDraft,
     handleSubmitRunConfiguration,
     handleRunTaskExecution,
+    handleRunWithoutDebugging,
     handleSaveDebugConfiguration,
   } as const;
 }

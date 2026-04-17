@@ -112,6 +112,7 @@ assert.match(releaseFlowCommandsJoined, /finalize-release-assets\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /smoke-finalized-release-assets\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /smoke-desktop-installers\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /smoke-server-release-assets\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /coding-server-openapi-snapshot-drift\.test\.ts/);
 assert.match(releaseFlowCommandsJoined, /smoke-deployment-release-assets\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /sdkwork-appbase-parity-contract\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /engine-official-sdk-contract\.test\.ts/);

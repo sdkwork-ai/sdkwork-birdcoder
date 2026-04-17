@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
-import type { BirdCoderDeploymentRecordSummary } from '@sdkwork/birdcoder-types';
+import type {
+  BirdCoderDeploymentRecordSummary,
+  BirdCoderDeploymentTargetSummary,
+  BirdCoderProjectPublishResult,
+  BirdCoderPublishProjectRequest,
+} from '@sdkwork/birdcoder-types';
 import type { IDeploymentService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IDeploymentService.ts';
 import { loadDeployments } from '../packages/sdkwork-birdcoder-commons/src/hooks/useDeployments.ts';
 
@@ -27,6 +32,15 @@ const deploymentService: IDeploymentService = {
   async getDeployments() {
     getDeploymentsCalls += 1;
     return deploymentFixtures;
+  },
+  async getDeploymentTargets(_projectId: string): Promise<BirdCoderDeploymentTargetSummary[]> {
+    return [];
+  },
+  async publishProject(
+    _projectId: string,
+    _request: BirdCoderPublishProjectRequest,
+  ): Promise<BirdCoderProjectPublishResult> {
+    throw new Error('publishProject is not used by this consumer contract.');
   },
 };
 

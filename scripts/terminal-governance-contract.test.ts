@@ -111,7 +111,7 @@ assert.equal(blockedAuditEvent.artifactRefs[0], 'cwd:/workspace/demo');
 
 const blockedExecution = await executeTerminalCommand('powershell', 'rm -rf .', '/workspace/demo');
 assert.equal(blockedExecution.exitCode, 130);
-assert.equal(blockedExecution.executedVia, 'mock');
+assert.equal(blockedExecution.executedVia, 'policy-blocked');
 assert.match(blockedExecution.stderr, /Blocked by governance policy/i);
 assert.match(blockedExecution.stderr, /traceId=/i);
 
@@ -159,8 +159,12 @@ assert.equal(
 );
 
 const allowedExecution = await executeTerminalCommand('powershell', 'Get-ChildItem', '/workspace/demo');
-assert.equal(allowedExecution.exitCode, 0);
-assert.equal(allowedExecution.stderr, '');
+assert.equal(allowedExecution.exitCode, 126);
+assert.equal(allowedExecution.executedVia, 'unsupported-runtime');
+assert.match(
+  allowedExecution.stderr,
+  /requires the desktop Tauri host or a real server terminal bridge/i,
+);
 
 const storedAuditsAfterAllowedCommand = await listStoredTerminalGovernanceAuditRecords();
 assert.equal(

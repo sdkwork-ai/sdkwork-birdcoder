@@ -7,6 +7,8 @@ export default defineLocaleModule('app/dialogs', {
     "delete": "Delete",
     "deleteProjectTitle": "Delete Project",
     "deleteProjectConfirm": "Are you sure you want to delete this project? This action cannot be undone.",
+    "removeProjectTitle": "Remove Project",
+    "removeProjectConfirm": "Remove this project from the workspace database? The local folder and files will remain on disk.",
     "aboutTitle": "Codex IDE",
     "aboutVersion": "Version 1.0.0 (Beta)",
     "aboutDescription": "A modern, AI-powered development environment built for the future of coding.",

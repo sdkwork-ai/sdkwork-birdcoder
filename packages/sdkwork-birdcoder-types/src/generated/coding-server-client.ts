@@ -26,7 +26,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "admin.listDeploymentTargets":     {
       "method": "GET",
       "operationId": "admin.listDeploymentTargets",
-      "path": "/api/admin/v1/projects/:projectId/deployment-targets",
+      "path": "/api/admin/v1/projects/{projectId}/deployment-targets",
       "pathParamNames": [
         "projectId"
       ],
@@ -52,7 +52,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "admin.listTeamMembers":     {
       "method": "GET",
       "operationId": "admin.listTeamMembers",
-      "path": "/api/admin/v1/teams/:teamId/members",
+      "path": "/api/admin/v1/teams/{teamId}/members",
       "pathParamNames": [
         "teamId"
       ],
@@ -66,6 +66,82 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "pathParamNames": [],
       "summary": "List teams",
       "surface": "admin"
+    },
+  "app.createProject":     {
+      "method": "POST",
+      "operationId": "app.createProject",
+      "path": "/api/app/v1/projects",
+      "pathParamNames": [],
+      "summary": "Create project",
+      "surface": "app"
+    },
+  "app.createWorkspace":     {
+      "method": "POST",
+      "operationId": "app.createWorkspace",
+      "path": "/api/app/v1/workspaces",
+      "pathParamNames": [],
+      "summary": "Create workspace",
+      "surface": "app"
+    },
+  "app.deleteProject":     {
+      "method": "DELETE",
+      "operationId": "app.deleteProject",
+      "path": "/api/app/v1/projects/{projectId}",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Delete project",
+      "surface": "app"
+    },
+  "app.deleteWorkspace":     {
+      "method": "DELETE",
+      "operationId": "app.deleteWorkspace",
+      "path": "/api/app/v1/workspaces/{workspaceId}",
+      "pathParamNames": [
+        "workspaceId"
+      ],
+      "summary": "Delete workspace",
+      "surface": "app"
+    },
+  "app.exchangeUserCenterSession":     {
+      "method": "POST",
+      "operationId": "app.exchangeUserCenterSession",
+      "path": "/api/app/v1/auth/session/exchange",
+      "pathParamNames": [],
+      "summary": "Exchange third-party identity into a BirdCoder session",
+      "surface": "app"
+    },
+  "app.getCurrentUserMembership":     {
+      "method": "GET",
+      "operationId": "app.getCurrentUserMembership",
+      "path": "/api/app/v1/user-center/membership",
+      "pathParamNames": [],
+      "summary": "Get current user membership",
+      "surface": "app"
+    },
+  "app.getCurrentUserProfile":     {
+      "method": "GET",
+      "operationId": "app.getCurrentUserProfile",
+      "path": "/api/app/v1/user-center/profile",
+      "pathParamNames": [],
+      "summary": "Get current user profile",
+      "surface": "app"
+    },
+  "app.getCurrentUserSession":     {
+      "method": "GET",
+      "operationId": "app.getCurrentUserSession",
+      "path": "/api/app/v1/auth/session",
+      "pathParamNames": [],
+      "summary": "Get current user center session",
+      "surface": "app"
+    },
+  "app.getUserCenterConfig":     {
+      "method": "GET",
+      "operationId": "app.getUserCenterConfig",
+      "path": "/api/app/v1/auth/config",
+      "pathParamNames": [],
+      "summary": "Get user center provider metadata",
+      "surface": "app"
     },
   "app.listDeployments":     {
       "method": "GET",
@@ -81,6 +157,16 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "path": "/api/app/v1/documents",
       "pathParamNames": [],
       "summary": "List project documents",
+      "surface": "app"
+    },
+  "app.listProjectCollaborators":     {
+      "method": "GET",
+      "operationId": "app.listProjectCollaborators",
+      "path": "/api/app/v1/projects/{projectId}/collaborators",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "List project collaborators",
       "surface": "app"
     },
   "app.listProjects":     {
@@ -99,12 +185,112 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "List workspace teams",
       "surface": "app"
     },
+  "app.listWorkspaceMembers":     {
+      "method": "GET",
+      "operationId": "app.listWorkspaceMembers",
+      "path": "/api/app/v1/workspaces/{workspaceId}/members",
+      "pathParamNames": [
+        "workspaceId"
+      ],
+      "summary": "List workspace members",
+      "surface": "app"
+    },
   "app.listWorkspaces":     {
       "method": "GET",
       "operationId": "app.listWorkspaces",
       "path": "/api/app/v1/workspaces",
       "pathParamNames": [],
       "summary": "List workspaces",
+      "surface": "app"
+    },
+  "app.login":     {
+      "method": "POST",
+      "operationId": "app.login",
+      "path": "/api/app/v1/auth/login",
+      "pathParamNames": [],
+      "summary": "Create local user center session",
+      "surface": "app"
+    },
+  "app.logout":     {
+      "method": "POST",
+      "operationId": "app.logout",
+      "path": "/api/app/v1/auth/logout",
+      "pathParamNames": [],
+      "summary": "Revoke current user center session",
+      "surface": "app"
+    },
+  "app.publishProject":     {
+      "method": "POST",
+      "operationId": "app.publishProject",
+      "path": "/api/app/v1/projects/{projectId}/publish",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Publish project release flow",
+      "surface": "app"
+    },
+  "app.register":     {
+      "method": "POST",
+      "operationId": "app.register",
+      "path": "/api/app/v1/auth/register",
+      "pathParamNames": [],
+      "summary": "Register local user center identity",
+      "surface": "app"
+    },
+  "app.updateCurrentUserMembership":     {
+      "method": "PATCH",
+      "operationId": "app.updateCurrentUserMembership",
+      "path": "/api/app/v1/user-center/membership",
+      "pathParamNames": [],
+      "summary": "Update current user membership",
+      "surface": "app"
+    },
+  "app.updateCurrentUserProfile":     {
+      "method": "PATCH",
+      "operationId": "app.updateCurrentUserProfile",
+      "path": "/api/app/v1/user-center/profile",
+      "pathParamNames": [],
+      "summary": "Update current user profile",
+      "surface": "app"
+    },
+  "app.updateProject":     {
+      "method": "PATCH",
+      "operationId": "app.updateProject",
+      "path": "/api/app/v1/projects/{projectId}",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Update project",
+      "surface": "app"
+    },
+  "app.updateWorkspace":     {
+      "method": "PATCH",
+      "operationId": "app.updateWorkspace",
+      "path": "/api/app/v1/workspaces/{workspaceId}",
+      "pathParamNames": [
+        "workspaceId"
+      ],
+      "summary": "Update workspace",
+      "surface": "app"
+    },
+  "app.upsertProjectCollaborator":     {
+      "method": "POST",
+      "operationId": "app.upsertProjectCollaborator",
+      "path": "/api/app/v1/projects/{projectId}/collaborators",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Upsert project collaborator",
+      "surface": "app"
+    },
+  "app.upsertWorkspaceMember":     {
+      "method": "POST",
+      "operationId": "app.upsertWorkspaceMember",
+      "path": "/api/app/v1/workspaces/{workspaceId}/members",
+      "pathParamNames": [
+        "workspaceId"
+      ],
+      "summary": "Upsert workspace member",
       "surface": "app"
     },
   "core.createCodingSession":     {
@@ -118,7 +304,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "core.createCodingSessionTurn":     {
       "method": "POST",
       "operationId": "core.createCodingSessionTurn",
-      "path": "/api/core/v1/coding-sessions/:id/turns",
+      "path": "/api/core/v1/coding-sessions/{id}/turns",
       "pathParamNames": [
         "id"
       ],
@@ -128,7 +314,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "core.getCodingSession":     {
       "method": "GET",
       "operationId": "core.getCodingSession",
-      "path": "/api/core/v1/coding-sessions/:id",
+      "path": "/api/core/v1/coding-sessions/{id}",
       "pathParamNames": [
         "id"
       ],
@@ -146,7 +332,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "core.getEngineCapabilities":     {
       "method": "GET",
       "operationId": "core.getEngineCapabilities",
-      "path": "/api/core/v1/engines/:engineKey/capabilities",
+      "path": "/api/core/v1/engines/{engineKey}/capabilities",
       "pathParamNames": [
         "engineKey"
       ],
@@ -161,10 +347,20 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Get coding-server health",
       "surface": "core"
     },
+  "core.getNativeSession":     {
+      "method": "GET",
+      "operationId": "core.getNativeSession",
+      "path": "/api/core/v1/native-sessions/{id}",
+      "pathParamNames": [
+        "id"
+      ],
+      "summary": "Get discovered native engine session detail",
+      "surface": "core"
+    },
   "core.getOperation":     {
       "method": "GET",
       "operationId": "core.getOperation",
-      "path": "/api/core/v1/operations/:operationId",
+      "path": "/api/core/v1/operations/{operationId}",
       "pathParamNames": [
         "operationId"
       ],
@@ -182,7 +378,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "core.listCodingSessionArtifacts":     {
       "method": "GET",
       "operationId": "core.listCodingSessionArtifacts",
-      "path": "/api/core/v1/coding-sessions/:id/artifacts",
+      "path": "/api/core/v1/coding-sessions/{id}/artifacts",
       "pathParamNames": [
         "id"
       ],
@@ -192,7 +388,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "core.listCodingSessionCheckpoints":     {
       "method": "GET",
       "operationId": "core.listCodingSessionCheckpoints",
-      "path": "/api/core/v1/coding-sessions/:id/checkpoints",
+      "path": "/api/core/v1/coding-sessions/{id}/checkpoints",
       "pathParamNames": [
         "id"
       ],
@@ -202,7 +398,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "core.listCodingSessionEvents":     {
       "method": "GET",
       "operationId": "core.listCodingSessionEvents",
-      "path": "/api/core/v1/coding-sessions/:id/events",
+      "path": "/api/core/v1/coding-sessions/{id}/events",
       "pathParamNames": [
         "id"
       ],
@@ -225,10 +421,26 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "List model catalog",
       "surface": "core"
     },
+  "core.listNativeSessions":     {
+      "method": "GET",
+      "operationId": "core.listNativeSessions",
+      "path": "/api/core/v1/native-sessions",
+      "pathParamNames": [],
+      "summary": "List discovered native engine sessions",
+      "surface": "core"
+    },
+  "core.listRoutes":     {
+      "method": "GET",
+      "operationId": "core.listRoutes",
+      "path": "/api/core/v1/routes",
+      "pathParamNames": [],
+      "summary": "List unified API routes",
+      "surface": "core"
+    },
   "core.submitApprovalDecision":     {
       "method": "POST",
       "operationId": "core.submitApprovalDecision",
-      "path": "/api/core/v1/approvals/:approvalId/decision",
+      "path": "/api/core/v1/approvals/{approvalId}/decision",
       "pathParamNames": [
         "approvalId"
       ],
@@ -248,17 +460,39 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "admin.listReleases": {};
   "admin.listTeamMembers": { teamId: string };
   "admin.listTeams": {};
+  "app.createProject": {};
+  "app.createWorkspace": {};
+  "app.deleteProject": { projectId: string };
+  "app.deleteWorkspace": { workspaceId: string };
+  "app.exchangeUserCenterSession": {};
+  "app.getCurrentUserMembership": {};
+  "app.getCurrentUserProfile": {};
+  "app.getCurrentUserSession": {};
+  "app.getUserCenterConfig": {};
   "app.listDeployments": {};
   "app.listDocuments": {};
+  "app.listProjectCollaborators": { projectId: string };
   "app.listProjects": {};
   "app.listTeams": {};
+  "app.listWorkspaceMembers": { workspaceId: string };
   "app.listWorkspaces": {};
+  "app.login": {};
+  "app.logout": {};
+  "app.publishProject": { projectId: string };
+  "app.register": {};
+  "app.updateCurrentUserMembership": {};
+  "app.updateCurrentUserProfile": {};
+  "app.updateProject": { projectId: string };
+  "app.updateWorkspace": { workspaceId: string };
+  "app.upsertProjectCollaborator": { projectId: string };
+  "app.upsertWorkspaceMember": { workspaceId: string };
   "core.createCodingSession": {};
   "core.createCodingSessionTurn": { id: string };
   "core.getCodingSession": { id: string };
   "core.getDescriptor": {};
   "core.getEngineCapabilities": { engineKey: string };
   "core.getHealth": {};
+  "core.getNativeSession": { id: string };
   "core.getOperation": { operationId: string };
   "core.getRuntime": {};
   "core.listCodingSessionArtifacts": { id: string };
@@ -266,6 +500,8 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "core.listCodingSessionEvents": { id: string };
   "core.listEngines": {};
   "core.listModels": {};
+  "core.listNativeSessions": {};
+  "core.listRoutes": {};
   "core.submitApprovalDecision": { approvalId: string };
 }
 
@@ -309,10 +545,28 @@ function replacePathParams(
       throw new Error(`Missing required path parameter "${paramName}" for ${pathTemplate}.`);
     }
 
-    resolvedPath = resolvedPath.replace(`:${paramName}`, encodeURIComponent(String(rawValue)));
+    const encodedValue = encodeURIComponent(String(rawValue));
+    resolvedPath = resolvedPath
+      .replace(`:${paramName}`, encodedValue)
+      .replace(`{${paramName}}`, encodedValue);
   }
 
   return resolvedPath;
+}
+
+function normalizeQuery(
+  query: Record<string, BirdCoderApiQueryValue> | undefined,
+): Record<string, BirdCoderApiQueryValue> | undefined {
+  if (query === undefined) {
+    return undefined;
+  }
+
+  const normalizedEntries = Object.entries(query).filter(([, value]) => value !== undefined);
+  if (normalizedEntries.length === 0) {
+    return undefined;
+  }
+
+  return Object.fromEntries(normalizedEntries);
 }
 
 export function resolveBirdCoderFinalizedCodingServerClientOperation<
@@ -343,8 +597,9 @@ export function buildBirdCoderFinalizedCodingServerClientRequest<
     request.body = body;
   }
 
-  if (query !== undefined) {
-    request.query = query;
+  const normalizedQuery = normalizeQuery(query);
+  if (normalizedQuery !== undefined) {
+    request.query = normalizedQuery;
   }
 
   return request;

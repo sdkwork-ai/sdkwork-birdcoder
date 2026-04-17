@@ -57,6 +57,17 @@ const UniversalChatMarkdown = lazy(async () => {
   return { default: module.UniversalChatMarkdown };
 });
 
+const SERVER_IMPLEMENTED_ENGINE_IDS = new Set(['codex', 'opencode']);
+
+function isServerImplementedEngineId(engineId: string): boolean {
+  return SERVER_IMPLEMENTED_ENGINE_IDS.has(engineId.trim().toLowerCase());
+}
+
+function resolveServerUnavailableEngineMessage(engineId: string): string {
+  const engine = getWorkbenchCodeEngineDefinition(engineId);
+  return `${engine.label} server adapter is not implemented yet. BirdCoder currently routes real coding turns through the Rust server, and only Codex plus OpenCode are enabled right now.`;
+}
+
 function MarkdownMessageLoader({ content }: { content: string }) {
   return <div className="whitespace-pre-wrap break-words">{content}</div>;
 }
@@ -106,8 +117,17 @@ export function UniversalChat({
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const currentEngine = getWorkbenchCodeEngineDefinition(selectedEngineId);
-  const currentModelId = normalizeWorkbenchCodeModelId(selectedEngineId, selectedModelId);
+  const resolvedSelectedEngineId = isServerImplementedEngineId(selectedEngineId)
+    ? selectedEngineId
+    : 'codex';
+  const currentEngine = getWorkbenchCodeEngineDefinition(resolvedSelectedEngineId);
+  const currentModelId = normalizeWorkbenchCodeModelId(resolvedSelectedEngineId, selectedModelId);
+
+  useEffect(() => {
+    if (!isServerImplementedEngineId(selectedEngineId)) {
+      setSelectedEngineId?.('codex');
+    }
+  }, [selectedEngineId, setSelectedEngineId]);
 
   useEffect(() => {
     if (showPromptModal) {
@@ -1011,18 +1031,37 @@ export function UniversalChat({
                   <div ref={modelMenuRef} className="absolute bottom-full left-8 mb-2 w-[320px] bg-[#18181b] border border-white/10 rounded-xl shadow-2xl z-50 flex overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                     {/* Left pane: Providers */}
                     <div className="w-1/3 bg-[#0e0e11]/50 border-r border-white/5 py-1.5">
-                      {WORKBENCH_CODE_ENGINES.map((provider) => (
-                        <div
-                          key={provider.id}
-                          className={`px-3 py-2 text-xs cursor-pointer transition-colors flex items-center justify-between ${selectedProvider === provider.id ? 'bg-white/10 text-white font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
-                          onClick={() => {
-                            setSelectedProvider(provider.id);
-                            setSelectedEngineId?.(provider.id);
-                          }}
-                        >
-                          {provider.label}
-                        </div>
-                      ))}
+                      {WORKBENCH_CODE_ENGINES.map((provider) => {
+                        const isImplemented = isServerImplementedEngineId(provider.id);
+                        return (
+                          <div
+                            key={provider.id}
+                            className={`px-3 py-2 text-xs transition-colors flex items-center justify-between ${
+                              isImplemented
+                                ? selectedProvider === provider.id
+                                  ? 'bg-white/10 text-white font-medium cursor-pointer'
+                                  : 'text-gray-400 hover:text-gray-200 hover:bg-white/5 cursor-pointer'
+                                : 'text-gray-500 cursor-not-allowed opacity-70'
+                            }`}
+                            onClick={() => {
+                              if (!isImplemented) {
+                                addToast(resolveServerUnavailableEngineMessage(provider.id), 'error');
+                                return;
+                              }
+
+                              setSelectedProvider(provider.id);
+                              setSelectedEngineId?.(provider.id);
+                            }}
+                          >
+                            <span>{provider.label}</span>
+                            {!isImplemented && (
+                              <span className="ml-2 text-[10px] uppercase tracking-wide text-amber-400">
+                                Server TODO
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                     {/* Right pane: Models */}
                     <div className="w-2/3 py-1.5 max-h-64 overflow-y-auto">

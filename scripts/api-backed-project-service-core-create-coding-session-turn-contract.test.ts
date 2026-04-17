@@ -179,6 +179,9 @@ try {
     async getHealth() {
       throw new Error('not needed');
     },
+    async getNativeSession() {
+      throw new Error('not needed');
+    },
     async getOperation() {
       throw new Error('not needed');
     },
@@ -241,6 +244,12 @@ try {
     },
     async listModels() {
       throw new Error('not needed');
+    },
+    async listNativeSessions() {
+      return [];
+    },
+    async listRoutes() {
+      return [];
     },
   };
 

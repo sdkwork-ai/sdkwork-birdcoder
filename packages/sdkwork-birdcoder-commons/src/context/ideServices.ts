@@ -5,6 +5,7 @@ import type {
   IAdminPolicyService,
   IAuthService,
   IAuditService,
+  ICollaborationService,
   ICoreReadService,
   ICoreWriteService,
   IDeploymentService,
@@ -22,6 +23,7 @@ export interface IIDEContext {
   adminPolicyService: IAdminPolicyService;
   workspaceService: IWorkspaceService;
   projectService: IProjectService;
+  collaborationService: ICollaborationService;
   coreReadService: ICoreReadService;
   coreWriteService: ICoreWriteService;
   auditService: IAuditService;
@@ -40,6 +42,7 @@ export function createDefaultIdeContextValue(): IIDEContext {
     adminPolicyService: defaultIdeServices.adminPolicyService,
     workspaceService: defaultIdeServices.workspaceService,
     projectService: defaultIdeServices.projectService,
+    collaborationService: defaultIdeServices.collaborationService,
     coreReadService: defaultIdeServices.coreReadService,
     coreWriteService: defaultIdeServices.coreWriteService,
     auditService: defaultIdeServices.auditService,

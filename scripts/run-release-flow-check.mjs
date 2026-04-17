@@ -52,6 +52,7 @@ export const RELEASE_FLOW_CHECK_COMMANDS = [
   'node scripts/release/resolve-release-plan.test.mjs',
   'node scripts/release/release-smoke-contract.test.mjs',
   'node scripts/release/smoke-release-assets.test.mjs',
+  'node --experimental-strip-types scripts/coding-server-openapi-snapshot-drift.test.ts',
   'node --experimental-strip-types scripts/coding-server-openapi-export-contract.test.ts',
   'node scripts/coding-server-openapi-codegen-input.test.mjs',
   'node scripts/release-openapi-canonical-quality-evidence-contract.test.mjs',
