@@ -380,7 +380,7 @@ function AppContent() {
 
   useEffect(() => {
     const activeProjectCodingSessions =
-      activeProjects.find((project) => project.id === activeProjectId)?.codingSessions ?? [];
+      activeProjects.find((project) => project.id === effectiveProjectId)?.codingSessions ?? [];
 
     if (activeProjectCodingSessions.length === 0) {
       if (activeCodingSessionId) {
@@ -409,8 +409,8 @@ function AppContent() {
     }
   }, [
     activeCodingSessionId,
-    activeProjectId,
     activeProjects,
+    effectiveProjectId,
     resolvedCodingSessionId,
   ]);
 

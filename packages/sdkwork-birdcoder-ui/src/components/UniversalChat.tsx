@@ -113,7 +113,7 @@ export function UniversalChat({
   const [promptTab, setPromptTab] = useState<'history' | 'mine'>('history');
   const [globalPrompts, setGlobalPrompts] = useState<{text: string, timestamp: number}[]>([]);
   const [myPrompts, setMyPrompts] = useState<{text: string, timestamp: number}[]>([]);
-  const [chatHistory, setChatHistory] = useState<string[]>([]);
+  const chatHistoryRef = useRef<string[]>([]);
   const [autoSendPrompt, setAutoSendPrompt] = useState(true);
   const [messageQueue, setMessageQueue] = useState<string[]>([]);
   const [isQueueExpanded, setIsQueueExpanded] = useState(false);
@@ -151,23 +151,24 @@ export function UniversalChat({
   }, [showPromptModal]);
 
   useEffect(() => {
-    if (!chatId) {
-      setChatHistory((previousHistory) =>
-        previousHistory.length === 0 ? previousHistory : [],
-      );
+    const normalizedChatId = chatId?.trim() || '';
+    chatHistoryRef.current = [];
+    setHistoryIndex((previousHistoryIndex) => (previousHistoryIndex === -1 ? previousHistoryIndex : -1));
+    setTempInput((previousTempInput) => (previousTempInput ? '' : previousTempInput));
+    if (!normalizedChatId) {
       return;
     }
 
     let isMounted = true;
-    void listChatInputHistory(chatId)
+    void listChatInputHistory(normalizedChatId)
       .then((history) => {
         if (!isMounted) {
           return;
         }
 
-        setChatHistory((previousHistory) =>
-          areStringListsEqual(previousHistory, history) ? previousHistory : history,
-        );
+        chatHistoryRef.current = areStringListsEqual(chatHistoryRef.current, history)
+          ? chatHistoryRef.current
+          : history;
       })
       .catch((error) => {
         console.error('Failed to load chat history', error);
@@ -383,9 +384,9 @@ export function UniversalChat({
       if (chatId) {
         void saveChatInputHistoryEntry(chatId, fullText)
           .then((history) => {
-            setChatHistory((previousHistory) =>
-              areStringListsEqual(previousHistory, history) ? previousHistory : history,
-            );
+            chatHistoryRef.current = areStringListsEqual(chatHistoryRef.current, history)
+              ? chatHistoryRef.current
+              : history;
           })
           .catch((error) => {
             console.error('Failed to save chat history', error);
@@ -453,11 +454,11 @@ export function UniversalChat({
       handleSend();
     } else if (e.key === 'ArrowUp') {
       if (chatId && textareaRef.current && textareaRef.current.selectionStart === 0) {
-        if (chatHistory.length > 0 && historyIndex < chatHistory.length - 1) {
+        if (chatHistoryRef.current.length > 0 && historyIndex < chatHistoryRef.current.length - 1) {
           if (historyIndex === -1) setTempInput(inputValue);
           const nextIndex = historyIndex + 1;
           setHistoryIndex(nextIndex);
-          setInputValue(chatHistory[nextIndex]);
+          setInputValue(chatHistoryRef.current[nextIndex]);
           e.preventDefault();
         }
       }
@@ -466,7 +467,7 @@ export function UniversalChat({
         if (historyIndex > 0) {
           const prevIndex = historyIndex - 1;
           setHistoryIndex(prevIndex);
-          setInputValue(chatHistory[prevIndex]);
+          setInputValue(chatHistoryRef.current[prevIndex]);
           e.preventDefault();
         } else if (historyIndex === 0) {
           setHistoryIndex(-1);
