@@ -87,7 +87,7 @@ try {
     id: 'workspace-core-turn-contract',
     name: 'Core Turn Contract Workspace',
     description: 'Workspace for core write create-turn adoption.',
-    ownerIdentityId: 'identity-core-turn-contract',
+    ownerId: 'user-core-turn-contract',
     createdAt: '2026-04-11T12:00:00.000Z',
     updatedAt: '2026-04-11T12:00:00.000Z',
   });
@@ -131,6 +131,15 @@ try {
         lastTurnAt: '2026-04-11T12:02:00.000Z',
       };
     },
+    async updateCodingSession() {
+      throw new Error('not needed');
+    },
+    async forkCodingSession() {
+      throw new Error('not needed');
+    },
+    async deleteCodingSession() {
+      throw new Error('not needed');
+    },
     async createCodingSessionTurn(codingSessionId, request) {
       observedRemoteTurnCreates.push({
         codingSessionId,
@@ -151,6 +160,9 @@ try {
       };
     },
     async submitApprovalDecision() {
+      throw new Error('not needed');
+    },
+    async deleteCodingSessionMessage() {
       throw new Error('not needed');
     },
   };
@@ -218,6 +230,20 @@ try {
           kind: 'message.completed',
           sequence: 2,
           payload: {
+            role: 'user',
+            content: 'Implement shared core turn facade.',
+            runtimeStatus: 'completed',
+          },
+          createdAt: '2026-04-11T12:03:00.000Z',
+        },
+        {
+          id: 'runtime-turn-contract:coding-turn-server-authoritative:event:3',
+          codingSessionId,
+          turnId: 'coding-turn-server-authoritative',
+          runtimeId: 'runtime-turn-contract',
+          kind: 'message.completed',
+          sequence: 3,
+          payload: {
             role: 'assistant',
             content: 'Server runtime turn completed for shared core turn facade.',
             runtimeStatus: 'completed',
@@ -225,12 +251,12 @@ try {
           createdAt: '2026-04-11T12:03:01.000Z',
         },
         {
-          id: 'runtime-turn-contract:coding-turn-server-authoritative:event:3',
+          id: 'runtime-turn-contract:coding-turn-server-authoritative:event:4',
           codingSessionId,
           turnId: 'coding-turn-server-authoritative',
           runtimeId: 'runtime-turn-contract',
           kind: 'turn.completed',
-          sequence: 3,
+          sequence: 4,
           payload: {
             finishReason: 'stop',
             runtimeStatus: 'completed',
@@ -239,11 +265,31 @@ try {
         },
       ];
     },
+    async listCodingSessions() {
+      return [
+        {
+          id: 'coding-session-turn-contract',
+          workspaceId: 'workspace-core-turn-contract',
+          projectId: 'project-core-turn-contract',
+          title: 'Turn Contract Session',
+          status: 'active',
+          hostMode: 'server',
+          engineId: 'codex',
+          modelId: 'gpt-5-codex',
+          createdAt: '2026-04-11T12:02:00.000Z',
+          updatedAt: '2026-04-11T12:03:01.000Z',
+          lastTurnAt: '2026-04-11T12:03:01.000Z',
+        },
+      ];
+    },
     async listEngines() {
       throw new Error('not needed');
     },
     async listModels() {
       throw new Error('not needed');
+    },
+    async listNativeSessionProviders() {
+      return [];
     },
     async listNativeSessions() {
       return [];

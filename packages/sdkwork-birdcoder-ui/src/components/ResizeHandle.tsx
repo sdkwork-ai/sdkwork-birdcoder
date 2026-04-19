@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface ResizeHandleProps {
   direction: 'horizontal' | 'vertical';
@@ -8,14 +8,19 @@ interface ResizeHandleProps {
 
 export function ResizeHandle({ direction, onResize, className = '' }: ResizeHandleProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const onResizeRef = useRef(onResize);
+
+  useEffect(() => {
+    onResizeRef.current = onResize;
+  }, [onResize]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
       if (direction === 'horizontal') {
-        onResize(e.movementX);
+        onResizeRef.current(e.movementX);
       } else {
-        onResize(e.movementY);
+        onResizeRef.current(e.movementY);
       }
     };
 
@@ -39,7 +44,7 @@ export function ResizeHandle({ direction, onResize, className = '' }: ResizeHand
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
-  }, [isDragging, direction, onResize]);
+  }, [isDragging, direction]);
 
   return (
     <div

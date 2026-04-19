@@ -1,5 +1,6 @@
 export interface Skill {
   id: string;
+  packageId: string;
   name: string;
   desc: string;
   icon: string;
@@ -22,6 +23,9 @@ export interface SkillPackage {
   icon: string;
   installs: string;
   author: string;
+  version: string;
+  isInstalled?: boolean;
   longDesc?: string;
+  sourceUri?: string;
   skills: Skill[];
 }

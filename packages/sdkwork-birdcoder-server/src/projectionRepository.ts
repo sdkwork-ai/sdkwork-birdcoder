@@ -9,10 +9,10 @@ import {
   type BirdCoderStorageAccess,
   type BirdCoderTableRecordRepository,
   type BirdCoderTransactionalStorageProvider,
-} from '../../sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
-import { createBirdCoderPromptSkillTemplateEvidenceRepositories } from '../../sdkwork-birdcoder-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts';
-import { getBirdCoderSchemaMigrationDefinition } from '../../sdkwork-birdcoder-infrastructure/src/storage/providers.ts';
-import { coerceBirdCoderSqlEntityRow } from '../../sdkwork-birdcoder-infrastructure/src/storage/sqlRowCodec.ts';
+} from '@sdkwork/birdcoder-infrastructure/storage/dataKernel';
+import { createBirdCoderPromptSkillTemplateEvidenceRepositories } from '@sdkwork/birdcoder-infrastructure/storage/promptSkillTemplateEvidenceRepository';
+import { getBirdCoderSchemaMigrationDefinition } from '@sdkwork/birdcoder-infrastructure/storage/providers';
+import { coerceBirdCoderSqlEntityRow } from '@sdkwork/birdcoder-infrastructure/storage/sqlRowCodec';
 import {
   BIRDCODER_CODING_SESSION_ARTIFACT_STORAGE_BINDING,
   BIRDCODER_CODING_SESSION_EVENT_STORAGE_BINDING,
@@ -25,7 +25,7 @@ import {
   type BirdCoderDatabaseProviderId,
   type BirdCoderEntityStorageBinding,
   type BirdCoderOperationDescriptor,
-} from '../../sdkwork-birdcoder-types/src/index.ts';
+} from '@sdkwork/birdcoder-types';
 
 export interface BirdCoderCoreSessionProjectionBindingSet {
   artifacts: BirdCoderEntityStorageBinding;

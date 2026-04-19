@@ -94,6 +94,7 @@
     "refractor": "^5.0.0",
     "remark-parse": "catalog:",
     "remark-rehype": "catalog:",
+    "@sdkwork/birdcoder-codeengine": "workspace:*",
     "@sdkwork/birdcoder-commons": "workspace:*",
     "space-separated-tokens": "catalog:",
     "state-local": "^1.0.7",

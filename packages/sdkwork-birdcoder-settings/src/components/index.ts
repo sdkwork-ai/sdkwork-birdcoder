@@ -1,6 +1,7 @@
 export * from './types';
 export * from './GeneralSettings';
 export * from './AppearanceSettings';
+export * from './CodeEngineSettings';
 export * from './ConfigSettings';
 export * from './PersonalizationSettings';
 export * from './MCPSettings';

@@ -1,48 +1,40 @@
 import type {
   BirdCoderChatMessage,
+  BirdCoderCodingSessionSummary,
   BirdCoderGetNativeSessionRequest,
   BirdCoderListNativeSessionsRequest,
   BirdCoderNativeSessionDetail,
   BirdCoderNativeSessionSummary,
 } from '@sdkwork/birdcoder-types';
 import {
-  readNativeCodexSessionRecord,
-  type NativeCodexSessionRecord,
-  type StoredCodingSessionInventoryRecord,
-} from './nativeCodexSessionStore.ts';
+  isBirdCoderCodeEngineNativeSessionId,
+  resolveBirdCoderCodeEngineNativeSessionIdPrefix,
+} from '@sdkwork/birdcoder-codeengine';
 
-const CODEX_NATIVE_SESSION_ID_PREFIX = 'codex-native:';
+export interface StoredCodingSessionInventoryRecord extends BirdCoderCodingSessionSummary {
+  kind: 'coding';
+  nativeCwd?: string | null;
+  sortTimestamp: number;
+  transcriptUpdatedAt?: string | null;
+}
 
-function normalizeNativeSessionAuthorityEngineId(
-  value: string | null | undefined,
-): string | null {
-  const normalizedValue = value?.trim().toLowerCase();
-  return normalizedValue && normalizedValue.length > 0 ? normalizedValue : null;
+export interface AuthorityBackedNativeSessionRecord {
+  filePath: string;
+  messages: BirdCoderChatMessage[];
+  summary: StoredCodingSessionInventoryRecord;
 }
 
 export function resolveAuthorityBackedNativeSessionIdPrefix(
   engineId: string | null | undefined,
 ): string | null {
-  const normalizedEngineId = normalizeNativeSessionAuthorityEngineId(engineId);
-  return normalizedEngineId ? `${normalizedEngineId}-native:` : null;
+  return resolveBirdCoderCodeEngineNativeSessionIdPrefix(engineId);
 }
 
 export function isAuthorityBackedNativeSessionId(
   codingSessionId: string,
   engineId?: string,
 ): boolean {
-  const normalizedCodingSessionId = codingSessionId.trim().toLowerCase();
-  if (!normalizedCodingSessionId) {
-    return false;
-  }
-
-  const expectedPrefix = resolveAuthorityBackedNativeSessionIdPrefix(engineId);
-  return (
-    normalizedCodingSessionId.startsWith(CODEX_NATIVE_SESSION_ID_PREFIX) ||
-    (expectedPrefix !== null && normalizedCodingSessionId.startsWith(expectedPrefix)) ||
-    /^[a-z0-9-]+-native:/u.test(normalizedCodingSessionId) ||
-    normalizedCodingSessionId.includes(':native:')
-  );
+  return isBirdCoderCodeEngineNativeSessionId(codingSessionId, engineId);
 }
 
 export type NativeSessionAuthorityCoreReadService = Pick<
@@ -98,9 +90,9 @@ function toNativeChatMessage(message: BirdCoderNativeSessionDetail['messages'][n
   };
 }
 
-function toNativeCodexSessionRecord(
+function toAuthorityBackedNativeSessionRecord(
   detail: BirdCoderNativeSessionDetail,
-): NativeCodexSessionRecord {
+): AuthorityBackedNativeSessionRecord {
   return {
     filePath: '',
     messages: detail.messages.map(toNativeChatMessage),
@@ -112,38 +104,23 @@ export interface ListAuthorityBackedNativeSessionsOptions {
   coreReadService?: NativeSessionAuthorityCoreReadService;
   engineId?: string;
   limit?: number;
+  offset?: number;
   projectId?: string | null;
   workspaceId?: string | null;
-}
-
-function shouldFallbackToLocalCodexSessions(engineId?: string): boolean {
-  const normalizedEngineId = normalizeNativeSessionAuthorityEngineId(engineId);
-  return !normalizedEngineId || normalizedEngineId === 'codex';
-}
-
-function shouldFallbackToLocalCodexSessionRecord(
-  codingSessionId: string,
-  engineId?: string,
-): boolean {
-  return (
-    shouldFallbackToLocalCodexSessions(engineId) ||
-    isAuthorityBackedNativeSessionId(codingSessionId, engineId)
-  );
 }
 
 export async function listAuthorityBackedNativeSessions(
   options: ListAuthorityBackedNativeSessionsOptions = {},
 ): Promise<StoredCodingSessionInventoryRecord[]> {
   if (!options.coreReadService) {
-    return shouldFallbackToLocalCodexSessions(options.engineId)
-      ? readLocalNativeCodexSessionSummaries(options.limit)
-      : [];
+    return [];
   }
 
   try {
     const summaries = await options.coreReadService.listNativeSessions({
       engineId: options.engineId,
       limit: options.limit,
+      offset: options.offset,
       projectId: options.projectId ?? undefined,
       workspaceId: options.workspaceId ?? undefined,
     });
@@ -152,25 +129,9 @@ export async function listAuthorityBackedNativeSessions(
       .filter((summary) => summary.kind === 'coding')
       .map(toStoredNativeSessionSummary);
   } catch (error) {
-    console.error('Failed to list native sessions from server authority, falling back locally', error);
-    return shouldFallbackToLocalCodexSessions(options.engineId)
-      ? readLocalNativeCodexSessionSummaries(options.limit)
-      : [];
+    console.error('Failed to list native sessions from server authority', error);
+    return [];
   }
-}
-
-export async function listAuthorityBackedNativeCodexSessions(
-  options: ListAuthorityBackedNativeSessionsOptions = {},
-): Promise<StoredCodingSessionInventoryRecord[]> {
-  return listAuthorityBackedNativeSessions({
-    ...options,
-    engineId: options.engineId ?? 'codex',
-  });
-}
-
-async function readLocalNativeCodexSessionSummaries(limit?: number) {
-  const { listNativeCodexSessions } = await import('./nativeCodexSessionStore.ts');
-  return listNativeCodexSessions(limit);
 }
 
 export interface ReadAuthorityBackedNativeSessionRecordOptions {
@@ -183,11 +144,9 @@ export interface ReadAuthorityBackedNativeSessionRecordOptions {
 export async function readAuthorityBackedNativeSessionRecord(
   codingSessionId: string,
   options: ReadAuthorityBackedNativeSessionRecordOptions = {},
-): Promise<NativeCodexSessionRecord | null> {
+): Promise<AuthorityBackedNativeSessionRecord | null> {
   if (!options.coreReadService) {
-    return shouldFallbackToLocalCodexSessionRecord(codingSessionId, options.engineId)
-      ? readNativeCodexSessionRecord(codingSessionId)
-      : null;
+    return null;
   }
 
   try {
@@ -196,21 +155,9 @@ export async function readAuthorityBackedNativeSessionRecord(
       projectId: options.projectId,
       workspaceId: options.workspaceId,
     });
-    return toNativeCodexSessionRecord(detail);
+    return toAuthorityBackedNativeSessionRecord(detail);
   } catch (error) {
-    console.error('Failed to read native session from server authority, falling back locally', error);
-    return shouldFallbackToLocalCodexSessionRecord(codingSessionId, options.engineId)
-      ? readNativeCodexSessionRecord(codingSessionId)
-      : null;
+    console.error('Failed to read native session from server authority', error);
+    return null;
   }
-}
-
-export async function readAuthorityBackedNativeCodexSessionRecord(
-  codingSessionId: string,
-  options: ReadAuthorityBackedNativeSessionRecordOptions = {},
-): Promise<NativeCodexSessionRecord | null> {
-  return readAuthorityBackedNativeSessionRecord(codingSessionId, {
-    ...options,
-    engineId: options.engineId ?? 'codex',
-  });
 }

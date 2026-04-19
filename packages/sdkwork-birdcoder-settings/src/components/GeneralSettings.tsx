@@ -1,8 +1,17 @@
 import React, { useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
+import {
+  listWorkbenchServerImplementedCodeEngines,
+  normalizeWorkbenchServerImplementedCodeEngineId,
+} from '@sdkwork/birdcoder-codeengine';
 import { Button } from '@sdkwork/birdcoder-ui';
+import {
+  listTerminalLaunchProfileOptions,
+  normalizeWorkbenchTerminalProfileId,
+} from '@sdkwork/birdcoder-commons';
 import { SettingsProps } from './types';
 import { useTranslation } from 'react-i18next';
+import { CodeEngineSettings } from './CodeEngineSettings';
 
 const Check = ({ size, className }: { size: number, className?: string }) => (
   <svg 
@@ -21,8 +30,22 @@ const Check = ({ size, className }: { size: number, className?: string }) => (
   </svg>
 );
 
-export function GeneralSettings({ settings, updateSetting }: SettingsProps) {
+export function GeneralSettings({
+  settings,
+  updateSetting,
+  workbenchPreferences,
+  updateWorkbenchPreferences,
+}: SettingsProps) {
   const { t, i18n } = useTranslation();
+  const runnableEngines = listWorkbenchServerImplementedCodeEngines(workbenchPreferences);
+  const terminalLaunchProfiles = listTerminalLaunchProfileOptions();
+  const currentCodeEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+    workbenchPreferences?.codeEngineId,
+    workbenchPreferences,
+  );
+  const currentTerminalProfileId = normalizeWorkbenchTerminalProfileId(
+    workbenchPreferences?.terminalProfileId,
+  );
 
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
@@ -96,14 +119,22 @@ export function GeneralSettings({ settings, updateSetting }: SettingsProps) {
             </div>
             <div className="relative">
               <select 
-                value={settings.codeDevelopmentEngine || 'codex'}
-                onChange={(e) => updateSetting('codeDevelopmentEngine', e.target.value)}
+                value={currentCodeEngineId}
+                onChange={(e) =>
+                  updateWorkbenchPreferences?.({
+                    codeEngineId: normalizeWorkbenchServerImplementedCodeEngineId(
+                      e.target.value,
+                      workbenchPreferences,
+                    ),
+                  })
+                }
                 className="appearance-none bg-[#0e0e11] border border-white/10 rounded-lg px-4 py-2 pr-10 text-sm text-white outline-none hover:border-gray-500 cursor-pointer w-64"
               >
-                <option value="codex">codex</option>
-                <option value="claude-code">claude code</option>
-                <option value="gemini">gemini</option>
-                <option value="opencode">opencode</option>
+                {runnableEngines.map((engine) => (
+                  <option key={engine.id} value={engine.id}>
+                    {engine.label}
+                  </option>
+                ))}
               </select>
               <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
@@ -111,18 +142,24 @@ export function GeneralSettings({ settings, updateSetting }: SettingsProps) {
 
           <div className="flex items-center justify-between p-4 border-b border-white/10">
             <div>
-              <div className="text-white font-medium">{t('settings.integratedTerminalShell')}</div>
-              <div className="text-sm text-gray-500">{t('settings.integratedTerminalShellDesc')}</div>
+              <div className="text-white font-medium">{t('settings.defaultTerminalProfile')}</div>
+              <div className="text-sm text-gray-500">{t('settings.defaultTerminalProfileDesc')}</div>
             </div>
             <div className="relative">
               <select 
-                value={settings.integratedTerminalShell}
-                onChange={(e) => updateSetting('integratedTerminalShell', e.target.value)}
+                value={currentTerminalProfileId}
+                onChange={(e) =>
+                  updateWorkbenchPreferences?.({
+                    terminalProfileId: normalizeWorkbenchTerminalProfileId(e.target.value),
+                  })
+                }
                 className="appearance-none bg-[#0e0e11] border border-white/10 rounded-lg px-4 py-2 pr-10 text-sm text-white outline-none hover:border-gray-500 cursor-pointer w-64"
               >
-                <option>PowerShell</option>
-                <option>Command Prompt</option>
-                <option>Git Bash</option>
+                {terminalLaunchProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.kind === 'cli' ? `${profile.title} CLI` : profile.title}
+                  </option>
+                ))}
               </select>
               <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
@@ -203,6 +240,13 @@ export function GeneralSettings({ settings, updateSetting }: SettingsProps) {
               </Button>
             </div>
           </div>
+        </div>
+
+        <div className="mb-8">
+          <CodeEngineSettings
+            workbenchPreferences={workbenchPreferences}
+            updateWorkbenchPreferences={updateWorkbenchPreferences}
+          />
         </div>
 
         <h2 className="text-xl font-semibold text-white mb-4">{t('settings.notifications')}</h2>

@@ -4,64 +4,61 @@ import {
 } from '../storage/dataKernel.ts';
 import { getTerminalProfile, type TerminalProfileId } from '../terminal/profiles.ts';
 import {
-  getWorkbenchCodeEngineKernel,
-  normalizeWorkbenchCodeEngineKernelId,
+  DEFAULT_WORKBENCH_CHAT_SELECTION,
   WORKBENCH_ENGINE_KERNELS,
-  type WorkbenchCodeEngineId,
-} from './kernel.ts';
+  normalizeWorkbenchCodeEngineId,
+  normalizeWorkbenchCodeEngineSettingsMap,
+  normalizeWorkbenchCodeModelId,
+  resolveWorkbenchChatSelection,
+  type WorkbenchChatSelection,
+  type WorkbenchCodeEngineSettingsMap,
+  type WorkbenchCustomCodeEngineModelInput,
+} from '@sdkwork/birdcoder-codeengine';
 import {
   BIRDCODER_WORKBENCH_PREFERENCES_STORAGE_BINDING,
 } from '@sdkwork/birdcoder-types/storageBindings';
 
-export interface WorkbenchCodeEngineDefinition {
-  id: WorkbenchCodeEngineId;
-  label: string;
-  terminalProfileId: TerminalProfileId;
-  description: string;
-  aliases: readonly string[];
-  defaultModelId: string;
-  modelIds: readonly string[];
-}
-
-export interface WorkbenchChatSelection {
-  codeEngineId: WorkbenchCodeEngineId;
-  codeModelId: string;
-}
-
 export interface WorkbenchPreferences extends WorkbenchChatSelection {
+  codeEngineSettings: WorkbenchCodeEngineSettingsMap;
   terminalProfileId: TerminalProfileId;
   defaultWorkingDirectory: string;
+  codeEditorChatWidth: number;
 }
 
-interface WorkbenchChatSelectionInput {
+interface WorkbenchPreferencesInput {
   codeEngineId?: string | null;
   codeModelId?: string | null;
-}
-
-interface WorkbenchPreferencesInput extends WorkbenchChatSelectionInput {
+  codeEngineSettings?: unknown;
   terminalProfileId?: string | null;
   defaultWorkingDirectory?: string | null;
+  codeEditorChatWidth?: number | null;
 }
-
-export const WORKBENCH_CODE_ENGINES: ReadonlyArray<WorkbenchCodeEngineDefinition> =
-  WORKBENCH_ENGINE_KERNELS.map((engine) => ({
-    id: engine.id,
-    label: engine.label,
-    terminalProfileId: engine.terminalProfileId,
-    description: engine.description,
-    aliases: [...engine.aliases],
-    defaultModelId: engine.defaultModelId,
-    modelIds: [...engine.modelIds],
-  }));
 
 const DEFAULT_TERMINAL_PROFILE_ID: TerminalProfileId = 'powershell';
 const DEFAULT_WORKING_DIRECTORY = getTerminalProfile(DEFAULT_TERMINAL_PROFILE_ID).defaultCwd;
+export const MIN_WORKBENCH_CODE_EDITOR_CHAT_WIDTH = 320;
+export const MAX_WORKBENCH_CODE_EDITOR_CHAT_WIDTH = 960;
+export const DEFAULT_WORKBENCH_CODE_EDITOR_CHAT_WIDTH = 520;
+
+export function normalizeWorkbenchCodeEditorChatWidth(
+  value: number | null | undefined,
+): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_WORKBENCH_CODE_EDITOR_CHAT_WIDTH;
+  }
+
+  return Math.max(
+    MIN_WORKBENCH_CODE_EDITOR_CHAT_WIDTH,
+    Math.min(MAX_WORKBENCH_CODE_EDITOR_CHAT_WIDTH, Math.round(value)),
+  );
+}
 
 export const DEFAULT_WORKBENCH_PREFERENCES: WorkbenchPreferences = {
-  codeEngineId: 'codex',
-  codeModelId: getWorkbenchCodeEngineKernel('codex').defaultModelId,
+  ...DEFAULT_WORKBENCH_CHAT_SELECTION,
+  codeEngineSettings: {},
   terminalProfileId: DEFAULT_TERMINAL_PROFILE_ID,
   defaultWorkingDirectory: DEFAULT_WORKING_DIRECTORY,
+  codeEditorChatWidth: DEFAULT_WORKBENCH_CODE_EDITOR_CHAT_WIDTH,
 };
 
 const ENGINE_TERMINAL_PROFILE_SETTING_ALIASES = Object.fromEntries(
@@ -87,45 +84,18 @@ const TERMINAL_PROFILE_SETTING_ALIASES: Readonly<Record<string, TerminalProfileI
   ...ENGINE_TERMINAL_PROFILE_SETTING_ALIASES,
 };
 
-export function normalizeWorkbenchCodeEngineId(
-  value: string | null | undefined,
-): WorkbenchCodeEngineId {
-  return normalizeWorkbenchCodeEngineKernelId(value);
-}
-
-export function getWorkbenchCodeEngineDefinition(
-  value: string | null | undefined,
-): WorkbenchCodeEngineDefinition {
-  const normalizedEngineId = normalizeWorkbenchCodeEngineId(value);
-  return (
-    WORKBENCH_CODE_ENGINES.find((engine) => engine.id === normalizedEngineId) ??
-    WORKBENCH_CODE_ENGINES[0]
-  );
-}
-
-export function normalizeWorkbenchCodeModelId(
-  engineId: string | null | undefined,
-  modelId: string | null | undefined,
-): string {
-  const engine = getWorkbenchCodeEngineDefinition(engineId);
-  const normalizedValue = modelId?.trim().toLowerCase();
-  if (!normalizedValue) {
-    return engine.defaultModelId;
+function createCustomModelRecord(
+  input: WorkbenchCustomCodeEngineModelInput | null | undefined,
+) {
+  const id = input?.id?.trim() || input?.modelId?.trim() || '';
+  if (!id) {
+    return null;
   }
 
-  const matchedModelId = engine.modelIds.find(
-    (candidate) => candidate.toLowerCase() === normalizedValue,
-  );
-  return matchedModelId ?? engine.defaultModelId;
-}
-
-export function resolveWorkbenchChatSelection(
-  value: WorkbenchChatSelectionInput | null | undefined,
-): WorkbenchChatSelection {
-  const codeEngineId = normalizeWorkbenchCodeEngineId(value?.codeEngineId);
+  const label = input?.label?.trim() || id;
   return {
-    codeEngineId,
-    codeModelId: normalizeWorkbenchCodeModelId(codeEngineId, value?.codeModelId),
+    id,
+    label,
   };
 }
 
@@ -142,37 +112,125 @@ export function normalizeWorkbenchTerminalProfileId(
     return aliasedProfileId;
   }
 
-  return getTerminalProfile(value).id;
-}
-
-export function getTerminalShellSettingValue(profileId: TerminalProfileId): string {
-  switch (profileId) {
-    case 'powershell':
-      return 'PowerShell';
-    case 'cmd':
-      return 'Command Prompt';
-    case 'bash':
-      return 'Git Bash';
-    default:
-      return getTerminalProfile(profileId).title;
-  }
+  return getTerminalProfile(normalizedValue).id;
 }
 
 export function normalizeWorkbenchPreferences(
   value: WorkbenchPreferencesInput | null | undefined,
 ): WorkbenchPreferences {
-  const chatSelection = resolveWorkbenchChatSelection(value);
+  const codeEngineSettings = normalizeWorkbenchCodeEngineSettingsMap(value?.codeEngineSettings);
+  const chatSelection = resolveWorkbenchChatSelection(value, { codeEngineSettings });
   const terminalProfileId = normalizeWorkbenchTerminalProfileId(value?.terminalProfileId);
   const defaultWorkingDirectory = value?.defaultWorkingDirectory?.trim();
 
   return {
     ...chatSelection,
+    codeEngineSettings,
     terminalProfileId,
+    codeEditorChatWidth: normalizeWorkbenchCodeEditorChatWidth(value?.codeEditorChatWidth),
     defaultWorkingDirectory:
       defaultWorkingDirectory && defaultWorkingDirectory.length > 0
         ? defaultWorkingDirectory
         : DEFAULT_WORKBENCH_PREFERENCES.defaultWorkingDirectory,
   };
+}
+
+export function setWorkbenchCodeEngineDefaultModel(
+  preferences: WorkbenchPreferences,
+  engineId: string | null | undefined,
+  modelId: string | null | undefined,
+): WorkbenchPreferences {
+  const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
+  const normalizedEngineId = normalizeWorkbenchCodeEngineId(engineId);
+  const existingEntry = normalizedPreferences.codeEngineSettings[normalizedEngineId];
+  const resolvedModelId = normalizeWorkbenchCodeModelId(
+    normalizedEngineId,
+    modelId,
+    normalizedPreferences,
+  );
+  const nextSettings = normalizeWorkbenchCodeEngineSettingsMap({
+    ...normalizedPreferences.codeEngineSettings,
+    [normalizedEngineId]: {
+      defaultModelId: resolvedModelId,
+      customModels: existingEntry?.customModels ?? [],
+    },
+  });
+
+  return normalizeWorkbenchPreferences({
+    ...normalizedPreferences,
+    codeEngineSettings: nextSettings,
+    codeModelId:
+      normalizedPreferences.codeEngineId === normalizedEngineId
+        ? resolvedModelId
+        : normalizedPreferences.codeModelId,
+  });
+}
+
+export function upsertWorkbenchCodeEngineCustomModel(
+  preferences: WorkbenchPreferences,
+  engineId: string | null | undefined,
+  model: WorkbenchCustomCodeEngineModelInput | null | undefined,
+): WorkbenchPreferences {
+  const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
+  const normalizedEngineId = normalizeWorkbenchCodeEngineId(engineId);
+  const existingEntry = normalizedPreferences.codeEngineSettings[normalizedEngineId];
+  const nextCustomModel = createCustomModelRecord(model);
+  if (!nextCustomModel) {
+    return normalizedPreferences;
+  }
+
+  const nextSettings = normalizeWorkbenchCodeEngineSettingsMap({
+    ...normalizedPreferences.codeEngineSettings,
+    [normalizedEngineId]: {
+      defaultModelId: existingEntry?.defaultModelId,
+      customModels: [...(existingEntry?.customModels ?? []), nextCustomModel],
+    },
+  });
+
+  return normalizeWorkbenchPreferences({
+    ...normalizedPreferences,
+    codeEngineSettings: nextSettings,
+  });
+}
+
+export function removeWorkbenchCodeEngineCustomModel(
+  preferences: WorkbenchPreferences,
+  engineId: string | null | undefined,
+  modelId: string | null | undefined,
+): WorkbenchPreferences {
+  const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
+  const normalizedEngineId = normalizeWorkbenchCodeEngineId(engineId);
+  const existingEntry = normalizedPreferences.codeEngineSettings[normalizedEngineId];
+  if (!existingEntry) {
+    return normalizedPreferences;
+  }
+
+  const normalizedModelId = modelId?.trim().toLowerCase() || '';
+  if (!normalizedModelId) {
+    return normalizedPreferences;
+  }
+
+  const nextSettings = normalizeWorkbenchCodeEngineSettingsMap({
+    ...normalizedPreferences.codeEngineSettings,
+    [normalizedEngineId]: {
+      defaultModelId: existingEntry.defaultModelId,
+      customModels: existingEntry.customModels.filter(
+        (candidate) => candidate.id.toLowerCase() !== normalizedModelId,
+      ),
+    },
+  });
+
+  return normalizeWorkbenchPreferences({
+    ...normalizedPreferences,
+    codeEngineSettings: nextSettings,
+    codeModelId:
+      normalizedPreferences.codeEngineId === normalizedEngineId &&
+      normalizedPreferences.codeModelId.toLowerCase() === normalizedModelId
+        ? normalizeWorkbenchCodeModelId(normalizedEngineId, null, {
+            codeEngineSettings: nextSettings,
+          })
+        : normalizedPreferences.codeModelId,
+  });
 }
 
 const workbenchPreferencesRepository: BirdCoderJsonRecordRepository<WorkbenchPreferences> =
@@ -205,4 +263,8 @@ export async function writeWorkbenchPreferences(
   );
 }
 
-export type { WorkbenchCodeEngineId } from './kernel.ts';
+export type {
+  WorkbenchCodeEngineDefinition,
+  WorkbenchCodeEngineId,
+  WorkbenchCodeEngineSettingsMap,
+} from '@sdkwork/birdcoder-codeengine';

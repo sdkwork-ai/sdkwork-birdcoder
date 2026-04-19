@@ -139,6 +139,10 @@ for (const relativePath of requiredPaths) {
 const rootPackageJson = JSON.parse(
   fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'),
 );
+const qualityFastRunnerSource = fs.readFileSync(
+  path.join(rootDir, 'scripts', 'run-quality-fast-check.mjs'),
+  'utf8',
+);
 const structureCheckSource = fs.readFileSync(
   path.join(rootDir, 'scripts', 'check-sdkwork-birdcoder-structure.mjs'),
   'utf8',
@@ -185,10 +189,15 @@ assert.equal(
 );
 assert.ok(rootPackageJson.scripts?.['quality:execution-report'], 'Missing quality:execution-report script');
 assert.ok(rootPackageJson.scripts?.['release:finalize'], 'Missing release:finalize script');
+assert.equal(
+  rootPackageJson.scripts?.lint,
+  'node scripts/run-quality-fast-check.mjs',
+  'Root lint must delegate to the governed quality-fast runner.',
+);
 assert.match(
-  rootPackageJson.scripts?.lint ?? '',
-  /pnpm check:package-governance/,
-  'Root lint must include check:package-governance.',
+  qualityFastRunnerSource,
+  /node scripts\/run-workspace-package-script\.mjs \. check:package-governance/,
+  'Root lint must include check:package-governance through the governed quality-fast runner.',
 );
 assert.equal(
   rootPackageJson.scripts?.['check:release-flow'],

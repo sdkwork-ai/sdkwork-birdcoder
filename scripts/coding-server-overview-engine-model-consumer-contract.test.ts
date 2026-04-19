@@ -20,10 +20,10 @@ const descriptorFixture: BirdCoderCodingServerDescriptor = {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/api/core/v1/routes',
-    routeCount: 50,
+    routeCount: 57,
     routesBySurface: {
-      core: 17,
-      app: 26,
+      core: 19,
+      app: 31,
       admin: 7,
     },
     surfaces: [
@@ -32,14 +32,14 @@ const descriptorFixture: BirdCoderCodingServerDescriptor = {
         basePath: '/api/core/v1',
         description: 'Core coding runtime, engine catalog, session execution, and operation control.',
         name: 'core',
-        routeCount: 17,
+        routeCount: 19,
       },
       {
         authMode: 'user',
         basePath: '/api/app/v1',
         description: 'Application-facing workspace, project, collaboration, and user-center routes.',
         name: 'app',
-        routeCount: 26,
+        routeCount: 31,
       },
       {
         authMode: 'admin',
@@ -196,6 +196,9 @@ const coreReadService: ICoreReadService = {
   async listCodingSessionEvents() {
     throw new Error('not needed');
   },
+  async listCodingSessions() {
+    return [];
+  },
   async listEngines() {
     callLog.push('listEngines');
     return enginesFixture;
@@ -203,6 +206,9 @@ const coreReadService: ICoreReadService = {
   async listModels() {
     callLog.push('listModels');
     return modelsFixture;
+  },
+  async listNativeSessionProviders() {
+    return [];
   },
   async listNativeSessions() {
     return [];

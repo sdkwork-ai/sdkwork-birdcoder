@@ -4,6 +4,7 @@ import type {
   IAdminPolicyService,
   IAuthService,
   IAuditService,
+  ICatalogService,
   ICollaborationService,
   ICoreReadService,
   ICoreWriteService,
@@ -26,6 +27,7 @@ export interface IDEProviderProps {
   children: ReactNode;
   adminDeploymentService?: IAdminDeploymentService;
   adminPolicyService?: IAdminPolicyService;
+  catalogService?: ICatalogService;
   workspaceService?: IWorkspaceService;
   projectService?: IProjectService;
   collaborationService?: ICollaborationService;
@@ -44,6 +46,7 @@ export const IDEProvider = ({
   children,
   adminDeploymentService,
   adminPolicyService,
+  catalogService,
   workspaceService,
   projectService,
   collaborationService,
@@ -67,6 +70,7 @@ export const IDEProvider = ({
       value: {
         adminDeploymentService: adminDeploymentService ?? defaultContext.adminDeploymentService,
         adminPolicyService: adminPolicyService ?? defaultContext.adminPolicyService,
+        catalogService: catalogService ?? defaultContext.catalogService,
         workspaceService: workspaceService ?? defaultContext.workspaceService,
         projectService: projectService ?? defaultContext.projectService,
         collaborationService: collaborationService ?? defaultContext.collaborationService,

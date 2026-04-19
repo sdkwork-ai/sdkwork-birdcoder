@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 import {
   buildToolchainPlatformDiagnostic,
@@ -18,6 +19,15 @@ const ciWorkflow = fs.readFileSync(path.join(rootDir, '.github/workflows/ci.yml'
 const releaseWorkflow = fs.readFileSync(
   path.join(rootDir, '.github/workflows/release-reusable.yml'),
   'utf8',
+);
+const qualityFastRunnerModule = await import(
+  pathToFileURL(path.join(rootDir, 'scripts/run-quality-fast-check.mjs')).href
+);
+const qualityStandardRunnerModule = await import(
+  pathToFileURL(path.join(rootDir, 'scripts/run-quality-standard-check.mjs')).href
+);
+const qualityReleaseRunnerModule = await import(
+  pathToFileURL(path.join(rootDir, 'scripts/run-quality-release-check.mjs')).href
 );
 
 assert.equal(
@@ -92,7 +102,7 @@ assert.deepEqual(warningToolchainDiagnostic.rerunCommands, [
   'pnpm check:quality:release',
 ]);
 
-assert.equal(rootPackageJson.scripts.typecheck, 'pnpm -s exec tsc --noEmit');
+assert.equal(rootPackageJson.scripts.typecheck, 'node scripts/run-local-typescript.mjs --noEmit');
 assert.equal(rootPackageJson.scripts['check:quality-matrix'], 'node scripts/quality-gate-matrix-contract.test.mjs');
 assert.equal(rootPackageJson.scripts['quality:report'], 'node scripts/quality-gate-matrix-report.mjs');
 assert.equal(
@@ -100,49 +110,35 @@ assert.equal(
   'node scripts/desktop-startup-graph-contract.test.mjs && node scripts/desktop-startup-graph-port-resilience.test.mjs',
 );
 assert.equal(rootPackageJson.scripts['check:quality:fast'], rootPackageJson.scripts.lint);
-assert.match(rootPackageJson.scripts.lint, /^pnpm exec tsc --noEmit && /);
-assert.match(rootPackageJson.scripts.lint, /pnpm --filter @sdkwork\/birdcoder-web exec tsc --noEmit/);
-assert.doesNotMatch(
-  rootPackageJson.scripts['check:quality:fast'],
-  /^pnpm lint$/,
-  'check:quality:fast must avoid reopening a nested pnpm lint wrapper on Windows',
-);
+assert.equal(rootPackageJson.scripts.lint, 'node scripts/run-quality-fast-check.mjs');
 assert.equal(
   rootPackageJson.scripts['check:desktop'],
-  'pnpm --dir packages/sdkwork-birdcoder-desktop exec tsc --noEmit && node scripts/release/release-profiles.test.mjs && cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml',
-);
-assert.doesNotMatch(
-  rootPackageJson.scripts['check:desktop'],
-  /--filter @sdkwork\/birdcoder-desktop lint/,
-  'check:desktop must avoid reopening a nested package lint wrapper on Windows',
+  'node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-desktop --noEmit && node scripts/release/release-profiles.test.mjs && cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml',
 );
 assert.equal(
   rootPackageJson.scripts['check:server'],
-  'pnpm --dir packages/sdkwork-birdcoder-server exec tsc --noEmit && cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
+  'node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-server --noEmit && cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
 );
-assert.doesNotMatch(
-  rootPackageJson.scripts['check:server'],
-  /--filter @sdkwork\/birdcoder-server lint/,
-  'check:server must avoid reopening a nested package lint wrapper on Windows',
-);
-assert.equal(
-  rootPackageJson.scripts['check:quality:standard'],
-  `${rootPackageJson.scripts['check:desktop']} && ${rootPackageJson.scripts['check:server']} && ${rootPackageJson.scripts['prepare:shared-sdk']} && pnpm --dir packages/sdkwork-birdcoder-web exec node ../../scripts/run-vite-host.mjs build --mode production && ${rootPackageJson.scripts['check:web-bundle-budget']} && ${rootPackageJson.scripts['server:build']} && ${rootPackageJson.scripts['docs:build']}`,
-);
-assert.doesNotMatch(
-  rootPackageJson.scripts['check:quality:standard'],
-  /^pnpm check:desktop && pnpm check:server/,
-  'check:quality:standard must avoid reopening nested desktop/server gate wrappers on Windows',
-);
-assert.doesNotMatch(
-  rootPackageJson.scripts['check:quality:standard'],
-  /&& pnpm build && pnpm server:build && pnpm docs:build$/,
-  'check:quality:standard must avoid reopening nested root build/server/docs wrappers on Windows',
-);
-assert.equal(
-  rootPackageJson.scripts['check:quality:release'],
-  'pnpm check:quality:fast && pnpm check:quality:standard && pnpm check:quality-matrix && pnpm check:release-flow && pnpm check:ci-flow && pnpm check:governance-regression',
-);
+assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/run-quality-standard-check.mjs');
+assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');
+assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.at(0), 'node scripts/run-workspace-package-script.mjs . typecheck');
+assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.at(-1), 'node scripts/run-workspace-package-script.mjs . check:ci-flow');
+assert.deepEqual(qualityStandardRunnerModule.QUALITY_STANDARD_CHECK_COMMANDS, [
+  'node scripts/run-workspace-package-script.mjs . check:desktop',
+  'node scripts/run-workspace-package-script.mjs . check:server',
+  'node scripts/run-workspace-package-script.mjs . check:web-vite-build',
+  'node scripts/run-workspace-package-script.mjs . check:web-bundle-budget',
+  'node scripts/run-workspace-package-script.mjs . server:build',
+  'node scripts/run-workspace-package-script.mjs . docs:build',
+]);
+assert.deepEqual(qualityReleaseRunnerModule.QUALITY_RELEASE_CHECK_COMMANDS, [
+  'node scripts/run-workspace-package-script.mjs . check:quality:fast',
+  'node scripts/run-workspace-package-script.mjs . check:quality:standard',
+  'node scripts/run-workspace-package-script.mjs . check:quality-matrix',
+  'node scripts/run-workspace-package-script.mjs . check:release-flow',
+  'node scripts/run-workspace-package-script.mjs . check:ci-flow',
+  'node scripts/run-workspace-package-script.mjs . check:governance-regression',
+]);
 
 assert.match(ciWorkflow, /Run workspace lint and parity checks/);
 assert.match(ciWorkflow, /pnpm lint/);

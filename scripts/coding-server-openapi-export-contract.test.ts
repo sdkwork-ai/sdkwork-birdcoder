@@ -34,7 +34,12 @@ try {
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
   assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCatalogPath, '/api/core/v1/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 50);
+  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 57);
+  assert.deepEqual(writtenDocument['x-sdkwork-api-gateway']?.routesBySurface, {
+    core: 19,
+    app: 31,
+    admin: 7,
+  });
   assert.equal(
     writtenDocument.paths['/api/core/v1/routes']?.get?.operationId,
     'core.listRoutes',
@@ -58,6 +63,10 @@ try {
   assert.equal(
     writtenDocument.paths['/api/app/v1/projects/{projectId}/publish']?.post?.operationId,
     'app.publishProject',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/workspaces/{workspaceId}/realtime']?.get?.operationId,
+    'app.subscribeWorkspaceRealtime',
   );
   assert.match(fs.readFileSync(explicitOutputPath, 'utf8'), /\n$/);
 } finally {

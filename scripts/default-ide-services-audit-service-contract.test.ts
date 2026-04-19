@@ -4,6 +4,7 @@ import type {
   BirdCoderAppAdminApiClient,
 } from '@sdkwork/birdcoder-types';
 import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
+import { createAppAdminClientContractStub } from './app-admin-client-contract-stub.ts';
 
 const auditFixtures: BirdCoderAdminAuditEventSummary[] = [
   {
@@ -21,45 +22,12 @@ const auditFixtures: BirdCoderAdminAuditEventSummary[] = [
 
 let listAuditEventsCalls = 0;
 
-const appAdminClient: BirdCoderAppAdminApiClient = {
-  async listAdminDeployments() {
-    return [];
-  },
-  async listAdminTeams() {
-    return [];
-  },
+const appAdminClient: BirdCoderAppAdminApiClient = createAppAdminClientContractStub({
   async listAuditEvents() {
     listAuditEventsCalls += 1;
     return auditFixtures;
   },
-  async listDeploymentTargets() {
-    return [];
-  },
-  async listDeployments() {
-    return [];
-  },
-  async listDocuments() {
-    return [];
-  },
-  async listPolicies() {
-    return [];
-  },
-  async listProjects() {
-    return [];
-  },
-  async listReleases() {
-    return [];
-  },
-  async listTeamMembers() {
-    return [];
-  },
-  async listTeams() {
-    return [];
-  },
-  async listWorkspaces() {
-    return [];
-  },
-};
+});
 
 const services = createDefaultBirdCoderIdeServices({
   appAdminClient,

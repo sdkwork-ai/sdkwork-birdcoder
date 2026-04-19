@@ -10,8 +10,8 @@
     "build:dev": "node ../../scripts/prepare-shared-sdk-packages.mjs && node ../../scripts/run-vite-host.mjs build --mode development",
     "build:test": "node ../../scripts/prepare-shared-sdk-packages.mjs && node ../../scripts/run-vite-host.mjs build --mode test",
     "build:prod": "node ../../scripts/prepare-shared-sdk-packages.mjs && node ../../scripts/run-vite-host.mjs build --mode production",
-    "preview": "pnpm exec vite preview",
-    "lint": "pnpm exec tsc --noEmit"
+    "preview": "node ../../scripts/run-vite-host.mjs preview",
+    "lint": "node ../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
     "@sdkwork/birdcoder-distribution": "workspace:*",

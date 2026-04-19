@@ -39,8 +39,17 @@ export interface BirdCoderWorkspaceRecord {
   createdAt: string;
   description?: string;
   id: string;
+  uuid?: string;
+  tenantId?: string;
+  organizationId?: string;
+  code?: string;
+  title?: string;
   name: string;
-  ownerIdentityId: string;
+  ownerId?: string;
+  leaderId?: string;
+  createdByUserId?: string;
+  type?: string;
+  status: string;
   updatedAt: string;
 }
 
@@ -48,8 +57,19 @@ export interface BirdCoderRepresentativeProjectRecord {
   createdAt: string;
   description?: string;
   id: string;
+  uuid?: string;
+  tenantId?: string;
+  organizationId?: string;
   name: string;
+  workspaceUuid?: string;
+  code?: string;
+  title?: string;
   rootPath?: string;
+  ownerId?: string;
+  leaderId?: string;
+  createdByUserId?: string;
+  author?: string;
+  type?: string;
   status: string;
   updatedAt: string;
   workspaceId: string;
@@ -94,7 +114,15 @@ export interface BirdCoderRepresentativeTeamRecord {
   createdAt: string;
   description?: string;
   id: string;
+  uuid?: string;
+  tenantId?: string;
+  organizationId?: string;
+  code?: string;
+  title?: string;
   name: string;
+  ownerId?: string;
+  leaderId?: string;
+  createdByUserId?: string;
   status: string;
   updatedAt: string;
   workspaceId: string;
@@ -103,7 +131,7 @@ export interface BirdCoderRepresentativeTeamRecord {
 export interface BirdCoderRepresentativeTeamMemberRecord {
   createdAt: string;
   id: string;
-  identityId: string;
+  userId: string;
   role: string;
   status: string;
   teamId: string;
@@ -167,18 +195,54 @@ export interface CreateBirdCoderRepresentativeAppAdminRepositoriesOptions {
   storage: BirdCoderStorageAccess;
 }
 
+function normalizeCanonicalOwnerId(
+  value: Partial<{
+    ownerId: string;
+  }>,
+  fallback = 'local-owner',
+): string {
+  const canonicalOwnerId =
+    typeof value.ownerId === 'string' && value.ownerId.trim().length > 0
+      ? value.ownerId.trim()
+      : fallback;
+  return canonicalOwnerId;
+}
+
+function normalizeCanonicalCreatedByUserId(
+  value: Partial<{
+    createdByUserId: string;
+  }>,
+  fallbackOwnerId: string,
+): string {
+  if (typeof value.createdByUserId === 'string' && value.createdByUserId.trim().length > 0) {
+    return value.createdByUserId.trim();
+  }
+  return fallbackOwnerId;
+}
+
 function normalizeWorkspaceRecord(value: unknown): BirdCoderWorkspaceRecord | null {
   if (isRecord(value) && typeof value.id === 'string' && typeof value.name === 'string') {
+    const ownerId = normalizeCanonicalOwnerId(value);
     return {
       createdAt:
         typeof value.createdAt === 'string' ? value.createdAt : new Date(0).toISOString(),
       description: typeof value.description === 'string' ? value.description : undefined,
       id: value.id,
+      uuid: typeof value.uuid === 'string' ? value.uuid : undefined,
+      tenantId: typeof value.tenantId === 'string' ? value.tenantId : undefined,
+      organizationId:
+        typeof value.organizationId === 'string' ? value.organizationId : undefined,
+      code: typeof value.code === 'string' ? value.code : undefined,
+      title: typeof value.title === 'string' ? value.title : undefined,
       name: value.name,
-      ownerIdentityId:
-        typeof value.ownerIdentityId === 'string' && value.ownerIdentityId.length > 0
-          ? value.ownerIdentityId
-          : 'local-owner',
+      ownerId,
+      leaderId:
+        typeof value.leaderId === 'string' && value.leaderId.trim().length > 0
+          ? value.leaderId
+          : ownerId,
+      createdByUserId: normalizeCanonicalCreatedByUserId(value, ownerId),
+      type: typeof value.type === 'string' ? value.type : undefined,
+      status: typeof value.status === 'string' ? value.status : 'active',
       updatedAt:
         typeof value.updatedAt === 'string' ? value.updatedAt : new Date(0).toISOString(),
     };
@@ -189,35 +253,100 @@ function normalizeWorkspaceRecord(value: unknown): BirdCoderWorkspaceRecord | nu
     return null;
   }
 
+  const ownerId = normalizeCanonicalOwnerId({
+    ownerId: typeof row.owner_id === 'string' ? row.owner_id : undefined,
+  });
+
   return {
     id: String(row.id),
+    uuid: typeof row.uuid === 'string' ? row.uuid : undefined,
+    tenantId: typeof row.tenant_id === 'string' ? row.tenant_id : undefined,
+    organizationId:
+      typeof row.organization_id === 'string' ? row.organization_id : undefined,
+    code: typeof row.code === 'string' ? row.code : undefined,
+    title: typeof row.title === 'string' ? row.title : undefined,
     name: String(row.name),
     description: typeof row.description === 'string' ? row.description : undefined,
-    ownerIdentityId:
-      typeof row.owner_identity_id === 'string' && row.owner_identity_id.length > 0
-        ? row.owner_identity_id
-        : 'local-owner',
+    ownerId,
+    leaderId:
+      typeof row.leader_id === 'string' && row.leader_id.trim().length > 0
+        ? row.leader_id
+        : ownerId,
+    createdByUserId: normalizeCanonicalCreatedByUserId(
+      {
+        createdByUserId:
+          typeof (row as { created_by_user_id?: unknown }).created_by_user_id === 'string'
+            ? String((row as { created_by_user_id: unknown }).created_by_user_id)
+            : undefined,
+      },
+      ownerId,
+    ),
+    type: typeof row.type === 'string' ? row.type : undefined,
+    status: typeof row.status === 'string' ? row.status : 'active',
     createdAt: typeof row.created_at === 'string' ? row.created_at : new Date(0).toISOString(),
     updatedAt: typeof row.updated_at === 'string' ? row.updated_at : new Date(0).toISOString(),
   };
 }
 
 function workspaceToRow(value: BirdCoderWorkspaceRecord): Record<string, unknown> {
+  const ownerId = normalizeCanonicalOwnerId(value);
+  const createdByUserId = normalizeCanonicalCreatedByUserId(value, ownerId);
   return {
     id: value.id,
     created_at: value.createdAt,
     updated_at: value.updatedAt,
     version: 0,
     is_deleted: false,
+    uuid: value.uuid ?? null,
+    tenant_id: value.tenantId ?? null,
+    organization_id: value.organizationId ?? null,
     name: value.name,
+    code: value.code ?? null,
+    title: value.title ?? value.name,
     description: value.description ?? null,
-    owner_identity_id: value.ownerIdentityId,
+    owner_id: ownerId,
+    leader_id: value.leaderId ?? value.ownerId ?? ownerId,
+    created_by_user_id: createdByUserId,
+    type: value.type ?? 'DEFAULT',
+    status: value.status,
   };
 }
 
 function normalizeProjectRecord(value: unknown): BirdCoderRepresentativeProjectRecord | null {
   if (isRecord(value) && typeof value.id === 'string' && typeof value.workspaceId === 'string') {
-    return value as unknown as BirdCoderRepresentativeProjectRecord;
+    const ownerId = normalizeCanonicalOwnerId(value);
+    const createdByUserId = normalizeCanonicalCreatedByUserId(value, ownerId);
+    return {
+      id: value.id,
+      uuid: typeof value.uuid === 'string' ? value.uuid : undefined,
+      tenantId: typeof value.tenantId === 'string' ? value.tenantId : undefined,
+      organizationId:
+        typeof value.organizationId === 'string' ? value.organizationId : undefined,
+      workspaceId: value.workspaceId,
+      workspaceUuid:
+        typeof value.workspaceUuid === 'string' ? value.workspaceUuid : undefined,
+      name: typeof value.name === 'string' ? value.name : value.id,
+      code: typeof value.code === 'string' ? value.code : undefined,
+      title: typeof value.title === 'string' ? value.title : undefined,
+      description: typeof value.description === 'string' ? value.description : undefined,
+      rootPath: typeof value.rootPath === 'string' ? value.rootPath : undefined,
+      ownerId,
+      leaderId:
+        typeof value.leaderId === 'string' && value.leaderId.trim().length > 0
+          ? value.leaderId
+          : ownerId,
+      createdByUserId,
+      author:
+        typeof value.author === 'string' && value.author.trim().length > 0
+          ? value.author
+          : createdByUserId,
+      type: typeof value.type === 'string' ? value.type : undefined,
+      status: typeof value.status === 'string' ? value.status : 'active',
+      createdAt:
+        typeof value.createdAt === 'string' ? value.createdAt : new Date(0).toISOString(),
+      updatedAt:
+        typeof value.updatedAt === 'string' ? value.updatedAt : new Date(0).toISOString(),
+    };
   }
 
   const row = coerceBirdCoderSqlEntityRow(getBirdCoderEntityDefinition('project'), value);
@@ -225,12 +354,43 @@ function normalizeProjectRecord(value: unknown): BirdCoderRepresentativeProjectR
     return null;
   }
 
+  const ownerId = normalizeCanonicalOwnerId({
+    ownerId: typeof row.owner_id === 'string' ? row.owner_id : undefined,
+  });
+  const createdByUserId = normalizeCanonicalCreatedByUserId(
+    {
+      createdByUserId:
+        typeof (row as { created_by_user_id?: unknown }).created_by_user_id === 'string'
+          ? String((row as { created_by_user_id: unknown }).created_by_user_id)
+          : undefined,
+    },
+    ownerId,
+  );
+
   return {
     id: String(row.id),
+    uuid: typeof row.uuid === 'string' ? row.uuid : undefined,
+    tenantId: typeof row.tenant_id === 'string' ? row.tenant_id : undefined,
+    organizationId:
+      typeof row.organization_id === 'string' ? row.organization_id : undefined,
     workspaceId: String(row.workspace_id),
+    workspaceUuid: typeof row.workspace_uuid === 'string' ? row.workspace_uuid : undefined,
     name: String(row.name),
+    code: typeof row.code === 'string' ? row.code : undefined,
+    title: typeof row.title === 'string' ? row.title : undefined,
     description: typeof row.description === 'string' ? row.description : undefined,
     rootPath: typeof row.root_path === 'string' ? row.root_path : undefined,
+    ownerId,
+    leaderId:
+      typeof row.leader_id === 'string' && row.leader_id.trim().length > 0
+        ? row.leader_id
+        : ownerId,
+    createdByUserId,
+    author:
+      typeof row.author === 'string' && row.author.trim().length > 0
+        ? row.author
+        : createdByUserId,
+    type: typeof row.type === 'string' ? row.type : undefined,
     status: String(row.status ?? 'active'),
     createdAt: typeof row.created_at === 'string' ? row.created_at : new Date(0).toISOString(),
     updatedAt: typeof row.updated_at === 'string' ? row.updated_at : new Date(0).toISOString(),
@@ -238,16 +398,29 @@ function normalizeProjectRecord(value: unknown): BirdCoderRepresentativeProjectR
 }
 
 function projectToRow(value: BirdCoderRepresentativeProjectRecord): Record<string, unknown> {
+  const ownerId = normalizeCanonicalOwnerId(value, '');
+  const createdByUserId = normalizeCanonicalCreatedByUserId(value, ownerId);
   return {
     id: value.id,
     created_at: value.createdAt,
     updated_at: value.updatedAt,
     version: 0,
     is_deleted: false,
+    uuid: value.uuid ?? null,
+    tenant_id: value.tenantId ?? null,
+    organization_id: value.organizationId ?? null,
     workspace_id: value.workspaceId,
+    workspace_uuid: value.workspaceUuid ?? null,
     name: value.name,
+    code: value.code ?? null,
+    title: value.title ?? value.name,
     description: value.description ?? null,
     root_path: value.rootPath ?? null,
+    owner_id: ownerId || null,
+    leader_id: (value.leaderId ?? value.ownerId ?? ownerId) || null,
+    created_by_user_id: createdByUserId || null,
+    author: (value.author ?? createdByUserId ?? ownerId) || null,
+    type: value.type ?? 'CODE',
     status: value.status,
   };
 }
@@ -429,7 +602,30 @@ function deploymentTargetToRow(
 
 function normalizeTeamRecord(value: unknown): BirdCoderRepresentativeTeamRecord | null {
   if (isRecord(value) && typeof value.id === 'string' && typeof value.workspaceId === 'string') {
-    return value as unknown as BirdCoderRepresentativeTeamRecord;
+    const ownerId = normalizeCanonicalOwnerId(value, '');
+    return {
+      id: value.id,
+      uuid: typeof value.uuid === 'string' ? value.uuid : undefined,
+      tenantId: typeof value.tenantId === 'string' ? value.tenantId : undefined,
+      organizationId:
+        typeof value.organizationId === 'string' ? value.organizationId : undefined,
+      workspaceId: value.workspaceId,
+      code: typeof value.code === 'string' ? value.code : undefined,
+      title: typeof value.title === 'string' ? value.title : undefined,
+      name: typeof value.name === 'string' ? value.name : value.id,
+      description: typeof value.description === 'string' ? value.description : undefined,
+      ownerId: ownerId || undefined,
+      leaderId:
+        typeof value.leaderId === 'string' && value.leaderId.trim().length > 0
+          ? value.leaderId
+          : ownerId || undefined,
+      createdByUserId: normalizeCanonicalCreatedByUserId(value, ownerId) || undefined,
+      status: typeof value.status === 'string' ? value.status : 'active',
+      createdAt:
+        typeof value.createdAt === 'string' ? value.createdAt : new Date(0).toISOString(),
+      updatedAt:
+        typeof value.updatedAt === 'string' ? value.updatedAt : new Date(0).toISOString(),
+    };
   }
 
   const row = coerceBirdCoderSqlEntityRow(getBirdCoderEntityDefinition('team'), value);
@@ -437,11 +633,36 @@ function normalizeTeamRecord(value: unknown): BirdCoderRepresentativeTeamRecord 
     return null;
   }
 
+  const ownerId = normalizeCanonicalOwnerId({
+    ownerId: typeof row.owner_id === 'string' ? row.owner_id : undefined,
+  }, '');
+
   return {
     id: String(row.id),
+    uuid: typeof row.uuid === 'string' ? row.uuid : undefined,
+    tenantId: typeof row.tenant_id === 'string' ? row.tenant_id : undefined,
+    organizationId:
+      typeof row.organization_id === 'string' ? row.organization_id : undefined,
     workspaceId: String(row.workspace_id),
+    code: typeof row.code === 'string' ? row.code : undefined,
+    title: typeof row.title === 'string' ? row.title : undefined,
     name: String(row.name),
     description: typeof row.description === 'string' ? row.description : undefined,
+    ownerId: ownerId || undefined,
+    leaderId:
+      typeof row.leader_id === 'string' && row.leader_id.trim().length > 0
+        ? row.leader_id
+        : ownerId || undefined,
+    createdByUserId:
+      normalizeCanonicalCreatedByUserId(
+        {
+          createdByUserId:
+            typeof (row as { created_by_user_id?: unknown }).created_by_user_id === 'string'
+              ? String((row as { created_by_user_id: unknown }).created_by_user_id)
+              : undefined,
+        },
+        ownerId,
+      ) || undefined,
     status: String(row.status ?? 'active'),
     createdAt: typeof row.created_at === 'string' ? row.created_at : new Date(0).toISOString(),
     updatedAt: typeof row.updated_at === 'string' ? row.updated_at : new Date(0).toISOString(),
@@ -449,15 +670,25 @@ function normalizeTeamRecord(value: unknown): BirdCoderRepresentativeTeamRecord 
 }
 
 function teamToRow(value: BirdCoderRepresentativeTeamRecord): Record<string, unknown> {
+  const ownerId = normalizeCanonicalOwnerId(value, '');
+  const createdByUserId = normalizeCanonicalCreatedByUserId(value, ownerId);
   return {
     id: value.id,
     created_at: value.createdAt,
     updated_at: value.updatedAt,
     version: 0,
     is_deleted: false,
+    uuid: value.uuid ?? null,
+    tenant_id: value.tenantId ?? null,
+    organization_id: value.organizationId ?? null,
     workspace_id: value.workspaceId,
     name: value.name,
+    code: value.code ?? null,
+    title: value.title ?? value.name,
     description: value.description ?? null,
+    owner_id: ownerId || null,
+    leader_id: (value.leaderId ?? value.ownerId ?? ownerId) || null,
+    created_by_user_id: createdByUserId || null,
     status: value.status,
   };
 }
@@ -469,12 +700,12 @@ function normalizeTeamMemberRecord(
     isRecord(value) &&
     typeof value.id === 'string' &&
     typeof value.teamId === 'string' &&
-    typeof value.identityId === 'string'
+    typeof value.userId === 'string'
   ) {
     return {
       id: value.id,
       teamId: value.teamId,
-      identityId: value.identityId,
+      userId: value.userId,
       role: typeof value.role === 'string' ? value.role : 'member',
       status: typeof value.status === 'string' ? value.status : 'active',
       createdAt:
@@ -488,7 +719,7 @@ function normalizeTeamMemberRecord(
   if (
     !row ||
     typeof row.team_id !== 'string' ||
-    typeof row.identity_id !== 'string'
+    typeof row.user_id !== 'string'
   ) {
     return null;
   }
@@ -496,7 +727,7 @@ function normalizeTeamMemberRecord(
   return {
     id: String(row.id),
     teamId: String(row.team_id),
-    identityId: String(row.identity_id),
+    userId: String(row.user_id),
     role: String(row.role ?? 'member'),
     status: String(row.status ?? 'active'),
     createdAt: typeof row.created_at === 'string' ? row.created_at : new Date(0).toISOString(),
@@ -512,7 +743,7 @@ function teamMemberToRow(value: BirdCoderRepresentativeTeamMemberRecord): Record
     version: 0,
     is_deleted: false,
     team_id: value.teamId,
-    identity_id: value.identityId,
+    user_id: value.userId,
     role: value.role,
     status: value.status,
   };

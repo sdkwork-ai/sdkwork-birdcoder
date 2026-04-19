@@ -1,62 +1,57 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
-import { MockFileSystemService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/MockFileSystemService.ts';
-
-const service = new MockFileSystemService();
-const projectId = 'project-search-contract';
-
-await service.createFile(projectId, '/alpha.ts');
-await service.createFile(projectId, '/src/beta.ts');
-await service.createFile(projectId, '/src/gamma.ts');
-await service.createFile(projectId, '/src/long.ts');
-
-await service.saveFileContent(projectId, '/alpha.ts', 'const alpha = 1;');
-await service.saveFileContent(projectId, '/src/beta.ts', 'const beta = 2;');
-await service.saveFileContent(projectId, '/src/gamma.ts', 'const gamma = 3;');
-await service.saveFileContent(
-  projectId,
-  '/src/long.ts',
-  'alpha beta gamma delta epsilon target zeta eta theta iota kappa lambda',
+const workspaceRoot = path.resolve(import.meta.dirname, '..');
+const fileSearchFacadePath = path.join(
+  workspaceRoot,
+  'packages',
+  'sdkwork-birdcoder-commons',
+  'src',
+  'workbench',
+  'fileSearch.ts',
+);
+const runtimeFileSystemServicePath = path.join(
+  workspaceRoot,
+  'packages',
+  'sdkwork-birdcoder-infrastructure',
+  'src',
+  'services',
+  'impl',
+  'RuntimeFileSystemService.ts',
 );
 
-assert.deepEqual(
-  await service.searchFiles(projectId, {
-    query: '   ',
-  }),
-  {
-    limitReached: false,
-    results: [],
-  },
-  'service-level file search must short-circuit blank queries before traversing project files.',
+const fileSearchFacadeSource = fs.readFileSync(fileSearchFacadePath, 'utf8');
+const runtimeFileSystemServiceSource = fs.readFileSync(runtimeFileSystemServicePath, 'utf8');
+
+assert.match(
+  fileSearchFacadeSource,
+  /export\s+\{\s*searchProjectFiles\s*\}\s+from\s+'@sdkwork\/birdcoder-types';/u,
+  'file search facade must re-export the canonical types-layer implementation instead of hosting a page-local mock search path.',
 );
 
-assert.deepEqual(
-  await service.searchFiles(projectId, {
-    query: 'const',
-    maxResults: 2,
-  }),
-  {
-    limitReached: true,
-    results: [
-      { path: '/src/beta.ts', line: 1, content: 'const beta = 2;' },
-      { path: '/src/gamma.ts', line: 1, content: 'const gamma = 3;' },
-    ],
-  },
-  'service-level file search must preserve file-tree ordering and surface result truncation.',
+assert.doesNotMatch(
+  fileSearchFacadeSource,
+  /\bmock\b/iu,
+  'file search facade must not reference mock search behavior.',
 );
 
-const clippedResults = await service.searchFiles(projectId, {
-  query: 'target',
-  maxSnippetLength: 32,
-});
+assert.match(
+  runtimeFileSystemServiceSource,
+  /import\s*\{\s*searchProjectFiles,/u,
+  'runtime file system service must import the canonical search implementation.',
+);
 
-assert.equal(clippedResults.limitReached, false);
-assert.equal(clippedResults.results.length, 1);
-assert.equal(clippedResults.results[0].path, '/src/long.ts');
-assert.equal(clippedResults.results[0].line, 1);
-assert.equal(clippedResults.results[0].content.includes('target'), true);
-assert.equal(clippedResults.results[0].content.length <= 32, true);
-assert.equal(clippedResults.results[0].content.startsWith('...'), true);
-assert.equal(clippedResults.results[0].content.endsWith('...'), true);
+assert.match(
+  runtimeFileSystemServiceSource,
+  /from\s+'@sdkwork\/birdcoder-types';/u,
+  'runtime file system service must source file search behavior from the shared canonical package.',
+);
+
+assert.doesNotMatch(
+  runtimeFileSystemServiceSource,
+  /\bmock\b/iu,
+  'runtime file system search integration must not fall back to mock execution paths.',
+);
 
 console.log('mock file system search contract passed.');

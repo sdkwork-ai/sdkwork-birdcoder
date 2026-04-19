@@ -8,14 +8,18 @@ import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { createDesktopVitePlugins } from '../packages/sdkwork-birdcoder-desktop/vite/createDesktopVitePlugins.mjs';
+import { BIRDCODER_VITE_DEDUPE_PACKAGES } from './create-birdcoder-vite-plugins.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const workspaceRootDir = path.resolve(__dirname, '..');
 const desktopRootDir = path.join(workspaceRootDir, 'packages', 'sdkwork-birdcoder-desktop');
 const desktopRequire = createRequire(path.join(desktopRootDir, 'package.json'));
+const rootRequire = createRequire(path.join(workspaceRootDir, 'package.json'));
 const uiRequire = createRequire(path.join(workspaceRootDir, 'packages', 'sdkwork-birdcoder-ui', 'package.json'));
-const desktopDedupePackages = ['react', 'react-dom', 'react-i18next', 'scheduler', 'use-sync-external-store'];
+const lucideEntryPath = rootRequire.resolve('lucide-react');
+const lucidePackageDir = path.resolve(path.dirname(lucideEntryPath), '..');
+const lucideIconRequestPath = `/@fs/${path.join(lucidePackageDir, 'esm', 'Icon.js').replace(/\\/g, '/')}`;
 const rawVoidElementsRequestPath = `/@fs/${desktopRequire.resolve('void-elements').replace(/\\/g, '/')}`;
 const htmlParseStringifyRequestPath = `/@fs/${desktopRequire.resolve('html-parse-stringify/dist/html-parse-stringify.module.js').replace(/\\/g, '/')}`;
 const rawStyleToJsRequestPath = `/@fs/${uiRequire.resolve('style-to-js').replace(/\\/g, '/')}`;
@@ -36,6 +40,10 @@ const desktopHostCompatibilityProbes = [
   {
     path: '/src/main.tsx',
     incompatiblePatterns: ['Internal Server Error', 'Pre-transform error', 'Failed to resolve import'],
+  },
+  {
+    path: lucideIconRequestPath,
+    incompatiblePatterns: ['Internal Server Error', 'Pre-transform error', 'Failed to resolve import', '/react/index.js', '_container'],
   },
   {
     path: htmlParseStringifyRequestPath,
@@ -67,6 +75,57 @@ function isCompatibleProbeSource(source, incompatiblePatterns) {
   return incompatiblePatterns.every((pattern) => !String(source).includes(pattern));
 }
 
+function isRetryableDesktopProbeError(error) {
+  const errorCode = String(error?.code ?? '').trim();
+  const causeCode = String(error?.cause?.code ?? '').trim();
+  const errorName = String(error?.name ?? '').trim();
+  const causeName = String(error?.cause?.name ?? '').trim();
+  const errorMessage = String(error?.message ?? '').trim();
+  const causeMessage = String(error?.cause?.message ?? '').trim();
+
+  return errorCode === 'ECONNRESET'
+    || causeCode === 'ECONNRESET'
+    || errorName === 'TimeoutError'
+    || causeName === 'TimeoutError'
+    || errorMessage.includes('ECONNRESET')
+    || causeMessage.includes('ECONNRESET')
+    || errorMessage.includes('aborted due to timeout')
+    || causeMessage.includes('aborted due to timeout');
+}
+
+async function fetchDesktopCompatibilityProbe(
+  url,
+  {
+    fetchImpl = fetch,
+    maxAttempts = 3,
+    timeoutMs = 10000,
+  } = {},
+) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetchImpl(url, {
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      const source = await response.text();
+
+      return {
+        response,
+        source,
+      };
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableDesktopProbeError(error) || attempt >= maxAttempts) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError ?? new Error(`Desktop compatibility probe failed without an explicit error for ${url}.`);
+}
+
 async function isCompatibleRunningDesktopHost({
   host = '127.0.0.1',
   port,
@@ -79,10 +138,11 @@ async function isCompatibleRunningDesktopHost({
 
   try {
     for (const probe of probes) {
-      const response = await fetchImpl(`http://${host}:${port}${probe.path}`, {
-        signal: AbortSignal.timeout(3000),
+      const { response, source } = await fetchDesktopCompatibilityProbe(`http://${host}:${port}${probe.path}`, {
+        fetchImpl,
+        maxAttempts: 3,
+        timeoutMs: 10000,
       });
-      const source = await response.text();
 
       if (response.status !== 200 || !isCompatibleProbeSource(source, probe.incompatiblePatterns)) {
         return false;
@@ -168,15 +228,30 @@ function createDesktopViteServerConfig({
       include: [],
     },
     resolve: {
-      dedupe: [...desktopDedupePackages],
+      dedupe: [...BIRDCODER_VITE_DEDUPE_PACKAGES],
       alias: [
+        {
+          find: /^@sdkwork\/birdcoder-([^/]+)\/(.+)$/u,
+          replacement: path.resolve(resolvedDesktopRootDir, '../sdkwork-birdcoder-$1/src/$2'),
+        },
         {
           find: /^@sdkwork\/birdcoder-([^/]+)$/u,
           replacement: path.resolve(resolvedDesktopRootDir, '../sdkwork-birdcoder-$1/src'),
         },
         {
-          find: /^sdkwork-birdcoder-([^/]+)$/u,
-          replacement: path.resolve(resolvedDesktopRootDir, '../sdkwork-birdcoder-$1/src'),
+          find: /^@sdkwork\/terminal-([^/]+)\/(.+)$/u,
+          replacement: path.resolve(
+            resolvedDesktopRootDir,
+            '../../../sdkwork-terminal/packages/sdkwork-terminal-$1/src/$2',
+          ),
+        },
+        {
+          find: /^@sdkwork\/terminal-([^/]+)$/u,
+          replacement: path.resolve(resolvedDesktopRootDir, '../../../sdkwork-terminal/packages/sdkwork-terminal-$1/src'),
+        },
+        {
+          find: /^@xterm\/(.*)$/u,
+          replacement: path.resolve(resolvedDesktopRootDir, '../../node_modules/@xterm/$1'),
         },
       ],
     },
@@ -186,7 +261,10 @@ function createDesktopViteServerConfig({
       strictPort,
       hmr: env.DISABLE_HMR !== 'true',
       fs: {
-        allow: [path.resolve(resolvedDesktopRootDir, '../..')],
+        allow: [
+          path.resolve(resolvedDesktopRootDir, '../..'),
+          path.resolve(resolvedDesktopRootDir, '../../../sdkwork-terminal'),
+        ],
       },
     },
   };
@@ -245,7 +323,13 @@ async function runDesktopViteHost(argv = process.argv.slice(2)) {
   await new Promise(() => {});
 }
 
-export { createDesktopViteServerConfig, isCompatibleRunningDesktopHost, parseArgs, runDesktopViteHost };
+export {
+  createDesktopViteServerConfig,
+  fetchDesktopCompatibilityProbe,
+  isCompatibleRunningDesktopHost,
+  parseArgs,
+  runDesktopViteHost,
+};
 
 if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
   runDesktopViteHost().catch((error) => {

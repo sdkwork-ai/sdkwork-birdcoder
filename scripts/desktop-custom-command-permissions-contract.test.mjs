@@ -32,13 +32,24 @@ assert.ok(
   'Desktop runtime must register a Tauri generate_handler list for custom Rust bridge commands.',
 );
 
+function normalizeGeneratedCommandIdentifier(command) {
+  return String(command ?? '')
+    .trim()
+    .split('::')
+    .at(-1)
+    ?.trim() ?? '';
+}
+
 const generatedCommands = generateHandlerMatch.groups.commands
   .split(',')
-  .map((command) => command.trim())
-  .filter((command) => command.length > 0);
+  .map((command) => ({
+    handler: command.trim(),
+    identifier: normalizeGeneratedCommandIdentifier(command),
+  }))
+  .filter((command) => command.handler.length > 0 && command.identifier.length > 0);
 
 assert.ok(
-  generatedCommands.includes('fs_snapshot_folder'),
+  generatedCommands.some((command) => command.identifier === 'fs_snapshot_folder'),
   'Desktop Rust bridge must expose fs_snapshot_folder for mounted project imports.',
 );
 
@@ -90,17 +101,17 @@ const effectivePermissionIdentifiers = expandPermissionReferences(defaultPermiss
 
 for (const command of generatedCommands) {
   const allowingPermissionIdentifiers = [...permissionBlocks.entries()]
-    .filter(([, allowedCommands]) => allowedCommands.includes(command))
+    .filter(([, allowedCommands]) => allowedCommands.includes(command.identifier))
     .map(([identifier]) => identifier);
 
   assert.ok(
     allowingPermissionIdentifiers.length > 0,
-    `Desktop app permission manifest must declare an allow permission for the ${command} Rust command.`,
+    `Desktop app permission manifest must declare an allow permission for the ${command.handler} Rust command.`,
   );
 
   assert.ok(
     allowingPermissionIdentifiers.some((identifier) => effectivePermissionIdentifiers.has(identifier)),
-    `Desktop default permission surface must include the ${command} Rust command so the main window can invoke it without runtime "not allowed" failures.`,
+    `Desktop default permission surface must include the ${command.handler} Rust command so the main window can invoke it without runtime "not allowed" failures.`,
   );
 }
 

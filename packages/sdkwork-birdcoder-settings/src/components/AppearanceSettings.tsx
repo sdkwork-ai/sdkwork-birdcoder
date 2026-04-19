@@ -5,6 +5,65 @@ import { useToast } from '@sdkwork/birdcoder-commons';
 import { useTranslation } from 'react-i18next';
 import { SettingsProps } from './types';
 
+const LIGHT_THEME_PRESETS = {
+  'Codex Light': {
+    lightAccent: '#0285FF',
+    lightBackground: '#FFFFFF',
+    lightForeground: '#0D0D0D',
+  },
+  'GitHub Light': {
+    lightAccent: '#0969DA',
+    lightBackground: '#FFFFFF',
+    lightForeground: '#24292F',
+  },
+  'Solarized Light': {
+    lightAccent: '#268BD2',
+    lightBackground: '#FDF6E3',
+    lightForeground: '#657B83',
+  },
+} as const;
+
+const DARK_THEME_PRESETS = {
+  'Codex Dark': {
+    darkAccent: '#339CFF',
+    darkBackground: '#181818',
+    darkForeground: '#FFFFFF',
+  },
+  'GitHub Dark': {
+    darkAccent: '#58A6FF',
+    darkBackground: '#0D1117',
+    darkForeground: '#C9D1D9',
+  },
+  Dracula: {
+    darkAccent: '#FF79C6',
+    darkBackground: '#282A36',
+    darkForeground: '#F8F8F2',
+  },
+} as const;
+
+const THEME_SETTING_KEYS = {
+  light: {
+    themeName: 'lightThemeName',
+    accent: 'lightAccent',
+    background: 'lightBackground',
+    foreground: 'lightForeground',
+    uiFont: 'lightUiFont',
+    codeFont: 'lightCodeFont',
+    translucent: 'lightTranslucent',
+    contrast: 'lightContrast',
+  },
+  dark: {
+    themeName: 'darkThemeName',
+    accent: 'darkAccent',
+    background: 'darkBackground',
+    foreground: 'darkForeground',
+    uiFont: 'darkUiFont',
+    codeFont: 'darkCodeFont',
+    translucent: 'darkTranslucent',
+    contrast: 'darkContrast',
+  },
+} as const;
+
 export function AppearanceSettings({ settings, updateSetting }: SettingsProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
@@ -13,38 +72,60 @@ export function AppearanceSettings({ settings, updateSetting }: SettingsProps) {
   const [importThemeData, setImportThemeData] = useState('');
 
   const applyThemePreset = (type: 'light' | 'dark', themeName: string) => {
-    const presets: Record<string, any> = {
-      'Codex Light': { lightAccent: '#0285FF', lightBackground: '#FFFFFF', lightForeground: '#0D0D0D' },
-      'GitHub Light': { lightAccent: '#0969DA', lightBackground: '#FFFFFF', lightForeground: '#24292F' },
-      'Solarized Light': { lightAccent: '#268BD2', lightBackground: '#FDF6E3', lightForeground: '#657B83' },
-      'Codex Dark': { darkAccent: '#339CFF', darkBackground: '#181818', darkForeground: '#FFFFFF' },
-      'GitHub Dark': { darkAccent: '#58A6FF', darkBackground: '#0D1117', darkForeground: '#C9D1D9' },
-      'Dracula': { darkAccent: '#FF79C6', darkBackground: '#282A36', darkForeground: '#F8F8F2' },
-    };
-    
-    const preset = presets[themeName];
-    if (preset) {
-      Object.entries(preset).forEach(([key, value]) => {
-        updateSetting(key, value);
-      });
-      updateSetting(`${type}ThemeName`, themeName);
+    if (type === 'light') {
+      const preset = LIGHT_THEME_PRESETS[themeName as keyof typeof LIGHT_THEME_PRESETS];
+      if (!preset) {
+        return;
+      }
+
+      updateSetting('lightAccent', preset.lightAccent);
+      updateSetting('lightBackground', preset.lightBackground);
+      updateSetting('lightForeground', preset.lightForeground);
+      updateSetting('lightThemeName', themeName);
+      return;
     }
+
+    const preset = DARK_THEME_PRESETS[themeName as keyof typeof DARK_THEME_PRESETS];
+    if (!preset) {
+      return;
+    }
+
+    updateSetting('darkAccent', preset.darkAccent);
+    updateSetting('darkBackground', preset.darkBackground);
+    updateSetting('darkForeground', preset.darkForeground);
+    updateSetting('darkThemeName', themeName);
   };
 
   const handleImportTheme = () => {
     try {
-      const parsedData = JSON.parse(importThemeData);
-      const prefix = importThemeType === 'light' ? 'light' : 'dark';
-      
-      if (parsedData.name) updateSetting(`${prefix}ThemeName`, parsedData.name);
-      if (parsedData.accent) updateSetting(`${prefix}Accent`, parsedData.accent);
-      if (parsedData.background) updateSetting(`${prefix}Background`, parsedData.background);
-      if (parsedData.foreground) updateSetting(`${prefix}Foreground`, parsedData.foreground);
-      if (parsedData.uiFont) updateSetting(`${prefix}UiFont`, parsedData.uiFont);
-      if (parsedData.codeFont) updateSetting(`${prefix}CodeFont`, parsedData.codeFont);
-      if (parsedData.translucent !== undefined) updateSetting(`${prefix}Translucent`, parsedData.translucent);
-      if (parsedData.contrast !== undefined) updateSetting(`${prefix}Contrast`, parsedData.contrast);
-      
+      const parsedData = JSON.parse(importThemeData) as Record<string, unknown>;
+      const themeKeys = THEME_SETTING_KEYS[importThemeType];
+
+      if (typeof parsedData.name === 'string') {
+        updateSetting(themeKeys.themeName, parsedData.name);
+      }
+      if (typeof parsedData.accent === 'string') {
+        updateSetting(themeKeys.accent, parsedData.accent);
+      }
+      if (typeof parsedData.background === 'string') {
+        updateSetting(themeKeys.background, parsedData.background);
+      }
+      if (typeof parsedData.foreground === 'string') {
+        updateSetting(themeKeys.foreground, parsedData.foreground);
+      }
+      if (typeof parsedData.uiFont === 'string') {
+        updateSetting(themeKeys.uiFont, parsedData.uiFont);
+      }
+      if (typeof parsedData.codeFont === 'string') {
+        updateSetting(themeKeys.codeFont, parsedData.codeFont);
+      }
+      if (typeof parsedData.translucent === 'boolean') {
+        updateSetting(themeKeys.translucent, parsedData.translucent);
+      }
+      if (typeof parsedData.contrast === 'number') {
+        updateSetting(themeKeys.contrast, parsedData.contrast);
+      }
+
       const typeLabel = importThemeType === 'light' ? t('common.light') : t('common.dark');
       addToast(t('settings.appearance.themeImported', { type: typeLabel }), 'success');
       setIsImportModalOpen(false);

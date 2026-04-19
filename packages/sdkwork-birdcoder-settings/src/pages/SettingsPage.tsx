@@ -2,9 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   getDefaultBirdCoderIdeServicesRuntimeConfig,
-  getTerminalShellSettingValue,
-  normalizeWorkbenchCodeEngineId,
-  normalizeWorkbenchTerminalProfileId,
   useAuth,
   usePersistedState,
   useWorkbenchPreferences,
@@ -23,68 +20,47 @@ import {
   WorktreeSettings,
   ArchivedSettings,
   type AppSettings,
+  type UpdateSetting,
 } from '../components';
+import { DEFAULT_APP_SETTINGS } from '../components/appSettings';
 
 interface SettingsPageProps {
   onBack?: () => void;
 }
 
-const DEFAULT_SETTINGS: AppSettings = {
-  defaultOpenTarget: 'VS Code',
-  agentEnvironment: 'Windows native',
-  integratedTerminalShell: 'PowerShell',
-  language: 'Auto-detect',
-  threadDetails: 'Steps with code commands',
-  requireCtrlEnter: false,
-  followUpBehavior: 'Queue',
-  turnCompletionNotification: 'Only when app is unfocused',
-  enablePermissionNotifications: true,
-  theme: 'Dark',
-  usePointerCursor: false,
-  uiFontSize: '13',
-  codeFontSize: '12',
-  approvalPolicy: 'On request',
-  sandboxSettings: 'Read only',
-  serverBaseUrl: '',
-  codeSnippetStyle: 'Auto',
-  showLineNumbers: true,
-  wordWrap: true,
-  minimap: false,
-  gitAutoFetch: true,
-  gitCommitMessageGeneration: true,
-  gitDefaultBranch: 'main',
-  envNodeVersion: 'v20.x (LTS)',
-  envPackageManager: 'pnpm',
-  worktreeLocation: '../.worktrees',
-  worktreeAutoCleanup: false,
-  codeDevelopmentEngine: 'codex',
-  lightThemeName: 'Codex Light',
-  lightAccent: '#0285FF',
-  lightBackground: '#FFFFFF',
-  lightForeground: '#0D0D0D',
-  lightUiFont: '-apple-system, BlinkMacSystemFont',
-  lightCodeFont: 'ui-monospace, SFMono-Regular',
-  lightTranslucent: true,
-  lightContrast: 45,
-  darkThemeName: 'Codex Dark',
-  darkAccent: '#339CFF',
-  darkBackground: '#181818',
-  darkForeground: '#FFFFFF',
-  darkUiFont: '-apple-system, BlinkMacSystemFont',
-  darkCodeFont: 'ui-monospace, SFMono-Regular',
-  darkTranslucent: true,
-  darkContrast: 60,
-};
+function normalizeAppSettings(value: Partial<AppSettings> | null | undefined): AppSettings {
+  const rawValue =
+    value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  const normalizedSettings = { ...DEFAULT_APP_SETTINGS };
+  const writableSettings =
+    normalizedSettings as Record<keyof AppSettings, AppSettings[keyof AppSettings]>;
+
+  for (const key of Object.keys(DEFAULT_APP_SETTINGS) as Array<keyof AppSettings>) {
+    const nextValue = rawValue[key];
+    if (nextValue !== undefined && nextValue !== null) {
+      writableSettings[key] = nextValue as AppSettings[keyof AppSettings];
+    }
+  }
+
+  return normalizedSettings;
+}
+
+function appSettingsEqual(left: AppSettings, right: AppSettings): boolean {
+  return (
+    JSON.stringify(normalizeAppSettings(left)) === JSON.stringify(normalizeAppSettings(right))
+  );
+}
 
 export function SettingsPage({ onBack }: SettingsPageProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const { logout } = useAuth();
-  const [settings, setSettings, areSettingsHydrated] = usePersistedState<AppSettings>(
+  const [storedSettings, setSettings, areSettingsHydrated] = usePersistedState<AppSettings>(
     'settings',
     'app',
-    DEFAULT_SETTINGS,
+    DEFAULT_APP_SETTINGS,
   );
+  const settings = normalizeAppSettings(storedSettings);
   const { preferences, updatePreferences, isHydrated: isWorkbenchHydrated } = useWorkbenchPreferences();
   const currentServerBaseUrl = getDefaultBirdCoderIdeServicesRuntimeConfig().apiBaseUrl ?? '';
   const bootServerBaseUrlOverrideRef = useRef<string | null>(null);
@@ -98,42 +74,22 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   }, [areSettingsHydrated, settings.serverBaseUrl]);
 
   useEffect(() => {
-    if (!isWorkbenchHydrated) {
+    if (!areSettingsHydrated) {
       return;
     }
 
-    const nextEngine = preferences.codeEngineId;
-    const nextShell = getTerminalShellSettingValue(preferences.terminalProfileId);
-
-    if (
-      settings.codeDevelopmentEngine === nextEngine &&
-      settings.integratedTerminalShell === nextShell
-    ) {
+    if (appSettingsEqual(storedSettings, settings)) {
       return;
     }
 
+    setSettings(settings);
+  }, [areSettingsHydrated, setSettings, settings, storedSettings]);
+
+  const updateSetting: UpdateSetting = (key, value) => {
     setSettings({
       ...settings,
-      codeDevelopmentEngine: nextEngine,
-      integratedTerminalShell: nextShell,
-    });
-  }, [isWorkbenchHydrated, preferences.codeEngineId, preferences.terminalProfileId, setSettings, settings]);
-
-  const updateSetting = (key: string, value: any) => {
-    const newSettings = { ...settings, [key]: value };
-    setSettings(newSettings);
-
-    if (key === 'codeDevelopmentEngine') {
-      updatePreferences({
-        codeEngineId: normalizeWorkbenchCodeEngineId(String(value)),
-      });
-    }
-
-    if (key === 'integratedTerminalShell') {
-      updatePreferences({
-        terminalProfileId: normalizeWorkbenchTerminalProfileId(String(value)),
-      });
-    }
+      [key]: value,
+    } as AppSettings);
   };
 
   const renderContent = () => {
@@ -143,6 +99,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       currentServerBaseUrl,
       bootServerBaseUrlOverride:
         bootServerBaseUrlOverrideRef.current ?? (areSettingsHydrated ? settings.serverBaseUrl : undefined),
+      workbenchPreferences: preferences,
+      updateWorkbenchPreferences: updatePreferences,
     };
     switch (activeTab) {
       case 'general':

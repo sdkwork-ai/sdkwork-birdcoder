@@ -105,11 +105,17 @@ const coreReadService: ICoreReadService = {
     callLog.push(`listCodingSessionEvents:${codingSessionId}`);
     return [eventFixture];
   },
+  async listCodingSessions() {
+    return [sessionFixture];
+  },
   async listEngines(): Promise<BirdCoderEngineDescriptor[]> {
     throw new Error('not needed');
   },
   async listModels(): Promise<BirdCoderModelCatalogEntry[]> {
     throw new Error('not needed');
+  },
+  async listNativeSessionProviders() {
+    return [];
   },
   async listNativeSessions() {
     return [];

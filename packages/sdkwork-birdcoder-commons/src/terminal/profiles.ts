@@ -3,7 +3,7 @@ import {
   isTerminalCliProfileId,
   normalizeTerminalCliExecutable,
 } from './registry.ts';
-import { listWorkbenchCliEngines, type WorkbenchCodeEngineId } from '../workbench/kernel.ts';
+import { listWorkbenchCliEngines, type WorkbenchCodeEngineId } from '@sdkwork/birdcoder-codeengine';
 
 export type TerminalShellProfileId =
   | 'powershell'

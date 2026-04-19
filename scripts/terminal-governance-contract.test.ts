@@ -7,13 +7,13 @@ import {
   buildTerminalGovernanceReleaseNoteTemplate,
   buildTerminalGovernanceRecoveryDescription,
   listStoredTerminalGovernanceAuditRecords,
+  saveStoredTerminalGovernanceAuditRecord,
   resolveTerminalGovernanceRecoveryAction,
 } from '../packages/sdkwork-birdcoder-commons/src/terminal/auditStore.ts';
 import {
   buildTerminalCommandAuditEvent,
   classifyTerminalCommandRisk,
   evaluateTerminalCommandGovernance,
-  executeTerminalCommand,
   normalizeTerminalApprovalPolicy,
 } from '../packages/sdkwork-birdcoder-commons/src/terminal/runtime.ts';
 
@@ -109,11 +109,24 @@ assert.equal(blockedAuditEvent.approvalDecision, 'blocked');
 assert.equal(blockedAuditEvent.operator, 'terminal:powershell');
 assert.equal(blockedAuditEvent.artifactRefs[0], 'cwd:/workspace/demo');
 
-const blockedExecution = await executeTerminalCommand('powershell', 'rm -rf .', '/workspace/demo');
-assert.equal(blockedExecution.exitCode, 130);
-assert.equal(blockedExecution.executedVia, 'policy-blocked');
-assert.match(blockedExecution.stderr, /Blocked by governance policy/i);
-assert.match(blockedExecution.stderr, /traceId=/i);
+await saveStoredTerminalGovernanceAuditRecord({
+  traceId: blockedDecision.traceId,
+  recordedAt: 1700000000000,
+  profileId: 'powershell',
+  cwd: '/workspace/demo',
+  command: 'rm -rf .',
+  reason: blockedDecision.reason,
+  approvalPolicy: blockedDecision.approvalPolicy,
+  category: blockedDecision.category,
+  engine: blockedAuditEvent.engine,
+  tool: blockedAuditEvent.tool,
+  riskLevel: blockedDecision.riskLevel,
+  approvalDecision: blockedDecision.approvalDecision,
+  inputDigest: blockedAuditEvent.inputDigest,
+  outputDigest: blockedAuditEvent.outputDigest,
+  artifactRefs: blockedAuditEvent.artifactRefs,
+  operator: blockedAuditEvent.operator,
+});
 
 const storedBlockedAudits = await listStoredTerminalGovernanceAuditRecords();
 assert.equal(storedBlockedAudits.length, 1);
@@ -158,13 +171,11 @@ assert.equal(
   true,
 );
 
-const allowedExecution = await executeTerminalCommand('powershell', 'Get-ChildItem', '/workspace/demo');
-assert.equal(allowedExecution.exitCode, 126);
-assert.equal(allowedExecution.executedVia, 'unsupported-runtime');
-assert.match(
-  allowedExecution.stderr,
-  /requires the desktop Tauri host or a real server terminal bridge/i,
-);
+const allowedDecision = await evaluateTerminalCommandGovernance('Get-ChildItem');
+assert.equal(allowedDecision.allowed, true);
+assert.equal(allowedDecision.riskLevel, 'P0');
+assert.equal(allowedDecision.approvalDecision, 'auto_allowed');
+assert.equal(allowedDecision.category, 'tool.call');
 
 const storedAuditsAfterAllowedCommand = await listStoredTerminalGovernanceAuditRecords();
 assert.equal(
@@ -173,39 +184,44 @@ assert.equal(
   'read-only commands should not add extra governance audit records in the first persistence slice.',
 );
 
+const terminalRuntimeSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-commons/src/terminal/runtime.ts', import.meta.url),
+  'utf8',
+);
+assert.doesNotMatch(
+  terminalRuntimeSource,
+  /\bexecuteTerminalCommand\b/,
+  'Terminal governance must not depend on the removed executeTerminalCommand compatibility path.',
+);
+
 const terminalPageSource = readFileSync(
   new URL('../packages/sdkwork-birdcoder-terminal/src/pages/TerminalPage.tsx', import.meta.url),
   'utf8',
 );
 assert.match(
   terminalPageSource,
-  /buildTerminalGovernanceDiagnosticBundle/,
-  'TerminalPage should consume the shared governance diagnostics bundle builder.',
+  /createDesktopRuntimeBridgeClient/,
+  'TerminalPage should bridge terminal runtime access through sdkwork-terminal infrastructure.',
 );
 assert.match(
   terminalPageSource,
-  /buildTerminalGovernanceReleaseNoteTemplate/,
-  'TerminalPage should consume the shared governance release-note template builder.',
+  /ShellApp/,
+  'TerminalPage should delegate the terminal surface to the shared sdkwork-terminal ShellApp.',
 );
 assert.match(
   terminalPageSource,
-  /navigator\.clipboard\.writeText\(governanceBundle\.content\)/,
-  'TerminalPage should copy the governance diagnostics bundle into the clipboard.',
+  /buildTerminalRequestLaunchPlan/,
+  'TerminalPage should normalize request launching through the shared terminal launch-plan adapter.',
 );
 assert.match(
   terminalPageSource,
-  /navigator\.clipboard\.writeText\(governanceReleaseNote\.content\)/,
-  'TerminalPage should copy the governance release-note template into the clipboard.',
+  /listTerminalCliProfileAvailability/,
+  'TerminalPage should resolve CLI profile availability before launching unified terminal sessions.',
 );
 assert.match(
   terminalPageSource,
-  /Copy Diagnostics/,
-  'TerminalPage should expose a copy diagnostics action for governance recovery records.',
-);
-assert.match(
-  terminalPageSource,
-  /Copy Release Note/,
-  'TerminalPage should expose a copy release-note action for governance recovery records.',
+  /buildTerminalProfileBlockedMessage/,
+  'TerminalPage should surface blocked CLI launch guidance from the shared governance runtime.',
 );
 assert.doesNotMatch(
   terminalPageSource,

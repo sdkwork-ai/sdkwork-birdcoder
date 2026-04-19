@@ -89,7 +89,7 @@ try {
     id: 'workspace-sdk-contract',
     name: 'SDK Contract Workspace',
     description: 'Workspace served through the unified app/admin client.',
-    ownerIdentityId: 'identity-sdk-contract',
+    ownerId: 'user-sdk-contract',
     createdAt: '2026-04-10T19:00:00.000Z',
     updatedAt: '2026-04-10T19:00:00.000Z',
   });
@@ -147,7 +147,7 @@ try {
   await repositories.members.save({
     id: 'member-sdk-contract',
     teamId: 'team-sdk-contract',
-    identityId: 'identity-sdk-contract',
+    userId: 'user-sdk-contract',
     role: 'admin',
     status: 'active',
     createdAt: '2026-04-10T19:00:02.250Z',
@@ -405,13 +405,19 @@ try {
     ],
   );
 
+  requests.length = 0;
+
   const createdWorkspace = await services.workspaceService.createWorkspace(
     'Created Through API Backed Service',
     'Created locally and reloaded through the same app client contract.',
   );
-  await services.projectService.createProject(createdWorkspace.id, 'Created Through API Backed Project');
-
-  requests.length = 0;
+  await services.projectService.createProject(
+    createdWorkspace.id,
+    'Created Through API Backed Project',
+    {
+      path: 'D:/sdkwork/contracts/api-backed-project',
+    },
+  );
 
   const reloadedWorkspaces = await services.workspaceService.getWorkspaces();
   const reloadedProjects = await services.projectService.getProjects(createdWorkspace.id);
@@ -431,6 +437,16 @@ try {
       workspaceId: request.query?.workspaceId,
     })),
     [
+      {
+        method: 'POST',
+        path: '/api/app/v1/workspaces',
+        workspaceId: undefined,
+      },
+      {
+        method: 'POST',
+        path: '/api/app/v1/projects',
+        workspaceId: undefined,
+      },
       {
         method: 'GET',
         path: '/api/app/v1/workspaces',

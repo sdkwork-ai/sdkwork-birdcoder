@@ -49,7 +49,7 @@ const client = createBirdCoderGeneratedAppAdminApiClient({
               id: 'workspace-generated-facade',
               name: 'Generated Facade Workspace',
               description: 'Workspace served through shared generated client facade.',
-              ownerIdentityId: 'identity-generated-facade',
+              ownerId: 'user-generated-facade',
               status: 'active',
             },
           ]) as TResponse;
@@ -124,7 +124,7 @@ const client = createBirdCoderGeneratedAppAdminApiClient({
             {
               id: 'member-generated-facade',
               teamId: 'team-generated-facade',
-              identityId: 'identity-generated-facade',
+              userId: 'user-generated-facade',
               role: 'admin',
               status: 'active',
             },

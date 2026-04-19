@@ -84,7 +84,7 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
             id: 'workspace-runtime-contract',
             name: 'Runtime Contract Workspace',
             description: 'Workspace loaded through shell runtime app client.',
-            ownerIdentityId: 'identity-runtime-contract',
+            ownerId: 'user-runtime-contract',
             status: 'active',
           },
         ]),
@@ -114,6 +114,18 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
           },
         ]),
       ),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+  }
+
+  if (url.includes('/api/core/v1/coding-sessions')) {
+    return new Response(
+      JSON.stringify(createListEnvelope([])),
       {
         status: 200,
         headers: {
@@ -168,8 +180,12 @@ try {
         method: 'GET',
         url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/projects?workspaceId=workspace-runtime-contract',
       },
+      {
+        method: 'GET',
+        url: 'https://cn.sdkwork.local/birdcoder/api/core/v1/coding-sessions?workspaceId=workspace-runtime-contract',
+      },
     ],
-    'shell runtime defaults must normalize the host apiBaseUrl and route app/admin HTTP transport without duplicating the /api prefix.',
+    'shell runtime defaults must normalize the host apiBaseUrl and route app/core authority HTTP transport without duplicating the /api prefix.',
   );
 
   const ideContextSource = readFileSync(ideContextSourcePath, 'utf8');

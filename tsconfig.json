@@ -6,6 +6,21 @@
       "@/*": [
         "src/*"
       ],
+      "@sdkwork/birdcoder-codeengine/*": [
+        "packages/sdkwork-birdcoder-codeengine/src/*"
+      ],
+      "@sdkwork/birdcoder-commons/*": [
+        "packages/sdkwork-birdcoder-commons/src/*"
+      ],
+      "@sdkwork/birdcoder-infrastructure/*": [
+        "packages/sdkwork-birdcoder-infrastructure/src/*"
+      ],
+      "@sdkwork/birdcoder-shell/*": [
+        "packages/sdkwork-birdcoder-shell/src/*"
+      ],
+      "@sdkwork/birdcoder-types/*": [
+        "packages/sdkwork-birdcoder-types/src/*"
+      ],
       "@sdkwork/birdcoder-commons/shell": [
         "packages/sdkwork-birdcoder-commons/src/shell.ts"
       ],
@@ -14,6 +29,39 @@
       ],
       "@sdkwork/birdcoder-*": [
         "packages/sdkwork-birdcoder-*/src"
+      ],
+      "@sdkwork/terminal-*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-*/src"
+      ],
+      "@sdkwork/terminal-shell": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-shell/src"
+      ],
+      "@sdkwork/terminal-shell/*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-shell/src/*"
+      ],
+      "@sdkwork/terminal-infrastructure": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src"
+      ],
+      "@sdkwork/terminal-infrastructure/*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/*"
+      ],
+      "@sdkwork/terminal-core": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-core/src"
+      ],
+      "@sdkwork/terminal-core/*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-core/src/*"
+      ],
+      "@sdkwork/terminal-contracts": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-contracts/src"
+      ],
+      "@sdkwork/terminal-contracts/*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-contracts/src/*"
+      ],
+      "@sdkwork/terminal-types": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-types/src"
+      ],
+      "@sdkwork/terminal-types/*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-types/src/*"
       ],
       "sdkwork-birdcoder-commons/shell": [
         "packages/sdkwork-birdcoder-commons/src/shell.ts"

@@ -270,7 +270,7 @@ export const createAuthRouteIntent = createBirdCoderAuthRouteIntent;
 export const authPackageMeta = {
   architecture: 'birdcoder-appbase',
   bridgePackage: 'sdkwork-birdcoder-appbase',
-  domain: 'identity',
+  domain: 'user_center',
   package: BIRDCODER_APPBASE_AUTH_SOURCE_PACKAGE,
   status: 'ready',
 } as const;

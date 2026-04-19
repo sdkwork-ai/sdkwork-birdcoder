@@ -39,6 +39,7 @@
     "is-hexadecimal": "catalog:",
     "is-plain-obj": "catalog:",
     "lucide-react": "catalog:",
+    "@sdkwork/birdcoder-codeengine": "workspace:*",
     "@sdkwork/birdcoder-commons": "workspace:*",
     "@sdkwork/birdcoder-terminal": "workspace:*",
     "@sdkwork/birdcoder-ui": "workspace:*",

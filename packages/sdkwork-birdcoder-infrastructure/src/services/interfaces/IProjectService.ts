@@ -7,12 +7,15 @@ import type {
 
 export interface CreateCodingSessionOptions {
   engineId?: BirdCoderCodingSession['engineId'];
+  hostMode?: BirdCoderCodingSession['hostMode'];
   modelId?: string;
 }
 
 export interface CreateProjectOptions {
   description?: string;
   path?: string;
+  appTemplateVersionId?: string;
+  templatePresetKey?: string;
 }
 
 export interface BirdCoderCodingSessionMirrorSnapshot extends BirdCoderCodingSessionSummary {
@@ -21,6 +24,7 @@ export interface BirdCoderCodingSessionMirrorSnapshot extends BirdCoderCodingSes
   messageCount: number;
   nativeTranscriptUpdatedAt?: string | null;
   pinned?: boolean;
+  runtimeStatus?: BirdCoderCodingSession['runtimeStatus'];
   unread?: boolean;
 }
 
@@ -28,9 +32,23 @@ export interface BirdCoderProjectMirrorSnapshot extends Omit<BirdCoderProject, '
   codingSessions: BirdCoderCodingSessionMirrorSnapshot[];
 }
 
+export type CreateCodingSessionMessageInput =
+  Omit<BirdCoderChatMessage, 'codingSessionId' | 'createdAt' | 'id'> &
+    Partial<Pick<BirdCoderChatMessage, 'createdAt' | 'id'>>;
+
 export interface IProjectService {
   getProjects(workspaceId?: string): Promise<BirdCoderProject[]>;
+  getProjectById(projectId: string): Promise<BirdCoderProject | null>;
+  getProjectByPath(workspaceId: string, path: string): Promise<BirdCoderProject | null>;
+  invalidateProjectReadCache?(scope?: {
+    projectId?: string;
+    workspaceId?: string;
+  }): Promise<void> | void;
   getProjectMirrorSnapshots?(workspaceId?: string): Promise<BirdCoderProjectMirrorSnapshot[]>;
+  recordProjectCreationEvidence?(
+    projectId: string,
+    options?: CreateProjectOptions,
+  ): Promise<void>;
   createProject(
     workspaceId: string,
     name: string,
@@ -65,7 +83,7 @@ export interface IProjectService {
   addCodingSessionMessage(
     projectId: string,
     codingSessionId: string,
-    message: Omit<BirdCoderChatMessage, 'codingSessionId' | 'createdAt' | 'id'>,
+    message: CreateCodingSessionMessageInput,
   ): Promise<BirdCoderChatMessage>;
   editCodingSessionMessage(
     projectId: string,

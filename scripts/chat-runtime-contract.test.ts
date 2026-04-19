@@ -9,7 +9,7 @@ import {
   getWorkbenchCodeEngineDefinition,
   normalizeWorkbenchCodeModelId,
   resolveWorkbenchChatSelection,
-} from '../packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts';
+} from '../packages/sdkwork-birdcoder-codeengine/src/preferences.ts';
 
 assert.deepEqual(getWorkbenchCodeEngineDefinition('gemini').modelIds, [
   'gemini',

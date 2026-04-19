@@ -75,7 +75,7 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
             id: 'workspace-server-runtime-contract',
             name: 'Server Runtime Contract Workspace',
             description: 'Workspace loaded through server runtime binding.',
-            ownerIdentityId: 'identity-server-runtime-contract',
+            ownerId: 'user-server-runtime-contract',
             status: 'active',
           },
         ]),
@@ -105,6 +105,18 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
           },
         ]),
       ),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+  }
+
+  if (url.includes('/api/core/v1/coding-sessions')) {
+    return new Response(
+      JSON.stringify(createListEnvelope([])),
       {
         status: 200,
         headers: {
@@ -182,10 +194,14 @@ try {
       },
       {
         method: 'GET',
+        url: 'https://cn.sdkwork.local/birdcoder/api/core/v1/coding-sessions?workspaceId=workspace-server-runtime-contract',
+      },
+      {
+        method: 'GET',
         url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/teams?workspaceId=workspace-server-runtime-contract',
       },
     ],
-    'server runtime binding must normalize the distribution host base URL and append each /api/app/v1 route exactly once.',
+    'server runtime binding must normalize the distribution host base URL and route both app and core authority calls without duplicating the /api prefix.',
   );
 
   resetDefaultBirdCoderIdeServicesRuntimeForTests();

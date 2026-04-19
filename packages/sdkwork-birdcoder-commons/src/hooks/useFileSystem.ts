@@ -238,12 +238,17 @@ export function useFileSystem(projectId: string, projectPath?: string) {
   }, [files, projectPath]);
 
   const ensureMountedProjectRoot = useCallback(async (targetProjectId: string) => {
+    const requestProjectId = targetProjectId.trim();
+    if (!requestProjectId) {
+      return;
+    }
+
     const recoveryMountSource = resolveProjectMountRecoverySource(projectPath);
     if (!recoveryMountSource) {
       return;
     }
 
-    const mountedFiles = await fileSystemService.getFiles(targetProjectId);
+    const mountedFiles = await fileSystemService.getFiles(requestProjectId);
     if (mountedFiles.length > 0) {
       return;
     }
@@ -254,7 +259,7 @@ export function useFileSystem(projectId: string, projectPath?: string) {
     }
 
     const isTrackingCurrentProjectMountRecovery =
-      targetProjectId === normalizedProjectId && isProjectActive(targetProjectId);
+      requestProjectId === normalizedProjectId && isProjectActive(requestProjectId);
     const mountPromise = (async () => {
       try {
         if (isTrackingCurrentProjectMountRecovery) {
@@ -262,7 +267,7 @@ export function useFileSystem(projectId: string, projectPath?: string) {
             createRecoveringProjectMountRecoveryState(recoveryMountSource.path),
           );
         }
-        await fileSystemService.mountFolder(targetProjectId, recoveryMountSource);
+        await fileSystemService.mountFolder(requestProjectId, recoveryMountSource);
         if (isTrackingCurrentProjectMountRecovery) {
           setMountRecoveryState(
             createRecoveredProjectMountRecoveryState(recoveryMountSource.path),
@@ -310,31 +315,25 @@ export function useFileSystem(projectId: string, projectPath?: string) {
           selectionStorageKey,
           null,
         ).catch(() => null);
+        let data = await fileSystemService.getFiles(requestProjectId);
         if (recoveryMountSource) {
-          if (canCommitMountRecoveryState()) {
-            setMountRecoveryState(
-              createRecoveringProjectMountRecoveryState(recoveryMountSource.path),
-            );
-          }
-          try {
-            await fileSystemService.mountFolder(requestProjectId, recoveryMountSource);
+          if (data.length > 0) {
             if (canCommitMountRecoveryState()) {
               setMountRecoveryState(
                 createRecoveredProjectMountRecoveryState(recoveryMountSource.path),
               );
             }
-          } catch (error) {
-            if (canCommitMountRecoveryState()) {
-              setMountRecoveryState(
-                createFailedProjectMountRecoveryState(recoveryMountSource.path, error),
-              );
+          } else {
+            try {
+              await ensureMountedProjectRoot(requestProjectId);
+              data = await fileSystemService.getFiles(requestProjectId);
+            } catch (error) {
+              console.error('Failed to recover mounted project root', error);
             }
-            console.error('Failed to recover mounted project root', error);
           }
         } else if (canCommitMountRecoveryState()) {
           setMountRecoveryState(createIdleProjectMountRecoveryState());
         }
-        const data = await fileSystemService.getFiles(requestProjectId);
         if (isMounted && isLatestFileTreeRequest(requestProjectId, requestVersion)) {
           syncFilesAndSelection(data, persistedSelectedFilePath);
         }
@@ -358,6 +357,7 @@ export function useFileSystem(projectId: string, projectPath?: string) {
   }, [
     beginFileTreeRequestVersion,
     completeFileTreeRequestVersion,
+    ensureMountedProjectRoot,
     fileSystemService,
     isLatestFileTreeRequest,
     isProjectActive,
@@ -390,7 +390,7 @@ export function useFileSystem(projectId: string, projectPath?: string) {
     const requestProjectId = normalizedProjectId;
     const requestSelectedFile = selectedFile;
     const loadContent = async () => {
-      if (!requestSelectedFile) return;
+      if (!requestProjectId || !requestSelectedFile) return;
       if (!isProjectActive(requestProjectId)) {
         return;
       }
@@ -430,6 +430,10 @@ export function useFileSystem(projectId: string, projectPath?: string) {
 
   const saveFileContent = useCallback(async (path: string, content: string) => {
     const mutationProjectId = normalizedProjectId;
+    if (!mutationProjectId) {
+      return;
+    }
+
     try {
       await fileSystemService.saveFileContent(mutationProjectId, path, content);
       if (!isProjectActive(mutationProjectId)) {
@@ -451,6 +455,10 @@ export function useFileSystem(projectId: string, projectPath?: string) {
 
   const createFile = useCallback(async (path: string) => {
     const mutationProjectId = normalizedProjectId;
+    if (!mutationProjectId) {
+      return;
+    }
+
     const requestVersion = beginFileTreeRequestVersion();
     try {
       const normalizedPath = resolveMountedMutationPath(path, resolveProjectMountedRootPath());
@@ -489,6 +497,10 @@ export function useFileSystem(projectId: string, projectPath?: string) {
 
   const createFolder = useCallback(async (path: string) => {
     const mutationProjectId = normalizedProjectId;
+    if (!mutationProjectId) {
+      return;
+    }
+
     const requestVersion = beginFileTreeRequestVersion();
     try {
       const normalizedPath = resolveMountedMutationPath(path, resolveProjectMountedRootPath());
@@ -527,6 +539,10 @@ export function useFileSystem(projectId: string, projectPath?: string) {
 
   const deleteFile = useCallback(async (path: string) => {
     const mutationProjectId = normalizedProjectId;
+    if (!mutationProjectId) {
+      return;
+    }
+
     const requestVersion = beginFileTreeRequestVersion();
     try {
       await fileSystemService.deleteFile(mutationProjectId, path);
@@ -561,6 +577,10 @@ export function useFileSystem(projectId: string, projectPath?: string) {
 
   const deleteFolder = useCallback(async (path: string) => {
     const mutationProjectId = normalizedProjectId;
+    if (!mutationProjectId) {
+      return;
+    }
+
     const requestVersion = beginFileTreeRequestVersion();
     try {
       await fileSystemService.deleteFolder(mutationProjectId, path);
@@ -595,6 +615,10 @@ export function useFileSystem(projectId: string, projectPath?: string) {
 
   const renameNode = useCallback(async (oldPath: string, newPath: string) => {
     const mutationProjectId = normalizedProjectId;
+    if (!mutationProjectId) {
+      return;
+    }
+
     const requestVersion = beginFileTreeRequestVersion();
     try {
       await fileSystemService.renameNode(mutationProjectId, oldPath, newPath);
@@ -632,7 +656,7 @@ export function useFileSystem(projectId: string, projectPath?: string) {
     searchAbortControllerRef.current?.abort();
     searchAbortControllerRef.current = null;
 
-    if (!query.trim()) {
+    if (!normalizedProjectId || !query.trim()) {
       return {
         status: 'completed',
         limitReached: false,
@@ -682,22 +706,27 @@ export function useFileSystem(projectId: string, projectPath?: string) {
   ]);
 
   const mountFolder = useCallback(async (targetProjectId: string, folderInfo: LocalFolderMountSource) => {
+    const normalizedTargetProjectId = targetProjectId.trim();
+    if (!normalizedTargetProjectId) {
+      throw new Error('Project ID is required to mount a folder.');
+    }
+
     const requestVersion = beginFileTreeRequestVersion();
     const isTrackingCurrentProjectMountRecovery =
-      targetProjectId === normalizedProjectId && isProjectActive(targetProjectId);
+      normalizedTargetProjectId === normalizedProjectId && isProjectActive(normalizedTargetProjectId);
     try {
       if (
         isTrackingCurrentProjectMountRecovery &&
         folderInfo.type === 'tauri' &&
-        isLatestFileTreeRequest(targetProjectId, requestVersion)
+        isLatestFileTreeRequest(normalizedTargetProjectId, requestVersion)
       ) {
         setMountRecoveryState(createRecoveringProjectMountRecoveryState(folderInfo.path));
       }
-      await fileSystemService.mountFolder(targetProjectId, folderInfo);
-      if (targetProjectId !== normalizedProjectId || !isProjectActive(targetProjectId)) {
+      await fileSystemService.mountFolder(normalizedTargetProjectId, folderInfo);
+      if (normalizedTargetProjectId !== normalizedProjectId || !isProjectActive(normalizedTargetProjectId)) {
         return;
       }
-      if (!isLatestFileTreeRequest(targetProjectId, requestVersion)) {
+      if (!isLatestFileTreeRequest(normalizedTargetProjectId, requestVersion)) {
         return;
       }
       setMountRecoveryState(
@@ -705,8 +734,8 @@ export function useFileSystem(projectId: string, projectPath?: string) {
           ? createRecoveredProjectMountRecoveryState(folderInfo.path)
           : createIdleProjectMountRecoveryState(),
       );
-      const data = await fileSystemService.getFiles(targetProjectId);
-      if (!isLatestFileTreeRequest(targetProjectId, requestVersion)) {
+      const data = await fileSystemService.getFiles(normalizedTargetProjectId);
+      if (!isLatestFileTreeRequest(normalizedTargetProjectId, requestVersion)) {
         return;
       }
 
@@ -723,14 +752,14 @@ export function useFileSystem(projectId: string, projectPath?: string) {
       if (
         isTrackingCurrentProjectMountRecovery &&
         folderInfo.type === 'tauri' &&
-        isLatestFileTreeRequest(targetProjectId, requestVersion)
+        isLatestFileTreeRequest(normalizedTargetProjectId, requestVersion)
       ) {
         setMountRecoveryState(createFailedProjectMountRecoveryState(folderInfo.path, error));
       }
       console.error("Failed to mount folder", error);
       throw error;
     } finally {
-      completeFileTreeRequestVersion(targetProjectId);
+      completeFileTreeRequestVersion(normalizedTargetProjectId);
     }
   }, [
     beginFileTreeRequestVersion,
@@ -744,6 +773,10 @@ export function useFileSystem(projectId: string, projectPath?: string) {
 
   const refreshFiles = useCallback(async () => {
     const requestProjectId = normalizedProjectId;
+    if (!requestProjectId) {
+      return;
+    }
+
     if (!isProjectActive(requestProjectId)) {
       return;
     }

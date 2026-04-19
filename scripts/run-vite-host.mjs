@@ -67,6 +67,27 @@ export function stripModeArg(argv) {
   };
 }
 
+export function stripCwdArg(argv) {
+  const args = [];
+  let explicitCwd = '';
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (token === '--cwd') {
+      explicitCwd = readOptionValue(argv, index, '--cwd');
+      index += 1;
+      continue;
+    }
+
+    args.push(token);
+  }
+
+  return {
+    args,
+    explicitCwd,
+  };
+}
+
 export function resolveWorkspaceRootDir() {
   return path.resolve(__dirname, '..');
 }
@@ -279,18 +300,22 @@ export function createViteHostPlan({
   cwd = process.cwd(),
 } = {}) {
   const inputArgs = Array.isArray(argv) ? [...argv] : [];
+  const workspaceRootDir = resolveWorkspaceRootDir();
+  const { args: argsWithoutCwd, explicitCwd } = stripCwdArg(inputArgs);
+  const resolvedCwd = explicitCwd
+    ? path.resolve(workspaceRootDir, explicitCwd)
+    : cwd;
   const command =
-    inputArgs.length === 0 || String(inputArgs[0]).startsWith('-')
+    argsWithoutCwd.length === 0 || String(argsWithoutCwd[0]).startsWith('-')
       ? 'serve'
-      : String(inputArgs.shift());
-  const { args: restArgs, explicitMode } = stripModeArg(inputArgs);
+      : String(argsWithoutCwd.shift());
+  const { args: restArgs, explicitMode } = stripModeArg(argsWithoutCwd);
   const mode = normalizeViteMode(
     explicitMode || env.SDKWORK_VITE_MODE,
     resolveDefaultMode(command),
   );
-  const workspaceRootDir = resolveWorkspaceRootDir();
   const viteCliPath = resolveViteCliEntry({
-    cwd,
+    cwd: resolvedCwd,
     workspaceRootDir,
   });
   const childEnv = buildViteHostChildEnv({
@@ -309,7 +334,7 @@ export function createViteHostPlan({
   return {
     command: process.execPath,
     args: [...patchArgs, viteCliPath, command, '--mode', mode, ...configLoaderArgs, ...restArgs],
-    cwd,
+    cwd: resolvedCwd,
     viteCommand: command,
     env: {
       ...childEnv,

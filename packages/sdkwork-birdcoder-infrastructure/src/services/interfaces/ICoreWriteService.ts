@@ -1,16 +1,23 @@
 import type {
   BirdCoderApprovalDecisionResult,
+  BirdCoderDeleteCodingSessionResult,
   BirdCoderCodingSessionSummary,
   BirdCoderCodingSessionTurn,
   BirdCoderCreateCodingSessionRequest,
   BirdCoderCreateCodingSessionTurnRequest,
   BirdCoderSubmitApprovalDecisionRequest,
+  BirdCoderUpdateCodingSessionRequest,
 } from '@sdkwork/birdcoder-types';
 
 export interface ICoreWriteService {
   createCodingSession(
     request: BirdCoderCreateCodingSessionRequest,
   ): Promise<BirdCoderCodingSessionSummary>;
+  updateCodingSession(
+    codingSessionId: string,
+    request: BirdCoderUpdateCodingSessionRequest,
+  ): Promise<BirdCoderCodingSessionSummary>;
+  deleteCodingSession(codingSessionId: string): Promise<BirdCoderDeleteCodingSessionResult>;
   createCodingSessionTurn(
     codingSessionId: string,
     request: BirdCoderCreateCodingSessionTurnRequest,

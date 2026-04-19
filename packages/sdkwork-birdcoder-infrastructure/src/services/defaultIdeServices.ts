@@ -20,10 +20,12 @@ import {
   createBirdCoderHttpApiTransport,
   createBirdCoderInProcessAppAdminApiTransport,
 } from './appAdminApiClient.ts';
+import { createBirdCoderInProcessCoreApiTransport } from './coreApiClient.ts';
 import { resolveRuntimeServerSessionHeaders } from './runtimeServerSession.ts';
 import { ApiBackedAdminDeploymentService } from './impl/ApiBackedAdminDeploymentService.ts';
 import { ApiBackedAdminPolicyService } from './impl/ApiBackedAdminPolicyService.ts';
 import { ApiBackedAuditService } from './impl/ApiBackedAuditService.ts';
+import { ApiBackedCatalogService } from './impl/ApiBackedCatalogService.ts';
 import { ApiBackedCollaborationService } from './impl/ApiBackedCollaborationService.ts';
 import { ApiBackedCoreReadService } from './impl/ApiBackedCoreReadService.ts';
 import { ApiBackedCoreWriteService } from './impl/ApiBackedCoreWriteService.ts';
@@ -41,6 +43,7 @@ import type { IAuthService } from './interfaces/IAuthService.ts';
 import type { IAdminDeploymentService } from './interfaces/IAdminDeploymentService.ts';
 import type { IAdminPolicyService } from './interfaces/IAdminPolicyService.ts';
 import type { IAuditService } from './interfaces/IAuditService.ts';
+import type { ICatalogService } from './interfaces/ICatalogService.ts';
 import type { ICollaborationService } from './interfaces/ICollaborationService.ts';
 import type { ICoreReadService } from './interfaces/ICoreReadService.ts';
 import type { ICoreWriteService } from './interfaces/ICoreWriteService.ts';
@@ -58,6 +61,7 @@ export interface BirdCoderDefaultIdeServices {
   adminPolicyService: IAdminPolicyService;
   authService: IAuthService;
   auditService: IAuditService;
+  catalogService: ICatalogService;
   collaborationService: ICollaborationService;
   coreReadService: ICoreReadService;
   coreWriteService: ICoreWriteService;
@@ -77,6 +81,44 @@ export interface CreateBirdCoderDefaultIdeServicesOptions {
   storageProvider?: BirdCoderTransactionalStorageProvider;
 }
 
+const DEFAULT_RUNTIME_HTTP_API_TIMEOUT_MS = 20_000;
+const DEFAULT_RUNTIME_USER_CENTER_TIMEOUT_MS = 20_000;
+
+function isBrowserRuntime(): boolean {
+  return typeof window !== 'undefined' && typeof document !== 'undefined';
+}
+
+function hasExplicitRuntimeApiClients(
+  runtimeConfig: ReturnType<typeof getDefaultBirdCoderIdeServicesRuntimeConfig>,
+  options: CreateBirdCoderDefaultIdeServicesOptions,
+): boolean {
+  return Boolean(
+    options.appAdminClient ||
+      options.coreReadClient ||
+      options.coreWriteClient ||
+      runtimeConfig.appAdminClient ||
+      runtimeConfig.coreReadClient ||
+      runtimeConfig.coreWriteClient,
+  );
+}
+
+function assertBrowserRuntimeApiConfigured(
+  runtimeConfig: ReturnType<typeof getDefaultBirdCoderIdeServicesRuntimeConfig>,
+  options: CreateBirdCoderDefaultIdeServicesOptions,
+): void {
+  if (!isBrowserRuntime()) {
+    return;
+  }
+
+  if (runtimeConfig.apiBaseUrl || hasExplicitRuntimeApiClients(runtimeConfig, options)) {
+    return;
+  }
+
+  throw new Error(
+    'BirdCoder browser runtime requires a real server API base URL or explicit generated API clients. In-process fallback is disabled for product runtime.',
+  );
+}
+
 function resolveRuntimeAppAdminClient(): BirdCoderAppAdminApiClient | undefined {
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
   if (runtimeConfig.appAdminClient) {
@@ -88,6 +130,7 @@ function resolveRuntimeAppAdminClient(): BirdCoderAppAdminApiClient | undefined 
       transport: createBirdCoderHttpApiTransport({
         baseUrl: runtimeConfig.apiBaseUrl,
         resolveHeaders: resolveRuntimeServerSessionHeaders,
+        timeoutMs: DEFAULT_RUNTIME_HTTP_API_TIMEOUT_MS,
       }),
     });
   }
@@ -106,6 +149,7 @@ function resolveRuntimeCoreReadClient(): BirdCoderCoreReadApiClient | undefined 
       transport: createBirdCoderHttpApiTransport({
         baseUrl: runtimeConfig.apiBaseUrl,
         resolveHeaders: resolveRuntimeServerSessionHeaders,
+        timeoutMs: DEFAULT_RUNTIME_HTTP_API_TIMEOUT_MS,
       }),
     });
   }
@@ -124,6 +168,7 @@ function resolveRuntimeCoreWriteClient(): BirdCoderCoreWriteApiClient | undefine
       transport: createBirdCoderHttpApiTransport({
         baseUrl: runtimeConfig.apiBaseUrl,
         resolveHeaders: resolveRuntimeServerSessionHeaders,
+        timeoutMs: DEFAULT_RUNTIME_HTTP_API_TIMEOUT_MS,
       }),
     });
   }
@@ -141,7 +186,20 @@ function resolveRuntimeUserCenterClient(): BirdCoderUserCenterApiClient | undefi
     transport: createBirdCoderHttpApiTransport({
       baseUrl: runtimeConfig.apiBaseUrl,
       resolveHeaders: resolveRuntimeServerSessionHeaders,
+      timeoutMs: DEFAULT_RUNTIME_USER_CENTER_TIMEOUT_MS,
     }),
+  });
+}
+
+function createUnavailableBirdCoderAppAdminClient(): BirdCoderAppAdminApiClient {
+  return createBirdCoderGeneratedAppAdminApiClient({
+    transport: {
+      async request(request) {
+        throw new Error(
+          `BirdCoder app/admin runtime client is unavailable. Configure a real server API base URL or explicit generated app/admin client before using ${request.method} ${request.path}.`,
+        );
+      },
+    },
   });
 }
 
@@ -155,121 +213,11 @@ export function createInProcessBirdCoderAppAdminClient(
   });
 }
 
-function createUnavailableBirdCoderAppAdminClient(): BirdCoderAppAdminApiClient {
-  const createUnavailableError = () =>
-    new Error('App/admin service requires a bound coding-server runtime or an injected appAdminClient.');
-
-  return {
-    async listAdminDeployments() {
-      throw createUnavailableError();
-    },
-    async listAdminTeams() {
-      throw createUnavailableError();
-    },
-    async listAuditEvents() {
-      throw createUnavailableError();
-    },
-    async listDeploymentTargets() {
-      throw createUnavailableError();
-    },
-    async listDeployments() {
-      throw createUnavailableError();
-    },
-    async listDocuments() {
-      throw createUnavailableError();
-    },
-    async listPolicies() {
-      throw createUnavailableError();
-    },
-    async listProjects() {
-      throw createUnavailableError();
-    },
-    async listReleases() {
-      throw createUnavailableError();
-    },
-    async listTeamMembers() {
-      throw createUnavailableError();
-    },
-    async listTeams() {
-      throw createUnavailableError();
-    },
-    async listWorkspaces() {
-      throw createUnavailableError();
-    },
-  };
-}
-
-function createUnavailableBirdCoderCoreReadClient(): BirdCoderCoreReadApiClient {
-  const createUnavailableError = () =>
-    new Error('Core read service requires a bound coding-server runtime or an injected coreReadClient.');
-
-  return {
-    async getCodingSession() {
-      throw createUnavailableError();
-    },
-    async getDescriptor() {
-      throw createUnavailableError();
-    },
-    async getEngineCapabilities() {
-      throw createUnavailableError();
-    },
-    async getHealth() {
-      throw createUnavailableError();
-    },
-    async getNativeSession() {
-      throw createUnavailableError();
-    },
-    async getOperation() {
-      throw createUnavailableError();
-    },
-    async getRuntime() {
-      throw createUnavailableError();
-    },
-    async listCodingSessionArtifacts() {
-      throw createUnavailableError();
-    },
-    async listCodingSessionCheckpoints() {
-      throw createUnavailableError();
-    },
-    async listCodingSessionEvents() {
-      throw createUnavailableError();
-    },
-    async listEngines() {
-      throw createUnavailableError();
-    },
-    async listModels() {
-      throw createUnavailableError();
-    },
-    async listNativeSessions() {
-      throw createUnavailableError();
-    },
-    async listRoutes() {
-      throw createUnavailableError();
-    },
-  };
-}
-
-function createUnavailableBirdCoderCoreWriteClient(): BirdCoderCoreWriteApiClient {
-  const createUnavailableError = () =>
-    new Error('Core write service requires a bound coding-server runtime or an injected coreWriteClient.');
-
-  return {
-    async createCodingSession() {
-      throw createUnavailableError();
-    },
-    async createCodingSessionTurn() {
-      throw createUnavailableError();
-    },
-    async submitApprovalDecision() {
-      throw createUnavailableError();
-    },
-  };
-}
-
 export function createDefaultBirdCoderIdeServices(
   options: CreateBirdCoderDefaultIdeServicesOptions = {},
 ): BirdCoderDefaultIdeServices {
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
+  assertBrowserRuntimeApiConfigured(runtimeConfig, options);
   const provider = options.storageProvider ?? createBirdCoderStorageProvider('sqlite');
   const repositories = createBirdCoderConsoleRepositories({
     providerId: provider.providerId,
@@ -284,19 +232,13 @@ export function createDefaultBirdCoderIdeServices(
       providerId: provider.providerId,
       storage: provider,
     });
+  const hasBoundAppAdminClient = Boolean(
+    options.appAdminClient || runtimeConfig.appAdminClient || runtimeConfig.apiBaseUrl,
+  );
   const appAdminClient =
     options.appAdminClient ??
     resolveRuntimeAppAdminClient() ??
     createUnavailableBirdCoderAppAdminClient();
-  const projectServiceCoreReadClient = options.coreReadClient ?? resolveRuntimeCoreReadClient();
-  const coreReadClient =
-    projectServiceCoreReadClient ?? createUnavailableBirdCoderCoreReadClient();
-  const coreWriteClient = options.coreWriteClient ?? resolveRuntimeCoreWriteClient();
-  const exposedCoreWriteClient = coreWriteClient ?? createUnavailableBirdCoderCoreWriteClient();
-  const preferRemoteAuthorityWrites =
-    options.appAdminClient === undefined &&
-    typeof runtimeConfig.apiBaseUrl === 'string' &&
-    runtimeConfig.apiBaseUrl.trim().length > 0;
   const providerBackedWorkspaceService = new ProviderBackedWorkspaceService({
     repository: repositories.workspaces,
   });
@@ -305,9 +247,46 @@ export function createDefaultBirdCoderIdeServices(
     evidenceRepositories: promptSkillTemplateEvidenceRepositories,
     repository: repositories.projects,
   });
+  const resolvedCoreReadClient = options.coreReadClient ?? resolveRuntimeCoreReadClient();
+  const resolvedCoreWriteClient = options.coreWriteClient ?? resolveRuntimeCoreWriteClient();
+  const inProcessCoreTransport =
+    resolvedCoreReadClient && resolvedCoreWriteClient
+      ? undefined
+      : createBirdCoderInProcessCoreApiTransport({
+          projectService: providerBackedProjectService,
+        });
+  const coreReadClient =
+    resolvedCoreReadClient ??
+    createBirdCoderGeneratedCoreReadApiClient({
+      transport: inProcessCoreTransport!,
+    });
+  const coreWriteClient =
+    resolvedCoreWriteClient ??
+    createBirdCoderGeneratedCoreWriteApiClient({
+      transport: inProcessCoreTransport!,
+    });
   const authService = new RuntimeAuthService({
     client: resolveRuntimeUserCenterClient(),
   });
+  const workspaceService = hasBoundAppAdminClient
+    ? new ApiBackedWorkspaceService({
+        client: appAdminClient,
+        identityProvider: authService,
+        workspaceMirror: providerBackedWorkspaceService,
+        writeService: providerBackedWorkspaceService,
+      })
+    : providerBackedWorkspaceService;
+  const projectService = hasBoundAppAdminClient
+    ? new ApiBackedProjectService({
+        client: appAdminClient,
+        codingSessionMirror: providerBackedProjectService,
+        coreReadClient,
+        coreWriteClient,
+        identityProvider: authService,
+        projectMirror: providerBackedProjectService,
+        writeService: providerBackedProjectService,
+      })
+    : providerBackedProjectService;
 
   return {
     adminDeploymentService: new ApiBackedAdminDeploymentService({
@@ -320,15 +299,19 @@ export function createDefaultBirdCoderIdeServices(
     auditService: new ApiBackedAuditService({
       client: appAdminClient,
     }),
+    catalogService: new ApiBackedCatalogService({
+      client: appAdminClient,
+    }),
     collaborationService: new ApiBackedCollaborationService({
       client: appAdminClient,
       identityProvider: authService,
     }),
     coreReadService: new ApiBackedCoreReadService({
       client: coreReadClient,
+      identityProvider: authService,
     }),
     coreWriteService: new ApiBackedCoreWriteService({
-      client: exposedCoreWriteClient,
+      client: coreWriteClient,
     }),
     deploymentService: new ApiBackedDeploymentService({
       client: appAdminClient,
@@ -337,16 +320,7 @@ export function createDefaultBirdCoderIdeServices(
       client: appAdminClient,
     }),
     fileSystemService: new RuntimeFileSystemService(),
-    projectService: new ApiBackedProjectService({
-      client: appAdminClient,
-      codingSessionMirror: providerBackedProjectService,
-      coreReadClient: projectServiceCoreReadClient,
-      coreWriteClient,
-      identityProvider: authService,
-      preferRemoteWrites: preferRemoteAuthorityWrites,
-      projectMirror: providerBackedProjectService,
-      writeService: providerBackedProjectService,
-    }),
+    projectService,
     releaseService: new ApiBackedReleaseService({
       client: appAdminClient,
     }),
@@ -354,12 +328,6 @@ export function createDefaultBirdCoderIdeServices(
       client: appAdminClient,
       identityProvider: authService,
     }),
-    workspaceService: new ApiBackedWorkspaceService({
-      client: appAdminClient,
-      identityProvider: authService,
-      preferRemoteWrites: preferRemoteAuthorityWrites,
-      workspaceMirror: providerBackedWorkspaceService,
-      writeService: providerBackedWorkspaceService,
-    }),
+    workspaceService,
   };
 }

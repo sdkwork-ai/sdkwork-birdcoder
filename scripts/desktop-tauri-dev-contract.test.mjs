@@ -442,7 +442,7 @@ assert.doesNotMatch(
 
 assert.match(
   desktopViteConfigSource,
-  /dedupe\s*:\s*\[\.\.\.desktopDedupePackages\]/,
+  /dedupe\s*:\s*\[\.\.\.(?:desktopDedupePackages|BIRDCODER_VITE_DEDUPE_PACKAGES)\]/,
   'Desktop Vite config must dedupe shared runtime packages so root-managed dependencies resolve consistently.',
 );
 
@@ -571,19 +571,41 @@ for (const command of [
   'local_store_set',
   'local_store_delete',
   'local_store_list',
+  'terminal_cli_profile_detect',
+  'desktop_session_index',
+  'desktop_session_replay_slice',
+  'desktop_session_attach',
+  'desktop_session_detach',
+  'desktop_session_reattach',
+  'desktop_terminal_session_inventory_list',
+  'desktop_local_shell_exec',
+  'desktop_local_shell_session_create',
+  'desktop_local_process_session_create',
+  'desktop_session_input',
+  'desktop_session_input_bytes',
+  'desktop_session_attachment_acknowledge',
+  'desktop_session_resize',
+  'desktop_session_terminate',
+]) {
+  assert.match(
+    desktopAppPermissionsSource,
+    new RegExp(`"${command}"`),
+    `Desktop application permission manifest must allow the ${command} Rust command.`,
+  );
+}
+for (const forbiddenLegacyCommand of [
   'terminal_session_upsert',
   'terminal_session_delete',
   'terminal_session_list',
   'terminal_host_session_open',
   'terminal_host_session_execute',
   'terminal_host_session_close',
-  'terminal_cli_profile_detect',
   'execute_terminal_command',
 ]) {
-  assert.match(
+  assert.doesNotMatch(
     desktopAppPermissionsSource,
-    new RegExp(`"${command}"`),
-    `Desktop application permission manifest must allow the ${command} Rust command.`,
+    new RegExp(`"${forbiddenLegacyCommand}"`),
+    `Desktop application permission manifest must remove deprecated terminal command ${forbiddenLegacyCommand}.`,
   );
 }
 assert.match(
@@ -593,20 +615,156 @@ assert.match(
 );
 assert.match(
   appSource,
-  /onMouseDown=\{handleTitleBarMouseDown\}/,
-  'The custom application header must wire the desktop drag handler at the title-bar container level.',
+  /onPointerDown=\{handleTitleBarPointerDown\}/,
+  'The custom application header must wire the pointer-based desktop drag handler at the title-bar container level.',
 );
-const titleBarMouseDownHandlerMatch = appSource.match(
-  /const handleTitleBarMouseDown = async \(event: React\.MouseEvent<HTMLDivElement>\) => \{([\s\S]*?)\n  \};/u,
+assert.match(
+  appSource,
+  /const \[isDesktopWindowMaximized, setIsDesktopWindowMaximized\] = useState\(false\);/,
+  'Desktop app source must track the native maximized state so the custom header can react immediately to maximize and restore transitions.',
+);
+assert.match(
+  appSource,
+  /const \[isDesktopWindowMinimized, setIsDesktopWindowMinimized\] = useState\(false\);/,
+  'Desktop app source must track the native minimized state so the custom shell can resynchronize window state after minimize and restore transitions.',
+);
+assert.match(
+  appSource,
+  /\.onResized\(/,
+  'Desktop app source must subscribe to native window resize events so maximize and restore transitions update React state without waiting for unrelated renders.',
+);
+assert.match(
+  appSource,
+  /\.isMaximized\(\)/,
+  'Desktop app source must read the native maximized state from Tauri instead of inferring it from delayed browser layout behavior.',
+);
+assert.match(
+  appSource,
+  /\.isMinimized\(\)/,
+  'Desktop app source must read the native minimized state from Tauri instead of inferring it from delayed browser layout behavior.',
+);
+assert.match(
+  appSource,
+  /title=\{isDesktopWindowMaximized \? t\('common\.restore'\) : t\('app\.menu\.maximize'\)\}/,
+  'The custom maximize button must switch to restore semantics immediately when the native window is maximized.',
+);
+assert.match(
+  appSource,
+  /onContextMenu=\{handleTitleBarContextMenu\}/,
+  'The custom application header must wire the title-bar context-menu suppression handler so long-press dragging does not compete with desktop context menus.',
+);
+assert.match(
+  appSource,
+  /onDragStart=\{handleTitleBarDragStart\}/,
+  'The custom application header must suppress native dragstart on the custom title bar so the long-press window drag interaction stays authoritative.',
+);
+assert.match(
+  appSource,
+  /onDoubleClick=\{handleTitleBarDoubleClick\}/,
+  'The custom application header must keep a dedicated double-click handler so desktop maximize behavior stays attached to the custom title bar.',
+);
+assert.match(
+  appSource,
+  /touch-none/,
+  'The custom application header must disable browser touch actions at the title-bar root so long-press dragging is not pre-empted by default pointer gestures.',
+);
+assert.match(
+  appSource,
+  /const titleBarDragEnabled = isDesktopWindowAvailable && !isDocumentFullscreen;/,
+  'The custom application header must only expose drag affordances when the desktop shell is active and the document is not fullscreen.',
 );
 assert.ok(
-  titleBarMouseDownHandlerMatch,
-  'Desktop app source must define a handleTitleBarMouseDown handler for the custom title bar.',
+  (appSource.match(/data-no-drag="true"/g) ?? []).length >= 3,
+  'The custom application header must mark interactive title-bar regions as data-no-drag so menus and window controls do not accidentally start a pending window drag.',
+);
+const titleBarPointerDownHandlerMatch = appSource.match(
+  /const handleTitleBarPointerDown = \(event: React\.PointerEvent<HTMLDivElement>\) => \{([\s\S]*?)\n  \};/u,
+);
+assert.ok(
+  titleBarPointerDownHandlerMatch,
+  'Desktop app source must define a handleTitleBarPointerDown handler for the custom title bar.',
 );
 assert.doesNotMatch(
-  titleBarMouseDownHandlerMatch[1],
+  titleBarPointerDownHandlerMatch[1],
   /window\.__TAURI__/,
-  'The custom title-bar drag handler must not depend on window.__TAURI__ because that global is not a reliable desktop runtime detector in the Tauri shell.',
+  'The custom title-bar pointer drag handler must not depend on window.__TAURI__ because that global is not a reliable desktop runtime detector in the Tauri shell.',
+);
+assert.match(
+  titleBarPointerDownHandlerMatch[1],
+  /titleBarWindowDragControllerRef\.current\?\.handlePointerDown/,
+  'The custom title-bar pointer handler must delegate long-press behavior through the shared drag controller instead of inlining ad-hoc timer logic.',
+);
+assert.match(
+  titleBarPointerDownHandlerMatch[1],
+  /event\.preventDefault\(\)/,
+  'The custom title-bar pointer handler must prevent the default browser action when it arms a pending long-press window drag.',
+);
+
+const titleBarControllerFactoryMatch = appSource.match(
+  /createAppHeaderWindowDragController\(\{\s*[\s\S]*?canStartDragging: \(\) =>\s*([\s\S]*?),\s*startDragging:/u,
+);
+assert.ok(
+  titleBarControllerFactoryMatch,
+  'Desktop app source must configure the shared app-header drag controller with an explicit canStartDragging guard.',
+);
+assert.match(
+  titleBarControllerFactoryMatch[1],
+  /isDesktopWindowAvailableRef\.current && !isDocumentFullscreenRef\.current/,
+  'The shared app-header drag controller must only arm window dragging when the desktop runtime is available and the document is not fullscreen.',
+);
+
+const titleBarContextMenuHandlerMatch = appSource.match(
+  /const handleTitleBarContextMenu = \(event: React\.MouseEvent<HTMLDivElement>\) => \{([\s\S]*?)\n  \};/u,
+);
+assert.ok(
+  titleBarContextMenuHandlerMatch,
+  'Desktop app source must define a dedicated title-bar context-menu handler for the custom header.',
+);
+assert.match(
+  titleBarContextMenuHandlerMatch[1],
+  /!titleBarDragEnabled \|\| isAppHeaderNoDragTarget\(event\.target\)/,
+  'The custom title-bar context-menu handler must skip suppression when dragging is disabled or the pointer is inside a data-no-drag region.',
+);
+assert.match(
+  titleBarContextMenuHandlerMatch[1],
+  /event\.preventDefault\(\)/,
+  'The custom title-bar context-menu handler must suppress the native menu on draggable title-bar space so long-press dragging remains predictable.',
+);
+
+const titleBarDragStartHandlerMatch = appSource.match(
+  /const handleTitleBarDragStart = \(event: React\.DragEvent<HTMLDivElement>\) => \{([\s\S]*?)\n  \};/u,
+);
+assert.ok(
+  titleBarDragStartHandlerMatch,
+  'Desktop app source must define a dragstart suppression handler for the custom title bar.',
+);
+assert.match(
+  titleBarDragStartHandlerMatch[1],
+  /!titleBarDragEnabled \|\| isAppHeaderNoDragTarget\(event\.target\)/,
+  'The custom title-bar dragstart handler must only suppress native dragging on active draggable title-bar regions.',
+);
+assert.match(
+  titleBarDragStartHandlerMatch[1],
+  /event\.preventDefault\(\)/,
+  'The custom title-bar dragstart handler must prevent native browser dragging so the Tauri window drag interaction remains authoritative.',
+);
+
+const titleBarDoubleClickHandlerMatch = appSource.match(
+  /const handleTitleBarDoubleClick = async \(event: React\.MouseEvent<HTMLDivElement>\) => \{([\s\S]*?)\n  \};/u,
+);
+assert.ok(
+  titleBarDoubleClickHandlerMatch,
+  'Desktop app source must define a title-bar double-click handler for maximize toggling.',
+);
+assert.match(
+  titleBarDoubleClickHandlerMatch[1],
+  /isDocumentFullscreenRef\.current/,
+  'The custom title-bar double-click handler must not toggle desktop maximize while the document is fullscreen.',
+);
+assert.match(
+  titleBarDoubleClickHandlerMatch[1],
+  /isAppHeaderNoDragTarget\(event\.target\)/,
+  'The custom title-bar double-click handler must ignore no-drag regions so menus and controls do not trigger maximize toggling.',
 );
 
 const windowControlsHandlerBlockMatch = appSource.match(

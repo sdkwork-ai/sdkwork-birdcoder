@@ -17,6 +17,7 @@ export default defineLocaleModule('chat', {
     listening: 'Listening...',
     messageQueued: 'Added message to queue',
     messageCopied: 'Message copied to clipboard',
+    codeEngine: 'Code Engine',
     placeholderDisabled: 'Please select a project first...',
     placeholderEnabled: 'Ask anything or request changes...',
     addAttachment: 'Add attachment',
@@ -33,5 +34,7 @@ export default defineLocaleModule('chat', {
     noPromptHistory: 'No prompt history yet.',
     noSavedPrompts: 'No saved prompts yet.',
     autoSendPrompt: 'Auto-send when selecting a prompt',
+    engineUnavailableModels:
+      '{{engine}} is not routed through the Rust server yet. Model selection stays read-only until the adapter is implemented.',
   },
 });

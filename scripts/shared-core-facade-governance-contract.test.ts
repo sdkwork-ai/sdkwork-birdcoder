@@ -29,12 +29,18 @@ const includedOperationIds = [
   'core.getHealth',
   'core.listRoutes',
   'core.listEngines',
+  'core.listNativeSessionProviders',
+  'core.listCodingSessions',
   'core.listNativeSessions',
   'core.getNativeSession',
   'core.getEngineCapabilities',
   'core.listModels',
   'core.getOperation',
   'core.createCodingSession',
+  'core.forkCodingSession',
+  'core.updateCodingSession',
+  'core.deleteCodingSession',
+  'core.deleteCodingSessionMessage',
   'core.createCodingSessionTurn',
   'core.submitApprovalDecision',
   'core.getCodingSession',
@@ -104,6 +110,8 @@ assert.equal(typeof client.getRuntime, 'function');
 assert.equal(typeof client.getHealth, 'function');
 assert.equal(typeof client.listRoutes, 'function');
 assert.equal(typeof client.listEngines, 'function');
+assert.equal(typeof client.listNativeSessionProviders, 'function');
+assert.equal(typeof client.listCodingSessions, 'function');
 assert.equal(typeof client.listNativeSessions, 'function');
 assert.equal(typeof client.getNativeSession, 'function');
 assert.equal(typeof client.getOperation, 'function');
@@ -112,6 +120,10 @@ assert.equal(typeof client.listCodingSessionEvents, 'function');
 assert.equal(typeof client.listCodingSessionArtifacts, 'function');
 assert.equal(typeof client.listCodingSessionCheckpoints, 'function');
 assert.equal(typeof writeClient.createCodingSession, 'function');
+assert.equal(typeof writeClient.forkCodingSession, 'function');
+assert.equal(typeof writeClient.updateCodingSession, 'function');
+assert.equal(typeof writeClient.deleteCodingSession, 'function');
+assert.equal(typeof writeClient.deleteCodingSessionMessage, 'function');
 assert.equal(typeof writeClient.createCodingSessionTurn, 'function');
 assert.equal(typeof writeClient.submitApprovalDecision, 'function');
 assert.equal(
@@ -138,6 +150,26 @@ assert.equal(
   'submitApprovalDecision' in client,
   false,
   'shared core read facade must stay read-only after submitApprovalDecision is promoted into the typed shared core write facade.',
+);
+assert.equal(
+  'forkCodingSession' in client,
+  false,
+  'shared core read facade must stay read-only after forkCodingSession is promoted into the typed shared core write facade.',
+);
+assert.equal(
+  'updateCodingSession' in client,
+  false,
+  'shared core read facade must stay read-only after updateCodingSession is promoted into the typed shared core write facade.',
+);
+assert.equal(
+  'deleteCodingSession' in client,
+  false,
+  'shared core read facade must stay read-only after deleteCodingSession is promoted into the typed shared core write facade.',
+);
+assert.equal(
+  'deleteCodingSessionMessage' in client,
+  false,
+  'shared core read facade must stay read-only after deleteCodingSessionMessage is promoted into the typed shared core write facade.',
 );
 assert.equal(
   'listRoutes' in client,

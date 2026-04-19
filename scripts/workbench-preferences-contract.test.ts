@@ -2,15 +2,16 @@ import assert from 'node:assert/strict';
 
 import {
   DEFAULT_WORKBENCH_PREFERENCES,
-  WORKBENCH_CODE_ENGINES,
-  getWorkbenchCodeEngineDefinition,
-  getTerminalShellSettingValue,
-  normalizeWorkbenchCodeEngineId,
-  normalizeWorkbenchCodeModelId,
   normalizeWorkbenchPreferences,
   normalizeWorkbenchTerminalProfileId,
-  resolveWorkbenchChatSelection,
 } from '../packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts';
+import {
+  WORKBENCH_CODE_ENGINES,
+  getWorkbenchCodeEngineDefinition,
+  normalizeWorkbenchCodeEngineId,
+  normalizeWorkbenchCodeModelId,
+  resolveWorkbenchChatSelection,
+} from '../packages/sdkwork-birdcoder-codeengine/src/preferences.ts';
 
 assert.deepEqual(
   WORKBENCH_CODE_ENGINES.map((engine) => engine.id),
@@ -29,7 +30,8 @@ assert.equal(normalizeWorkbenchCodeEngineId('open-code'), 'opencode');
 assert.equal(normalizeWorkbenchCodeEngineId('gpt-4o'), 'codex');
 assert.equal(normalizeWorkbenchTerminalProfileId('PowerShell'), 'powershell');
 assert.equal(normalizeWorkbenchTerminalProfileId('Command Prompt'), 'cmd');
-assert.equal(getTerminalShellSettingValue('bash'), 'Git Bash');
+assert.equal(normalizeWorkbenchTerminalProfileId('Git Bash'), 'bash');
+assert.equal(normalizeWorkbenchTerminalProfileId('Codex'), 'codex');
 
 assert.deepEqual(
   normalizeWorkbenchPreferences({

@@ -3,11 +3,30 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 import { createDesktopConfiguredViteServer } from './desktop-standard-vite-server.mjs';
+import { fetchDesktopCompatibilityProbe } from './run-desktop-vite-host.mjs';
 
 const rootDir = process.cwd();
 const desktopRootDir = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop');
+const appEntryPath = path.join(rootDir, 'src', 'App.tsx');
 const desktopRequire = createRequire(path.join(desktopRootDir, 'package.json'));
 const rootRequire = createRequire(path.join(rootDir, 'package.json'));
+const shellBootstrapEntryPath = path.join(
+  rootDir,
+  'packages',
+  'sdkwork-birdcoder-shell',
+  'src',
+  'application',
+  'bootstrap',
+  'bootstrapShellRuntime.ts',
+);
+const terminalPageEntryPath = path.join(
+  rootDir,
+  'packages',
+  'sdkwork-birdcoder-terminal',
+  'src',
+  'pages',
+  'TerminalPage.tsx',
+);
 const uiRequire = createRequire(path.join(rootDir, 'packages', 'sdkwork-birdcoder-ui', 'package.json'));
 
 function toFsUrl(filePath) {
@@ -20,6 +39,13 @@ async function createDesktopServer() {
     port: 1532,
     strictPort: true,
     mode: 'development',
+  });
+}
+
+async function readProbe(url) {
+  return fetchDesktopCompatibilityProbe(url, {
+    maxAttempts: 3,
+    timeoutMs: 10000,
   });
 }
 
@@ -70,8 +96,7 @@ const server = await createDesktopServer();
 try {
   await server.listen();
 
-  const mainResponse = await fetch('http://127.0.0.1:1532/src/main.tsx');
-  const mainSource = await mainResponse.text();
+  const { response: mainResponse, source: mainSource } = await readProbe('http://127.0.0.1:1532/src/main.tsx');
 
   assert.equal(
     mainResponse.status,
@@ -84,8 +109,50 @@ try {
     'Desktop main.tsx transform must not rely on an esbuild child-process path that fails with spawn EPERM in this Windows environment.',
   );
 
-  const iconResponse = await fetch(`http://127.0.0.1:1532${toFsUrl(iconEntryPath)}`);
-  const iconSource = await iconResponse.text();
+  const { response: appEntryResponse, source: appEntrySource } = await readProbe(`http://127.0.0.1:1532${toFsUrl(appEntryPath)}`);
+
+  assert.equal(
+    appEntryResponse.status,
+    200,
+    `Desktop App.tsx should transform successfully with its package subpath imports. Received ${appEntryResponse.status} with body:\n${appEntrySource}`,
+  );
+  assert.doesNotMatch(
+    appEntrySource,
+    /Failed to resolve import/u,
+    'Desktop App.tsx must not leak unresolved package subpath imports into the startup graph.',
+  );
+
+  const { response: shellBootstrapResponse, source: shellBootstrapSource } = await readProbe(
+    `http://127.0.0.1:1532${toFsUrl(shellBootstrapEntryPath)}`,
+  );
+
+  assert.equal(
+    shellBootstrapResponse.status,
+    200,
+    `Desktop shell bootstrap runtime should transform successfully with its infrastructure subpath imports. Received ${shellBootstrapResponse.status} with body:\n${shellBootstrapSource}`,
+  );
+  assert.doesNotMatch(
+    shellBootstrapSource,
+    /Failed to resolve import/u,
+    'Desktop shell bootstrap runtime must not leak unresolved package subpath imports into the startup graph.',
+  );
+
+  const { response: terminalPageResponse, source: terminalPageSource } = await readProbe(
+    `http://127.0.0.1:1532${toFsUrl(terminalPageEntryPath)}`,
+  );
+
+  assert.equal(
+    terminalPageResponse.status,
+    200,
+    `Desktop TerminalPage.tsx should transform successfully with commons terminal and context subpath imports. Received ${terminalPageResponse.status} with body:\n${terminalPageSource}`,
+  );
+  assert.doesNotMatch(
+    terminalPageSource,
+    /Failed to resolve import/u,
+    'Desktop TerminalPage.tsx must not leak unresolved commons terminal or context package subpath imports into lazy module transforms.',
+  );
+
+  const { response: iconResponse, source: iconSource } = await readProbe(`http://127.0.0.1:1532${toFsUrl(iconEntryPath)}`);
 
   assert.equal(
     iconResponse.status,
@@ -103,8 +170,7 @@ try {
     'Desktop dependency transforms must not crash the CommonJS plugin container while resolving React runtime modules.',
   );
 
-  const htmlParseStringifyResponse = await fetch(`http://127.0.0.1:1532${toFsUrl(htmlParseStringifyEntryPath)}`);
-  const htmlParseStringifySource = await htmlParseStringifyResponse.text();
+  const { response: htmlParseStringifyResponse, source: htmlParseStringifySource } = await readProbe(`http://127.0.0.1:1532${toFsUrl(htmlParseStringifyEntryPath)}`);
 
   assert.equal(
     htmlParseStringifyResponse.status,
@@ -117,10 +183,9 @@ try {
     'Desktop dependency transforms must not leak the raw void-elements CommonJS entry into browser ESM imports.',
   );
 
-  const voidElementsCompatResponse = await fetch(
+  const { response: voidElementsCompatResponse, source: voidElementsCompatSource } = await readProbe(
     'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-void-elements',
   );
-  const voidElementsCompatSource = await voidElementsCompatResponse.text();
 
   assert.equal(
     voidElementsCompatResponse.status,
@@ -133,8 +198,7 @@ try {
     'Desktop void-elements compat module must provide a default export so html-parse-stringify can import it in the browser.',
   );
 
-  const hastUtilToJsxRuntimeResponse = await fetch(`http://127.0.0.1:1532${toFsUrl(hastUtilToJsxRuntimeEntryPath)}`);
-  const hastUtilToJsxRuntimeSource = await hastUtilToJsxRuntimeResponse.text();
+  const { response: hastUtilToJsxRuntimeResponse, source: hastUtilToJsxRuntimeSource } = await readProbe(`http://127.0.0.1:1532${toFsUrl(hastUtilToJsxRuntimeEntryPath)}`);
 
   assert.equal(
     hastUtilToJsxRuntimeResponse.status,
@@ -147,10 +211,9 @@ try {
     'Desktop dependency transforms must not leak the raw style-to-js CommonJS entry into browser ESM imports.',
   );
 
-  const styleToJsCompatResponse = await fetch(
+  const { response: styleToJsCompatResponse, source: styleToJsCompatSource } = await readProbe(
     'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-style-to-js',
   );
-  const styleToJsCompatSource = await styleToJsCompatResponse.text();
 
   assert.equal(
     styleToJsCompatResponse.status,
@@ -163,10 +226,9 @@ try {
     'Desktop style-to-js compat module must provide a default export so hast-util-to-jsx-runtime can import it in the browser.',
   );
 
-  const reactSyntaxHighlighterVueResponse = await fetch(
+  const { response: reactSyntaxHighlighterVueResponse, source: reactSyntaxHighlighterVueSource } = await readProbe(
     `http://127.0.0.1:1532${toFsUrl(reactSyntaxHighlighterVueEntryPath)}`,
   );
-  const reactSyntaxHighlighterVueSource = await reactSyntaxHighlighterVueResponse.text();
 
   assert.equal(
     reactSyntaxHighlighterVueResponse.status,
@@ -179,10 +241,9 @@ try {
     'Desktop dependency transforms must not leak the raw highlight.js CommonJS entry into browser ESM imports.',
   );
 
-  const highlightJsCompatResponse = await fetch(
+  const { response: highlightJsCompatResponse, source: highlightJsCompatSource } = await readProbe(
     'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-highlight-js',
   );
-  const highlightJsCompatSource = await highlightJsCompatResponse.text();
 
   assert.equal(
     highlightJsCompatResponse.status,
@@ -195,10 +256,9 @@ try {
     'Desktop highlight.js compat module must provide a default export so react-syntax-highlighter language modules can import it in the browser.',
   );
 
-  const micromarkCreateTokenizerResponse = await fetch(
+  const { response: micromarkCreateTokenizerResponse, source: micromarkCreateTokenizerSource } = await readProbe(
     `http://127.0.0.1:1532${toFsUrl(micromarkCreateTokenizerEntryPath)}`,
   );
-  const micromarkCreateTokenizerSource = await micromarkCreateTokenizerResponse.text();
 
   assert.equal(
     micromarkCreateTokenizerResponse.status,
@@ -211,10 +271,9 @@ try {
     'Desktop dependency transforms must not leak the raw debug browser CommonJS entry into browser ESM imports.',
   );
 
-  const debugCompatResponse = await fetch(
+  const { response: debugCompatResponse, source: debugCompatSource } = await readProbe(
     'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-debug',
   );
-  const debugCompatSource = await debugCompatResponse.text();
 
   assert.equal(
     debugCompatResponse.status,
@@ -227,10 +286,9 @@ try {
     'Desktop debug compat module must provide a default export so micromark can import debug in the browser.',
   );
 
-  const unifiedLibIndexResponse = await fetch(
+  const { response: unifiedLibIndexResponse, source: unifiedLibIndexSource } = await readProbe(
     `http://127.0.0.1:1532${toFsUrl(unifiedLibIndexEntryPath)}`,
   );
-  const unifiedLibIndexSource = await unifiedLibIndexResponse.text();
 
   assert.equal(
     unifiedLibIndexResponse.status,
@@ -243,10 +301,9 @@ try {
     'Desktop dependency transforms must not leak the raw extend CommonJS entry into browser ESM imports.',
   );
 
-  const extendCompatResponse = await fetch(
+  const { response: extendCompatResponse, source: extendCompatSource } = await readProbe(
     'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-extend',
   );
-  const extendCompatSource = await extendCompatResponse.text();
 
   assert.equal(
     extendCompatResponse.status,
@@ -259,10 +316,9 @@ try {
     'Desktop extend compat module must provide a default export so unified can import extend in the browser.',
   );
 
-  const reactDomClientCompiledResponse = await fetch(
+  const { response: reactDomClientCompiledResponse, source: reactDomClientCompiledSource } = await readProbe(
     'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-react-dom-client-compiled',
   );
-  const reactDomClientCompiledSource = await reactDomClientCompiledResponse.text();
 
   assert.equal(
     reactDomClientCompiledResponse.status,
@@ -275,10 +331,9 @@ try {
     'Desktop react-dom/client compat chunk must resolve scheduler without leaking raw unresolved imports into the startup graph.',
   );
 
-  const reactCompatCompiledResponse = await fetch(
+  const { response: reactCompatCompiledResponse, source: reactCompatCompiledSource } = await readProbe(
     'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-react-compiled',
   );
-  const reactCompatCompiledSource = await reactCompatCompiledResponse.text();
 
   assert.equal(
     reactCompatCompiledResponse.status,
@@ -291,10 +346,9 @@ try {
     'Desktop react compat chunk must preserve a default export because the virtual wrapper imports React as a default export.',
   );
 
-  const reactCompatWrapperResponse = await fetch(
+  const { response: reactCompatWrapperResponse, source: reactCompatWrapperSource } = await readProbe(
     'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-react',
   );
-  const reactCompatWrapperSource = await reactCompatWrapperResponse.text();
 
   assert.equal(
     reactCompatWrapperResponse.status,
@@ -307,10 +361,9 @@ try {
     'Desktop react compat wrapper must continue to import the compiled React chunk as a default export.',
   );
 
-  const useSyncShimCompiledResponse = await fetch(
+  const { response: useSyncShimCompiledResponse, source: useSyncShimCompiledSource } = await readProbe(
     'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-use-sync-external-store-shim-compiled',
   );
-  const useSyncShimCompiledSource = await useSyncShimCompiledResponse.text();
 
   assert.equal(
     useSyncShimCompiledResponse.status,

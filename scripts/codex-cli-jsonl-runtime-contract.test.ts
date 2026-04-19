@@ -6,7 +6,7 @@ import type {
   ChatMessage,
   ChatStreamChunk,
 } from '../packages/sdkwork-birdcoder-chat/src/index.ts';
-import { getWorkbenchCodeEngineKernel } from '../packages/sdkwork-birdcoder-commons/src/workbench/kernel.ts';
+import { getWorkbenchCodeEngineKernel } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
 
 const NULL_OFFICIAL_SDK_BRIDGE_LOADER: ChatEngineOfficialSdkBridgeLoader = {
   load: async () => null,

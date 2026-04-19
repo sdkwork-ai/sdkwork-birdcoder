@@ -96,11 +96,7 @@ async function resolveTauriInvoke(): Promise<TauriInvoke | null> {
 export async function getStoredRawValue(scope: string, key: string): Promise<string | null> {
   const invoke = await resolveTauriInvoke();
   if (invoke) {
-    try {
-      return await invoke<string | null>('local_store_get', { scope, key });
-    } catch {
-      // Fall through to browser storage when the desktop bridge is unavailable.
-    }
+    return await invoke<string | null>('local_store_get', { scope, key });
   }
 
   if (typeof window === 'undefined') {
@@ -119,27 +115,23 @@ export async function getStoredRawValue(scope: string, key: string): Promise<str
 export async function listStoredRawValues(scope: string): Promise<BirdCoderStoredRawValueEntry[]> {
   const invoke = await resolveTauriInvoke();
   if (invoke) {
-    try {
-      const entries = await invoke<Array<Partial<BirdCoderStoredRawValueEntry>>>('local_store_list', {
-        scope,
-      });
-      return entries
-        .filter(
-          (entry): entry is Partial<BirdCoderStoredRawValueEntry> & { key: string; scope: string; value: string } =>
-            !!entry &&
-            typeof entry.key === 'string' &&
-            typeof entry.scope === 'string' &&
-            typeof entry.value === 'string',
-        )
-        .map((entry) => ({
-          key: entry.key,
-          scope: entry.scope,
-          updatedAt: typeof entry.updatedAt === 'string' ? entry.updatedAt : null,
-          value: entry.value,
-        }));
-    } catch {
-      // Fall through to browser storage when the desktop bridge is unavailable.
-    }
+    const entries = await invoke<Array<Partial<BirdCoderStoredRawValueEntry>>>('local_store_list', {
+      scope,
+    });
+    return entries
+      .filter(
+        (entry): entry is Partial<BirdCoderStoredRawValueEntry> & { key: string; scope: string; value: string } =>
+          !!entry &&
+          typeof entry.key === 'string' &&
+          typeof entry.scope === 'string' &&
+          typeof entry.value === 'string',
+      )
+      .map((entry) => ({
+        key: entry.key,
+        scope: entry.scope,
+        updatedAt: typeof entry.updatedAt === 'string' ? entry.updatedAt : null,
+        value: entry.value,
+      }));
   }
 
   const entries: BirdCoderStoredRawValueEntry[] = [];
@@ -196,12 +188,8 @@ export async function listStoredRawValues(scope: string): Promise<BirdCoderStore
 export async function setStoredRawValue(scope: string, key: string, value: string): Promise<void> {
   const invoke = await resolveTauriInvoke();
   if (invoke) {
-    try {
-      await invoke('local_store_set', { scope, key, value });
-      return;
-    } catch {
-      // Fall through to browser storage when the desktop bridge is unavailable.
-    }
+    await invoke('local_store_set', { scope, key, value });
+    return;
   }
 
   if (typeof window === 'undefined') {
@@ -219,12 +207,8 @@ export async function setStoredRawValue(scope: string, key: string, value: strin
 export async function removeStoredValue(scope: string, key: string): Promise<void> {
   const invoke = await resolveTauriInvoke();
   if (invoke) {
-    try {
-      await invoke('local_store_delete', { scope, key });
-      return;
-    } catch {
-      // Fall through to browser storage when the desktop bridge is unavailable.
-    }
+    await invoke('local_store_delete', { scope, key });
+    return;
   }
 
   if (typeof window === 'undefined') {

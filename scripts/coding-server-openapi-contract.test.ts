@@ -14,12 +14,40 @@ assert.equal(documentSeed.components.securitySchemes.bearerAuth.type, 'http');
 assert.equal(documentSeed['x-sdkwork-api-gateway'].liveOpenApiPath, '/openapi.json');
 assert.equal(documentSeed['x-sdkwork-api-gateway'].docsPath, '/docs');
 assert.equal(documentSeed['x-sdkwork-api-gateway'].routeCatalogPath, '/api/core/v1/routes');
-assert.equal(documentSeed['x-sdkwork-api-gateway'].routeCount, 50);
-assert.deepEqual(documentSeed['x-sdkwork-api-gateway'].routesBySurface, {
-  core: 17,
-  app: 26,
-  admin: 7,
-});
+assert.equal(
+  documentSeed['x-sdkwork-api-gateway'].routeCount,
+  Object.values(documentSeed['x-sdkwork-api-gateway'].routesBySurface).reduce(
+    (total, routeCount) => total + routeCount,
+    0,
+  ),
+);
+assert.deepEqual(
+  documentSeed['x-sdkwork-api-gateway'].surfaces.map((surface) => surface.name),
+  ['core', 'app', 'admin'],
+);
+assert.deepEqual(
+  documentSeed['x-sdkwork-api-gateway'].surfaces.map((surface) => surface.routeCount),
+  [
+    documentSeed['x-sdkwork-api-gateway'].routesBySurface.core,
+    documentSeed['x-sdkwork-api-gateway'].routesBySurface.app,
+    documentSeed['x-sdkwork-api-gateway'].routesBySurface.admin,
+  ],
+);
+const operationsWithoutSuccessSchema = Object.entries(documentSeed.paths).flatMap(([pathKey, methods]) =>
+  Object.entries(methods ?? {}).flatMap(([methodKey, operation]) => {
+    if (operation['x-sdkwork-stream-kind'] === 'websocket') {
+      return operation.responses['101']
+        ? []
+        : [{ method: methodKey.toUpperCase(), operationId: operation.operationId, path: pathKey }];
+    }
+
+    const successResponse = operation.responses['200'] ?? operation.responses['201'];
+    return successResponse?.content?.['application/json']?.schema
+      ? []
+      : [{ method: methodKey.toUpperCase(), operationId: operation.operationId, path: pathKey }];
+  }),
+);
+assert.deepEqual(operationsWithoutSuccessSchema, []);
 assert.equal(documentSeed.paths['/api/core/v1/routes']?.get?.operationId, 'core.listRoutes');
 assert.equal(documentSeed.paths['/api/core/v1/routes']?.get?.['x-sdkwork-auth-mode'], 'host');
 assert.equal(documentSeed.paths['/api/core/v1/native-sessions']?.get?.operationId, 'core.listNativeSessions');
@@ -48,6 +76,87 @@ assert.equal(
 assert.equal(documentSeed.paths['/api/app/v1/workspaces']?.post?.operationId, 'app.createWorkspace');
 assert.equal(documentSeed.paths['/api/app/v1/workspaces/{workspaceId}']?.patch?.operationId, 'app.updateWorkspace');
 assert.equal(documentSeed.paths['/api/app/v1/workspaces/{workspaceId}']?.delete?.operationId, 'app.deleteWorkspace');
+assert.equal(
+  documentSeed.paths['/api/app/v1/workspaces/{workspaceId}/realtime']?.get?.operationId,
+  'app.subscribeWorkspaceRealtime',
+);
+assert.equal(
+  documentSeed.paths['/api/app/v1/workspaces/{workspaceId}/realtime']?.get?.['x-sdkwork-stream-kind'],
+  'websocket',
+);
 assert.equal(documentSeed.paths['/api/admin/v1/releases']?.get?.operationId, 'admin.listReleases');
+assert.ok(documentSeed.components.schemas?.BirdCoderCodingSessionSummary);
+assert.ok(documentSeed.components.schemas?.BirdCoderCreateCodingSessionRequest);
+assert.ok(documentSeed.components.schemas?.BirdCoderCreateCodingSessionTurnRequest);
+assert.ok(documentSeed.components.schemas?.BirdCoderWorkspaceSummary);
+assert.ok(documentSeed.components.schemas?.BirdCoderProjectSummary);
+assert.ok(documentSeed.components.schemas?.BirdCoderUserCenterSessionSummary);
+assert.ok(documentSeed.components.schemas?.BirdCoderAdminPolicySummary);
+assert.equal(
+  documentSeed.paths['/api/core/v1/coding-sessions']?.post?.requestBody?.content['application/json']
+    ?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderCreateCodingSessionRequest',
+);
+assert.equal(
+  documentSeed.paths['/api/core/v1/coding-sessions/{id}/turns']?.post?.requestBody?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderCreateCodingSessionTurnRequest',
+);
+assert.equal(
+  documentSeed.paths['/api/core/v1/coding-sessions']?.get?.responses['200']?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderCodingSessionSummaryListEnvelope',
+);
+assert.equal(
+  documentSeed.paths['/api/core/v1/native-sessions/{id}']?.get?.responses['200']?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderNativeSessionDetailEnvelope',
+);
+assert.equal(
+  documentSeed.paths['/api/app/v1/auth/login']?.post?.requestBody?.content['application/json']
+    ?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderUserCenterLoginRequest',
+);
+assert.equal(
+  documentSeed.paths['/api/app/v1/auth/session']?.get?.responses['200']?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderNullableUserCenterSessionEnvelope',
+);
+assert.equal(
+  documentSeed.paths['/api/app/v1/workspaces']?.get?.responses['200']?.content['application/json']
+    ?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderWorkspaceSummaryListEnvelope',
+);
+assert.equal(
+  documentSeed.paths['/api/app/v1/workspaces']?.post?.requestBody?.content['application/json']
+    ?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderCreateWorkspaceRequest',
+);
+assert.equal(
+  documentSeed.paths['/api/app/v1/projects']?.post?.requestBody?.content['application/json']
+    ?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderCreateProjectRequest',
+);
+assert.equal(
+  documentSeed.paths['/api/app/v1/projects/{projectId}/collaborators']?.post?.requestBody?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderUpsertProjectCollaboratorRequest',
+);
+assert.equal(
+  documentSeed.paths['/api/admin/v1/policies']?.get?.responses['200']?.content['application/json']
+    ?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderAdminPolicySummaryListEnvelope',
+);
+assert.equal(
+  documentSeed.paths['/api/admin/v1/projects/{projectId}/deployment-targets']?.get?.responses[
+    '200'
+  ]?.content['application/json']?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderDeploymentTargetSummaryListEnvelope',
+);
 
 console.log('coding server openapi contract passed.');

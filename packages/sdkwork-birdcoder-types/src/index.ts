@@ -29,11 +29,18 @@ export interface User {
 
 export interface IWorkspace {
   id: string;
+  uuid?: string;
+  tenantId?: string;
+  organizationId?: string;
+  code?: string;
+  title?: string;
   name: string;
   description?: string;
   icon?: string;
-  ownerIdentityId?: string;
-  createdByIdentityId?: string;
+  ownerId?: string;
+  leaderId?: string;
+  createdByUserId?: string;
+  type?: string;
   viewerRole?: 'owner' | 'admin' | 'member' | 'viewer';
 }
 
@@ -99,12 +106,21 @@ export type LocalFolderMountSource =
 
 export interface BirdCoderProject {
   id: string;
+  uuid?: string;
+  tenantId?: string;
+  organizationId?: string;
   workspaceId: string;
+  workspaceUuid?: string;
+  code?: string;
+  title?: string;
   name: string;
   description?: string;
   path?: string;
-  ownerIdentityId?: string;
-  createdByIdentityId?: string;
+  ownerId?: string;
+  leaderId?: string;
+  createdByUserId?: string;
+  author?: string;
+  type?: string;
   viewerRole?: 'owner' | 'admin' | 'member' | 'viewer';
   createdAt: string;
   updatedAt: string;
@@ -114,17 +130,24 @@ export interface BirdCoderProject {
 
 export interface BirdCoderTeam {
   id: string;
+  uuid?: string;
+  tenantId?: string;
+  organizationId?: string;
   workspaceId: string;
+  code?: string;
+  title?: string;
   name: string;
   description?: string;
   status: 'active' | 'archived';
-  ownerIdentityId?: string;
-  createdByIdentityId?: string;
+  ownerId?: string;
+  leaderId?: string;
+  createdByUserId?: string;
 }
 
 export * from './coding-session.ts';
 export * from './data.ts';
 export * from './engine.ts';
+export * from './engineCatalog.ts';
 export * from './fileSearch.ts';
 export * from './generated/coding-server-openapi.ts';
 export * from './generated/coding-server-client.ts';

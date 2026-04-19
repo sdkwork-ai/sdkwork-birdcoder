@@ -3,7 +3,7 @@ import {
   WORKBENCH_ENGINE_KERNELS,
   getWorkbenchCodeEngineKernel,
   type WorkbenchCodeEngineId,
-} from '../workbench/kernel.ts';
+} from '@sdkwork/birdcoder-codeengine';
 
 export type TerminalCliProfileId = WorkbenchCodeEngineId;
 

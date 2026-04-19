@@ -30,6 +30,34 @@ const entrypointContracts = [
     exportedFunctionPattern: /export function generateRustHostEngineCatalog\(/,
     launchPattern: /void generateRustHostEngineCatalogCli\(\)/,
   },
+  {
+    scriptName: 'typecheck',
+    command: 'node scripts/run-local-typescript.mjs --noEmit',
+    filePath: path.join(rootDir, 'scripts', 'run-local-typescript.mjs'),
+    exportedFunctionPattern: /export function createLocalTypescriptPlan\(/,
+    launchPattern: /runLocalTypescriptCli\(\)\.catch\(/,
+  },
+  {
+    scriptName: 'lint',
+    command: 'node scripts/run-quality-fast-check.mjs',
+    filePath: path.join(rootDir, 'scripts', 'run-quality-fast-check.mjs'),
+    exportedFunctionPattern: /export function runQualityFastCheck\(/,
+    launchPattern: /process\.exit\(runQualityFastCheck\(\)\)/,
+  },
+  {
+    scriptName: 'check:quality:standard',
+    command: 'node scripts/run-quality-standard-check.mjs',
+    filePath: path.join(rootDir, 'scripts', 'run-quality-standard-check.mjs'),
+    exportedFunctionPattern: /export function runQualityStandardCheck\(/,
+    launchPattern: /process\.exit\(runQualityStandardCheck\(\)\)/,
+  },
+  {
+    scriptName: 'check:quality:release',
+    command: 'node scripts/run-quality-release-check.mjs',
+    filePath: path.join(rootDir, 'scripts', 'run-quality-release-check.mjs'),
+    exportedFunctionPattern: /export function runQualityReleaseCheck\(/,
+    launchPattern: /process\.exit\(runQualityReleaseCheck\(\)\)/,
+  },
 ];
 
 for (const contract of entrypointContracts) {

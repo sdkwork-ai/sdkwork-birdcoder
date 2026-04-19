@@ -26,4 +26,16 @@ assert.equal(
   'Sidebar context menus must be promoted to the highest z-index tier so project/session right-click menus are never hidden behind code view content.',
 );
 
+assert.match(
+  sidebarSource,
+  /window\.addEventListener\('resize', handleViewportChange\);/,
+  'Sidebar must close floating menus when the viewport changes so maximize and restore never leave context menus pinned to stale coordinates.',
+);
+
+assert.match(
+  sidebarSource,
+  /setContextMenu\(null\);\s*setProjectContextMenu\(null\);\s*setRootContextMenu\(null\);/s,
+  'Sidebar viewport-change handling must clear session, project, and root context menus together.',
+);
+
 console.log('sidebar context menu layer contract passed.');

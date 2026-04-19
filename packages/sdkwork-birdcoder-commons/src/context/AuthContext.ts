@@ -29,25 +29,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let isMounted = true;
     const checkAuth = async () => {
-      try {
-        const [currentUser, nextAuthConfig] = await Promise.all([
-          authService.getCurrentUser(),
-          authService.getUserCenterConfig?.().catch((error) => {
-            console.error('Failed to load user center config', error);
-            return null;
-          }) ?? Promise.resolve(null),
-        ]);
-        if (isMounted) {
-          setAuthConfig(nextAuthConfig);
-          setUser(currentUser);
-        }
-      } catch (error) {
-        console.error('Failed to get current user', error);
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+      const [configResult, currentUserResult] = await Promise.allSettled([
+        authService.getUserCenterConfig?.() ?? Promise.resolve(null),
+        authService.getCurrentUser(),
+      ]);
+
+      if (!isMounted) {
+        return;
       }
+
+      if (configResult.status === 'fulfilled') {
+        setAuthConfig(configResult.value);
+      } else {
+        console.error('Failed to load user center config', configResult.reason);
+        setAuthConfig(null);
+      }
+
+      if (currentUserResult.status === 'fulfilled') {
+        setUser(currentUserResult.value);
+      } else {
+        console.error('Failed to get current user', currentUserResult.reason);
+        setUser(null);
+      }
+
+      setIsLoading(false);
     };
     void checkAuth();
     return () => {

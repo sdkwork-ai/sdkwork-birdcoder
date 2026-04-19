@@ -12,10 +12,17 @@ import {
   readRuntimeServerSessionId,
   writeRuntimeServerSessionId,
 } from '../runtimeServerSession.ts';
+import {
+  isBirdCoderTransientApiError,
+  retryBirdCoderTransientApiTask,
+} from '../runtimeApiRetry.ts';
 
 export interface RuntimeAuthServiceOptions {
   client?: BirdCoderUserCenterApiClient;
 }
+
+const AUTH_CONFIG_CACHE_TTL_MS = 60_000;
+const CURRENT_USER_CACHE_TTL_MS = 10_000;
 
 function createUnavailableError(): Error {
   return new Error('Auth service requires a bound coding-server runtime with user-center APIs.');
@@ -26,6 +33,13 @@ function isUserCenterRouteUnavailable(error: unknown): boolean {
     error instanceof Error &&
     (error.message.includes(' -> 404') ||
       error.message.includes('requires a bound coding-server runtime'))
+  );
+}
+
+function isUserCenterSessionRejected(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message.includes(' -> 401') || error.message.includes(' -> 403'))
   );
 }
 
@@ -40,7 +54,12 @@ function mapAuthenticatedUser(user: BirdCoderAuthenticatedUserSummary): User {
 
 export class RuntimeAuthService implements IAuthService {
   private readonly client?: BirdCoderUserCenterApiClient;
+  private authConfig: BirdCoderUserCenterMetadataSummary | null = null;
+  private authConfigExpiresAt = 0;
+  private authConfigInflight: Promise<BirdCoderUserCenterMetadataSummary | null> | null = null;
   private currentUser: User | null = null;
+  private currentUserExpiresAt = 0;
+  private currentUserInflight: Promise<User | null> | null = null;
 
   constructor(options: RuntimeAuthServiceOptions = {}) {
     this.client = options.client;
@@ -51,15 +70,38 @@ export class RuntimeAuthService implements IAuthService {
       return null;
     }
 
-    try {
-      return await this.client.getConfig();
-    } catch (error) {
-      if (isUserCenterRouteUnavailable(error)) {
-        return null;
-      }
-
-      throw error;
+    const now = Date.now();
+    if (this.authConfigInflight) {
+      return this.authConfigInflight;
     }
+
+    if (this.authConfigExpiresAt > now) {
+      return this.authConfig;
+    }
+
+    const request = (async () => {
+      try {
+        const config = await retryBirdCoderTransientApiTask(() => this.client!.getConfig());
+        this.authConfig = config;
+        this.authConfigExpiresAt = Date.now() + AUTH_CONFIG_CACHE_TTL_MS;
+        return config;
+      } catch (error) {
+        if (isUserCenterRouteUnavailable(error)) {
+          this.authConfig = null;
+          this.authConfigExpiresAt = Date.now() + AUTH_CONFIG_CACHE_TTL_MS;
+          return null;
+        }
+
+        throw error;
+      }
+    })().finally(() => {
+      if (this.authConfigInflight === request) {
+        this.authConfigInflight = null;
+      }
+    });
+
+    this.authConfigInflight = request;
+    return request;
   }
 
   private requireClient(): BirdCoderUserCenterApiClient {
@@ -82,6 +124,7 @@ export class RuntimeAuthService implements IAuthService {
   private applySession(session: BirdCoderUserCenterSessionSummary): User {
     writeRuntimeServerSessionId(session.sessionId);
     this.currentUser = mapAuthenticatedUser(session.user);
+    this.currentUserExpiresAt = Date.now() + CURRENT_USER_CACHE_TTL_MS;
     return this.currentUser;
   }
 
@@ -118,35 +161,70 @@ export class RuntimeAuthService implements IAuthService {
     } finally {
       clearRuntimeServerSessionId();
       this.currentUser = null;
+      this.currentUserExpiresAt = 0;
     }
   }
 
   async getCurrentUser(): Promise<User | null> {
     if (!this.client) {
       this.currentUser = null;
+      this.currentUserExpiresAt = 0;
       return null;
     }
 
     if (!readRuntimeServerSessionId()) {
       this.currentUser = null;
+      this.currentUserExpiresAt = 0;
       return null;
     }
 
-    let session: BirdCoderUserCenterSessionSummary | null = null;
-    try {
-      session = await this.client.getCurrentSession();
-    } catch (error) {
-      if (!isUserCenterRouteUnavailable(error)) {
-        throw error;
+    const now = Date.now();
+    if (this.currentUser && this.currentUserExpiresAt > now) {
+      return this.currentUser;
+    }
+
+    if (this.currentUserInflight) {
+      return this.currentUserInflight;
+    }
+
+    const request = (async () => {
+      let session: BirdCoderUserCenterSessionSummary | null = null;
+      try {
+        session = await retryBirdCoderTransientApiTask(
+          () => this.client!.getCurrentSession(),
+          {
+            shouldRetry: (error) =>
+              isBirdCoderTransientApiError(error) && !isUserCenterSessionRejected(error),
+          },
+        );
+      } catch (error) {
+        if (isUserCenterRouteUnavailable(error) || isUserCenterSessionRejected(error)) {
+          clearRuntimeServerSessionId();
+          this.currentUser = null;
+          this.currentUserExpiresAt = 0;
+          return null;
+        }
+
+        if (isBirdCoderTransientApiError(error)) {
+          return this.currentUser;
+        }
       }
-    }
 
-    if (!session) {
-      clearRuntimeServerSessionId();
-      this.currentUser = null;
-      return null;
-    }
+      if (!session) {
+        clearRuntimeServerSessionId();
+        this.currentUser = null;
+        this.currentUserExpiresAt = 0;
+        return null;
+      }
 
-    return this.applySession(session);
+      return this.applySession(session);
+    })().finally(() => {
+      if (this.currentUserInflight === request) {
+        this.currentUserInflight = null;
+      }
+    });
+
+    this.currentUserInflight = request;
+    return request;
   }
 }

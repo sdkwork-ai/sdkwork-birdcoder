@@ -18,10 +18,19 @@ const allowedInternalDependencies = new Map([
   ['@sdkwork/birdcoder-chat-gemini', new Set(['@sdkwork/birdcoder-chat'])],
   ['@sdkwork/birdcoder-chat-opencode', new Set(['@sdkwork/birdcoder-chat'])],
   ['@sdkwork/birdcoder-code', new Set([
+    '@sdkwork/birdcoder-codeengine',
     '@sdkwork/birdcoder-commons',
     '@sdkwork/birdcoder-terminal',
     '@sdkwork/birdcoder-types',
     '@sdkwork/birdcoder-ui',
+  ])],
+  ['@sdkwork/birdcoder-codeengine', new Set([
+    '@sdkwork/birdcoder-chat',
+    '@sdkwork/birdcoder-chat-claude',
+    '@sdkwork/birdcoder-chat-codex',
+    '@sdkwork/birdcoder-chat-gemini',
+    '@sdkwork/birdcoder-chat-opencode',
+    '@sdkwork/birdcoder-types',
   ])],
   ['@sdkwork/birdcoder-commons', new Set([
     '@sdkwork/birdcoder-chat',
@@ -29,6 +38,7 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-chat-codex',
     '@sdkwork/birdcoder-chat-gemini',
     '@sdkwork/birdcoder-chat-opencode',
+    '@sdkwork/birdcoder-codeengine',
     '@sdkwork/birdcoder-i18n',
     '@sdkwork/birdcoder-infrastructure',
     '@sdkwork/birdcoder-types',
@@ -47,17 +57,23 @@ const allowedInternalDependencies = new Map([
   ])],
   ['@sdkwork/birdcoder-i18n', new Set()],
   ['@sdkwork/birdcoder-infrastructure', new Set([
+    '@sdkwork/birdcoder-codeengine',
     '@sdkwork/birdcoder-host-core',
     '@sdkwork/birdcoder-types',
   ])],
   ['@sdkwork/birdcoder-server', new Set([
     '@sdkwork/birdcoder-chat',
+    '@sdkwork/birdcoder-codeengine',
     '@sdkwork/birdcoder-commons',
     '@sdkwork/birdcoder-host-core',
     '@sdkwork/birdcoder-infrastructure',
     '@sdkwork/birdcoder-types',
   ])],
-  ['@sdkwork/birdcoder-settings', new Set(['@sdkwork/birdcoder-ui'])],
+  ['@sdkwork/birdcoder-settings', new Set([
+    '@sdkwork/birdcoder-codeengine',
+    '@sdkwork/birdcoder-commons',
+    '@sdkwork/birdcoder-ui',
+  ])],
   ['@sdkwork/birdcoder-shell', new Set([
     '@sdkwork/birdcoder-appbase',
     '@sdkwork/birdcoder-chat',
@@ -85,6 +101,7 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-ui',
   ])],
   ['@sdkwork/birdcoder-studio', new Set([
+    '@sdkwork/birdcoder-codeengine',
     '@sdkwork/birdcoder-commons',
     '@sdkwork/birdcoder-terminal',
     '@sdkwork/birdcoder-ui',
@@ -94,11 +111,15 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-ui',
   ])],
   ['@sdkwork/birdcoder-terminal', new Set([
+    '@sdkwork/birdcoder-codeengine',
     '@sdkwork/birdcoder-commons',
     '@sdkwork/birdcoder-ui',
   ])],
   ['@sdkwork/birdcoder-types', new Set()],
-  ['@sdkwork/birdcoder-ui', new Set(['@sdkwork/birdcoder-commons'])],
+  ['@sdkwork/birdcoder-ui', new Set([
+    '@sdkwork/birdcoder-codeengine',
+    '@sdkwork/birdcoder-commons',
+  ])],
   ['@sdkwork/birdcoder-web', new Set([
     '@sdkwork/birdcoder-distribution',
     '@sdkwork/birdcoder-host-core',

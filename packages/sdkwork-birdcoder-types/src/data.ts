@@ -4,7 +4,7 @@ export type BirdCoderDatabaseProviderId =
   (typeof BIRDCODER_DATABASE_PROVIDER_IDS)[number] | (string & {});
 
 export type BirdCoderAggregateName =
-  | 'identity'
+  | 'user_center'
   | 'workspace'
   | 'coding_session'
   | 'engine'
@@ -27,7 +27,7 @@ export type BirdCoderLogicalColumnType =
   | 'timestamp';
 
 export type BirdCoderEntityName =
-  | 'identity'
+  | 'user_account'
   | 'user_profile'
   | 'vip_subscription'
   | 'workspace'
@@ -61,6 +61,8 @@ export type BirdCoderEntityName =
   | 'app_template_instantiation'
   | 'team'
   | 'team_member'
+  | 'workspace_member'
+  | 'project_collaborator'
   | 'project_document'
   | 'deployment_target'
   | 'deployment_record'
@@ -300,64 +302,98 @@ export const BIRDCODER_SCHEMA_MIGRATION_HISTORY_TABLE = 'schema_migration_histor
 
 export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefinition[] = [
   defineEntity(
-    'identity',
-    'identities',
-    'identity',
-    'Unified identity session and account root.',
+    'user_account',
+    'plus_user',
+    'user_center',
+    'Primary plus_user account root aligned with spring-ai-plus local user-center storage.',
     [
-      { name: 'email', logicalType: 'text', description: 'Primary identity email.' },
-      { name: 'display_name', logicalType: 'text', description: 'Preferred display name.' },
-      { name: 'status', logicalType: 'enum', description: 'Identity lifecycle state.' },
+      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
+      { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
+      {
+        name: 'organization_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Organization ownership id.',
+      },
+      { name: 'username', logicalType: 'text', description: 'Login username.' },
+      { name: 'nickname', logicalType: 'text', description: 'Preferred display name.' },
+      { name: 'password', logicalType: 'text', description: 'Encrypted password hash.' },
+      { name: 'email', logicalType: 'text', nullable: true, description: 'Primary user email.' },
+      { name: 'bio', logicalType: 'text', nullable: true, description: 'User bio.' },
+      { name: 'avatar_url', logicalType: 'text', nullable: true, description: 'Avatar URL.' },
+      { name: 'provider_key', logicalType: 'text', description: 'Primary auth provider key.' },
+      {
+        name: 'external_subject',
+        logicalType: 'text',
+        nullable: true,
+        description: 'External provider subject identifier.',
+      },
+      {
+        name: 'metadata_json',
+        logicalType: 'json',
+        nullable: true,
+        description: 'Extended profile metadata such as company, website, and location.',
+      },
+      { name: 'status', logicalType: 'enum', description: 'User lifecycle state.' },
     ],
     [
       {
-        name: 'uk_identities_email',
-        columns: ['email'],
-        description: 'Uniqueness for identity email.',
+        name: 'uk_plus_user_username',
+        columns: ['username'],
+        description: 'Uniqueness for username.',
         unique: true,
       },
     ],
   ),
   defineEntity(
     'user_profile',
-    'user_profiles',
-    'identity',
-    'User profile and editable account metadata.',
+    'plus_user',
+    'user_center',
+    'Profile projection stored on plus_user and metadata_json.',
     [
-      { name: 'identity_id', logicalType: 'id', description: 'Linked identity.' },
-      { name: 'bio', logicalType: 'text', description: 'User bio.' },
-      { name: 'company', logicalType: 'text', description: 'Company name.' },
-      { name: 'location', logicalType: 'text', description: 'User location.' },
-      { name: 'website', logicalType: 'text', description: 'Profile website.' },
+      { name: 'id', logicalType: 'id', description: 'Linked plus_user id.' },
+      { name: 'bio', logicalType: 'text', nullable: true, description: 'User bio.' },
+      {
+        name: 'metadata_json',
+        logicalType: 'json',
+        nullable: true,
+        description: 'Structured profile metadata with company, location, and website.',
+      },
     ],
     [
       {
-        name: 'uk_user_profiles_identity',
-        columns: ['identity_id'],
-        description: 'One profile per identity.',
+        name: 'uk_plus_user_profile_projection',
+        columns: ['id'],
+        description: 'One profile projection per plus_user record.',
         unique: true,
       },
     ],
   ),
   defineEntity(
     'vip_subscription',
-    'vip_subscriptions',
-    'identity',
-    'Commerce subscription and entitlement state.',
+    'plus_vip_user',
+    'user_center',
+    'VIP membership and entitlement state aligned with plus_vip_user.',
     [
-      { name: 'identity_id', logicalType: 'id', description: 'Linked identity.' },
-      { name: 'plan_id', logicalType: 'text', description: 'Plan identifier.' },
-      { name: 'plan_title', logicalType: 'text', description: 'Plan title.' },
-      { name: 'status', logicalType: 'enum', description: 'Subscription lifecycle state.' },
-      { name: 'credits_per_month', logicalType: 'bigint', description: 'Monthly credits.' },
-      { name: 'seats', logicalType: 'int', description: 'Seat count.' },
-      { name: 'renew_at', logicalType: 'timestamp', description: 'Renewal time.' },
+      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
+      { name: 'user_id', logicalType: 'id', description: 'Linked plus_user id.' },
+      { name: 'vip_level_id', logicalType: 'text', nullable: true, description: 'VIP level id.' },
+      {
+        name: 'vip_level_name',
+        logicalType: 'text',
+        nullable: true,
+        description: 'VIP level display name.',
+      },
+      { name: 'status', logicalType: 'enum', description: 'Membership lifecycle state.' },
+      { name: 'monthly_credits', logicalType: 'bigint', description: 'Monthly credits.' },
+      { name: 'seat_limit', logicalType: 'int', description: 'Seat count limit.' },
+      { name: 'valid_to', logicalType: 'timestamp', nullable: true, description: 'Membership end time.' },
     ],
     [
       {
-        name: 'idx_vip_subscriptions_identity_status',
-        columns: ['identity_id', 'status'],
-        description: 'Lookup by identity and entitlement state.',
+        name: 'idx_plus_vip_user_user_status',
+        columns: ['user_id', 'status'],
+        description: 'Lookup by user and entitlement state.',
       },
     ],
   ),
@@ -365,21 +401,56 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'workspace',
     'workspaces',
     'workspace',
-    'Top-level workspace container.',
+    'Top-level workspace container with plus-style canonical business fields.',
     [
+      { name: 'uuid', logicalType: 'text', nullable: true, description: 'Stable business UUID.' },
+      { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
+      {
+        name: 'organization_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Organization ownership id.',
+      },
       { name: 'name', logicalType: 'text', description: 'Workspace name.' },
+      { name: 'code', logicalType: 'text', nullable: true, description: 'Workspace business code.' },
+      { name: 'title', logicalType: 'text', nullable: true, description: 'Workspace title.' },
       { name: 'description', logicalType: 'text', description: 'Workspace description.' },
-      { name: 'owner_identity_id', logicalType: 'id', description: 'Owner identity.' },
+      { name: 'owner_id', logicalType: 'id', nullable: true, description: 'Canonical owner user id.' },
+      { name: 'leader_id', logicalType: 'id', nullable: true, description: 'Canonical leader user id.' },
+      { name: 'created_by_user_id', logicalType: 'id', nullable: true, description: 'Canonical creator user id.' },
+      { name: 'type', logicalType: 'enum', nullable: true, description: 'Workspace type.' },
+      {
+        name: 'settings_json',
+        logicalType: 'json',
+        nullable: true,
+        description: 'Workspace settings JSON.',
+      },
     ],
   ),
   defineEntity(
     'project',
     'projects',
     'workspace',
-    'Project container within a workspace.',
+    'Project container within a workspace with plus-style canonical business fields.',
     [
+      { name: 'uuid', logicalType: 'text', nullable: true, description: 'Stable business UUID.' },
+      { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
+      {
+        name: 'organization_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Organization ownership id.',
+      },
       { name: 'workspace_id', logicalType: 'id', description: 'Parent workspace.' },
+      {
+        name: 'workspace_uuid',
+        logicalType: 'text',
+        nullable: true,
+        description: 'Parent workspace UUID.',
+      },
       { name: 'name', logicalType: 'text', description: 'Project name.' },
+      { name: 'code', logicalType: 'text', nullable: true, description: 'Project business code.' },
+      { name: 'title', logicalType: 'text', nullable: true, description: 'Project title.' },
       {
         name: 'description',
         logicalType: 'text',
@@ -392,6 +463,11 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         nullable: true,
         description: 'Filesystem root path.',
       },
+      { name: 'owner_id', logicalType: 'id', nullable: true, description: 'Canonical owner user id.' },
+      { name: 'leader_id', logicalType: 'id', nullable: true, description: 'Canonical leader user id.' },
+      { name: 'created_by_user_id', logicalType: 'id', nullable: true, description: 'Canonical creator user id.' },
+      { name: 'type', logicalType: 'enum', nullable: true, description: 'Project type.' },
+      { name: 'author', logicalType: 'text', nullable: true, description: 'Project author.' },
       { name: 'status', logicalType: 'enum', description: 'Project lifecycle state.' },
     ],
     [
@@ -843,15 +919,34 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'team',
     'teams',
     'collaboration',
-    'Team root for workspace collaboration.',
+    'Team root for workspace collaboration with canonical business fields.',
     [
+      { name: 'uuid', logicalType: 'text', nullable: true, description: 'Stable business UUID.' },
+      { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
+      {
+        name: 'organization_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Organization ownership id.',
+      },
       { name: 'workspace_id', logicalType: 'id', description: 'Owning workspace.' },
       { name: 'name', logicalType: 'text', description: 'Team name.' },
+      { name: 'code', logicalType: 'text', nullable: true, description: 'Team business code.' },
+      { name: 'title', logicalType: 'text', nullable: true, description: 'Team title.' },
       {
         name: 'description',
         logicalType: 'text',
         nullable: true,
         description: 'Team description.',
+      },
+      { name: 'owner_id', logicalType: 'id', nullable: true, description: 'Canonical owner user id.' },
+      { name: 'leader_id', logicalType: 'id', nullable: true, description: 'Canonical leader user id.' },
+      { name: 'created_by_user_id', logicalType: 'id', nullable: true, description: 'Canonical creator user id.' },
+      {
+        name: 'metadata_json',
+        logicalType: 'json',
+        nullable: true,
+        description: 'Team metadata JSON.',
       },
       { name: 'status', logicalType: 'enum', description: 'Team status.' },
     ],
@@ -860,12 +955,90 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'team_member',
     'team_members',
     'collaboration',
-    'Team membership and role.',
+    'Team membership and role aligned to plus_user user semantics.',
     [
       { name: 'team_id', logicalType: 'id', description: 'Owning team.' },
-      { name: 'identity_id', logicalType: 'id', description: 'Linked identity.' },
+      {
+        name: 'user_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Canonical linked plus_user id.',
+      },
+      {
+        name: 'created_by_user_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Canonical creator plus_user id.',
+      },
+      {
+        name: 'granted_by_user_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Canonical grantor plus_user id.',
+      },
       { name: 'role', logicalType: 'enum', description: 'Member role.' },
       { name: 'status', logicalType: 'enum', description: 'Membership status.' },
+    ],
+  ),
+  defineEntity(
+    'workspace_member',
+    'workspace_members',
+    'collaboration',
+    'Workspace membership projection aligned to plus_user ownership semantics.',
+    [
+      { name: 'workspace_id', logicalType: 'id', description: 'Owning workspace.' },
+      {
+        name: 'user_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Canonical linked plus_user id.',
+      },
+      { name: 'team_id', logicalType: 'id', nullable: true, description: 'Owning team id.' },
+      {
+        name: 'created_by_user_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Canonical creator plus_user id.',
+      },
+      {
+        name: 'granted_by_user_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Canonical grantor plus_user id.',
+      },
+      { name: 'role', logicalType: 'enum', description: 'Member role.' },
+      { name: 'status', logicalType: 'enum', description: 'Membership status.' },
+    ],
+  ),
+  defineEntity(
+    'project_collaborator',
+    'project_collaborators',
+    'collaboration',
+    'Project collaborator projection aligned to plus_user ownership semantics.',
+    [
+      { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
+      { name: 'workspace_id', logicalType: 'id', description: 'Owning workspace.' },
+      {
+        name: 'user_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Canonical linked plus_user id.',
+      },
+      { name: 'team_id', logicalType: 'id', nullable: true, description: 'Owning team id.' },
+      {
+        name: 'created_by_user_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Canonical creator plus_user id.',
+      },
+      {
+        name: 'granted_by_user_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Canonical grantor plus_user id.',
+      },
+      { name: 'role', logicalType: 'enum', description: 'Collaborator role.' },
+      { name: 'status', logicalType: 'enum', description: 'Collaboration status.' },
     ],
   ),
   defineEntity(
@@ -1023,30 +1196,6 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         name: 'idx_run_configurations_scope_group',
         columns: ['scope_type', 'scope_id', 'group_name'],
         description: 'Query configurations by scope/group.',
-      },
-    ],
-  ),
-  defineEntity(
-    'terminal_session',
-    'terminal_sessions',
-    'runtime',
-    'Terminal host session state.',
-    [
-      { name: 'workspace_id', logicalType: 'id', description: 'Owning workspace.' },
-      { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
-      { name: 'title', logicalType: 'text', description: 'Session title.' },
-      { name: 'profile_id', logicalType: 'text', description: 'Terminal profile identifier.' },
-      { name: 'cwd', logicalType: 'text', description: 'Working directory.' },
-      { name: 'status', logicalType: 'enum', description: 'Session status.' },
-      { name: 'last_exit_code', logicalType: 'int', description: 'Last exit code.' },
-      { name: 'command_history_json', logicalType: 'json', description: 'Command history.' },
-      { name: 'recent_output_json', logicalType: 'json', description: 'Recent output lines.' },
-    ],
-    [
-      {
-        name: 'idx_terminal_sessions_project_updated',
-        columns: ['project_id', 'updated_at'],
-        description: 'Recent sessions by project.',
       },
     ],
   ),

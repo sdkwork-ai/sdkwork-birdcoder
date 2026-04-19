@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 
 import type { ChatMessage } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
 import { resolveFallbackRuntimeMode } from '../packages/sdkwork-birdcoder-chat/src/index.ts';
-import { createChatEngineById } from '../packages/sdkwork-birdcoder-commons/src/workbench/engines.ts';
-import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-commons/src/workbench/kernel.ts';
+import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
+import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
 
 const EXPECTED_OFFICIAL_PACKAGES = {
   codex: '@openai/codex-sdk',

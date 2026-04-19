@@ -1,4 +1,8 @@
 import { useCallback, useEffect } from 'react';
+import {
+  normalizeWorkbenchCodeModelId,
+  normalizeWorkbenchServerImplementedCodeEngineId,
+} from '@sdkwork/birdcoder-codeengine';
 
 import {
   DEFAULT_WORKBENCH_PREFERENCES,
@@ -15,7 +19,9 @@ function preferencesEqual(left: WorkbenchPreferences, right: WorkbenchPreference
   return (
     left.codeEngineId === right.codeEngineId &&
     left.codeModelId === right.codeModelId &&
+    JSON.stringify(left.codeEngineSettings ?? {}) === JSON.stringify(right.codeEngineSettings ?? {}) &&
     left.terminalProfileId === right.terminalProfileId &&
+    left.codeEditorChatWidth === right.codeEditorChatWidth &&
     left.defaultWorkingDirectory === right.defaultWorkingDirectory
   );
 }
@@ -26,7 +32,20 @@ export function useWorkbenchPreferences() {
     'preferences',
     DEFAULT_WORKBENCH_PREFERENCES,
   );
-  const preferences = normalizeWorkbenchPreferences(storedPreferences);
+  const normalizedStoredPreferences = normalizeWorkbenchPreferences(storedPreferences);
+  const normalizedActiveEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+    normalizedStoredPreferences.codeEngineId,
+    normalizedStoredPreferences,
+  );
+  const preferences = normalizeWorkbenchPreferences({
+    ...normalizedStoredPreferences,
+    codeEngineId: normalizedActiveEngineId,
+    codeModelId: normalizeWorkbenchCodeModelId(
+      normalizedActiveEngineId,
+      normalizedStoredPreferences.codeModelId,
+      normalizedStoredPreferences,
+    ),
+  });
 
   useEffect(() => {
     if (!isHydrated || preferencesEqual(storedPreferences, preferences)) {

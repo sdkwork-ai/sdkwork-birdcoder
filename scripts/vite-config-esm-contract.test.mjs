@@ -49,6 +49,12 @@ function resolveConfigTempPath(configPath) {
   return path.join(configDir, `${configBaseName}.contract-${process.pid}-${Date.now()}.mjs`);
 }
 
+function findAliasEntry(aliases, predicate, label) {
+  const aliasEntry = (aliases ?? []).find((candidate) => predicate(candidate));
+  assert.ok(aliasEntry, label);
+  return aliasEntry;
+}
+
 function assertLucideRollupWarningFilter(onwarn, label) {
   assert.equal(typeof onwarn, 'function', `${label} must define a Rollup onwarn handler.`);
 
@@ -141,21 +147,57 @@ assert.equal(
 
 const webConfig = await loadConfigModule('packages/sdkwork-birdcoder-web/vite.config.ts');
 assert.equal(webConfig.esbuild, false);
-assert.equal(webConfig.resolve?.alias?.[0]?.find instanceof RegExp, true);
-assert.equal(
-  webConfig.resolve?.alias?.[0]?.find.test('@sdkwork/birdcoder-infrastructure'),
-  true,
-  'Web Vite config should still resolve bare workspace package aliases.',
+const webBirdcoderBareAlias = findAliasEntry(
+  webConfig.resolve?.alias,
+  (candidate) =>
+    candidate?.find instanceof RegExp
+    && candidate.find.test('@sdkwork/birdcoder-infrastructure')
+    && !candidate.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
+  'Web Vite config should expose a bare workspace package alias.',
 );
 assert.equal(
-  webConfig.resolve?.alias?.[0]?.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
-  false,
-  'Web Vite config should leave package subpath imports to package exports instead of rewriting them into /src paths.',
-);
-assert.equal(
-  webConfig.resolve?.alias?.[0]?.replacement,
+  webBirdcoderBareAlias.replacement,
   path.resolve(workspaceRootDir, 'packages', 'sdkwork-birdcoder-$1', 'src'),
-  'Web Vite config should resolve workspace aliases under ESM-native loading.',
+  'Web Vite config should resolve bare workspace aliases under ESM-native loading.',
+);
+const webBirdcoderSubpathAlias = findAliasEntry(
+  webConfig.resolve?.alias,
+  (candidate) =>
+    candidate?.find instanceof RegExp
+    && !candidate.find.test('@sdkwork/birdcoder-infrastructure')
+    && candidate.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
+  'Web Vite config should expose a workspace package subpath alias.',
+);
+assert.equal(
+  webBirdcoderSubpathAlias.replacement,
+  path.resolve(workspaceRootDir, 'packages', 'sdkwork-birdcoder-$1', 'src', '$2'),
+  'Web Vite config should resolve workspace package subpath aliases under ESM-native loading.',
+);
+const webTerminalBareAlias = findAliasEntry(
+  webConfig.resolve?.alias,
+  (candidate) =>
+    candidate?.find instanceof RegExp
+    && candidate.find.test('@sdkwork/terminal-shell')
+    && !candidate.find.test('@sdkwork/terminal-shell/runtime'),
+  'Web Vite config should expose a bare sdkwork-terminal package alias.',
+);
+assert.equal(
+  webTerminalBareAlias.replacement,
+  path.resolve(workspaceRootDir, '../sdkwork-terminal/packages/sdkwork-terminal-$1/src'),
+  'Web Vite config should resolve bare sdkwork-terminal aliases from the sibling workspace.',
+);
+const webTerminalSubpathAlias = findAliasEntry(
+  webConfig.resolve?.alias,
+  (candidate) =>
+    candidate?.find instanceof RegExp
+    && !candidate.find.test('@sdkwork/terminal-shell')
+    && candidate.find.test('@sdkwork/terminal-shell/runtime'),
+  'Web Vite config should expose a sdkwork-terminal package subpath alias.',
+);
+assert.equal(
+  webTerminalSubpathAlias.replacement,
+  path.resolve(workspaceRootDir, '../sdkwork-terminal/packages/sdkwork-terminal-$1/src', '$2'),
+  'Web Vite config should resolve sdkwork-terminal subpath aliases from the sibling workspace.',
 );
 assert.equal(
   webConfig.build?.minify,
@@ -173,8 +215,11 @@ assertLucideRollupWarningFilter(
 );
 assert.deepEqual(
   webConfig.server?.fs?.allow,
-  [workspaceRootDir],
-  'Web Vite config should preserve the workspace fs allow-list under ESM-native loading.',
+  [
+    workspaceRootDir,
+    path.resolve(workspaceRootDir, '../sdkwork-terminal'),
+  ],
+  'Web Vite config should preserve the BirdCoder and sdkwork-terminal workspace fs allow-list under ESM-native loading.',
 );
 
 const desktopConfig = await loadConfigModule('packages/sdkwork-birdcoder-desktop/vite.config.ts');
@@ -200,26 +245,65 @@ assert.deepEqual(
   ['react', 'react-dom', 'react-i18next', 'scheduler', 'use-sync-external-store'],
   'Desktop Vite config should dedupe shared runtime packages under ESM-native loading.',
 );
-assert.equal(desktopConfig.resolve?.alias?.[0]?.find instanceof RegExp, true);
-assert.equal(
-  desktopConfig.resolve?.alias?.[0]?.find.test('@sdkwork/birdcoder-infrastructure'),
-  true,
-  'Desktop Vite config should still resolve bare workspace package aliases.',
+const desktopBirdcoderBareAlias = findAliasEntry(
+  desktopConfig.resolve?.alias,
+  (candidate) =>
+    candidate?.find instanceof RegExp
+    && candidate.find.test('@sdkwork/birdcoder-infrastructure')
+    && !candidate.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
+  'Desktop Vite config should expose a bare workspace package alias.',
 );
 assert.equal(
-  desktopConfig.resolve?.alias?.[0]?.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
-  false,
-  'Desktop Vite config should leave package subpath imports to package exports instead of rewriting them into /src paths.',
-);
-assert.equal(
-  desktopConfig.resolve?.alias?.[0]?.replacement,
+  desktopBirdcoderBareAlias.replacement,
   path.resolve(workspaceRootDir, 'packages', 'sdkwork-birdcoder-$1', 'src'),
-  'Desktop Vite config should resolve workspace aliases under ESM-native loading.',
+  'Desktop Vite config should resolve bare workspace aliases under ESM-native loading.',
+);
+const desktopBirdcoderSubpathAlias = findAliasEntry(
+  desktopConfig.resolve?.alias,
+  (candidate) =>
+    candidate?.find instanceof RegExp
+    && !candidate.find.test('@sdkwork/birdcoder-infrastructure')
+    && candidate.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
+  'Desktop Vite config should expose a workspace package subpath alias.',
+);
+assert.equal(
+  desktopBirdcoderSubpathAlias.replacement,
+  path.resolve(workspaceRootDir, 'packages', 'sdkwork-birdcoder-$1', 'src', '$2'),
+  'Desktop Vite config should resolve workspace package subpath aliases under ESM-native loading.',
+);
+const desktopTerminalBareAlias = findAliasEntry(
+  desktopConfig.resolve?.alias,
+  (candidate) =>
+    candidate?.find instanceof RegExp
+    && candidate.find.test('@sdkwork/terminal-shell')
+    && !candidate.find.test('@sdkwork/terminal-shell/runtime'),
+  'Desktop Vite config should expose a bare sdkwork-terminal package alias.',
+);
+assert.equal(
+  desktopTerminalBareAlias.replacement,
+  path.resolve(workspaceRootDir, '../sdkwork-terminal/packages/sdkwork-terminal-$1/src'),
+  'Desktop Vite config should resolve bare sdkwork-terminal aliases from the sibling workspace.',
+);
+const desktopTerminalSubpathAlias = findAliasEntry(
+  desktopConfig.resolve?.alias,
+  (candidate) =>
+    candidate?.find instanceof RegExp
+    && !candidate.find.test('@sdkwork/terminal-shell')
+    && candidate.find.test('@sdkwork/terminal-shell/runtime'),
+  'Desktop Vite config should expose a sdkwork-terminal package subpath alias.',
+);
+assert.equal(
+  desktopTerminalSubpathAlias.replacement,
+  path.resolve(workspaceRootDir, '../sdkwork-terminal/packages/sdkwork-terminal-$1/src', '$2'),
+  'Desktop Vite config should resolve sdkwork-terminal subpath aliases from the sibling workspace.',
 );
 assert.deepEqual(
   desktopConfig.server?.fs?.allow,
-  [workspaceRootDir],
-  'Desktop Vite config should preserve the workspace fs allow-list under ESM-native loading.',
+  [
+    workspaceRootDir,
+    path.resolve(workspaceRootDir, '../sdkwork-terminal'),
+  ],
+  'Desktop Vite config should preserve the BirdCoder and sdkwork-terminal workspace fs allow-list under ESM-native loading.',
 );
 
 console.log('vite config ESM contract passed.');

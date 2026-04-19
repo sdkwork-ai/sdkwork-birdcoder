@@ -12,8 +12,8 @@
       "types": "./src/index.ts"
     },
     "./runtime/defaultIdeServices": {
-      "import": "./src/services/defaultIdeServicesRuntime.ts",
-      "types": "./src/services/defaultIdeServicesRuntime.ts"
+      "import": "./src/runtime/defaultIdeServices.ts",
+      "types": "./src/runtime/defaultIdeServices.ts"
     },
     "./services/defaultIdeServices": {
       "import": "./src/services/defaultIdeServices.ts",
@@ -30,9 +30,26 @@
     "./storage/dataKernel": {
       "import": "./src/storage/dataKernel.ts",
       "types": "./src/storage/dataKernel.ts"
+    },
+    "./storage/appConsoleRepository": {
+      "import": "./src/storage/appConsoleRepository.ts",
+      "types": "./src/storage/appConsoleRepository.ts"
+    },
+    "./storage/promptSkillTemplateEvidenceRepository": {
+      "import": "./src/storage/promptSkillTemplateEvidenceRepository.ts",
+      "types": "./src/storage/promptSkillTemplateEvidenceRepository.ts"
+    },
+    "./storage/providers": {
+      "import": "./src/storage/providers.ts",
+      "types": "./src/storage/providers.ts"
+    },
+    "./storage/sqlRowCodec": {
+      "import": "./src/storage/sqlRowCodec.ts",
+      "types": "./src/storage/sqlRowCodec.ts"
     }
   },
   "dependencies": {
+    "@sdkwork/birdcoder-codeengine": "workspace:*",
     "@sdkwork/birdcoder-host-core": "workspace:*",
     "@tauri-apps/api": "catalog:",
     "@tauri-apps/plugin-dialog": "catalog:",

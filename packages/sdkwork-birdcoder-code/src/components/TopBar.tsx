@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronDown, Check, GitBranch, CheckCircle2, Share, Upload, Terminal, X, Copy, Globe, Lock, Plus, Loader2 } from 'lucide-react';
+import { ChevronDown, Check, GitBranch, CheckCircle2, Share, Upload, Terminal, X, Copy, Globe, Lock, Plus, Loader2, RefreshCw } from 'lucide-react';
 import type {
   BirdCoderCodingSession,
   BirdCoderDeploymentTargetSummary,
@@ -8,8 +8,19 @@ import type {
   BirdCoderProjectPublishResult,
   BirdCoderReleaseSummary,
 } from '@sdkwork/birdcoder-types';
-import { Button } from '@sdkwork/birdcoder-ui';
-import { globalEventBus, useIDEServices, useToast } from '@sdkwork/birdcoder-commons/workbench';
+import { isBirdCoderCodingSessionExecuting } from '@sdkwork/birdcoder-types';
+import {
+  getWorkbenchCodeEngineDefinition,
+  getWorkbenchCodeModelLabel,
+  normalizeWorkbenchCodeModelId,
+} from '@sdkwork/birdcoder-codeengine';
+import { Button, WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-ui';
+import {
+  globalEventBus,
+  useIDEServices,
+  useToast,
+  useWorkbenchPreferences,
+} from '@sdkwork/birdcoder-commons/workbench';
 import { useTranslation } from 'react-i18next';
 import {
   executeGitCommand,
@@ -60,6 +71,8 @@ const PUBLISH_ROLLOUT_STAGE_OPTIONS = [
 interface TopBarProps {
   currentProject: BirdCoderProject | undefined;
   selectedCodingSession: BirdCoderCodingSession | undefined;
+  selectedEngineId: string;
+  selectedModelId: string;
   activeTab: 'ai' | 'editor';
   setActiveTab: (tab: 'ai' | 'editor') => void;
   isTerminalOpen: boolean;
@@ -69,6 +82,8 @@ interface TopBarProps {
 export function TopBar({
   currentProject,
   selectedCodingSession,
+  selectedEngineId,
+  selectedModelId,
   activeTab,
   setActiveTab,
   isTerminalOpen,
@@ -80,6 +95,25 @@ export function TopBar({
   const [branches, setBranches] = useState<string[]>(['main', 'dev', 'feature/auth']);
   const { addToast } = useToast();
   const { t } = useTranslation();
+  const { preferences } = useWorkbenchPreferences();
+  const headerEngineId = selectedCodingSession?.engineId ?? selectedEngineId;
+  const headerModelId = selectedCodingSession?.modelId ?? selectedModelId;
+  const headerEngine = getWorkbenchCodeEngineDefinition(headerEngineId, preferences);
+  const headerModelIdNormalized = normalizeWorkbenchCodeModelId(
+    headerEngineId,
+    headerModelId,
+    preferences,
+  );
+  const headerModelLabel = getWorkbenchCodeModelLabel(
+    headerEngineId,
+    headerModelIdNormalized,
+    preferences,
+  );
+  const headerEngineSummary =
+    headerModelLabel.trim().toLowerCase() === headerEngine.label.trim().toLowerCase()
+      ? headerEngine.label
+      : `${headerEngine.label} / ${headerModelLabel}`;
+  const isExecutingCurrentSession = isBirdCoderCodingSessionExecuting(selectedCodingSession);
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -351,16 +385,16 @@ export function TopBar({
   };
 
   const resolveCollaboratorTitle = (collaborator: BirdCoderProjectCollaboratorSummary) =>
-    collaborator.identityDisplayName?.trim() ||
-    collaborator.identityEmail?.trim() ||
-    collaborator.identityId;
+    collaborator.userDisplayName?.trim() ||
+    collaborator.userEmail?.trim() ||
+    collaborator.userId;
 
   const resolveCollaboratorSubtitle = (collaborator: BirdCoderProjectCollaboratorSummary) => {
-    const email = collaborator.identityEmail?.trim();
+    const email = collaborator.userEmail?.trim();
     if (email && email !== resolveCollaboratorTitle(collaborator)) {
       return email;
     }
-    return collaborator.identityId;
+    return collaborator.userId;
   };
 
   const handlePublishProject = async () => {
@@ -420,14 +454,29 @@ export function TopBar({
   return (
     <>
       <div className="h-12 border-b border-white/5 flex items-center justify-between px-4 text-sm shrink-0 bg-[#0e0e11] relative">
-        <div className="font-medium text-gray-200 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-2 fill-mode-both" style={{ animationDelay: '100ms' }}>
-          <span className="text-sm font-semibold text-gray-200 transition-colors">
-            {currentProject?.name || '-'}
-          </span>
-          <span className="text-gray-600 text-xs">/</span>
-          <span className="text-sm text-gray-400 transition-colors truncate max-w-[150px]">
-            {selectedCodingSession ? selectedCodingSession.title : '-'}
-          </span>
+        <div className="min-w-0 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 fill-mode-both" style={{ animationDelay: '100ms' }}>
+          <div className="min-w-0 font-medium text-gray-200 flex items-center gap-1.5">
+            <span className="text-sm font-semibold text-gray-200 transition-colors">
+              {currentProject?.name || '-'}
+            </span>
+            <span className="text-gray-600 text-xs">/</span>
+            <span className="text-sm text-gray-400 transition-colors truncate max-w-[150px]">
+              {selectedCodingSession ? selectedCodingSession.title : '-'}
+            </span>
+          </div>
+          <div className="hidden min-w-0 items-center gap-2 text-xs md:flex">
+            <span className="text-gray-700">/</span>
+            <WorkbenchCodeEngineIcon engineId={headerEngine.id} />
+            <div className="min-w-0 flex items-center gap-1.5 whitespace-nowrap text-gray-300">
+              <span className="truncate font-medium text-gray-200">{headerEngineSummary}</span>
+            </div>
+            {isExecutingCurrentSession && (
+              <div className="hidden items-center gap-1.5 text-xs text-emerald-400 xl:flex">
+                <RefreshCw size={12} className="animate-spin" />
+                <span>{t('code.executingSession')}</span>
+              </div>
+            )}
+          </div>
         </div>
         
         <div className="flex items-center gap-1 bg-[#18181b] p-1 rounded-lg border border-white/5 animate-in fade-in slide-in-from-top-2 fill-mode-both" style={{ animationDelay: '125ms' }}>

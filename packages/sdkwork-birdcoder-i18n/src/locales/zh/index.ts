@@ -5,6 +5,7 @@ import commonExtra from './common-extra.ts';
 import auth from './auth.ts';
 import thread from './thread.ts';
 import settingsExtra from './settings-extra.ts';
+import settingsEngine from './settings-engine.ts';
 import chat from './chat.ts';
 import appErrors from './app/errors.ts';
 import appMenu from './app/menu.ts';
@@ -30,6 +31,7 @@ export const zhModules = [
   auth,
   thread,
   settingsExtra,
+  settingsEngine,
   chat,
   appErrors,
   appMenu,

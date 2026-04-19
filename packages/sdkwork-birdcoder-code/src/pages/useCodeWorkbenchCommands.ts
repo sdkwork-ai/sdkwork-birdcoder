@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   globalEventBus,
   type TerminalCommandRequest,
@@ -14,7 +14,7 @@ interface UseCodeWorkbenchCommandsOptions {
   currentProjectPath?: string;
   defaultWorkingDirectory: string;
   createCodingSession: (projectId: string, title: string) => Promise<{ id: string }>;
-  setSelectedCodingSessionId: (codingSessionId: string | null) => void;
+  selectCodingSession: (codingSessionId: string) => void;
   setViewingDiff: React.Dispatch<React.SetStateAction<FileChange | null>>;
   setIsTerminalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setTerminalRequest: React.Dispatch<React.SetStateAction<TerminalCommandRequest | undefined>>;
@@ -35,7 +35,7 @@ export function useCodeWorkbenchCommands({
   currentProjectPath,
   defaultWorkingDirectory,
   createCodingSession,
-  setSelectedCodingSessionId,
+  selectCodingSession,
   setViewingDiff,
   setIsTerminalOpen,
   setTerminalRequest,
@@ -49,6 +49,34 @@ export function useCodeWorkbenchCommands({
   addToast,
 }: UseCodeWorkbenchCommandsOptions) {
   const { t } = useTranslation();
+  const projectsRef = useRef(projects);
+  const selectedCodingSessionIdRef = useRef(selectedCodingSessionId);
+  const currentProjectIdRef = useRef(currentProjectId);
+  const currentProjectPathRef = useRef(currentProjectPath);
+  const defaultWorkingDirectoryRef = useRef(defaultWorkingDirectory);
+  const createCodingSessionRef = useRef(createCodingSession);
+  const selectCodingSessionRef = useRef(selectCodingSession);
+  const onRunWithoutDebuggingRef = useRef(onRunWithoutDebugging);
+
+  useEffect(() => {
+    projectsRef.current = projects;
+    selectedCodingSessionIdRef.current = selectedCodingSessionId;
+    currentProjectIdRef.current = currentProjectId;
+    currentProjectPathRef.current = currentProjectPath;
+    defaultWorkingDirectoryRef.current = defaultWorkingDirectory;
+    createCodingSessionRef.current = createCodingSession;
+    selectCodingSessionRef.current = selectCodingSession;
+    onRunWithoutDebuggingRef.current = onRunWithoutDebugging;
+  }, [
+    createCodingSession,
+    currentProjectId,
+    currentProjectPath,
+    defaultWorkingDirectory,
+    onRunWithoutDebugging,
+    projects,
+    selectCodingSession,
+    selectedCodingSessionId,
+  ]);
 
   useEffect(() => {
     const handleCloseTerminal = () => setIsTerminalOpen(false);
@@ -83,32 +111,34 @@ export function useCodeWorkbenchCommands({
     };
 
     const handlePreviousCodingSession = () => {
-      if (!selectedCodingSessionId) {
+      const activeCodingSessionId = selectedCodingSessionIdRef.current;
+      if (!activeCodingSessionId) {
         return;
       }
 
-      const allCodingSessions = projects.flatMap((project) => project.codingSessions);
+      const allCodingSessions = projectsRef.current.flatMap((project) => project.codingSessions);
       const currentIndex = allCodingSessions.findIndex(
-        (codingSession) => codingSession.id === selectedCodingSessionId,
+        (codingSession) => codingSession.id === activeCodingSessionId,
       );
 
       if (currentIndex > 0) {
-        setSelectedCodingSessionId(allCodingSessions[currentIndex - 1].id);
+        selectCodingSessionRef.current(allCodingSessions[currentIndex - 1].id);
       }
     };
 
     const handleNextCodingSession = () => {
-      if (!selectedCodingSessionId) {
+      const activeCodingSessionId = selectedCodingSessionIdRef.current;
+      if (!activeCodingSessionId) {
         return;
       }
 
-      const allCodingSessions = projects.flatMap((project) => project.codingSessions);
+      const allCodingSessions = projectsRef.current.flatMap((project) => project.codingSessions);
       const currentIndex = allCodingSessions.findIndex(
-        (codingSession) => codingSession.id === selectedCodingSessionId,
+        (codingSession) => codingSession.id === activeCodingSessionId,
       );
 
       if (currentIndex !== -1 && currentIndex < allCodingSessions.length - 1) {
-        setSelectedCodingSessionId(allCodingSessions[currentIndex + 1].id);
+        selectCodingSessionRef.current(allCodingSessions[currentIndex + 1].id);
       }
     };
 
@@ -125,15 +155,16 @@ export function useCodeWorkbenchCommands({
     };
 
     const handleRunWithoutDebugging = () => {
-      if (onRunWithoutDebugging) {
-        onRunWithoutDebugging();
+      if (onRunWithoutDebuggingRef.current) {
+        onRunWithoutDebuggingRef.current();
         return;
       }
 
       globalEventBus.emit('openTerminal');
       globalEventBus.emit('terminalRequest', {
         command: 'npm start',
-        path: currentProjectPath?.trim() || defaultWorkingDirectory,
+        path:
+          currentProjectPathRef.current?.trim() || defaultWorkingDirectoryRef.current,
         timestamp: Date.now(),
       });
       addToast(t('code.startingApplication'), 'info');
@@ -168,14 +199,18 @@ export function useCodeWorkbenchCommands({
     };
 
     const handleCreateNewCodingSession = async () => {
-      if (!currentProjectId) {
+      const activeProjectId = currentProjectIdRef.current;
+      if (!activeProjectId) {
         addToast(t('code.selectProjectFirst'), 'error');
         return;
       }
 
       try {
-        const newCodingSession = await createCodingSession(currentProjectId, t('app.menu.newThread'));
-        setSelectedCodingSessionId(newCodingSession.id);
+        const newCodingSession = await createCodingSessionRef.current(
+          activeProjectId,
+          t('app.menu.newThread'),
+        );
+        selectCodingSessionRef.current(newCodingSession.id);
         addToast(t('code.newThreadCreated'), 'success');
       } catch (error) {
         console.error('Failed to create thread', error);
@@ -210,23 +245,6 @@ export function useCodeWorkbenchCommands({
     };
   }, [
     addToast,
-    createCodingSession,
-    currentProjectId,
-    currentProjectPath,
-    defaultWorkingDirectory,
-    projects,
-    selectedCodingSessionId,
-    setIsDebugConfigVisible,
-    setIsFindVisible,
-    setIsQuickOpenVisible,
-    setIsRunConfigVisible,
-    setIsRunTaskVisible,
-    setIsSidebarVisible,
-    setIsTerminalOpen,
-    setSelectedCodingSessionId,
-    setTerminalRequest,
-    setViewingDiff,
-    onRunWithoutDebugging,
     t,
   ]);
 }

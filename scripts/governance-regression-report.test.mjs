@@ -100,7 +100,7 @@ const scrubbedCommandEnv = buildGovernanceRegressionCommandEnv({
     npm_config_user_agent: 'pnpm/10.0.0 npm/? node/v22.0.0 win32 x64',
     npm_execpath: 'C:\\pnpm\\pnpm.cjs',
     npm_lifecycle_event: 'check:quality:release',
-    npm_lifecycle_script: 'pnpm check:quality:fast && pnpm check:quality:standard && pnpm check:governance-regression',
+    npm_lifecycle_script: 'node scripts/run-quality-release-check.mjs',
     npm_node_execpath: 'C:\\nvm4w\\nodejs\\node.exe',
     npm_package_json: 'D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\sdkwork-birdcoder\\package.json',
     npm_package_name: '@sdkwork/birdcoder-workspace',
@@ -406,7 +406,7 @@ const blockedReport = await runGovernanceRegressionReport({
     stdout: check.id === 'web-bundle-budget'
       ? [
           '> @sdkwork/birdcoder-workspace@0.1.0 build D:\\repo',
-          '> node scripts/prepare-shared-sdk-packages.mjs && pnpm --dir packages/sdkwork-birdcoder-web exec node ../../scripts/run-vite-host.mjs build --mode production && node scripts/web-bundle-budget.test.mjs',
+          '> node scripts/prepare-shared-sdk-packages.mjs && node scripts/run-vite-host.mjs --cwd packages/sdkwork-birdcoder-web build --mode production && node scripts/web-bundle-budget.test.mjs',
         ].join('\n')
       : '',
     stderr: check.id === 'web-bundle-budget'

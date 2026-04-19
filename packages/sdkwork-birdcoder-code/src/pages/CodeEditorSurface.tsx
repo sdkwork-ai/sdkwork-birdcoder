@@ -32,7 +32,7 @@ export function CodeEditorSurface({
   const { t } = useTranslation();
 
   return (
-    <div className="flex-1 h-full bg-[#0e0e11] flex flex-col border-r border-white/10 relative">
+    <div className="flex-1 min-w-0 h-full overflow-hidden bg-[#0e0e11] flex flex-col border-r border-white/10 relative">
       {viewingDiff ? (
         <>
           <div className="h-10 border-b border-white/10 flex items-center justify-between px-4 bg-[#18181b] shrink-0">

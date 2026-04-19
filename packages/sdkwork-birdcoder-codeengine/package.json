@@ -1,0 +1,62 @@
+{
+  "name": "@sdkwork/birdcoder-codeengine",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./catalog": {
+      "import": "./src/catalog.ts",
+      "types": "./src/catalog.ts"
+    },
+    "./access": {
+      "import": "./src/access.ts",
+      "types": "./src/access.ts"
+    },
+    "./engines": {
+      "import": "./src/engines.ts",
+      "types": "./src/engines.ts"
+    },
+    "./kernel": {
+      "import": "./src/kernel.ts",
+      "types": "./src/kernel.ts"
+    },
+    "./manifest": {
+      "import": "./src/manifest.ts",
+      "types": "./src/manifest.ts"
+    },
+    "./preferences": {
+      "import": "./src/preferences.ts",
+      "types": "./src/preferences.ts"
+    },
+    "./serverSupport": {
+      "import": "./src/serverSupport.ts",
+      "types": "./src/serverSupport.ts"
+    },
+    "./runtime": {
+      "import": "./src/runtime.ts",
+      "types": "./src/runtime.ts"
+    }
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sdkwork/birdcoder-chat": "workspace:*",
+    "@sdkwork/birdcoder-chat-claude": "workspace:*",
+    "@sdkwork/birdcoder-chat-codex": "workspace:*",
+    "@sdkwork/birdcoder-chat-gemini": "workspace:*",
+    "@sdkwork/birdcoder-chat-opencode": "workspace:*",
+    "@sdkwork/birdcoder-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "catalog:"
+  }
+}

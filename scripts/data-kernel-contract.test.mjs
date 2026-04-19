@@ -10,7 +10,7 @@ assert.deepEqual(dataModule.BIRDCODER_DATABASE_PROVIDER_IDS, ['sqlite', 'postgre
 assert.equal(dataModule.BIRDCODER_SCHEMA_MIGRATION_HISTORY_TABLE, 'schema_migration_history');
 
 const requiredEntityNames = [
-  'identity',
+  'user_account',
   'user_profile',
   'vip_subscription',
   'workspace',
@@ -35,7 +35,6 @@ const requiredEntityNames = [
   'model_catalog',
   'engine_binding',
   'run_configuration',
-  'terminal_session',
   'terminal_execution',
   'build_execution',
   'preview_session',

@@ -11,7 +11,7 @@ import {
   vipPackageMeta,
 } from './vip';
 
-export type BirdCoderAppbaseDomain = 'identity' | 'commerce';
+export type BirdCoderAppbaseDomain = 'user_center' | 'commerce';
 export type BirdCoderAppbaseCapabilityName = 'auth' | 'user' | 'vip';
 export type BirdCoderAppbaseHost = 'browser' | 'tauri' | 'server';
 
@@ -61,11 +61,11 @@ export interface CreateBirdCoderAppbaseManifestOptions {
   title: string;
 }
 
-export const BIRDCODER_APPBASE_DOMAIN_ORDER: BirdCoderAppbaseDomain[] = ['identity', 'commerce'];
+export const BIRDCODER_APPBASE_DOMAIN_ORDER: BirdCoderAppbaseDomain[] = ['user_center', 'commerce'];
 
 export const BIRDCODER_APPBASE_DOMAIN_LABELS: Record<BirdCoderAppbaseDomain, string> = {
   commerce: 'Commerce',
-  identity: 'Identity',
+  user_center: 'User Center',
 };
 
 export const BIRDCODER_APPBASE_CAPABILITY_CATALOG: BirdCoderAppbaseCapabilityMeta[] = [
@@ -73,7 +73,7 @@ export const BIRDCODER_APPBASE_CAPABILITY_CATALOG: BirdCoderAppbaseCapabilityMet
     bridgePackageName: 'sdkwork-birdcoder-appbase',
     capability: 'auth',
     description: 'Appbase-aligned authentication, session, and access-entry surfaces for BirdCoder.',
-    domain: 'identity',
+    domain: 'user_center',
     routePath: createBirdCoderAuthWorkspaceManifest().loginRoutePath,
     sourcePackageName: authPackageMeta.package,
     title: 'Auth',
@@ -82,7 +82,7 @@ export const BIRDCODER_APPBASE_CAPABILITY_CATALOG: BirdCoderAppbaseCapabilityMet
     bridgePackageName: 'sdkwork-birdcoder-appbase',
     capability: 'user',
     description: 'Appbase-aligned user center and account profile orchestration for BirdCoder.',
-    domain: 'identity',
+    domain: 'user_center',
     routePath: createBirdCoderUserWorkspaceManifest().routePath,
     sourcePackageName: userPackageMeta.package,
     title: 'User',

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-commons/src/workbench/kernel.ts';
+import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
 import {
   BIRDCODER_CODING_SESSION_EVENT_KINDS,
   BIRDCODER_CODING_SESSION_RUNTIME_STATUSES,

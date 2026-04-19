@@ -4,12 +4,13 @@ import { dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-  listBirdCoderCodingServerEngines,
-  listBirdCoderCodingServerModels,
-} from '../packages/sdkwork-birdcoder-server/src/index.ts';
+  listBirdCoderCodeEngineDescriptors,
+  listBirdCoderCodeEngineNativeSessionProviders,
+  listBirdCoderCodeEngineModels,
+} from '../packages/sdkwork-birdcoder-codeengine/src/catalog.ts';
 
 const outputUrl = new URL(
-  '../packages/sdkwork-birdcoder-server/src-host/generated/engine-catalog.json',
+  '../packages/sdkwork-birdcoder-codeengine/src-host/generated/engine-catalog.json',
   import.meta.url,
 );
 
@@ -23,8 +24,9 @@ export function generateRustHostEngineCatalog({
     targetUrl,
     `${JSON.stringify(
       {
-        engines: listBirdCoderCodingServerEngines(),
-        models: listBirdCoderCodingServerModels(),
+        engines: listBirdCoderCodeEngineDescriptors(),
+        models: listBirdCoderCodeEngineModels(),
+        nativeProviders: listBirdCoderCodeEngineNativeSessionProviders(),
       },
       null,
       2,

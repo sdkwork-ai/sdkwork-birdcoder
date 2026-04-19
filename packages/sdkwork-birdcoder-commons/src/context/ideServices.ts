@@ -5,6 +5,7 @@ import type {
   IAdminPolicyService,
   IAuthService,
   IAuditService,
+  ICatalogService,
   ICollaborationService,
   ICoreReadService,
   ICoreWriteService,
@@ -21,6 +22,7 @@ import { createLazyDefaultIdeServices } from './lazyDefaultIdeServices.ts';
 export interface IIDEContext {
   adminDeploymentService: IAdminDeploymentService;
   adminPolicyService: IAdminPolicyService;
+  catalogService: ICatalogService;
   workspaceService: IWorkspaceService;
   projectService: IProjectService;
   collaborationService: ICollaborationService;
@@ -40,6 +42,7 @@ export function createDefaultIdeContextValue(): IIDEContext {
   return {
     adminDeploymentService: defaultIdeServices.adminDeploymentService,
     adminPolicyService: defaultIdeServices.adminPolicyService,
+    catalogService: defaultIdeServices.catalogService,
     workspaceService: defaultIdeServices.workspaceService,
     projectService: defaultIdeServices.projectService,
     collaborationService: defaultIdeServices.collaborationService,

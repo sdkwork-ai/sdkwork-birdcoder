@@ -9,7 +9,6 @@ import {
   getTerminalCliProfileDefinition,
   type TerminalCliProfileId,
 } from './registry.ts';
-import { saveStoredTerminalGovernanceAuditRecord } from './auditStore.ts';
 import { getStoredJson } from '../storage/localStore.ts';
 import type {
   BirdcoderApprovalDecision,
@@ -56,22 +55,6 @@ export interface TerminalHostSessionState {
   cwd: string;
   status: TerminalHostSessionStatus;
   lastExitCode: number | null;
-}
-
-export interface TerminalHostSessionOpenRequest {
-  sessionId: string;
-  profileId: TerminalProfileId | string;
-  title?: string;
-  cwd: string;
-}
-
-export interface TerminalHostSessionCommandRequest extends TerminalHostSessionOpenRequest {
-  command: string;
-}
-
-export interface TerminalHostSessionResponse {
-  state: TerminalHostSessionState;
-  lines: TerminalHostOutputLine[];
 }
 
 export type TerminalCliProfileAvailabilityStatus = 'available' | 'missing' | 'unknown';
@@ -128,11 +111,6 @@ export interface TerminalCommandAuditEventInput {
   cwd: string;
   command: string;
   decision: TerminalCommandGovernanceDecision;
-}
-
-interface TauriTerminalHostSessionExecuteResponse {
-  state: TerminalHostSessionState;
-  execution: Omit<TerminalExecutionResult, 'executedVia'>;
 }
 
 interface TauriTerminalCliProfileAvailabilityResponse {
@@ -240,66 +218,6 @@ function resolveTerminalGovernanceCategory(
 
 function isCommandMatchingAnyPattern(command: string, patterns: readonly RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(command));
-}
-
-function buildBlockedTerminalExecutionResult(
-  plan: TerminalExecutionPlan,
-  auditEvent: BirdcoderAuditEvent,
-  reason: string | null,
-): TerminalExecutionResult {
-
-  return {
-    profileId: plan.profileId,
-    kind: plan.kind,
-    executable: plan.executable,
-    args: [...plan.args],
-    cwd: plan.cwd,
-    stdout: '',
-    stderr: `Blocked by governance policy. ${reason ?? 'Terminal command denied.'} traceId=${auditEvent.traceId}`,
-    exitCode: 130,
-    executedVia: 'policy-blocked',
-  };
-}
-
-async function buildBlockedTerminalExecutionArtifacts(
-  plan: TerminalExecutionPlan,
-  command: string,
-  decision: TerminalCommandGovernanceDecision,
-): Promise<{ auditEvent: BirdcoderAuditEvent; execution: TerminalExecutionResult }> {
-  const recordedAt = Date.now();
-  const auditEvent = buildTerminalCommandAuditEvent(
-    {
-      profileId: plan.profileId,
-      cwd: plan.cwd,
-      command,
-      decision,
-    },
-    recordedAt,
-  );
-
-  await saveStoredTerminalGovernanceAuditRecord({
-    traceId: auditEvent.traceId,
-    recordedAt,
-    profileId: plan.profileId,
-    cwd: plan.cwd,
-    command,
-    reason: decision.reason,
-    approvalPolicy: decision.approvalPolicy,
-    category: auditEvent.category,
-    engine: auditEvent.engine,
-    tool: auditEvent.tool,
-    riskLevel: auditEvent.riskLevel,
-    approvalDecision: auditEvent.approvalDecision,
-    inputDigest: auditEvent.inputDigest,
-    outputDigest: auditEvent.outputDigest,
-    artifactRefs: [...auditEvent.artifactRefs],
-    operator: auditEvent.operator,
-  });
-
-  return {
-    auditEvent,
-    execution: buildBlockedTerminalExecutionResult(plan, auditEvent, decision.reason),
-  };
 }
 
 export function normalizeTerminalApprovalPolicy(
@@ -680,175 +598,4 @@ export function buildTerminalProfileBlockedMessage(
   }
 
   return `${profile.title} is unavailable. ${launchState.reason ?? 'Install the CLI to continue.'} ${blockedAction.actionLabel ?? 'Open Settings'} to configure the environment.`;
-}
-
-export async function openTerminalHostSession(
-  request: TerminalHostSessionOpenRequest,
-): Promise<TerminalHostSessionState> {
-  const normalizedState = normalizeTerminalHostSessionState({
-    sessionId: request.sessionId,
-    profileId: request.profileId,
-    title: request.title,
-    cwd: request.cwd,
-  });
-  const invoke = await resolveTauriInvoke();
-
-  if (!invoke) {
-    return normalizedState;
-  }
-
-  try {
-    return normalizeTerminalHostSessionState(
-      await invoke<TerminalHostSessionState>('terminal_host_session_open', {
-        request: normalizedState,
-      }),
-    );
-  } catch {
-    return normalizedState;
-  }
-}
-
-export async function runTerminalHostSessionCommand(
-  request: TerminalHostSessionCommandRequest,
-): Promise<TerminalHostSessionResponse> {
-  const normalizedState = normalizeTerminalHostSessionState({
-    sessionId: request.sessionId,
-    profileId: request.profileId,
-    title: request.title,
-    cwd: request.cwd,
-  });
-  const plan = buildTerminalExecutionPlan(request.profileId, request.command, request.cwd);
-  const governanceDecision = await evaluateTerminalCommandGovernance(request.command);
-
-  if (!governanceDecision.allowed) {
-    const { execution } = await buildBlockedTerminalExecutionArtifacts(
-      plan,
-      request.command,
-      governanceDecision,
-    );
-    return {
-      state: {
-        ...normalizedState,
-        cwd: plan.cwd,
-        status: 'error',
-        lastExitCode: execution.exitCode,
-      },
-      lines: convertExecutionResultToTerminalHostLines(execution),
-    };
-  }
-
-  const invoke = await resolveTauriInvoke();
-
-  if (!invoke) {
-    const execution = await executeTerminalCommand(plan.profileId, request.command, plan.cwd);
-    return {
-      state: {
-        ...normalizedState,
-        cwd: plan.cwd,
-        status: execution.exitCode === 0 ? 'idle' : 'error',
-        lastExitCode: execution.exitCode,
-      },
-      lines: convertExecutionResultToTerminalHostLines(execution),
-    };
-  }
-
-  try {
-    const response = await invoke<TauriTerminalHostSessionExecuteResponse>(
-      'terminal_host_session_execute',
-      {
-        request: {
-          sessionId: normalizedState.sessionId,
-          profileId: plan.profileId,
-          kind: plan.kind,
-          title: normalizedState.title,
-          cwd: plan.cwd,
-          executable: plan.executable,
-          args: plan.args,
-        },
-      },
-    );
-
-    return {
-      state: normalizeTerminalHostSessionState(response.state),
-      lines: convertExecutionResultToTerminalHostLines(response.execution),
-    };
-  } catch (error) {
-    return {
-      state: {
-        ...normalizedState,
-        cwd: plan.cwd,
-        status: 'error',
-        lastExitCode: -1,
-      },
-      lines: [
-        createTerminalHostOutputLine(
-          String(error),
-          'stderr',
-          1,
-          Date.now(),
-        ),
-      ],
-    };
-  }
-}
-
-export async function closeTerminalHostSession(sessionId: string): Promise<void> {
-  const invoke = await resolveTauriInvoke();
-  if (!invoke) {
-    return;
-  }
-
-  try {
-    await invoke('terminal_host_session_close', { sessionId });
-  } catch {
-    // Ignore close failures and let the UI/session snapshot remain authoritative.
-  }
-}
-
-export async function executeTerminalCommand(
-  profileId: TerminalProfileId | string,
-  command: string,
-  cwd: string,
-): Promise<TerminalExecutionResult> {
-  const plan = buildTerminalExecutionPlan(profileId, command, cwd);
-  const governanceDecision = await evaluateTerminalCommandGovernance(command);
-
-  if (!governanceDecision.allowed) {
-    return (
-      await buildBlockedTerminalExecutionArtifacts(
-        plan,
-        command,
-        governanceDecision,
-      )
-    ).execution;
-  }
-
-  const invoke = await resolveTauriInvoke();
-
-  if (invoke) {
-    const result = await invoke<Omit<TerminalExecutionResult, 'executedVia'>>(
-      'execute_terminal_command',
-      {
-        request: plan,
-      },
-    );
-
-    return {
-      ...result,
-      executedVia: 'tauri',
-    };
-  }
-
-  return {
-    profileId: plan.profileId,
-    kind: plan.kind,
-    executable: plan.executable,
-    args: [...plan.args],
-    cwd: plan.cwd,
-    stdout: '',
-    stderr:
-      'Terminal execution requires the desktop Tauri host or a real server terminal bridge. TODO: wire terminal commands through the Rust server API for non-Tauri runtimes.',
-    exitCode: 126,
-    executedVia: 'unsupported-runtime',
-  };
 }

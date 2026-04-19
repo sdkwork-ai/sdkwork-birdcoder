@@ -6,58 +6,17 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { ensureNodeExecPathOnPath } from './runtime-node-path.mjs';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
-
-function resolvePathKey(env = process.env, platform = process.platform) {
-  return Object.keys(env).find((key) => key.toUpperCase() === 'PATH')
-    ?? (platform === 'win32' ? 'Path' : 'PATH');
-}
-
-function resolvePathDelimiter(platform = process.platform) {
-  return platform === 'win32' ? ';' : ':';
-}
-
-function normalizePathEntry(entry, platform = process.platform) {
-  const pathModule = platform === 'win32' ? path.win32 : path.posix;
-  const normalizedEntry = pathModule.normalize(String(entry ?? '').trim());
-
-  return platform === 'win32'
-    ? normalizedEntry.replace(/[\\/]+$/, '').toLowerCase()
-    : normalizedEntry.replace(/\/+$/, '');
-}
-
-function splitPathEntries(pathValue, platform = process.platform) {
-  return String(pathValue ?? '')
-    .split(resolvePathDelimiter(platform))
-    .map((candidate) => candidate.trim())
-    .filter(Boolean);
-}
-
-function uniquePathEntries(entries, platform = process.platform) {
-  const dedupedEntries = [];
-  const seen = new Set();
-
-  for (const entry of entries) {
-    const normalizedEntry = normalizePathEntry(entry, platform);
-    if (!normalizedEntry || seen.has(normalizedEntry)) {
-      continue;
-    }
-
-    seen.add(normalizedEntry);
-    dedupedEntries.push(entry);
-  }
-
-  return dedupedEntries;
-}
 
 function ensureWorkspaceRelativePath(targetPath, workspaceRootDir = rootDir) {
   const absoluteTargetPath = path.resolve(workspaceRootDir, targetPath);
   const relativeTargetPath = path.relative(workspaceRootDir, absoluteTargetPath);
   if (
-    !relativeTargetPath
-    || relativeTargetPath.startsWith('..')
+    relativeTargetPath.startsWith('..')
     || path.isAbsolute(relativeTargetPath)
   ) {
     throw new Error(`Package path must stay inside the workspace root: ${targetPath}`);
@@ -105,23 +64,11 @@ export function createWorkspacePackageScriptPlan({
     scriptName,
     workspaceRootDir,
   });
-  const pathKey = resolvePathKey(env, platform);
-  const nextEnv = {
-    ...env,
-  };
-  const nodeBinDir = path.dirname(execPath);
-  const pathEntries = splitPathEntries(nextEnv[pathKey] ?? nextEnv.PATH ?? nextEnv.Path ?? '', platform);
-  if (!pathEntries.some((entry) => normalizePathEntry(entry, platform) === normalizePathEntry(nodeBinDir, platform))) {
-    pathEntries.unshift(nodeBinDir);
-  }
-  for (const key of Object.keys(nextEnv)) {
-    if (key !== pathKey && key.toUpperCase() === 'PATH') {
-      delete nextEnv[key];
-    }
-  }
-  nextEnv[pathKey] = uniquePathEntries(pathEntries, platform).join(resolvePathDelimiter(platform));
-  nextEnv.NODE = execPath;
-  nextEnv.npm_node_execpath = execPath;
+  const nextEnv = ensureNodeExecPathOnPath({
+    env,
+    platform,
+    execPath,
+  });
   nextEnv.npm_lifecycle_event = scriptName;
   nextEnv.npm_lifecycle_script = packageScript.script;
   nextEnv.npm_package_json = packageScript.packageJsonPath;

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 
 import type { ToolCall } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
-import { createChatEngineById } from '../packages/sdkwork-birdcoder-commons/src/workbench/engines.ts';
-import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-commons/src/workbench/kernel.ts';
+import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
+import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
 import {
   BIRDCODER_CODING_SESSION_ARTIFACT_KINDS,
   BIRDCODER_CODING_SESSION_EVENT_KINDS,

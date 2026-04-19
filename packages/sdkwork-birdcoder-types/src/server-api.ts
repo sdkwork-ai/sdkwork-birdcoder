@@ -14,6 +14,7 @@ import type {
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineBindingSummary,
   BirdCoderEngineDescriptor,
+  BirdCoderEngineTransportKind,
   BirdCoderModelCatalogEntry,
 } from './engine.ts';
 import type { BirdcoderApprovalPolicy } from './governance.ts';
@@ -109,6 +110,55 @@ export interface BirdCoderApiGatewaySummary {
   surfaces: readonly BirdCoderApiGatewaySurfaceSummary[];
 }
 
+export const BIRDCODER_WORKSPACE_REALTIME_EVENT_KINDS = [
+  'project.created',
+  'project.updated',
+  'project.deleted',
+  'coding-session.created',
+  'coding-session.updated',
+  'coding-session.deleted',
+  'coding-session.turn.created',
+] as const;
+
+export type BirdCoderWorkspaceRealtimeEventKind =
+  (typeof BIRDCODER_WORKSPACE_REALTIME_EVENT_KINDS)[number];
+
+export interface BirdCoderWorkspaceRealtimeEvent {
+  eventId: string;
+  eventKind: BirdCoderWorkspaceRealtimeEventKind;
+  workspaceId: string;
+  projectId?: string;
+  projectName?: string;
+  projectRootPath?: string;
+  codingSessionId?: string;
+  codingSessionTitle?: string;
+  codingSessionStatus?: BirdCoderCodingSessionSummary['status'];
+  codingSessionHostMode?: BirdCoderHostMode;
+  codingSessionEngineId?: BirdCoderCodingSessionSummary['engineId'];
+  codingSessionModelId?: string;
+  turnId?: string;
+  occurredAt: string;
+  projectUpdatedAt?: string;
+  codingSessionUpdatedAt?: string;
+  sourceSurface: BirdCoderApiSurface;
+}
+
+export interface BirdCoderWorkspaceRealtimeReadyMessage {
+  kind: 'ready';
+  connectedAt: string;
+  userId: string;
+  workspaceId: string;
+}
+
+export interface BirdCoderWorkspaceRealtimeEventMessage {
+  kind: 'event';
+  event: BirdCoderWorkspaceRealtimeEvent;
+}
+
+export type BirdCoderWorkspaceRealtimeMessage =
+  | BirdCoderWorkspaceRealtimeReadyMessage
+  | BirdCoderWorkspaceRealtimeEventMessage;
+
 export interface BirdCoderOperationDescriptor {
   operationId: string;
   status:
@@ -144,10 +194,17 @@ export interface BirdCoderApprovalDecisionResult {
 
 export interface BirdCoderWorkspaceSummary {
   id: string;
+  uuid?: string;
+  tenantId?: string;
+  organizationId?: string;
+  code?: string;
+  title?: string;
   name: string;
   description?: string;
-  ownerIdentityId?: string;
-  createdByIdentityId?: string;
+  ownerId?: string;
+  leaderId?: string;
+  createdByUserId?: string;
+  type?: string;
   memberCount?: number;
   status: 'active' | 'archived';
   viewerRole?: BirdCoderCollaborationRole;
@@ -156,44 +213,152 @@ export interface BirdCoderWorkspaceSummary {
 export interface BirdCoderCreateWorkspaceRequest {
   description?: string;
   name: string;
-  ownerIdentityId?: string;
-  createdByIdentityId?: string;
+  tenantId?: string;
+  organizationId?: string;
+  code?: string;
+  title?: string;
+  ownerId?: string;
+  leaderId?: string;
+  createdByUserId?: string;
+  type?: string;
 }
 
 export interface BirdCoderUpdateWorkspaceRequest {
   description?: string;
+  code?: string;
+  title?: string;
   name?: string;
+  ownerId?: string;
+  leaderId?: string;
+  type?: string;
   status?: BirdCoderWorkspaceSummary['status'];
 }
 
 export interface BirdCoderProjectSummary {
   createdAt: string;
   id: string;
+  uuid?: string;
+  tenantId?: string;
+  organizationId?: string;
   workspaceId: string;
+  workspaceUuid?: string;
+  code?: string;
+  title?: string;
   name: string;
   description?: string;
   rootPath?: string;
-  ownerIdentityId?: string;
-  createdByIdentityId?: string;
+  ownerId?: string;
+  leaderId?: string;
+  createdByUserId?: string;
+  author?: string;
+  type?: string;
   collaboratorCount?: number;
   status: 'active' | 'archived';
   updatedAt: string;
   viewerRole?: BirdCoderCollaborationRole;
 }
 
+export interface BirdCoderSkillCatalogEntrySummary {
+  id: string;
+  packageId: string;
+  slug: string;
+  name: string;
+  description: string;
+  icon?: string;
+  author?: string;
+  versionId: string;
+  versionLabel: string;
+  installCount?: number;
+  longDescription?: string;
+  tags: string[];
+  license?: string;
+  repositoryUrl?: string;
+  lastUpdated?: string;
+  readme?: string;
+  capabilityKeys: string[];
+  installed: boolean;
+}
+
+export interface BirdCoderSkillPackageSummary {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  icon?: string;
+  author?: string;
+  versionId: string;
+  versionLabel: string;
+  installCount?: number;
+  longDescription?: string;
+  sourceUri?: string;
+  installed: boolean;
+  updatedAt: string;
+  skills: BirdCoderSkillCatalogEntrySummary[];
+}
+
+export interface BirdCoderInstallSkillPackageRequest {
+  scopeId: string;
+  scopeType: 'workspace' | 'project';
+}
+
+export interface BirdCoderSkillInstallationSummary {
+  id: string;
+  packageId: string;
+  scopeId: string;
+  scopeType: 'workspace' | 'project';
+  status: 'active' | 'archived' | (string & {});
+  versionId: string;
+  installedAt: string;
+}
+
+export interface BirdCoderAppTemplateSummary {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  icon?: string;
+  author?: string;
+  versionId: string;
+  versionLabel: string;
+  presetKey: string;
+  category: 'community' | 'saas' | 'mine' | (string & {});
+  tags: string[];
+  targetProfiles: string[];
+  downloads?: number;
+  stars?: number;
+  status: 'active' | 'archived' | (string & {});
+  updatedAt: string;
+}
+
 export interface BirdCoderCreateProjectRequest {
   description?: string;
   name: string;
-  ownerIdentityId?: string;
-  createdByIdentityId?: string;
+  workspaceUuid?: string;
+  tenantId?: string;
+  organizationId?: string;
+  code?: string;
+  title?: string;
+  ownerId?: string;
+  leaderId?: string;
+  createdByUserId?: string;
+  author?: string;
+  type?: string;
   rootPath?: string;
+  appTemplateVersionId?: string;
+  templatePresetKey?: string;
   status?: BirdCoderProjectSummary['status'];
   workspaceId: string;
 }
 
 export interface BirdCoderUpdateProjectRequest {
   description?: string;
+  code?: string;
+  title?: string;
   name?: string;
+  ownerId?: string;
+  leaderId?: string;
+  author?: string;
+  type?: string;
   rootPath?: string;
   status?: BirdCoderProjectSummary['status'];
 }
@@ -210,11 +375,17 @@ export interface BirdCoderProjectDocumentSummary {
 
 export interface BirdCoderTeamSummary {
   id: string;
+  uuid?: string;
+  tenantId?: string;
+  organizationId?: string;
   workspaceId: string;
+  code?: string;
+  title?: string;
   name: string;
   description?: string;
-  ownerIdentityId?: string;
-  createdByIdentityId?: string;
+  ownerId?: string;
+  leaderId?: string;
+  createdByUserId?: string;
   status: 'active' | 'archived';
 }
 
@@ -229,25 +400,25 @@ export type BirdCoderCollaborationStatus =
 export interface BirdCoderTeamMemberSummary {
   id: string;
   teamId: string;
-  identityId: string;
+  userId: string;
   role: BirdCoderCollaborationRole;
   status: BirdCoderCollaborationStatus;
-  createdByIdentityId?: string;
-  grantedByIdentityId?: string;
+  createdByUserId?: string;
+  grantedByUserId?: string;
 }
 
 export interface BirdCoderWorkspaceMemberSummary {
   id: string;
   workspaceId: string;
-  identityId: string;
-  identityEmail?: string;
-  identityDisplayName?: string;
-  identityAvatarUrl?: string;
+  userId: string;
+  userEmail?: string;
+  userDisplayName?: string;
+  userAvatarUrl?: string;
   teamId?: string;
   role: BirdCoderCollaborationRole;
   status: BirdCoderCollaborationStatus;
-  createdByIdentityId?: string;
-  grantedByIdentityId?: string;
+  createdByUserId?: string;
+  grantedByUserId?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -256,37 +427,37 @@ export interface BirdCoderProjectCollaboratorSummary {
   id: string;
   projectId: string;
   workspaceId: string;
-  identityId: string;
-  identityEmail?: string;
-  identityDisplayName?: string;
-  identityAvatarUrl?: string;
+  userId: string;
+  userEmail?: string;
+  userDisplayName?: string;
+  userAvatarUrl?: string;
   teamId?: string;
   role: BirdCoderCollaborationRole;
   status: BirdCoderCollaborationStatus;
-  createdByIdentityId?: string;
-  grantedByIdentityId?: string;
+  createdByUserId?: string;
+  grantedByUserId?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface BirdCoderUpsertWorkspaceMemberRequest {
-  identityId?: string;
+  userId?: string;
   email?: string;
   teamId?: string;
   role?: BirdCoderCollaborationRole;
   status?: BirdCoderCollaborationStatus;
-  createdByIdentityId?: string;
-  grantedByIdentityId?: string;
+  createdByUserId?: string;
+  grantedByUserId?: string;
 }
 
 export interface BirdCoderUpsertProjectCollaboratorRequest {
-  identityId?: string;
+  userId?: string;
   email?: string;
   teamId?: string;
   role?: BirdCoderCollaborationRole;
   status?: BirdCoderCollaborationStatus;
-  createdByIdentityId?: string;
-  grantedByIdentityId?: string;
+  createdByUserId?: string;
+  grantedByUserId?: string;
 }
 
 export interface BirdCoderDeploymentTargetSummary {
@@ -378,11 +549,15 @@ export interface BirdCoderAuthenticatedUserSummary {
 }
 
 export interface BirdCoderUserCenterMetadataSummary {
+  integrationKind?: string;
   mode: BirdCoderUserCenterMode;
   providerKey: string;
   sessionHeaderName: string;
   supportsLocalCredentials: boolean;
+  supportsMembershipWrite?: boolean;
+  supportsProfileWrite?: boolean;
   supportsSessionExchange: boolean;
+  upstreamBaseUrl?: string;
 }
 
 export interface BirdCoderUserCenterSessionSummary {
@@ -408,7 +583,7 @@ export interface BirdCoderUserCenterRegisterRequest {
 export interface BirdCoderUserCenterSessionExchangeRequest {
   avatarUrl?: string;
   email: string;
-  identityId?: string;
+  userId?: string;
   name?: string;
   providerKey?: string;
   subject?: string;
@@ -420,7 +595,7 @@ export interface BirdCoderUserCenterProfileSummary {
   company: string;
   displayName: string;
   email: string;
-  identityId: string;
+  userId: string;
   location: string;
   website: string;
 }
@@ -436,7 +611,7 @@ export interface BirdCoderUpdateCurrentUserProfileRequest {
 
 export interface BirdCoderUserCenterMembershipSummary {
   creditsPerMonth: number;
-  identityId: string;
+  userId: string;
   planId: string;
   planTitle: string;
   renewAt?: string;
@@ -454,50 +629,61 @@ export interface BirdCoderUpdateCurrentUserMembershipRequest {
 }
 
 export interface BirdCoderWorkspaceScopedListRequest {
-  identityId?: string;
+  userId?: string;
   workspaceId?: string;
 }
 
+export interface BirdCoderProjectListRequest extends BirdCoderWorkspaceScopedListRequest {
+  rootPath?: string;
+}
+
 export interface BirdCoderAppAdminApiClient {
-  createProject?(request: BirdCoderCreateProjectRequest): Promise<BirdCoderProjectSummary>;
-  createWorkspace?(request: BirdCoderCreateWorkspaceRequest): Promise<BirdCoderWorkspaceSummary>;
-  deleteProject?(projectId: string): Promise<void>;
-  deleteWorkspace?(workspaceId: string): Promise<void>;
+  createProject(request: BirdCoderCreateProjectRequest): Promise<BirdCoderProjectSummary>;
+  createWorkspace(request: BirdCoderCreateWorkspaceRequest): Promise<BirdCoderWorkspaceSummary>;
+  deleteProject(projectId: string): Promise<void>;
+  deleteWorkspace(workspaceId: string): Promise<void>;
+  getProject(projectId: string): Promise<BirdCoderProjectSummary>;
+  installSkillPackage(
+    packageId: string,
+    request: BirdCoderInstallSkillPackageRequest,
+  ): Promise<BirdCoderSkillInstallationSummary>;
   listAdminDeployments(): Promise<BirdCoderDeploymentRecordSummary[]>;
   listAdminTeams(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderTeamSummary[]>;
+  listAppTemplates(): Promise<BirdCoderAppTemplateSummary[]>;
   listAuditEvents(): Promise<BirdCoderAdminAuditEventSummary[]>;
   listDeploymentTargets(projectId: string): Promise<BirdCoderDeploymentTargetSummary[]>;
   listDeployments(): Promise<BirdCoderDeploymentRecordSummary[]>;
   listDocuments(): Promise<BirdCoderProjectDocumentSummary[]>;
   listPolicies(): Promise<BirdCoderAdminPolicySummary[]>;
-  listProjectCollaborators?(
+  listProjectCollaborators(
     projectId: string,
   ): Promise<BirdCoderProjectCollaboratorSummary[]>;
-  listProjects(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderProjectSummary[]>;
+  listProjects(options?: BirdCoderProjectListRequest): Promise<BirdCoderProjectSummary[]>;
   listReleases(): Promise<BirdCoderReleaseSummary[]>;
+  listSkillPackages(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderSkillPackageSummary[]>;
   listTeamMembers(teamId: string): Promise<BirdCoderTeamMemberSummary[]>;
   listTeams(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderTeamSummary[]>;
-  listWorkspaceMembers?(
+  listWorkspaceMembers(
     workspaceId: string,
   ): Promise<BirdCoderWorkspaceMemberSummary[]>;
   listWorkspaces(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderWorkspaceSummary[]>;
-  publishProject?(
+  publishProject(
     projectId: string,
     request: BirdCoderPublishProjectRequest,
   ): Promise<BirdCoderProjectPublishResult>;
-  upsertProjectCollaborator?(
+  upsertProjectCollaborator(
     projectId: string,
     request: BirdCoderUpsertProjectCollaboratorRequest,
   ): Promise<BirdCoderProjectCollaboratorSummary>;
-  upsertWorkspaceMember?(
+  upsertWorkspaceMember(
     workspaceId: string,
     request: BirdCoderUpsertWorkspaceMemberRequest,
   ): Promise<BirdCoderWorkspaceMemberSummary>;
-  updateProject?(
+  updateProject(
     projectId: string,
     request: BirdCoderUpdateProjectRequest,
   ): Promise<BirdCoderProjectSummary>;
-  updateWorkspace?(
+  updateWorkspace(
     workspaceId: string,
     request: BirdCoderUpdateWorkspaceRequest,
   ): Promise<BirdCoderWorkspaceSummary>;
@@ -567,9 +753,30 @@ export interface BirdCoderNativeSessionDetail {
   messages: BirdCoderNativeSessionMessage[];
 }
 
+export type BirdCoderNativeSessionProviderDiscoveryMode =
+  | 'explicit-only'
+  | 'passive-global';
+
+export interface BirdCoderNativeSessionProviderSummary {
+  engineId: BirdCoderCodeEngineKey;
+  displayName: string;
+  nativeSessionIdPrefix: string;
+  transportKinds: readonly BirdCoderEngineTransportKind[];
+  discoveryMode: BirdCoderNativeSessionProviderDiscoveryMode;
+}
+
 export interface BirdCoderListNativeSessionsRequest {
   engineId?: BirdCoderCodeEngineKey;
   limit?: number;
+  offset?: number;
+  projectId?: string;
+  workspaceId?: string;
+}
+
+export interface BirdCoderListCodingSessionsRequest {
+  engineId?: BirdCoderCodeEngineKey;
+  limit?: number;
+  offset?: number;
   projectId?: string;
   workspaceId?: string;
 }
@@ -596,8 +803,12 @@ export interface BirdCoderCoreReadApiClient {
     codingSessionId: string,
   ): Promise<BirdCoderCodingSessionCheckpoint[]>;
   listCodingSessionEvents(codingSessionId: string): Promise<BirdCoderCodingSessionEvent[]>;
+  listCodingSessions(
+    request?: BirdCoderListCodingSessionsRequest,
+  ): Promise<BirdCoderCodingSessionSummary[]>;
   listEngines(): Promise<BirdCoderEngineDescriptor[]>;
   listModels(): Promise<BirdCoderModelCatalogEntry[]>;
+  listNativeSessionProviders(): Promise<BirdCoderNativeSessionProviderSummary[]>;
   listNativeSessions(
     request?: BirdCoderListNativeSessionsRequest,
   ): Promise<BirdCoderNativeSessionSummary[]>;
@@ -617,16 +828,64 @@ export interface BirdCoderCreateCodingSessionRequest {
   modelId?: string;
 }
 
+export interface BirdCoderUpdateCodingSessionRequest {
+  title?: string;
+  status?: BirdCoderCodingSessionSummary['status'];
+  hostMode?: BirdCoderHostMode;
+  engineId?: BirdCoderCodeEngineKey;
+  modelId?: string;
+}
+
+export interface BirdCoderForkCodingSessionRequest {
+  title?: string;
+}
+
+export interface BirdCoderDeleteCodingSessionResult {
+  id: string;
+}
+
+export interface BirdCoderDeleteCodingSessionMessageResult {
+  id: string;
+  codingSessionId: string;
+}
+
+export interface BirdCoderCodingSessionTurnCurrentFileContext {
+  path: string;
+  content?: string;
+  language?: string;
+}
+
+export interface BirdCoderCodingSessionTurnIdeContext {
+  workspaceId?: string;
+  projectId?: string;
+  threadId?: string;
+  currentFile?: BirdCoderCodingSessionTurnCurrentFileContext;
+}
+
 export interface BirdCoderCreateCodingSessionTurnRequest {
   runtimeId?: string;
   requestKind: BirdCoderCodingSessionTurn['requestKind'];
   inputSummary: string;
+  ideContext?: BirdCoderCodingSessionTurnIdeContext;
 }
 
 export interface BirdCoderCoreWriteApiClient {
   createCodingSession(
     request: BirdCoderCreateCodingSessionRequest,
   ): Promise<BirdCoderCodingSessionSummary>;
+  forkCodingSession(
+    codingSessionId: string,
+    request?: BirdCoderForkCodingSessionRequest,
+  ): Promise<BirdCoderCodingSessionSummary>;
+  updateCodingSession(
+    codingSessionId: string,
+    request: BirdCoderUpdateCodingSessionRequest,
+  ): Promise<BirdCoderCodingSessionSummary>;
+  deleteCodingSession(codingSessionId: string): Promise<BirdCoderDeleteCodingSessionResult>;
+  deleteCodingSessionMessage(
+    codingSessionId: string,
+    messageId: string,
+  ): Promise<BirdCoderDeleteCodingSessionMessageResult>;
   createCodingSessionTurn(
     codingSessionId: string,
     request: BirdCoderCreateCodingSessionTurnRequest,
@@ -647,12 +906,18 @@ export const BIRDCODER_SHARED_CORE_FACADE_OPERATION_IDS = [
   'core.getHealth',
   'core.listRoutes',
   'core.listEngines',
+  'core.listNativeSessionProviders',
+  'core.listCodingSessions',
   'core.listNativeSessions',
   'core.getNativeSession',
   'core.getEngineCapabilities',
   'core.listModels',
   'core.getOperation',
   'core.createCodingSession',
+  'core.forkCodingSession',
+  'core.updateCodingSession',
+  'core.deleteCodingSession',
+  'core.deleteCodingSessionMessage',
   'core.createCodingSessionTurn',
   'core.submitApprovalDecision',
   'core.getCodingSession',
@@ -700,6 +965,7 @@ export interface BirdCoderCodingServerDescriptor {
 
 export interface BirdCoderCoreApiContract {
   codingSession: BirdCoderApiRouteDefinition;
+  codingSessions: BirdCoderApiRouteDefinition;
   descriptor: BirdCoderApiRouteDefinition;
   engineCapabilities: BirdCoderApiRouteDefinition;
   engines: BirdCoderApiRouteDefinition;
@@ -707,6 +973,7 @@ export interface BirdCoderCoreApiContract {
   health: BirdCoderApiRouteDefinition;
   models: BirdCoderApiRouteDefinition;
   nativeSession: BirdCoderApiRouteDefinition;
+  nativeSessionProviders: BirdCoderApiRouteDefinition;
   nativeSessions: BirdCoderApiRouteDefinition;
   operations: BirdCoderApiRouteDefinition;
   approvals: BirdCoderApiRouteDefinition;
@@ -719,6 +986,7 @@ export interface BirdCoderCoreApiContract {
 }
 
 export interface BirdCoderAppApiContract {
+  appTemplates: BirdCoderApiRouteDefinition;
   authConfig: BirdCoderApiRouteDefinition;
   authSession: BirdCoderApiRouteDefinition;
   createProject: BirdCoderApiRouteDefinition;
@@ -732,12 +1000,16 @@ export interface BirdCoderAppApiContract {
   exchangeUserCenterSession: BirdCoderApiRouteDefinition;
   getCurrentUserMembership: BirdCoderApiRouteDefinition;
   getCurrentUserProfile: BirdCoderApiRouteDefinition;
+  project: BirdCoderApiRouteDefinition;
+  installSkillPackage: BirdCoderApiRouteDefinition;
   login: BirdCoderApiRouteDefinition;
   logout: BirdCoderApiRouteDefinition;
   publishProject: BirdCoderApiRouteDefinition;
   projectCollaborators: BirdCoderApiRouteDefinition;
   projects: BirdCoderApiRouteDefinition;
   register: BirdCoderApiRouteDefinition;
+  skillPackages: BirdCoderApiRouteDefinition;
+  subscribeWorkspaceRealtime: BirdCoderApiRouteDefinition;
   teams: BirdCoderApiRouteDefinition;
   updateCurrentUserMembership: BirdCoderApiRouteDefinition;
   updateCurrentUserProfile: BirdCoderApiRouteDefinition;
@@ -765,12 +1037,14 @@ export interface BirdCoderCoreApiModel {
   events: BirdCoderCodingSessionEvent[];
   messages: BirdCoderCodingSessionMessage[];
   models: BirdCoderModelCatalogEntry[];
+  nativeSessionProviders: BirdCoderNativeSessionProviderSummary[];
   runtimes: BirdCoderCodingSessionRuntime[];
   sessions: BirdCoderCodingSessionSummary[];
   turns: BirdCoderCodingSessionTurn[];
 }
 
 export interface BirdCoderAppApiModel {
+  appTemplates: BirdCoderAppTemplateSummary[];
   authConfig?: BirdCoderUserCenterMetadataSummary;
   currentMembership?: BirdCoderUserCenterMembershipSummary;
   currentProfile?: BirdCoderUserCenterProfileSummary;
@@ -779,6 +1053,7 @@ export interface BirdCoderAppApiModel {
   documents: BirdCoderProjectDocumentSummary[];
   projectCollaborators: BirdCoderProjectCollaboratorSummary[];
   projects: BirdCoderProjectSummary[];
+  skillPackages: BirdCoderSkillPackageSummary[];
   teams: BirdCoderTeamSummary[];
   workspaceMembers: BirdCoderWorkspaceMemberSummary[];
   workspaceProjects: Record<string, BirdCoderProjectSummary[]>;
@@ -809,10 +1084,10 @@ function readWorkspaceScopedQuery(
   return normalizeWorkspaceScopedQueryValue(options?.workspaceId);
 }
 
-function readIdentityScopedQuery(
+function readUserScopedQuery(
   options?: BirdCoderWorkspaceScopedListRequest,
 ): string | undefined {
-  return normalizeWorkspaceScopedQueryValue(options?.identityId);
+  return normalizeWorkspaceScopedQueryValue(options?.userId);
 }
 
 function normalizeRequiredIdentifier(value: string, fieldName: string): string {
@@ -832,19 +1107,19 @@ function normalizeOptionalText(value?: string): string | undefined {
   return normalizedValue.length > 0 ? normalizedValue : undefined;
 }
 
-function normalizeCollaborationIdentityReference(
+function normalizeCollaborationUserReference(
   request:
     | BirdCoderUpsertProjectCollaboratorRequest
     | BirdCoderUpsertWorkspaceMemberRequest,
-): { email?: string; identityId?: string } {
-  const identityId = normalizeOptionalText(request.identityId);
+): { email?: string; userId?: string } {
+  const userId = normalizeOptionalText(request.userId);
   const email = normalizeOptionalText(request.email);
-  if (!identityId && !email) {
-    throw new Error('identityId or email must not be empty.');
+  if (!userId && !email) {
+    throw new Error('userId or email must not be empty.');
   }
   return {
     email,
-    identityId,
+    userId,
   };
 }
 
@@ -854,6 +1129,13 @@ const BIRDCODER_WORKSPACE_STATUS_SET = new Set<BirdCoderWorkspaceSummary['status
 ]);
 const BIRDCODER_PROJECT_STATUS_SET = new Set<BirdCoderProjectSummary['status']>([
   'active',
+  'archived',
+]);
+const BIRDCODER_CODING_SESSION_STATUS_SET = new Set<BirdCoderCodingSessionSummary['status']>([
+  'draft',
+  'active',
+  'paused',
+  'completed',
   'archived',
 ]);
 const BIRDCODER_COLLABORATION_ROLE_SET = new Set<BirdCoderCollaborationRole>([
@@ -941,6 +1223,26 @@ function normalizeProjectStatus(
   return normalizedValue as BirdCoderProjectSummary['status'];
 }
 
+function normalizeCodingSessionStatus(
+  value?: string,
+): BirdCoderCodingSessionSummary['status'] | undefined {
+  const normalizedValue = normalizeOptionalText(value);
+  if (!normalizedValue) {
+    return undefined;
+  }
+  if (
+    !BIRDCODER_CODING_SESSION_STATUS_SET.has(
+      normalizedValue as BirdCoderCodingSessionSummary['status'],
+    )
+  ) {
+    throw new Error(
+      'coding session status must be one of draft/active/paused/completed/archived.',
+    );
+  }
+
+  return normalizedValue as BirdCoderCodingSessionSummary['status'];
+}
+
 function normalizeCollaborationRole(
   value?: string,
 ): BirdCoderCollaborationRole | undefined {
@@ -978,14 +1280,21 @@ export function createBirdCoderGeneratedAppAdminApiClient({
     async createWorkspace(
       request: BirdCoderCreateWorkspaceRequest,
     ): Promise<BirdCoderWorkspaceSummary> {
-      const response = await transport.request<BirdCoderApiEnvelope<BirdCoderWorkspaceSummary>>({
-        method: 'POST',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/workspaces`,
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderWorkspaceSummary>,
+        'app.createWorkspace'
+      >('app.createWorkspace', {
         body: {
           name: normalizeRequiredIdentifier(request.name, 'name'),
           description: normalizeOptionalText(request.description),
-          ownerIdentityId: normalizeOptionalText(request.ownerIdentityId),
-          createdByIdentityId: normalizeOptionalText(request.createdByIdentityId),
+          tenantId: normalizeOptionalText(request.tenantId),
+          organizationId: normalizeOptionalText(request.organizationId),
+          code: normalizeOptionalText(request.code),
+          title: normalizeOptionalText(request.title),
+          ownerId: normalizeOptionalText(request.ownerId),
+          leaderId: normalizeOptionalText(request.leaderId),
+          createdByUserId: normalizeOptionalText(request.createdByUserId),
+          type: normalizeOptionalText(request.type),
         },
       });
       return response.data;
@@ -994,26 +1303,35 @@ export function createBirdCoderGeneratedAppAdminApiClient({
       workspaceId: string,
       request: BirdCoderUpdateWorkspaceRequest,
     ): Promise<BirdCoderWorkspaceSummary> {
-      const response = await transport.request<BirdCoderApiEnvelope<BirdCoderWorkspaceSummary>>({
-        method: 'PATCH',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/workspaces/${encodeURIComponent(
-          normalizeRequiredIdentifier(workspaceId, 'workspaceId'),
-        )}`,
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderWorkspaceSummary>,
+        'app.updateWorkspace'
+      >('app.updateWorkspace', {
+        pathParams: {
+          workspaceId: normalizeRequiredIdentifier(workspaceId, 'workspaceId'),
+        },
         body: {
           name: normalizeOptionalText(request.name),
           description: normalizeOptionalText(request.description),
+          code: normalizeOptionalText(request.code),
+          title: normalizeOptionalText(request.title),
+          ownerId: normalizeOptionalText(request.ownerId),
+          leaderId: normalizeOptionalText(request.leaderId),
+          type: normalizeOptionalText(request.type),
           status: normalizeWorkspaceStatus(request.status),
         },
       });
       return response.data;
     },
     async deleteWorkspace(workspaceId: string): Promise<void> {
-      await transport.request<BirdCoderApiEnvelope<{ id: string }>>({
-        method: 'DELETE',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/workspaces/${encodeURIComponent(
-          normalizeRequiredIdentifier(workspaceId, 'workspaceId'),
-        )}`,
-      });
+      await client.request<BirdCoderApiEnvelope<{ id: string }>, 'app.deleteWorkspace'>(
+        'app.deleteWorkspace',
+        {
+          pathParams: {
+            workspaceId: normalizeRequiredIdentifier(workspaceId, 'workspaceId'),
+          },
+        },
+      );
     },
     async listWorkspaces(
       options: BirdCoderWorkspaceScopedListRequest = {},
@@ -1023,38 +1341,82 @@ export function createBirdCoderGeneratedAppAdminApiClient({
         'app.listWorkspaces'
       >('app.listWorkspaces', {
         query: {
-          identityId: readIdentityScopedQuery(options),
+          userId: readUserScopedQuery(options),
         },
       });
       return response.items;
     },
     async listProjects(
-      options: BirdCoderWorkspaceScopedListRequest = {},
+      options: BirdCoderProjectListRequest = {},
     ): Promise<BirdCoderProjectSummary[]> {
       const response = await client.request<
         BirdCoderApiListEnvelope<BirdCoderProjectSummary>,
         'app.listProjects'
       >('app.listProjects', {
         query: {
-          identityId: readIdentityScopedQuery(options),
+          rootPath: normalizeOptionalText(options.rootPath),
+          userId: readUserScopedQuery(options),
           workspaceId: readWorkspaceScopedQuery(options),
         },
       });
       return response.items;
     },
+    async getProject(projectId: string): Promise<BirdCoderProjectSummary> {
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderProjectSummary>,
+        'app.getProject'
+      >('app.getProject', {
+        pathParams: {
+          projectId: normalizeRequiredIdentifier(projectId, 'projectId'),
+        },
+      });
+      return response.data;
+    },
+    async listSkillPackages(
+      options: BirdCoderWorkspaceScopedListRequest = {},
+    ): Promise<BirdCoderSkillPackageSummary[]> {
+      const response = await client.request<
+        BirdCoderApiListEnvelope<BirdCoderSkillPackageSummary>,
+        'app.listSkillPackages'
+      >('app.listSkillPackages', {
+        query: {
+          userId: readUserScopedQuery(options),
+          workspaceId: readWorkspaceScopedQuery(options),
+        },
+      });
+      return response.items;
+    },
+    async listAppTemplates(): Promise<BirdCoderAppTemplateSummary[]> {
+      const response = await client.request<
+        BirdCoderApiListEnvelope<BirdCoderAppTemplateSummary>,
+        'app.listAppTemplates'
+      >('app.listAppTemplates');
+      return response.items;
+    },
     async createProject(
       request: BirdCoderCreateProjectRequest,
     ): Promise<BirdCoderProjectSummary> {
-      const response = await transport.request<BirdCoderApiEnvelope<BirdCoderProjectSummary>>({
-        method: 'POST',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/projects`,
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderProjectSummary>,
+        'app.createProject'
+      >('app.createProject', {
         body: {
           workspaceId: normalizeRequiredIdentifier(request.workspaceId, 'workspaceId'),
           name: normalizeRequiredIdentifier(request.name, 'name'),
+          workspaceUuid: normalizeOptionalText(request.workspaceUuid),
+          tenantId: normalizeOptionalText(request.tenantId),
+          organizationId: normalizeOptionalText(request.organizationId),
+          code: normalizeOptionalText(request.code),
+          title: normalizeOptionalText(request.title),
+          ownerId: normalizeOptionalText(request.ownerId),
+          leaderId: normalizeOptionalText(request.leaderId),
+          createdByUserId: normalizeOptionalText(request.createdByUserId),
+          author: normalizeOptionalText(request.author),
+          type: normalizeOptionalText(request.type),
           description: normalizeOptionalText(request.description),
-          ownerIdentityId: normalizeOptionalText(request.ownerIdentityId),
-          createdByIdentityId: normalizeOptionalText(request.createdByIdentityId),
           rootPath: normalizeOptionalText(request.rootPath),
+          appTemplateVersionId: normalizeOptionalText(request.appTemplateVersionId),
+          templatePresetKey: normalizeOptionalText(request.templatePresetKey),
           status: normalizeProjectStatus(request.status),
         },
       });
@@ -1064,14 +1426,22 @@ export function createBirdCoderGeneratedAppAdminApiClient({
       projectId: string,
       request: BirdCoderUpdateProjectRequest,
     ): Promise<BirdCoderProjectSummary> {
-      const response = await transport.request<BirdCoderApiEnvelope<BirdCoderProjectSummary>>({
-        method: 'PATCH',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/projects/${encodeURIComponent(
-          normalizeRequiredIdentifier(projectId, 'projectId'),
-        )}`,
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderProjectSummary>,
+        'app.updateProject'
+      >('app.updateProject', {
+        pathParams: {
+          projectId: normalizeRequiredIdentifier(projectId, 'projectId'),
+        },
         body: {
           name: normalizeOptionalText(request.name),
           description: normalizeOptionalText(request.description),
+          code: normalizeOptionalText(request.code),
+          title: normalizeOptionalText(request.title),
+          ownerId: normalizeOptionalText(request.ownerId),
+          leaderId: normalizeOptionalText(request.leaderId),
+          author: normalizeOptionalText(request.author),
+          type: normalizeOptionalText(request.type),
           rootPath: normalizeOptionalText(request.rootPath),
           status: normalizeProjectStatus(request.status),
         },
@@ -1079,12 +1449,32 @@ export function createBirdCoderGeneratedAppAdminApiClient({
       return response.data;
     },
     async deleteProject(projectId: string): Promise<void> {
-      await transport.request<BirdCoderApiEnvelope<{ id: string }>>({
-        method: 'DELETE',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/projects/${encodeURIComponent(
-          normalizeRequiredIdentifier(projectId, 'projectId'),
-        )}`,
+      await client.request<BirdCoderApiEnvelope<{ id: string }>, 'app.deleteProject'>(
+        'app.deleteProject',
+        {
+          pathParams: {
+            projectId: normalizeRequiredIdentifier(projectId, 'projectId'),
+          },
+        },
+      );
+    },
+    async installSkillPackage(
+      packageId: string,
+      request: BirdCoderInstallSkillPackageRequest,
+    ): Promise<BirdCoderSkillInstallationSummary> {
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderSkillInstallationSummary>,
+        'app.installSkillPackage'
+      >('app.installSkillPackage', {
+        pathParams: {
+          packageId: normalizeRequiredIdentifier(packageId, 'packageId'),
+        },
+        body: {
+          scopeId: normalizeRequiredIdentifier(request.scopeId, 'scopeId'),
+          scopeType: normalizeRequiredIdentifier(request.scopeType, 'scopeType'),
+        },
       });
+      return response.data;
     },
     async listDocuments(): Promise<BirdCoderProjectDocumentSummary[]> {
       const response = await client.request<
@@ -1128,7 +1518,7 @@ export function createBirdCoderGeneratedAppAdminApiClient({
         'app.listTeams'
       >('app.listTeams', {
         query: {
-          identityId: readIdentityScopedQuery(options),
+          userId: readUserScopedQuery(options),
           workspaceId: readWorkspaceScopedQuery(options),
         },
       });
@@ -1142,7 +1532,7 @@ export function createBirdCoderGeneratedAppAdminApiClient({
         'admin.listTeams'
       >('admin.listTeams', {
         query: {
-          identityId: readIdentityScopedQuery(options),
+          userId: readUserScopedQuery(options),
           workspaceId: readWorkspaceScopedQuery(options),
         },
       });
@@ -1151,13 +1541,13 @@ export function createBirdCoderGeneratedAppAdminApiClient({
     async listWorkspaceMembers(
       workspaceId: string,
     ): Promise<BirdCoderWorkspaceMemberSummary[]> {
-      const response = await transport.request<
-        BirdCoderApiListEnvelope<BirdCoderWorkspaceMemberSummary>
-      >({
-        method: 'GET',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/workspaces/${encodeURIComponent(
-          normalizeRequiredIdentifier(workspaceId, 'workspaceId'),
-        )}/members`,
+      const response = await client.request<
+        BirdCoderApiListEnvelope<BirdCoderWorkspaceMemberSummary>,
+        'app.listWorkspaceMembers'
+      >('app.listWorkspaceMembers', {
+        pathParams: {
+          workspaceId: normalizeRequiredIdentifier(workspaceId, 'workspaceId'),
+        },
       });
       return response.items;
     },
@@ -1165,13 +1555,13 @@ export function createBirdCoderGeneratedAppAdminApiClient({
       projectId: string,
       request: BirdCoderPublishProjectRequest,
     ): Promise<BirdCoderProjectPublishResult> {
-      const response = await transport.request<
-        BirdCoderApiEnvelope<BirdCoderProjectPublishResult>
-      >({
-        method: 'POST',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/projects/${encodeURIComponent(
-          normalizeRequiredIdentifier(projectId, 'projectId'),
-        )}/publish`,
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderProjectPublishResult>,
+        'app.publishProject'
+      >('app.publishProject', {
+        pathParams: {
+          projectId: normalizeRequiredIdentifier(projectId, 'projectId'),
+        },
         body: {
           endpointUrl: normalizeOptionalText(request.endpointUrl),
           environmentKey: normalizeOptionalText(request.environmentKey),
@@ -1189,22 +1579,22 @@ export function createBirdCoderGeneratedAppAdminApiClient({
       workspaceId: string,
       request: BirdCoderUpsertWorkspaceMemberRequest,
     ): Promise<BirdCoderWorkspaceMemberSummary> {
-      const identityReference = normalizeCollaborationIdentityReference(request);
-      const response = await transport.request<
-        BirdCoderApiEnvelope<BirdCoderWorkspaceMemberSummary>
-      >({
-        method: 'POST',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/workspaces/${encodeURIComponent(
-          normalizeRequiredIdentifier(workspaceId, 'workspaceId'),
-        )}/members`,
+      const userReference = normalizeCollaborationUserReference(request);
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderWorkspaceMemberSummary>,
+        'app.upsertWorkspaceMember'
+      >('app.upsertWorkspaceMember', {
+        pathParams: {
+          workspaceId: normalizeRequiredIdentifier(workspaceId, 'workspaceId'),
+        },
         body: {
-          email: identityReference.email,
-          identityId: identityReference.identityId,
+          email: userReference.email,
+          userId: userReference.userId,
           teamId: normalizeOptionalText(request.teamId),
           role: normalizeCollaborationRole(request.role),
           status: normalizeCollaborationStatus(request.status),
-          createdByIdentityId: normalizeOptionalText(request.createdByIdentityId),
-          grantedByIdentityId: normalizeOptionalText(request.grantedByIdentityId),
+          createdByUserId: normalizeOptionalText(request.createdByUserId),
+          grantedByUserId: normalizeOptionalText(request.grantedByUserId),
         },
       });
       return response.data;
@@ -1212,13 +1602,13 @@ export function createBirdCoderGeneratedAppAdminApiClient({
     async listProjectCollaborators(
       projectId: string,
     ): Promise<BirdCoderProjectCollaboratorSummary[]> {
-      const response = await transport.request<
-        BirdCoderApiListEnvelope<BirdCoderProjectCollaboratorSummary>
-      >({
-        method: 'GET',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/projects/${encodeURIComponent(
-          normalizeRequiredIdentifier(projectId, 'projectId'),
-        )}/collaborators`,
+      const response = await client.request<
+        BirdCoderApiListEnvelope<BirdCoderProjectCollaboratorSummary>,
+        'app.listProjectCollaborators'
+      >('app.listProjectCollaborators', {
+        pathParams: {
+          projectId: normalizeRequiredIdentifier(projectId, 'projectId'),
+        },
       });
       return response.items;
     },
@@ -1226,22 +1616,22 @@ export function createBirdCoderGeneratedAppAdminApiClient({
       projectId: string,
       request: BirdCoderUpsertProjectCollaboratorRequest,
     ): Promise<BirdCoderProjectCollaboratorSummary> {
-      const identityReference = normalizeCollaborationIdentityReference(request);
-      const response = await transport.request<
-        BirdCoderApiEnvelope<BirdCoderProjectCollaboratorSummary>
-      >({
-        method: 'POST',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/projects/${encodeURIComponent(
-          normalizeRequiredIdentifier(projectId, 'projectId'),
-        )}/collaborators`,
+      const userReference = normalizeCollaborationUserReference(request);
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderProjectCollaboratorSummary>,
+        'app.upsertProjectCollaborator'
+      >('app.upsertProjectCollaborator', {
+        pathParams: {
+          projectId: normalizeRequiredIdentifier(projectId, 'projectId'),
+        },
         body: {
-          email: identityReference.email,
-          identityId: identityReference.identityId,
+          email: userReference.email,
+          userId: userReference.userId,
           teamId: normalizeOptionalText(request.teamId),
           role: normalizeCollaborationRole(request.role),
           status: normalizeCollaborationStatus(request.status),
-          createdByIdentityId: normalizeOptionalText(request.createdByIdentityId),
-          grantedByIdentityId: normalizeOptionalText(request.grantedByIdentityId),
+          createdByUserId: normalizeOptionalText(request.createdByUserId),
+          grantedByUserId: normalizeOptionalText(request.grantedByUserId),
         },
       });
       return response.data;
@@ -1284,33 +1674,30 @@ export function createBirdCoderGeneratedAppAdminApiClient({
 export function createBirdCoderGeneratedUserCenterApiClient({
   transport,
 }: CreateBirdCoderGeneratedAppAdminApiClientOptions): BirdCoderUserCenterApiClient {
+  const client = createBirdCoderFinalizedCodingServerClient(transport);
+
   return {
     async getConfig(): Promise<BirdCoderUserCenterMetadataSummary> {
-      const response = await transport.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterMetadataSummary>
-      >({
-        method: 'GET',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/auth/config`,
-      });
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderUserCenterMetadataSummary>,
+        'app.getUserCenterConfig'
+      >('app.getUserCenterConfig');
       return response.data;
     },
     async getCurrentSession(): Promise<BirdCoderUserCenterSessionSummary | null> {
-      const response = await transport.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary | null>
-      >({
-        method: 'GET',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/auth/session`,
-      });
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary | null>,
+        'app.getCurrentUserSession'
+      >('app.getCurrentUserSession');
       return response.data ?? null;
     },
     async login(
       request: BirdCoderUserCenterLoginRequest,
     ): Promise<BirdCoderUserCenterSessionSummary> {
-      const response = await transport.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary>
-      >({
-        method: 'POST',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/auth/login`,
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary>,
+        'app.login'
+      >('app.login', {
         body: {
           email: normalizeRequiredIdentifier(request.email, 'email'),
           password: normalizeOptionalText(request.password),
@@ -1321,11 +1708,10 @@ export function createBirdCoderGeneratedUserCenterApiClient({
     async register(
       request: BirdCoderUserCenterRegisterRequest,
     ): Promise<BirdCoderUserCenterSessionSummary> {
-      const response = await transport.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary>
-      >({
-        method: 'POST',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/auth/register`,
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary>,
+        'app.register'
+      >('app.register', {
         body: {
           email: normalizeRequiredIdentifier(request.email, 'email'),
           name: normalizeOptionalText(request.name),
@@ -1335,23 +1721,19 @@ export function createBirdCoderGeneratedUserCenterApiClient({
       return response.data;
     },
     async logout(): Promise<void> {
-      await transport.request<BirdCoderApiEnvelope<{ success: boolean }>>({
-        method: 'POST',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/auth/logout`,
-      });
+      await client.request<BirdCoderApiEnvelope<{ success: boolean }>, 'app.logout'>('app.logout');
     },
     async exchangeSession(
       request: BirdCoderUserCenterSessionExchangeRequest,
     ): Promise<BirdCoderUserCenterSessionSummary> {
-      const response = await transport.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary>
-      >({
-        method: 'POST',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/auth/session/exchange`,
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary>,
+        'app.exchangeUserCenterSession'
+      >('app.exchangeUserCenterSession', {
         body: {
           avatarUrl: normalizeOptionalText(request.avatarUrl),
           email: normalizeRequiredIdentifier(request.email, 'email'),
-          identityId: normalizeOptionalText(request.identityId),
+          userId: normalizeOptionalText(request.userId),
           name: normalizeOptionalText(request.name),
           providerKey: normalizeOptionalText(request.providerKey),
           subject: normalizeOptionalText(request.subject),
@@ -1360,22 +1742,19 @@ export function createBirdCoderGeneratedUserCenterApiClient({
       return response.data;
     },
     async getCurrentProfile(): Promise<BirdCoderUserCenterProfileSummary> {
-      const response = await transport.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterProfileSummary>
-      >({
-        method: 'GET',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/user-center/profile`,
-      });
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderUserCenterProfileSummary>,
+        'app.getCurrentUserProfile'
+      >('app.getCurrentUserProfile');
       return response.data;
     },
     async updateCurrentProfile(
       request: BirdCoderUpdateCurrentUserProfileRequest,
     ): Promise<BirdCoderUserCenterProfileSummary> {
-      const response = await transport.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterProfileSummary>
-      >({
-        method: 'PATCH',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/user-center/profile`,
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderUserCenterProfileSummary>,
+        'app.updateCurrentUserProfile'
+      >('app.updateCurrentUserProfile', {
         body: {
           avatarUrl: normalizeOptionalText(request.avatarUrl),
           bio: normalizeOptionalText(request.bio),
@@ -1388,22 +1767,19 @@ export function createBirdCoderGeneratedUserCenterApiClient({
       return response.data;
     },
     async getCurrentMembership(): Promise<BirdCoderUserCenterMembershipSummary> {
-      const response = await transport.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterMembershipSummary>
-      >({
-        method: 'GET',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/user-center/membership`,
-      });
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderUserCenterMembershipSummary>,
+        'app.getCurrentUserMembership'
+      >('app.getCurrentUserMembership');
       return response.data;
     },
     async updateCurrentMembership(
       request: BirdCoderUpdateCurrentUserMembershipRequest,
     ): Promise<BirdCoderUserCenterMembershipSummary> {
-      const response = await transport.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterMembershipSummary>
-      >({
-        method: 'PATCH',
-        path: `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/user-center/membership`,
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderUserCenterMembershipSummary>,
+        'app.updateCurrentUserMembership'
+      >('app.updateCurrentUserMembership', {
         body: {
           creditsPerMonth: request.creditsPerMonth,
           planId: normalizeOptionalText(request.planId),
@@ -1543,6 +1919,23 @@ export function createBirdCoderGeneratedCoreReadApiClient({
       });
       return response.items;
     },
+    async listCodingSessions(
+      request: BirdCoderListCodingSessionsRequest = {},
+    ): Promise<BirdCoderCodingSessionSummary[]> {
+      const response = await client.request<
+        BirdCoderApiListEnvelope<BirdCoderCodingSessionSummary>,
+        'core.listCodingSessions'
+      >('core.listCodingSessions', {
+        query: {
+          engineId: normalizeOptionalText(request.engineId),
+          limit: request.limit,
+          offset: request.offset,
+          projectId: normalizeOptionalText(request.projectId),
+          workspaceId: normalizeOptionalText(request.workspaceId),
+        },
+      });
+      return response.items;
+    },
     async listEngines(): Promise<BirdCoderEngineDescriptor[]> {
       const response = await client.request<
         BirdCoderApiListEnvelope<BirdCoderEngineDescriptor>,
@@ -1557,6 +1950,13 @@ export function createBirdCoderGeneratedCoreReadApiClient({
       >('core.listModels');
       return response.items;
     },
+    async listNativeSessionProviders(): Promise<BirdCoderNativeSessionProviderSummary[]> {
+      const response = await client.request<
+        BirdCoderApiListEnvelope<BirdCoderNativeSessionProviderSummary>,
+        'core.listNativeSessionProviders'
+      >('core.listNativeSessionProviders');
+      return response.items;
+    },
     async listNativeSessions(
       request: BirdCoderListNativeSessionsRequest = {},
     ): Promise<BirdCoderNativeSessionSummary[]> {
@@ -1567,6 +1967,7 @@ export function createBirdCoderGeneratedCoreReadApiClient({
         query: {
           engineId: normalizeOptionalText(request.engineId),
           limit: request.limit,
+          offset: request.offset,
           projectId: normalizeOptionalText(request.projectId),
           workspaceId: normalizeOptionalText(request.workspaceId),
         },
@@ -1614,6 +2015,95 @@ export function createBirdCoderGeneratedCoreWriteApiClient({
       });
       return response.data;
     },
+    async forkCodingSession(
+      codingSessionId: string,
+      request: BirdCoderForkCodingSessionRequest = {},
+    ): Promise<BirdCoderCodingSessionSummary> {
+      const body: Record<string, unknown> = {};
+      const title = normalizeOptionalText(request.title);
+      if (title) {
+        body.title = title;
+      }
+
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderCodingSessionSummary>,
+        'core.forkCodingSession'
+      >('core.forkCodingSession', {
+        pathParams: {
+          id: normalizeRequiredIdentifier(codingSessionId, 'codingSessionId'),
+        },
+        body,
+      });
+      return response.data;
+    },
+    async updateCodingSession(
+      codingSessionId: string,
+      request: BirdCoderUpdateCodingSessionRequest,
+    ): Promise<BirdCoderCodingSessionSummary> {
+      const body: Record<string, unknown> = {};
+      const title = normalizeOptionalText(request.title);
+      const status = normalizeCodingSessionStatus(request.status);
+      const modelId = normalizeOptionalText(request.modelId);
+      const engineId = normalizeOptionalText(request.engineId);
+
+      if (title) {
+        body.title = title;
+      }
+      if (status) {
+        body.status = status;
+      }
+      if (request.hostMode) {
+        body.hostMode = request.hostMode;
+      }
+      if (engineId) {
+        body.engineId = engineId;
+      }
+      if (modelId) {
+        body.modelId = modelId;
+      }
+      if (Object.keys(body).length === 0) {
+        throw new Error('update coding session request must include at least one field.');
+      }
+
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderCodingSessionSummary>,
+        'core.updateCodingSession'
+      >('core.updateCodingSession', {
+        pathParams: {
+          id: normalizeRequiredIdentifier(codingSessionId, 'codingSessionId'),
+        },
+        body,
+      });
+      return response.data;
+    },
+    async deleteCodingSession(
+      codingSessionId: string,
+    ): Promise<BirdCoderDeleteCodingSessionResult> {
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderDeleteCodingSessionResult>,
+        'core.deleteCodingSession'
+      >('core.deleteCodingSession', {
+        pathParams: {
+          id: normalizeRequiredIdentifier(codingSessionId, 'codingSessionId'),
+        },
+      });
+      return response.data;
+    },
+    async deleteCodingSessionMessage(
+      codingSessionId: string,
+      messageId: string,
+    ): Promise<BirdCoderDeleteCodingSessionMessageResult> {
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderDeleteCodingSessionMessageResult>,
+        'core.deleteCodingSessionMessage'
+      >('core.deleteCodingSessionMessage', {
+        pathParams: {
+          id: normalizeRequiredIdentifier(codingSessionId, 'codingSessionId'),
+          messageId: normalizeRequiredIdentifier(messageId, 'messageId'),
+        },
+      });
+      return response.data;
+    },
     async createCodingSessionTurn(
       codingSessionId: string,
       request: BirdCoderCreateCodingSessionTurnRequest,
@@ -1623,9 +2113,33 @@ export function createBirdCoderGeneratedCoreWriteApiClient({
         inputSummary: normalizeRequiredIdentifier(request.inputSummary, 'inputSummary'),
       };
       const runtimeId = normalizeOptionalText(request.runtimeId);
+      const ideContext = request.ideContext;
 
       if (runtimeId) {
         body.runtimeId = runtimeId;
+      }
+      if (ideContext) {
+        body.ideContext = {
+          ...(ideContext.workspaceId ? { workspaceId: ideContext.workspaceId } : {}),
+          ...(ideContext.projectId ? { projectId: ideContext.projectId } : {}),
+          ...(ideContext.threadId ? { threadId: ideContext.threadId } : {}),
+          ...(ideContext.currentFile
+            ? {
+                currentFile: {
+                  path: normalizeRequiredIdentifier(
+                    ideContext.currentFile.path,
+                    'ideContext.currentFile.path',
+                  ),
+                  ...(normalizeOptionalText(ideContext.currentFile.content)
+                    ? { content: ideContext.currentFile.content }
+                    : {}),
+                  ...(normalizeOptionalText(ideContext.currentFile.language)
+                    ? { language: ideContext.currentFile.language }
+                    : {}),
+                },
+              }
+            : {}),
+        };
       }
 
       const response = await client.request<

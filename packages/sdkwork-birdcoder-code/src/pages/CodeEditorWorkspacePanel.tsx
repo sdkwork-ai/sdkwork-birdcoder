@@ -1,6 +1,7 @@
 import { FileExplorer, ResizeHandle, type FileNode } from '@sdkwork/birdcoder-ui';
 import { UniversalChat } from '@sdkwork/birdcoder-ui/chat';
 import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-types';
+import type { ReactNode } from 'react';
 import { CodeEditorSurface } from './CodeEditorSurface';
 
 interface CodeEditorWorkspacePanelProps {
@@ -12,6 +13,7 @@ interface CodeEditorWorkspacePanelProps {
   chatWidth: number;
   selectedCodingSessionId?: string | null;
   messages: BirdCoderChatMessage[];
+  chatEmptyState?: ReactNode;
   inputValue: string;
   isSending: boolean;
   selectedEngineId: string;
@@ -50,6 +52,7 @@ export function CodeEditorWorkspacePanel({
   chatWidth,
   selectedCodingSessionId,
   messages,
+  chatEmptyState,
   inputValue,
   isSending,
   selectedEngineId,
@@ -79,7 +82,7 @@ export function CodeEditorWorkspacePanel({
   getLanguageFromPath,
 }: CodeEditorWorkspacePanelProps) {
   return (
-    <div className="flex-1 flex h-full overflow-hidden">
+    <div className="flex-1 flex h-full min-w-0 overflow-hidden">
       <FileExplorer
         files={files}
         selectedFile={selectedFile || undefined}
@@ -104,7 +107,7 @@ export function CodeEditorWorkspacePanel({
         getLanguageFromPath={getLanguageFromPath}
       />
       <ResizeHandle direction="horizontal" onResize={onChatResize} />
-      <div className="flex flex-col shrink-0 bg-[#0e0e11]" style={{ width: chatWidth }}>
+      <div className="flex min-w-0 max-w-full flex-col shrink-0 overflow-hidden bg-[#0e0e11]" style={{ width: chatWidth }}>
         <UniversalChat
           chatId={selectedCodingSessionId || undefined}
           messages={messages}
@@ -114,6 +117,7 @@ export function CodeEditorWorkspacePanel({
           isSending={isSending}
           selectedEngineId={selectedEngineId}
           selectedModelId={selectedModelId}
+          showEngineHeader={false}
           setSelectedEngineId={onSelectedEngineIdChange}
           setSelectedModelId={onSelectedModelIdChange}
           layout="sidebar"
@@ -123,6 +127,7 @@ export function CodeEditorWorkspacePanel({
           onDeleteMessage={onDeleteMessage}
           onRegenerateMessage={onRegenerateMessage}
           onStop={onStopSending}
+          emptyState={chatEmptyState}
         />
       </div>
     </div>

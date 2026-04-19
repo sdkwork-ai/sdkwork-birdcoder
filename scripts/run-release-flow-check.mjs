@@ -1,6 +1,6 @@
-import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
+import { runCommandSequence } from './run-command-sequence.mjs';
 
 export const RELEASE_FLOW_CHECK_COMMANDS = [
   'node scripts/release-flow-contract.test.mjs',
@@ -130,23 +130,14 @@ export function runReleaseFlowCheck({
   commands = RELEASE_FLOW_CHECK_COMMANDS,
   cwd = process.cwd(),
   env = process.env,
-  spawnSyncImpl = spawnSync,
+  spawnSyncImpl,
 } = {}) {
-  for (const command of commands) {
-    const result = spawnSyncImpl(command, {
-      cwd,
-      env,
-      shell: true,
-      stdio: 'inherit',
-      windowsHide: true,
-    });
-
-    if (result.status !== 0) {
-      return typeof result.status === 'number' ? result.status : 1;
-    }
-  }
-
-  return 0;
+  return runCommandSequence({
+    commands,
+    cwd,
+    env,
+    spawnSyncImpl,
+  });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -3,10 +3,11 @@ import './vite-windows-realpath-patch.mjs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
+import { createDesktopVitePlugins } from '../packages/sdkwork-birdcoder-desktop/vite/createDesktopVitePlugins.mjs';
+import { createDesktopViteServerConfig } from './run-desktop-vite-host.mjs';
 
 const rootDir = process.cwd();
 const desktopRootDir = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop');
-const desktopViteConfigPath = path.join(desktopRootDir, 'vite.config.ts');
 const desktopRequire = createRequire(path.join(desktopRootDir, 'package.json'));
 
 async function loadDesktopVite() {
@@ -21,18 +22,28 @@ async function createDesktopConfiguredViteServer({
   customLogger,
 } = {}) {
   const { createServer } = await loadDesktopVite();
+  const argv = [
+    '--host',
+    host,
+    ...(typeof port === 'number' ? ['--port', String(port)] : []),
+    ...(strictPort ? ['--strictPort'] : []),
+    '--mode',
+    mode,
+  ];
+  const serverConfig = createDesktopViteServerConfig({
+    argv,
+    desktopRootDir,
+    env: process.env,
+    mode,
+    plugins: createDesktopVitePlugins({
+      desktopRootDir,
+      mode,
+    }),
+  });
 
   return createServer({
-    configFile: desktopViteConfigPath,
-    configLoader: 'native',
-    root: desktopRootDir,
-    mode,
+    ...serverConfig,
     ...(customLogger ? { customLogger } : {}),
-    server: {
-      host,
-      port,
-      strictPort,
-    },
   });
 }
 
@@ -40,7 +51,6 @@ export {
   createDesktopConfiguredViteServer,
   desktopRequire,
   desktopRootDir,
-  desktopViteConfigPath,
   loadDesktopVite,
   rootDir,
 };

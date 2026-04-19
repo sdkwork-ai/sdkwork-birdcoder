@@ -59,7 +59,7 @@ try {
   await bootstrapModule.bootstrapShellUserState();
 
   assert.notEqual(
-    await localStoreModule.getStoredRawValue('appbase.identity.user', 'profile'),
+    await localStoreModule.getStoredRawValue('appbase.user-center.user', 'profile'),
     null,
     'shell bootstrap must persist a default user profile snapshot on first launch',
   );

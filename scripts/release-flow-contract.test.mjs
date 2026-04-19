@@ -20,6 +20,12 @@ const webPackageJson = JSON.parse(
 const releaseFlowRunnerModule = await import(
   pathToFileURL(path.join(rootDir, 'scripts/run-release-flow-check.mjs')).href
 );
+const qualityStandardRunnerModule = await import(
+  pathToFileURL(path.join(rootDir, 'scripts/run-quality-standard-check.mjs')).href
+);
+const qualityReleaseRunnerModule = await import(
+  pathToFileURL(path.join(rootDir, 'scripts/run-quality-release-check.mjs')).href
+);
 const releaseFlowCommandsJoined = releaseFlowRunnerModule.RELEASE_FLOW_CHECK_COMMANDS.join(' && ');
 
 assert.match(releaseWorkflow, /name:\s*release/);
@@ -222,21 +228,32 @@ assert.equal(
   rootPackageJson.scripts['test:engine-canonical-registry-governance-contract'],
   'node --experimental-strip-types scripts/engine-canonical-registry-governance-contract.test.ts',
 );
-assert.match(
-  rootPackageJson.scripts['check:quality:standard'],
-  /node scripts\/prepare-shared-sdk-packages\.mjs && pnpm --dir packages\/sdkwork-birdcoder-web exec node \.\.\/\.\.\/scripts\/run-vite-host\.mjs build --mode production && node scripts\/web-bundle-budget\.test\.mjs/,
-  'check:quality:standard must reuse the same direct web-host build chain as the governed root build so release tiers do not drift back to recursive package-script execution',
-);
-assert.equal(rootPackageJson.scripts['check:quality:release'], 'pnpm check:quality:fast && pnpm check:quality:standard && pnpm check:quality-matrix && pnpm check:release-flow && pnpm check:ci-flow && pnpm check:governance-regression');
+assert.deepEqual(qualityStandardRunnerModule.QUALITY_STANDARD_CHECK_COMMANDS, [
+  'node scripts/run-workspace-package-script.mjs . check:desktop',
+  'node scripts/run-workspace-package-script.mjs . check:server',
+  'node scripts/run-workspace-package-script.mjs . check:web-vite-build',
+  'node scripts/run-workspace-package-script.mjs . check:web-bundle-budget',
+  'node scripts/run-workspace-package-script.mjs . server:build',
+  'node scripts/run-workspace-package-script.mjs . docs:build',
+]);
+assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');
+assert.deepEqual(qualityReleaseRunnerModule.QUALITY_RELEASE_CHECK_COMMANDS, [
+  'node scripts/run-workspace-package-script.mjs . check:quality:fast',
+  'node scripts/run-workspace-package-script.mjs . check:quality:standard',
+  'node scripts/run-workspace-package-script.mjs . check:quality-matrix',
+  'node scripts/run-workspace-package-script.mjs . check:release-flow',
+  'node scripts/run-workspace-package-script.mjs . check:ci-flow',
+  'node scripts/run-workspace-package-script.mjs . check:governance-regression',
+]);
 assert.equal(rootPackageJson.scripts['quality:execution-report'], 'node scripts/quality-gate-execution-report.mjs');
 assert.equal(
   rootPackageJson.scripts.build,
-  'node scripts/prepare-shared-sdk-packages.mjs && pnpm --dir packages/sdkwork-birdcoder-web exec node ../../scripts/run-vite-host.mjs build --mode production && node scripts/web-bundle-budget.test.mjs',
+  'node scripts/prepare-shared-sdk-packages.mjs && node scripts/run-vite-host.mjs --cwd packages/sdkwork-birdcoder-web build --mode production && node scripts/web-bundle-budget.test.mjs',
   'root build must keep governance-backed web bundle verification on the pnpm run build path while bypassing recursive package-script execution that drifts under release-tier nesting',
 );
 assert.equal(
   rootPackageJson.scripts['build:prod'],
-  'node scripts/prepare-shared-sdk-packages.mjs && pnpm --dir packages/sdkwork-birdcoder-web exec node ../../scripts/run-vite-host.mjs build --mode production && node scripts/web-bundle-budget.test.mjs',
+  'node scripts/prepare-shared-sdk-packages.mjs && node scripts/run-vite-host.mjs --cwd packages/sdkwork-birdcoder-web build --mode production && node scripts/web-bundle-budget.test.mjs',
   'root build:prod must reuse the same direct web-host build chain as build so release governance avoids recursive package-script drift under nested quality tiers',
 );
 for (const scriptName of ['build', 'build:dev', 'build:test', 'build:prod']) {

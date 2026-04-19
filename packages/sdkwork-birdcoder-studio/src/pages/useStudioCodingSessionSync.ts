@@ -3,19 +3,19 @@ import { useEffect } from 'react';
 import type { BirdCoderProject } from '@sdkwork/birdcoder-types';
 
 interface UseStudioCodingSessionSyncOptions {
-  filteredProjects: BirdCoderProject[];
+  projects: BirdCoderProject[];
   initialCodingSessionId?: string;
   onCodingSessionChange?: (codingSessionId: string) => void;
   selectedCodingSessionId: string;
-  setSelectedThreadId: (codingSessionId: string) => void;
+  selectCodingSession: (codingSessionId: string) => void;
 }
 
 export function useStudioCodingSessionSync({
-  filteredProjects,
+  projects,
   initialCodingSessionId,
   onCodingSessionChange,
   selectedCodingSessionId,
-  setSelectedThreadId,
+  selectCodingSession,
 }: UseStudioCodingSessionSyncOptions) {
   useEffect(() => {
     const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
@@ -25,7 +25,7 @@ export function useStudioCodingSessionSync({
 
     const hasSelectedCodingSession =
       !!selectedCodingSessionId &&
-      filteredProjects.some((project) =>
+      projects.some((project) =>
         project.codingSessions.some((codingSession) => codingSession.id === selectedCodingSessionId),
       );
     if (hasSelectedCodingSession) {
@@ -34,15 +34,15 @@ export function useStudioCodingSessionSync({
 
     if (
       normalizedInitialCodingSessionId !== selectedCodingSessionId &&
-      filteredProjects.some((project) =>
+      projects.some((project) =>
         project.codingSessions.some(
           (codingSession) => codingSession.id === normalizedInitialCodingSessionId,
         ),
       )
     ) {
-      setSelectedThreadId(normalizedInitialCodingSessionId);
+      selectCodingSession(normalizedInitialCodingSessionId);
     }
-  }, [filteredProjects, initialCodingSessionId, selectedCodingSessionId, setSelectedThreadId]);
+  }, [projects, initialCodingSessionId, selectedCodingSessionId, selectCodingSession]);
 
   useEffect(() => {
     const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';

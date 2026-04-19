@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   BirdCoderApprovalDecisionResult,
   BirdCoderCodingSessionArtifact,
@@ -141,8 +141,8 @@ export async function loadCodingSessionProjection(
   >,
   codingSessionId: string,
 ): Promise<BirdCoderCodingSessionProjection> {
-  const session = await coreReadService.getCodingSession(codingSessionId);
-  const [events, artifacts, checkpoints] = await Promise.all([
+  const [session, events, artifacts, checkpoints] = await Promise.all([
+    coreReadService.getCodingSession(codingSessionId),
     coreReadService.listCodingSessionEvents(codingSessionId),
     coreReadService.listCodingSessionArtifacts(codingSessionId),
     coreReadService.listCodingSessionCheckpoints(codingSessionId),
@@ -180,12 +180,15 @@ export async function submitCodingSessionApprovalDecision(
 export function useCodingSessionProjection(codingSessionId?: string | null) {
   const { coreReadService } = useIDEServices();
   const [state, setState] = useState<BirdCoderCodingSessionProjectionState>(INITIAL_STATE);
+  const latestRefreshTokenRef = useRef(0);
 
   const refreshProjection = useCallback(async () => {
     if (!codingSessionId) {
       setState(INITIAL_STATE);
       return EMPTY_PROJECTION;
     }
+    const refreshToken = latestRefreshTokenRef.current + 1;
+    latestRefreshTokenRef.current = refreshToken;
 
     setState((current) => ({
       ...current,
@@ -194,17 +197,21 @@ export function useCodingSessionProjection(codingSessionId?: string | null) {
 
     try {
       const projection = await loadCodingSessionProjection(coreReadService, codingSessionId);
-      setState({
-        ...projection,
-        isLoading: false,
-      });
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState({
+          ...projection,
+          isLoading: false,
+        });
+      }
       return projection;
     } catch (error) {
       console.error('Failed to load coding session projection', error);
-      setState((current) => ({
-        ...current,
-        isLoading: false,
-      }));
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState((current) => ({
+          ...current,
+          isLoading: false,
+        }));
+      }
       return {
         ...EMPTY_PROJECTION,
       };
@@ -224,12 +231,15 @@ export function useCodingSessionProjection(codingSessionId?: string | null) {
 export function useCodingSessionApprovalState(codingSessionId?: string | null) {
   const { coreReadService, coreWriteService } = useIDEServices();
   const [state, setState] = useState<BirdCoderCodingSessionApprovalState>(INITIAL_APPROVAL_STATE);
+  const latestRefreshTokenRef = useRef(0);
 
   const refreshApprovals = useCallback(async () => {
     if (!codingSessionId) {
       setState(INITIAL_APPROVAL_STATE);
       return EMPTY_APPROVALS;
     }
+    const refreshToken = latestRefreshTokenRef.current + 1;
+    latestRefreshTokenRef.current = refreshToken;
 
     setState((current) => ({
       ...current,
@@ -238,17 +248,21 @@ export function useCodingSessionApprovalState(codingSessionId?: string | null) {
 
     try {
       const approvals = await loadCodingSessionApprovalState(coreReadService, codingSessionId);
-      setState({
-        approvals,
-        isLoading: false,
-      });
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState({
+          approvals,
+          isLoading: false,
+        });
+      }
       return approvals;
     } catch (error) {
       console.error('Failed to load coding session approvals', error);
-      setState((current) => ({
-        ...current,
-        isLoading: false,
-      }));
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState((current) => ({
+          ...current,
+          isLoading: false,
+        }));
+      }
       return EMPTY_APPROVALS;
     }
   }, [codingSessionId, coreReadService]);

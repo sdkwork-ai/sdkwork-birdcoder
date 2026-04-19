@@ -7,11 +7,17 @@ function mapTeamSummaryToTeam(
 ): BirdCoderTeam {
   return {
     id: team.id,
+    uuid: team.uuid,
+    tenantId: team.tenantId,
+    organizationId: team.organizationId,
     workspaceId: team.workspaceId,
+    code: team.code,
+    title: team.title,
     name: team.name,
     description: team.description,
-    ownerIdentityId: team.ownerIdentityId,
-    createdByIdentityId: team.createdByIdentityId,
+    ownerId: team.ownerId,
+    leaderId: team.leaderId,
+    createdByUserId: team.createdByUserId,
     status: team.status === 'archived' ? 'archived' : 'active',
   };
 }
@@ -30,15 +36,15 @@ export class ApiBackedTeamService implements ITeamService {
     this.identityProvider = identityProvider;
   }
 
-  private async resolveCurrentIdentityId(): Promise<string | undefined> {
+  private async resolveCurrentUserId(): Promise<string | undefined> {
     const user = await this.identityProvider?.getCurrentUser();
-    const identityId = user?.id?.trim();
-    return identityId && identityId.length > 0 ? identityId : undefined;
+    const userId = user?.id?.trim();
+    return userId && userId.length > 0 ? userId : undefined;
   }
 
   async getTeams(workspaceId?: string): Promise<BirdCoderTeam[]> {
     const teams = await this.client.listTeams({
-      identityId: await this.resolveCurrentIdentityId(),
+      userId: await this.resolveCurrentUserId(),
       workspaceId,
     });
     return teams.map(mapTeamSummaryToTeam);

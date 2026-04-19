@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "lucide-react": "catalog:",
+    "@sdkwork/birdcoder-codeengine": "workspace:*",
+    "@sdkwork/birdcoder-commons": "workspace:*",
     "@sdkwork/birdcoder-ui": "workspace:*"
   },
   "devDependencies": {

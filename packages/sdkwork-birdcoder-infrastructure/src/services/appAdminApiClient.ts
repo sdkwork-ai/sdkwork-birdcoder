@@ -27,9 +27,11 @@ export interface CreateBirdCoderHttpApiTransportOptions {
   baseUrl: string;
   fetchImpl?: typeof fetch;
   resolveHeaders?: () => Record<string, string | undefined>;
+  timeoutMs?: number;
 }
 
 type BirdCoderFetchLike = typeof fetch;
+const DEFAULT_BIRDCODER_HTTP_API_TIMEOUT_MS = 8_000;
 
 function buildRequestId(path: string): string {
   const normalizedPath = path.replaceAll('/', '.').replace(/^\.*/u, '');
@@ -78,24 +80,56 @@ function buildUrl(baseUrl: string, request: BirdCoderApiTransportRequest): URL {
 function mapWorkspaceSummary(
   workspace: Awaited<ReturnType<BirdCoderAppAdminConsoleQueries['listWorkspaces']>>[number],
 ): BirdCoderWorkspaceSummary {
+  const canonical = workspace as Partial<BirdCoderWorkspaceSummary>;
+  const ownerId = canonical.ownerId;
   return {
     id: workspace.id,
+    uuid: canonical.uuid,
+    tenantId: canonical.tenantId,
+    organizationId: canonical.organizationId,
+    code: canonical.code,
+    title: canonical.title,
     name: workspace.name,
     description: workspace.description,
-    ownerIdentityId: workspace.ownerIdentityId,
-    status: 'active',
+    ownerId,
+    leaderId: canonical.leaderId ?? ownerId,
+    createdByUserId: canonical.createdByUserId ?? ownerId,
+    type: canonical.type,
+    status: canonical.status === 'archived' ? 'archived' : 'active',
+  };
+}
+
+function createEnvelope<TData>(data: TData) {
+  return {
+    requestId: buildRequestId('data'),
+    timestamp: new Date().toISOString(),
+    data,
   };
 }
 
 function mapProjectSummary(
   project: Awaited<ReturnType<BirdCoderAppAdminConsoleQueries['listProjects']>>[number],
 ): BirdCoderProjectSummary {
+  const canonical = project as Partial<BirdCoderProjectSummary>;
+  const ownerId = canonical.ownerId;
+  const createdByUserId = canonical.createdByUserId ?? ownerId;
   return {
     id: project.id,
+    uuid: canonical.uuid,
+    tenantId: canonical.tenantId,
+    organizationId: canonical.organizationId,
     workspaceId: project.workspaceId,
+    workspaceUuid: canonical.workspaceUuid,
+    code: canonical.code,
+    title: canonical.title,
     name: project.name,
     description: project.description,
     rootPath: project.rootPath,
+    ownerId,
+    leaderId: canonical.leaderId ?? ownerId,
+    createdByUserId,
+    author: canonical.author ?? createdByUserId ?? ownerId,
+    type: canonical.type,
     status: project.status === 'archived' ? 'archived' : 'active',
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
@@ -145,11 +179,21 @@ function mapDeploymentTargetSummary(
 function mapTeamSummary(
   team: Awaited<ReturnType<BirdCoderAppAdminConsoleQueries['listTeams']>>[number],
 ): BirdCoderTeamSummary {
+  const canonical = team as Partial<BirdCoderTeamSummary>;
+  const ownerId = canonical.ownerId;
   return {
     id: team.id,
+    uuid: canonical.uuid,
+    tenantId: canonical.tenantId,
+    organizationId: canonical.organizationId,
     workspaceId: team.workspaceId,
+    code: canonical.code,
+    title: canonical.title,
     name: team.name,
     description: team.description,
+    ownerId,
+    leaderId: canonical.leaderId ?? ownerId,
+    createdByUserId: canonical.createdByUserId ?? ownerId,
     status: team.status === 'archived' ? 'archived' : 'active',
   };
 }
@@ -157,12 +201,15 @@ function mapTeamSummary(
 function mapTeamMemberSummary(
   member: Awaited<ReturnType<BirdCoderAppAdminConsoleQueries['listTeamMembers']>>[number],
 ): BirdCoderTeamMemberSummary {
+  const canonical = member as Partial<BirdCoderTeamMemberSummary>;
   return {
     id: member.id,
     teamId: member.teamId,
-    identityId: member.identityId,
+    userId: canonical.userId ?? member.userId,
     role: member.role as BirdCoderTeamMemberSummary['role'],
     status: member.status as BirdCoderTeamMemberSummary['status'],
+    createdByUserId: canonical.createdByUserId,
+    grantedByUserId: canonical.grantedByUserId,
   };
 }
 
@@ -218,12 +265,63 @@ function resolveFetchLike(fetchImpl?: BirdCoderFetchLike): BirdCoderFetchLike {
   throw new Error('Fetch transport requires a fetch implementation.');
 }
 
+function resolveTimeoutMs(timeoutMs?: number): number {
+  if (typeof timeoutMs !== 'number' || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return DEFAULT_BIRDCODER_HTTP_API_TIMEOUT_MS;
+  }
+
+  return Math.floor(timeoutMs);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+async function buildBirdCoderApiError(response: Response, request: BirdCoderApiTransportRequest): Promise<Error> {
+  let detail = '';
+
+  try {
+    const rawBody = await response.text();
+    const trimmedBody = rawBody.trim();
+    if (!trimmedBody) {
+      return new Error(
+        `BirdCoder API request failed: ${request.method} ${request.path} -> ${response.status}`,
+      );
+    }
+
+    try {
+      const parsedBody: unknown = JSON.parse(trimmedBody);
+      if (isRecord(parsedBody)) {
+        const directMessage =
+          typeof parsedBody.message === 'string' ? parsedBody.message.trim() : '';
+        const dataMessage =
+          isRecord(parsedBody.data) && typeof parsedBody.data.message === 'string'
+            ? parsedBody.data.message.trim()
+            : '';
+        detail = dataMessage || directMessage;
+      }
+    } catch {
+      detail = trimmedBody;
+    }
+  } catch {
+    // Ignore body read failures and fall back to the status-only error below.
+  }
+
+  return new Error(
+    detail
+      ? `BirdCoder API request failed: ${request.method} ${request.path} -> ${response.status} (${detail})`
+      : `BirdCoder API request failed: ${request.method} ${request.path} -> ${response.status}`,
+  );
+}
+
 export function createBirdCoderHttpApiTransport({
   baseUrl,
   fetchImpl,
   resolveHeaders,
+  timeoutMs,
 }: CreateBirdCoderHttpApiTransportOptions): BirdCoderApiTransport {
   const resolvedFetch = resolveFetchLike(fetchImpl);
+  const resolvedTimeoutMs = resolveTimeoutMs(timeoutMs);
   return {
     async request<TResponse>(request: BirdCoderApiTransportRequest): Promise<TResponse> {
       const headers: Record<string, string> = {
@@ -244,14 +342,44 @@ export function createBirdCoderHttpApiTransport({
         headers['Content-Type'] = 'application/json';
       }
 
-      const response = await resolvedFetch(buildUrl(baseUrl, request), {
-        method: request.method,
-        headers,
-        body: request.body === undefined ? undefined : JSON.stringify(request.body),
-      });
+      const abortController =
+        typeof AbortController === 'function' ? new AbortController() : undefined;
+      let requestTimedOut = false;
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+      if (abortController) {
+        timeoutHandle = setTimeout(() => {
+          requestTimedOut = true;
+          abortController.abort();
+        }, resolvedTimeoutMs);
+      }
+
+      let response: Response;
+      try {
+        response = await resolvedFetch(buildUrl(baseUrl, request), {
+          method: request.method,
+          headers,
+          body: request.body === undefined ? undefined : JSON.stringify(request.body),
+          signal: abortController?.signal,
+        });
+      } catch (error) {
+        if (
+          requestTimedOut ||
+          (error instanceof Error && error.name === 'AbortError')
+        ) {
+          throw new Error(
+            `BirdCoder API request timed out after ${resolvedTimeoutMs}ms: ${request.method} ${request.path}`,
+          );
+        }
+        throw error;
+      } finally {
+        if (timeoutHandle !== undefined) {
+          clearTimeout(timeoutHandle);
+        }
+      }
 
       if (!response.ok) {
-        throw new Error(`App/admin API request failed: ${request.method} ${request.path} -> ${response.status}`);
+        throw await buildBirdCoderApiError(response, request);
       }
 
       return response.json() as Promise<TResponse>;
@@ -265,10 +393,69 @@ export function createBirdCoderInProcessAppAdminApiTransport({
 }: CreateBirdCoderInProcessAppAdminApiTransportOptions): BirdCoderApiTransport {
   const adminProjectDeploymentTargetsRoutePrefix = `${BIRDCODER_CODING_SERVER_API_PREFIXES.admin}/projects/`;
   const adminTeamMembersRoutePrefix = `${BIRDCODER_CODING_SERVER_API_PREFIXES.admin}/teams/`;
+  const appWorkspaceRoutePrefix = `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/workspaces/`;
+  const appProjectRoutePrefix = `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/projects/`;
 
   return {
     async request<TResponse>(request: BirdCoderApiTransportRequest): Promise<TResponse> {
       observe?.(request);
+
+      if (request.method === 'POST') {
+        switch (request.path) {
+          case `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/workspaces`:
+            return createEnvelope(
+              await queries.createWorkspace(request.body as never),
+            ) as TResponse;
+          case `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/projects`:
+            return createEnvelope(
+              await queries.createProject(request.body as never),
+            ) as TResponse;
+          default:
+            throw new Error(`Unsupported in-process app/admin route: ${request.method} ${request.path}`);
+        }
+      }
+
+      if (request.method === 'PATCH') {
+        if (request.path.startsWith(appWorkspaceRoutePrefix)) {
+          const encodedWorkspaceId = request.path.slice(appWorkspaceRoutePrefix.length);
+          return createEnvelope(
+            await queries.updateWorkspace(
+              decodeURIComponent(encodedWorkspaceId),
+              request.body as never,
+            ),
+          ) as TResponse;
+        }
+
+        if (request.path.startsWith(appProjectRoutePrefix)) {
+          const encodedProjectId = request.path.slice(appProjectRoutePrefix.length);
+          return createEnvelope(
+            await queries.updateProject(
+              decodeURIComponent(encodedProjectId),
+              request.body as never,
+            ),
+          ) as TResponse;
+        }
+
+        throw new Error(`Unsupported in-process app/admin route: ${request.method} ${request.path}`);
+      }
+
+      if (request.method === 'DELETE') {
+        if (request.path.startsWith(appWorkspaceRoutePrefix)) {
+          const encodedWorkspaceId = request.path.slice(appWorkspaceRoutePrefix.length);
+          return createEnvelope(
+            await queries.deleteWorkspace(decodeURIComponent(encodedWorkspaceId)),
+          ) as TResponse;
+        }
+
+        if (request.path.startsWith(appProjectRoutePrefix)) {
+          const encodedProjectId = request.path.slice(appProjectRoutePrefix.length);
+          return createEnvelope(
+            await queries.deleteProject(decodeURIComponent(encodedProjectId)),
+          ) as TResponse;
+        }
+
+        throw new Error(`Unsupported in-process app/admin route: ${request.method} ${request.path}`);
+      }
 
       if (request.method !== 'GET') {
         throw new Error(`Unsupported in-process app/admin method: ${request.method}`);
@@ -308,6 +495,21 @@ export function createBirdCoderInProcessAppAdminApiTransport({
         ) as TResponse;
       }
 
+      if (
+        request.path.startsWith(appProjectRoutePrefix) &&
+        !request.path.endsWith('/collaborators') &&
+        !request.path.endsWith('/publish')
+      ) {
+        const encodedProjectId = request.path.slice(appProjectRoutePrefix.length);
+        if (encodedProjectId && !encodedProjectId.includes('/')) {
+          const project = await queries.getProject(decodeURIComponent(encodedProjectId));
+          if (!project) {
+            throw new Error(`Project ${decodeURIComponent(encodedProjectId)} was not found.`);
+          }
+          return createEnvelope(mapProjectSummary(project)) as TResponse;
+        }
+      }
+
       switch (request.path) {
         case `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/workspaces`:
           return createListEnvelope(
@@ -327,9 +529,12 @@ export function createBirdCoderInProcessAppAdminApiTransport({
           ) as TResponse;
         case `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/projects`:
           return createListEnvelope(
-            (await queries.listProjects({ workspaceId: normalizeQueryValue(request.query?.workspaceId) })).map(
-              mapProjectSummary,
-            ),
+            (
+              await queries.listProjects({
+                rootPath: normalizeQueryValue(request.query?.rootPath),
+                workspaceId: normalizeQueryValue(request.query?.workspaceId),
+              })
+            ).map(mapProjectSummary),
           ) as TResponse;
         case `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/teams`:
           return createListEnvelope(

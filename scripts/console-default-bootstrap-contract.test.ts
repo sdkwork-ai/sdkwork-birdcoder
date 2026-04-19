@@ -73,8 +73,8 @@ try {
   const bootstrappedProjects = await queries.listProjects({ workspaceId: 'workspace-default' });
   assert.deepEqual(
     bootstrappedProjects.map((project) => project.id),
-    ['project-default'],
-    'console queries must bootstrap a default starter project for the default workspace when storage is empty.',
+    [],
+    'console queries must not invent a starter project when storage is empty.',
   );
 
   const services = createDefaultBirdCoderIdeServices({
@@ -90,8 +90,8 @@ try {
   );
   assert.deepEqual(
     serviceProjects.map((project) => project.id),
-    ['project-default'],
-    'default IDE services must surface the bootstrapped starter project.',
+    [],
+    'default IDE services must not surface a synthetic starter project.',
   );
 } finally {
   if (originalWindowDescriptor) {

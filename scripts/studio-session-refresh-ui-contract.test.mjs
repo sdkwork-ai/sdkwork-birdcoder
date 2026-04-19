@@ -52,37 +52,43 @@ assert.match(
 
 assert.match(
   sidebarSource,
-  /disabled=\{refreshingProjectId === currentProjectId\}/,
-  'Studio current project refresh action must disable only the active project target.',
+  /const handleRefreshCurrentContext = \(\) => \{\s*if \(selectedCodingSessionId\) \{\s*void onRefreshCodingSessionMessages\(selectedCodingSessionId\);\s*return;\s*\}\s*if \(currentProjectId\) \{\s*void onRefreshProjectSessions\(currentProjectId\);\s*\}\s*\};/s,
+  'Studio sidebar header should collapse refresh behavior into one context-aware action.',
 );
 
 assert.match(
   sidebarSource,
-  /disabled=\{!selectedCodingSessionId \|\| refreshingCodingSessionId === selectedCodingSessionId\}/,
-  'Studio current session refresh action must disable only the active session target.',
+  /disabled=\{!canRefreshCurrentContext \|\| isRefreshingCurrentContext\}/,
+  'Studio sidebar header refresh button must disable itself from the shared context state.',
+);
+
+assert.match(
+  sidebarSource,
+  /title=\{t\(refreshActionKey\)\}/,
+  'Studio sidebar header refresh button must expose the correct label for the active context.',
 );
 
 assert.match(
   enLocaleSource,
-  /"refreshSessions": "Refresh Sessions"/,
+  /refreshSessions["']?: "Refresh Sessions"/,
   'English Studio locale must define the project refresh label.',
 );
 
 assert.match(
   enLocaleSource,
-  /"refreshMessages": "Refresh Messages"/,
+  /refreshMessages["']?: "Refresh Messages"/,
   'English Studio locale must define the session refresh label.',
 );
 
 assert.match(
   zhLocaleSource,
-  /"refreshSessions":/,
+  /refreshSessions["']?:/,
   'Chinese Studio locale must define the project refresh label.',
 );
 
 assert.match(
   zhLocaleSource,
-  /"refreshMessages":/,
+  /refreshMessages["']?:/,
   'Chinese Studio locale must define the session refresh label.',
 );
 

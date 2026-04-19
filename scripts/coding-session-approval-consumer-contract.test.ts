@@ -139,11 +139,17 @@ const coreReadService: ICoreReadService = {
   async listCodingSessionEvents() {
     return [eventFixture];
   },
+  async listCodingSessions() {
+    return [sessionFixture];
+  },
   async listEngines(): Promise<BirdCoderEngineDescriptor[]> {
     throw new Error('not needed');
   },
   async listModels(): Promise<BirdCoderModelCatalogEntry[]> {
     throw new Error('not needed');
+  },
+  async listNativeSessionProviders() {
+    return [];
   },
   async listNativeSessions() {
     return [];
@@ -157,6 +163,15 @@ const coreWriteClient: BirdCoderCoreWriteApiClient = {
   async createCodingSession() {
     throw new Error('not needed');
   },
+  async updateCodingSession() {
+    throw new Error('not needed');
+  },
+  async forkCodingSession() {
+    throw new Error('not needed');
+  },
+  async deleteCodingSession() {
+    throw new Error('not needed');
+  },
   async createCodingSessionTurn() {
     throw new Error('not needed');
   },
@@ -167,6 +182,9 @@ const coreWriteClient: BirdCoderCoreWriteApiClient = {
       reason: request.reason,
     });
     return approvalResultFixture;
+  },
+  async deleteCodingSessionMessage() {
+    throw new Error('not needed');
   },
 };
 

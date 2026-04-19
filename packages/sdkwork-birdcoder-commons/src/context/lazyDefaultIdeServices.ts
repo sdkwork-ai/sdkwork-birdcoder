@@ -40,6 +40,9 @@ export function createLazyDefaultIdeServices(): BirdCoderDefaultIdeServices {
     ),
     authService: createLazyServiceProxy(async () => (await loadDefaultIdeServices()).authService),
     auditService: createLazyServiceProxy(async () => (await loadDefaultIdeServices()).auditService),
+    catalogService: createLazyServiceProxy(
+      async () => (await loadDefaultIdeServices()).catalogService,
+    ),
     collaborationService: createLazyServiceProxy(
       async () => (await loadDefaultIdeServices()).collaborationService,
     ),

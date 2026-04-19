@@ -4,7 +4,6 @@ import type {
   BirdCoderProject,
   IWorkspace,
 } from '@sdkwork/birdcoder-types';
-import type { WorkbenchSessionInventoryRecord } from './sessionInventory.ts';
 
 const WORKBENCH_RECOVERY_TABS = new Set<AppTab>([
   'code',
@@ -32,7 +31,6 @@ export interface WorkbenchRecoverySnapshot {
 export interface ResolveStartupWorkspaceIdOptions {
   workspaces: ReadonlyArray<Pick<IWorkspace, 'id'>>;
   recoverySnapshot: WorkbenchRecoverySnapshot;
-  inventory: ReadonlyArray<Pick<WorkbenchSessionInventoryRecord, 'workspaceId'>>;
 }
 
 export interface ResolveStartupProjectIdOptions {
@@ -43,7 +41,6 @@ export interface ResolveStartupProjectIdOptions {
     }
   >;
   recoverySnapshot: WorkbenchRecoverySnapshot;
-  inventory: ReadonlyArray<Pick<WorkbenchSessionInventoryRecord, 'projectId' | 'workspaceId'>>;
 }
 
 export interface ResolveStartupCodingSessionIdOptions {
@@ -54,9 +51,6 @@ export interface ResolveStartupCodingSessionIdOptions {
     }
   >;
   recoverySnapshot: WorkbenchRecoverySnapshot;
-  inventory: ReadonlyArray<
-    Pick<WorkbenchSessionInventoryRecord, 'id' | 'kind' | 'projectId'>
-  >;
 }
 
 export interface BuildWorkbenchRecoveryAnnouncementOptions {
@@ -154,13 +148,6 @@ export function resolveStartupWorkspaceId(
     return recoveryWorkspaceId;
   }
 
-  const inventoryWorkspaceId = options.inventory
-    .map((entry) => normalizeIdentifier(entry.workspaceId))
-    .find((workspaceId) => workspaceId && hasWorkspaceId(options.workspaces, workspaceId));
-  if (inventoryWorkspaceId) {
-    return inventoryWorkspaceId;
-  }
-
   return options.workspaces[0]?.id ?? '';
 }
 
@@ -185,14 +172,6 @@ export function resolveStartupProjectId(
     }
   }
 
-  const inventoryProjectId = options.inventory
-    .filter((entry) => entry.workspaceId === options.workspaceId)
-    .map((entry) => normalizeIdentifier(entry.projectId))
-    .find((projectId) => projectId && hasProjectId(scopedProjects, projectId));
-  if (inventoryProjectId) {
-    return inventoryProjectId;
-  }
-
   return scopedProjects[0]?.id ?? '';
 }
 
@@ -207,17 +186,6 @@ export function resolveStartupCodingSessionId(
     hasCodingSessionId(scopedCodingSessions, recoveryCodingSessionId)
   ) {
     return recoveryCodingSessionId;
-  }
-
-  const inventoryCodingSessionId = options.inventory
-    .filter((entry) => entry.kind === 'coding' && entry.projectId === options.projectId)
-    .map((entry) => normalizeIdentifier(entry.id))
-    .find(
-      (codingSessionId) =>
-        codingSessionId && hasCodingSessionId(scopedCodingSessions, codingSessionId),
-    );
-  if (inventoryCodingSessionId) {
-    return inventoryCodingSessionId;
   }
 
   return scopedCodingSessions[0]?.id ?? '';

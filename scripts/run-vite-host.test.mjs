@@ -8,9 +8,11 @@ import {
   createViteHostPlan,
   normalizeViteMode,
   resolveInstalledVitePackageRoot,
+  resolveWorkspaceRootDir,
   shouldEnforceViteHostBuildPreflight,
   resolveViteCliEntry,
   resolveViteWindowsRealpathPatchEntry,
+  stripCwdArg,
   stripModeArg,
 } from './run-vite-host.mjs';
 
@@ -21,6 +23,10 @@ assert.equal(normalizeViteMode('unknown', 'test'), 'test');
 assert.deepEqual(stripModeArg(['serve', '--mode', 'production', '--host', '0.0.0.0']), {
   args: ['serve', '--host', '0.0.0.0'],
   explicitMode: 'production',
+});
+assert.deepEqual(stripCwdArg(['--cwd', 'packages/sdkwork-birdcoder-web', 'build', '--mode', 'production']), {
+  args: ['build', '--mode', 'production'],
+  explicitCwd: 'packages/sdkwork-birdcoder-web',
 });
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-vite-host-'));
@@ -102,6 +108,15 @@ assert.deepEqual(buildPlan.args, [
 assert.equal(buildPlan.cwd, tempRoot);
 assert.equal(buildPlan.env.SDKWORK_VITE_MODE, 'test');
 assert.equal(buildPlan.env.CUSTOM_ENV, 'retained');
+
+const explicitCwdPlan = createViteHostPlan({
+  argv: ['--cwd', 'packages/sdkwork-birdcoder-web', 'build', '--mode', 'production'],
+  env: {},
+});
+assert.equal(
+  explicitCwdPlan.cwd,
+  path.join(resolveWorkspaceRootDir(), 'packages', 'sdkwork-birdcoder-web'),
+);
 
 const workspaceRootPackageJsonPath = path.resolve('package.json');
 const workspaceRootPackageJson = JSON.parse(fs.readFileSync(workspaceRootPackageJsonPath, 'utf8'));

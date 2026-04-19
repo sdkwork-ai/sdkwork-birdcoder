@@ -171,7 +171,7 @@ export const createUserSectionRouteIntent = createBirdCoderUserSectionRouteInten
 export const userPackageMeta = {
   architecture: 'birdcoder-appbase',
   bridgePackage: 'sdkwork-birdcoder-appbase',
-  domain: 'identity',
+  domain: 'user_center',
   package: BIRDCODER_APPBASE_USER_SOURCE_PACKAGE,
   status: 'ready',
 } as const;

@@ -22,43 +22,30 @@ export class ApiBackedCollaborationService implements ICollaborationService {
     this.identityProvider = identityProvider;
   }
 
-  private async resolveCurrentIdentityId(): Promise<string | undefined> {
+  private async resolveCurrentUserId(): Promise<string | undefined> {
     const user = await this.identityProvider?.getCurrentUser();
-    const identityId = user?.id?.trim();
-    return identityId && identityId.length > 0 ? identityId : undefined;
+    const userId = user?.id?.trim();
+    return userId && userId.length > 0 ? userId : undefined;
   }
 
   async listProjectCollaborators(projectId: string): Promise<BirdCoderProjectCollaboratorSummary[]> {
-    const method = this.client.listProjectCollaborators;
-    if (typeof method !== 'function') {
-      throw new Error('Project collaborator API is unavailable for the current coding-server runtime.');
-    }
-    return method.call(this.client, projectId);
+    return this.client.listProjectCollaborators(projectId);
   }
 
   async listWorkspaceMembers(workspaceId: string): Promise<BirdCoderWorkspaceMemberSummary[]> {
-    const method = this.client.listWorkspaceMembers;
-    if (typeof method !== 'function') {
-      throw new Error('Workspace member API is unavailable for the current coding-server runtime.');
-    }
-    return method.call(this.client, workspaceId);
+    return this.client.listWorkspaceMembers(workspaceId);
   }
 
   async upsertProjectCollaborator(
     projectId: string,
     request: BirdCoderUpsertProjectCollaboratorRequest,
   ): Promise<BirdCoderProjectCollaboratorSummary> {
-    const method = this.client.upsertProjectCollaborator;
-    if (typeof method !== 'function') {
-      throw new Error('Project collaborator API is unavailable for the current coding-server runtime.');
-    }
-
-    const currentIdentityId = await this.resolveCurrentIdentityId();
-    return method.call(this.client, projectId, {
+    const currentUserId = await this.resolveCurrentUserId();
+    return this.client.upsertProjectCollaborator(projectId, {
       ...request,
-      createdByIdentityId: request.createdByIdentityId ?? currentIdentityId,
-      grantedByIdentityId:
-        request.grantedByIdentityId ?? request.createdByIdentityId ?? currentIdentityId,
+      createdByUserId: request.createdByUserId ?? currentUserId,
+      grantedByUserId:
+        request.grantedByUserId ?? request.createdByUserId ?? currentUserId,
     });
   }
 
@@ -66,17 +53,12 @@ export class ApiBackedCollaborationService implements ICollaborationService {
     workspaceId: string,
     request: BirdCoderUpsertWorkspaceMemberRequest,
   ): Promise<BirdCoderWorkspaceMemberSummary> {
-    const method = this.client.upsertWorkspaceMember;
-    if (typeof method !== 'function') {
-      throw new Error('Workspace member API is unavailable for the current coding-server runtime.');
-    }
-
-    const currentIdentityId = await this.resolveCurrentIdentityId();
-    return method.call(this.client, workspaceId, {
+    const currentUserId = await this.resolveCurrentUserId();
+    return this.client.upsertWorkspaceMember(workspaceId, {
       ...request,
-      createdByIdentityId: request.createdByIdentityId ?? currentIdentityId,
-      grantedByIdentityId:
-        request.grantedByIdentityId ?? request.createdByIdentityId ?? currentIdentityId,
+      createdByUserId: request.createdByUserId ?? currentUserId,
+      grantedByUserId:
+        request.grantedByUserId ?? request.createdByUserId ?? currentUserId,
     });
   }
 }

@@ -4,7 +4,7 @@ SDKWork BirdCoder follows the Claw Studio architecture standard at the workspace
 
 ## Layering
 
-- Foundation: `sdkwork-birdcoder-core`, `sdkwork-birdcoder-types`, `sdkwork-birdcoder-i18n`, `sdkwork-birdcoder-infrastructure`, `sdkwork-birdcoder-ui`, `sdkwork-birdcoder-commons`
+- Foundation: `sdkwork-birdcoder-core`, `sdkwork-birdcoder-types`, `sdkwork-birdcoder-i18n`, `sdkwork-birdcoder-codeengine`, `sdkwork-birdcoder-infrastructure`, `sdkwork-birdcoder-ui`, `sdkwork-birdcoder-commons`
 - Shell and host boundaries: `sdkwork-birdcoder-shell`, `sdkwork-birdcoder-host-core`, `sdkwork-birdcoder-host-studio`
 - Delivery hosts: `sdkwork-birdcoder-web`, `sdkwork-birdcoder-desktop`, `sdkwork-birdcoder-server`
 - Delivery and deployment: `sdkwork-birdcoder-distribution`, `deploy/docker`, `deploy/kubernetes`, `scripts/release`, `.github/workflows`

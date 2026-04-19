@@ -7,8 +7,10 @@ import type {
   BirdCoderCodingSessionSummary,
   BirdCoderCoreHealthSummary,
   BirdCoderGetNativeSessionRequest,
+  BirdCoderListCodingSessionsRequest,
   BirdCoderListNativeSessionsRequest,
   BirdCoderNativeSessionDetail,
+  BirdCoderNativeSessionProviderSummary,
   BirdCoderNativeSessionSummary,
   BirdCoderCoreRuntimeSummary,
   BirdCoderEngineCapabilityMatrix,
@@ -31,8 +33,12 @@ export interface ICoreReadService {
   listCodingSessionArtifacts(codingSessionId: string): Promise<BirdCoderCodingSessionArtifact[]>;
   listCodingSessionCheckpoints(codingSessionId: string): Promise<BirdCoderCodingSessionCheckpoint[]>;
   listCodingSessionEvents(codingSessionId: string): Promise<BirdCoderCodingSessionEvent[]>;
+  listCodingSessions(
+    request?: BirdCoderListCodingSessionsRequest,
+  ): Promise<BirdCoderCodingSessionSummary[]>;
   listEngines(): Promise<BirdCoderEngineDescriptor[]>;
   listModels(): Promise<BirdCoderModelCatalogEntry[]>;
+  listNativeSessionProviders(): Promise<BirdCoderNativeSessionProviderSummary[]>;
   listNativeSessions(
     request?: BirdCoderListNativeSessionsRequest,
   ): Promise<BirdCoderNativeSessionSummary[]>;

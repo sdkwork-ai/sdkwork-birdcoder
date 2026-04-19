@@ -15,6 +15,9 @@
         "label": "main",
         "title": "SDKWork BirdCoder",
         "decorations": false,
+        "center": true,
+        "minWidth": 1200,
+        "minHeight": 760,
         "width": 1440,
         "height": 960
       }

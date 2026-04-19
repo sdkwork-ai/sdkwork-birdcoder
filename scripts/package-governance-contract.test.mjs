@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const rootDir = process.cwd();
 const packagesDir = path.join(rootDir, 'packages');
@@ -47,6 +48,9 @@ function collectCatalogEntries(workspaceConfigSource) {
 }
 
 const rootPackageJson = readJson('package.json');
+const qualityFastRunnerModule = await import(
+  pathToFileURL(path.join(rootDir, 'scripts/run-quality-fast-check.mjs')).href
+);
 const workspaceConfigSource = fs.readFileSync(workspaceConfigPath, 'utf8');
 const workspacePackages = collectWorkspaceManifests();
 const workspacePackageNames = new Set(workspacePackages.map(({ manifest }) => manifest.name));
@@ -58,10 +62,23 @@ assert.equal(
   'node scripts/package-governance-contract.test.mjs',
   'root package.json must expose check:package-governance.',
 );
-assert.match(
-  rootPackageJson.scripts.lint ?? '',
-  /\bpnpm check:package-governance\b/,
-  'lint must execute the package-governance contract.',
+assert.equal(
+  rootPackageJson.scripts['check:package-subpath-exports'],
+  'node scripts/package-subpath-exports-contract.test.mjs',
+  'root package.json must expose check:package-subpath-exports.',
+);
+assert.equal(rootPackageJson.scripts.lint, 'node scripts/run-quality-fast-check.mjs');
+assert.ok(
+  qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
+    'node scripts/run-workspace-package-script.mjs . check:package-governance',
+  ),
+  'lint must execute the package-governance contract through the governed quality-fast runner.',
+);
+assert.ok(
+  qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
+    'node scripts/run-workspace-package-script.mjs . check:package-subpath-exports',
+  ),
+  'lint must execute the package-subpath-exports contract through the governed quality-fast runner.',
 );
 assert.match(
   workspaceConfigSource,

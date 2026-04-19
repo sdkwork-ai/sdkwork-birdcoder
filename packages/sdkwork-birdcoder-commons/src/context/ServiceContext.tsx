@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useRef } from 'react';
-import { IChatEngine } from '@sdkwork/birdcoder-chat';
 import {
   IAdminDeploymentService,
   IAdminPolicyService,
@@ -15,7 +14,6 @@ import {
   IWorkspaceService,
   createDefaultBirdCoderIdeServices,
 } from '@sdkwork/birdcoder-infrastructure';
-import { createChatEngineById } from '../workbench/engines';
 
 export interface IServices {
   adminDeploymentService: IAdminDeploymentService;
@@ -30,7 +28,6 @@ export interface IServices {
   releaseService: IReleaseService;
   teamService: ITeamService;
   fileSystemService: IFileSystemService;
-  chatEngine: IChatEngine;
 }
 
 function createDefaultServicesValue(): IServices {
@@ -48,7 +45,6 @@ function createDefaultServicesValue(): IServices {
     releaseService: defaultIdeServices.releaseService,
     teamService: defaultIdeServices.teamService,
     fileSystemService: defaultIdeServices.fileSystemService,
-    chatEngine: createChatEngineById('codex'),
   };
 }
 

@@ -5,10 +5,8 @@ permissions = [
   "allow-desktop-runtime-config",
   "allow-local-store",
   "allow-file-system-bridge",
-  "allow-terminal-sessions",
-  "allow-terminal-host",
+  "allow-sdkwork-terminal-bridge",
   "allow-terminal-detection",
-  "allow-execute-terminal-command",
 ]
 
 [[set]]
@@ -35,21 +33,24 @@ permissions = [
 ]
 
 [[set]]
-identifier = "allow-terminal-sessions"
-description = "Allows terminal session persistence bridge commands."
+identifier = "allow-sdkwork-terminal-bridge"
+description = "Allows sdkwork-terminal runtime bridge commands."
 permissions = [
-  "allow-terminal-session-upsert",
-  "allow-terminal-session-delete",
-  "allow-terminal-session-list",
-]
-
-[[set]]
-identifier = "allow-terminal-host"
-description = "Allows terminal host lifecycle bridge commands."
-permissions = [
-  "allow-terminal-host-session-open",
-  "allow-terminal-host-session-execute",
-  "allow-terminal-host-session-close",
+  "allow-desktop-pick-working-directory",
+  "allow-desktop-session-index",
+  "allow-desktop-session-replay-slice",
+  "allow-desktop-session-attach",
+  "allow-desktop-session-detach",
+  "allow-desktop-session-reattach",
+  "allow-desktop-terminal-session-inventory-list",
+  "allow-desktop-local-shell-exec",
+  "allow-desktop-local-shell-session-create",
+  "allow-desktop-local-process-session-create",
+  "allow-desktop-session-input",
+  "allow-desktop-session-input-bytes",
+  "allow-desktop-session-attachment-acknowledge",
+  "allow-desktop-session-resize",
+  "allow-desktop-session-terminate",
 ]
 
 [[set]]
@@ -123,41 +124,81 @@ description = "Enables the fs_rename_entry command."
 commands.allow = ["fs_rename_entry"]
 
 [[permission]]
-identifier = "allow-terminal-session-upsert"
-description = "Enables the terminal_session_upsert command."
-commands.allow = ["terminal_session_upsert"]
-
-[[permission]]
-identifier = "allow-terminal-session-delete"
-description = "Enables the terminal_session_delete command."
-commands.allow = ["terminal_session_delete"]
-
-[[permission]]
-identifier = "allow-terminal-session-list"
-description = "Enables the terminal_session_list command."
-commands.allow = ["terminal_session_list"]
-
-[[permission]]
-identifier = "allow-terminal-host-session-open"
-description = "Enables the terminal_host_session_open command."
-commands.allow = ["terminal_host_session_open"]
-
-[[permission]]
-identifier = "allow-terminal-host-session-execute"
-description = "Enables the terminal_host_session_execute command."
-commands.allow = ["terminal_host_session_execute"]
-
-[[permission]]
-identifier = "allow-terminal-host-session-close"
-description = "Enables the terminal_host_session_close command."
-commands.allow = ["terminal_host_session_close"]
-
-[[permission]]
 identifier = "allow-terminal-cli-profile-detect"
 description = "Enables the terminal_cli_profile_detect command."
 commands.allow = ["terminal_cli_profile_detect"]
 
 [[permission]]
-identifier = "allow-execute-terminal-command"
-description = "Enables the execute_terminal_command command."
-commands.allow = ["execute_terminal_command"]
+identifier = "allow-desktop-pick-working-directory"
+description = "Enables the desktop_pick_working_directory command."
+commands.allow = ["desktop_pick_working_directory"]
+
+[[permission]]
+identifier = "allow-desktop-session-index"
+description = "Enables the desktop_session_index command."
+commands.allow = ["desktop_session_index"]
+
+[[permission]]
+identifier = "allow-desktop-session-replay-slice"
+description = "Enables the desktop_session_replay_slice command."
+commands.allow = ["desktop_session_replay_slice"]
+
+[[permission]]
+identifier = "allow-desktop-session-attach"
+description = "Enables the desktop_session_attach command."
+commands.allow = ["desktop_session_attach"]
+
+[[permission]]
+identifier = "allow-desktop-session-detach"
+description = "Enables the desktop_session_detach command."
+commands.allow = ["desktop_session_detach"]
+
+[[permission]]
+identifier = "allow-desktop-session-reattach"
+description = "Enables the desktop_session_reattach command."
+commands.allow = ["desktop_session_reattach"]
+
+[[permission]]
+identifier = "allow-desktop-terminal-session-inventory-list"
+description = "Enables the desktop_terminal_session_inventory_list command."
+commands.allow = ["desktop_terminal_session_inventory_list"]
+
+[[permission]]
+identifier = "allow-desktop-local-shell-exec"
+description = "Enables the desktop_local_shell_exec command."
+commands.allow = ["desktop_local_shell_exec"]
+
+[[permission]]
+identifier = "allow-desktop-local-shell-session-create"
+description = "Enables the desktop_local_shell_session_create command."
+commands.allow = ["desktop_local_shell_session_create"]
+
+[[permission]]
+identifier = "allow-desktop-local-process-session-create"
+description = "Enables the desktop_local_process_session_create command."
+commands.allow = ["desktop_local_process_session_create"]
+
+[[permission]]
+identifier = "allow-desktop-session-input"
+description = "Enables the desktop_session_input command."
+commands.allow = ["desktop_session_input"]
+
+[[permission]]
+identifier = "allow-desktop-session-input-bytes"
+description = "Enables the desktop_session_input_bytes command."
+commands.allow = ["desktop_session_input_bytes"]
+
+[[permission]]
+identifier = "allow-desktop-session-attachment-acknowledge"
+description = "Enables the desktop_session_attachment_acknowledge command."
+commands.allow = ["desktop_session_attachment_acknowledge"]
+
+[[permission]]
+identifier = "allow-desktop-session-resize"
+description = "Enables the desktop_session_resize command."
+commands.allow = ["desktop_session_resize"]
+
+[[permission]]
+identifier = "allow-desktop-session-terminate"
+description = "Enables the desktop_session_terminate command."
+commands.allow = ["desktop_session_terminate"]

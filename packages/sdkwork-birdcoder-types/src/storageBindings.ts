@@ -3,8 +3,8 @@ import type { BirdCoderEntityStorageBinding } from './data.ts';
 export type { BirdCoderEntityStorageBinding } from './data.ts';
 
 export const BIRDCODER_APPBASE_AUTH_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
-  entityName: 'identity',
-  storageScope: 'appbase.identity.auth',
+  entityName: 'user_account',
+  storageScope: 'appbase.user-center.auth',
   storageKey: 'session',
   preferredProvider: 'sqlite',
   storageMode: 'key-value',
@@ -12,7 +12,7 @@ export const BIRDCODER_APPBASE_AUTH_STORAGE_BINDING: BirdCoderEntityStorageBindi
 
 export const BIRDCODER_APPBASE_USER_PROFILE_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
   entityName: 'user_profile',
-  storageScope: 'appbase.identity.user',
+  storageScope: 'appbase.user-center.user',
   storageKey: 'profile',
   preferredProvider: 'sqlite',
   storageMode: 'key-value',

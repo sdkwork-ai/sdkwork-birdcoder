@@ -5,6 +5,7 @@ import { Button } from '@sdkwork/birdcoder-ui';
 import {
   BIRDCODER_APPBASE_VIP_PLANS,
   type BirdCoderVipPlan,
+  type BirdCoderVipMembershipSnapshot,
 } from '../vip';
 import {
   readBirdCoderVipMembership,
@@ -13,13 +14,13 @@ import {
 
 export function VipPage() {
   const { addToast } = useToast();
-  const [currentMembership, setCurrentMembership] = useState({
+  const [currentMembership, setCurrentMembership] = useState<BirdCoderVipMembershipSnapshot>({
     creditsPerMonth: 0,
     planId: 'free' as BirdCoderVipPlan['id'],
     planTitle: 'Free',
     renewAt: 'Not scheduled',
     seats: 1,
-    status: 'inactive' as const,
+    status: 'inactive',
   });
   const [selectedPlanId, setSelectedPlanId] = useState<BirdCoderVipPlan['id']>('free');
 

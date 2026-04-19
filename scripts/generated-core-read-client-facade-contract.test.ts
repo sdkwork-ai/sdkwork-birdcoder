@@ -62,10 +62,10 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
                 liveOpenApiPath: '/openapi.json',
                 openApiPath: '/openapi/coding-server-v1.json',
                 routeCatalogPath: '/api/core/v1/routes',
-                routeCount: 50,
+                routeCount: 57,
                 routesBySurface: {
-                  core: 17,
-                  app: 26,
+                  core: 19,
+                  app: 31,
                   admin: 7,
                 },
                 surfaces: [
@@ -74,14 +74,14 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
                     basePath: '/api/core/v1',
                     description: 'Core coding runtime, engine catalog, session execution, and operation control.',
                     name: 'core',
-                    routeCount: 17,
+                    routeCount: 19,
                   },
                   {
                     authMode: 'user',
                     basePath: '/api/app/v1',
                     description: 'Application-facing workspace, project, collaboration, and user-center routes.',
                     name: 'app',
-                    routeCount: 26,
+                    routeCount: 31,
                   },
                   {
                     authMode: 'admin',
@@ -189,6 +189,19 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
             ],
             'req.core.models',
           ) as TResponse;
+        case '/api/core/v1/native-session-providers':
+          return createListEnvelope(
+            [
+              {
+                engineId: 'codex',
+                displayName: 'Codex',
+                nativeSessionIdPrefix: 'codex-native:',
+                transportKinds: ['cli-jsonl'],
+                discoveryMode: 'explicit-only',
+              },
+            ],
+            'req.core.native-session-providers',
+          ) as TResponse;
         case '/api/core/v1/routes':
           return createListEnvelope(
             [
@@ -203,6 +216,25 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
               },
             ],
             'req.core.routes',
+          ) as TResponse;
+        case '/api/core/v1/coding-sessions':
+          return createListEnvelope(
+            [
+              {
+                createdAt: '2026-04-17T00:00:00.000Z',
+                id: 'coding-session-generated-contract',
+                workspaceId: 'workspace-generated-contract',
+                projectId: 'project-generated-contract',
+                title: 'Generated coding session',
+                status: 'active',
+                hostMode: 'server',
+                engineId: 'codex',
+                modelId: 'gpt-5-codex',
+                updatedAt: '2026-04-17T00:05:00.000Z',
+                lastTurnAt: '2026-04-17T00:05:00.000Z',
+              },
+            ],
+            'req.core.coding-sessions',
           ) as TResponse;
         case '/api/core/v1/native-sessions':
           return createListEnvelope(
@@ -284,7 +316,15 @@ const health = await client.getHealth();
 const engines = await client.listEngines();
 const codexCapabilities = await client.getEngineCapabilities('codex');
 const models = await client.listModels();
+const nativeSessionProviders = await client.listNativeSessionProviders();
 const routes = await client.listRoutes();
+const codingSessions = await client.listCodingSessions({
+  engineId: 'codex',
+  limit: 20,
+  offset: 5,
+  projectId: 'project-generated-contract',
+  workspaceId: 'workspace-generated-contract',
+});
 const nativeSessions = await client.listNativeSessions({
   engineId: 'codex',
   projectId: 'project-generated-contract',
@@ -304,7 +344,9 @@ assert.equal(health.status, 'healthy');
 assert.equal(engines[0]?.engineKey, 'codex');
 assert.equal(codexCapabilities.chat, true);
 assert.equal(models[0]?.modelId, 'codex');
+assert.equal(nativeSessionProviders[0]?.engineId, 'codex');
 assert.equal(routes[0]?.operationId, 'core.listRoutes');
+assert.equal(codingSessions[0]?.id, 'coding-session-generated-contract');
 assert.equal(nativeSessions[0]?.id, 'codex-native:thread-generated-contract');
 assert.equal(nativeSession.summary.id, 'codex-native:thread-generated-contract');
 assert.equal(operation.operationId, 'op-generated-core-read');
@@ -335,7 +377,22 @@ assert.deepEqual(observedRequests, [
   },
   {
     method: 'GET',
+    path: '/api/core/v1/native-session-providers',
+  },
+  {
+    method: 'GET',
     path: '/api/core/v1/routes',
+  },
+  {
+    method: 'GET',
+    path: '/api/core/v1/coding-sessions',
+    query: {
+      engineId: 'codex',
+      limit: 20,
+      offset: 5,
+      projectId: 'project-generated-contract',
+      workspaceId: 'workspace-generated-contract',
+    },
   },
   {
     method: 'GET',

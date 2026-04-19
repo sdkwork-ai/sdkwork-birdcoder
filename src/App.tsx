@@ -4,7 +4,7 @@
  */
 
 import React, { Component, lazy, Suspense, type ErrorInfo, useState, useRef, useEffect, useCallback } from 'react';
-import { Code2, Sparkles, Terminal, Settings, UserCircle, Shield, Zap, LayoutTemplate, Minus, Square, X, ChevronDown, Folder, Briefcase, Globe, User, Plus, Trash2, AlertTriangle, ChevronRight, Check, Edit, MoreHorizontal } from 'lucide-react';
+import { Code2, Sparkles, Terminal, Settings, UserCircle, Shield, Zap, LayoutTemplate, Minus, Square, SquareSquare, X, ChevronDown, Folder, Briefcase, Globe, User, Plus, Trash2, AlertTriangle, ChevronRight, Check, Edit, MoreHorizontal } from 'lucide-react';
 import {
   usePersistedState,
   useWorkspaces,
@@ -21,24 +21,25 @@ import {
   DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
   buildWorkbenchRecoveryAnnouncement,
   buildWorkbenchRecoverySnapshot,
-  ensureNativeCodexSessionMirror,
-  ensureStoredNativeCodexSessionMirror,
+  hydrateImportedProjectFromAuthority,
   importLocalFolderProject,
-  listStoredSessionInventory,
   normalizeWorkbenchRecoverySnapshot,
   recoverySnapshotsEqual,
+  resolveLatestCodingSessionIdForProject,
   resolveStartupCodingSessionId,
   resolveStartupProjectId,
   resolveStartupWorkspaceId,
   type WorkbenchRecoverySnapshot,
-  type WorkbenchSessionInventoryRecord,
 } from '@sdkwork/birdcoder-commons/workbench';
 import { setStoredJson } from '@sdkwork/birdcoder-commons/storage/localStore';
 import { Button, TopMenu } from '@sdkwork/birdcoder-ui/shell';
-import type { AppTab } from '@sdkwork/birdcoder-types';
+import type { AppTab, BirdCoderProject } from '@sdkwork/birdcoder-types';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-commons/shell';
 import { useTranslation } from 'react-i18next';
-import { createAppHeaderWindowDragController } from './appHeaderWindowDrag.ts';
+import {
+  createAppHeaderWindowDragController,
+  isAppHeaderNoDragTarget,
+} from './appHeaderWindowDrag.ts';
 
 const CodePage = lazy(async () => {
   const { loadCodePage } = await import('./pageLoaders.ts');
@@ -115,7 +116,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col h-screen w-screen bg-[#0e0e11] text-white items-center justify-center p-8">
+        <div className="flex flex-col h-full w-full bg-[#0e0e11] text-white items-center justify-center p-8">
           <AlertTriangle size={48} className="text-red-500 mb-4" />
           <h1 className="text-2xl font-bold mb-2">{this.props.t('app.somethingWentWrong')}</h1>
           <p className="text-gray-400 mb-6 text-center max-w-md">
@@ -146,7 +147,7 @@ const ErrorBoundaryWithTranslation = ({ children }: { children: React.ReactNode 
 function SurfaceLoader({ fullScreen = false }: { fullScreen?: boolean }) {
   return (
     <div
-      className={`flex bg-[#0e0e11] text-white items-center justify-center ${fullScreen ? 'h-screen w-screen' : 'h-full w-full'}`}
+      className="flex h-full w-full bg-[#0e0e11] text-white items-center justify-center"
     >
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
     </div>
@@ -173,7 +174,7 @@ export default function App() {
 
 function AppContent() {
   const { t } = useTranslation();
-  const { coreReadService, fileSystemService, projectService } = useIDEServices();
+  const { fileSystemService, projectService } = useIDEServices();
   const { user, isLoading: isAuthLoading, logout } = useAuth();
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<AppTab>('code');
@@ -182,39 +183,75 @@ function AppContent() {
     'recovery-context',
     DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
   );
-  const { workspaces, isLoading: isWorkspacesLoading, createWorkspace, updateWorkspace, deleteWorkspace } = useWorkspaces();
+  const {
+    workspaces,
+    isLoading: isWorkspacesLoading,
+    createWorkspace,
+    updateWorkspace,
+    deleteWorkspace,
+    refreshWorkspaces,
+  } = useWorkspaces();
   const normalizedRecoverySnapshot = normalizeWorkbenchRecoverySnapshot(recoverySnapshot);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
   const [activeProjectId, setActiveProjectId] = useState<string>('');
   const [activeCodingSessionId, setActiveCodingSessionId] = useState<string>('');
-  const [isSessionInventoryHydrated, setIsSessionInventoryHydrated] = useState(false);
-  const [sessionInventory, setSessionInventory] = useState<WorkbenchSessionInventoryRecord[]>([]);
   
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [menuActiveWorkspaceId, setMenuActiveWorkspaceId] = useState<string>('');
   const resolvedWorkspaceId = resolveStartupWorkspaceId({
     workspaces,
     recoverySnapshot: normalizedRecoverySnapshot,
-    inventory: sessionInventory,
   });
   const fallbackWorkspaceId = workspaces[0]?.id ?? '';
   const effectiveWorkspaceId = (activeWorkspaceId || resolvedWorkspaceId || fallbackWorkspaceId).trim();
   const effectiveMenuWorkspaceId = (menuActiveWorkspaceId || effectiveWorkspaceId).trim();
-  
-  // Fetch projects for the workspace currently selected in the dropdown menu
-  const {
-    projects: menuProjects,
-    createProject: createMenuProject,
-    createCodingSession: createMenuCodingSession,
-    updateProject: updateMenuProject,
-    deleteProject,
-  } = useProjects(effectiveMenuWorkspaceId);
-  
-  // Also fetch projects for the active workspace to know the active project's name
+  const projectsWorkspaceId = user ? effectiveWorkspaceId : '';
+  const menuProjectsScopeWorkspaceId =
+    user && showWorkspaceMenu ? effectiveMenuWorkspaceId : '';
+  const shouldUseDistinctMenuProjectsStore =
+    !!menuProjectsScopeWorkspaceId && menuProjectsScopeWorkspaceId !== projectsWorkspaceId;
+
+  // Fetch projects for the active workspace to know the active project's name
   const {
     projects: activeProjects,
+    hasFetched: activeProjectsHasFetched,
+    createProject: createActiveProject,
     refreshProjects: refreshActiveProjects,
-  } = useProjects(effectiveWorkspaceId);
+    updateProject: updateActiveProject,
+    deleteProject: deleteActiveProject,
+    createCodingSession: createActiveCodingSession,
+  } = useProjects(projectsWorkspaceId);
+  const {
+    projects: distinctMenuProjects,
+    hasFetched: distinctMenuProjectsHasFetched,
+    createProject: createDistinctMenuProject,
+    createCodingSession: createDistinctMenuCodingSession,
+    refreshProjects: refreshDistinctMenuProjects,
+    updateProject: updateDistinctMenuProject,
+    deleteProject: deleteDistinctMenuProject,
+  } = useProjects(
+    shouldUseDistinctMenuProjectsStore ? menuProjectsScopeWorkspaceId : '',
+    {
+      enableRealtime: false,
+    },
+  );
+  const menuProjects = shouldUseDistinctMenuProjectsStore ? distinctMenuProjects : activeProjects;
+  const menuProjectsHasFetched =
+    shouldUseDistinctMenuProjectsStore
+      ? distinctMenuProjectsHasFetched
+      : activeProjectsHasFetched;
+  const createMenuProject =
+    shouldUseDistinctMenuProjectsStore ? createDistinctMenuProject : createActiveProject;
+  const createMenuCodingSession =
+    shouldUseDistinctMenuProjectsStore
+      ? createDistinctMenuCodingSession
+      : createActiveCodingSession;
+  const refreshMenuProjects =
+    shouldUseDistinctMenuProjectsStore ? refreshDistinctMenuProjects : refreshActiveProjects;
+  const updateMenuProject =
+    shouldUseDistinctMenuProjectsStore ? updateDistinctMenuProject : updateActiveProject;
+  const deleteProject =
+    shouldUseDistinctMenuProjectsStore ? deleteDistinctMenuProject : deleteActiveProject;
 
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
@@ -228,29 +265,63 @@ function AppContent() {
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const [projectActionsMenuId, setProjectActionsMenuId] = useState<string | null>(null);
   const workspaceMenuRef = useRef<HTMLDivElement>(null);
+  const activeTabRef = useRef(activeTab);
+  const openFolderHandlerRef = useRef<() => void>(() => {});
+  const zoomHandlerRef = useRef<(direction: 'in' | 'out' | 'reset') => void>(() => {});
+  const toggleFullScreenHandlerRef = useRef<() => void>(() => {});
 
   const [terminalRequest, setTerminalRequest] = useState<TerminalCommandRequest | undefined>();
   const [isRecording, setIsRecording] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showWhatsNewModal, setShowWhatsNewModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [isDesktopWindowAvailable, setIsDesktopWindowAvailable] = useState(false);
+  const [isDesktopWindowMaximized, setIsDesktopWindowMaximized] = useState(false);
+  const [isDesktopWindowMinimized, setIsDesktopWindowMinimized] = useState(false);
+  const [isDocumentFullscreen, setIsDocumentFullscreen] = useState(false);
   const titleBarWindowDragControllerRef = useRef<ReturnType<typeof createAppHeaderWindowDragController> | null>(null);
+  const isDesktopWindowAvailableRef = useRef(false);
+  const isDocumentFullscreenRef = useRef(false);
+  const desktopWindowStateSyncTokenRef = useRef(0);
   const hasAppliedRecoveredTabRef = useRef(false);
   const hasAnnouncedRecoveryRef = useRef(false);
-  const mirroredNativeCodexWorkspaceIdsRef = useRef<Set<string>>(new Set());
+  const pendingImportedProjectIdRef = useRef('');
+  const pendingImportedWorkspaceIdRef = useRef('');
+  const previousShowWorkspaceMenuRef = useRef(false);
+
+  const commitWorkspaceSelection = useCallback((workspaceId: string) => {
+    const normalizedWorkspaceId = workspaceId.trim();
+    if (!normalizedWorkspaceId) {
+      return;
+    }
+
+    setActiveWorkspaceId(normalizedWorkspaceId);
+    setMenuActiveWorkspaceId(normalizedWorkspaceId);
+    setActiveProjectId('');
+    setActiveCodingSessionId('');
+    setProjectActionsMenuId(null);
+  }, []);
+
+  const previewWorkspaceSelection = useCallback((workspaceId: string) => {
+    const normalizedWorkspaceId = workspaceId.trim();
+    if (!normalizedWorkspaceId) {
+      return;
+    }
+
+    setMenuActiveWorkspaceId(normalizedWorkspaceId);
+    setProjectActionsMenuId(null);
+  }, []);
 
   const resolvedProjectId = resolveStartupProjectId({
     workspaceId: effectiveWorkspaceId,
     projects: activeProjects,
     recoverySnapshot: normalizedRecoverySnapshot,
-    inventory: sessionInventory,
   });
   const effectiveProjectId = (activeProjectId || resolvedProjectId).trim();
   const resolvedCodingSessionId = resolveStartupCodingSessionId({
     projectId: effectiveProjectId,
     projects: activeProjects,
     recoverySnapshot: normalizedRecoverySnapshot,
-    inventory: sessionInventory,
   });
   const effectiveCodingSessionId = (activeCodingSessionId || resolvedCodingSessionId).trim();
   const recoveryAnnouncement = buildWorkbenchRecoveryAnnouncement({
@@ -259,74 +330,79 @@ function AppContent() {
     activeProjectId: effectiveProjectId,
     activeCodingSessionId: effectiveCodingSessionId,
   });
-  const reloadSessionInventory = useCallback(async () => {
-    try {
-      const records = await listStoredSessionInventory({
-        coreReadService,
-        includeGlobal: true,
-        limit: 25,
-        workspaceId: effectiveWorkspaceId || undefined,
-      });
-      setSessionInventory(records);
-    } catch (error) {
-      console.error('Failed to reload session inventory', error);
-    } finally {
-      setIsSessionInventoryHydrated(true);
-    }
-  }, [coreReadService, effectiveWorkspaceId]);
 
-  useEffect(() => {
-    void reloadSessionInventory();
-  }, [reloadSessionInventory]);
+  const activateImportedProject = useCallback(
+    (workspaceId: string, projectId: string) => {
+      pendingImportedWorkspaceIdRef.current = workspaceId;
+      pendingImportedProjectIdRef.current = projectId;
+      setActiveWorkspaceId(workspaceId);
+      setMenuActiveWorkspaceId(workspaceId);
+      setActiveProjectId(projectId);
 
-  useEffect(() => {
-    const workspaceIdToMirror = effectiveWorkspaceId;
-    if (
-      !isSessionInventoryHydrated ||
-      !workspaceIdToMirror ||
-      mirroredNativeCodexWorkspaceIdsRef.current.has(workspaceIdToMirror)
-    ) {
-      return;
-    }
+      const immediateProjectCollection =
+        workspaceId === effectiveWorkspaceId
+          ? activeProjects
+          : workspaceId === effectiveMenuWorkspaceId
+            ? menuProjects
+            : [];
+      const latestCodingSessionId = resolveLatestCodingSessionIdForProject(
+        immediateProjectCollection,
+        projectId,
+      );
+      setActiveCodingSessionId(latestCodingSessionId ?? '');
+    },
+    [
+      activeProjects,
+      effectiveMenuWorkspaceId,
+      effectiveWorkspaceId,
+      menuProjects,
+      resolveLatestCodingSessionIdForProject,
+    ],
+  );
 
-    let isMounted = true;
-    mirroredNativeCodexWorkspaceIdsRef.current.add(workspaceIdToMirror);
+  const hydrateImportedProjectSelectionInBackground = useCallback(
+    (workspaceId: string, projectId: string) => {
+      void (async () => {
+        try {
+          if (
+            pendingImportedWorkspaceIdRef.current !== workspaceId ||
+            pendingImportedProjectIdRef.current !== projectId
+          ) {
+            return;
+          }
 
-    void ensureNativeCodexSessionMirror({
-      coreReadService,
-      inventory: sessionInventory,
+          const hydratedProject = await hydrateImportedProjectFromAuthority({
+            knownProjects:
+              workspaceId === effectiveWorkspaceId
+                ? activeProjects
+                : workspaceId === effectiveMenuWorkspaceId
+                  ? menuProjects
+                  : [],
+            projectId,
+            projectService,
+            userScope: user?.id,
+            workspaceId,
+          });
+          if (!hydratedProject) {
+            return;
+          }
+
+          setActiveCodingSessionId(hydratedProject.latestCodingSessionId ?? '');
+          pendingImportedProjectIdRef.current = '';
+          pendingImportedWorkspaceIdRef.current = '';
+        } catch (error) {
+          console.error('Failed to hydrate imported project state from server authority', error);
+        }
+      })();
+    },
+    [
+      activeProjects,
+      effectiveMenuWorkspaceId,
+      effectiveWorkspaceId,
+      menuProjects,
       projectService,
-      workspaceId: workspaceIdToMirror,
-    })
-      .then(async (result) => {
-        if (!isMounted) {
-          return;
-        }
-
-        await reloadSessionInventory();
-        if (result && effectiveWorkspaceId === workspaceIdToMirror) {
-          await refreshActiveProjects();
-        }
-      })
-      .catch((error) => {
-        mirroredNativeCodexWorkspaceIdsRef.current.delete(workspaceIdToMirror);
-        if (isMounted) {
-          console.error('Failed to mirror discovered native Codex sessions', error);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [
-    coreReadService,
-    effectiveWorkspaceId,
-    isSessionInventoryHydrated,
-    projectService,
-    reloadSessionInventory,
-    refreshActiveProjects,
-    sessionInventory,
-  ]);
+    ],
+  );
 
   useEffect(() => {
     if (!isRecoveryHydrated || hasAppliedRecoveredTabRef.current) {
@@ -336,6 +412,10 @@ function AppContent() {
     hasAppliedRecoveredTabRef.current = true;
     setActiveTab(normalizedRecoverySnapshot.activeTab);
   }, [isRecoveryHydrated, normalizedRecoverySnapshot.activeTab]);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
 
   useEffect(() => {
     if (!isRecoveryHydrated || hasAnnouncedRecoveryRef.current || !recoveryAnnouncement) {
@@ -360,25 +440,44 @@ function AppContent() {
   }, [activeWorkspaceId, resolvedWorkspaceId, workspaces]);
 
   useEffect(() => {
-    if (showWorkspaceMenu) {
-      setMenuActiveWorkspaceId(effectiveWorkspaceId);
+    if (effectiveWorkspaceId.length > 0 && !activeProjectsHasFetched) {
+      return;
     }
-  }, [effectiveWorkspaceId, showWorkspaceMenu]);
 
-  useEffect(() => {
     if (activeProjects.length === 0) {
+      if (pendingImportedProjectIdRef.current) {
+        return;
+      }
       if (activeProjectId) {
         setActiveProjectId('');
       }
       return;
     }
 
+    if (
+      pendingImportedProjectIdRef.current &&
+      activeProjects.some((project) => project.id === pendingImportedProjectIdRef.current)
+    ) {
+      pendingImportedProjectIdRef.current = '';
+      pendingImportedWorkspaceIdRef.current = '';
+    }
+
     if (!activeProjects.find((project) => project.id === activeProjectId) && resolvedProjectId) {
       setActiveProjectId(resolvedProjectId);
     }
-  }, [activeProjectId, activeProjects, resolvedProjectId]);
+  }, [
+    activeProjectId,
+    activeProjects,
+    activeProjectsHasFetched,
+    effectiveWorkspaceId.length,
+    resolvedProjectId,
+  ]);
 
   useEffect(() => {
+    if (effectiveWorkspaceId.length > 0 && !activeProjectsHasFetched) {
+      return;
+    }
+
     const activeProjectCodingSessions =
       activeProjects.find((project) => project.id === effectiveProjectId)?.codingSessions ?? [];
 
@@ -410,7 +509,9 @@ function AppContent() {
   }, [
     activeCodingSessionId,
     activeProjects,
+    activeProjectsHasFetched,
     effectiveProjectId,
+    effectiveWorkspaceId.length,
     resolvedCodingSessionId,
   ]);
 
@@ -477,12 +578,19 @@ function AppContent() {
   ]);
 
   useEffect(() => {
-    if (showWorkspaceMenu) {
-      setMenuActiveWorkspaceId(effectiveWorkspaceId);
+    const wasWorkspaceMenuOpen = previousShowWorkspaceMenuRef.current;
+    previousShowWorkspaceMenuRef.current = showWorkspaceMenu;
+
+    if (showWorkspaceMenu && !wasWorkspaceMenuOpen) {
+      setMenuActiveWorkspaceId((currentWorkspaceId) =>
+        currentWorkspaceId === effectiveWorkspaceId
+          ? currentWorkspaceId
+          : effectiveWorkspaceId,
+      );
       return;
     }
 
-    if (!menuActiveWorkspaceId && effectiveWorkspaceId) {
+    if (!showWorkspaceMenu && !menuActiveWorkspaceId && effectiveWorkspaceId) {
       setMenuActiveWorkspaceId(effectiveWorkspaceId);
     }
   }, [effectiveWorkspaceId, menuActiveWorkspaceId, showWorkspaceMenu]);
@@ -515,7 +623,12 @@ function AppContent() {
     };
     const handleTerminalRequest = (req: TerminalCommandRequest) => {
       setTerminalRequest(req);
-      if (activeTab !== 'terminal' && activeTab !== 'code' && activeTab !== 'studio') {
+      const currentActiveTab = activeTabRef.current;
+      if (
+        currentActiveTab !== 'terminal' &&
+        currentActiveTab !== 'code' &&
+        currentActiveTab !== 'studio'
+      ) {
         setActiveTab('terminal');
       }
     };
@@ -539,7 +652,7 @@ function AppContent() {
       unsubscribeSettings();
       unsubscribeTerminalReq();
     };
-  }, [addToast]);
+  }, [addToast, t]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -560,10 +673,11 @@ function AppContent() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+      const currentActiveTab = activeTabRef.current;
       
       if (cmdOrCtrl && e.key === 'n') {
         e.preventDefault();
-        if (activeTab !== 'code' && activeTab !== 'studio') {
+        if (currentActiveTab !== 'code' && currentActiveTab !== 'studio') {
           setActiveTab('code');
           setTimeout(() => globalEventBus.emit('createNewThread'), 100);
         } else {
@@ -571,7 +685,7 @@ function AppContent() {
         }
       } else if (cmdOrCtrl && e.key === 'o') {
         e.preventDefault();
-        handleOpenFolder();
+        openFolderHandlerRef.current();
       } else if (cmdOrCtrl && e.key === 's' && !e.shiftKey) {
         e.preventDefault();
         globalEventBus.emit('saveActiveFile');
@@ -595,16 +709,16 @@ function AppContent() {
         globalEventBus.emit('findInFiles');
       } else if (cmdOrCtrl && (e.key === '=' || e.key === '+')) {
         e.preventDefault();
-        handleZoom('in');
+        zoomHandlerRef.current('in');
       } else if (cmdOrCtrl && e.key === '-') {
         e.preventDefault();
-        handleZoom('out');
+        zoomHandlerRef.current('out');
       } else if (cmdOrCtrl && e.key === '0') {
         e.preventDefault();
-        handleZoom('reset');
+        zoomHandlerRef.current('reset');
       } else if (e.key === 'F11') {
         e.preventDefault();
-        toggleFullScreen();
+        toggleFullScreenHandlerRef.current();
       } else if (cmdOrCtrl && e.key === 'p') {
         e.preventDefault();
         globalEventBus.emit('openQuickOpen');
@@ -637,7 +751,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab]);
+  }, []);
 
   const selectFolderAndImportProject = async (fallbackProjectName: string) => {
     const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
@@ -646,23 +760,77 @@ function AppContent() {
       return null;
     }
 
-    const targetWorkspaceId = effectiveMenuWorkspaceId;
-    if (!targetWorkspaceId) {
-      throw new Error('Workspace is still loading. Please wait for the default workspace to initialize.');
-    }
+    const resolveTargetWorkspaceId = async (): Promise<string> => {
+      const immediateWorkspaceId =
+        (
+          effectiveMenuWorkspaceId ||
+          effectiveWorkspaceId ||
+          activeWorkspaceId ||
+          workspaces[0]?.id ||
+          ''
+        ).trim();
+      if (immediateWorkspaceId) {
+        return immediateWorkspaceId;
+      }
 
-    return importLocalFolderProject({
-      createProject: createMenuProject,
+      const refreshedWorkspaces = await refreshWorkspaces();
+      const refreshedWorkspaceId = (
+        resolveStartupWorkspaceId({
+          workspaces: refreshedWorkspaces,
+          recoverySnapshot: normalizedRecoverySnapshot,
+        }) ||
+        refreshedWorkspaces[0]?.id ||
+        ''
+      ).trim();
+
+      if (!refreshedWorkspaceId) {
+        throw new Error('Default workspace is unavailable. Please wait for workspace initialization to complete.');
+      }
+
+      setActiveWorkspaceId((currentWorkspaceId) => currentWorkspaceId || refreshedWorkspaceId);
+      setMenuActiveWorkspaceId(refreshedWorkspaceId);
+      return refreshedWorkspaceId;
+    };
+
+    const targetWorkspaceId = await resolveTargetWorkspaceId();
+    const normalizedTargetWorkspaceId = targetWorkspaceId.trim();
+    const createProjectForTargetWorkspace = (name: string, options?: Parameters<typeof createMenuProject>[1]) => {
+      if (normalizedTargetWorkspaceId === menuProjectsScopeWorkspaceId) {
+        return createMenuProject(name, options);
+      }
+      if (normalizedTargetWorkspaceId === projectsWorkspaceId) {
+        return createActiveProject(name, options);
+      }
+      return projectService.createProject(normalizedTargetWorkspaceId, name, options);
+    };
+    const updateProjectForTargetWorkspace = (
+      projectId: string,
+      updates: Parameters<typeof updateMenuProject>[1],
+    ) => {
+      if (normalizedTargetWorkspaceId === menuProjectsScopeWorkspaceId) {
+        return updateMenuProject(projectId, updates);
+      }
+      if (normalizedTargetWorkspaceId === projectsWorkspaceId) {
+        return updateActiveProject(projectId, updates);
+      }
+      return projectService.updateProject(projectId, updates);
+    };
+
+    const importedProject = await importLocalFolderProject({
+      createProject: createProjectForTargetWorkspace,
       fallbackProjectName,
       folderInfo,
-      getProjects: () =>
-        targetWorkspaceId
-          ? projectService.getProjects(targetWorkspaceId)
-          : Promise.resolve([]),
+      getProjectByPath: (projectPath) =>
+        projectService.getProjectByPath(normalizedTargetWorkspaceId, projectPath),
       mountFolder: (projectId, nextFolderInfo) =>
         fileSystemService.mountFolder(projectId, nextFolderInfo),
-      updateProject: updateMenuProject,
+      updateProject: updateProjectForTargetWorkspace,
     });
+
+    return {
+      ...importedProject,
+      workspaceId: targetWorkspaceId,
+    };
   };
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
@@ -671,7 +839,7 @@ function AppContent() {
     
     try {
       const newWs = await createWorkspace(newWorkspaceName);
-      setActiveWorkspaceId(newWs.id);
+      commitWorkspaceSelection(newWs.id);
       setIsCreatingWorkspace(false);
       setNewWorkspaceName('');
       setShowWorkspaceMenu(false);
@@ -694,24 +862,22 @@ function AppContent() {
         !importedProject.reusedExistingProject &&
         importedProject.projectName !== normalizedProjectName
       ) {
-        await updateMenuProject(importedProject.projectId, {
+        const updateImportedProjectName =
+          importedProject.workspaceId === menuProjectsScopeWorkspaceId
+            ? updateMenuProject
+            : importedProject.workspaceId === projectsWorkspaceId
+              ? updateActiveProject
+              : projectService.updateProject;
+        await updateImportedProjectName(importedProject.projectId, {
           name: normalizedProjectName,
         });
       }
 
-      try {
-        await ensureStoredNativeCodexSessionMirror({
-          coreReadService,
-          projectService,
-          workspaceId: effectiveMenuWorkspaceId,
-        });
-        await refreshActiveProjects();
-      } catch (error) {
-        console.error('Failed to synchronize imported native Codex sessions', error);
-      }
-
-      setActiveWorkspaceId(effectiveMenuWorkspaceId);
-      setActiveProjectId(importedProject.projectId);
+      activateImportedProject(importedProject.workspaceId, importedProject.projectId);
+      hydrateImportedProjectSelectionInBackground(
+        importedProject.workspaceId,
+        importedProject.projectId,
+      );
       setIsCreatingProject(false);
       setNewProjectName('');
       setShowWorkspaceMenu(false);
@@ -815,6 +981,7 @@ function AppContent() {
       try {
         const newSession = await createMenuCodingSession(projectId, t('app.menu.newThread'));
         setActiveWorkspaceId(effectiveMenuWorkspaceId);
+        setMenuActiveWorkspaceId(effectiveMenuWorkspaceId);
         setActiveProjectId(projectId);
         setActiveCodingSessionId(newSession.id);
         setActiveTab('code');
@@ -844,8 +1011,166 @@ function AppContent() {
     return getCurrentWindow();
   };
 
+  const applyDesktopWindowFrameState = useCallback(
+    (nextState: {
+      isAvailable: boolean;
+      isMaximized: boolean;
+      isMinimized: boolean;
+    }) => {
+      isDesktopWindowAvailableRef.current = nextState.isAvailable;
+      setIsDesktopWindowAvailable(nextState.isAvailable);
+      setIsDesktopWindowMaximized(nextState.isMaximized);
+      setIsDesktopWindowMinimized(nextState.isMinimized);
+    },
+    [],
+  );
+
+  const syncDesktopWindowFrameState = useCallback(
+    async (
+      desktopWindow: NonNullable<Awaited<ReturnType<typeof getDesktopWindow>>>,
+    ) => {
+      const syncToken = ++desktopWindowStateSyncTokenRef.current;
+      const [nextIsMaximized, nextIsMinimized] = await Promise.all([
+        desktopWindow.isMaximized(),
+        desktopWindow.isMinimized(),
+      ]);
+
+      if (syncToken !== desktopWindowStateSyncTokenRef.current) {
+        return;
+      }
+
+      applyDesktopWindowFrameState({
+        isAvailable: true,
+        isMaximized: nextIsMaximized,
+        isMinimized: nextIsMinimized,
+      });
+    },
+    [applyDesktopWindowFrameState],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    let resizeAnimationFrame = 0;
+    const unlistenCallbacks: Array<() => void> = [];
+
+    const cancelPendingAnimationFrame = () => {
+      if (resizeAnimationFrame === 0 || typeof window === 'undefined') {
+        return;
+      }
+
+      window.cancelAnimationFrame(resizeAnimationFrame);
+      resizeAnimationFrame = 0;
+    };
+
+    const registerWindowListener = async (
+      register: Promise<() => void>,
+    ) => {
+      const unlisten = await register;
+      if (cancelled) {
+        unlisten();
+        return;
+      }
+
+      unlistenCallbacks.push(unlisten);
+    };
+
+    const scheduleDesktopWindowFrameSync = (
+      desktopWindow: NonNullable<Awaited<ReturnType<typeof getDesktopWindow>>>,
+    ) => {
+      if (typeof window === 'undefined') {
+        void syncDesktopWindowFrameState(desktopWindow);
+        return;
+      }
+
+      if (resizeAnimationFrame !== 0) {
+        return;
+      }
+
+      resizeAnimationFrame = window.requestAnimationFrame(() => {
+        resizeAnimationFrame = 0;
+        void syncDesktopWindowFrameState(desktopWindow);
+      });
+    };
+
+    void (async () => {
+      try {
+        const desktopWindow = await getDesktopWindow();
+        if (cancelled) {
+          return;
+        }
+
+        if (!desktopWindow) {
+          applyDesktopWindowFrameState({
+            isAvailable: false,
+            isMaximized: false,
+            isMinimized: false,
+          });
+          return;
+        }
+
+        await syncDesktopWindowFrameState(desktopWindow);
+        await registerWindowListener(
+          desktopWindow.onResized(() => {
+            scheduleDesktopWindowFrameSync(desktopWindow);
+          }),
+        );
+        await registerWindowListener(
+          desktopWindow.onScaleChanged(() => {
+            scheduleDesktopWindowFrameSync(desktopWindow);
+          }),
+        );
+        await registerWindowListener(
+          desktopWindow.onFocusChanged(() => {
+            scheduleDesktopWindowFrameSync(desktopWindow);
+          }),
+        );
+      } catch {
+        if (cancelled) {
+          return;
+        }
+
+        applyDesktopWindowFrameState({
+          isAvailable: false,
+          isMaximized: false,
+          isMinimized: false,
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      cancelPendingAnimationFrame();
+      for (const unlisten of unlistenCallbacks) {
+        unlisten();
+      }
+    };
+  }, [applyDesktopWindowFrameState, syncDesktopWindowFrameState]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const syncFullscreenState = () => {
+      const nextIsFullscreen = Boolean(document.fullscreenElement);
+      isDocumentFullscreenRef.current = nextIsFullscreen;
+      setIsDocumentFullscreen(nextIsFullscreen);
+      if (nextIsFullscreen) {
+        titleBarWindowDragControllerRef.current?.cancel();
+      }
+    };
+
+    syncFullscreenState();
+    document.addEventListener('fullscreenchange', syncFullscreenState);
+    return () => {
+      document.removeEventListener('fullscreenchange', syncFullscreenState);
+    };
+  }, []);
+
   if (titleBarWindowDragControllerRef.current === null) {
     titleBarWindowDragControllerRef.current = createAppHeaderWindowDragController({
+      canStartDragging: () =>
+        isDesktopWindowAvailableRef.current && !isDocumentFullscreenRef.current,
       startDragging: async () => {
         try {
           const desktopWindow = await getDesktopWindow();
@@ -876,6 +1201,7 @@ function AppContent() {
       }
 
       await desktopWindow.minimize();
+      await syncDesktopWindowFrameState(desktopWindow);
     } catch (error) {
       console.warn('Failed to minimize desktop window', error);
     }
@@ -889,6 +1215,7 @@ function AppContent() {
       }
 
       await desktopWindow.toggleMaximize();
+      await syncDesktopWindowFrameState(desktopWindow);
     } catch (error) {
       console.warn('Failed to toggle desktop window maximize state', error);
     }
@@ -909,29 +1236,59 @@ function AppContent() {
     }
   };
 
-  const handleTitleBarMouseDown = async (event: React.MouseEvent<HTMLDivElement>) => {
-    titleBarWindowDragControllerRef.current?.handleMouseDown({
+  const handleTitleBarPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const scheduled = titleBarWindowDragControllerRef.current?.handlePointerDown({
       button: event.button,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      isPrimary: event.isPrimary,
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
       target: event.target,
     });
+    if (scheduled) {
+      event.preventDefault();
+    }
+  };
+
+  const handleTitleBarDoubleClick = async (event: React.MouseEvent<HTMLDivElement>) => {
+    if (
+      event.button !== 0 ||
+      !isDesktopWindowAvailableRef.current ||
+      isDocumentFullscreenRef.current ||
+      isAppHeaderNoDragTarget(event.target)
+    ) {
+      return;
+    }
+
+    await handleMaximize();
+  };
+
+  const handleTitleBarContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!titleBarDragEnabled || isAppHeaderNoDragTarget(event.target)) {
+      return;
+    }
+
+    event.preventDefault();
+  };
+
+  const handleTitleBarDragStart = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!titleBarDragEnabled || isAppHeaderNoDragTarget(event.target)) {
+      return;
+    }
+
+    event.preventDefault();
   };
 
   const handleOpenFolder = async () => {
     try {
       const importedProject = await selectFolderAndImportProject(t('app.localFolder'));
       if (importedProject) {
-        try {
-          await ensureStoredNativeCodexSessionMirror({
-            coreReadService,
-            projectService,
-            workspaceId: effectiveMenuWorkspaceId,
-          });
-          await refreshActiveProjects();
-        } catch (error) {
-          console.error('Failed to synchronize imported native Codex sessions', error);
-        }
-        setActiveWorkspaceId(effectiveMenuWorkspaceId);
-        setActiveProjectId(importedProject.projectId);
+        activateImportedProject(importedProject.workspaceId, importedProject.projectId);
+        hydrateImportedProjectSelectionInBackground(
+          importedProject.workspaceId,
+          importedProject.projectId,
+        );
         addToast(t('app.openedFolder', { name: importedProject.projectName }), 'success');
       }
     } catch (e) {
@@ -967,8 +1324,18 @@ function AppContent() {
     else document.body.style.zoom = '1';
   };
 
+  openFolderHandlerRef.current = () => {
+    void handleOpenFolder();
+  };
+  zoomHandlerRef.current = handleZoom;
+  toggleFullScreenHandlerRef.current = toggleFullScreen;
+
   const activeWorkspace = workspaces.find(w => w.id === effectiveWorkspaceId) || workspaces[0];
   const activeProject = activeProjects.find(p => p.id === effectiveProjectId);
+  const titleBarDragEnabled = isDesktopWindowAvailable && !isDocumentFullscreen;
+  const titleBarDragSurfaceClass = titleBarDragEnabled
+    ? 'cursor-grab border-white/[0.10] text-gray-200 hover:border-white/[0.16] hover:bg-white/[0.04] active:cursor-grabbing active:bg-white/[0.06]'
+    : 'cursor-default border-white/[0.06] text-gray-400';
 
   const getWorkspaceIcon = (iconName?: string) => {
     switch(iconName) {
@@ -981,7 +1348,7 @@ function AppContent() {
 
   if (isAuthLoading) {
     return (
-      <div className="flex h-screen w-screen bg-[#0e0e11] text-white items-center justify-center">
+      <div className="flex h-full w-full bg-[#0e0e11] text-white items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
       </div>
     );
@@ -996,30 +1363,51 @@ function AppContent() {
   }
 
   const handleToggleRecording = () => {
-    setIsRecording(!isRecording);
-    addToast(isRecording ? t('app.traceRecordingStopped') : t('app.traceRecordingStarted'), 'success');
+    const nextRecordingState = !isRecording;
+    setIsRecording(nextRecordingState);
+    addToast(
+      nextRecordingState ? t('app.traceRecordingStarted') : t('app.traceRecordingStopped'),
+      'success',
+    );
   };
 
   return (
-      <div className="flex flex-col h-screen w-screen bg-[#0e0e11] text-gray-100 overflow-hidden font-sans selection:bg-blue-500/30">
+      <div
+        className="flex flex-col h-full w-full bg-[#0e0e11] text-gray-100 overflow-hidden font-sans selection:bg-blue-500/30"
+        data-desktop-window-maximized={isDesktopWindowMaximized ? 'true' : 'false'}
+        data-desktop-window-minimized={isDesktopWindowMinimized ? 'true' : 'false'}
+      >
       {/* Top Header / Title Bar */}
       <div
-        className="h-10 w-full bg-[#0e0e11] border-b border-white/[0.08] flex items-center justify-between shrink-0 select-none z-50"
-        onMouseDown={handleTitleBarMouseDown}
+        className="grid h-10 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-white/[0.08] bg-[#0e0e11] px-2 shrink-0 select-none z-50 touch-none"
+        onPointerDown={handleTitleBarPointerDown}
+        onContextMenu={handleTitleBarContextMenu}
+        onDragStart={handleTitleBarDragStart}
+        onDoubleClick={handleTitleBarDoubleClick}
       >
         {/* Left: Logo/Title & Menus */}
-        <div 
-          data-no-drag="true"
-          className="flex items-center pl-4 w-1/3 h-full animate-in fade-in slide-in-from-top-2 fill-mode-both"
+        <div
+          className="flex min-w-0 items-center gap-3 h-full animate-in fade-in slide-in-from-top-2 fill-mode-both"
           style={{ animationDelay: '0ms' }}
         >
-          <div className="flex items-center gap-2.5 text-gray-300 mr-4">
+          <div className={`flex h-8 min-w-[148px] items-center gap-2 rounded-lg border px-2.5 transition-colors ${titleBarDragSurfaceClass}`}>
             <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-500/20">
               <Code2 size={12} className="text-white" />
             </div>
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-[11px] font-semibold uppercase tracking-[0.18em]">
+                BirdCoder
+              </span>
+              <span className="hidden truncate text-[10px] text-gray-500 xl:inline">
+                {activeProject?.name || activeWorkspace?.name || t('app.workspace')}
+              </span>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-1">
+
+          <div
+            data-no-drag="true"
+            className="flex min-w-0 items-center gap-1"
+          >
             <TopMenu label={t('app.menu.file')} items={[
               { label: t('app.menu.newThread'), shortcut: 'Ctrl+N', onClick: () => {
                 if (activeTab !== 'code' && activeTab !== 'studio') {
@@ -1106,14 +1494,17 @@ function AppContent() {
         </div>
 
         {/* Middle: Workspace Switcher */}
-        <div 
-          data-no-drag="true"
-          className="flex items-center justify-center w-1/3 h-full relative animate-in fade-in slide-in-from-top-2 fill-mode-both" 
+        <div
+          className="flex min-w-0 items-center justify-center h-full relative animate-in fade-in slide-in-from-top-2 fill-mode-both"
           ref={workspaceMenuRef}
           style={{ animationDelay: '50ms' }}
         >
           <button
+            type="button"
+            data-no-drag="true"
             onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+            aria-expanded={showWorkspaceMenu}
+            aria-haspopup="menu"
             className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/5 rounded-lg text-xs text-gray-300 transition-colors group"
           >
             <span className="text-gray-400 group-hover:text-gray-300 transition-colors">{getWorkspaceIcon(activeWorkspace?.icon)}</span>
@@ -1126,7 +1517,10 @@ function AppContent() {
           </button>
 
           {showWorkspaceMenu && (
-            <div className="absolute top-full mt-2 w-[500px] bg-[#18181b] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
+            <div
+              data-no-drag="true"
+              className="absolute top-full mt-2 w-[500px] bg-[#18181b] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200"
+            >
               <div className="flex h-[320px]">
                 {/* Left Pane: Workspaces */}
                 <div className="w-[45%] border-r border-white/10 overflow-y-auto p-2 custom-scrollbar bg-[#0e0e11]/30 flex flex-col gap-1">
@@ -1138,9 +1532,7 @@ function AppContent() {
                       <div key={ws.id} className="flex items-center group relative">
                         <button
                           onClick={() => {
-                            setMenuActiveWorkspaceId(ws.id);
-                            setActiveWorkspaceId(ws.id);
-                            setActiveProjectId('');
+                            previewWorkspaceSelection(ws.id);
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all animate-in fade-in slide-in-from-left-2 fill-mode-both ${
                             isMenuSelected 
@@ -1212,7 +1604,11 @@ function AppContent() {
                 {/* Right Pane: Projects */}
                 <div className="w-[55%] overflow-y-auto p-2 custom-scrollbar bg-[#0e0e11]/10 flex flex-col gap-1 relative">
                   <div className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('app.projects')}</div>
-                  {menuProjects.length > 0 ? (
+                  {!menuProjectsHasFetched && shouldUseDistinctMenuProjectsStore ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="h-4 w-4 animate-spin rounded-full border border-white/20 border-t-white/70" />
+                    </div>
+                  ) : menuProjects.length > 0 ? (
                     menuProjects.map((project, idx) => {
                       const isSelected =
                         effectiveWorkspaceId === effectiveMenuWorkspaceId &&
@@ -1221,8 +1617,31 @@ function AppContent() {
                         <div key={project.id} className="flex items-center group relative">
                           <button
                             onClick={() => {
-                              setActiveWorkspaceId(effectiveMenuWorkspaceId);
-                              setActiveProjectId(project.id);
+                              const nextWorkspaceId = effectiveMenuWorkspaceId.trim();
+                              const nextProjectId = project.id.trim();
+                              const immediateProjectCollection =
+                                nextWorkspaceId === effectiveWorkspaceId
+                                  ? activeProjects
+                                  : nextWorkspaceId === effectiveMenuWorkspaceId
+                                    ? menuProjects
+                                    : [];
+                              const nextCodingSessionId =
+                                resolveLatestCodingSessionIdForProject(
+                                  immediateProjectCollection,
+                                  nextProjectId,
+                                ) ?? '';
+                              const shouldResetCodingSession =
+                                nextWorkspaceId !== effectiveWorkspaceId ||
+                                nextProjectId !== effectiveProjectId;
+
+                              if (nextWorkspaceId && nextWorkspaceId !== effectiveWorkspaceId) {
+                                setActiveWorkspaceId(nextWorkspaceId);
+                              }
+                              setMenuActiveWorkspaceId(nextWorkspaceId || effectiveWorkspaceId);
+                              setActiveProjectId(nextProjectId);
+                              if (shouldResetCodingSession || nextCodingSessionId) {
+                                setActiveCodingSessionId(nextCodingSessionId);
+                              }
                               setProjectActionsMenuId(null);
                               setShowWorkspaceMenu(false);
                             }}
@@ -1419,20 +1838,40 @@ function AppContent() {
         {/* Right: Window Controls & Actions */}
         <div 
           data-no-drag="true"
-          className="flex items-center justify-end w-1/3 h-full animate-in fade-in slide-in-from-top-2 fill-mode-both pr-2"
+          className="flex items-center justify-end h-full animate-in fade-in slide-in-from-top-2 fill-mode-both"
           style={{ animationDelay: '100ms' }}
         >
-          <div className="flex h-full items-center">
-            <button onClick={handleMinimize} className="h-full px-3 hover:bg-white/10 text-gray-400 hover:text-white transition-colors flex items-center justify-center rounded-md">
-              <Minus size={14} />
-            </button>
-            <button onClick={handleMaximize} className="h-full px-3 hover:bg-white/10 text-gray-400 hover:text-white transition-colors flex items-center justify-center rounded-md">
-              <Square size={12} />
-            </button>
-            <button onClick={handleClose} className="h-full px-3 hover:bg-red-500 text-gray-400 hover:text-white transition-colors flex items-center justify-center rounded-md">
-              <X size={14} />
-            </button>
-          </div>
+          {isDesktopWindowAvailable ? (
+            <div className="flex h-full items-center">
+              <button
+                type="button"
+                onClick={handleMinimize}
+                aria-label={t('app.menu.minimize')}
+                title={t('app.menu.minimize')}
+                className="h-full px-3 hover:bg-white/10 text-gray-400 hover:text-white transition-colors flex items-center justify-center rounded-md"
+              >
+                <Minus size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={handleMaximize}
+                aria-label={isDesktopWindowMaximized ? t('common.restore') : t('app.menu.maximize')}
+                title={isDesktopWindowMaximized ? t('common.restore') : t('app.menu.maximize')}
+                className="h-full px-3 hover:bg-white/10 text-gray-400 hover:text-white transition-colors flex items-center justify-center rounded-md"
+              >
+                {isDesktopWindowMaximized ? <SquareSquare size={12} /> : <Square size={12} />}
+              </button>
+              <button
+                type="button"
+                onClick={handleClose}
+                aria-label={t('app.menu.close')}
+                title={t('app.menu.close')}
+                className="h-full px-3 hover:bg-red-500 text-gray-400 hover:text-white transition-colors flex items-center justify-center rounded-md"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -1480,7 +1919,6 @@ function AppContent() {
                 initialCodingSessionId={effectiveCodingSessionId}
                 onProjectChange={setActiveProjectId}
                 onCodingSessionChange={setActiveCodingSessionId}
-                onSessionInventoryRefresh={reloadSessionInventory}
               />
             )}
             {activeTab === 'studio' && (
@@ -1490,7 +1928,6 @@ function AppContent() {
                 initialCodingSessionId={effectiveCodingSessionId}
                 onProjectChange={setActiveProjectId}
                 onCodingSessionChange={setActiveCodingSessionId}
-                onSessionInventoryRefresh={reloadSessionInventory}
               />
             )}
             {activeTab === 'terminal' && (
@@ -1500,7 +1937,7 @@ function AppContent() {
                 projectId={effectiveProjectId || null}
               />
             )}
-            {activeTab === 'skills' && <SkillsPage />}
+            {activeTab === 'skills' && <SkillsPage workspaceId={effectiveWorkspaceId} />}
             {activeTab === 'templates' && <TemplatesPage workspaceId={effectiveWorkspaceId} onProjectCreated={(id) => { setActiveProjectId(id); setActiveTab('code'); }} />}
             {activeTab === 'user' && <UserCenterPage onOpenVip={() => setActiveTab('vip')} />}
             {activeTab === 'vip' && <VipPage />}

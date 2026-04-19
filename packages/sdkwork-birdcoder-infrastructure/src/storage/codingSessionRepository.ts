@@ -1,3 +1,4 @@
+import { BIRDCODER_STANDARD_DEFAULT_ENGINE_ID } from '@sdkwork/birdcoder-codeengine';
 import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
@@ -12,6 +13,7 @@ import {
   BIRDCODER_CODING_SESSION_MESSAGE_ROLES,
   BIRDCODER_HOST_MODES,
   getBirdCoderEntityDefinition,
+  resolveBirdCoderSessionSortTimestamp,
 } from '@sdkwork/birdcoder-types';
 import {
   createBirdCoderTableRecordRepository,
@@ -66,11 +68,17 @@ function normalizeCodingSessionMessageRole(value: unknown): BirdCoderChatMessage
 
 function sortByUpdatedAtDescending<
   TRecord extends {
+    createdAt: string;
     id: string;
+    lastTurnAt?: string;
+    sortTimestamp?: number;
+    transcriptUpdatedAt?: string | null;
     updatedAt: string;
   },
 >(left: TRecord, right: TRecord): number {
   return (
+    resolveBirdCoderSessionSortTimestamp(right) -
+      resolveBirdCoderSessionSortTimestamp(left) ||
     resolveSortTimestamp(right.updatedAt) - resolveSortTimestamp(left.updatedAt) ||
     left.id.localeCompare(right.id)
   );
@@ -98,8 +106,10 @@ export interface BirdCoderPersistedCodingSessionRecord {
   modelId?: string;
   pinned: boolean;
   projectId: string;
+  sortTimestamp?: number;
   status: BirdCoderCodingSession['status'];
   title: string;
+  transcriptUpdatedAt?: string | null;
   unread: boolean;
   updatedAt: string;
   workspaceId: string;
@@ -128,6 +138,21 @@ function normalizeCodingSessionStorageRecord(
   ) {
     const createdAtCandidate = normalizeTimestamp(value.createdAt, ZERO_TIMESTAMP);
     const updatedAtCandidate = normalizeTimestamp(value.updatedAt, createdAtCandidate);
+    const lastTurnAtCandidate = normalizeTimestamp(value.lastTurnAt, updatedAtCandidate);
+    const transcriptUpdatedAtCandidate =
+      typeof value.transcriptUpdatedAt === 'string' &&
+      !Number.isNaN(Date.parse(value.transcriptUpdatedAt))
+        ? value.transcriptUpdatedAt
+        : null;
+    const sortTimestampCandidate =
+      typeof value.sortTimestamp === 'number' && Number.isFinite(value.sortTimestamp)
+        ? value.sortTimestamp
+        : resolveBirdCoderSessionSortTimestamp({
+            createdAt: createdAtCandidate,
+            updatedAt: updatedAtCandidate,
+            lastTurnAt: lastTurnAtCandidate,
+            transcriptUpdatedAt: transcriptUpdatedAtCandidate,
+          });
 
     return {
       id: value.id,
@@ -142,11 +167,13 @@ function normalizeCodingSessionStorageRecord(
       engineId:
         typeof value.engineId === 'string' && value.engineId.trim().length > 0
           ? (value.engineId as BirdCoderCodingSession['engineId'])
-          : 'codex',
+          : BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
       modelId: typeof value.modelId === 'string' ? value.modelId : undefined,
       createdAt: createdAtCandidate,
       updatedAt: updatedAtCandidate,
-      lastTurnAt: normalizeTimestamp(value.lastTurnAt, updatedAtCandidate),
+      lastTurnAt: lastTurnAtCandidate,
+      sortTimestamp: sortTimestampCandidate,
+      transcriptUpdatedAt: transcriptUpdatedAtCandidate,
       pinned: value.pinned === true,
       archived:
         value.archived === true || normalizeCodingSessionStatus(value.status) === 'archived',
@@ -161,6 +188,21 @@ function normalizeCodingSessionStorageRecord(
 
   const createdAtCandidate = normalizeTimestamp(row.created_at, ZERO_TIMESTAMP);
   const updatedAtCandidate = normalizeTimestamp(row.updated_at, createdAtCandidate);
+  const lastTurnAtCandidate = normalizeTimestamp(row.last_turn_at, updatedAtCandidate);
+  const transcriptUpdatedAtCandidate =
+    typeof row.transcript_updated_at === 'string' &&
+    !Number.isNaN(Date.parse(row.transcript_updated_at))
+      ? row.transcript_updated_at
+      : null;
+  const rowSortTimestampCandidate =
+    typeof row.sort_timestamp === 'number' && Number.isFinite(row.sort_timestamp)
+      ? row.sort_timestamp
+      : resolveBirdCoderSessionSortTimestamp({
+          createdAt: createdAtCandidate,
+          updatedAt: updatedAtCandidate,
+          lastTurnAt: lastTurnAtCandidate,
+          transcriptUpdatedAt: transcriptUpdatedAtCandidate,
+        });
 
   return {
     id: String(row.id),
@@ -172,11 +214,13 @@ function normalizeCodingSessionStorageRecord(
     engineId:
       typeof row.engine_id === 'string' && row.engine_id.trim().length > 0
         ? (row.engine_id as BirdCoderCodingSession['engineId'])
-        : 'codex',
+        : BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
     modelId: typeof row.model_id === 'string' ? row.model_id : undefined,
     createdAt: createdAtCandidate,
     updatedAt: updatedAtCandidate,
-    lastTurnAt: normalizeTimestamp(row.last_turn_at, updatedAtCandidate),
+    lastTurnAt: lastTurnAtCandidate,
+    sortTimestamp: rowSortTimestampCandidate,
+    transcriptUpdatedAt: transcriptUpdatedAtCandidate,
     pinned: false,
     archived: normalizeCodingSessionStatus(row.status) === 'archived',
     unread: false,

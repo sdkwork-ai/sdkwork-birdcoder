@@ -2,20 +2,21 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
 import {
-  listBirdCoderCodingServerEngines,
-  listBirdCoderCodingServerModels,
-} from '../packages/sdkwork-birdcoder-server/src/index.ts';
+  listBirdCoderCodeEngineDescriptors,
+  listBirdCoderCodeEngineNativeSessionProviders,
+  listBirdCoderCodeEngineModels,
+} from '../packages/sdkwork-birdcoder-codeengine/src/catalog.ts';
 
 function toJsonComparable<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
 const sharedCatalogPath = new URL(
-  '../packages/sdkwork-birdcoder-server/src-host/generated/engine-catalog.json',
+  '../packages/sdkwork-birdcoder-codeengine/src-host/generated/engine-catalog.json',
   import.meta.url,
 );
 const rustSourcePath = new URL(
-  '../packages/sdkwork-birdcoder-server/src-host/src/lib.rs',
+  '../packages/sdkwork-birdcoder-codeengine/src-host/src/catalog.rs',
   import.meta.url,
 );
 
@@ -28,18 +29,25 @@ assert.equal(
 const sharedCatalog = JSON.parse(readFileSync(sharedCatalogPath, 'utf8')) as {
   engines: unknown[];
   models: unknown[];
+  nativeProviders: unknown[];
 };
 
 assert.deepEqual(
   sharedCatalog.engines,
-  toJsonComparable(listBirdCoderCodingServerEngines()),
-  'Rust host engine artifact must stay aligned with promoted coding-server engine descriptors.',
+  toJsonComparable(listBirdCoderCodeEngineDescriptors()),
+  'Rust codeengine artifact must stay aligned with promoted codeengine descriptors.',
 );
 
 assert.deepEqual(
   sharedCatalog.models,
-  toJsonComparable(listBirdCoderCodingServerModels()),
-  'Rust host engine artifact must stay aligned with promoted coding-server model catalog truth.',
+  toJsonComparable(listBirdCoderCodeEngineModels()),
+  'Rust codeengine artifact must stay aligned with promoted codeengine model catalog truth.',
+);
+
+assert.deepEqual(
+  sharedCatalog.nativeProviders,
+  toJsonComparable(listBirdCoderCodeEngineNativeSessionProviders()),
+  'Rust codeengine artifact must stay aligned with promoted native session provider truth.',
 );
 
 const rustSource = readFileSync(rustSourcePath, 'utf8');
@@ -47,7 +55,7 @@ const rustSource = readFileSync(rustSourcePath, 'utf8');
 assert.match(
   rustSource,
   /include_str!\("\.\.\/generated\/engine-catalog\.json"\)/,
-  'Rust host must load engine/model route truth from the generated shared engine-catalog artifact.',
+  'Rust codeengine must load engine/model catalog truth from the generated shared engine-catalog artifact.',
 );
 
 for (const removedFixture of [

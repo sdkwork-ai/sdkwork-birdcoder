@@ -1,8 +1,10 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "target": "ES2020",
+    "baseUrl": "../..",
+    "target": "ES2022",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
@@ -14,7 +16,48 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@sdkwork/birdcoder-codeengine/*": [
+        "packages/sdkwork-birdcoder-codeengine/src/*"
+      ],
+      "@sdkwork/birdcoder-commons/*": [
+        "packages/sdkwork-birdcoder-commons/src/*"
+      ],
+      "@sdkwork/birdcoder-commons/shell": [
+        "packages/sdkwork-birdcoder-commons/src/shell.ts"
+      ],
+      "@sdkwork/birdcoder-shell/runtime": [
+        "packages/sdkwork-birdcoder-shell/src/runtime.ts"
+      ],
+      "@sdkwork/birdcoder-*": [
+        "packages/sdkwork-birdcoder-*/src"
+      ],
+      "@sdkwork/terminal-shell": [
+        "packages/sdkwork-birdcoder-terminal/src/type-bridges/sdkwork-terminal-shell.d.ts"
+      ],
+      "@sdkwork/terminal-infrastructure": [
+        "packages/sdkwork-birdcoder-terminal/src/type-bridges/sdkwork-terminal-infrastructure.d.ts"
+      ],
+      "@sdkwork/terminal-*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-*/src"
+      ],
+      "@sdkwork/terminal-core": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-core/src"
+      ],
+      "@sdkwork/terminal-contracts": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-contracts/src"
+      ],
+      "@sdkwork/terminal-types": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-types/src"
+      ],
+      "sdkwork-birdcoder-commons/shell": [
+        "packages/sdkwork-birdcoder-commons/src/shell.ts"
+      ],
+      "sdkwork-birdcoder-*": [
+        "packages/sdkwork-birdcoder-*/src"
+      ]
+    }
   },
   "include": ["src"]
 }

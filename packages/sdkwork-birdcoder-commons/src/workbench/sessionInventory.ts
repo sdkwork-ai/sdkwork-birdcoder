@@ -2,10 +2,14 @@ import type {
   BirdCoderCodingSessionStatus,
   BirdCoderCodingSessionSummary,
   BirdCoderHostMode,
+  BirdCoderListCodingSessionsRequest,
+  BirdCoderListNativeSessionsRequest,
+  BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import {
   BIRDCODER_CODING_SESSION_STATUSES,
   BIRDCODER_HOST_MODES,
+  resolveBirdCoderSessionSortTimestamp,
 } from '@sdkwork/birdcoder-types';
 import {
   BIRDCODER_CODING_SESSION_STORAGE_BINDING,
@@ -22,16 +26,12 @@ import {
 import {
   normalizeWorkbenchCodeEngineId,
   normalizeWorkbenchCodeModelId,
-} from './preferences.ts';
+} from '@sdkwork/birdcoder-codeengine';
 import {
-  listNativeCodexSessions,
-} from './nativeCodexSessionStore.ts';
-import type { StoredCodingSessionInventoryRecord } from './nativeCodexSessionStore.ts';
-export type { StoredCodingSessionInventoryRecord } from './nativeCodexSessionStore.ts';
-import {
-  listAuthorityBackedNativeSessions,
+  type StoredCodingSessionInventoryRecord,
   type NativeSessionAuthorityCoreReadService,
 } from './nativeSessionAuthority.ts';
+export type { StoredCodingSessionInventoryRecord } from './nativeSessionAuthority.ts';
 
 interface StoredCodingSessionPersistedEntry {
   createdAt?: unknown;
@@ -58,16 +58,42 @@ export type WorkbenchSessionInventoryRecord =
 
 export interface ListStoredCodingSessionsOptions {
   limit?: number;
+  offset?: number;
   projectId?: string | null;
 }
 
 export interface ListStoredSessionInventoryOptions {
-  coreReadService?: NativeSessionAuthorityCoreReadService;
+  coreReadService?: SessionInventoryCoreReadService;
   includeGlobal?: boolean;
   limit?: number;
+  offset?: number;
   projectId?: string | null;
   workspaceId?: string | null;
 }
+
+export interface BuildProjectBackedSessionInventoryOptions {
+  includeGlobal?: boolean;
+  limit?: number;
+  offset?: number;
+  projectId?: string | null;
+  projects: readonly BirdCoderProject[];
+  terminalSessions?: readonly TerminalSessionRecord[];
+  workspaceId?: string | null;
+}
+
+type SessionInventoryCoreReadService =
+  NativeSessionAuthorityCoreReadService &
+  Pick<
+    {
+      listCodingSessions(
+        request?: BirdCoderListCodingSessionsRequest,
+      ): Promise<BirdCoderCodingSessionSummary[]>;
+      listNativeSessions(
+        request?: BirdCoderListNativeSessionsRequest,
+      ): Promise<StoredCodingSessionInventoryRecord[]>;
+    },
+    'listCodingSessions' | 'listNativeSessions'
+  >;
 
 const ZERO_TIMESTAMP = new Date(0).toISOString();
 const CODING_SESSION_STATUS_SET = new Set<string>(BIRDCODER_CODING_SESSION_STATUSES);
@@ -136,6 +162,10 @@ function normalizeStoredCodingSessionRecord(
     modelId: normalizeWorkbenchCodeModelId(
       engineId,
       typeof value.modelId === 'string' ? value.modelId : null,
+      undefined,
+      {
+        allowUnknown: true,
+      },
     ),
     createdAt,
     updatedAt,
@@ -183,12 +213,82 @@ export async function listStoredCodingSessions(
     options.projectId === undefined
       ? records
       : records.filter((session) => session.projectId === (options.projectId?.trim() ?? ''));
+  const offset = Math.max(options.offset ?? 0, 0);
+  const pagedRecords = offset > 0 ? filteredRecords.slice(offset) : filteredRecords;
+  return typeof options.limit === 'number'
+    ? pagedRecords.slice(0, Math.max(options.limit, 0))
+    : pagedRecords;
+}
 
-  if (typeof options.limit === 'number') {
-    return filteredRecords.slice(0, Math.max(options.limit, 0));
+function isProjectScopedCodingSession(summary: BirdCoderCodingSessionSummary): boolean {
+  return summary.workspaceId.trim().length > 0 && summary.projectId.trim().length > 0;
+}
+
+function toAuthorityBackedCodingSessionInventoryRecord(
+  summary: BirdCoderCodingSessionSummary,
+): StoredCodingSessionInventoryRecord {
+  return {
+    ...summary,
+    kind: 'coding',
+    nativeCwd: null,
+    sortTimestamp: resolveBirdCoderSessionSortTimestamp(summary),
+    transcriptUpdatedAt: summary.transcriptUpdatedAt ?? null,
+  };
+}
+
+async function listAuthorityBackedCodingSessions(
+  options: ListStoredSessionInventoryOptions,
+): Promise<StoredCodingSessionInventoryRecord[]> {
+  if (!options.coreReadService) {
+    return [];
   }
 
-  return filteredRecords;
+  const [projectionSummaries, nativeSummaries] = await Promise.all([
+    options.coreReadService.listCodingSessions({
+      limit: options.limit,
+      offset: options.offset,
+      projectId: options.projectId ?? undefined,
+      workspaceId: options.workspaceId ?? undefined,
+    }),
+    options.coreReadService.listNativeSessions({
+      limit: options.limit,
+      offset: options.offset,
+      projectId: options.projectId ?? undefined,
+      workspaceId: options.workspaceId ?? undefined,
+    }),
+  ]);
+
+  const nativeRecordsById = new Map(
+    nativeSummaries
+      .filter(
+        (summary) =>
+          summary.kind === 'coding' &&
+          summary.projectId.trim().length > 0 &&
+          summary.workspaceId.trim().length > 0,
+      )
+      .map(
+        (summary) =>
+          [summary.id, summary] satisfies [string, StoredCodingSessionInventoryRecord],
+      ),
+  );
+
+  return projectionSummaries
+    .filter(isProjectScopedCodingSession)
+    .map(toAuthorityBackedCodingSessionInventoryRecord)
+    .map((record) => {
+      const matchingNativeRecord = nativeRecordsById.get(record.id);
+      if (!matchingNativeRecord) {
+        return record;
+      }
+
+      return {
+        ...record,
+        nativeCwd: matchingNativeRecord.nativeCwd ?? record.nativeCwd ?? null,
+        sortTimestamp: matchingNativeRecord.sortTimestamp || record.sortTimestamp,
+        transcriptUpdatedAt:
+          matchingNativeRecord.transcriptUpdatedAt ?? record.transcriptUpdatedAt ?? null,
+      };
+    });
 }
 
 function compareSessionInventoryRecords(
@@ -202,37 +302,155 @@ function compareSessionInventoryRecords(
   );
 }
 
+function normalizeScopedIdentifier(value: string | null | undefined): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function matchesWorkspaceScope(
+  recordWorkspaceId: string | null | undefined,
+  workspaceId: string | null | undefined,
+): boolean {
+  const normalizedWorkspaceId = normalizeScopedIdentifier(workspaceId);
+  if (!normalizedWorkspaceId) {
+    return true;
+  }
+
+  return normalizeScopedIdentifier(recordWorkspaceId) === normalizedWorkspaceId;
+}
+
+function matchesProjectScope(
+  recordProjectId: string | null | undefined,
+  projectId: string | null | undefined,
+  includeGlobal: boolean,
+): boolean {
+  const normalizedProjectId = normalizeScopedIdentifier(projectId);
+  const normalizedRecordProjectId = normalizeScopedIdentifier(recordProjectId);
+  if (!normalizedProjectId) {
+    return true;
+  }
+
+  if (!normalizedRecordProjectId) {
+    return includeGlobal;
+  }
+
+  return normalizedRecordProjectId === normalizedProjectId;
+}
+
+function toProjectBackedCodingSessionInventoryRecord(
+  codingSession: BirdCoderProject['codingSessions'][number],
+): StoredCodingSessionInventoryRecord {
+  return {
+    id: codingSession.id,
+    workspaceId: codingSession.workspaceId,
+    projectId: codingSession.projectId,
+    title: codingSession.title,
+    status: codingSession.status,
+    hostMode: codingSession.hostMode,
+    engineId: codingSession.engineId,
+    modelId: codingSession.modelId,
+    createdAt: codingSession.createdAt,
+    updatedAt: codingSession.updatedAt,
+    lastTurnAt: codingSession.lastTurnAt,
+    kind: 'coding',
+    nativeCwd: null,
+    sortTimestamp: resolveBirdCoderSessionSortTimestamp(codingSession),
+    transcriptUpdatedAt: codingSession.transcriptUpdatedAt ?? null,
+  };
+}
+
+export function buildProjectBackedSessionInventory(
+  options: BuildProjectBackedSessionInventoryOptions,
+): WorkbenchSessionInventoryRecord[] {
+  const normalizedWorkspaceId = normalizeScopedIdentifier(options.workspaceId);
+  const normalizedProjectId = normalizeScopedIdentifier(options.projectId);
+  const includeGlobal = options.includeGlobal ?? true;
+
+  const codingSessions = options.projects
+    .filter((project) => matchesWorkspaceScope(project.workspaceId, normalizedWorkspaceId))
+    .filter((project) =>
+      normalizedProjectId.length === 0 ? true : project.id === normalizedProjectId,
+    )
+    .flatMap((project) =>
+      project.codingSessions
+        .filter((codingSession) =>
+          matchesWorkspaceScope(codingSession.workspaceId, normalizedWorkspaceId),
+        )
+        .filter((codingSession) =>
+          matchesProjectScope(codingSession.projectId, normalizedProjectId, false),
+        )
+        .map(toProjectBackedCodingSessionInventoryRecord),
+    );
+
+  const terminalSessions = (options.terminalSessions ?? [])
+    .filter((session) => matchesWorkspaceScope(session.workspaceId, normalizedWorkspaceId))
+    .filter((session) =>
+      matchesProjectScope(session.projectId, normalizedProjectId, includeGlobal),
+    )
+    .map((session) => ({
+      ...session,
+      kind: 'terminal' as const,
+      sortTimestamp: session.updatedAt,
+    }));
+
+  const records: WorkbenchSessionInventoryRecord[] = [
+    ...terminalSessions,
+    ...codingSessions,
+  ].sort(compareSessionInventoryRecords);
+
+  const offset = Math.max(options.offset ?? 0, 0);
+  if (typeof options.limit === 'number') {
+    return records.slice(offset, offset + Math.max(options.limit, 0));
+  }
+
+  return offset > 0 ? records.slice(offset) : records;
+}
+
+export async function listProjectBackedSessionInventory(
+  options: BuildProjectBackedSessionInventoryOptions,
+): Promise<WorkbenchSessionInventoryRecord[]> {
+  const terminalSessions =
+    options.terminalSessions ??
+    (await listStoredTerminalSessions({
+      includeGlobal: options.includeGlobal,
+      limit: undefined,
+      projectId: options.projectId,
+    }));
+
+  return buildProjectBackedSessionInventory({
+    ...options,
+    terminalSessions,
+  });
+}
+
 export async function listStoredSessionInventory(
   options: ListStoredSessionInventoryOptions = {},
 ): Promise<WorkbenchSessionInventoryRecord[]> {
-  const shouldIncludeNativeSessions =
-    options.projectId === undefined ||
-    (options.projectId?.trim() ?? '').length === 0 ||
-    options.includeGlobal !== false;
-
-  const [terminalSessions, codingSessions, nativeSessions] = await Promise.all([
+  const [terminalSessions, storedCodingSessions, authoritativeCodingSessions] = await Promise.all([
     listStoredTerminalSessions({
       includeGlobal: options.includeGlobal,
       limit: undefined,
       projectId: options.projectId,
     }),
-    listStoredCodingSessions({
-      limit: undefined,
-      projectId: options.projectId,
-    }),
-    shouldIncludeNativeSessions
-      ? (
-        options.coreReadService
-          ? listAuthorityBackedNativeSessions({
-            coreReadService: options.coreReadService,
-            limit: options.limit,
-            projectId: options.projectId,
-            workspaceId: options.workspaceId,
-          })
-          : listNativeCodexSessions(options.limit)
-      )
-      : Promise.resolve([] as StoredCodingSessionInventoryRecord[]),
+    options.coreReadService
+      ? Promise.resolve([] as BirdCoderCodingSessionSummary[])
+      : listStoredCodingSessions({
+        limit: undefined,
+        offset: options.offset,
+        projectId: options.projectId,
+      }),
+    listAuthorityBackedCodingSessions(options),
   ]);
+
+  const codingSessions =
+    authoritativeCodingSessions.length > 0
+      ? authoritativeCodingSessions
+      : storedCodingSessions.map((session) => ({
+          ...session,
+          kind: 'coding' as const,
+          nativeCwd: null,
+          sortTimestamp: resolveBirdCoderSessionSortTimestamp(session),
+          transcriptUpdatedAt: session.transcriptUpdatedAt ?? null,
+        }));
 
   const records: WorkbenchSessionInventoryRecord[] = [
     ...terminalSessions.map((session) => ({
@@ -240,17 +458,13 @@ export async function listStoredSessionInventory(
       kind: 'terminal' as const,
       sortTimestamp: session.updatedAt,
     })),
-    ...codingSessions.map((session) => ({
-      ...session,
-      kind: 'coding' as const,
-      sortTimestamp: resolveIsoTimestamp(session.updatedAt),
-    })),
-    ...nativeSessions,
+    ...codingSessions,
   ].sort(compareSessionInventoryRecords);
 
+  const offset = Math.max(options.offset ?? 0, 0);
   if (typeof options.limit === 'number') {
-    return records.slice(0, Math.max(options.limit, 0));
+    return records.slice(offset, offset + Math.max(options.limit, 0));
   }
 
-  return records;
+  return offset > 0 ? records.slice(offset) : records;
 }

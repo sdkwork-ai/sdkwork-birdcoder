@@ -1,0 +1,50 @@
+import { defineLocaleModule } from '../resource.ts';
+
+export default defineLocaleModule('settings/engine', {
+  settings: {
+    engines: {
+      title: 'Code Engines & Models',
+      description:
+        'Define the default model for each engine and extend the available model catalog with custom entries.',
+      defaultModel: 'Default model',
+      defaultModelDesc: 'Used when this engine becomes active for new turns.',
+      primaryLane: 'Primary lane',
+      strategy: 'Strategy',
+      runtimeOwner: 'Runtime owner',
+      bridgeProtocol: 'Bridge protocol',
+      fallbackLanes: 'Fallback lanes',
+      deliveryLanes: 'Delivery lanes',
+      none: 'None',
+      strategyRustNative: 'Rust native',
+      strategyGrpcBridge: 'gRPC bridge',
+      strategyOpenApiProxy: 'OpenAPI proxy',
+      strategyRemoteControl: 'Remote control',
+      strategyCliSpawn: 'CLI spawn',
+      runtimeOwnerRustServer: 'Rust server',
+      runtimeOwnerTypescriptBridge: 'TypeScript bridge',
+      runtimeOwnerExternalService: 'External service',
+      bridgeProtocolDirect: 'Direct',
+      bridgeProtocolGrpc: 'gRPC',
+      bridgeProtocolHttp: 'HTTP',
+      bridgeProtocolWebsocket: 'WebSocket',
+      bridgeProtocolStdio: 'STDIO',
+      serverReady: 'Rust server ready',
+      serverPlanned: 'Server planned',
+      serverUnavailable:
+        '{{engine}} server adapter is not implemented yet. BirdCoder currently routes real coding turns through the Rust server, and only Codex plus OpenCode are enabled right now.',
+      builtInModel: 'Built-in',
+      customModel: 'Custom',
+      removeCustomModel: 'Remove custom model',
+      addCustomModel: 'Add custom model',
+      addCustomModelDesc:
+        'Register extra model IDs for private deployments, new server adapters, or staged rollouts.',
+      modelIdPlaceholder: 'Model ID, for example codex-pro',
+      modelLabelPlaceholder: 'Display name, optional',
+      addModel: 'Add model',
+      modelAdded: '{{engine}} model list updated.',
+      modelAlreadyExists: '{{engine}} already contains this model.',
+      modelRemoved: '{{engine}} model removed.',
+      defaultModelUpdated: '{{engine}} default model updated.',
+    },
+  },
+});

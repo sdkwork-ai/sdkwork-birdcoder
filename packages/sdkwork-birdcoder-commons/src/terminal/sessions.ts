@@ -39,14 +39,12 @@ interface TerminalSessionPersistedEntry {
   lastExitCode?: number | null;
 }
 
-interface TerminalSessionBridgeRecord {
-  id: string;
+interface DesktopTerminalSessionInventorySnapshot {
+  sessionId: string;
   title: string;
   profileId: string;
   cwd: string;
-  commandHistoryJson: string;
-  recentOutputJson: string;
-  updatedAt: number;
+  updatedAt: string;
   workspaceId: string;
   projectId: string;
   status: string;
@@ -195,20 +193,26 @@ export function buildTerminalSessionRecord(
   });
 }
 
-function normalizeTerminalSessionBridgeRecord(
-  record: TerminalSessionBridgeRecord,
+function normalizeTerminalSessionRuntimeStatus(value: string): TerminalHostSessionStatus {
+  return value === 'running' || value === 'error' || value === 'closed' || value === 'idle'
+    ? value
+    : 'idle';
+}
+
+function normalizeRuntimeTerminalSessionRecord(
+  record: DesktopTerminalSessionInventorySnapshot,
 ): TerminalSessionRecord {
   return normalizeTerminalSessionRecord({
-    id: record.id,
+    id: record.sessionId,
     title: record.title,
     profileId: record.profileId,
     cwd: record.cwd,
-    commandHistory: JSON.parse(record.commandHistoryJson),
-    recentOutput: JSON.parse(record.recentOutputJson),
-    updatedAt: record.updatedAt,
+    commandHistory: [],
+    recentOutput: [],
+    updatedAt: Number.isNaN(Date.parse(record.updatedAt)) ? 0 : Date.parse(record.updatedAt),
     workspaceId: record.workspaceId,
     projectId: record.projectId,
-    status: record.status,
+    status: normalizeTerminalSessionRuntimeStatus(record.status),
     lastExitCode: record.lastExitCode,
   });
 }
@@ -217,20 +221,37 @@ export async function listStoredTerminalSessions(
   options: ListStoredTerminalSessionsOptions = {},
 ): Promise<TerminalSessionRecord[]> {
   const invoke = await resolveTauriInvoke();
-  let records: TerminalSessionRecord[] = [];
   if (invoke) {
     try {
-      records = (await invoke<TerminalSessionBridgeRecord[]>('terminal_session_list')).map(
-        normalizeTerminalSessionBridgeRecord,
+      const runtimeRecords = await invoke<DesktopTerminalSessionInventorySnapshot[]>(
+        'desktop_terminal_session_inventory_list',
       );
+      const records = runtimeRecords.map(normalizeRuntimeTerminalSessionRecord);
+
+      if (options.projectId === undefined) {
+        return records.sort((left, right) => right.updatedAt - left.updatedAt);
+      }
+
+      const includeGlobal = options.includeGlobal ?? true;
+      const filteredRecords = records
+        .filter((session) =>
+          includeGlobal
+            ? matchesTerminalSessionScope(session, options.projectId)
+            : session.projectId === (options.projectId?.trim() ?? ''),
+        )
+        .sort((left, right) => right.updatedAt - left.updatedAt);
+
+      if (typeof options.limit === 'number') {
+        return filteredRecords.slice(0, Math.max(options.limit, 0));
+      }
+
+      return filteredRecords;
     } catch {
       // Fall through to the browser store when the desktop bridge is unavailable.
     }
   }
 
-  if (records.length === 0) {
-    records = await terminalSessionRepository.read();
-  }
+  const records = await terminalSessionRepository.read();
 
   if (options.projectId === undefined) {
     return records.sort((left, right) => right.updatedAt - left.updatedAt);
@@ -253,23 +274,12 @@ export async function listStoredTerminalSessions(
 }
 
 export async function saveStoredTerminalSession(record: TerminalSessionRecord): Promise<void> {
-  const normalizedRecord = normalizeTerminalSessionRecord(record);
   const invoke = await resolveTauriInvoke();
   if (invoke) {
-    try {
-      await invoke('terminal_session_upsert', {
-        record: {
-          ...normalizedRecord,
-          commandHistoryJson: JSON.stringify(normalizedRecord.commandHistory),
-          recentOutputJson: JSON.stringify(normalizedRecord.recentOutput),
-        },
-      });
-      return;
-    } catch {
-      // Fall through to the browser store when the desktop bridge is unavailable.
-    }
+    return;
   }
 
+  const normalizedRecord = normalizeTerminalSessionRecord(record);
   const sessions = await listStoredTerminalSessions();
   const nextSessions = [
     normalizedRecord,
@@ -281,12 +291,7 @@ export async function saveStoredTerminalSession(record: TerminalSessionRecord): 
 export async function removeStoredTerminalSession(id: string): Promise<void> {
   const invoke = await resolveTauriInvoke();
   if (invoke) {
-    try {
-      await invoke('terminal_session_delete', { id });
-      return;
-    } catch {
-      // Fall through to the browser store when the desktop bridge is unavailable.
-    }
+    return;
   }
 
   const sessions = await listStoredTerminalSessions();

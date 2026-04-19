@@ -34,6 +34,65 @@ export type BirdCoderEngineInstallationKind =
   | (typeof BIRDCODER_ENGINE_INSTALLATION_KINDS)[number]
   | (string & {});
 
+export const BIRDCODER_ENGINE_ACCESS_STRATEGY_KINDS = [
+  'rust-native',
+  'grpc-bridge',
+  'openapi-proxy',
+  'remote-control',
+  'cli-spawn',
+] as const;
+
+export type BirdCoderEngineAccessStrategyKind =
+  | (typeof BIRDCODER_ENGINE_ACCESS_STRATEGY_KINDS)[number]
+  | (string & {});
+
+export const BIRDCODER_ENGINE_ACCESS_LANE_STATUSES = ['ready', 'planned'] as const;
+
+export type BirdCoderEngineAccessLaneStatus =
+  | (typeof BIRDCODER_ENGINE_ACCESS_LANE_STATUSES)[number]
+  | (string & {});
+
+export const BIRDCODER_ENGINE_RUNTIME_OWNERS = [
+  'rust-server',
+  'typescript-bridge',
+  'external-service',
+] as const;
+
+export type BirdCoderEngineRuntimeOwner =
+  | (typeof BIRDCODER_ENGINE_RUNTIME_OWNERS)[number]
+  | (string & {});
+
+export const BIRDCODER_ENGINE_BRIDGE_PROTOCOLS = [
+  'direct',
+  'grpc',
+  'http',
+  'websocket',
+  'stdio',
+] as const;
+
+export type BirdCoderEngineBridgeProtocol =
+  | (typeof BIRDCODER_ENGINE_BRIDGE_PROTOCOLS)[number]
+  | (string & {});
+
+export interface BirdCoderEngineAccessLane {
+  laneId: string;
+  label: string;
+  strategyKind: BirdCoderEngineAccessStrategyKind;
+  runtimeOwner: BirdCoderEngineRuntimeOwner;
+  bridgeProtocol: BirdCoderEngineBridgeProtocol;
+  transportKind: BirdCoderEngineTransportKind;
+  status: BirdCoderEngineAccessLaneStatus;
+  enabledByDefault: boolean;
+  hostModes: readonly BirdCoderHostMode[];
+  description: string;
+}
+
+export interface BirdCoderEngineAccessPlan {
+  primaryLaneId: string;
+  fallbackLaneIds: readonly string[];
+  lanes: readonly BirdCoderEngineAccessLane[];
+}
+
 export interface BirdCoderEngineCapabilityMatrix {
   chat: boolean;
   streaming: boolean;
@@ -62,6 +121,7 @@ export interface BirdCoderEngineDescriptor {
   supportedHostModes: readonly BirdCoderHostMode[];
   transportKinds: readonly BirdCoderEngineTransportKind[];
   capabilityMatrix: BirdCoderEngineCapabilityMatrix;
+  accessPlan?: BirdCoderEngineAccessPlan;
 }
 
 export interface BirdCoderModelCatalogEntry {

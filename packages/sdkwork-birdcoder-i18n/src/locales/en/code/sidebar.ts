@@ -30,6 +30,7 @@ export default defineLocaleModule('code/sidebar', {
     "refreshingSessions": "Refreshing Sessions",
     "refreshMessages": "Refresh Messages",
     "refreshingMessages": "Refreshing Messages",
+    "executingSession": "Executing",
     "projectSessionsRefreshed": "Refreshed sessions for project: {{name}}",
     "sessionMessagesRefreshed": "Refreshed messages for session: {{name}}",
     "failedToRefreshProjectSessions": "Failed to refresh project sessions",
@@ -57,6 +58,8 @@ export default defineLocaleModule('code/sidebar', {
     "copySessionId": "Copy session ID",
     "copyDeeplink": "Copy deeplink",
     "forkToLocal": "Fork to local",
-    "forkToNewTree": "Fork to new worktree"
+    "forkToNewTree": "Fork to new worktree",
+    "showMoreSessions": "Show {{count}} more",
+    "collapseSessions": "Collapse"
   }
 });

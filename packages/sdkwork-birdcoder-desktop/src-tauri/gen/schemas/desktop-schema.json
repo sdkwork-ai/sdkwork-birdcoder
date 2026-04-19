@@ -387,10 +387,10 @@
       "description": "Permission identifier",
       "oneOf": [
         {
-          "description": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-local-store`\n- `allow-file-system-bridge`\n- `allow-terminal-sessions`\n- `allow-terminal-host`\n- `allow-terminal-detection`\n- `allow-execute-terminal-command`",
+          "description": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-local-store`\n- `allow-file-system-bridge`\n- `allow-sdkwork-terminal-bridge`\n- `allow-terminal-detection`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-local-store`\n- `allow-file-system-bridge`\n- `allow-terminal-sessions`\n- `allow-terminal-host`\n- `allow-terminal-detection`\n- `allow-execute-terminal-command`"
+          "markdownDescription": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-local-store`\n- `allow-file-system-bridge`\n- `allow-sdkwork-terminal-bridge`\n- `allow-terminal-detection`"
         },
         {
           "description": "Allows mounted project file-system bridge commands.\n#### This permission set includes:\n\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`",
@@ -405,22 +405,40 @@
           "markdownDescription": "Allows desktop local store bridge commands.\n#### This permission set includes:\n\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-local-store-list`"
         },
         {
+          "description": "Allows sdkwork-terminal runtime bridge commands.\n#### This permission set includes:\n\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`",
+          "type": "string",
+          "const": "allow-sdkwork-terminal-bridge",
+          "markdownDescription": "Allows sdkwork-terminal runtime bridge commands.\n#### This permission set includes:\n\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`"
+        },
+        {
           "description": "Allows terminal CLI profile detection bridge commands.\n#### This permission set includes:\n\n- `allow-terminal-cli-profile-detect`",
           "type": "string",
           "const": "allow-terminal-detection",
           "markdownDescription": "Allows terminal CLI profile detection bridge commands.\n#### This permission set includes:\n\n- `allow-terminal-cli-profile-detect`"
         },
         {
-          "description": "Allows terminal host lifecycle bridge commands.\n#### This permission set includes:\n\n- `allow-terminal-host-session-open`\n- `allow-terminal-host-session-execute`\n- `allow-terminal-host-session-close`",
+          "description": "Enables the desktop_local_process_session_create command.",
           "type": "string",
-          "const": "allow-terminal-host",
-          "markdownDescription": "Allows terminal host lifecycle bridge commands.\n#### This permission set includes:\n\n- `allow-terminal-host-session-open`\n- `allow-terminal-host-session-execute`\n- `allow-terminal-host-session-close`"
+          "const": "allow-desktop-local-process-session-create",
+          "markdownDescription": "Enables the desktop_local_process_session_create command."
         },
         {
-          "description": "Allows terminal session persistence bridge commands.\n#### This permission set includes:\n\n- `allow-terminal-session-upsert`\n- `allow-terminal-session-delete`\n- `allow-terminal-session-list`",
+          "description": "Enables the desktop_local_shell_exec command.",
           "type": "string",
-          "const": "allow-terminal-sessions",
-          "markdownDescription": "Allows terminal session persistence bridge commands.\n#### This permission set includes:\n\n- `allow-terminal-session-upsert`\n- `allow-terminal-session-delete`\n- `allow-terminal-session-list`"
+          "const": "allow-desktop-local-shell-exec",
+          "markdownDescription": "Enables the desktop_local_shell_exec command."
+        },
+        {
+          "description": "Enables the desktop_local_shell_session_create command.",
+          "type": "string",
+          "const": "allow-desktop-local-shell-session-create",
+          "markdownDescription": "Enables the desktop_local_shell_session_create command."
+        },
+        {
+          "description": "Enables the desktop_pick_working_directory command.",
+          "type": "string",
+          "const": "allow-desktop-pick-working-directory",
+          "markdownDescription": "Enables the desktop_pick_working_directory command."
         },
         {
           "description": "Enables the desktop_runtime_config command.",
@@ -429,10 +447,70 @@
           "markdownDescription": "Enables the desktop_runtime_config command."
         },
         {
-          "description": "Enables the execute_terminal_command command.",
+          "description": "Enables the desktop_session_attach command.",
           "type": "string",
-          "const": "allow-execute-terminal-command",
-          "markdownDescription": "Enables the execute_terminal_command command."
+          "const": "allow-desktop-session-attach",
+          "markdownDescription": "Enables the desktop_session_attach command."
+        },
+        {
+          "description": "Enables the desktop_session_attachment_acknowledge command.",
+          "type": "string",
+          "const": "allow-desktop-session-attachment-acknowledge",
+          "markdownDescription": "Enables the desktop_session_attachment_acknowledge command."
+        },
+        {
+          "description": "Enables the desktop_session_detach command.",
+          "type": "string",
+          "const": "allow-desktop-session-detach",
+          "markdownDescription": "Enables the desktop_session_detach command."
+        },
+        {
+          "description": "Enables the desktop_session_index command.",
+          "type": "string",
+          "const": "allow-desktop-session-index",
+          "markdownDescription": "Enables the desktop_session_index command."
+        },
+        {
+          "description": "Enables the desktop_session_input command.",
+          "type": "string",
+          "const": "allow-desktop-session-input",
+          "markdownDescription": "Enables the desktop_session_input command."
+        },
+        {
+          "description": "Enables the desktop_session_input_bytes command.",
+          "type": "string",
+          "const": "allow-desktop-session-input-bytes",
+          "markdownDescription": "Enables the desktop_session_input_bytes command."
+        },
+        {
+          "description": "Enables the desktop_session_reattach command.",
+          "type": "string",
+          "const": "allow-desktop-session-reattach",
+          "markdownDescription": "Enables the desktop_session_reattach command."
+        },
+        {
+          "description": "Enables the desktop_session_replay_slice command.",
+          "type": "string",
+          "const": "allow-desktop-session-replay-slice",
+          "markdownDescription": "Enables the desktop_session_replay_slice command."
+        },
+        {
+          "description": "Enables the desktop_session_resize command.",
+          "type": "string",
+          "const": "allow-desktop-session-resize",
+          "markdownDescription": "Enables the desktop_session_resize command."
+        },
+        {
+          "description": "Enables the desktop_session_terminate command.",
+          "type": "string",
+          "const": "allow-desktop-session-terminate",
+          "markdownDescription": "Enables the desktop_session_terminate command."
+        },
+        {
+          "description": "Enables the desktop_terminal_session_inventory_list command.",
+          "type": "string",
+          "const": "allow-desktop-terminal-session-inventory-list",
+          "markdownDescription": "Enables the desktop_terminal_session_inventory_list command."
         },
         {
           "description": "Enables the fs_create_directory command.",
@@ -511,42 +589,6 @@
           "type": "string",
           "const": "allow-terminal-cli-profile-detect",
           "markdownDescription": "Enables the terminal_cli_profile_detect command."
-        },
-        {
-          "description": "Enables the terminal_host_session_close command.",
-          "type": "string",
-          "const": "allow-terminal-host-session-close",
-          "markdownDescription": "Enables the terminal_host_session_close command."
-        },
-        {
-          "description": "Enables the terminal_host_session_execute command.",
-          "type": "string",
-          "const": "allow-terminal-host-session-execute",
-          "markdownDescription": "Enables the terminal_host_session_execute command."
-        },
-        {
-          "description": "Enables the terminal_host_session_open command.",
-          "type": "string",
-          "const": "allow-terminal-host-session-open",
-          "markdownDescription": "Enables the terminal_host_session_open command."
-        },
-        {
-          "description": "Enables the terminal_session_delete command.",
-          "type": "string",
-          "const": "allow-terminal-session-delete",
-          "markdownDescription": "Enables the terminal_session_delete command."
-        },
-        {
-          "description": "Enables the terminal_session_list command.",
-          "type": "string",
-          "const": "allow-terminal-session-list",
-          "markdownDescription": "Enables the terminal_session_list command."
-        },
-        {
-          "description": "Enables the terminal_session_upsert command.",
-          "type": "string",
-          "const": "allow-terminal-session-upsert",
-          "markdownDescription": "Enables the terminal_session_upsert command."
         },
         {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",

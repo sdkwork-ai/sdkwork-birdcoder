@@ -163,16 +163,16 @@ export function StudioPageDialogs({
   const [isPublishingProject, setIsPublishingProject] = useState(false);
 
   const resolveCollaboratorTitle = (collaborator: BirdCoderProjectCollaboratorSummary) =>
-    collaborator.identityDisplayName?.trim() ||
-    collaborator.identityEmail?.trim() ||
-    collaborator.identityId;
+    collaborator.userDisplayName?.trim() ||
+    collaborator.userEmail?.trim() ||
+    collaborator.userId;
 
   const resolveCollaboratorSubtitle = (collaborator: BirdCoderProjectCollaboratorSummary) => {
-    const email = collaborator.identityEmail?.trim();
+    const email = collaborator.userEmail?.trim();
     if (email && email !== resolveCollaboratorTitle(collaborator)) {
       return email;
     }
-    return collaborator.identityId;
+    return collaborator.userId;
   };
 
   const applyPublishTargetDraft = useCallback(

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import {
   BIRDCODER_AUDIT_EVENT_CATEGORIES,
@@ -97,6 +99,9 @@ assert.equal(
 );
 
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const qualityFastRunnerModule = await import(
+  pathToFileURL(path.join(process.cwd(), 'scripts/run-quality-fast-check.mjs')).href,
+);
 
 assert.equal(
   packageJson.scripts['check:governance-baseline'],
@@ -105,9 +110,11 @@ assert.equal(
 );
 
 assert.equal(
-  packageJson.scripts.lint.includes('pnpm check:governance-baseline'),
+  qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
+    'node scripts/run-workspace-package-script.mjs . check:governance-baseline',
+  ),
   true,
-  'root lint gate should include the Step 10 governance baseline contract.',
+  'root lint gate should include the Step 10 governance baseline contract through the governed quality-fast runner.',
 );
 
 console.log('governance baseline contract passed.');

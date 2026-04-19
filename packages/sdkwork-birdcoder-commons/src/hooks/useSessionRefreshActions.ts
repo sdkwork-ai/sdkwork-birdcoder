@@ -1,4 +1,9 @@
 import { useCallback, useState } from 'react';
+import { useAuth } from '../context/AuthContext.ts';
+import {
+  upsertCodingSessionIntoProjectsStore,
+  upsertProjectIntoProjectsStore,
+} from './useProjects.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
   refreshCodingSessionMessages,
@@ -28,9 +33,7 @@ export interface UseSessionRefreshActionsOptions {
   coreReadService?: SessionRefreshCoreReadService;
   getPreservedSelection: () => PreservedSessionRefreshSelection;
   messages: SessionRefreshMessages;
-  onSessionInventoryRefresh?: () => Promise<void>;
   projectService: IProjectService;
-  refreshProjects: () => Promise<void>;
   resolveCodingSessionTitle: (codingSessionId: string) => string;
   resolveProjectName: (projectId: string) => string;
   restoreSelectionAfterRefresh: (
@@ -45,20 +48,16 @@ export function useSessionRefreshActions({
   coreReadService,
   getPreservedSelection,
   messages,
-  onSessionInventoryRefresh,
   projectService,
-  refreshProjects,
   resolveCodingSessionTitle,
   resolveProjectName,
   restoreSelectionAfterRefresh,
   workspaceId,
 }: UseSessionRefreshActionsOptions) {
+  const { user } = useAuth();
+  const normalizedUserScope = user?.id?.trim() ?? 'anonymous';
   const [refreshingProjectId, setRefreshingProjectId] = useState<string | null>(null);
   const [refreshingCodingSessionId, setRefreshingCodingSessionId] = useState<string | null>(null);
-
-  const reloadProjectsAndInventory = useCallback(async () => {
-    await Promise.all([refreshProjects(), onSessionInventoryRefresh?.()]);
-  }, [onSessionInventoryRefresh, refreshProjects]);
 
   const handleRefreshProjectSessions = useCallback(async (targetProjectId: string) => {
     const normalizedWorkspaceId = workspaceId?.trim() ?? '';
@@ -74,6 +73,7 @@ export function useSessionRefreshActions({
     try {
       const result = await refreshProjectSessions({
         coreReadService,
+        projectId: targetProjectId,
         projectService,
         workspaceId: normalizedWorkspaceId,
       });
@@ -82,7 +82,13 @@ export function useSessionRefreshActions({
         return;
       }
 
-      await reloadProjectsAndInventory();
+      for (const project of result.projects ?? []) {
+        upsertProjectIntoProjectsStore(
+          project.workspaceId?.trim() || normalizedWorkspaceId,
+          project,
+          normalizedUserScope,
+        );
+      }
       restoreSelectionAfterRefresh(
         preservedSelection.projectId,
         preservedSelection.codingSessionId,
@@ -96,11 +102,11 @@ export function useSessionRefreshActions({
     }
   }, [
     addToast,
+    coreReadService,
     getPreservedSelection,
     messages,
-    coreReadService,
+    normalizedUserScope,
     projectService,
-    reloadProjectsAndInventory,
     resolveProjectName,
     restoreSelectionAfterRefresh,
     workspaceId,
@@ -123,7 +129,15 @@ export function useSessionRefreshActions({
         return;
       }
 
-      await reloadProjectsAndInventory();
+      if (result.codingSession) {
+        upsertCodingSessionIntoProjectsStore(
+          result.workspaceId ?? workspaceId?.trim() ?? result.codingSession.workspaceId,
+          result.projectId,
+          result.codingSession,
+          normalizedUserScope,
+        );
+      }
+
       restoreSelectionAfterRefresh(
         preservedSelection.projectId,
         preservedSelection.codingSessionId,
@@ -140,8 +154,8 @@ export function useSessionRefreshActions({
     coreReadService,
     getPreservedSelection,
     messages,
+    normalizedUserScope,
     projectService,
-    reloadProjectsAndInventory,
     resolveCodingSessionTitle,
     restoreSelectionAfterRefresh,
     workspaceId,

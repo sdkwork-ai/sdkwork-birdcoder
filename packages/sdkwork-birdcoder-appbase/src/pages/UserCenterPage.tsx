@@ -80,14 +80,14 @@ export function UserCenterPage({ onOpenVip }: UserCenterPageProps) {
       website,
     });
     setIsEditing(false);
-    addToast('User center saved through the appbase identity bridge.', 'success');
+    addToast('User center saved through the appbase user-center bridge.', 'success');
   };
 
   if (!user) {
     return (
       <div className="min-h-screen bg-[#0e0e11] text-gray-100 p-8 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Identity session unavailable</h2>
+          <h2 className="text-2xl font-bold mb-4">User session unavailable</h2>
           <p className="text-gray-400">Sign in through the unified appbase auth workflow first.</p>
         </div>
       </div>
@@ -275,7 +275,7 @@ export function UserCenterPage({ onOpenVip }: UserCenterPageProps) {
                 <div className="rounded-xl border border-white/10 bg-black/20 p-5">
                   <div className="flex items-center gap-3 mb-3">
                     <Mail size={16} className="text-blue-400" />
-                    <p className="font-medium text-white">Primary identity</p>
+                    <p className="font-medium text-white">Primary account</p>
                   </div>
                   <p className="text-sm text-gray-300">{user.email}</p>
                   <p className="text-xs text-gray-500 mt-2">Managed by the unified auth capability.</p>

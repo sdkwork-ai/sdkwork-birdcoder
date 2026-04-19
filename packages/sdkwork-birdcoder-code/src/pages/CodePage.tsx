@@ -1,35 +1,41 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { TopBar } from '../components/TopBar';
 import {
   buildFileChangeRestorePlan,
   getTerminalProfile,
   globalEventBus,
-  normalizeWorkbenchCodeEngineId,
-  normalizeWorkbenchCodeModelId,
-  resolveWorkbenchChatSelection,
+  hydrateImportedProjectFromAuthority,
+  resolveLatestCodingSessionIdForProject,
+  resolveCodingSessionLocationInProjects,
+  resolveProjectIdByCodingSessionId,
   importLocalFolderProject,
   rebindLocalFolderProject,
   resolveProjectMountRecoverySource,
   useFileSystem,
   useIDEServices,
   useProjects,
+  useSelectedCodingSessionMessages,
   useSessionRefreshActions,
   useCodingSessionActions,
+  useAuth,
   useToast,
+  useWorkbenchChatSelection,
   useWorkbenchPreferences,
-  ensureStoredNativeSessionMirror,
 } from '@sdkwork/birdcoder-commons/workbench';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-commons/workbench';
 import { ResizeHandle } from '@sdkwork/birdcoder-ui';
 import { UniversalChat } from '@sdkwork/birdcoder-ui/chat';
-import { FileChange } from '@sdkwork/birdcoder-types';
-import { Zap } from 'lucide-react';
+import type { FileChange } from '@sdkwork/birdcoder-types';
+import { normalizeWorkbenchCodeModelId } from '@sdkwork/birdcoder-codeengine';
 import { useTranslation } from 'react-i18next';
+import { CodeChatEmptyState } from './CodeChatEmptyState';
 import { CodeEditorWorkspacePanel } from './CodeEditorWorkspacePanel';
 import { CodePageDialogs, type CodeDeleteConfirmation } from './CodePageDialogs';
+import { CodeSessionTranscriptLoadingState, getLanguageFromPath } from './CodePageShared';
 import { CodeTerminalIntegrationPanel } from './CodeTerminalIntegrationPanel';
 import { CodeWorkspaceOverlays } from './CodeWorkspaceOverlays';
+import { useCodeEditorChatLayout } from './useCodeEditorChatLayout';
 import { useCodeRunEntryActions } from './useCodeRunEntryActions';
 import { useCodeWorkbenchCommands } from './useCodeWorkbenchCommands';
 
@@ -39,7 +45,6 @@ interface CodePageProps {
   initialCodingSessionId?: string;
   onProjectChange?: (projectId: string) => void;
   onCodingSessionChange?: (codingSessionId: string) => void;
-  onSessionInventoryRefresh?: () => Promise<void>;
 }
 
 export function CodePage({
@@ -48,11 +53,12 @@ export function CodePage({
   initialCodingSessionId,
   onProjectChange,
   onCodingSessionChange,
-  onSessionInventoryRefresh,
 }: CodePageProps) {
   const { t } = useTranslation();
   const {
+    hasFetched: hasFetchedProjects,
     projects,
+    filteredProjects,
     searchQuery,
     setSearchQuery,
     createProject,
@@ -66,65 +72,34 @@ export function CodePage({
     deleteCodingSessionMessage,
     sendMessage,
     forkCodingSession,
-    refreshProjects,
   } = useProjects(workspaceId);
   const { coreReadService, projectService } = useIDEServices();
+  const { user } = useAuth();
 
   const { addToast } = useToast();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
   const [selectedCodingSessionId, setSelectedThreadId] = useState<string | null>(null);
+  const [selectionRefreshToken, setSelectionRefreshToken] = useState(0);
+  const pendingProjectChangeIdRef = useRef<string | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [activeTab, setActiveTab] = useState<'ai' | 'editor'>('ai');
-  const selectedEngineId = preferences.codeEngineId === 'opencode'
-    ? 'opencode'
-    : 'codex';
-  const selectedModelId = normalizeWorkbenchCodeModelId(
+  const {
+    createCodingSessionWithSelection,
     selectedEngineId,
-    preferences.codeModelId,
-  );
-  
-  const setSelectedEngineId = (engineId: string) => {
-    const normalizedEngineId = normalizeWorkbenchCodeEngineId(engineId);
-    if (normalizedEngineId !== 'codex' && normalizedEngineId !== 'opencode') {
-      addToast(
-        'Only Codex and OpenCode are currently available through the Rust server. Other code engines remain server TODO items.',
-        'error',
-      );
-      updatePreferences((previousState) =>
-        resolveWorkbenchChatSelection({
-          codeEngineId: 'codex',
-          codeModelId: previousState.codeModelId,
-        }),
-      );
-      return;
-    }
-
-    updatePreferences((previousState) =>
-      resolveWorkbenchChatSelection({
-        codeEngineId: normalizedEngineId,
-        codeModelId: previousState.codeModelId,
-      }),
-    );
-  };
-
-  const setSelectedModelId = (modelId: string) => {
-    updatePreferences((previousState) => ({
-      codeModelId: normalizeWorkbenchCodeModelId(previousState.codeEngineId, modelId),
-    }));
-  };
-
-  const createCodingSessionWithSelection = (projectId: string, title: string) =>
-    createCodingSession(projectId, title, {
-      engineId: selectedEngineId,
-      modelId: selectedModelId,
-    });
+    selectedModelId,
+    setSelectedEngineId,
+    setSelectedModelId,
+  } = useWorkbenchChatSelection({
+    createCodingSession,
+    preferences,
+    updatePreferences,
+  });
 
   const [viewingDiff, setViewingDiff] = useState<FileChange | null>(null);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   const [terminalRequest, setTerminalRequest] = useState<TerminalCommandRequest>();
   const [terminalHeight, setTerminalHeight] = useState(256);
-  const [chatWidth, setChatWidth] = useState(400);
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [isFindVisible, setIsFindVisible] = useState(false);
@@ -134,15 +109,82 @@ export function CodePage({
   const [isRunTaskVisible, setIsRunTaskVisible] = useState(false);
   const [isMountRecoveryActionPending, setIsMountRecoveryActionPending] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<CodeDeleteConfirmation | null>(null);
+  const handleSidebarResize = useCallback((delta: number) => {
+    setSidebarWidth((previousState) => Math.max(200, Math.min(600, previousState + delta)));
+  }, []);
+  const handleTerminalResize = useCallback((delta: number) => {
+    setTerminalHeight((previousState) => Math.max(100, Math.min(800, previousState - delta)));
+  }, []);
+  const {
+    editorWorkspaceHostRef,
+    effectiveEditorChatWidth,
+    handleEditorChatResize,
+  } = useCodeEditorChatLayout({
+    activeTab,
+    initialChatWidth: preferences.codeEditorChatWidth,
+    updatePreferences,
+  });
 
   // Determine the current project ID based on selected thread, or the prop
-  const threadProjectId = projects.find((project) =>
-    project.codingSessions.some((codingSession) => codingSession.id === selectedCodingSessionId),
-  )?.id;
+  const selectedCodingSessionLocation = resolveCodingSessionLocationInProjects(
+    projects,
+    selectedCodingSessionId,
+  );
+  const threadProjectId =
+    selectedCodingSessionLocation?.project.id ??
+    resolveProjectIdByCodingSessionId(projects, selectedCodingSessionId);
   const normalizedProjectId = projectId?.trim() ?? '';
   const normalizedThreadProjectId = threadProjectId?.trim() ?? '';
-  const currentProjectId = normalizedProjectId || normalizedThreadProjectId;
-  const currentProject = projects.find((project) => project.id === currentProjectId);
+  const currentProjectId = normalizedThreadProjectId || normalizedProjectId;
+  const currentProject =
+    selectedCodingSessionLocation?.project ??
+    projects.find((project) => project.id === currentProjectId);
+  const notifyProjectChange = useCallback((nextProjectId: string) => {
+    if (!onProjectChange) {
+      return;
+    }
+
+    const normalizedNextProjectId = nextProjectId.trim();
+    if (normalizedNextProjectId === currentProjectId) {
+      return;
+    }
+
+    pendingProjectChangeIdRef.current = normalizedNextProjectId;
+    onProjectChange(normalizedNextProjectId);
+  }, [currentProjectId, onProjectChange]);
+  const selectedCodingSession = selectedCodingSessionLocation?.codingSession;
+  const handleSelectCodingSession = useCallback((
+    nextCodingSessionId: string,
+    options?: { projectId?: string },
+  ) => {
+    const normalizedCodingSessionId = nextCodingSessionId.trim();
+    if (!normalizedCodingSessionId) {
+      return;
+    }
+
+    const nextProjectId =
+      options?.projectId?.trim() ||
+      projects.find((project) =>
+        project.codingSessions.some(
+          (codingSession) => codingSession.id === normalizedCodingSessionId,
+        ),
+      )?.id?.trim() ||
+      '';
+
+    if (
+      normalizedCodingSessionId === (selectedCodingSessionId?.trim() || '') &&
+      nextProjectId === currentProjectId
+    ) {
+      setSelectionRefreshToken((previousState) => previousState + 1);
+      return;
+    }
+
+    if (nextProjectId) {
+      notifyProjectChange(nextProjectId);
+    }
+
+    setSelectedThreadId(normalizedCodingSessionId);
+  }, [currentProjectId, notifyProjectChange, projects, selectedCodingSessionId]);
   const {
     runConfigurations,
     runConfigurationDraft,
@@ -165,16 +207,40 @@ export function CodePage({
     targetProjectId: string,
     targetCodingSessionId: string | null,
   ) => {
-    if (targetProjectId) {
-      onProjectChange?.(targetProjectId);
+    const normalizedTargetProjectId = targetProjectId.trim();
+    const normalizedTargetCodingSessionId = targetCodingSessionId?.trim() ?? '';
+    const normalizedSelectedCodingSessionId = selectedCodingSessionId?.trim() ?? '';
+
+    if (
+      normalizedTargetCodingSessionId &&
+      normalizedTargetCodingSessionId === normalizedSelectedCodingSessionId &&
+      normalizedTargetProjectId === currentProjectId
+    ) {
+      return;
     }
+
     if (targetCodingSessionId) {
-      setSelectedThreadId(targetCodingSessionId);
+      handleSelectCodingSession(targetCodingSessionId, {
+        projectId: targetProjectId,
+      });
+      return;
+    }
+    if (targetProjectId) {
+      notifyProjectChange(targetProjectId);
     }
   };
 
   useEffect(() => {
-    if (!normalizedThreadProjectId || normalizedProjectId || !onProjectChange) {
+    if (
+      !normalizedThreadProjectId ||
+      !onProjectChange ||
+      normalizedThreadProjectId === normalizedProjectId
+    ) {
+      return;
+    }
+
+    if (pendingProjectChangeIdRef.current === normalizedThreadProjectId) {
+      pendingProjectChangeIdRef.current = null;
       return;
     }
 
@@ -204,9 +270,9 @@ export function CodePage({
         ),
       )
     ) {
-      setSelectedThreadId(normalizedInitialCodingSessionId);
+      handleSelectCodingSession(normalizedInitialCodingSessionId);
     }
-  }, [initialCodingSessionId, projects, selectedCodingSessionId]);
+  }, [handleSelectCodingSession, initialCodingSessionId, projects, selectedCodingSessionId]);
 
   useEffect(() => {
     const nextCodingSessionId = selectedCodingSessionId ?? '';
@@ -220,6 +286,10 @@ export function CodePage({
 
   // Clear selectedCodingSessionId if it's no longer in the current projects (e.g., workspace changed)
   useEffect(() => {
+    if (!hasFetchedProjects) {
+      return;
+    }
+
     if (
       selectedCodingSessionId &&
       !projects.some((project) =>
@@ -228,7 +298,7 @@ export function CodePage({
     ) {
       setSelectedThreadId(null);
     }
-  }, [projects, selectedCodingSessionId]);
+  }, [hasFetchedProjects, projects, selectedCodingSessionId]);
 
   useCodeWorkbenchCommands({
     projects,
@@ -237,7 +307,7 @@ export function CodePage({
     currentProjectPath: currentProject?.path,
     defaultWorkingDirectory: preferences.defaultWorkingDirectory,
     createCodingSession: createCodingSessionWithSelection,
-    setSelectedCodingSessionId: setSelectedThreadId,
+    selectCodingSession: handleSelectCodingSession,
     setViewingDiff,
     setIsTerminalOpen,
     setTerminalRequest,
@@ -280,19 +350,10 @@ export function CodePage({
     previousMountRecoveryStatusRef.current = mountRecoveryState.status;
   }, [addToast, mountRecoveryState.message, mountRecoveryState.status]);
 
-  const getLanguageFromPath = (path: string) => {
-    if (path.endsWith('.ts') || path.endsWith('.tsx')) return 'typescript';
-    if (path.endsWith('.js') || path.endsWith('.jsx')) return 'javascript';
-    if (path.endsWith('.json')) return 'json';
-    if (path.endsWith('.html')) return 'html';
-    if (path.endsWith('.css')) return 'css';
-    return 'plaintext';
-  };
-
   useCodingSessionActions(
     currentProjectId,
     createCodingSessionWithSelection,
-    setSelectedThreadId,
+    handleSelectCodingSession,
   );
 
   const resolveProjectPath = (projectPath?: string) => {
@@ -331,31 +392,48 @@ export function CodePage({
       createProject,
       fallbackProjectName,
       folderInfo,
-      getProjects: () =>
+      getProjectByPath: (projectPath) =>
         normalizedWorkspaceId
-          ? projectService.getProjects(normalizedWorkspaceId)
-          : Promise.resolve([]),
+          ? projectService.getProjectByPath(normalizedWorkspaceId, projectPath)
+          : Promise.resolve(null),
       mountFolder,
       updateProject,
     });
   };
 
-  const syncNativeSessionsForWorkspace = async () => {
-    const normalizedWorkspaceId = workspaceId?.trim() ?? '';
-    if (!normalizedWorkspaceId) {
+  const activateImportedProject = (projectId: string) => {
+    const latestCodingSessionId = resolveLatestCodingSessionIdForProject(projects, projectId);
+    if (latestCodingSessionId) {
+      handleSelectCodingSession(latestCodingSessionId, { projectId });
       return;
     }
 
-    try {
-      await ensureStoredNativeSessionMirror({
-        coreReadService,
-        projectService,
-        workspaceId: normalizedWorkspaceId,
-      });
-      await Promise.all([refreshProjects(), onSessionInventoryRefresh?.()]);
-    } catch (error) {
-      console.error('Failed to synchronize imported native engine sessions', error);
-    }
+    setSelectedThreadId(null);
+    notifyProjectChange(projectId);
+  };
+
+  const syncImportedProjectInBackground = (projectId: string) => {
+    void (async () => {
+      try {
+        const hydratedProject = await hydrateImportedProjectFromAuthority({
+          knownProjects: projects,
+          projectId,
+          projectService,
+          userScope: user?.id,
+          workspaceId: workspaceId?.trim() || '',
+        });
+        if (!hydratedProject) {
+          return;
+        }
+
+        const latestCodingSessionId = hydratedProject.latestCodingSessionId;
+        if (latestCodingSessionId) {
+          handleSelectCodingSession(latestCodingSessionId, { projectId });
+        }
+      } catch (error) {
+        console.error('Failed to refresh imported project sessions', error);
+      }
+    })();
   };
   const {
     handleRefreshCodingSessionMessages,
@@ -377,9 +455,7 @@ export function CodePage({
       sessionMessagesRefreshed: (codingSessionTitle: string) =>
         t('code.sessionMessagesRefreshed', { name: codingSessionTitle }),
     },
-    onSessionInventoryRefresh,
     projectService,
-    refreshProjects,
     resolveCodingSessionTitle: (codingSessionId: string) =>
       projects
         .flatMap((project) => project.codingSessions)
@@ -450,11 +526,8 @@ export function CodePage({
         return undefined;
       }
 
-      await syncNativeSessionsForWorkspace();
-
-      if (onProjectChange) {
-        onProjectChange(importedProject.projectId);
-      }
+      activateImportedProject(importedProject.projectId);
+      syncImportedProjectInBackground(importedProject.projectId);
       addToast(`Project created successfully: ${importedProject.projectName}`, 'success');
       return importedProject.projectId;
     } catch (error) {
@@ -468,10 +541,8 @@ export function CodePage({
     try {
       const importedProject = await selectFolderAndImportProject('Local Folder');
       if (importedProject) {
-        await syncNativeSessionsForWorkspace();
-        if (onProjectChange) {
-          onProjectChange(importedProject.projectId);
-        }
+        activateImportedProject(importedProject.projectId);
+        syncImportedProjectInBackground(importedProject.projectId);
         addToast(`Opened folder: ${importedProject.projectName}`, 'success');
       }
     } catch (error) {
@@ -526,7 +597,7 @@ export function CodePage({
         updateProject,
       });
 
-      await syncNativeSessionsForWorkspace();
+      syncImportedProjectInBackground(currentProjectId);
       addToast(`Opened folder: ${reboundProject.projectName}`, 'success');
     } catch (error) {
       console.error('Failed to rebind local project folder', error);
@@ -544,7 +615,7 @@ export function CodePage({
   const handleNewThreadInProject = async (projectId: string) => {
     try {
       const newThread = await createCodingSessionWithSelection(projectId, t('app.menu.newThread'));
-      setSelectedThreadId(newThread.id);
+      handleSelectCodingSession(newThread.id, { projectId });
       addToast(t('code.newThreadCreated'), 'success');
       setTimeout(() => {
         globalEventBus.emit('focusChatInput');
@@ -699,10 +770,10 @@ export function CodePage({
     if (project) {
       try {
         const newThread = await forkCodingSession(project.id, threadId);
-        setSelectedThreadId(newThread.id);
+        handleSelectCodingSession(newThread.id, { projectId: project.id });
         addToast(
           t('code.forkedToLocal', {
-            name: newThread.title ?? newThread.name ?? newThread.id,
+            name: newThread.title ?? newThread.id,
           }),
           'success',
         );
@@ -723,10 +794,10 @@ export function CodePage({
           threadId,
           `${project.codingSessions.find((codingSession) => codingSession.id === threadId)?.title} (New Tree)`,
         );
-        setSelectedThreadId(newThread.id);
+        handleSelectCodingSession(newThread.id, { projectId: project.id });
         addToast(
           t('code.forkedToNewWorktree', {
-            name: newThread.title ?? newThread.name ?? newThread.id,
+            name: newThread.title ?? newThread.id,
           }),
           'success',
         );
@@ -755,8 +826,13 @@ export function CodePage({
       candidate.codingSessions.some((codingSession) => codingSession.id === threadId),
     );
     if (project) {
-      await deleteCodingSessionMessage(project.id, threadId, messageId);
-      addToast('Message deleted successfully', 'success');
+      try {
+        await deleteCodingSessionMessage(project.id, threadId, messageId);
+        addToast('Message deleted successfully', 'success');
+      } catch (error) {
+        console.error('Failed to delete coding session message', error);
+        addToast('Failed to delete message', 'error');
+      }
     }
   };
 
@@ -822,8 +898,10 @@ export function CodePage({
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || isSending) return;
+  const handleSendMessage = async (text?: string) => {
+    const content = typeof text === 'string' ? text : inputValue;
+    const trimmedContent = content.trim();
+    if (!trimmedContent || isSending) return;
 
     let currentThreadId = selectedCodingSessionId;
     let projectIdToUse = currentProjectId;
@@ -839,15 +917,14 @@ export function CodePage({
           projectIdToUse = projects[0].id;
         }
       }
-      const newTitle = inputValue.slice(0, 20) + (inputValue.length > 20 ? '...' : '');
+      const newTitle =
+        trimmedContent.slice(0, 20) + (trimmedContent.length > 20 ? '...' : '');
       const newThread = await createCodingSessionWithSelection(projectIdToUse, newTitle);
       currentThreadId = newThread.id;
-      if (onProjectChange) onProjectChange(projectIdToUse);
-      setSelectedThreadId(currentThreadId);
+      handleSelectCodingSession(currentThreadId, { projectId: projectIdToUse });
     }
 
     if (projectIdToUse && currentThreadId) {
-      const content = inputValue;
       setInputValue('');
       setIsSending(true);
       try {
@@ -861,29 +938,105 @@ export function CodePage({
             language: getLanguageFromPath(selectedFile)
           } : undefined
         };
-        await sendMessage(projectIdToUse, currentThreadId, content, context);
+        await sendMessage(projectIdToUse, currentThreadId, trimmedContent, context);
       } finally {
         setIsSending(false);
       }
     }
   };
+  const effectiveSelectedEngineId =
+    selectedCodingSession?.engineId ?? selectedEngineId;
+  const effectiveSelectedModelId =
+    selectedCodingSession?.modelId ?? selectedModelId;
+  const handleSelectedEngineChange = useCallback(
+    async (engineId: string) => {
+      setSelectedEngineId(engineId);
 
-  const selectedCodingSession = projects
-    .flatMap((project) => project.codingSessions)
-    .find((codingSession) => codingSession.id === selectedCodingSessionId);
+      if (!currentProjectId || !selectedCodingSessionId) {
+        return;
+      }
+
+      const nextModelId = normalizeWorkbenchCodeModelId(
+        engineId,
+        selectedCodingSession?.modelId ?? selectedModelId,
+        preferences,
+      );
+      await updateCodingSession(currentProjectId, selectedCodingSessionId, {
+        engineId,
+        modelId: nextModelId,
+      });
+    },
+    [
+      currentProjectId,
+      preferences,
+      selectedCodingSession?.modelId,
+      selectedCodingSessionId,
+      selectedModelId,
+      setSelectedEngineId,
+      updateCodingSession,
+    ],
+  );
+  const handleSelectedModelChange = useCallback(
+    async (modelId: string, engineId?: string) => {
+      setSelectedModelId(modelId);
+
+      if (!currentProjectId || !selectedCodingSessionId) {
+        return;
+      }
+
+      const nextEngineId =
+        engineId ?? selectedCodingSession?.engineId ?? selectedEngineId;
+      await updateCodingSession(currentProjectId, selectedCodingSessionId, {
+        engineId: nextEngineId,
+        modelId,
+      });
+    },
+    [
+      currentProjectId,
+      selectedCodingSession?.engineId,
+      selectedCodingSessionId,
+      selectedEngineId,
+      setSelectedModelId,
+      updateCodingSession,
+    ],
+  );
+
+  const isSelectedCodingSessionMessagesLoading = useSelectedCodingSessionMessages({
+    coreReadService,
+    projectService,
+    selectionRefreshToken,
+    selectedCodingSession,
+    selectedCodingSessionId,
+    selectedProject: selectedCodingSessionLocation?.project ?? null,
+    workspaceId,
+  });
+  const isSelectedCodingSessionHydrating = Boolean(
+    selectedCodingSessionId &&
+    isSelectedCodingSessionMessagesLoading &&
+    selectedCodingSession?.messages.length === 0
+  );
 
   const handleProjectSelect = (id: string | null) => {
-    if (id && onProjectChange) {
-      onProjectChange(id);
-      // If the selected thread doesn't belong to the newly selected project, clear it
-      if (selectedCodingSessionId) {
-        const threadBelongsToProject = projects
-          .find((project) => project.id === id)
-          ?.codingSessions.some((codingSession) => codingSession.id === selectedCodingSessionId);
-        if (!threadBelongsToProject) {
-          setSelectedThreadId(null);
-        }
+    if (id) {
+      notifyProjectChange(id);
+      const targetProject = projects.find((project) => project.id === id);
+      const targetLatestCodingSessionId = resolveLatestCodingSessionIdForProject(projects, id);
+      const threadBelongsToProject =
+        !!selectedCodingSessionId &&
+        !!targetProject?.codingSessions.some(
+          (codingSession) => codingSession.id === selectedCodingSessionId,
+        );
+
+      if (threadBelongsToProject) {
+        return;
       }
+
+      if (targetLatestCodingSessionId) {
+        handleSelectCodingSession(targetLatestCodingSessionId, { projectId: id });
+        return;
+      }
+
+      setSelectedThreadId(null);
     }
   };
 
@@ -908,11 +1061,11 @@ export function CodePage({
         <>
           <Sidebar 
             width={sidebarWidth}
-            projects={projects}
+            projects={filteredProjects}
             selectedProjectId={currentProjectId}
             selectedCodingSessionId={selectedCodingSessionId}
             onSelectProject={handleProjectSelect}
-            onSelectCodingSession={setSelectedThreadId}
+            onSelectCodingSession={handleSelectCodingSession}
             onRenameCodingSession={handleRenameThread}
             onDeleteCodingSession={handleDeleteThread}
             onRenameProject={handleRenameProject}
@@ -943,7 +1096,7 @@ export function CodePage({
 
           <ResizeHandle 
             direction="horizontal" 
-            onResize={(delta) => setSidebarWidth(prev => Math.max(200, Math.min(600, prev + delta)))} 
+            onResize={handleSidebarResize} 
           />
         </>
       )}
@@ -992,9 +1145,18 @@ export function CodePage({
           onConfirmDelete={handleConfirmDelete}
         />
 
-        <TopBar currentProject={currentProject} selectedCodingSession={selectedCodingSession} activeTab={activeTab} setActiveTab={setActiveTab} isTerminalOpen={isTerminalOpen} setIsTerminalOpen={setIsTerminalOpen} />
+        <TopBar
+          currentProject={currentProject}
+          selectedCodingSession={selectedCodingSession}
+          selectedEngineId={effectiveSelectedEngineId}
+          selectedModelId={effectiveSelectedModelId}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isTerminalOpen={isTerminalOpen}
+          setIsTerminalOpen={setIsTerminalOpen}
+        />
         
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div ref={editorWorkspaceHostRef} className="flex-1 flex flex-col overflow-hidden">
           {activeTab === 'ai' ? (
             <UniversalChat 
               chatId={selectedCodingSessionId || undefined}
@@ -1003,10 +1165,11 @@ export function CodePage({
               setInputValue={setInputValue}
               onSendMessage={handleSendMessage}
               isSending={isSending}
-              selectedEngineId={selectedEngineId}
-              selectedModelId={selectedModelId}
-              setSelectedEngineId={setSelectedEngineId}
-              setSelectedModelId={setSelectedModelId}
+              selectedEngineId={effectiveSelectedEngineId}
+              selectedModelId={effectiveSelectedModelId}
+              showEngineHeader={false}
+              setSelectedEngineId={handleSelectedEngineChange}
+              setSelectedModelId={handleSelectedModelChange}
               layout="main"
               onEditMessage={(msgId) => selectedCodingSession && handleEditMessage(selectedCodingSession.id, msgId)}
               onDeleteMessage={(msgId) => selectedCodingSession && handleDeleteMessage(selectedCodingSession.id, msgId)}
@@ -1018,20 +1181,9 @@ export function CodePage({
               }}
               onRestore={(msgId) => selectedCodingSession && handleRestoreMessage(selectedCodingSession.id, msgId)}
               emptyState={
-                <div className="flex-1 flex flex-col items-center justify-center pb-32 bg-[#0e0e11]">
-                  <div className="mb-6 flex flex-col items-center max-w-md text-center">
-                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center mb-6 border border-white/5 shadow-2xl relative animate-in fade-in zoom-in-95 duration-500">
-                      <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full"></div>
-                      <Zap size={36} className="text-blue-400 relative z-10" />
-                    </div>
-                    <h1 className="text-3xl font-semibold text-white mb-3 tracking-tight animate-in fade-in slide-in-from-bottom-4 fill-mode-both" style={{ animationDelay: '50ms' }}>
-                      What do you want to build?
-                    </h1>
-                    <p className="text-[15px] text-gray-400 leading-relaxed animate-in fade-in slide-in-from-bottom-4 fill-mode-both" style={{ animationDelay: '100ms' }}>
-                      Describe your idea, ask a question, or paste some code to get started. I can help you write code, debug errors, or build entire features.
-                    </p>
-                  </div>
-                </div>
+                isSelectedCodingSessionHydrating
+                  ? <CodeSessionTranscriptLoadingState />
+                  : <CodeChatEmptyState />
               }
             />
           ) : (
@@ -1041,13 +1193,18 @@ export function CodePage({
               currentProjectPath={currentProject?.path}
               viewingDiff={viewingDiff}
               fileContent={fileContent}
-              chatWidth={chatWidth}
+              chatWidth={effectiveEditorChatWidth}
               selectedCodingSessionId={selectedCodingSessionId}
               messages={selectedCodingSession?.messages || []}
+              chatEmptyState={
+                isSelectedCodingSessionHydrating
+                  ? <CodeSessionTranscriptLoadingState />
+                  : undefined
+              }
               inputValue={inputValue}
               isSending={isSending}
-              selectedEngineId={selectedEngineId}
-              selectedModelId={selectedModelId}
+              selectedEngineId={effectiveSelectedEngineId}
+              selectedModelId={effectiveSelectedModelId}
               onSelectFile={(path) => {
                 setViewingDiff(null);
                 selectFile(path);
@@ -1068,10 +1225,10 @@ export function CodePage({
               }}
               onRejectDiff={() => setViewingDiff(null)}
               onFileContentChange={saveFile}
-              onChatResize={(delta) => setChatWidth((previousState) => Math.max(200, Math.min(800, previousState - delta)))}
+              onChatResize={handleEditorChatResize}
               onInputValueChange={setInputValue}
-              onSelectedEngineIdChange={setSelectedEngineId}
-              onSelectedModelIdChange={setSelectedModelId}
+              onSelectedEngineIdChange={handleSelectedEngineChange}
+              onSelectedModelIdChange={handleSelectedModelChange}
               onSendMessage={handleSendMessage}
               onViewChanges={(file) => setViewingDiff(file)}
               onRestoreMessage={(messageId) => {
@@ -1107,7 +1264,7 @@ export function CodePage({
           terminalRequest={terminalRequest}
           workspaceId={workspaceId}
           projectId={currentProjectId}
-          onResize={(delta) => setTerminalHeight((previousState) => Math.max(100, Math.min(800, previousState - delta)))}
+          onResize={handleTerminalResize}
         />
       </div>
     </div>

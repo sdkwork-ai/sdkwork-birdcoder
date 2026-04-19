@@ -10,7 +10,8 @@ import {
   listWorkbenchCliEngines,
   listWorkbenchCodeEngineDescriptors,
   listWorkbenchModelCatalogEntries,
-} from '../packages/sdkwork-birdcoder-commons/src/workbench/kernel.ts';
+} from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
+import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
 
 assert.deepEqual(
   WORKBENCH_ENGINE_KERNELS.map((engine) => engine.id),
@@ -29,7 +30,7 @@ assert.equal(codexKernel.cli.packageName, '@openai/codex');
 assert.equal(codexKernel.source.externalPath, 'external/codex');
 assert.equal(codexKernel.source.sdkPath, 'external/codex/sdk/typescript');
 assert.equal(codexKernel.source.sourceStatus, 'mirrored');
-assert.equal(codexKernel.createChatEngine().name, 'codex-official-sdk-adapter');
+assert.equal(createChatEngineById(codexKernel.id).name, 'codex-official-sdk-adapter');
 assert.equal(codexKernel.descriptor.engineKey, 'codex');
 assert.ok(codexKernel.descriptor.transportKinds.includes('sdk-stream'));
 assert.ok(codexKernel.descriptor.transportKinds.includes('cli-jsonl'));
@@ -41,7 +42,7 @@ assert.equal(
 assert.equal(codexKernel.descriptor.capabilityMatrix.streaming, true);
 assert.equal(codexKernel.modelCatalog.some((entry) => entry.defaultForEngine), true);
 assert.equal(
-  codexKernel.createChatEngine().describeIntegration?.()?.officialEntry.packageName,
+  createChatEngineById(codexKernel.id).describeIntegration?.()?.officialEntry.packageName,
   '@openai/codex-sdk',
 );
 
@@ -52,14 +53,14 @@ assert.equal(claudeKernel.source.externalPath, 'external/claude-code');
 assert.equal(claudeKernel.source.sdkPath, null);
 assert.equal(claudeKernel.source.sourceStatus, 'mirrored');
 assert.equal(claudeKernel.source.sourceKind, 'repository');
-assert.equal(claudeKernel.createChatEngine().name, 'claude-agent-sdk-adapter');
+assert.equal(createChatEngineById(claudeKernel.id).name, 'claude-agent-sdk-adapter');
 assert.equal(claudeKernel.descriptor.engineKey, 'claude-code');
 assert.ok(claudeKernel.descriptor.transportKinds.includes('sdk-stream'));
 assert.ok(claudeKernel.descriptor.transportKinds.includes('remote-control-http'));
 assert.equal(claudeKernel.descriptor.capabilityMatrix.remoteBridge, true);
 assert.equal(claudeKernel.modelCatalog[0]?.engineKey, 'claude-code');
 assert.equal(
-  claudeKernel.createChatEngine().describeIntegration?.()?.officialEntry.packageName,
+  createChatEngineById(claudeKernel.id).describeIntegration?.()?.officialEntry.packageName,
   '@anthropic-ai/claude-agent-sdk',
 );
 
@@ -69,9 +70,9 @@ assert.equal(geminiKernel.cli.packageName, '@google/gemini-cli');
 assert.equal(geminiKernel.source.externalPath, 'external/gemini');
 assert.equal(geminiKernel.source.sdkPath, 'external/gemini/packages/sdk');
 assert.equal(geminiKernel.source.sourceStatus, 'mirrored');
-assert.equal(geminiKernel.createChatEngine().name, 'gemini-cli-sdk-adapter');
+assert.equal(createChatEngineById(geminiKernel.id).name, 'gemini-cli-sdk-adapter');
 assert.equal(
-  geminiKernel.createChatEngine().describeIntegration?.()?.officialEntry.packageName,
+  createChatEngineById(geminiKernel.id).describeIntegration?.()?.officialEntry.packageName,
   '@google/gemini-cli-sdk',
 );
 
@@ -82,12 +83,12 @@ assert.equal(opencodeKernel.source.externalPath, 'external/opencode');
 assert.equal(opencodeKernel.source.sdkPath, 'external/opencode/packages/sdk/js');
 assert.equal(opencodeKernel.source.sourceStatus, 'mirrored');
 assert.equal(opencodeKernel.source.sourceKind, 'repository');
-assert.equal(opencodeKernel.createChatEngine().name, 'opencode-sdk-adapter');
+assert.equal(createChatEngineById(opencodeKernel.id).name, 'opencode-sdk-adapter');
 assert.ok(opencodeKernel.descriptor.transportKinds.includes('sdk-stream'));
 assert.ok(opencodeKernel.descriptor.transportKinds.includes('openapi-http'));
 assert.equal(opencodeKernel.descriptor.capabilityMatrix.todoArtifacts, true);
 assert.equal(
-  opencodeKernel.createChatEngine().describeIntegration?.()?.officialEntry.packageName,
+  createChatEngineById(opencodeKernel.id).describeIntegration?.()?.officialEntry.packageName,
   '@opencode-ai/sdk',
 );
 

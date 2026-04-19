@@ -10,11 +10,14 @@ export interface ImportLocalFolderProjectOptions {
   createProject: (
     name: string,
     options?: {
+      appTemplateVersionId?: string;
       path?: string;
+      templatePresetKey?: string;
     },
   ) => Promise<ProjectIdentifier>;
   fallbackProjectName: string;
   folderInfo: LocalFolderMountSource;
+  getProjectByPath?: (projectPath: string) => Promise<ProjectPathCandidate | null>;
   getProjects?: () => Promise<ProjectPathCandidate[]>;
   mountFolder: (projectId: string, folderInfo: LocalFolderMountSource) => Promise<void>;
   updateProject: (projectId: string, updates: { path?: string }) => Promise<void>;
@@ -114,75 +117,31 @@ function resolveImportedProjectPath(folderInfo: LocalFolderMountSource): string 
   return resolveTauriFolderPath(folderInfo.path);
 }
 
-function normalizeProjectPathForComparison(path: string | null | undefined): string | null {
-  if (typeof path !== 'string') {
-    return null;
+function hasMatchingProjectPath(
+  candidatePath: string | undefined,
+  projectPath: string,
+): boolean {
+  if (!candidatePath) {
+    return false;
   }
 
-  const trimmedPath = path.trim();
-  if (!trimmedPath) {
-    return null;
-  }
-
-  const isWindowsStylePath =
-    /^[a-zA-Z]:/u.test(trimmedPath) ||
-    trimmedPath.includes('\\') ||
-    trimmedPath.startsWith('\\\\');
-  const normalizedSeparators = trimmedPath.replace(/\\/gu, '/');
-  const collapsedPath = normalizedSeparators.startsWith('//')
-    ? `//${normalizedSeparators.slice(2).replace(/\/+/gu, '/')}`
-    : normalizedSeparators.replace(/\/+/gu, '/');
-  const withoutTrailingSeparator =
-    collapsedPath === '/'
-      ? collapsedPath
-      : collapsedPath.replace(/\/+$/u, '') || collapsedPath;
-
-  return isWindowsStylePath
-    ? withoutTrailingSeparator.toLowerCase()
-    : withoutTrailingSeparator;
+  return trimTrailingPathSeparators(candidatePath) === trimTrailingPathSeparators(projectPath);
 }
 
-function findExistingProjectByPath(
-  projects: readonly ProjectPathCandidate[],
+async function resolveExistingProjectByPath(
+  options: ImportLocalFolderProjectOptions,
   projectPath: string,
-): ProjectPathCandidate | null {
-  const normalizedImportedPath = normalizeProjectPathForComparison(projectPath);
-  if (!normalizedImportedPath) {
+): Promise<ProjectPathCandidate | null> {
+  if (typeof options.getProjectByPath === 'function') {
+    return options.getProjectByPath(projectPath);
+  }
+
+  if (typeof options.getProjects !== 'function') {
     return null;
   }
 
-  const matchingProjects = projects
-    .map((project) => {
-      const trimmedProjectPath = project.path?.trim() ?? '';
-      const normalizedProjectPath = normalizeProjectPathForComparison(trimmedProjectPath);
-
-      if (!normalizedProjectPath || normalizedProjectPath !== normalizedImportedPath) {
-        return null;
-      }
-
-      const isExactPathMatch = trimmedProjectPath === projectPath;
-      const isCanonicalPathMatch =
-        !isExactPathMatch &&
-        trimmedProjectPath.length > 0 &&
-        resolveTauriFolderPath(trimmedProjectPath) === projectPath;
-
-      return {
-        project,
-        score: isExactPathMatch ? 2 : isCanonicalPathMatch ? 1 : 0,
-      };
-    })
-    .filter((candidate): candidate is { project: ProjectPathCandidate; score: number } => {
-      return candidate !== null;
-    })
-    .sort((left, right) => {
-      if (right.score !== left.score) {
-        return right.score - left.score;
-      }
-
-      return left.project.id.localeCompare(right.project.id);
-    });
-
-  return matchingProjects[0]?.project ?? null;
+  const projects = await options.getProjects();
+  return projects.find((project) => hasMatchingProjectPath(project.path, projectPath)) ?? null;
 }
 
 export async function importLocalFolderProject(
@@ -197,13 +156,7 @@ export async function importLocalFolderProject(
   let existingProject: ProjectPathCandidate | null = null;
 
   if (normalizedFolderInfo.type === 'tauri') {
-    if (!options.getProjects) {
-      throw new Error(
-        'Tauri local folder import requires workspace project lookup for absolute-path deduplication.',
-      );
-    }
-
-    existingProject = findExistingProjectByPath(await options.getProjects(), projectPath);
+    existingProject = await resolveExistingProjectByPath(options, projectPath);
   }
 
   const reusedExistingProject = existingProject !== null;

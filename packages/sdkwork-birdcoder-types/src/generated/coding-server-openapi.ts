@@ -7,7 +7,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_EVIDENCE = {
   ],
   "openapi": "3.1.0",
   "releaseTag": "release-local",
-  "sha256": "0e2a1dfd73a7edcfbc4037d2db656ff13eb4a2fe744f15431cf6316c179fc817",
+  "sha256": "2228bcb038aad22746e2cb4219cff31b481c4513e4f73436ffb248bdc31b816f",
   "targetCount": 1,
   "targets": [
     "windows/x64"
@@ -68,6 +68,13 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   },
   {
     "method": "GET",
+    "operationId": "app.listAppTemplates",
+    "path": "/api/app/v1/app-templates",
+    "summary": "List app templates",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
     "operationId": "app.getUserCenterConfig",
     "path": "/api/app/v1/auth/config",
     "summary": "Get user center provider metadata",
@@ -91,7 +98,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "method": "POST",
     "operationId": "app.register",
     "path": "/api/app/v1/auth/register",
-    "summary": "Register local user center identity",
+    "summary": "Register local user center user",
     "surface": "app"
   },
   {
@@ -105,7 +112,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "method": "POST",
     "operationId": "app.exchangeUserCenterSession",
     "path": "/api/app/v1/auth/session/exchange",
-    "summary": "Exchange third-party identity into a BirdCoder session",
+    "summary": "Exchange third-party user into a BirdCoder session",
     "surface": "app"
   },
   {
@@ -169,6 +176,20 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "operationId": "app.publishProject",
     "path": "/api/app/v1/projects/{projectId}/publish",
     "summary": "Publish project release flow",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "app.listSkillPackages",
+    "path": "/api/app/v1/skill-packages",
+    "summary": "List skill packages",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.installSkillPackage",
+    "path": "/api/app/v1/skill-packages/{packageId}/installations",
+    "summary": "Install skill package for a scope",
     "surface": "app"
   },
   {
@@ -249,6 +270,13 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "surface": "app"
   },
   {
+    "method": "GET",
+    "operationId": "app.subscribeWorkspaceRealtime",
+    "path": "/api/app/v1/workspaces/{workspaceId}/realtime",
+    "summary": "Subscribe to workspace realtime invalidation events",
+    "surface": "app"
+  },
+  {
     "method": "POST",
     "operationId": "core.submitApprovalDecision",
     "path": "/api/core/v1/approvals/{approvalId}/decision",
@@ -256,10 +284,45 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "surface": "core"
   },
   {
+    "method": "GET",
+    "operationId": "core.listCodingSessions",
+    "path": "/api/core/v1/coding-sessions",
+    "summary": "List coding sessions",
+    "surface": "core"
+  },
+  {
     "method": "POST",
     "operationId": "core.createCodingSession",
     "path": "/api/core/v1/coding-sessions",
     "summary": "Create coding session",
+    "surface": "core"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "core.updateCodingSession",
+    "path": "/api/core/v1/coding-sessions/{id}",
+    "summary": "Update coding session",
+    "surface": "core"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "core.deleteCodingSession",
+    "path": "/api/core/v1/coding-sessions/{id}",
+    "summary": "Delete coding session",
+    "surface": "core"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "core.deleteCodingSessionMessage",
+    "path": "/api/core/v1/coding-sessions/{id}/messages/{messageId}",
+    "summary": "Delete coding session message",
+    "surface": "core"
+  },
+  {
+    "method": "POST",
+    "operationId": "core.forkCodingSession",
+    "path": "/api/core/v1/coding-sessions/{id}/fork",
+    "summary": "Fork coding session",
     "surface": "core"
   },
   {
@@ -330,6 +393,13 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "operationId": "core.listModels",
     "path": "/api/core/v1/models",
     "summary": "List model catalog",
+    "surface": "core"
+  },
+  {
+    "method": "GET",
+    "operationId": "core.listNativeSessionProviders",
+    "path": "/api/core/v1/native-session-providers",
+    "summary": "List registered native engine session providers",
     "surface": "core"
   },
   {

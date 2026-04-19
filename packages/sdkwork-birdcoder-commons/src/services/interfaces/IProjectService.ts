@@ -13,6 +13,8 @@ export interface CreateCodingSessionOptions {
 export interface CreateProjectOptions {
   description?: string;
   path?: string;
+  appTemplateVersionId?: string;
+  templatePresetKey?: string;
 }
 
 export interface BirdCoderCodingSessionMirrorSnapshot extends BirdCoderCodingSessionSummary {
@@ -21,6 +23,7 @@ export interface BirdCoderCodingSessionMirrorSnapshot extends BirdCoderCodingSes
   messageCount: number;
   nativeTranscriptUpdatedAt?: string | null;
   pinned?: boolean;
+  runtimeStatus?: BirdCoderCodingSession['runtimeStatus'];
   unread?: boolean;
 }
 
@@ -30,6 +33,12 @@ export interface BirdCoderProjectMirrorSnapshot extends Omit<BirdCoderProject, '
 
 export interface IProjectService {
   getProjects(workspaceId?: string): Promise<BirdCoderProject[]>;
+  getProjectById(projectId: string): Promise<BirdCoderProject | null>;
+  getProjectByPath(workspaceId: string, path: string): Promise<BirdCoderProject | null>;
+  invalidateProjectReadCache?(scope?: {
+    projectId?: string;
+    workspaceId?: string;
+  }): Promise<void> | void;
   getProjectMirrorSnapshots?(workspaceId?: string): Promise<BirdCoderProjectMirrorSnapshot[]>;
   createProject(
     workspaceId: string,

@@ -34,9 +34,9 @@ const client = createBirdCoderGeneratedCoreWriteApiClient({
       path: string;
     }): Promise<TResponse> {
       observedRequests.push({
-        body: request.body,
         method: request.method,
         path: request.path,
+        ...(request.body !== undefined ? { body: request.body } : {}),
       });
 
       switch (request.path) {
@@ -56,6 +56,59 @@ const client = createBirdCoderGeneratedCoreWriteApiClient({
               lastTurnAt: '2026-04-11T11:00:00.000Z',
             },
             'req.core.create-session',
+          ) as TResponse;
+        case '/api/core/v1/coding-sessions/coding-session-generated-write/fork':
+          return createEnvelope(
+            {
+              id: 'coding-session-generated-write-fork',
+              workspaceId: 'workspace-generated-write',
+              projectId: 'project-generated-write',
+              title: 'Forked Generated Core Write Session',
+              status: 'active',
+              hostMode: 'server',
+              engineId: 'codex',
+              modelId: 'gpt-5-codex',
+              createdAt: '2026-04-11T11:00:30.000Z',
+              updatedAt: '2026-04-11T11:00:30.000Z',
+              lastTurnAt: '2026-04-11T11:00:30.000Z',
+            },
+            'req.core.fork-session',
+          ) as TResponse;
+        case '/api/core/v1/coding-sessions/coding-session-generated-write':
+          if (request.method === 'PATCH') {
+            return createEnvelope(
+              {
+                id: 'coding-session-generated-write',
+                workspaceId: 'workspace-generated-write',
+                projectId: 'project-generated-write',
+                title: 'Renamed Generated Core Write Session',
+                status: 'paused',
+                hostMode: 'server',
+                engineId: 'codex',
+                modelId: 'gpt-5-codex-mini',
+                createdAt: '2026-04-11T11:00:00.000Z',
+                updatedAt: '2026-04-11T11:00:45.000Z',
+                lastTurnAt: '2026-04-11T11:00:45.000Z',
+              },
+              'req.core.update-session',
+            ) as TResponse;
+          }
+          if (request.method === 'DELETE') {
+            return createEnvelope(
+              {
+                id: 'coding-session-generated-write',
+              },
+              'req.core.delete-session',
+            ) as TResponse;
+          }
+          break;
+        case '/api/core/v1/coding-sessions/coding-session-generated-write/messages/message-generated-write':
+          return createEnvelope(
+            {
+              id: 'message-generated-write',
+              codingSessionId: 'coding-session-generated-write',
+            },
+            'req.core.delete-session-message',
           ) as TResponse;
         case '/api/core/v1/coding-sessions/coding-session-generated-write/turns':
           return createEnvelope(
@@ -109,6 +162,42 @@ assert.equal(createdSession.workspaceId, 'workspace-generated-write');
 assert.equal(createdSession.projectId, 'project-generated-write');
 assert.equal(createdSession.title, 'Generated Core Write Session');
 
+const forkedSession = await client.forkCodingSession('coding-session-generated-write', {
+  title: 'Forked Generated Core Write Session',
+});
+
+assert.equal(forkedSession.id, 'coding-session-generated-write-fork');
+assert.equal(forkedSession.title, 'Forked Generated Core Write Session');
+
+const updatedSession = await client.updateCodingSession('coding-session-generated-write', {
+  title: 'Renamed Generated Core Write Session',
+  status: 'paused',
+  engineId: 'codex',
+  modelId: 'gpt-5-codex-mini',
+});
+
+assert.equal(updatedSession.id, 'coding-session-generated-write');
+assert.equal(updatedSession.title, 'Renamed Generated Core Write Session');
+assert.equal(updatedSession.status, 'paused');
+assert.equal(updatedSession.modelId, 'gpt-5-codex-mini');
+
+await assert.rejects(
+  () => client.updateCodingSession('coding-session-generated-write', {}),
+  /update coding session request must include at least one field\./,
+);
+
+const deletedMessage = await client.deleteCodingSessionMessage(
+  'coding-session-generated-write',
+  'message-generated-write',
+);
+
+assert.equal(deletedMessage.id, 'message-generated-write');
+assert.equal(deletedMessage.codingSessionId, 'coding-session-generated-write');
+
+const deletedSession = await client.deleteCodingSession('coding-session-generated-write');
+
+assert.equal(deletedSession.id, 'coding-session-generated-write');
+
 const createdTurn = await client.createCodingSessionTurn('coding-session-generated-write', {
   runtimeId: 'runtime-generated-write',
   requestKind: 'chat',
@@ -143,6 +232,31 @@ assert.deepEqual(observedRequests, [
       engineId: 'codex',
       modelId: 'gpt-5-codex',
     },
+  },
+  {
+    method: 'POST',
+    path: '/api/core/v1/coding-sessions/coding-session-generated-write/fork',
+    body: {
+      title: 'Forked Generated Core Write Session',
+    },
+  },
+  {
+    method: 'PATCH',
+    path: '/api/core/v1/coding-sessions/coding-session-generated-write',
+    body: {
+      title: 'Renamed Generated Core Write Session',
+      status: 'paused',
+      engineId: 'codex',
+      modelId: 'gpt-5-codex-mini',
+    },
+  },
+  {
+    method: 'DELETE',
+    path: '/api/core/v1/coding-sessions/coding-session-generated-write/messages/message-generated-write',
+  },
+  {
+    method: 'DELETE',
+    path: '/api/core/v1/coding-sessions/coding-session-generated-write',
   },
   {
     method: 'POST',

@@ -1,0 +1,509 @@
+{
+  "engines": [
+    {
+      "engineKey": "codex",
+      "displayName": "Codex",
+      "vendor": "OpenAI",
+      "installationKind": "external-cli",
+      "homepage": "https://openai.com/codex",
+      "supportedHostModes": [
+        "web",
+        "desktop",
+        "server"
+      ],
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {
+        "chat": true,
+        "streaming": true,
+        "structuredOutput": true,
+        "toolCalls": true,
+        "planning": true,
+        "patchArtifacts": true,
+        "commandArtifacts": true,
+        "todoArtifacts": true,
+        "ptyArtifacts": true,
+        "previewArtifacts": true,
+        "testArtifacts": true,
+        "approvalCheckpoints": true,
+        "sessionResume": true,
+        "remoteBridge": false,
+        "mcp": true
+      },
+      "accessPlan": {
+        "primaryLaneId": "codex-rust-cli-jsonl",
+        "fallbackLaneIds": [
+          "codex-grpc-sdk-stream"
+        ],
+        "lanes": [
+          {
+            "laneId": "codex-rust-cli-jsonl",
+            "label": "Rust native CLI",
+            "strategyKind": "rust-native",
+            "runtimeOwner": "rust-server",
+            "bridgeProtocol": "direct",
+            "transportKind": "cli-jsonl",
+            "status": "ready",
+            "enabledByDefault": true,
+            "hostModes": [
+              "web",
+              "desktop",
+              "server"
+            ],
+            "description": "Primary Codex execution path implemented in the Rust server through the local Codex CLI JSONL runtime."
+          },
+          {
+            "laneId": "codex-grpc-sdk-stream",
+            "label": "gRPC SDK bridge",
+            "strategyKind": "grpc-bridge",
+            "runtimeOwner": "typescript-bridge",
+            "bridgeProtocol": "grpc",
+            "transportKind": "sdk-stream",
+            "status": "planned",
+            "enabledByDefault": false,
+            "hostModes": [
+              "web",
+              "desktop",
+              "server"
+            ],
+            "description": "Planned fallback lane that lets Rust delegate to the official TypeScript SDK through a gRPC bridge when direct native integration is insufficient."
+          }
+        ]
+      },
+      "defaultModelId": "codex"
+    },
+    {
+      "engineKey": "claude-code",
+      "displayName": "Claude Code",
+      "vendor": "Anthropic",
+      "installationKind": "external-cli",
+      "homepage": "https://www.anthropic.com/claude-code",
+      "supportedHostModes": [
+        "web",
+        "desktop",
+        "server"
+      ],
+      "transportKinds": [
+        "sdk-stream",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "chat": true,
+        "streaming": true,
+        "structuredOutput": true,
+        "toolCalls": true,
+        "planning": true,
+        "patchArtifacts": true,
+        "commandArtifacts": true,
+        "todoArtifacts": true,
+        "ptyArtifacts": true,
+        "previewArtifacts": true,
+        "testArtifacts": true,
+        "approvalCheckpoints": true,
+        "sessionResume": true,
+        "remoteBridge": true,
+        "mcp": true
+      },
+      "accessPlan": {
+        "primaryLaneId": "claude-code-grpc-agent-sdk",
+        "fallbackLaneIds": [
+          "claude-code-remote-control-http"
+        ],
+        "lanes": [
+          {
+            "laneId": "claude-code-grpc-agent-sdk",
+            "label": "gRPC Agent SDK bridge",
+            "strategyKind": "grpc-bridge",
+            "runtimeOwner": "typescript-bridge",
+            "bridgeProtocol": "grpc",
+            "transportKind": "sdk-stream",
+            "status": "planned",
+            "enabledByDefault": true,
+            "hostModes": [
+              "web",
+              "desktop",
+              "server"
+            ],
+            "description": "Primary standardized lane routes Rust server requests into a dedicated TypeScript bridge that wraps the upstream Claude Code SDK and normalizes IDE events."
+          },
+          {
+            "laneId": "claude-code-remote-control-http",
+            "label": "Remote control HTTP",
+            "strategyKind": "remote-control",
+            "runtimeOwner": "external-service",
+            "bridgeProtocol": "http",
+            "transportKind": "remote-control-http",
+            "status": "planned",
+            "enabledByDefault": false,
+            "hostModes": [
+              "web",
+              "desktop",
+              "server"
+            ],
+            "description": "Fallback lane for deployments where Claude Code is exposed as an externally managed remote-control endpoint behind the BirdCoder gateway."
+          }
+        ]
+      },
+      "defaultModelId": "claude-code"
+    },
+    {
+      "engineKey": "gemini",
+      "displayName": "Gemini",
+      "vendor": "Google",
+      "installationKind": "external-cli",
+      "homepage": "https://deepmind.google/technologies/gemini/",
+      "supportedHostModes": [
+        "web",
+        "desktop",
+        "server"
+      ],
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http"
+      ],
+      "capabilityMatrix": {
+        "chat": true,
+        "streaming": true,
+        "structuredOutput": true,
+        "toolCalls": true,
+        "planning": true,
+        "patchArtifacts": true,
+        "commandArtifacts": true,
+        "todoArtifacts": true,
+        "ptyArtifacts": false,
+        "previewArtifacts": true,
+        "testArtifacts": true,
+        "approvalCheckpoints": true,
+        "sessionResume": true,
+        "remoteBridge": false,
+        "mcp": true
+      },
+      "accessPlan": {
+        "primaryLaneId": "gemini-grpc-sdk-stream",
+        "fallbackLaneIds": [
+          "gemini-openapi-proxy"
+        ],
+        "lanes": [
+          {
+            "laneId": "gemini-grpc-sdk-stream",
+            "label": "gRPC SDK bridge",
+            "strategyKind": "grpc-bridge",
+            "runtimeOwner": "typescript-bridge",
+            "bridgeProtocol": "grpc",
+            "transportKind": "sdk-stream",
+            "status": "planned",
+            "enabledByDefault": true,
+            "hostModes": [
+              "web",
+              "desktop",
+              "server"
+            ],
+            "description": "Primary standardized lane uses a TypeScript SDK bridge behind Rust so Gemini runtime differences stay isolated outside the product surface."
+          },
+          {
+            "laneId": "gemini-openapi-proxy",
+            "label": "OpenAPI HTTP proxy",
+            "strategyKind": "openapi-proxy",
+            "runtimeOwner": "rust-server",
+            "bridgeProtocol": "http",
+            "transportKind": "openapi-http",
+            "status": "planned",
+            "enabledByDefault": false,
+            "hostModes": [
+              "web",
+              "desktop",
+              "server"
+            ],
+            "description": "Fallback lane for environments where a direct upstream Gemini-compatible HTTP endpoint can be proxied by the Rust server."
+          }
+        ]
+      },
+      "defaultModelId": "gemini"
+    },
+    {
+      "engineKey": "opencode",
+      "displayName": "OpenCode",
+      "vendor": "Anomaly",
+      "installationKind": "external-cli",
+      "homepage": "https://github.com/anomalyco/opencode",
+      "supportedHostModes": [
+        "web",
+        "desktop",
+        "server"
+      ],
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {
+        "chat": true,
+        "streaming": true,
+        "structuredOutput": false,
+        "toolCalls": true,
+        "planning": true,
+        "patchArtifacts": true,
+        "commandArtifacts": true,
+        "todoArtifacts": true,
+        "ptyArtifacts": true,
+        "previewArtifacts": true,
+        "testArtifacts": true,
+        "approvalCheckpoints": true,
+        "sessionResume": true,
+        "remoteBridge": false,
+        "mcp": true
+      },
+      "accessPlan": {
+        "primaryLaneId": "opencode-rust-cli-jsonl",
+        "fallbackLaneIds": [
+          "opencode-openapi-proxy"
+        ],
+        "lanes": [
+          {
+            "laneId": "opencode-rust-cli-jsonl",
+            "label": "Rust native OpenCode runtime",
+            "strategyKind": "rust-native",
+            "runtimeOwner": "rust-server",
+            "bridgeProtocol": "direct",
+            "transportKind": "cli-jsonl",
+            "status": "ready",
+            "enabledByDefault": true,
+            "hostModes": [
+              "web",
+              "desktop",
+              "server"
+            ],
+            "description": "Primary OpenCode lane runs directly inside the Rust server using the local OpenCode runtime and native session provider plugin."
+          },
+          {
+            "laneId": "opencode-openapi-proxy",
+            "label": "OpenAPI HTTP proxy",
+            "strategyKind": "openapi-proxy",
+            "runtimeOwner": "rust-server",
+            "bridgeProtocol": "http",
+            "transportKind": "openapi-http",
+            "status": "planned",
+            "enabledByDefault": false,
+            "hostModes": [
+              "web",
+              "desktop",
+              "server"
+            ],
+            "description": "Fallback lane for hosted OpenCode-compatible backends that can be normalized through the BirdCoder Rust server API gateway."
+          }
+        ]
+      },
+      "defaultModelId": "opencode"
+    }
+  ],
+  "models": [
+    {
+      "engineKey": "codex",
+      "modelId": "codex",
+      "displayName": "Codex",
+      "status": "active",
+      "defaultForEngine": true,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "engineKey": "codex",
+      "modelId": "gpt-4o",
+      "displayName": "GPT-4o",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {
+        "previewArtifacts": false
+      }
+    },
+    {
+      "engineKey": "codex",
+      "modelId": "gpt-4-turbo",
+      "displayName": "GPT-4 Turbo",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {
+        "previewArtifacts": false
+      }
+    },
+    {
+      "engineKey": "codex",
+      "modelId": "gpt-3.5-turbo",
+      "displayName": "GPT-3.5 Turbo",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {
+        "planning": false,
+        "previewArtifacts": false
+      }
+    },
+    {
+      "engineKey": "claude-code",
+      "modelId": "claude-code",
+      "displayName": "Claude Code Default",
+      "status": "active",
+      "defaultForEngine": true,
+      "transportKinds": [
+        "sdk-stream",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "remoteBridge": true
+      }
+    },
+    {
+      "engineKey": "claude-code",
+      "modelId": "claude-3-opus",
+      "displayName": "Claude 3 Opus",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "remoteBridge": true
+      }
+    },
+    {
+      "engineKey": "claude-code",
+      "modelId": "claude-3-sonnet",
+      "displayName": "Claude 3 Sonnet",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "remoteBridge": true
+      }
+    },
+    {
+      "engineKey": "claude-code",
+      "modelId": "claude-3-haiku",
+      "displayName": "Claude 3 Haiku",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "planning": false,
+        "remoteBridge": true
+      }
+    },
+    {
+      "engineKey": "gemini",
+      "modelId": "gemini",
+      "displayName": "Gemini Default",
+      "status": "active",
+      "defaultForEngine": true,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "engineKey": "gemini",
+      "modelId": "gemini-1.5-pro",
+      "displayName": "Gemini 1.5 Pro",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "engineKey": "gemini",
+      "modelId": "gemini-1.5-flash",
+      "displayName": "Gemini 1.5 Flash",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http"
+      ],
+      "capabilityMatrix": {
+        "planning": false
+      }
+    },
+    {
+      "engineKey": "opencode",
+      "modelId": "opencode",
+      "displayName": "OpenCode",
+      "status": "active",
+      "defaultForEngine": true,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    }
+  ],
+  "nativeProviders": [
+    {
+      "engineId": "codex",
+      "displayName": "Codex",
+      "nativeSessionIdPrefix": "codex-native:",
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "discoveryMode": "passive-global"
+    },
+    {
+      "engineId": "claude-code",
+      "displayName": "Claude Code",
+      "nativeSessionIdPrefix": "claude-code-native:",
+      "transportKinds": [
+        "sdk-stream",
+        "remote-control-http"
+      ],
+      "discoveryMode": "explicit-only"
+    },
+    {
+      "engineId": "gemini",
+      "displayName": "Gemini",
+      "nativeSessionIdPrefix": "gemini-native:",
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http"
+      ],
+      "discoveryMode": "explicit-only"
+    },
+    {
+      "engineId": "opencode",
+      "displayName": "OpenCode",
+      "nativeSessionIdPrefix": "opencode-native:",
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http",
+        "cli-jsonl"
+      ],
+      "discoveryMode": "explicit-only"
+    }
+  ]
+}

@@ -1,9 +1,18 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
+import process from 'node:process';
 
 import {
   RELEASE_FLOW_CHECK_COMMANDS,
   runReleaseFlowCheck,
 } from './run-release-flow-check.mjs';
+
+function splitPathEntries(pathValue) {
+  return String(pathValue ?? '')
+    .split(process.platform === 'win32' ? ';' : ':')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
 
 assert.equal(Array.isArray(RELEASE_FLOW_CHECK_COMMANDS), true);
 assert.equal(RELEASE_FLOW_CHECK_COMMANDS.length > 0, true);
@@ -49,24 +58,41 @@ assert.equal(
     commands: ['node first-check.mjs', 'node second-check.mjs'],
     cwd: 'D:/workspace',
     env: { TEST_ENV: 'birdcoder' },
-    spawnSyncImpl(command, options) {
-      invocations.push({ command, options });
+    spawnSyncImpl(command, args, options) {
+      invocations.push({ command, args, options });
       return { status: 0 };
     },
   });
 
   assert.equal(exitCode, 0);
   assert.deepEqual(
-    invocations.map((entry) => entry.command),
+    invocations.map((entry) => entry.args.at(-1)),
     ['node first-check.mjs', 'node second-check.mjs'],
     'release-flow runner must execute commands in order',
   );
   for (const invocation of invocations) {
     assert.equal(invocation.options.cwd, 'D:/workspace');
-    assert.deepEqual(invocation.options.env, { TEST_ENV: 'birdcoder' });
-    assert.equal(invocation.options.shell, true);
+    assert.equal(invocation.options.env.TEST_ENV, 'birdcoder');
+    assert.equal(invocation.options.env.NODE, process.execPath);
+    assert.equal(invocation.options.env.npm_node_execpath, process.execPath);
+    assert.equal(
+      splitPathEntries(
+        invocation.options.env.Path ?? invocation.options.env.PATH ?? '',
+      ).includes(path.dirname(process.execPath)),
+      true,
+      'release-flow runner must prepend the current Node.js directory to PATH.',
+    );
+    assert.equal(invocation.options.shell, false);
     assert.equal(invocation.options.stdio, 'inherit');
     assert.equal(invocation.options.windowsHide, true);
+    if (process.platform === 'win32') {
+      assert.equal(invocation.command, 'cmd.exe');
+      assert.deepEqual(invocation.args.slice(0, 3), ['/d', '/s', '/c']);
+      continue;
+    }
+
+    assert.equal(invocation.command, String(process.env.SHELL ?? '/bin/sh'));
+    assert.deepEqual(invocation.args.slice(0, 1), ['-lc']);
   }
 }
 
@@ -74,17 +100,17 @@ assert.equal(
   const invocations = [];
   const exitCode = runReleaseFlowCheck({
     commands: ['node first-check.mjs', 'node failing-check.mjs', 'node skipped-check.mjs'],
-    spawnSyncImpl(command) {
-      invocations.push(command);
+    spawnSyncImpl(command, args) {
+      invocations.push({ command, args });
       return {
-        status: command.includes('failing') ? 7 : 0,
+        status: args.at(-1)?.includes('failing') ? 7 : 0,
       };
     },
   });
 
   assert.equal(exitCode, 7);
   assert.deepEqual(
-    invocations,
+    invocations.map((entry) => entry.args.at(-1)),
     ['node first-check.mjs', 'node failing-check.mjs'],
     'release-flow runner must stop at the first failing command',
   );

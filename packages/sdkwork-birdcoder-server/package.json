@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "cargo run --manifest-path src-host/Cargo.toml",
     "build": "node ../../scripts/run-birdcoder-server-build.mjs",
-    "lint": "pnpm exec tsc --noEmit"
+    "lint": "node ../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
     "@sdkwork/birdcoder-chat": "workspace:*",
+    "@sdkwork/birdcoder-codeengine": "workspace:*",
     "@sdkwork/birdcoder-commons": "workspace:*",
     "@sdkwork/birdcoder-host-core": "workspace:*",
     "@sdkwork/birdcoder-infrastructure": "workspace:*",

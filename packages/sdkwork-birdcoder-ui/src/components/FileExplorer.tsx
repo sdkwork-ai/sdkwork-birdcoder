@@ -152,6 +152,18 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
     };
   }, [startCreatingRootNode]);
 
+  useEffect(() => {
+    const handleViewportChange = () => {
+      setContextMenu(null);
+      setRootContextMenu(null);
+    };
+
+    window.addEventListener('resize', handleViewportChange);
+    return () => {
+      window.removeEventListener('resize', handleViewportChange);
+    };
+  }, []);
+
   const handleContextMenu = (e: React.MouseEvent, node: FileNode) => {
     e.preventDefault();
     e.stopPropagation();

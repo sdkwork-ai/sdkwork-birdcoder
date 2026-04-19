@@ -116,7 +116,7 @@ try {
     id: 'workspace-evidence-consumer-contract',
     name: 'Evidence Consumer Contract Workspace',
     description: 'Workspace for prompt/skill/template evidence consumer contract.',
-    ownerIdentityId: 'identity-evidence-consumer-contract',
+    ownerId: 'user-evidence-consumer-contract',
     createdAt: '2026-04-12T11:00:00.000Z',
     updatedAt: '2026-04-12T11:00:00.000Z',
   });
@@ -143,6 +143,15 @@ try {
         lastTurnAt: '2026-04-12T11:00:05.000Z',
       };
     },
+    async updateCodingSession() {
+      throw new Error('not implemented');
+    },
+    async forkCodingSession() {
+      throw new Error('not implemented');
+    },
+    async deleteCodingSession() {
+      throw new Error('not implemented');
+    },
     async createCodingSessionTurn(codingSessionId, request) {
       return {
         id: 'coding-turn-evidence-consumer-contract',
@@ -158,6 +167,9 @@ try {
     async submitApprovalDecision() {
       throw new Error('not implemented');
     },
+    async deleteCodingSessionMessage() {
+      throw new Error('not implemented');
+    },
   };
 
   const services = createDefaultBirdCoderIdeServices({
@@ -169,6 +181,9 @@ try {
   const createdProject = await services.projectService.createProject(
     'workspace-evidence-consumer-contract',
     'Evidence Consumer Contract Project',
+    {
+      path: 'D:/sdkwork/contracts/evidence-consumer-project',
+    },
   );
   const createdSession = await services.projectService.createCodingSession(
     createdProject.id,

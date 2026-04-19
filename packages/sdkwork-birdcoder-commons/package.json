@@ -19,9 +19,21 @@
       "import": "./src/workbench.ts",
       "types": "./src/workbench.ts"
     },
+    "./hooks/*": {
+      "import": "./src/hooks/*.ts",
+      "types": "./src/hooks/*.ts"
+    },
+    "./contexts/*": {
+      "import": "./src/contexts/*.ts",
+      "types": "./src/contexts/*.ts"
+    },
     "./platform/fileSystem": {
-      "import": "./src/utils/fileSystem.ts",
-      "types": "./src/utils/fileSystem.ts"
+      "import": "./src/platform/fileSystem.ts",
+      "types": "./src/platform/fileSystem.ts"
+    },
+    "./terminal/*": {
+      "import": "./src/terminal/*.ts",
+      "types": "./src/terminal/*.ts"
     },
     "./storage/dataKernel": {
       "import": "./src/storage/dataKernel.ts",
@@ -40,12 +52,9 @@
   "dependencies": {
     "@tauri-apps/api": "catalog:",
     "lucide-react": "catalog:",
+    "@sdkwork/birdcoder-codeengine": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
     "@sdkwork/birdcoder-chat": "workspace:*",
-    "@sdkwork/birdcoder-chat-codex": "workspace:*",
-    "@sdkwork/birdcoder-chat-claude": "workspace:*",
-    "@sdkwork/birdcoder-chat-gemini": "workspace:*",
-    "@sdkwork/birdcoder-chat-opencode": "workspace:*",
     "@sdkwork/birdcoder-i18n": "workspace:*",
     "@sdkwork/birdcoder-infrastructure": "workspace:*"
   },

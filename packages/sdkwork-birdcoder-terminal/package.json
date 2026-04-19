@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "lucide-react": "catalog:",
+    "@tauri-apps/api": "catalog:",
+    "@sdkwork/birdcoder-codeengine": "workspace:*",
     "@sdkwork/birdcoder-ui": "workspace:*",
     "@sdkwork/birdcoder-commons": "workspace:*"
   },

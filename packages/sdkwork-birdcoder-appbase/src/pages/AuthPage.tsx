@@ -10,6 +10,21 @@ const DEV_QUICK_LOGIN_ACCOUNT = {
   password: 'dev123456',
 } as const;
 
+const LOCAL_RUNTIME_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+
+function isLocalInteractiveRuntime(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const hostname = window.location.hostname.trim().toLowerCase();
+  if (LOCAL_RUNTIME_HOSTNAMES.has(hostname) || hostname.endsWith('.local')) {
+    return true;
+  }
+
+  return Boolean(window.__TAURI__);
+}
+
 export function AuthPage() {
   const { t } = useTranslation();
   const {
@@ -24,10 +39,11 @@ export function AuthPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const isDevMode = import.meta.env.DEV;
   const supportsLocalCredentials = authConfig?.supportsLocalCredentials ?? true;
   const supportsSessionExchange = authConfig?.supportsSessionExchange ?? false;
   const resolvedExternalProviderKey = authConfig?.providerKey?.trim() || 'external';
+  const supportsLocalDevQuickLogin =
+    isLocalInteractiveRuntime() && (authConfig?.mode ?? 'local') === 'local';
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -51,7 +67,7 @@ export function AuthPage() {
   };
 
   const handleQuickDevLogin = async () => {
-    if (!isDevMode) {
+    if (!supportsLocalDevQuickLogin) {
       return;
     }
 
@@ -122,13 +138,13 @@ export function AuthPage() {
         <div className="hidden md:flex flex-col items-center justify-center w-1/2 bg-[#0e0e11] p-12 border-r border-white/5">
           <div className="mb-8 text-center">
             <p className="text-xs uppercase tracking-[0.24em] text-blue-400 mb-3">
-              sdkwork-appbase identity
+              sdkwork-appbase user center
             </p>
             <h2 className="text-2xl font-semibold tracking-tight text-white mb-2">
               SDKWork BirdCoder
             </h2>
             <p className="text-gray-400 text-sm max-w-xs">
-              Unified auth, account, and membership architecture aligned to sdkwork-appbase capability standards.
+              Unified auth, account, and membership architecture aligned to sdkwork-appbase user-center capability standards.
             </p>
           </div>
 
@@ -147,7 +163,7 @@ export function AuthPage() {
         <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center bg-[#18181b]">
           <h2 className="text-2xl font-semibold tracking-tight mb-2 text-center text-gray-100">
             {!supportsLocalCredentials
-              ? 'Connect Identity Provider'
+              ? 'Connect User Center Provider'
               : isLogin
                 ? t('auth.signInTitle')
                 : t('auth.createAccountTitle')}
@@ -155,11 +171,11 @@ export function AuthPage() {
           <p className="text-center text-sm text-gray-400 mb-6">
             {!supportsLocalCredentials && supportsSessionExchange
               ? `This deployment uses the "${resolvedExternalProviderKey}" user-center provider. Sessions are exchanged through the BirdCoder server API.`
-              : 'Identity and session entry are standardized through the BirdCoder appbase bridge.'}
+              : 'User-center session entry is standardized through the BirdCoder appbase bridge.'}
           </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-6">
-            {isDevMode ? (
+            {supportsLocalDevQuickLogin ? (
               <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -232,7 +248,7 @@ export function AuthPage() {
               className="w-full mt-2 py-2.5 bg-white text-black hover:bg-gray-200 font-medium rounded-lg transition-colors disabled:opacity-60"
             >
               {isSubmitting
-                ? 'Applying identity workflow...'
+                ? 'Applying user-center workflow...'
                 : !supportsLocalCredentials
                   ? 'Exchange Server Session'
                   : isLogin
@@ -267,7 +283,7 @@ export function AuthPage() {
               </div>
             ) : (
               <p className="text-xs text-center text-gray-500 mt-2">
-                The server keeps the authoritative session and returns the bound identity after exchange.
+                The server keeps the authoritative session and returns the bound user account after exchange.
               </p>
             )}
           </form>

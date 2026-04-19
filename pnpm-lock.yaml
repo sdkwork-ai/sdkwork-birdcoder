@@ -33,6 +33,21 @@ catalogs:
     '@vitejs/plugin-react':
       specifier: ^5.0.4
       version: 5.2.0
+    '@xterm/addon-canvas':
+      specifier: ^0.7.0
+      version: 0.7.0
+    '@xterm/addon-fit':
+      specifier: ^0.10.0
+      version: 0.10.0
+    '@xterm/addon-search':
+      specifier: ^0.16.0
+      version: 0.16.0
+    '@xterm/addon-unicode11':
+      specifier: ^0.8.0
+      version: 0.8.0
+    '@xterm/xterm':
+      specifier: ^5.5.0
+      version: 5.5.0
     bail:
       specifier: ^2.0.2
       version: 2.0.2
@@ -260,6 +275,21 @@ importers:
       '@tauri-apps/plugin-shell':
         specifier: ^2.2.0
         version: 2.3.5
+      '@xterm/addon-canvas':
+        specifier: 'catalog:'
+        version: 0.7.0(@xterm/xterm@5.5.0)
+      '@xterm/addon-fit':
+        specifier: 'catalog:'
+        version: 0.10.0(@xterm/xterm@5.5.0)
+      '@xterm/addon-search':
+        specifier: 'catalog:'
+        version: 0.16.0
+      '@xterm/addon-unicode11':
+        specifier: 'catalog:'
+        version: 0.8.0(@xterm/xterm@5.5.0)
+      '@xterm/xterm':
+        specifier: 'catalog:'
+        version: 5.5.0
       html-parse-stringify:
         specifier: 'catalog:'
         version: 3.0.1
@@ -419,6 +449,9 @@ importers:
 
   packages/sdkwork-birdcoder-code:
     dependencies:
+      '@sdkwork/birdcoder-codeengine':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-codeengine
       '@sdkwork/birdcoder-commons':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-commons
@@ -607,7 +640,7 @@ importers:
         specifier: 'catalog:'
         version: 5.2.0(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0))
 
-  packages/sdkwork-birdcoder-commons:
+  packages/sdkwork-birdcoder-codeengine:
     dependencies:
       '@sdkwork/birdcoder-chat':
         specifier: workspace:*
@@ -624,6 +657,22 @@ importers:
       '@sdkwork/birdcoder-chat-opencode':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-chat-opencode
+      '@sdkwork/birdcoder-types':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-types
+    devDependencies:
+      '@vitejs/plugin-react':
+        specifier: 'catalog:'
+        version: 5.2.0(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0))
+
+  packages/sdkwork-birdcoder-commons:
+    dependencies:
+      '@sdkwork/birdcoder-chat':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-chat
+      '@sdkwork/birdcoder-codeengine':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-codeengine
       '@sdkwork/birdcoder-i18n':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-i18n
@@ -739,6 +788,9 @@ importers:
 
   packages/sdkwork-birdcoder-infrastructure:
     dependencies:
+      '@sdkwork/birdcoder-codeengine':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-codeengine
       '@sdkwork/birdcoder-host-core':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-host-core
@@ -757,6 +809,9 @@ importers:
       '@sdkwork/birdcoder-chat':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-chat
+      '@sdkwork/birdcoder-codeengine':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-codeengine
       '@sdkwork/birdcoder-commons':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-commons
@@ -776,6 +831,12 @@ importers:
 
   packages/sdkwork-birdcoder-settings:
     dependencies:
+      '@sdkwork/birdcoder-codeengine':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-codeengine
+      '@sdkwork/birdcoder-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-commons
       '@sdkwork/birdcoder-ui':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-ui
@@ -1066,6 +1127,9 @@ importers:
 
   packages/sdkwork-birdcoder-studio:
     dependencies:
+      '@sdkwork/birdcoder-codeengine':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-codeengine
       '@sdkwork/birdcoder-commons':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-commons
@@ -1281,12 +1345,18 @@ importers:
 
   packages/sdkwork-birdcoder-terminal:
     dependencies:
+      '@sdkwork/birdcoder-codeengine':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-codeengine
       '@sdkwork/birdcoder-commons':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-commons
       '@sdkwork/birdcoder-ui':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-ui
+      '@tauri-apps/api':
+        specifier: 'catalog:'
+        version: 2.10.1
       lucide-react:
         specifier: 'catalog:'
         version: 0.546.0(react@19.2.4)
@@ -1318,6 +1388,9 @@ importers:
       '@radix-ui/react-slot':
         specifier: ^1.2.4
         version: 1.2.4(@types/react@19.2.14)(react@19.2.4)
+      '@sdkwork/birdcoder-codeengine':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-codeengine
       '@sdkwork/birdcoder-commons':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-commons
@@ -2835,6 +2908,27 @@ packages:
 
   '@vueuse/shared@12.8.2':
     resolution: {integrity: sha512-dznP38YzxZoNloI0qpEfpkms8knDtaoQ6Y/sfS0L7Yki4zh40LFHEhur0odJC6xTHG5dxWVPiUWBXn+wCG2s5w==}
+
+  '@xterm/addon-canvas@0.7.0':
+    resolution: {integrity: sha512-LF5LYcfvefJuJ7QotNRdRSPc9YASAVDeoT5uyXS/nZshZXjYplGXRECBGiznwvhNL2I8bq1Lf5MzRwstsYQ2Iw==}
+    peerDependencies:
+      '@xterm/xterm': ^5.0.0
+
+  '@xterm/addon-fit@0.10.0':
+    resolution: {integrity: sha512-UFYkDm4HUahf2lnEyHvio51TNGiLK66mqP2JoATy7hRZeXaGMRDr00JiSF7m63vR5WKATF605yEggJKsw0JpMQ==}
+    peerDependencies:
+      '@xterm/xterm': ^5.0.0
+
+  '@xterm/addon-search@0.16.0':
+    resolution: {integrity: sha512-9OeuBFu0/uZJPu+9AHKY6g/w0Czyb/Ut0A5t79I4ULoU4IfU5BEpPFVGQxP4zTTMdfZEYkVIRYbHBX1xWwjeSA==}
+
+  '@xterm/addon-unicode11@0.8.0':
+    resolution: {integrity: sha512-LxinXu8SC4OmVa6FhgwsVCBZbr8WoSGzBl2+vqe8WcQ6hb1r6Gj9P99qTNdPiFPh4Ceiu2pC8xukZ6+2nnh49Q==}
+    peerDependencies:
+      '@xterm/xterm': ^5.0.0
+
+  '@xterm/xterm@5.5.0':
+    resolution: {integrity: sha512-hqJHYaQb5OptNunnyAnkHyM8aCjZ1MEIDTQu1iIbbTD/xops91NB5yq1ZK/dC2JDbVWtF23zUtl9JE2NqwT87A==}
 
   algoliasearch@5.50.1:
     resolution: {integrity: sha512-/bwdue1/8LWELn/DBalGRfuLsXBLXULJo/yOeavJtDu8rBwxIzC6/Rz9Jg19S21VkJvRuZO1k8CZXBMS73mYbA==}
@@ -4758,6 +4852,22 @@ snapshots:
       vue: 3.5.32(typescript@5.8.3)
     transitivePeerDependencies:
       - typescript
+
+  '@xterm/addon-canvas@0.7.0(@xterm/xterm@5.5.0)':
+    dependencies:
+      '@xterm/xterm': 5.5.0
+
+  '@xterm/addon-fit@0.10.0(@xterm/xterm@5.5.0)':
+    dependencies:
+      '@xterm/xterm': 5.5.0
+
+  '@xterm/addon-search@0.16.0': {}
+
+  '@xterm/addon-unicode11@0.8.0(@xterm/xterm@5.5.0)':
+    dependencies:
+      '@xterm/xterm': 5.5.0
+
+  '@xterm/xterm@5.5.0': {}
 
   algoliasearch@5.50.1:
     dependencies:

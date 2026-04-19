@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Check,
-  Download,
   FolderPlus,
   LayoutTemplate,
   Plus,
@@ -9,6 +8,7 @@ import {
   Star,
   Tag,
 } from 'lucide-react';
+import type { BirdCoderAppTemplateSummary } from '@sdkwork/birdcoder-types';
 import {
   importLocalFolderProject,
   useIDEServices,
@@ -16,7 +16,7 @@ import {
   useToast,
 } from '@sdkwork/birdcoder-commons';
 
-interface Template {
+interface TemplateCardModel {
   id: string;
   title: string;
   description: string;
@@ -26,169 +26,14 @@ interface Template {
   downloads: string;
   stars: string;
   category: 'community' | 'saas' | 'mine';
+  versionId: string;
+  presetKey: string;
 }
 
-const MOCK_TEMPLATES: Template[] = [
-  {
-    id: 't1',
-    title: 'Next.js Blog Starter',
-    description: 'A modern blog starter with Next.js 14, App Router, Tailwind CSS, and MDX support.',
-    icon: 'N',
-    tags: ['Next.js', 'React', 'Tailwind'],
-    author: 'Community',
-    downloads: '12k',
-    stars: '4.5k',
-    category: 'community',
-  },
-  {
-    id: 't2',
-    title: 'Vue3 Admin Pro',
-    description: 'Enterprise-level admin dashboard template built with Vue 3, Vite, and Element Plus.',
-    icon: 'V',
-    tags: ['Vue3', 'Admin', 'TypeScript'],
-    author: 'Community',
-    downloads: '8.2k',
-    stars: '3.1k',
-    category: 'community',
-  },
-  {
-    id: 't3',
-    title: 'Express API Boilerplate',
-    description: 'Production-ready Node.js REST API boilerplate with Express, Mongoose, and JWT auth.',
-    icon: 'E',
-    tags: ['Node.js', 'Express', 'MongoDB'],
-    author: 'Community',
-    downloads: '15k',
-    stars: '5.2k',
-    category: 'community',
-  },
-  {
-    id: 't4',
-    title: 'React Native Expo',
-    description: 'Cross-platform mobile app starter using React Native and Expo with navigation pre-configured.',
-    icon: 'R',
-    tags: ['React Native', 'Mobile', 'Expo'],
-    author: 'Community',
-    downloads: '9.5k',
-    stars: '2.8k',
-    category: 'community',
-  },
-  {
-    id: 't5',
-    title: 'Sdkwork ERP Base',
-    description: 'Official Sdkwork enterprise resource planning base template with multi-tenant architecture.',
-    icon: 'ERP',
-    tags: ['SaaS', 'ERP', 'Multi-tenant'],
-    author: 'Sdkwork',
-    downloads: '5.1k',
-    stars: '1.2k',
-    category: 'saas',
-  },
-  {
-    id: 't6',
-    title: 'AI Agent Scaffolding',
-    description: 'Quickly build and deploy AI agents with built-in LLM integrations and memory management.',
-    icon: 'AI',
-    tags: ['AI', 'LLM', 'Agent'],
-    author: 'Sdkwork',
-    downloads: '18k',
-    stars: '6.5k',
-    category: 'saas',
-  },
-  {
-    id: 't7',
-    title: 'E-commerce Core',
-    description: 'High-performance e-commerce storefront template with cart, checkout, and payment integrations.',
-    icon: 'EC',
-    tags: ['E-commerce', 'Stripe', 'Next.js'],
-    author: 'Sdkwork',
-    downloads: '7.3k',
-    stars: '2.4k',
-    category: 'saas',
-  },
-  {
-    id: 't8',
-    title: 'My Personal Portfolio',
-    description: 'A personal portfolio base with dark mode and smooth section transitions.',
-    icon: 'PF',
-    tags: ['Portfolio', 'Motion'],
-    author: 'Me',
-    downloads: '0',
-    stars: '0',
-    category: 'mine',
-  },
-  {
-    id: 't9',
-    title: 'Python FastAPI',
-    description: 'High-performance API backend using FastAPI, SQLAlchemy, and Alembic.',
-    icon: 'P',
-    tags: ['Python', 'FastAPI', 'Backend'],
-    author: 'Community',
-    downloads: '11k',
-    stars: '4.1k',
-    category: 'community',
-  },
-  {
-    id: 't10',
-    title: 'Microservices Gateway',
-    description: 'API gateway starter for a microservices deployment with auth, routing, and observability.',
-    icon: 'MG',
-    tags: ['Microservices', 'Gateway', 'Docker'],
-    author: 'Sdkwork',
-    downloads: '4.2k',
-    stars: '1.8k',
-    category: 'saas',
-  },
-  {
-    id: 't11',
-    title: 'SvelteKit E-commerce',
-    description: 'A lightweight storefront starter built with SvelteKit and Stripe checkout.',
-    icon: 'S',
-    tags: ['Svelte', 'E-commerce', 'Stripe'],
-    author: 'Community',
-    downloads: '3.4k',
-    stars: '1.2k',
-    category: 'community',
-  },
-  {
-    id: 't12',
-    title: 'Go Microservice',
-    description: 'A standardized Go microservice base with gRPC, structured logging, and metrics.',
-    icon: 'G',
-    tags: ['Go', 'Microservices', 'gRPC'],
-    author: 'Community',
-    downloads: '6.7k',
-    stars: '2.9k',
-    category: 'community',
-  },
-  {
-    id: 't13',
-    title: 'Data Analytics Dashboard',
-    description: 'A real-time analytics dashboard with WebSockets, charts, and event streaming patterns.',
-    icon: 'DA',
-    tags: ['Analytics', 'WebSockets', 'Charts'],
-    author: 'Sdkwork',
-    downloads: '8.9k',
-    stars: '3.4k',
-    category: 'saas',
-  },
-  {
-    id: 't14',
-    title: 'Internal Tool Base',
-    description: 'A shared internal tool base with auth, permissions, and reusable admin UI patterns.',
-    icon: 'IT',
-    tags: ['Internal', 'React', 'Tailwind'],
-    author: 'Me',
-    downloads: '0',
-    stars: '0',
-    category: 'mine',
-  },
-];
-
-const CATEGORY_TABS: Array<{ id: 'all' | Template['category']; label: string }> = [
+const CATEGORY_TABS: Array<{ id: 'all' | TemplateCardModel['category']; label: string }> = [
   { id: 'all', label: 'All templates' },
   { id: 'community', label: 'Community' },
-  { id: 'saas', label: 'Sdkwork SaaS' },
+  { id: 'saas', label: 'SDKWork SaaS' },
   { id: 'mine', label: 'Mine' },
 ];
 
@@ -197,29 +42,103 @@ interface TemplatesPageProps {
   onProjectCreated?: (projectId: string) => void;
 }
 
+function formatCount(value?: number): string {
+  if (!value || value <= 0) {
+    return '0';
+  }
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1).replace(/\.0$/u, '')}m`;
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(1).replace(/\.0$/u, '')}k`;
+  }
+  return String(value);
+}
+
+function toTemplateCardModel(summary: BirdCoderAppTemplateSummary): TemplateCardModel {
+  let category: TemplateCardModel['category'] = 'community';
+  if (summary.category === 'saas') {
+    category = 'saas';
+  } else if (summary.category === 'mine') {
+    category = 'mine';
+  }
+
+  return {
+    id: summary.id,
+    title: summary.name,
+    description: summary.description,
+    icon: summary.icon || summary.name.slice(0, 2).toUpperCase(),
+    tags: summary.tags,
+    author: summary.author || 'Unknown',
+    downloads: formatCount(summary.downloads),
+    stars: formatCount(summary.stars),
+    category,
+    versionId: summary.versionId,
+    presetKey: summary.presetKey,
+  };
+}
+
 export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPageProps) {
   const { createProject, updateProject } = useProjects(workspaceId);
-  const { fileSystemService, projectService } = useIDEServices();
+  const { catalogService, fileSystemService, projectService } = useIDEServices();
   const { addToast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<'all' | Template['category']>('all');
+  const [activeCategory, setActiveCategory] = useState<'all' | TemplateCardModel['category']>('all');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<TemplateCardModel[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTemplates() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const nextTemplates = await catalogService.getAppTemplates();
+        if (cancelled) {
+          return;
+        }
+        setTemplates(nextTemplates.map(toTemplateCardModel));
+      } catch (loadError) {
+        if (cancelled) {
+          return;
+        }
+        setError(
+          loadError instanceof Error && loadError.message.trim()
+            ? loadError.message
+            : 'Failed to load app templates.',
+        );
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadTemplates();
+    return () => {
+      cancelled = true;
+    };
+  }, [catalogService]);
 
   const filteredTemplates = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    return MOCK_TEMPLATES.filter((template) => {
-      const matchesCategory = activeCategory === 'all' || template.category === activeCategory;
+    return templates.filter((template) => {
+      const matchesCategory =
+        activeCategory === 'all' || template.category === activeCategory;
       const matchesQuery =
-        normalizedQuery.length === 0
-        || template.title.toLowerCase().includes(normalizedQuery)
-        || template.description.toLowerCase().includes(normalizedQuery)
-        || template.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery));
+        normalizedQuery.length === 0 ||
+        template.title.toLowerCase().includes(normalizedQuery) ||
+        template.description.toLowerCase().includes(normalizedQuery) ||
+        template.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery));
 
       return matchesCategory && matchesQuery;
     });
-  }, [activeCategory, searchQuery]);
+  }, [activeCategory, searchQuery, templates]);
 
-  async function selectFolderAndImportProject(fallbackProjectName: string) {
+  async function selectFolderAndImportProject(template: TemplateCardModel) {
     const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
     const folderInfo = await openLocalFolder();
     if (!folderInfo) {
@@ -229,28 +148,33 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
     const normalizedWorkspaceId = workspaceId?.trim() ?? '';
 
     return importLocalFolderProject({
-      createProject,
-      fallbackProjectName,
+      createProject: (name, options) =>
+        createProject(name, {
+          ...options,
+          appTemplateVersionId: template.versionId,
+          templatePresetKey: template.presetKey,
+        }),
+      fallbackProjectName: template.title,
       folderInfo,
-      getProjects: () =>
+      getProjectByPath: (projectPath) =>
         normalizedWorkspaceId
-          ? projectService.getProjects(normalizedWorkspaceId)
-          : Promise.resolve([]),
+          ? projectService.getProjectByPath(normalizedWorkspaceId, projectPath)
+          : Promise.resolve(null),
       mountFolder: (projectId, nextFolderInfo) =>
         fileSystemService.mountFolder(projectId, nextFolderInfo),
       updateProject,
     });
   }
 
-  async function handleCreateProjectFromTemplate(template: Template) {
-    if (!workspaceId) {
+  async function handleCreateProjectFromTemplate(template: TemplateCardModel) {
+    if (!workspaceId?.trim()) {
       addToast('Select a workspace before creating a project from a template.', 'error');
       return;
     }
 
     setSelectedTemplateId(template.id);
     try {
-      const project = await selectFolderAndImportProject(template.title);
+      const project = await selectFolderAndImportProject(template);
       if (!project) {
         return;
       }
@@ -261,8 +185,13 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
       }
       addToast(`Created "${template.title}" from templates.`, 'success');
       onProjectCreated?.(project.projectId);
-    } catch (error) {
-      addToast(`Failed to create "${template.title}".`, 'error');
+    } catch (createError) {
+      addToast(
+        createError instanceof Error && createError.message.trim()
+          ? createError.message
+          : `Failed to create "${template.title}".`,
+        'error',
+      );
     } finally {
       setSelectedTemplateId(null);
     }
@@ -280,7 +209,7 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
               <div>
                 <h1 className="text-xl font-semibold text-white">Project Templates</h1>
                 <p className="text-sm text-gray-400">
-                  Start BirdCoder workspaces from curated starter kits without changing the product shape.
+                  Curated app starters served by the BirdCoder server catalog.
                 </p>
               </div>
             </div>
@@ -292,7 +221,7 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search templates (Ctrl+K)"
+              placeholder="Search templates"
               className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-blue-500/50 focus:bg-white/[0.07]"
             />
           </div>
@@ -317,12 +246,24 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
       </div>
 
       <div className="flex-1 overflow-auto px-6 py-6">
-        {filteredTemplates.length === 0 ? (
-          <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.03] text-center">
+        {isLoading ? (
+          <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
+            <div className="flex items-center gap-3 text-sm text-gray-300">
+              <LayoutTemplate size={18} />
+              Loading templates...
+            </div>
+          </div>
+        ) : error ? (
+          <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/5 text-center">
+            <h2 className="text-base font-semibold text-white">Failed to load templates</h2>
+            <p className="mt-1 max-w-md text-sm text-red-200/80">{error}</p>
+          </div>
+        ) : filteredTemplates.length === 0 ? (
+          <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.03] text-center">
             <LayoutTemplate size={28} className="mb-3 text-gray-500" />
             <h2 className="text-base font-semibold text-white">No templates matched</h2>
             <p className="mt-1 max-w-md text-sm text-gray-400">
-              Try a different search term or switch back to another category.
+              Try a different search term or switch to another category.
             </p>
           </div>
         ) : (
@@ -347,8 +288,8 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
                     </div>
                     <div className="flex items-center gap-3 text-xs text-gray-400">
                       <span className="inline-flex items-center gap-1">
-                        <Download size={12} />
-                        {template.downloads}
+                        <LayoutTemplate size={12} />
+                        v1
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Star size={12} />
@@ -374,11 +315,13 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
                   <div className="mt-5 flex items-center justify-between gap-3">
                     <span className="inline-flex items-center gap-2 text-xs text-gray-500">
                       <Check size={12} />
-                      Standardized BirdCoder starter
+                      Server catalog template
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleCreateProjectFromTemplate(template)}
+                      onClick={() => {
+                        void handleCreateProjectFromTemplate(template);
+                      }}
                       disabled={creating}
                       className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -398,12 +341,12 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
           <div>
             <h2 className="text-sm font-semibold text-white">Need a custom starter?</h2>
             <p className="text-sm text-gray-400">
-              Turn an existing project into a reusable BirdCoder template once your workspace flow stabilizes.
+              Template publishing stays server-managed; the current desktop surface is read and instantiate only.
             </p>
           </div>
           <button
             type="button"
-            onClick={() => addToast('Template publishing is reserved for the next iteration.', 'info')}
+            onClick={() => addToast('Template publishing is not implemented yet.', 'info')}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-gray-200 transition hover:bg-white/10"
           >
             <Plus size={14} />
@@ -414,4 +357,3 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
     </div>
   );
 }
-

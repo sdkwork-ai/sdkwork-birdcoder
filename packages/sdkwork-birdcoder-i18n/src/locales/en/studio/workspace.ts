@@ -28,12 +28,14 @@ export default defineLocaleModule('studio/workspace', {
     "refreshingSessions": "Refreshing Sessions",
     "refreshMessages": "Refresh Messages",
     "refreshingMessages": "Refreshing Messages",
+    "executingSession": "Executing",
     "projectSessionsRefreshed": "Refreshed sessions for project: {{name}}",
     "sessionMessagesRefreshed": "Refreshed messages for session: {{name}}",
     "failedToRefreshProjectSessions": "Failed to refresh project sessions",
     "failedToRefreshSessionMessages": "Failed to refresh session messages",
     "restoredFiles": "Restored files to previous state",
     "messageDeleted": "Message deleted successfully",
+    "failedToDeleteMessage": "Failed to delete message",
     "whatToBuild": "What do you want to build?",
     "selectProjectToStart": "Select a project",
     "buildDescription": "Describe your idea, ask a question, or paste some code to get started. I can help you write code, debug errors, or build entire features.",
@@ -44,6 +46,8 @@ export default defineLocaleModule('studio/workspace', {
     "searchFilesByName": "Search files by name...",
     "noMatchingFiles": "No matching files found",
     "fileMatch": "File match",
-    "ranFor": "Ran for {{time}}"
+    "ranFor": "Ran for {{time}}",
+    "showMoreSessions": "Show {{count}} more",
+    "collapseSessions": "Collapse"
   }
 });

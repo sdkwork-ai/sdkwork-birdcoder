@@ -14,26 +14,35 @@ function createIdentifier(prefix: string): string {
 function mapWorkspaceRecordToWorkspace(value: BirdCoderWorkspaceRecord): IWorkspace {
   return {
     id: value.id,
+    uuid: value.uuid,
+    tenantId: value.tenantId,
+    organizationId: value.organizationId,
+    code: value.code,
+    title: value.title,
     name: value.name,
     description: value.description,
     icon: 'Folder',
+    ownerId: value.ownerId,
+    leaderId: value.leaderId,
+    type: value.type,
+    createdByUserId: value.createdByUserId,
   };
 }
 
 export interface ProviderBackedWorkspaceServiceOptions {
-  defaultOwnerIdentityId?: string;
+  defaultOwnerUserId?: string;
   repository: BirdCoderTableRecordRepository<BirdCoderWorkspaceRecord>;
 }
 
 export class ProviderBackedWorkspaceService implements IWorkspaceService {
-  private readonly defaultOwnerIdentityId: string;
+  private readonly defaultOwnerUserId: string;
   private readonly repository: BirdCoderTableRecordRepository<BirdCoderWorkspaceRecord>;
 
   constructor({
-    defaultOwnerIdentityId = 'identity-local-default',
+    defaultOwnerUserId = 'user-local-default',
     repository,
   }: ProviderBackedWorkspaceServiceOptions) {
-    this.defaultOwnerIdentityId = defaultOwnerIdentityId;
+    this.defaultOwnerUserId = defaultOwnerUserId;
     this.repository = repository;
   }
 
@@ -51,9 +60,17 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
     const now = createTimestamp();
     const record = await this.repository.save({
       id: createIdentifier('workspace'),
+      uuid: createIdentifier('workspace-uuid'),
+      tenantId: 'tenant-local-default',
+      code: normalizedName,
+      title: normalizedName,
       name: normalizedName,
       description: description?.trim() || undefined,
-      ownerIdentityId: this.defaultOwnerIdentityId,
+      ownerId: this.defaultOwnerUserId,
+      leaderId: this.defaultOwnerUserId,
+      createdByUserId: this.defaultOwnerUserId,
+      type: 'DEFAULT',
+      status: 'active',
       createdAt: now,
       updatedAt: now,
     });
@@ -65,12 +82,30 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
     const now = createTimestamp();
     const record = await this.repository.save({
       id: summary.id,
+      uuid: summary.uuid ?? existingRecord?.uuid ?? summary.id,
+      tenantId: summary.tenantId ?? existingRecord?.tenantId,
+      organizationId: summary.organizationId ?? existingRecord?.organizationId,
+      code: summary.code?.trim() || existingRecord?.code || summary.id,
+      title: summary.title?.trim() || existingRecord?.title || summary.name,
       name: summary.name.trim() || existingRecord?.name || summary.id,
       description: summary.description?.trim() || existingRecord?.description,
-      ownerIdentityId:
-        summary.ownerIdentityId?.trim() ||
-        existingRecord?.ownerIdentityId ||
-        this.defaultOwnerIdentityId,
+      ownerId:
+        summary.ownerId?.trim() ||
+        existingRecord?.ownerId ||
+        this.defaultOwnerUserId,
+      leaderId:
+        summary.leaderId?.trim() ||
+        existingRecord?.leaderId ||
+        summary.ownerId?.trim() ||
+        this.defaultOwnerUserId,
+      createdByUserId:
+        summary.createdByUserId?.trim() ||
+        existingRecord?.createdByUserId ||
+        summary.ownerId?.trim() ||
+        existingRecord?.ownerId ||
+        this.defaultOwnerUserId,
+      type: summary.type?.trim() || existingRecord?.type || 'DEFAULT',
+      status: summary.status,
       createdAt: existingRecord?.createdAt || now,
       updatedAt: now,
     });
@@ -104,9 +139,17 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
     const now = createTimestamp();
     await this.repository.save({
       id: 'workspace-default',
+      uuid: 'workspace-default',
+      tenantId: 'tenant-local-default',
+      code: 'workspace-default',
+      title: 'Default Workspace',
       name: 'Default Workspace',
       description: 'Primary local workspace for BirdCoder.',
-      ownerIdentityId: this.defaultOwnerIdentityId,
+      ownerId: this.defaultOwnerUserId,
+      leaderId: this.defaultOwnerUserId,
+      createdByUserId: this.defaultOwnerUserId,
+      type: 'DEFAULT',
+      status: 'active',
       createdAt: now,
       updatedAt: now,
     });

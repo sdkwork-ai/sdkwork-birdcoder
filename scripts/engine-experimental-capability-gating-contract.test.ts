@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 
 import { createCapabilitySnapshot } from '../packages/sdkwork-birdcoder-chat/src/index.ts';
-import { createChatEngineById } from '../packages/sdkwork-birdcoder-commons/src/workbench/engines.ts';
-import { getWorkbenchCodeEngineKernel, listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-commons/src/workbench/kernel.ts';
+import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
+import { getWorkbenchCodeEngineKernel, listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
 
 const claudeCapabilityMatrix = getWorkbenchCodeEngineKernel('claude-code').descriptor.capabilityMatrix;
 

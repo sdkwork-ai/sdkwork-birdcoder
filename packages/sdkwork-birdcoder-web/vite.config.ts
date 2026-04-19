@@ -174,13 +174,20 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     dedupe: [...BIRDCODER_VITE_DEDUPE_PACKAGES],
     alias: [
+      { find: /^@sdkwork\/birdcoder-([^/]+)\/(.+)$/u, replacement: path.resolve(__dirname, '../sdkwork-birdcoder-$1/src/$2') },
       { find: /^@sdkwork\/birdcoder-([^/]+)$/u, replacement: path.resolve(__dirname, '../sdkwork-birdcoder-$1/src') },
+      { find: /^@sdkwork\/terminal-([^/]+)\/(.+)$/u, replacement: path.resolve(__dirname, '../../../sdkwork-terminal/packages/sdkwork-terminal-$1/src/$2') },
+      { find: /^@sdkwork\/terminal-([^/]+)$/u, replacement: path.resolve(__dirname, '../../../sdkwork-terminal/packages/sdkwork-terminal-$1/src') },
+      { find: /^@xterm\/(.*)$/u, replacement: path.resolve(__dirname, '../../node_modules/@xterm/$1') },
     ],
   },
   server: {
     hmr: process.env.DISABLE_HMR !== 'true',
     fs: {
-      allow: [path.resolve(__dirname, '../..')],
+      allow: [
+        path.resolve(__dirname, '../..'),
+        path.resolve(__dirname, '../../../sdkwork-terminal'),
+      ],
     },
   },
 }));

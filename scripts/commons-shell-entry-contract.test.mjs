@@ -117,8 +117,8 @@ assert.ok(
 
 assert.match(
   readText('src/main.tsx'),
-  /from ['"]@sdkwork\/birdcoder-commons\/shell['"]/u,
-  'src/main.tsx must consume IDEProvider from @sdkwork/birdcoder-commons/shell.',
+  /from ['"]@sdkwork\/birdcoder-shell\/runtime['"]/u,
+  'src/main.tsx must consume bootstrapShellRuntime from @sdkwork/birdcoder-shell/runtime so the legacy root Vite entry stays aligned with the standardized delivery-target bootstrap boundary.',
 );
 
 assert.match(

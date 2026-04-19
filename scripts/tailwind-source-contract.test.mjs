@@ -78,7 +78,7 @@ assert.ok(
 const scanner = new Scanner({ sources: compiled.sources });
 const candidates = new Set(scanner.scan());
 
-for (const candidate of ['w-1/3', 'h-screen', 'w-screen', 'grid-cols-2']) {
+for (const candidate of ['max-h-[60vh]', 'min-h-screen', 'w-1/3', 'grid-cols-2']) {
   assert.ok(
     candidates.has(candidate),
     `Tailwind source scan missed layout candidate "${candidate}".`,

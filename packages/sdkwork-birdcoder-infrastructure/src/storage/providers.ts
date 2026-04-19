@@ -41,7 +41,6 @@ const RUNTIME_DATA_KERNEL_ENTITY_NAMES = [
   'model_catalog',
   'engine_binding',
   'run_configuration',
-  'terminal_session',
   'terminal_execution',
   'build_execution',
   'preview_session',

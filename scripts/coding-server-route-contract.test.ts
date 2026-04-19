@@ -18,10 +18,10 @@ assert.deepEqual(descriptor, {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/api/core/v1/routes',
-    routeCount: 50,
+    routeCount: 57,
     routesBySurface: {
-      core: 17,
-      app: 26,
+      core: 19,
+      app: 31,
       admin: 7,
     },
     surfaces: [
@@ -30,14 +30,14 @@ assert.deepEqual(descriptor, {
         basePath: '/api/core/v1',
         description: 'Core coding runtime, engine catalog, session execution, and operation control.',
         name: 'core',
-        routeCount: 17,
+        routeCount: 19,
       },
       {
         authMode: 'user',
         basePath: '/api/app/v1',
         description: 'Application-facing workspace, project, collaboration, and user-center routes.',
         name: 'app',
-        routeCount: 26,
+        routeCount: 31,
       },
       {
         authMode: 'admin',
@@ -58,6 +58,7 @@ const core = getBirdCoderCoreApiContract();
 assert.equal(core.engines.method, 'GET');
 assert.equal(core.engines.path, '/api/core/v1/engines');
 assert.equal(core.engineCapabilities.path, '/api/core/v1/engines/:engineKey/capabilities');
+assert.equal(core.nativeSessionProviders.path, '/api/core/v1/native-session-providers');
 assert.equal(core.nativeSessions.path, '/api/core/v1/native-sessions');
 assert.equal(core.nativeSession.path, '/api/core/v1/native-sessions/:id');
 assert.equal(core.sessions.path, '/api/core/v1/coding-sessions');
@@ -98,6 +99,8 @@ assert.equal(app.updateWorkspace.method, 'PATCH');
 assert.equal(app.updateWorkspace.path, '/api/app/v1/workspaces/:workspaceId');
 assert.equal(app.deleteWorkspace.method, 'DELETE');
 assert.equal(app.deleteWorkspace.path, '/api/app/v1/workspaces/:workspaceId');
+assert.equal(app.subscribeWorkspaceRealtime.method, 'GET');
+assert.equal(app.subscribeWorkspaceRealtime.path, '/api/app/v1/workspaces/:workspaceId/realtime');
 assert.equal(app.createProject.method, 'POST');
 assert.equal(app.createProject.path, '/api/app/v1/projects');
 assert.equal(app.updateProject.method, 'PATCH');
@@ -122,7 +125,7 @@ assert.equal(admin.releases.path, '/api/admin/v1/releases');
 assert.equal(admin.deployments.path, '/api/admin/v1/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 50, 'coding-server should expose the full core/app/admin route matrix');
+assert.equal(routes.length, 57, 'coding-server should expose the full core/app/admin route matrix');
 assert.equal(
   routes.every((route) => route.path.startsWith('/api/core/v1') || route.path.startsWith('/api/app/v1') || route.path.startsWith('/api/admin/v1')),
   true,
@@ -154,6 +157,18 @@ assert.deepEqual(
   },
 );
 assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'core.listNativeSessionProviders'),
+  {
+    authMode: 'host',
+    method: 'GET',
+    openApiPath: '/api/core/v1/native-session-providers',
+    operationId: 'core.listNativeSessionProviders',
+    path: '/api/core/v1/native-session-providers',
+    surface: 'core',
+    summary: 'List registered native engine session providers',
+  },
+);
+assert.deepEqual(
   routeCatalog.find((route) => route.operationId === 'core.listNativeSessions'),
   {
     authMode: 'host',
@@ -175,6 +190,18 @@ assert.deepEqual(
     path: '/api/core/v1/native-sessions/:id',
     surface: 'core',
     summary: 'Get discovered native engine session detail',
+  },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'app.subscribeWorkspaceRealtime'),
+  {
+    authMode: 'user',
+    method: 'GET',
+    openApiPath: '/api/app/v1/workspaces/{workspaceId}/realtime',
+    operationId: 'app.subscribeWorkspaceRealtime',
+    path: '/api/app/v1/workspaces/:workspaceId/realtime',
+    surface: 'app',
+    summary: 'Subscribe to workspace realtime invalidation events',
   },
 );
 

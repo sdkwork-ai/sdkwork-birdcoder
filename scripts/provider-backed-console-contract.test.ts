@@ -74,7 +74,7 @@ try {
     id: 'workspace-console-contract',
     name: 'Console Contract Workspace',
     description: 'Workspace persisted through the shared table repository.',
-    ownerIdentityId: 'identity-console-contract',
+    ownerId: 'user-console-contract',
     createdAt: '2026-04-10T18:00:00.000Z',
     updatedAt: '2026-04-10T18:00:00.000Z',
   });
@@ -132,7 +132,7 @@ try {
   await repositories.members.save({
     id: 'member-console-contract',
     teamId: 'team-console-contract',
-    identityId: 'identity-console-contract',
+    userId: 'user-console-contract',
     role: 'admin',
     status: 'active',
     createdAt: '2026-04-10T18:00:02.250Z',
@@ -191,7 +191,9 @@ try {
     'Persisted Workspace',
     'Created through the default IDE service factory.',
   );
-  await services.projectService.createProject(createdWorkspace.id, 'Persisted Project');
+  await services.projectService.createProject(createdWorkspace.id, 'Persisted Project', {
+    path: 'D:/sdkwork/contracts/provider-backed-console-project',
+  });
 
   const reloadedServices = createDefaultBirdCoderIdeServices();
   const persistedWorkspaces = await reloadedServices.workspaceService.getWorkspaces();

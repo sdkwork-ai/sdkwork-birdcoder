@@ -87,7 +87,7 @@ try {
     id: 'workspace-core-write-contract',
     name: 'Core Write Contract Workspace',
     description: 'Workspace for core write create-session adoption.',
-    ownerIdentityId: 'identity-core-write-contract',
+    ownerId: 'user-core-write-contract',
     createdAt: '2026-04-11T11:30:00.000Z',
     updatedAt: '2026-04-11T11:30:00.000Z',
   });
@@ -142,10 +142,22 @@ try {
         lastTurnAt: '2026-04-11T11:32:00.000Z',
       };
     },
+    async updateCodingSession() {
+      throw new Error('not needed');
+    },
+    async forkCodingSession() {
+      throw new Error('not needed');
+    },
+    async deleteCodingSession() {
+      throw new Error('not needed');
+    },
     async createCodingSessionTurn() {
       throw new Error('not needed');
     },
     async submitApprovalDecision() {
+      throw new Error('not needed');
+    },
+    async deleteCodingSessionMessage() {
       throw new Error('not needed');
     },
   };
