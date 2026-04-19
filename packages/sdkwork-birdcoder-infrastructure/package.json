@@ -19,6 +19,10 @@
       "import": "./src/services/defaultIdeServices.ts",
       "types": "./src/services/defaultIdeServices.ts"
     },
+    "./services/workspaceRealtimeClient": {
+      "import": "./src/services/workspaceRealtimeClient.ts",
+      "types": "./src/services/workspaceRealtimeClient.ts"
+    },
     "./platform/openLocalFolder": {
       "import": "./src/platform/openLocalFolder.ts",
       "types": "./src/platform/openLocalFolder.ts"

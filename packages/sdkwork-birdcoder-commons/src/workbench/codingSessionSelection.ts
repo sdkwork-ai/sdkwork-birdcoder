@@ -9,6 +9,59 @@ export interface BirdCoderResolvedCodingSessionLocation {
   project: BirdCoderProject;
 }
 
+export interface BirdCoderProjectCodingSessionIndex {
+  codingSessionLocationsById: ReadonlyMap<string, BirdCoderResolvedCodingSessionLocation>;
+  latestCodingSessionIdByProjectId: ReadonlyMap<string, string | null>;
+  projectsById: ReadonlyMap<string, BirdCoderProject>;
+}
+
+function isLaterCodingSession(
+  candidate: BirdCoderCodingSession,
+  current: BirdCoderCodingSession,
+): boolean {
+  return (
+    resolveBirdCoderSessionSortTimestamp(candidate) >
+      resolveBirdCoderSessionSortTimestamp(current) ||
+    (
+      resolveBirdCoderSessionSortTimestamp(candidate) ===
+        resolveBirdCoderSessionSortTimestamp(current) &&
+      candidate.id.localeCompare(current.id) < 0
+    )
+  );
+}
+
+export function buildProjectCodingSessionIndex(
+  projects: readonly BirdCoderProject[],
+): BirdCoderProjectCodingSessionIndex {
+  const projectsById = new Map<string, BirdCoderProject>();
+  const codingSessionLocationsById = new Map<string, BirdCoderResolvedCodingSessionLocation>();
+  const latestCodingSessionIdByProjectId = new Map<string, string | null>();
+
+  for (const project of projects) {
+    projectsById.set(project.id, project);
+
+    let latestCodingSession: BirdCoderCodingSession | null = null;
+    for (const codingSession of project.codingSessions) {
+      codingSessionLocationsById.set(codingSession.id, {
+        codingSession,
+        project,
+      });
+
+      if (!latestCodingSession || isLaterCodingSession(codingSession, latestCodingSession)) {
+        latestCodingSession = codingSession;
+      }
+    }
+
+    latestCodingSessionIdByProjectId.set(project.id, latestCodingSession?.id ?? null);
+  }
+
+  return {
+    codingSessionLocationsById,
+    latestCodingSessionIdByProjectId,
+    projectsById,
+  };
+}
+
 export function resolveCodingSessionLocationInProjects(
   projects: readonly BirdCoderProject[],
   codingSessionId: string | null | undefined,
@@ -54,11 +107,13 @@ export function resolveLatestCodingSessionIdForProject(
     return null;
   }
 
-  return [...project.codingSessions]
-    .sort(
-      (left, right) =>
-        resolveBirdCoderSessionSortTimestamp(right) -
-          resolveBirdCoderSessionSortTimestamp(left) ||
-        left.id.localeCompare(right.id),
-    )[0]?.id ?? null;
+  let latestCodingSession = project.codingSessions[0];
+  for (let index = 1; index < project.codingSessions.length; index += 1) {
+    const candidate = project.codingSessions[index];
+    if (isLaterCodingSession(candidate, latestCodingSession)) {
+      latestCodingSession = candidate;
+    }
+  }
+
+  return latestCodingSession?.id ?? null;
 }

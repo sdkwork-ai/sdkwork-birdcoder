@@ -138,23 +138,32 @@ assert.equal(
 assert.equal(buildTerminalProfileBlockedMessage('powershell'), null);
 
 const terminalPageSource = await readFile(
-  new URL('../packages/sdkwork-birdcoder-terminal/src/pages/TerminalPage.tsx', import.meta.url),
+  new URL('../packages/sdkwork-birdcoder-terminal/src/TerminalPage.tsx', import.meta.url),
+  'utf8',
+);
+const terminalLaunchAdapterSource = await readFile(
+  new URL('../packages/sdkwork-birdcoder-commons/src/terminal/sdkworkTerminalLaunch.ts', import.meta.url),
   'utf8',
 );
 assert.equal(
   terminalPageSource.includes('AI CLI profile'),
   false,
-  'TerminalPage should use shared launch presentation text instead of legacy AI CLI fallback copy.',
+  'TerminalPage facade should not keep legacy AI CLI fallback copy.',
 );
 assert.equal(
   terminalPageSource.includes('buildTerminalProfileBlockedMessage('),
+  false,
+  'TerminalPage facade should not keep blocked-launch message construction once launch normalization moved to commons.',
+);
+assert.equal(
+  terminalLaunchAdapterSource.includes('buildTerminalProfileBlockedMessage('),
   true,
-  'TerminalPage should use the shared blocked-launch message helper.',
+  'Shared terminal launch adapter should use the shared blocked-launch message helper.',
 );
 assert.equal(
   terminalPageSource.includes('is unavailable.'),
   false,
-  'TerminalPage should not keep page-local blocked-launch toast copy.',
+  'TerminalPage facade should not keep page-local blocked-launch toast copy.',
 );
 
 const codePageSource = await readFile(

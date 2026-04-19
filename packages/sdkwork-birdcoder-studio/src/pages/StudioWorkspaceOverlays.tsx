@@ -1,7 +1,7 @@
 import type { ProjectMountRecoveryState } from '@sdkwork/birdcoder-commons/workbench';
 import { type FileNode } from '@sdkwork/birdcoder-ui';
 import { AlertCircle, FileCode2, Search, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   collectStudioQuickOpenResults,
@@ -28,7 +28,23 @@ interface StudioWorkspaceOverlaysProps {
   onNotifyNoResults: () => void;
 }
 
-export function StudioWorkspaceOverlays({
+function areStudioWorkspaceOverlaysPropsEqual(
+  left: StudioWorkspaceOverlaysProps,
+  right: StudioWorkspaceOverlaysProps,
+): boolean {
+  return (
+    left.files === right.files &&
+    left.mountRecoveryState.status === right.mountRecoveryState.status &&
+    left.mountRecoveryState.message === right.mountRecoveryState.message &&
+    left.mountRecoveryState.path === right.mountRecoveryState.path &&
+    left.isMountRecoveryActionPending === right.isMountRecoveryActionPending &&
+    left.isFindVisible === right.isFindVisible &&
+    left.isSearchingFiles === right.isSearchingFiles &&
+    left.isQuickOpenVisible === right.isQuickOpenVisible
+  );
+}
+
+export const StudioWorkspaceOverlays = memo(function StudioWorkspaceOverlays({
   files,
   mountRecoveryState,
   isMountRecoveryActionPending,
@@ -263,4 +279,6 @@ export function StudioWorkspaceOverlays({
       )}
     </>
   );
-}
+}, areStudioWorkspaceOverlaysPropsEqual);
+
+StudioWorkspaceOverlays.displayName = 'StudioWorkspaceOverlays';

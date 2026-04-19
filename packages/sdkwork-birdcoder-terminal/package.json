@@ -17,11 +17,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "lucide-react": "catalog:",
     "@tauri-apps/api": "catalog:",
-    "@sdkwork/birdcoder-codeengine": "workspace:*",
-    "@sdkwork/birdcoder-ui": "workspace:*",
-    "@sdkwork/birdcoder-commons": "workspace:*"
+    "@sdkwork/birdcoder-commons": "workspace:*",
+    "@sdkwork/terminal-infrastructure": "link:../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure",
+    "@sdkwork/terminal-shell": "link:../../../sdkwork-terminal/packages/sdkwork-terminal-shell"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "catalog:"

@@ -5,6 +5,8 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { resolveCodeEditorResponsiveChatWidth } from './codeEditorChatLayout';
 
+const CODE_EDITOR_CHAT_WIDTH_PERSIST_DELAY_MS = 160;
+
 interface UseCodeEditorChatLayoutOptions {
   activeTab: 'ai' | 'editor';
   initialChatWidth: number;
@@ -21,16 +23,63 @@ export function useCodeEditorChatLayout({
   updatePreferences,
 }: UseCodeEditorChatLayoutOptions) {
   const [chatWidth, setChatWidth] = useState(initialChatWidth);
-  const [editorWorkspaceWidth, setEditorWorkspaceWidth] = useState(0);
+  const [effectiveEditorChatWidth, setEffectiveEditorChatWidth] = useState(() =>
+    resolveCodeEditorResponsiveChatWidth(initialChatWidth, 0),
+  );
   const editorWorkspaceHostRef = useRef<HTMLDivElement>(null);
-  const effectiveEditorChatWidth = resolveCodeEditorResponsiveChatWidth(
-    chatWidth,
-    editorWorkspaceWidth,
+  const requestedChatWidthRef = useRef(initialChatWidth);
+  const editorWorkspaceWidthRef = useRef(0);
+
+  const syncEffectiveEditorChatWidth = useCallback(
+    (requestedWidth: number, workspaceWidth: number) => {
+      const nextEffectiveChatWidth = resolveCodeEditorResponsiveChatWidth(
+        requestedWidth,
+        workspaceWidth,
+      );
+      setEffectiveEditorChatWidth((previousState) =>
+        previousState === nextEffectiveChatWidth ? previousState : nextEffectiveChatWidth,
+      );
+    },
+    [],
   );
 
   useEffect(() => {
     setChatWidth(initialChatWidth);
-  }, [initialChatWidth]);
+    requestedChatWidthRef.current = initialChatWidth;
+    syncEffectiveEditorChatWidth(initialChatWidth, editorWorkspaceWidthRef.current);
+  }, [initialChatWidth, syncEffectiveEditorChatWidth]);
+
+  useEffect(() => {
+    requestedChatWidthRef.current = chatWidth;
+    syncEffectiveEditorChatWidth(chatWidth, editorWorkspaceWidthRef.current);
+  }, [chatWidth, syncEffectiveEditorChatWidth]);
+
+  useEffect(() => {
+    if (chatWidth === initialChatWidth) {
+      return undefined;
+    }
+
+    const persist = () => {
+      updatePreferences((previousPreferences) => ({
+        ...previousPreferences,
+        codeEditorChatWidth: chatWidth,
+      }));
+    };
+
+    if (typeof window === 'undefined') {
+      persist();
+      return undefined;
+    }
+
+    const timeoutHandle = window.setTimeout(
+      persist,
+      CODE_EDITOR_CHAT_WIDTH_PERSIST_DELAY_MS,
+    );
+
+    return () => {
+      window.clearTimeout(timeoutHandle);
+    };
+  }, [chatWidth, initialChatWidth, updatePreferences]);
 
   useEffect(() => {
     if (activeTab !== 'editor') {
@@ -46,7 +95,12 @@ export function useCodeEditorChatLayout({
 
     const syncEditorWorkspaceWidth = () => {
       const nextWidth = host.clientWidth;
-      setEditorWorkspaceWidth((previousState) => previousState === nextWidth ? previousState : nextWidth);
+      if (editorWorkspaceWidthRef.current === nextWidth) {
+        return;
+      }
+
+      editorWorkspaceWidthRef.current = nextWidth;
+      syncEffectiveEditorChatWidth(requestedChatWidthRef.current, nextWidth);
     };
 
     const scheduleEditorWorkspaceWidthSync = () => {
@@ -86,18 +140,13 @@ export function useCodeEditorChatLayout({
       }
       observer.disconnect();
     };
-  }, [activeTab]);
+  }, [activeTab, syncEffectiveEditorChatWidth]);
 
   const handleEditorChatResize = useCallback((delta: number) => {
-    setChatWidth((previousState) => {
-      const nextChatWidth = normalizeWorkbenchCodeEditorChatWidth(previousState - delta);
-      updatePreferences((previousPreferences) => ({
-        ...previousPreferences,
-        codeEditorChatWidth: nextChatWidth,
-      }));
-      return nextChatWidth;
-    });
-  }, [updatePreferences]);
+    setChatWidth((previousState) =>
+      normalizeWorkbenchCodeEditorChatWidth(previousState - delta),
+    );
+  }, []);
 
   return {
     editorWorkspaceHostRef,

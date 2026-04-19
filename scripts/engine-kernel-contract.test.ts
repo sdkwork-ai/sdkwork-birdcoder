@@ -111,18 +111,32 @@ for (const engine of listWorkbenchCliEngines()) {
 }
 
 const terminalPageSource = await readFile(
-  new URL('../packages/sdkwork-birdcoder-terminal/src/pages/TerminalPage.tsx', import.meta.url),
+  new URL('../packages/sdkwork-birdcoder-terminal/src/TerminalPage.tsx', import.meta.url),
+  'utf8',
+);
+const terminalLaunchAdapterSource = await readFile(
+  new URL('../packages/sdkwork-birdcoder-commons/src/terminal/sdkworkTerminalLaunch.ts', import.meta.url),
   'utf8',
 );
 assert.equal(
   terminalPageSource.includes("session.profileId === 'codex'"),
   false,
-  'TerminalPage should use a shared CLI profile helper instead of hardcoded engine session checks.',
+  'TerminalPage facade should not keep hardcoded engine session checks.',
 );
 assert.equal(
   terminalPageSource.includes('isTerminalCliProfileId('),
+  false,
+  'TerminalPage facade should not keep CLI profile classification logic after launch normalization moved to commons.',
+);
+assert.equal(
+  terminalLaunchAdapterSource.includes("profile.id === 'codex'"),
+  false,
+  'Shared terminal launch adapter should use the shared CLI profile helper instead of hardcoded engine session checks.',
+);
+assert.equal(
+  terminalLaunchAdapterSource.includes('isTerminalCliProfileId('),
   true,
-  'TerminalPage should use the shared CLI profile type guard for engine sessions.',
+  'Shared terminal launch adapter should use the shared CLI profile type guard for engine sessions.',
 );
 
 const sidebarSource = await readFile(

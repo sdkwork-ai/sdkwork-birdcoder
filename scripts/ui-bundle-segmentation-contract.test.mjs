@@ -65,6 +65,10 @@ assert.ok(
   '@sdkwork/birdcoder-infrastructure must publish the ./storage/runtime subpath so browser local-store helpers can stay isolated from SQL planners, provider migrations, and heavier storage assembly.',
 );
 assert.ok(
+  infrastructurePackageJson.exports?.['./services/workspaceRealtimeClient'],
+  '@sdkwork/birdcoder-infrastructure must publish the ./services/workspaceRealtimeClient subpath so shell project inventory hooks can subscribe to realtime updates without importing the full infrastructure root barrel.',
+);
+assert.ok(
   typesPackageJson.exports?.['./storageBindings'],
   '@sdkwork/birdcoder-types must publish the ./storageBindings subpath so browser-facing storage consumers can import lightweight storage binding constants without pulling the heavier entity-definition registry into their lazy chunks.',
 );
@@ -75,6 +79,7 @@ const workbenchEntrySource = readText('packages/sdkwork-birdcoder-commons/src/wo
 const fileSystemUtilsSource = readText('packages/sdkwork-birdcoder-commons/src/utils/fileSystem.ts');
 const commonsStorageDataKernelSource = readText('packages/sdkwork-birdcoder-commons/src/storage/dataKernel.ts');
 const commonsStorageLocalStoreSource = readText('packages/sdkwork-birdcoder-commons/src/storage/localStore.ts');
+const useProjectsSource = readText('packages/sdkwork-birdcoder-commons/src/hooks/useProjects.ts');
 const workbenchPreferencesSource = readText('packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts');
 const runConfigsSource = readText('packages/sdkwork-birdcoder-commons/src/terminal/runConfigs.ts');
 const terminalSessionsSource = readText('packages/sdkwork-birdcoder-commons/src/terminal/sessions.ts');
@@ -210,6 +215,16 @@ assert.match(
   /@sdkwork\/birdcoder-infrastructure\/storage\/runtime|\.\/runtime/u,
   '@sdkwork/birdcoder-commons storage/localStore must consume the lightweight storage runtime path so simple browser persistence does not depend on the heavier storage kernel entry.',
 );
+assert.match(
+  useProjectsSource,
+  /@sdkwork\/birdcoder-infrastructure\/services\/workspaceRealtimeClient/u,
+  '@sdkwork/birdcoder-commons hooks/useProjects must consume the focused infrastructure workspaceRealtimeClient subpath so shell inventory state does not import the full infrastructure root barrel.',
+);
+assert.doesNotMatch(
+  useProjectsSource,
+  /from ['"]@sdkwork\/birdcoder-infrastructure['"]/u,
+  '@sdkwork/birdcoder-commons hooks/useProjects must not import the full infrastructure root entry because that re-introduces the heavy infrastructure graph into the commons shell chunk.',
+);
 for (const [relativePath, source] of [
   ['packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts', workbenchPreferencesSource],
   ['packages/sdkwork-birdcoder-commons/src/terminal/runConfigs.ts', runConfigsSource],
@@ -304,6 +319,11 @@ assert.match(
   webViteConfigSource,
   /infra-runtime/u,
   'Web Vite config must dedicate an infra-runtime chunk so shell bootstrap runtime binding does not force the heavy infrastructure assembly chunk into the initial payload.',
+);
+assert.match(
+  webViteConfigSource,
+  /\/packages\/sdkwork-birdcoder-infrastructure\/src\/services\/workspaceRealtimeClient\.ts/u,
+  'Web Vite config must explicitly classify workspaceRealtimeClient so shell project inventory subscriptions do not rely on the full infrastructure root chunk assignment.',
 );
 assert.match(
   webViteConfigSource,

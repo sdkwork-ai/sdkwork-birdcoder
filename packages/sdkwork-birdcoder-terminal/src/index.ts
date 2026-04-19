@@ -1,1 +1,1 @@
-export * from './pages/TerminalPage';
+export * from './TerminalPage';

@@ -1,5 +1,6 @@
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
+import { BootstrapGate } from '@sdkwork/birdcoder-shell/app';
 import {
   bootstrapShellRuntime,
   readStoredBirdCoderServerBaseUrl,
@@ -8,18 +9,22 @@ import {
 } from '@sdkwork/birdcoder-shell/runtime';
 import './index.css';
 
-const configuredApiBaseUrl = import.meta.env.VITE_BIRDCODER_API_BASE_URL?.trim() || undefined;
-const storedApiBaseUrl = await readStoredBirdCoderServerBaseUrl();
-const resolvedApiBaseUrl = resolveBirdCoderBootstrapServerBaseUrl({
-  configuredApiBaseUrl,
-  storedApiBaseUrl,
-});
-await waitForBirdCoderApiReady(resolvedApiBaseUrl);
+async function bootstrapRuntime() {
+  const configuredApiBaseUrl = import.meta.env.VITE_BIRDCODER_API_BASE_URL?.trim() || undefined;
+  const storedApiBaseUrl = await readStoredBirdCoderServerBaseUrl();
+  const resolvedApiBaseUrl = resolveBirdCoderBootstrapServerBaseUrl({
+    configuredApiBaseUrl,
+    storedApiBaseUrl,
+  });
 
-bootstrapShellRuntime({
-  apiBaseUrl: resolvedApiBaseUrl,
-});
+  await waitForBirdCoderApiReady(resolvedApiBaseUrl);
+  bootstrapShellRuntime({
+    apiBaseUrl: resolvedApiBaseUrl,
+  });
+}
 
 createRoot(document.getElementById('root')!).render(
-  <App />,
+  <BootstrapGate bootstrap={bootstrapRuntime}>
+    <App />
+  </BootstrapGate>,
 );

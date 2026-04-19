@@ -41,6 +41,7 @@ assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/ru
 assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');
 assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . typecheck',
+  'node scripts/run-workspace-package-script.mjs . check:workspace-package-script-runner',
   'node scripts/run-workspace-package-script.mjs . check:source-parse',
   'node scripts/run-workspace-package-script.mjs . check:vite-config-esm',
   'node scripts/run-workspace-package-script.mjs . check:vite-build-entry',

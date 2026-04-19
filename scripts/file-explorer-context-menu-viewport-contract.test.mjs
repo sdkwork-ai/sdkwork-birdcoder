@@ -10,7 +10,7 @@ const fileExplorerSource = fs.readFileSync(fileExplorerPath, 'utf8');
 
 assert.match(
   fileExplorerSource,
-  /window\.addEventListener\('resize', handleViewportChange\);/,
+  /if \(!hasOpenViewportMenu\) \{\s*return;\s*\}[\s\S]*window\.addEventListener\('resize', handleViewportChange(?:, \{ passive: true \})?\);/s,
   'FileExplorer must close floating context menus when the viewport changes so maximize and restore do not leave stale menu coordinates behind.',
 );
 

@@ -8,122 +8,7 @@ import {
   executeBirdCoderCoreSessionRun,
   persistBirdCoderCoreSessionRunProjection,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
-
-type RuntimeProcessWithBuiltinModules = NodeJS.Process & {
-  getBuiltinModule?: (id: string) => unknown;
-};
-
-type SpawnInvocation = {
-  command: string;
-  args: readonly string[];
-  options: {
-    cwd?: string;
-    env?: NodeJS.ProcessEnv;
-    stdio?: ['pipe', 'pipe', 'pipe'];
-    windowsHide?: boolean;
-  } | undefined;
-};
-
-function createFakeSpawnModule(options: {
-  stdoutLines?: readonly string[];
-  stderrLines?: readonly string[];
-  exitCode?: number;
-  onSpawn?: (invocation: SpawnInvocation) => void;
-}) {
-  return {
-    spawn(
-      command: string,
-      args: readonly string[] = [],
-      spawnOptions?: SpawnInvocation['options'],
-    ) {
-      options.onSpawn?.({
-        command,
-        args,
-        options: spawnOptions,
-      });
-
-      const stdoutListeners: Array<(chunk: unknown) => void> = [];
-      const stderrListeners: Array<(chunk: unknown) => void> = [];
-      const onceListeners: {
-        error?: (error: Error) => void;
-        close?: (code: number | null) => void;
-      } = {};
-
-      return {
-        stdin: {
-          write() {
-            return undefined;
-          },
-          end() {
-            for (const line of options.stdoutLines ?? []) {
-              for (const listener of stdoutListeners) {
-                listener(line);
-              }
-            }
-            for (const line of options.stderrLines ?? []) {
-              for (const listener of stderrListeners) {
-                listener(line);
-              }
-            }
-            queueMicrotask(() => {
-              onceListeners.close?.(options.exitCode ?? 0);
-            });
-          },
-        },
-        stdout: {
-          on(event: 'data', listener: (chunk: unknown) => void) {
-            if (event === 'data') {
-              stdoutListeners.push(listener);
-            }
-          },
-        },
-        stderr: {
-          on(event: 'data', listener: (chunk: unknown) => void) {
-            if (event === 'data') {
-              stderrListeners.push(listener);
-            }
-          },
-        },
-        kill() {
-          return true;
-        },
-        once(event: 'error' | 'close', listener: (value: Error | number | null) => void) {
-          if (event === 'error') {
-            onceListeners.error = listener as (error: Error) => void;
-          } else {
-            onceListeners.close = listener as (code: number | null) => void;
-          }
-          return this;
-        },
-      };
-    },
-  };
-}
-
-async function withMockChildProcessModule<T>(
-  moduleFactory: ReturnType<typeof createFakeSpawnModule>,
-  callback: () => Promise<T>,
-): Promise<T> {
-  const runtimeProcess = process as RuntimeProcessWithBuiltinModules;
-  const originalGetBuiltinModule = runtimeProcess.getBuiltinModule;
-
-  runtimeProcess.getBuiltinModule = (id: string) => {
-    if (id === 'node:child_process') {
-      return moduleFactory;
-    }
-    return originalGetBuiltinModule?.(id);
-  };
-
-  try {
-    return await callback();
-  } finally {
-    if (originalGetBuiltinModule) {
-      runtimeProcess.getBuiltinModule = originalGetBuiltinModule;
-    } else {
-      delete runtimeProcess.getBuiltinModule;
-    }
-  }
-}
+import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
 
 const codexFakeJsonlLines = [
   `${JSON.stringify({
@@ -168,11 +53,8 @@ const store = createProviderBackedBirdCoderCoreSessionProjectionStore(
   provider,
 );
 
-const projection = await withMockChildProcessModule(
-  createFakeSpawnModule({
-    stdoutLines: codexFakeJsonlLines,
-  }),
-  async () =>
+const projection = await withMockCodexCliJsonl(
+  () =>
     executeBirdCoderCoreSessionRun({
       sessionId: 'coding-session-evidence-consumer-contract',
       runtimeId: 'runtime-evidence-consumer-contract',
@@ -185,6 +67,9 @@ const projection = await withMockChildProcessModule(
         model: 'codex',
       },
     }),
+  {
+    stdoutLines: codexFakeJsonlLines,
+  },
 );
 
 await persistBirdCoderCoreSessionRunProjection(store, projection);

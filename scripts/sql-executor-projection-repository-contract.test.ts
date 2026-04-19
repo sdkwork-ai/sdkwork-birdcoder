@@ -9,6 +9,7 @@ import {
   executeBirdCoderCoreSessionRun,
   persistBirdCoderCoreSessionRunProjection,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
+import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
 
 const messages: ChatMessage[] = [
   {
@@ -32,18 +33,20 @@ const projectionStore = createProviderBackedBirdCoderCoreSessionProjectionStore(
   provider,
 );
 
-const projection = await executeBirdCoderCoreSessionRun({
-  sessionId: 'coding-session-sql-executor',
-  runtimeId: 'runtime-sql-executor-projection',
-  turnId: 'turn-sql-executor-projection',
-  engineId: 'codex',
-  modelId: 'codex',
-  hostMode: 'server',
-  messages,
-  options: {
-    model: 'codex',
-  },
-});
+const projection = await withMockCodexCliJsonl(() =>
+  executeBirdCoderCoreSessionRun({
+    sessionId: 'coding-session-sql-executor',
+    runtimeId: 'runtime-sql-executor-projection',
+    turnId: 'turn-sql-executor-projection',
+    engineId: 'codex',
+    modelId: 'codex',
+    hostMode: 'server',
+    messages,
+    options: {
+      model: 'codex',
+    },
+  }),
+);
 
 await persistBirdCoderCoreSessionRunProjection(projectionStore, projection);
 

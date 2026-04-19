@@ -51,12 +51,14 @@
   },
   "dependencies": {
     "@tauri-apps/api": "catalog:",
-    "lucide-react": "catalog:",
     "@sdkwork/birdcoder-codeengine": "workspace:*",
-    "@sdkwork/birdcoder-types": "workspace:*",
     "@sdkwork/birdcoder-chat": "workspace:*",
     "@sdkwork/birdcoder-i18n": "workspace:*",
-    "@sdkwork/birdcoder-infrastructure": "workspace:*"
+    "@sdkwork/birdcoder-infrastructure": "workspace:*",
+    "@sdkwork/birdcoder-types": "workspace:*",
+    "@sdkwork/terminal-infrastructure": "link:../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure",
+    "@sdkwork/terminal-shell": "link:../../../sdkwork-terminal/packages/sdkwork-terminal-shell",
+    "lucide-react": "catalog:"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "catalog:"

@@ -1,6 +1,6 @@
 import { type TerminalCommandRequest } from '@sdkwork/birdcoder-commons/workbench';
 import { ResizeHandle } from '@sdkwork/birdcoder-ui';
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, memo } from 'react';
 
 const TerminalPage = lazy(async () => {
   const module = await import('@sdkwork/birdcoder-terminal');
@@ -24,7 +24,40 @@ interface CodeTerminalIntegrationPanelProps {
   onResize: (delta: number) => void;
 }
 
-export function CodeTerminalIntegrationPanel({
+function areCodeTerminalRequestsEqual(
+  left: TerminalCommandRequest | undefined,
+  right: TerminalCommandRequest | undefined,
+): boolean {
+  if (left === right) {
+    return true;
+  }
+
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return (
+    left.path === right.path &&
+    left.command === right.command &&
+    left.profileId === right.profileId &&
+    left.timestamp === right.timestamp
+  );
+}
+
+function areCodeTerminalIntegrationPanelPropsEqual(
+  left: CodeTerminalIntegrationPanelProps,
+  right: CodeTerminalIntegrationPanelProps,
+): boolean {
+  return (
+    left.isOpen === right.isOpen &&
+    left.height === right.height &&
+    left.workspaceId === right.workspaceId &&
+    left.projectId === right.projectId &&
+    areCodeTerminalRequestsEqual(left.terminalRequest, right.terminalRequest)
+  );
+}
+
+export const CodeTerminalIntegrationPanel = memo(function CodeTerminalIntegrationPanel({
   isOpen,
   height,
   terminalRequest,
@@ -51,4 +84,6 @@ export function CodeTerminalIntegrationPanel({
       </div>
     </>
   );
-}
+}, areCodeTerminalIntegrationPanelPropsEqual);
+
+CodeTerminalIntegrationPanel.displayName = 'CodeTerminalIntegrationPanel';

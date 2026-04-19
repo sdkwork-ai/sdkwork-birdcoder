@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Button, FileExplorer, type FileNode } from '@sdkwork/birdcoder-ui';
 import { CodeEditor, DiffEditor } from '@sdkwork/birdcoder-ui/editors';
 import type { FileChange } from '@sdkwork/birdcoder-types';
@@ -22,7 +23,38 @@ interface StudioCodeWorkspacePanelProps {
   getLanguageFromPath: (path: string) => string;
 }
 
-export function StudioCodeWorkspacePanel({
+function areStudioFileChangesEqual(left: FileChange | null, right: FileChange | null): boolean {
+  if (left === right) {
+    return true;
+  }
+
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return (
+    left.path === right.path &&
+    left.additions === right.additions &&
+    left.deletions === right.deletions &&
+    left.content === right.content &&
+    left.originalContent === right.originalContent
+  );
+}
+
+function areStudioCodeWorkspacePanelPropsEqual(
+  left: StudioCodeWorkspacePanelProps,
+  right: StudioCodeWorkspacePanelProps,
+): boolean {
+  return (
+    left.files === right.files &&
+    left.selectedFile === right.selectedFile &&
+    left.currentProjectPath === right.currentProjectPath &&
+    left.fileContent === right.fileContent &&
+    areStudioFileChangesEqual(left.viewingDiff, right.viewingDiff)
+  );
+}
+
+export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({
   files,
   selectedFile,
   currentProjectPath,
@@ -95,4 +127,6 @@ export function StudioCodeWorkspacePanel({
       </div>
     </div>
   );
-}
+}, areStudioCodeWorkspacePanelPropsEqual);
+
+StudioCodeWorkspacePanel.displayName = 'StudioCodeWorkspacePanel';

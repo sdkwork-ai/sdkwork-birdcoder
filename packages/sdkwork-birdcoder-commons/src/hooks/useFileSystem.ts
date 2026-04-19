@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { IFileNode, LocalFolderMountSource } from '@sdkwork/birdcoder-types';
 import { useIDEServices } from '../context/IDEContext.ts';
 import { getStoredJson, removeStoredValue, setStoredJson } from '../storage/localStore.ts';
@@ -194,7 +194,7 @@ export function useFileSystem(projectId: string, projectPath?: string) {
     [commitSelectedFile],
   );
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const nextProjectId = projectId.trim();
     if (previousProjectIdRef.current === nextProjectId) {
       return;
@@ -211,7 +211,7 @@ export function useFileSystem(projectId: string, projectPath?: string) {
     selectedFileRef.current = null;
     setFiles([]);
     setIsLoading(false);
-    commitSelectedFile(null);
+    setSelectedFile(null);
     setFileContent('');
     setIsLoadingContent(false);
     setIsSearchingFiles(false);

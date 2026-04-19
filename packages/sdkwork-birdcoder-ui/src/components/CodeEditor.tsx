@@ -1,8 +1,13 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { Loader2, AlignLeft, WrapText, Copy, Check, Map } from 'lucide-react';
-import { useToast } from '@sdkwork/birdcoder-commons';
+import { globalEventBus, useToast } from '@sdkwork/birdcoder-commons';
 import { resolveMonacoOverflowWidgetsDomNode } from './monacoOverflowWidgets';
+import {
+  applyBirdCoderMonacoTheme,
+  configureBirdCoderMonacoTypeScriptDefaults,
+  observeBirdCoderMonacoLayout,
+} from './monacoRuntime';
 
 interface CodeEditorProps {
   language: string;
@@ -14,14 +19,59 @@ interface CodeEditorProps {
 export function CodeEditor({ language, value, onChange, readOnly = false }: CodeEditorProps) {
   const monaco = useMonaco();
   const editorRef = useRef<any>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
   const [wordWrap, setWordWrap] = useState<'on' | 'off'>('on');
   const [showMinimap, setShowMinimap] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [mountedEditor, setMountedEditor] = useState<any | null>(null);
   const { addToast } = useToast();
-  const overflowWidgetsDomNode = React.useMemo(() => resolveMonacoOverflowWidgetsDomNode(), []);
+  const overflowWidgetsDomNode = useMemo(() => resolveMonacoOverflowWidgetsDomNode(), []);
+  const codeEditorThemeDefinition = useMemo(
+    () => ({
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
+        { token: 'keyword', foreground: '569CD6' },
+        { token: 'string', foreground: 'CE9178' },
+        { token: 'number', foreground: 'B5CEA8' },
+        { token: 'type', foreground: '4EC9B0' },
+        { token: 'function', foreground: 'DCDCAA' },
+        { token: 'variable', foreground: '9CDCFE' },
+      ],
+      colors: {
+        'editor.background': '#0e0e11',
+        'editor.foreground': '#D4D4D4',
+        'editorLineNumber.foreground': '#6e7681',
+        'editorLineNumber.activeForeground': '#cccccc',
+        'editor.selectionBackground': '#264F78',
+        'editor.inactiveSelectionBackground': '#3A3D41',
+        'editorCursor.foreground': '#AEAFAD',
+        'editorWhitespace.foreground': '#404040',
+        'editorIndentGuide.background': '#404040',
+        'editorIndentGuide.activeBackground': '#707070',
+        'editorLineHighlight.background': '#ffffff0a',
+        'editorLineHighlight.border': '#28282800',
+        'scrollbarSlider.background': '#79797933',
+        'scrollbarSlider.hoverBackground': '#646464b3',
+        'scrollbarSlider.activeBackground': '#bfbfbf66',
+        'editorBracketMatch.background': '#0064001a',
+        'editorBracketMatch.border': '#888888',
+        'editorWidget.background': '#252526',
+        'editorWidget.border': '#454545',
+        'editorSuggestWidget.background': '#252526',
+        'editorSuggestWidget.border': '#454545',
+        'editorSuggestWidget.foreground': '#D4D4D4',
+        'editorSuggestWidget.highlightForeground': '#18A3FF',
+        'editorSuggestWidget.selectedBackground': '#062F4A',
+      },
+    }),
+    [],
+  );
 
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
+    setMountedEditor(editor);
   };
 
   const handleFormat = () => {
@@ -54,7 +104,7 @@ export function CodeEditor({ language, value, onChange, readOnly = false }: Code
     setTimeout(() => setCopied(false), 2000);
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleEditorCommand = (command: string) => {
       if (!editorRef.current) return;
       const editor = editorRef.current;
@@ -68,85 +118,52 @@ export function CodeEditor({ language, value, onChange, readOnly = false }: Code
         case 'selectAll': editor.setSelection(editor.getModel().getFullModelRange()); break;
       }
     };
-    
-    import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-      globalEventBus.on('editorCommand', handleEditorCommand);
-    });
-    
+
+    globalEventBus.on('editorCommand', handleEditorCommand);
+
     return () => {
-      import('@sdkwork/birdcoder-commons').then(({ globalEventBus }) => {
-        globalEventBus.off('editorCommand', handleEditorCommand);
-      });
+      globalEventBus.off('editorCommand', handleEditorCommand);
     };
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (monaco) {
-      // Configure TypeScript/JavaScript language features for React
-      const ts = (monaco.languages as any).typescript;
-      if (ts && ts.typescriptDefaults) {
-        ts.typescriptDefaults.setCompilerOptions({
-          target: ts.ScriptTarget?.ESNext || 99,
-          allowNonTsExtensions: true,
-          moduleResolution: ts.ModuleResolutionKind?.NodeJs || 2,
-          module: ts.ModuleKind?.CommonJS || 1,
-          noEmit: true,
-          esModuleInterop: true,
-          jsx: ts.JsxEmit?.React || 2,
-          reactNamespace: 'React',
-          allowJs: true,
-          strict: false,
-        });
-
-        ts.typescriptDefaults.setDiagnosticsOptions({
-          noSemanticValidation: false,
-          noSyntaxValidation: false,
-        });
-      }
-
-      // Define VS Code Modern Dark Theme
-      monaco.editor.defineTheme('vscode-dark-modern', {
-        base: 'vs-dark',
-        inherit: true,
-        rules: [
-          { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
-          { token: 'keyword', foreground: '569CD6' },
-          { token: 'string', foreground: 'CE9178' },
-          { token: 'number', foreground: 'B5CEA8' },
-          { token: 'type', foreground: '4EC9B0' },
-          { token: 'function', foreground: 'DCDCAA' },
-          { token: 'variable', foreground: '9CDCFE' },
-        ],
-        colors: {
-          'editor.background': '#0e0e11', // zinc-900
-          'editor.foreground': '#D4D4D4',
-          'editorLineNumber.foreground': '#6e7681',
-          'editorLineNumber.activeForeground': '#cccccc',
-          'editor.selectionBackground': '#264F78',
-          'editor.inactiveSelectionBackground': '#3A3D41',
-          'editorCursor.foreground': '#AEAFAD',
-          'editorWhitespace.foreground': '#404040',
-          'editorIndentGuide.background': '#404040',
-          'editorIndentGuide.activeBackground': '#707070',
-          'editorLineHighlight.background': '#ffffff0a',
-          'editorLineHighlight.border': '#28282800',
-          'scrollbarSlider.background': '#79797933',
-          'scrollbarSlider.hoverBackground': '#646464b3',
-          'scrollbarSlider.activeBackground': '#bfbfbf66',
-          'editorBracketMatch.background': '#0064001a',
-          'editorBracketMatch.border': '#888888',
-          'editorWidget.background': '#252526',
-          'editorWidget.border': '#454545',
-          'editorSuggestWidget.background': '#252526',
-          'editorSuggestWidget.border': '#454545',
-          'editorSuggestWidget.foreground': '#D4D4D4',
-          'editorSuggestWidget.highlightForeground': '#18A3FF',
-          'editorSuggestWidget.selectedBackground': '#062F4A',
-        },
-      });
-      monaco.editor.setTheme('vscode-dark-modern');
+      configureBirdCoderMonacoTypeScriptDefaults(monaco as never);
+      applyBirdCoderMonacoTheme(
+        monaco as never,
+        'vscode-dark-modern',
+        codeEditorThemeDefinition,
+      );
     }
-  }, [monaco]);
+  }, [codeEditorThemeDefinition, monaco]);
+
+  useEffect(() => {
+    const container = editorContainerRef.current;
+    if (!mountedEditor || !container) {
+      return undefined;
+    }
+
+    return observeBirdCoderMonacoLayout(container, mountedEditor);
+  }, [mountedEditor]);
+
+  useEffect(() => {
+    if (!mountedEditor) {
+      return undefined;
+    }
+
+    if (typeof window === 'undefined') {
+      mountedEditor.layout();
+      return undefined;
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      mountedEditor.layout();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [mountedEditor, showMinimap, wordWrap]);
 
   const loadingComponent = (
     <div className="flex items-center justify-center h-full w-full bg-[#0e0e11] text-gray-400">
@@ -158,7 +175,10 @@ export function CodeEditor({ language, value, onChange, readOnly = false }: Code
   );
 
   return (
-    <div className="flex-1 h-full w-full animate-in fade-in duration-500 fill-mode-both relative group">
+    <div
+      ref={editorContainerRef}
+      className="flex-1 h-full w-full animate-in fade-in duration-500 fill-mode-both relative group"
+    >
       {/* Floating Toolbar */}
       <div className="absolute top-4 right-6 z-10 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <div className="flex items-center justify-center px-2 h-7 bg-[#18181b]/90 text-xs text-gray-400 font-mono rounded-md shadow-lg border border-white/10 backdrop-blur-sm mr-1">
@@ -207,6 +227,7 @@ export function CodeEditor({ language, value, onChange, readOnly = false }: Code
         options={{
           overflowWidgetsDomNode: overflowWidgetsDomNode,
           fixedOverflowWidgets: true,
+          automaticLayout: false,
           minimap: { enabled: showMinimap, scale: 0.75, renderCharacters: false },
           fontSize: 14,
           fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace",

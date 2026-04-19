@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
@@ -14,7 +14,7 @@ import {
   canSubscribeBirdCoderWorkspaceRealtime,
   subscribeBirdCoderWorkspaceRealtime,
   type BirdCoderWorkspaceRealtimeSubscription,
-} from '@sdkwork/birdcoder-infrastructure';
+} from '@sdkwork/birdcoder-infrastructure/services/workspaceRealtimeClient';
 import { useAuth } from '../context/AuthContext.ts';
 import { useIDEServices } from '../context/IDEContext.ts';
 import {
@@ -22,6 +22,7 @@ import {
   isWorkspaceRealtimeEventSatisfiedByProjects,
 } from '../workbench/workspaceRealtime.ts';
 import type {
+  BirdCoderProjectMirrorSnapshot,
   CreateCodingSessionOptions,
   CreateProjectOptions,
 } from '../services/interfaces/IProjectService.ts';
@@ -84,6 +85,26 @@ interface ProjectsStoreRealtimeBinding {
 const projectStoresByScopeKey = new Map<string, ProjectsStore>();
 const WORKSPACE_REALTIME_EVENT_DEDUP_LIMIT = 256;
 const EMPTY_PROJECT_INVENTORY_MESSAGES: BirdCoderChatMessage[] = [];
+
+function materializeProjectInventoryFromMirrorSnapshot(
+  projectSnapshot: BirdCoderProjectMirrorSnapshot,
+): BirdCoderProject {
+  const { codingSessions, ...project } = projectSnapshot;
+  return {
+    ...project,
+    codingSessions: codingSessions.map((codingSessionSnapshot) => {
+      const {
+        messageCount: _messageCount,
+        nativeTranscriptUpdatedAt: _nativeTranscriptUpdatedAt,
+        ...codingSession
+      } = codingSessionSnapshot;
+      return {
+        ...codingSession,
+        messages: EMPTY_PROJECT_INVENTORY_MESSAGES,
+      };
+    }),
+  };
+}
 
 function normalizeProjectsStoreUserScope(userId: string | null | undefined): string {
   const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
@@ -690,6 +711,21 @@ function clearProjectsStorePendingRefresh(store: ProjectsStore): void {
   store.pendingRefreshTimer = null;
 }
 
+async function readProjectInventoryForWorkspace(
+  workspaceId: string,
+  projectService: ReturnType<typeof useIDEServices>['projectService'],
+): Promise<BirdCoderProject[]> {
+  const projectMirrorReader = projectService.getProjectMirrorSnapshots?.bind(projectService);
+  if (projectMirrorReader) {
+    const projectSnapshots = await projectMirrorReader(workspaceId);
+    if (Array.isArray(projectSnapshots)) {
+      return projectSnapshots.map(materializeProjectInventoryFromMirrorSnapshot);
+    }
+  }
+
+  return projectService.getProjects(workspaceId);
+}
+
 async function fetchProjectsForWorkspace(
   store: ProjectsStore,
   workspaceId: string,
@@ -705,8 +741,7 @@ async function fetchProjectsForWorkspace(
     isLoading: true,
   }));
 
-  const request = projectService
-    .getProjects(workspaceId)
+  const request = readProjectInventoryForWorkspace(workspaceId, projectService)
     .then((projects) => {
       updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
         error: null,
@@ -944,6 +979,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       : createProjectsStoreSnapshot(),
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   useEffect(() => {
     if (!normalizedWorkspaceId || !storeScopeKey) {
@@ -955,7 +991,9 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     setStoreSnapshot(store.snapshot);
 
     const handleStoreChange = (nextSnapshot: ProjectsStoreSnapshot) => {
-      setStoreSnapshot(nextSnapshot);
+      startTransition(() => {
+        setStoreSnapshot(nextSnapshot);
+      });
     };
 
     const hadActiveListeners = store.listeners.size > 0;
@@ -1003,11 +1041,11 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
 
   const filteredProjects = useMemo(() => {
     const projects = storeSnapshot.projects;
-    if (!searchQuery.trim()) {
+    if (!deferredSearchQuery.trim()) {
       return projects;
     }
 
-    const query = searchQuery.trim();
+    const query = deferredSearchQuery.trim();
 
     return projects
       .map((project) => {
@@ -1038,7 +1076,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       .filter(Boolean)
       .sort((left, right) => right!.score - left!.score)
       .map((candidate) => candidate!.project);
-  }, [searchQuery, storeSnapshot.projects]);
+  }, [deferredSearchQuery, storeSnapshot.projects]);
 
   const createProject = async (name: string, options?: CreateProjectOptions) => {
     if (!normalizedWorkspaceId) {

@@ -25,12 +25,25 @@ import {
   Search,
   Zap,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const INITIAL_VISIBLE_SESSIONS_PER_PROJECT = 5;
 const RELATIVE_TIME_REFRESH_INTERVAL_MS = 60 * 1000;
 const SESSION_EXPANSION_BATCH_SIZE = 10;
+const EMPTY_STUDIO_PROJECTS: BirdCoderProject[] = [];
+const EMPTY_STUDIO_CODING_SESSIONS: BirdCoderProject['codingSessions'] = [];
+
+function buildStudioSidebarSurfaceStyle(
+  animationDelay: string,
+  containIntrinsicSize: string,
+): CSSProperties {
+  return {
+    animationDelay,
+    contain: 'layout paint style',
+    containIntrinsicSize,
+  };
+}
 
 interface StudioChatSidebarProps {
   isVisible: boolean;
@@ -70,7 +83,237 @@ interface StudioChatSidebarProps {
   onStopSending: () => void;
 }
 
-export function StudioChatSidebar({
+function areStudioSidebarProjectsEqual(
+  leftProjects: readonly BirdCoderProject[],
+  rightProjects: readonly BirdCoderProject[],
+): boolean {
+  if (leftProjects === rightProjects) {
+    return true;
+  }
+
+  if (leftProjects.length !== rightProjects.length) {
+    return false;
+  }
+
+  for (let projectIndex = 0; projectIndex < leftProjects.length; projectIndex += 1) {
+    const leftProject = leftProjects[projectIndex];
+    const rightProject = rightProjects[projectIndex];
+    if (
+      leftProject.id !== rightProject.id ||
+      leftProject.workspaceId !== rightProject.workspaceId ||
+      leftProject.name !== rightProject.name ||
+      leftProject.description !== rightProject.description ||
+      leftProject.path !== rightProject.path ||
+      leftProject.createdAt !== rightProject.createdAt ||
+      leftProject.updatedAt !== rightProject.updatedAt ||
+      leftProject.archived !== rightProject.archived ||
+      leftProject.codingSessions.length !== rightProject.codingSessions.length
+    ) {
+      return false;
+    }
+
+    for (
+      let codingSessionIndex = 0;
+      codingSessionIndex < leftProject.codingSessions.length;
+      codingSessionIndex += 1
+    ) {
+      const leftCodingSession = leftProject.codingSessions[codingSessionIndex];
+      const rightCodingSession = rightProject.codingSessions[codingSessionIndex];
+      if (
+        leftCodingSession.id !== rightCodingSession.id ||
+        leftCodingSession.workspaceId !== rightCodingSession.workspaceId ||
+        leftCodingSession.projectId !== rightCodingSession.projectId ||
+        leftCodingSession.title !== rightCodingSession.title ||
+        leftCodingSession.status !== rightCodingSession.status ||
+        leftCodingSession.hostMode !== rightCodingSession.hostMode ||
+        leftCodingSession.engineId !== rightCodingSession.engineId ||
+        leftCodingSession.modelId !== rightCodingSession.modelId ||
+        leftCodingSession.runtimeStatus !== rightCodingSession.runtimeStatus ||
+        leftCodingSession.createdAt !== rightCodingSession.createdAt ||
+        leftCodingSession.updatedAt !== rightCodingSession.updatedAt ||
+        leftCodingSession.lastTurnAt !== rightCodingSession.lastTurnAt ||
+        leftCodingSession.sortTimestamp !== rightCodingSession.sortTimestamp ||
+        leftCodingSession.transcriptUpdatedAt !== rightCodingSession.transcriptUpdatedAt ||
+        leftCodingSession.displayTime !== rightCodingSession.displayTime ||
+        leftCodingSession.pinned !== rightCodingSession.pinned ||
+        leftCodingSession.archived !== rightCodingSession.archived ||
+        leftCodingSession.unread !== rightCodingSession.unread
+      ) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function areStudioSidebarMessagesEqual(
+  leftMessages: readonly BirdCoderChatMessage[],
+  rightMessages: readonly BirdCoderChatMessage[],
+): boolean {
+  if (leftMessages === rightMessages) {
+    return true;
+  }
+
+  if (leftMessages.length !== rightMessages.length) {
+    return false;
+  }
+
+  for (let index = 0; index < leftMessages.length; index += 1) {
+    const leftMessage = leftMessages[index];
+    const rightMessage = rightMessages[index];
+    if (
+      leftMessage.id !== rightMessage.id ||
+      leftMessage.codingSessionId !== rightMessage.codingSessionId ||
+      leftMessage.turnId !== rightMessage.turnId ||
+      leftMessage.role !== rightMessage.role ||
+      leftMessage.content !== rightMessage.content ||
+      leftMessage.createdAt !== rightMessage.createdAt ||
+      leftMessage.timestamp !== rightMessage.timestamp
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function areStudioChatSidebarPropsEqual(
+  left: StudioChatSidebarProps,
+  right: StudioChatSidebarProps,
+): boolean {
+  return (
+    left.isVisible === right.isVisible &&
+    left.width === right.width &&
+    areStudioSidebarProjectsEqual(left.projects, right.projects) &&
+    left.currentProjectId === right.currentProjectId &&
+    left.selectedCodingSessionId === right.selectedCodingSessionId &&
+    left.menuActiveProjectId === right.menuActiveProjectId &&
+    left.projectSearchQuery === right.projectSearchQuery &&
+    areStudioSidebarMessagesEqual(left.messages, right.messages) &&
+    left.emptyState === right.emptyState &&
+    left.inputValue === right.inputValue &&
+    left.isSending === right.isSending &&
+    left.selectedEngineId === right.selectedEngineId &&
+    left.selectedModelId === right.selectedModelId &&
+    left.disabled === right.disabled &&
+    left.onResize === right.onResize &&
+    left.onProjectSearchQueryChange === right.onProjectSearchQueryChange &&
+    left.onMenuActiveProjectIdChange === right.onMenuActiveProjectIdChange &&
+    left.onInputValueChange === right.onInputValueChange &&
+    left.onSelectedEngineIdChange === right.onSelectedEngineIdChange &&
+    left.onSelectedModelIdChange === right.onSelectedModelIdChange &&
+    left.onSendMessage === right.onSendMessage &&
+    left.onSelectCodingSession === right.onSelectCodingSession &&
+    left.onCreateProject === right.onCreateProject &&
+    left.onOpenFolder === right.onOpenFolder &&
+    left.onCreateCodingSession === right.onCreateCodingSession &&
+    left.onRefreshProjectSessions === right.onRefreshProjectSessions &&
+    left.onRefreshCodingSessionMessages === right.onRefreshCodingSessionMessages &&
+    left.refreshingProjectId === right.refreshingProjectId &&
+    left.refreshingCodingSessionId === right.refreshingCodingSessionId &&
+    left.onViewChanges === right.onViewChanges &&
+    left.onEditMessage === right.onEditMessage &&
+    left.onDeleteMessage === right.onDeleteMessage &&
+    left.onRegenerateMessage === right.onRegenerateMessage &&
+    left.onRestoreMessage === right.onRestoreMessage &&
+    left.onStopSending === right.onStopSending
+  );
+}
+
+interface StudioProjectMenuRowProps {
+  project: BirdCoderProject;
+  index: number;
+  isMenuSelected: boolean;
+  isActualSelected: boolean;
+  onSelectProject: (projectId: string) => void;
+}
+
+const StudioProjectMenuRow = memo(function StudioProjectMenuRow({
+  project,
+  index,
+  isMenuSelected,
+  isActualSelected,
+  onSelectProject,
+}: StudioProjectMenuRowProps) {
+  return (
+    <button
+      onClick={() => onSelectProject(project.id)}
+      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group animate-in fade-in slide-in-from-left-2 fill-mode-both ${
+        isMenuSelected
+          ? 'bg-white/5 text-gray-100 shadow-sm'
+          : 'text-gray-400 hover:bg-white/5/60 hover:text-gray-200'
+      }`}
+      style={buildStudioSidebarSurfaceStyle(`${index * 30}ms`, '42px')}
+    >
+      <div className="flex items-center gap-2.5 truncate">
+        {isMenuSelected ? (
+          <FolderOpen size={14} className="text-blue-400 shrink-0" />
+        ) : (
+          <Folder size={14} className="text-gray-500 group-hover:text-gray-400 shrink-0" />
+        )}
+        <span className="truncate font-medium">{project.name}</span>
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        {isActualSelected && <Check size={14} className="text-gray-500" />}
+        {isMenuSelected && <ChevronRight size={14} className="text-gray-500" />}
+      </div>
+    </button>
+  );
+});
+
+interface StudioSessionMenuRowProps {
+  projectId: string;
+  thread: BirdCoderProject['codingSessions'][number];
+  index: number;
+  isSelected: boolean;
+  relativeTimeNow: number;
+  onSelectCodingSession: (projectId: string, codingSessionId: string) => void;
+}
+
+const StudioSessionMenuRow = memo(function StudioSessionMenuRow({
+  projectId,
+  thread,
+  index,
+  isSelected,
+  relativeTimeNow,
+  onSelectCodingSession,
+}: StudioSessionMenuRowProps) {
+  const isExecutingThread = isBirdCoderCodingSessionExecuting(thread);
+
+  return (
+    <button
+      onClick={() => onSelectCodingSession(projectId, thread.id)}
+      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group animate-in fade-in slide-in-from-left-2 fill-mode-both ${
+        isSelected
+          ? 'bg-blue-500/10 text-blue-400'
+          : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+      }`}
+      style={buildStudioSidebarSurfaceStyle(`${index * 30}ms`, '48px')}
+    >
+      <div className="flex items-center gap-3 truncate">
+        <WorkbenchCodeEngineIcon engineId={thread.engineId} />
+        <div className="flex flex-col items-start truncate">
+          <span className="truncate font-medium">{thread.title}</span>
+          <span
+            className={`text-[10px] ${
+              isSelected ? 'text-blue-400/70' : 'text-gray-600 group-hover:text-gray-500'
+            }`}
+          >
+            {formatBirdCoderSessionActivityDisplayTime(thread, relativeTimeNow)}
+          </span>
+        </div>
+      </div>
+      {isExecutingThread ? (
+        <RefreshCw size={14} className="animate-spin text-emerald-400 shrink-0" />
+      ) : isSelected ? (
+        <Check size={14} className="text-blue-400 shrink-0" />
+      ) : null}
+    </button>
+  );
+});
+
+export const StudioChatSidebar = memo(function StudioChatSidebar({
   isVisible,
   width,
   projects,
@@ -116,16 +359,23 @@ export function StudioChatSidebar({
   >({});
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+  const handleProjectMenuClickOutside = useCallback((event: MouseEvent) => {
+      if (!showProjectMenu) {
+        return;
+      }
       if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) {
         setShowProjectMenu(false);
       }
-    };
+    }, [showProjectMenu]);
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  useEffect(() => {
+    if (!showProjectMenu) {
+      return;
+    }
+
+    document.addEventListener('mousedown', handleProjectMenuClickOutside);
+    return () => document.removeEventListener('mousedown', handleProjectMenuClickOutside);
+  }, [handleProjectMenuClickOutside, showProjectMenu]);
 
   useEffect(() => {
     setVisibleSessionCountByProjectId((previousState) => {
@@ -164,9 +414,19 @@ export function StudioChatSidebar({
     };
   }, [isVisible]);
 
-  const currentProject = projects.find((project) => project.id === currentProjectId);
-  const currentCodingSession = currentProject?.codingSessions.find(
-    (codingSession) => codingSession.id === selectedCodingSessionId,
+  const deferredProjectSearchQuery = useDeferredValue(projectSearchQuery);
+  const normalizedProjectSearchQuery = deferredProjectSearchQuery.trim().toLowerCase();
+  const projectsById = useMemo(
+    () => new Map(projects.map((project) => [project.id, project] as const)),
+    [projects],
+  );
+  const currentProject = projectsById.get(currentProjectId);
+  const currentCodingSession = useMemo(
+    () =>
+      currentProject?.codingSessions.find(
+        (codingSession) => codingSession.id === selectedCodingSessionId,
+      ) ?? null,
+    [currentProject, selectedCodingSessionId],
   );
   const currentCodingSessionTitle = currentCodingSession?.title;
   const headerEngineId = currentCodingSession?.engineId ?? selectedEngineId;
@@ -187,19 +447,68 @@ export function StudioChatSidebar({
       ? headerEngine.label
       : `${headerEngine.label} / ${headerModelLabel}`;
   const isExecutingCurrentSession = isBirdCoderCodingSessionExecuting(currentCodingSession);
+  const visibleMenuProjects = useMemo(() => {
+    if (!showProjectMenu) {
+      return EMPTY_STUDIO_PROJECTS;
+    }
+
+    if (!normalizedProjectSearchQuery) {
+      return projects;
+    }
+
+    return projects.filter((project) => {
+      if (project.name.toLowerCase().includes(normalizedProjectSearchQuery)) {
+        return true;
+      }
+
+      return project.codingSessions.some((codingSession) =>
+        codingSession.title.toLowerCase().includes(normalizedProjectSearchQuery),
+      );
+    });
+  }, [normalizedProjectSearchQuery, projects, showProjectMenu]);
+  const effectiveMenuProjectId = useMemo(() => {
+    if (!showProjectMenu) {
+      return menuActiveProjectId;
+    }
+
+    if (visibleMenuProjects.some((project) => project.id === menuActiveProjectId)) {
+      return menuActiveProjectId;
+    }
+
+    return visibleMenuProjects[0]?.id ?? menuActiveProjectId;
+  }, [menuActiveProjectId, showProjectMenu, visibleMenuProjects]);
   const menuSelectedSessionId =
-    currentProjectId === menuActiveProjectId ? selectedCodingSessionId : '';
-  const menuProject = projects.find((project) => project.id === menuActiveProjectId);
-  const menuProjectThreads = menuProject?.codingSessions ?? [];
+    currentProjectId === effectiveMenuProjectId ? selectedCodingSessionId : '';
+  const menuProject = showProjectMenu ? projectsById.get(effectiveMenuProjectId) ?? null : null;
+  const menuProjectThreads = useMemo(() => {
+    if (!showProjectMenu || !menuProject) {
+      return EMPTY_STUDIO_CODING_SESSIONS;
+    }
+
+    if (!normalizedProjectSearchQuery) {
+      return menuProject.codingSessions;
+    }
+
+    return menuProject.codingSessions.filter((codingSession) =>
+      codingSession.title.toLowerCase().includes(normalizedProjectSearchQuery),
+    );
+  }, [menuProject, normalizedProjectSearchQuery, showProjectMenu]);
   const visibleSessionCount =
-    visibleSessionCountByProjectId[menuActiveProjectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-  const visibleThreads = menuProjectThreads.slice(0, visibleSessionCount);
+    visibleSessionCountByProjectId[effectiveMenuProjectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+  const visibleThreads = useMemo(
+    () =>
+      showProjectMenu
+        ? menuProjectThreads.slice(0, visibleSessionCount)
+        : EMPTY_STUDIO_CODING_SESSIONS,
+    [menuProjectThreads, showProjectMenu, visibleSessionCount],
+  );
   const canToggleThreadExpansion = menuProjectThreads.length > INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
   const canShowMoreThreads = visibleSessionCount < menuProjectThreads.length;
   const nextExpansionCount = Math.min(
     SESSION_EXPANSION_BATCH_SIZE,
     Math.max(0, menuProjectThreads.length - visibleSessionCount),
   );
+  const hasEffectiveMenuProject = effectiveMenuProjectId.trim().length > 0;
   const canRefreshCurrentContext = Boolean(selectedCodingSessionId || currentProjectId);
   const isRefreshingCurrentContext = selectedCodingSessionId
     ? refreshingCodingSessionId === selectedCodingSessionId
@@ -224,20 +533,37 @@ export function StudioChatSidebar({
     setShowProjectMenu((previousState) => !previousState);
   };
 
-  const handleSelectMenuProject = (projectId: string) => {
-    if (projectId !== menuActiveProjectId) {
-      onMenuActiveProjectIdChange(projectId);
-    }
-  };
+  const handleSelectMenuProject = useCallback((projectId: string) => {
+    onMenuActiveProjectIdChange(projectId);
+  }, [onMenuActiveProjectIdChange]);
 
-  const handleSelectMenuCodingSession = (codingSessionId: string) => {
-    const isSameSelection =
-      currentProjectId === menuActiveProjectId && selectedCodingSessionId === codingSessionId;
-    if (!isSameSelection) {
-      onSelectCodingSession(menuActiveProjectId, codingSessionId);
-    }
+  const handleSelectMenuCodingSession = useCallback((
+    projectId: string,
+    codingSessionId: string,
+  ) => {
+    onSelectCodingSession(projectId, codingSessionId);
     setShowProjectMenu(false);
-  };
+  }, [onSelectCodingSession]);
+
+  const handleToggleMenuProjectSessionExpansion = useCallback(
+    (projectId: string, threadCount: number, canShowMoreThreadsForProject: boolean) => {
+      setVisibleSessionCountByProjectId((previousState) => {
+        const currentCount =
+          previousState[projectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+        const nextCount = canShowMoreThreadsForProject
+          ? Math.min(currentCount + SESSION_EXPANSION_BATCH_SIZE, threadCount)
+          : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+        if (nextCount === currentCount) {
+          return previousState;
+        }
+        return {
+          ...previousState,
+          [projectId]: nextCount,
+        };
+      });
+    },
+    [],
+  );
 
   const handleRefreshCurrentContext = () => {
     if (selectedCodingSessionId) {
@@ -301,39 +627,17 @@ export function StudioChatSidebar({
                     <div className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                       {t('studio.projects')}
                     </div>
-                    {projects.length > 0 ? (
-                      projects.map((project, index) => {
-                        const isMenuSelected = menuActiveProjectId === project.id;
-                        const isActualSelected = currentProjectId === project.id;
-                        return (
-                          <button
-                            key={project.id}
-                            onClick={() => handleSelectMenuProject(project.id)}
-                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group animate-in fade-in slide-in-from-left-2 fill-mode-both ${
-                              isMenuSelected
-                                ? 'bg-white/5 text-gray-100 shadow-sm'
-                                : 'text-gray-400 hover:bg-white/5/60 hover:text-gray-200'
-                            }`}
-                            style={{ animationDelay: `${index * 30}ms` }}
-                          >
-                            <div className="flex items-center gap-2.5 truncate">
-                              {isMenuSelected ? (
-                                <FolderOpen size={14} className="text-blue-400 shrink-0" />
-                              ) : (
-                                <Folder
-                                  size={14}
-                                  className="text-gray-500 group-hover:text-gray-400 shrink-0"
-                                />
-                              )}
-                              <span className="truncate font-medium">{project.name}</span>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              {isActualSelected && <Check size={14} className="text-gray-500" />}
-                              {isMenuSelected && <ChevronRight size={14} className="text-gray-500" />}
-                            </div>
-                          </button>
-                        );
-                      })
+                    {visibleMenuProjects.length > 0 ? (
+                      visibleMenuProjects.map((project, index) => (
+                        <StudioProjectMenuRow
+                          key={project.id}
+                          project={project}
+                          index={index}
+                          isMenuSelected={effectiveMenuProjectId === project.id}
+                          isActualSelected={currentProjectId === project.id}
+                          onSelectProject={handleSelectMenuProject}
+                        />
+                      ))
                     ) : (
                       <div className="py-8 text-center text-gray-500 text-xs">
                         {t('studio.noProjectsFound')}
@@ -345,71 +649,31 @@ export function StudioChatSidebar({
                     <div className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                       {t('studio.threads')}
                     </div>
-                    {visibleThreads.map((thread, index) => {
-                        const isSelected =
-                          currentProjectId === menuActiveProjectId &&
-                          selectedCodingSessionId === thread.id;
-                        const isExecutingThread = isBirdCoderCodingSessionExecuting(thread);
-                        return (
-                          <button
-                            key={thread.id}
-                            onClick={() => handleSelectMenuCodingSession(thread.id)}
-                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group animate-in fade-in slide-in-from-left-2 fill-mode-both ${
-                              isSelected
-                                ? 'bg-blue-500/10 text-blue-400'
-                                : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
-                            }`}
-                            style={{ animationDelay: `${index * 30}ms` }}
-                          >
-                            <div className="flex items-center gap-3 truncate">
-                              <WorkbenchCodeEngineIcon engineId={thread.engineId} />
-                              <div className="flex flex-col items-start truncate">
-                                <span className="truncate font-medium">{thread.title}</span>
-                                <span
-                                  className={`text-[10px] ${
-                                    isSelected
-                                      ? 'text-blue-400/70'
-                                      : 'text-gray-600 group-hover:text-gray-500'
-                                  }`}
-                                >
-                                  {formatBirdCoderSessionActivityDisplayTime(
-                                    thread,
-                                    relativeTimeNow,
-                                  )}
-                                </span>
-                              </div>
-                            </div>
-                            {isExecutingThread ? (
-                              <RefreshCw size={14} className="animate-spin text-emerald-400 shrink-0" />
-                            ) : isSelected ? (
-                              <Check size={14} className="text-blue-400 shrink-0" />
-                            ) : null}
-                          </button>
-                        );
-                      })}
+                    {visibleThreads.map((thread, index) => (
+                      <StudioSessionMenuRow
+                        key={thread.id}
+                        projectId={effectiveMenuProjectId}
+                        thread={thread}
+                        index={index}
+                        isSelected={
+                          currentProjectId === effectiveMenuProjectId &&
+                          selectedCodingSessionId === thread.id
+                        }
+                        relativeTimeNow={relativeTimeNow}
+                        onSelectCodingSession={handleSelectMenuCodingSession}
+                      />
+                    ))}
                     {canToggleThreadExpansion && (
                       <button
                         type="button"
                         className="mx-3 mt-1 inline-flex items-center justify-start rounded-lg px-3 py-2 text-xs font-medium text-gray-500 transition-all hover:bg-white/5 hover:text-gray-200"
-                        onClick={() => {
-                          setVisibleSessionCountByProjectId((previousState) => {
-                            const currentCount =
-                              previousState[menuActiveProjectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-                            const nextCount = canShowMoreThreads
-                              ? Math.min(
-                                  currentCount + SESSION_EXPANSION_BATCH_SIZE,
-                                  menuProjectThreads.length,
-                                )
-                              : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-                            if (nextCount === currentCount) {
-                              return previousState;
-                            }
-                            return {
-                              ...previousState,
-                              [menuActiveProjectId]: nextCount,
-                            };
-                          });
-                        }}
+                        onClick={() =>
+                          handleToggleMenuProjectSessionExpansion(
+                            effectiveMenuProjectId,
+                            menuProjectThreads.length,
+                            canShowMoreThreads,
+                          )
+                        }
                       >
                         {canShowMoreThreads
                           ? t('studio.showMoreSessions', {
@@ -445,18 +709,18 @@ export function StudioChatSidebar({
                     </button>
                     <button
                       onClick={() => {
-                        if (!menuActiveProjectId) {
+                        if (!hasEffectiveMenuProject) {
                           return;
                         }
-                        void onRefreshProjectSessions(menuActiveProjectId);
+                        void onRefreshProjectSessions(effectiveMenuProjectId);
                       }}
-                      disabled={!menuActiveProjectId || refreshingProjectId === menuActiveProjectId}
+                      disabled={!hasEffectiveMenuProject || refreshingProjectId === effectiveMenuProjectId}
                       className="flex items-center justify-center gap-2 flex-1 px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all font-medium disabled:cursor-not-allowed disabled:opacity-50"
                       title={t('studio.refreshSessions')}
                     >
                       <RefreshCw
                         size={12}
-                        className={refreshingProjectId === menuActiveProjectId ? 'animate-spin' : ''}
+                        className={refreshingProjectId === effectiveMenuProjectId ? 'animate-spin' : ''}
                       />
                       {t('studio.refreshSessions')}
                     </button>
@@ -464,10 +728,14 @@ export function StudioChatSidebar({
                   <div className="w-[60%] p-2 flex gap-1">
                     <button
                       onClick={() => {
-                        void onCreateCodingSession(menuActiveProjectId).then(() => {
+                        if (!hasEffectiveMenuProject) {
+                          return;
+                        }
+                        void onCreateCodingSession(effectiveMenuProjectId).then(() => {
                           setShowProjectMenu(false);
                         });
                       }}
+                      disabled={!hasEffectiveMenuProject}
                       className="flex items-center justify-center gap-2 w-full px-3 py-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 border border-dashed border-blue-500/30 hover:border-blue-500/50 rounded-lg transition-all font-medium"
                     >
                       <Plus size={12} />
@@ -578,4 +846,6 @@ export function StudioChatSidebar({
       />
     </>
   );
-}
+}, areStudioChatSidebarPropsEqual);
+
+StudioChatSidebar.displayName = 'StudioChatSidebar';

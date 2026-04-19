@@ -42,7 +42,7 @@ assert.equal(config.esbuild, false);
 assert.deepEqual(config.plugins, ['react-plugin', 'tailwind-plugin']);
 assert.ok(!('disabled' in config.optimizeDeps));
 assert.equal(config.optimizeDeps.noDiscovery, true);
-assert.deepEqual(config.optimizeDeps.include, []);
+assert.deepEqual(config.optimizeDeps.include, ['@xterm/addon-unicode11']);
 assert.deepEqual(config.resolve.dedupe, ['react', 'react-dom', 'react-i18next', 'scheduler', 'use-sync-external-store']);
 assert.equal('preserveSymlinks' in config.resolve, false);
 assert.equal(config.resolve.alias[0]?.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'), true);

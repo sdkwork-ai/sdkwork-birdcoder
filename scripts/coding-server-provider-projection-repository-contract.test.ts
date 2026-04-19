@@ -15,6 +15,7 @@ import {
   executeBirdCoderCoreSessionRun,
   persistBirdCoderCoreSessionRunProjection,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
+import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
 import type { BirdCoderCodingSessionRuntime } from '../packages/sdkwork-birdcoder-types/src/index.ts';
 
 const messages: ChatMessage[] = [
@@ -25,94 +26,6 @@ const messages: ChatMessage[] = [
     timestamp: Date.now(),
   },
 ];
-
-type RuntimeProcessWithBuiltinModules = NodeJS.Process & {
-  getBuiltinModule?: (id: string) => unknown;
-};
-
-function createFakeSpawnModule(stdoutLines: readonly string[]) {
-  return {
-    spawn() {
-      const stdoutListeners: Array<(chunk: unknown) => void> = [];
-      const stderrListeners: Array<(chunk: unknown) => void> = [];
-      const onceListeners: {
-        error?: (error: Error) => void;
-        close?: (code: number | null) => void;
-      } = {};
-
-      return {
-        stdin: {
-          write() {
-            return undefined;
-          },
-          end() {
-            for (const line of stdoutLines) {
-              for (const listener of stdoutListeners) {
-                listener(line);
-              }
-            }
-            for (const listener of stderrListeners) {
-              listener('');
-            }
-            queueMicrotask(() => {
-              onceListeners.close?.(0);
-            });
-          },
-        },
-        stdout: {
-          on(event: 'data', listener: (chunk: unknown) => void) {
-            if (event === 'data') {
-              stdoutListeners.push(listener);
-            }
-          },
-        },
-        stderr: {
-          on(event: 'data', listener: (chunk: unknown) => void) {
-            if (event === 'data') {
-              stderrListeners.push(listener);
-            }
-          },
-        },
-        kill() {
-          return true;
-        },
-        once(event: 'error' | 'close', listener: (value: Error | number | null) => void) {
-          if (event === 'error') {
-            onceListeners.error = listener as (error: Error) => void;
-          } else {
-            onceListeners.close = listener as (code: number | null) => void;
-          }
-          return this;
-        },
-      };
-    },
-  };
-}
-
-async function withMockChildProcessModule<T>(
-  stdoutLines: readonly string[],
-  callback: () => Promise<T>,
-): Promise<T> {
-  const runtimeProcess = process as RuntimeProcessWithBuiltinModules;
-  const originalGetBuiltinModule = runtimeProcess.getBuiltinModule;
-
-  runtimeProcess.getBuiltinModule = (id: string) => {
-    if (id === 'node:child_process') {
-      return createFakeSpawnModule(stdoutLines);
-    }
-    return originalGetBuiltinModule?.(id);
-  };
-
-  try {
-    return await callback();
-  } finally {
-    if (originalGetBuiltinModule) {
-      runtimeProcess.getBuiltinModule = originalGetBuiltinModule;
-    } else {
-      delete runtimeProcess.getBuiltinModule;
-    }
-  }
-}
 
 const fakeCodexJsonlLines = [
   `${JSON.stringify({
@@ -152,7 +65,7 @@ function normalizeRuntimeRecord(value: unknown): BirdCoderCodingSessionRuntime |
   return value as BirdCoderCodingSessionRuntime;
 }
 
-await withMockChildProcessModule(fakeCodexJsonlLines, async () => {
+await withMockCodexCliJsonl(async () => {
   const sqliteProvider = createBirdCoderStorageProvider('sqlite');
   await sqliteProvider.open();
   await sqliteProvider.runMigrations([getBirdCoderSchemaMigrationDefinition('coding-server-kernel-v2')]);
@@ -329,6 +242,8 @@ await withMockChildProcessModule(fakeCodexJsonlLines, async () => {
     sqliteSnapshotAfterPostgres.operations.map((operation) => operation.operationId),
     ['turn-provider-sqlite-1:operation'],
   );
+}, {
+  stdoutLines: fakeCodexJsonlLines,
 });
 
 console.log('coding server provider projection repository contract passed.');

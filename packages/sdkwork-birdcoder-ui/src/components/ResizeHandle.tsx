@@ -9,22 +9,59 @@ interface ResizeHandleProps {
 export function ResizeHandle({ direction, onResize, className = '' }: ResizeHandleProps) {
   const [isDragging, setIsDragging] = useState(false);
   const onResizeRef = useRef(onResize);
+  const animationFrameRef = useRef(0);
+  const pendingDeltaRef = useRef(0);
 
   useEffect(() => {
     onResizeRef.current = onResize;
   }, [onResize]);
 
   useEffect(() => {
+    const flushPendingResize = () => {
+      if (pendingDeltaRef.current === 0) {
+        return;
+      }
+
+      const nextDelta = pendingDeltaRef.current;
+      pendingDeltaRef.current = 0;
+      onResizeRef.current(nextDelta);
+    };
+
+    const cancelScheduledResize = () => {
+      if (animationFrameRef.current === 0 || typeof window === 'undefined') {
+        return;
+      }
+
+      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = 0;
+    };
+
+    const scheduleResizeFlush = () => {
+      if (typeof window === 'undefined') {
+        flushPendingResize();
+        return;
+      }
+
+      if (animationFrameRef.current !== 0) {
+        return;
+      }
+
+      animationFrameRef.current = window.requestAnimationFrame(() => {
+        animationFrameRef.current = 0;
+        flushPendingResize();
+      });
+    };
+
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
-      if (direction === 'horizontal') {
-        onResizeRef.current(e.movementX);
-      } else {
-        onResizeRef.current(e.movementY);
-      }
+
+      pendingDeltaRef.current += direction === 'horizontal' ? e.movementX : e.movementY;
+      scheduleResizeFlush();
     };
 
     const handleMouseUp = () => {
+      cancelScheduledResize();
+      flushPendingResize();
       setIsDragging(false);
     };
 
@@ -39,6 +76,8 @@ export function ResizeHandle({ direction, onResize, className = '' }: ResizeHand
     }
 
     return () => {
+      cancelScheduledResize();
+      flushPendingResize();
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = '';

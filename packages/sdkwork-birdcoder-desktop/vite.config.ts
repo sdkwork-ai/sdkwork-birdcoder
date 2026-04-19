@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
   }),
   optimizeDeps: {
     noDiscovery: true,
-    include: [],
+    include: ['@xterm/addon-unicode11'],
   },
   build: {
     minify: false,

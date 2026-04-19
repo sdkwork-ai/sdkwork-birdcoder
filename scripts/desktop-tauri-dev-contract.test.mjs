@@ -768,7 +768,7 @@ assert.match(
 );
 
 const windowControlsHandlerBlockMatch = appSource.match(
-  /const handleMinimize = async \(\) => \{[\s\S]*?const handleOpenFolder = async \(\) => \{/u,
+  /const handleMinimize = (?:async \(\) => \{|useCallback\(async \(\) => \{)[\s\S]*?const handleOpenFolder = (?:async \(\) => \{|useCallback\(async \(\) => \{)/u,
 );
 assert.ok(
   windowControlsHandlerBlockMatch,

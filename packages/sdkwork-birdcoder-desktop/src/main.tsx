@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { AppRoot } from '@sdkwork/birdcoder-shell/app';
+import { AppRoot, BootstrapGate } from '@sdkwork/birdcoder-shell/app';
 import {
   bootstrapShellRuntime,
   isBirdCoderLocalRuntimeApiBaseUrl,
@@ -35,15 +35,18 @@ async function resolveDesktopApiBaseUrl(): Promise<string | undefined> {
   }
 }
 
-const resolvedApiBaseUrl = await resolveDesktopApiBaseUrl();
-await waitForBirdCoderApiReady(resolvedApiBaseUrl);
-
-bootstrapShellRuntime({
-  host: resolveDesktopRuntime('global', {
-    apiBaseUrl: resolvedApiBaseUrl,
-  }),
-});
+async function bootstrapRuntime() {
+  const resolvedApiBaseUrl = await resolveDesktopApiBaseUrl();
+  await waitForBirdCoderApiReady(resolvedApiBaseUrl);
+  bootstrapShellRuntime({
+    host: resolveDesktopRuntime('global', {
+      apiBaseUrl: resolvedApiBaseUrl,
+    }),
+  });
+}
 
 createRoot(document.getElementById('root')!).render(
-  <AppRoot />,
+  <BootstrapGate bootstrap={bootstrapRuntime}>
+    <AppRoot />
+  </BootstrapGate>,
 );

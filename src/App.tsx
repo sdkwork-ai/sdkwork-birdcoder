@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { Component, lazy, Suspense, type ErrorInfo, useState, useRef, useEffect, useCallback } from 'react';
+import React, { Component, lazy, Suspense, type ErrorInfo, useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Code2, Sparkles, Terminal, Settings, UserCircle, Shield, Zap, LayoutTemplate, Minus, Square, SquareSquare, X, ChevronDown, Folder, Briefcase, Globe, User, Plus, Trash2, AlertTriangle, ChevronRight, Check, Edit, MoreHorizontal } from 'lucide-react';
 import {
   usePersistedState,
@@ -19,20 +19,20 @@ import {
 } from '@sdkwork/birdcoder-commons/shell';
 import {
   DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
+  buildProjectCodingSessionIndex,
   buildWorkbenchRecoveryAnnouncement,
   buildWorkbenchRecoverySnapshot,
   hydrateImportedProjectFromAuthority,
   importLocalFolderProject,
   normalizeWorkbenchRecoverySnapshot,
   recoverySnapshotsEqual,
-  resolveLatestCodingSessionIdForProject,
   resolveStartupCodingSessionId,
   resolveStartupProjectId,
   resolveStartupWorkspaceId,
   type WorkbenchRecoverySnapshot,
 } from '@sdkwork/birdcoder-commons/workbench';
 import { setStoredJson } from '@sdkwork/birdcoder-commons/storage/localStore';
-import { Button, TopMenu } from '@sdkwork/birdcoder-ui/shell';
+import { Button, TopMenu, type TopMenuItem } from '@sdkwork/birdcoder-ui/shell';
 import type { AppTab, BirdCoderProject } from '@sdkwork/birdcoder-types';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-commons/shell';
 import { useTranslation } from 'react-i18next';
@@ -96,6 +96,21 @@ type ErrorBoundaryState = {
   error: Error | null;
 };
 
+type DesktopWindowHandle = {
+  isMinimized: () => Promise<boolean>;
+  isMaximized: () => Promise<boolean>;
+  onResized: (handler: () => void) => Promise<() => void>;
+  onFocusChanged: (handler: () => void) => Promise<() => void>;
+  onScaleChanged: (handler: () => void) => Promise<() => void>;
+  minimize: () => Promise<void>;
+  toggleMaximize: () => Promise<void>;
+  close: () => Promise<void>;
+  startDragging: () => Promise<void>;
+};
+
+const DESKTOP_WINDOW_FRAME_STATE_RECONCILIATION_DELAY_MS = 120;
+const WORKBENCH_RECOVERY_PERSIST_DELAY_MS = 80;
+
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   declare props: ErrorBoundaryProps;
   declare state: ErrorBoundaryState;
@@ -154,6 +169,110 @@ function SurfaceLoader({ fullScreen = false }: { fullScreen?: boolean }) {
   );
 }
 
+interface AppMainBodyProps {
+  activeTab: AppTab;
+  terminalRequest?: TerminalCommandRequest;
+  workspaceId: string;
+  projectId: string;
+  codingSessionId: string;
+  onActiveTabChange: (tab: AppTab) => void;
+  onProjectChange: (projectId: string) => void;
+  onCodingSessionChange: (codingSessionId: string) => void;
+}
+
+const AppMainBody = React.memo(function AppMainBody({
+  activeTab,
+  terminalRequest,
+  workspaceId,
+  projectId,
+  codingSessionId,
+  onActiveTabChange,
+  onProjectChange,
+  onCodingSessionChange,
+}: AppMainBodyProps) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex flex-1 overflow-hidden">
+      <div className="w-14 flex flex-col items-center py-4 border-r border-white/[0.08] bg-[#0e0e11] justify-between shrink-0">
+        <div className="flex flex-col gap-3 items-center w-full px-2">
+          <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('code')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'code' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '0ms' }} title={t('app.code')}>
+            <Code2 size={22} strokeWidth={1.5} />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('studio')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'studio' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '50ms' }} title={t('app.studio')}>
+            <Sparkles size={22} strokeWidth={1.5} />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('terminal')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'terminal' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '100ms' }} title={t('app.terminal')}>
+            <Terminal size={22} strokeWidth={1.5} />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('skills')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'skills' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '150ms' }} title={t('app.skills')}>
+            <Zap size={22} strokeWidth={1.5} />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('templates')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'templates' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '200ms' }} title={t('app.templates')}>
+            <LayoutTemplate size={22} strokeWidth={1.5} />
+          </Button>
+        </div>
+        <div className="flex flex-col gap-3 items-center w-full px-2">
+          <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('user')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'user' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '250ms' }} title={t('app.userProfile')}>
+            <UserCircle size={22} strokeWidth={1.5} />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('vip')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'vip' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '300ms' }} title="VIP Membership">
+            <Shield size={22} strokeWidth={1.5} />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('settings')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'settings' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '350ms' }} title={t('app.settings')}>
+            <Settings size={22} strokeWidth={1.5} />
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col overflow-hidden relative bg-[#0e0e11]">
+        <Suspense fallback={<SurfaceLoader />}>
+          {activeTab === 'code' && (
+            <CodePage
+              workspaceId={workspaceId}
+              projectId={projectId}
+              initialCodingSessionId={codingSessionId}
+              onProjectChange={onProjectChange}
+              onCodingSessionChange={onCodingSessionChange}
+            />
+          )}
+          {activeTab === 'studio' && (
+            <StudioPage
+              workspaceId={workspaceId}
+              projectId={projectId}
+              initialCodingSessionId={codingSessionId}
+              onProjectChange={onProjectChange}
+              onCodingSessionChange={onCodingSessionChange}
+            />
+          )}
+          {activeTab === 'terminal' && (
+            <TerminalPage
+              terminalRequest={terminalRequest}
+              workspaceId={workspaceId}
+              projectId={projectId || null}
+            />
+          )}
+          {activeTab === 'skills' && <SkillsPage workspaceId={workspaceId} />}
+          {activeTab === 'templates' && (
+            <TemplatesPage
+              workspaceId={workspaceId}
+              onProjectCreated={(id) => {
+                onProjectChange(id);
+                onActiveTabChange('code');
+              }}
+            />
+          )}
+          {activeTab === 'user' && <UserCenterPage onOpenVip={() => onActiveTabChange('vip')} />}
+          {activeTab === 'vip' && <VipPage />}
+          {activeTab === 'settings' && <SettingsPage onBack={() => onActiveTabChange('code')} />}
+        </Suspense>
+      </div>
+    </div>
+  );
+});
+
+AppMainBody.displayName = 'AppMainBody';
+
 function createWorkbenchRecoverySessionId() {
   return `recovery-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -178,7 +297,7 @@ function AppContent() {
   const { user, isLoading: isAuthLoading, logout } = useAuth();
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<AppTab>('code');
-  const [recoverySnapshot, setRecoverySnapshot, isRecoveryHydrated] = usePersistedState<WorkbenchRecoverySnapshot>(
+  const [recoverySnapshot, , isRecoveryHydrated] = usePersistedState<WorkbenchRecoverySnapshot>(
     'workbench',
     'recovery-context',
     DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
@@ -195,7 +314,11 @@ function AppContent() {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
   const [activeProjectId, setActiveProjectId] = useState<string>('');
   const [activeCodingSessionId, setActiveCodingSessionId] = useState<string>('');
-  
+  const workspacesById = useMemo(
+    () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
+  );
+
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [menuActiveWorkspaceId, setMenuActiveWorkspaceId] = useState<string>('');
   const resolvedWorkspaceId = resolveStartupWorkspaceId({
@@ -221,6 +344,10 @@ function AppContent() {
     deleteProject: deleteActiveProject,
     createCodingSession: createActiveCodingSession,
   } = useProjects(projectsWorkspaceId);
+  const activeProjectsIndex = useMemo(
+    () => buildProjectCodingSessionIndex(activeProjects),
+    [activeProjects],
+  );
   const {
     projects: distinctMenuProjects,
     hasFetched: distinctMenuProjectsHasFetched,
@@ -236,6 +363,10 @@ function AppContent() {
     },
   );
   const menuProjects = shouldUseDistinctMenuProjectsStore ? distinctMenuProjects : activeProjects;
+  const menuProjectsIndex = useMemo(
+    () => buildProjectCodingSessionIndex(menuProjects),
+    [menuProjects],
+  );
   const menuProjectsHasFetched =
     shouldUseDistinctMenuProjectsStore
       ? distinctMenuProjectsHasFetched
@@ -280,11 +411,20 @@ function AppContent() {
   const [isDesktopWindowMinimized, setIsDesktopWindowMinimized] = useState(false);
   const [isDocumentFullscreen, setIsDocumentFullscreen] = useState(false);
   const titleBarWindowDragControllerRef = useRef<ReturnType<typeof createAppHeaderWindowDragController> | null>(null);
+  const desktopWindowPromiseRef = useRef<Promise<DesktopWindowHandle | null> | null>(null);
   const isDesktopWindowAvailableRef = useRef(false);
+  const isDesktopWindowMaximizedRef = useRef(false);
+  const isDesktopWindowMinimizedRef = useRef(false);
   const isDocumentFullscreenRef = useRef(false);
   const desktopWindowStateSyncTokenRef = useRef(0);
+  const desktopWindowFrameStateReconciliationTimeoutRef =
+    useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recoverySnapshotPersistTimeoutRef = useRef<number | null>(null);
+  const desktopWindowToggleInFlightRef = useRef(false);
   const hasAppliedRecoveredTabRef = useRef(false);
   const hasAnnouncedRecoveryRef = useRef(false);
+  const recoverySessionIdRef = useRef('');
+  const lastPersistedRecoverySnapshotRef = useRef<WorkbenchRecoverySnapshot | null>(null);
   const pendingImportedProjectIdRef = useRef('');
   const pendingImportedWorkspaceIdRef = useRef('');
   const previousShowWorkspaceMenuRef = useRef(false);
@@ -312,6 +452,15 @@ function AppContent() {
     setProjectActionsMenuId(null);
   }, []);
 
+  const closeWorkspaceMenuSurface = useCallback(() => {
+    setShowWorkspaceMenu(false);
+    setIsCreatingWorkspace(false);
+    setNewWorkspaceName('');
+    setIsCreatingProject(false);
+    setNewProjectName('');
+    setProjectActionsMenuId(null);
+  }, []);
+
   const resolvedProjectId = resolveStartupProjectId({
     workspaceId: effectiveWorkspaceId,
     projects: activeProjects,
@@ -330,6 +479,30 @@ function AppContent() {
     activeProjectId: effectiveProjectId,
     activeCodingSessionId: effectiveCodingSessionId,
   });
+  const activeProjectCodingSessions =
+    activeProjectsIndex.projectsById.get(effectiveProjectId)?.codingSessions ?? [];
+  const activeProjectCodingSessionIds = useMemo(
+    () => new Set(activeProjectCodingSessions.map((codingSession) => codingSession.id)),
+    [activeProjectCodingSessions],
+  );
+  const resolveImmediateProjectIndex = useCallback(
+    (workspaceId: string) => {
+      const normalizedWorkspaceId = workspaceId.trim();
+      if (normalizedWorkspaceId === effectiveWorkspaceId) {
+        return activeProjectsIndex;
+      }
+      if (normalizedWorkspaceId === effectiveMenuWorkspaceId) {
+        return menuProjectsIndex;
+      }
+      return null;
+    },
+    [
+      activeProjectsIndex,
+      effectiveMenuWorkspaceId,
+      effectiveWorkspaceId,
+      menuProjectsIndex,
+    ],
+  );
 
   const activateImportedProject = useCallback(
     (workspaceId: string, projectId: string) => {
@@ -339,25 +512,12 @@ function AppContent() {
       setMenuActiveWorkspaceId(workspaceId);
       setActiveProjectId(projectId);
 
-      const immediateProjectCollection =
-        workspaceId === effectiveWorkspaceId
-          ? activeProjects
-          : workspaceId === effectiveMenuWorkspaceId
-            ? menuProjects
-            : [];
-      const latestCodingSessionId = resolveLatestCodingSessionIdForProject(
-        immediateProjectCollection,
-        projectId,
-      );
+      const immediateProjectIndex = resolveImmediateProjectIndex(workspaceId);
+      const latestCodingSessionId =
+        immediateProjectIndex?.latestCodingSessionIdByProjectId.get(projectId) ?? null;
       setActiveCodingSessionId(latestCodingSessionId ?? '');
     },
-    [
-      activeProjects,
-      effectiveMenuWorkspaceId,
-      effectiveWorkspaceId,
-      menuProjects,
-      resolveLatestCodingSessionIdForProject,
-    ],
+    [resolveImmediateProjectIndex],
   );
 
   const hydrateImportedProjectSelectionInBackground = useCallback(
@@ -418,6 +578,23 @@ function AppContent() {
   }, [activeTab]);
 
   useEffect(() => {
+    if (!isRecoveryHydrated || recoverySessionIdRef.current) {
+      return;
+    }
+
+    recoverySessionIdRef.current =
+      normalizedRecoverySnapshot.sessionId || createWorkbenchRecoverySessionId();
+    lastPersistedRecoverySnapshotRef.current = buildWorkbenchRecoverySnapshot({
+      sessionId: recoverySessionIdRef.current,
+      activeTab: normalizedRecoverySnapshot.activeTab,
+      activeWorkspaceId: normalizedRecoverySnapshot.activeWorkspaceId,
+      activeProjectId: normalizedRecoverySnapshot.activeProjectId,
+      activeCodingSessionId: normalizedRecoverySnapshot.activeCodingSessionId,
+      cleanExit: normalizedRecoverySnapshot.cleanExit,
+    });
+  }, [isRecoveryHydrated, normalizedRecoverySnapshot]);
+
+  useEffect(() => {
     if (!isRecoveryHydrated || hasAnnouncedRecoveryRef.current || !recoveryAnnouncement) {
       return;
     }
@@ -434,10 +611,10 @@ function AppContent() {
       return;
     }
 
-    if (!workspaces.find((workspace) => workspace.id === activeWorkspaceId) && resolvedWorkspaceId) {
+    if (!workspacesById.has(activeWorkspaceId) && resolvedWorkspaceId) {
       setActiveWorkspaceId(resolvedWorkspaceId);
     }
-  }, [activeWorkspaceId, resolvedWorkspaceId, workspaces]);
+  }, [activeWorkspaceId, resolvedWorkspaceId, workspaces.length, workspacesById]);
 
   useEffect(() => {
     if (effectiveWorkspaceId.length > 0 && !activeProjectsHasFetched) {
@@ -456,19 +633,19 @@ function AppContent() {
 
     if (
       pendingImportedProjectIdRef.current &&
-      activeProjects.some((project) => project.id === pendingImportedProjectIdRef.current)
+      activeProjectsIndex.projectsById.has(pendingImportedProjectIdRef.current)
     ) {
       pendingImportedProjectIdRef.current = '';
       pendingImportedWorkspaceIdRef.current = '';
     }
 
-    if (!activeProjects.find((project) => project.id === activeProjectId) && resolvedProjectId) {
+    if (!activeProjectsIndex.projectsById.has(activeProjectId) && resolvedProjectId) {
       setActiveProjectId(resolvedProjectId);
     }
   }, [
     activeProjectId,
-    activeProjects,
     activeProjectsHasFetched,
+    activeProjectsIndex,
     effectiveWorkspaceId.length,
     resolvedProjectId,
   ]);
@@ -478,9 +655,6 @@ function AppContent() {
       return;
     }
 
-    const activeProjectCodingSessions =
-      activeProjects.find((project) => project.id === effectiveProjectId)?.codingSessions ?? [];
-
     if (activeProjectCodingSessions.length === 0) {
       if (activeCodingSessionId) {
         setActiveCodingSessionId('');
@@ -489,9 +663,7 @@ function AppContent() {
     }
 
     if (
-      !activeProjectCodingSessions.find(
-        (codingSession) => codingSession.id === activeCodingSessionId,
-      ) &&
+      !activeProjectCodingSessionIds.has(activeCodingSessionId) &&
       resolvedCodingSessionId
     ) {
       setActiveCodingSessionId(resolvedCodingSessionId);
@@ -500,20 +672,29 @@ function AppContent() {
 
     if (
       activeCodingSessionId &&
-      !activeProjectCodingSessions.find(
-        (codingSession) => codingSession.id === activeCodingSessionId,
-      )
+      !activeProjectCodingSessionIds.has(activeCodingSessionId)
     ) {
       setActiveCodingSessionId('');
     }
   }, [
     activeCodingSessionId,
-    activeProjects,
     activeProjectsHasFetched,
+    activeProjectCodingSessionIds,
+    activeProjectCodingSessions.length,
     effectiveProjectId,
     effectiveWorkspaceId.length,
     resolvedCodingSessionId,
   ]);
+
+  const clearPendingRecoverySnapshotPersistence = useCallback(() => {
+    if (
+      recoverySnapshotPersistTimeoutRef.current !== null &&
+      typeof window !== 'undefined'
+    ) {
+      window.clearTimeout(recoverySnapshotPersistTimeoutRef.current);
+      recoverySnapshotPersistTimeoutRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (!isRecoveryHydrated) {
@@ -521,7 +702,10 @@ function AppContent() {
     }
 
     const nextRecoverySnapshot = buildWorkbenchRecoverySnapshot({
-      sessionId: normalizedRecoverySnapshot.sessionId || createWorkbenchRecoverySessionId(),
+      sessionId:
+        recoverySessionIdRef.current ||
+        normalizedRecoverySnapshot.sessionId ||
+        createWorkbenchRecoverySessionId(),
       activeTab,
       activeWorkspaceId: effectiveWorkspaceId,
       activeProjectId: effectiveProjectId,
@@ -529,20 +713,41 @@ function AppContent() {
       cleanExit: false,
     });
 
-    if (recoverySnapshotsEqual(normalizedRecoverySnapshot, nextRecoverySnapshot)) {
+    recoverySessionIdRef.current = nextRecoverySnapshot.sessionId;
+
+    if (
+      lastPersistedRecoverySnapshotRef.current &&
+      recoverySnapshotsEqual(lastPersistedRecoverySnapshotRef.current, nextRecoverySnapshot)
+    ) {
       return;
     }
 
-    setRecoverySnapshot(nextRecoverySnapshot);
+    lastPersistedRecoverySnapshotRef.current = nextRecoverySnapshot;
+    if (typeof window === 'undefined') {
+      void setStoredJson('workbench', 'recovery-context', nextRecoverySnapshot);
+      return;
+    }
+
+    clearPendingRecoverySnapshotPersistence();
+    recoverySnapshotPersistTimeoutRef.current = window.setTimeout(() => {
+      recoverySnapshotPersistTimeoutRef.current = null;
+      void setStoredJson('workbench', 'recovery-context', nextRecoverySnapshot);
+    }, WORKBENCH_RECOVERY_PERSIST_DELAY_MS);
   }, [
     activeTab,
+    clearPendingRecoverySnapshotPersistence,
     effectiveCodingSessionId,
     effectiveProjectId,
     effectiveWorkspaceId,
     isRecoveryHydrated,
     normalizedRecoverySnapshot,
-    setRecoverySnapshot,
   ]);
+
+  useEffect(() => {
+    return () => {
+      clearPendingRecoverySnapshotPersistence();
+    };
+  }, [clearPendingRecoverySnapshotPersistence]);
 
   useEffect(() => {
     if (!isRecoveryHydrated || typeof window === 'undefined') {
@@ -550,11 +755,15 @@ function AppContent() {
     }
 
     const handleBeforeUnload = () => {
+      clearPendingRecoverySnapshotPersistence();
       void setStoredJson(
         'workbench',
         'recovery-context',
         buildWorkbenchRecoverySnapshot({
-          sessionId: normalizedRecoverySnapshot.sessionId || createWorkbenchRecoverySessionId(),
+          sessionId:
+            recoverySessionIdRef.current ||
+            normalizedRecoverySnapshot.sessionId ||
+            createWorkbenchRecoverySessionId(),
           activeTab,
           activeWorkspaceId: effectiveWorkspaceId,
           activeProjectId: effectiveProjectId,
@@ -570,6 +779,7 @@ function AppContent() {
     };
   }, [
     activeTab,
+    clearPendingRecoverySnapshotPersistence,
     effectiveCodingSessionId,
     effectiveProjectId,
     effectiveWorkspaceId,
@@ -654,20 +864,29 @@ function AppContent() {
     };
   }, [addToast, t]);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+  const hasOpenWorkspaceMenuSurface =
+    showWorkspaceMenu ||
+    isCreatingWorkspace ||
+    isCreatingProject ||
+    projectActionsMenuId !== null;
+
+  const handleWorkspaceMenuClickOutside = useCallback(
+    (event: MouseEvent) => {
       if (workspaceMenuRef.current && !workspaceMenuRef.current.contains(event.target as Node)) {
-        setShowWorkspaceMenu(false);
-        setIsCreatingWorkspace(false);
-        setNewWorkspaceName('');
-        setIsCreatingProject(false);
-        setNewProjectName('');
-        setProjectActionsMenuId(null);
+        closeWorkspaceMenuSurface();
       }
+    },
+    [closeWorkspaceMenuSurface],
+  );
+
+  useEffect(() => {
+    if (!hasOpenWorkspaceMenuSurface) {
+      return;
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+
+    document.addEventListener('mousedown', handleWorkspaceMenuClickOutside);
+    return () => document.removeEventListener('mousedown', handleWorkspaceMenuClickOutside);
+  }, [handleWorkspaceMenuClickOutside, hasOpenWorkspaceMenuSurface]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -972,7 +1191,7 @@ function AppContent() {
 
   const handleCreateProjectSession = useCallback(
     async (projectId: string) => {
-      const targetProject = menuProjects.find((project) => project.id === projectId);
+      const targetProject = menuProjectsIndex.projectsById.get(projectId);
       if (!targetProject) {
         addToast(t('app.noProjectsFound'), 'error');
         return;
@@ -996,20 +1215,64 @@ function AppContent() {
       addToast,
       createMenuCodingSession,
       effectiveMenuWorkspaceId,
-      menuProjects,
+      menuProjectsIndex,
       t,
     ],
   );
 
-  const getDesktopWindow = async () => {
-    const { isTauri } = await import('@tauri-apps/api/core');
-    if (!isTauri()) {
-      return null;
+  const handleSelectMenuProject = useCallback(
+    (projectId: string) => {
+      const nextWorkspaceId = effectiveMenuWorkspaceId.trim();
+      const nextProjectId = projectId.trim();
+      const nextCodingSessionId =
+        resolveImmediateProjectIndex(nextWorkspaceId)
+          ?.latestCodingSessionIdByProjectId.get(nextProjectId) ?? '';
+      const shouldResetCodingSession =
+        nextWorkspaceId !== effectiveWorkspaceId || nextProjectId !== effectiveProjectId;
+
+      if (nextWorkspaceId && nextWorkspaceId !== effectiveWorkspaceId) {
+        setActiveWorkspaceId(nextWorkspaceId);
+      }
+      setMenuActiveWorkspaceId(nextWorkspaceId || effectiveWorkspaceId);
+      setActiveProjectId(nextProjectId);
+      if (shouldResetCodingSession || nextCodingSessionId) {
+        setActiveCodingSessionId(nextCodingSessionId);
+      }
+      setProjectActionsMenuId(null);
+      setShowWorkspaceMenu(false);
+    },
+    [
+      effectiveMenuWorkspaceId,
+      effectiveProjectId,
+      effectiveWorkspaceId,
+      resolveImmediateProjectIndex,
+    ],
+  );
+
+  const getDesktopWindow = useCallback(async (): Promise<DesktopWindowHandle | null> => {
+    if (desktopWindowPromiseRef.current) {
+      return desktopWindowPromiseRef.current;
     }
 
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    return getCurrentWindow();
-  };
+    const desktopWindowPromise = (async () => {
+      const { isTauri } = await import('@tauri-apps/api/core');
+      if (!isTauri()) {
+        return null;
+      }
+
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      return getCurrentWindow() as DesktopWindowHandle;
+    })();
+
+    desktopWindowPromiseRef.current = desktopWindowPromise;
+
+    try {
+      return await desktopWindowPromise;
+    } catch (error) {
+      desktopWindowPromiseRef.current = null;
+      throw error;
+    }
+  }, []);
 
   const applyDesktopWindowFrameState = useCallback(
     (nextState: {
@@ -1018,6 +1281,8 @@ function AppContent() {
       isMinimized: boolean;
     }) => {
       isDesktopWindowAvailableRef.current = nextState.isAvailable;
+      isDesktopWindowMaximizedRef.current = nextState.isMaximized;
+      isDesktopWindowMinimizedRef.current = nextState.isMinimized;
       setIsDesktopWindowAvailable(nextState.isAvailable);
       setIsDesktopWindowMaximized(nextState.isMaximized);
       setIsDesktopWindowMinimized(nextState.isMinimized);
@@ -1027,7 +1292,7 @@ function AppContent() {
 
   const syncDesktopWindowFrameState = useCallback(
     async (
-      desktopWindow: NonNullable<Awaited<ReturnType<typeof getDesktopWindow>>>,
+      desktopWindow: DesktopWindowHandle,
     ) => {
       const syncToken = ++desktopWindowStateSyncTokenRef.current;
       const [nextIsMaximized, nextIsMinimized] = await Promise.all([
@@ -1048,18 +1313,46 @@ function AppContent() {
     [applyDesktopWindowFrameState],
   );
 
+  const cancelDesktopWindowFrameStateReconciliation = useCallback(() => {
+    if (
+      desktopWindowFrameStateReconciliationTimeoutRef.current !== null &&
+      typeof window !== 'undefined'
+    ) {
+      window.clearTimeout(desktopWindowFrameStateReconciliationTimeoutRef.current);
+      desktopWindowFrameStateReconciliationTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleDesktopWindowFrameStateReconciliation = (
+    desktopWindow: DesktopWindowHandle,
+  ) => {
+    if (typeof window === 'undefined') {
+      void syncDesktopWindowFrameState(desktopWindow);
+      return;
+    }
+
+    if (desktopWindowFrameStateReconciliationTimeoutRef.current !== null) {
+      clearTimeout(desktopWindowFrameStateReconciliationTimeoutRef.current);
+    }
+
+    desktopWindowFrameStateReconciliationTimeoutRef.current = setTimeout(() => {
+      desktopWindowFrameStateReconciliationTimeoutRef.current = null;
+      void syncDesktopWindowFrameState(desktopWindow);
+    }, DESKTOP_WINDOW_FRAME_STATE_RECONCILIATION_DELAY_MS);
+  };
+
   useEffect(() => {
     let cancelled = false;
-    let resizeAnimationFrame = 0;
     const unlistenCallbacks: Array<() => void> = [];
 
-    const cancelPendingAnimationFrame = () => {
-      if (resizeAnimationFrame === 0 || typeof window === 'undefined') {
-        return;
+    const cancelPendingWork = () => {
+      if (typeof window === 'undefined') {
+        if (desktopWindowFrameStateReconciliationTimeoutRef.current === null) {
+          return;
+        }
       }
 
-      window.cancelAnimationFrame(resizeAnimationFrame);
-      resizeAnimationFrame = 0;
+      cancelDesktopWindowFrameStateReconciliation();
     };
 
     const registerWindowListener = async (
@@ -1072,24 +1365,6 @@ function AppContent() {
       }
 
       unlistenCallbacks.push(unlisten);
-    };
-
-    const scheduleDesktopWindowFrameSync = (
-      desktopWindow: NonNullable<Awaited<ReturnType<typeof getDesktopWindow>>>,
-    ) => {
-      if (typeof window === 'undefined') {
-        void syncDesktopWindowFrameState(desktopWindow);
-        return;
-      }
-
-      if (resizeAnimationFrame !== 0) {
-        return;
-      }
-
-      resizeAnimationFrame = window.requestAnimationFrame(() => {
-        resizeAnimationFrame = 0;
-        void syncDesktopWindowFrameState(desktopWindow);
-      });
     };
 
     void (async () => {
@@ -1111,17 +1386,17 @@ function AppContent() {
         await syncDesktopWindowFrameState(desktopWindow);
         await registerWindowListener(
           desktopWindow.onResized(() => {
-            scheduleDesktopWindowFrameSync(desktopWindow);
+            scheduleDesktopWindowFrameStateReconciliation(desktopWindow);
           }),
         );
         await registerWindowListener(
           desktopWindow.onScaleChanged(() => {
-            scheduleDesktopWindowFrameSync(desktopWindow);
+            scheduleDesktopWindowFrameStateReconciliation(desktopWindow);
           }),
         );
         await registerWindowListener(
           desktopWindow.onFocusChanged(() => {
-            scheduleDesktopWindowFrameSync(desktopWindow);
+            scheduleDesktopWindowFrameStateReconciliation(desktopWindow);
           }),
         );
       } catch {
@@ -1139,12 +1414,17 @@ function AppContent() {
 
     return () => {
       cancelled = true;
-      cancelPendingAnimationFrame();
+      cancelPendingWork();
       for (const unlisten of unlistenCallbacks) {
         unlisten();
       }
     };
-  }, [applyDesktopWindowFrameState, syncDesktopWindowFrameState]);
+  }, [
+    applyDesktopWindowFrameState,
+    cancelDesktopWindowFrameStateReconciliation,
+    syncDesktopWindowFrameState,
+    getDesktopWindow,
+  ]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -1169,8 +1449,7 @@ function AppContent() {
 
   if (titleBarWindowDragControllerRef.current === null) {
     titleBarWindowDragControllerRef.current = createAppHeaderWindowDragController({
-      canStartDragging: () =>
-        isDesktopWindowAvailableRef.current && !isDocumentFullscreenRef.current,
+      canStartDragging: () => isDesktopWindowAvailableRef.current && !isDocumentFullscreenRef.current,
       startDragging: async () => {
         try {
           const desktopWindow = await getDesktopWindow();
@@ -1193,35 +1472,73 @@ function AppContent() {
     };
   }, []);
 
-  const handleMinimize = async () => {
+  const handleMinimize = useCallback(async () => {
     try {
       const desktopWindow = await getDesktopWindow();
       if (!desktopWindow) {
         return;
       }
 
+      cancelDesktopWindowFrameStateReconciliation();
+      applyDesktopWindowFrameState({
+        isAvailable: true,
+        isMaximized: isDesktopWindowMaximizedRef.current,
+        isMinimized: true,
+      });
       await desktopWindow.minimize();
       await syncDesktopWindowFrameState(desktopWindow);
     } catch (error) {
       console.warn('Failed to minimize desktop window', error);
     }
-  };
+  }, [
+    applyDesktopWindowFrameState,
+    cancelDesktopWindowFrameStateReconciliation,
+    getDesktopWindow,
+    syncDesktopWindowFrameState,
+  ]);
 
-  const handleMaximize = async () => {
+  const handleMaximize = useCallback(async () => {
     try {
+      if (desktopWindowToggleInFlightRef.current) {
+        return;
+      }
+
       const desktopWindow = await getDesktopWindow();
       if (!desktopWindow) {
         return;
       }
 
-      await desktopWindow.toggleMaximize();
-      await syncDesktopWindowFrameState(desktopWindow);
+      desktopWindowToggleInFlightRef.current = true;
+      applyDesktopWindowFrameState({
+        isAvailable: true,
+        isMaximized: !isDesktopWindowMaximizedRef.current,
+        isMinimized: false,
+      });
+      cancelDesktopWindowFrameStateReconciliation();
+
+      void desktopWindow
+        .toggleMaximize()
+        .then(() => {
+          desktopWindowToggleInFlightRef.current = false;
+          return syncDesktopWindowFrameState(desktopWindow);
+        })
+        .catch((error) => {
+          desktopWindowToggleInFlightRef.current = false;
+          console.warn('Failed to toggle desktop window maximize state', error);
+          return syncDesktopWindowFrameState(desktopWindow);
+        });
     } catch (error) {
+      desktopWindowToggleInFlightRef.current = false;
       console.warn('Failed to toggle desktop window maximize state', error);
     }
-  };
+  }, [
+    applyDesktopWindowFrameState,
+    cancelDesktopWindowFrameStateReconciliation,
+    getDesktopWindow,
+    syncDesktopWindowFrameState,
+  ]);
 
-  const handleClose = async () => {
+  const handleClose = useCallback(async () => {
     try {
       const desktopWindow = await getDesktopWindow();
       if (!desktopWindow) {
@@ -1234,7 +1551,7 @@ function AppContent() {
       console.warn('Failed to close desktop window', error);
       window.close();
     }
-  };
+  }, [getDesktopWindow]);
 
   const handleTitleBarPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const scheduled = titleBarWindowDragControllerRef.current?.handlePointerDown({
@@ -1261,7 +1578,7 @@ function AppContent() {
       return;
     }
 
-    await handleMaximize();
+    void handleMaximize();
   };
 
   const handleTitleBarContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -1280,7 +1597,7 @@ function AppContent() {
     event.preventDefault();
   };
 
-  const handleOpenFolder = async () => {
+  const handleOpenFolder = useCallback(async () => {
     try {
       const importedProject = await selectFolderAndImportProject(t('app.localFolder'));
       if (importedProject) {
@@ -1295,9 +1612,15 @@ function AppContent() {
       console.error("Failed to open folder", e);
       addToast(t('app.failedToOpenFolder'), 'error');
     }
-  };
+  }, [
+    activateImportedProject,
+    addToast,
+    hydrateImportedProjectSelectionInBackground,
+    selectFolderAndImportProject,
+    t,
+  ]);
 
-  const handleEditCommand = (command: string) => {
+  const handleEditCommand = useCallback((command: string) => {
     const activeEl = document.activeElement;
     const isMonaco = activeEl && activeEl.classList.contains('inputarea');
     if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && !isMonaco) {
@@ -1305,9 +1628,9 @@ function AppContent() {
     } else {
       globalEventBus.emit('editorCommand', command);
     }
-  };
+  }, []);
 
-  const toggleFullScreen = () => {
+  const toggleFullScreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
         console.error(`Error attempting to enable fullscreen: ${err.message}`);
@@ -1315,14 +1638,14 @@ function AppContent() {
     } else {
       document.exitFullscreen();
     }
-  };
+  }, []);
 
-  const handleZoom = (direction: 'in' | 'out' | 'reset') => {
+  const handleZoom = useCallback((direction: 'in' | 'out' | 'reset') => {
     const currentZoom = parseFloat(document.body.style.zoom || '1');
     if (direction === 'in') document.body.style.zoom = (currentZoom + 0.1).toString();
     else if (direction === 'out') document.body.style.zoom = Math.max(0.5, currentZoom - 0.1).toString();
     else document.body.style.zoom = '1';
-  };
+  }, []);
 
   openFolderHandlerRef.current = () => {
     void handleOpenFolder();
@@ -1330,12 +1653,14 @@ function AppContent() {
   zoomHandlerRef.current = handleZoom;
   toggleFullScreenHandlerRef.current = toggleFullScreen;
 
-  const activeWorkspace = workspaces.find(w => w.id === effectiveWorkspaceId) || workspaces[0];
-  const activeProject = activeProjects.find(p => p.id === effectiveProjectId);
+  const activeWorkspace = workspacesById.get(effectiveWorkspaceId) || workspaces[0];
+  const activeProject = activeProjectsIndex.projectsById.get(effectiveProjectId) ?? null;
   const titleBarDragEnabled = isDesktopWindowAvailable && !isDocumentFullscreen;
   const titleBarDragSurfaceClass = titleBarDragEnabled
     ? 'cursor-grab border-white/[0.10] text-gray-200 hover:border-white/[0.16] hover:bg-white/[0.04] active:cursor-grabbing active:bg-white/[0.06]'
-    : 'cursor-default border-white/[0.06] text-gray-400';
+    : isDesktopWindowMinimized
+      ? 'cursor-default border-white/[0.06] text-gray-500'
+      : 'cursor-default border-white/[0.06] text-gray-400';
 
   const getWorkspaceIcon = (iconName?: string) => {
     switch(iconName) {
@@ -1345,6 +1670,228 @@ function AppContent() {
       default: return <Folder size={14} />;
     }
   };
+
+  const handleToggleRecording = useCallback(() => {
+    const nextRecordingState = !isRecording;
+    setIsRecording(nextRecordingState);
+    addToast(
+      nextRecordingState ? t('app.traceRecordingStarted') : t('app.traceRecordingStopped'),
+      'success',
+    );
+  }, [addToast, isRecording, t]);
+
+  const fileMenuItems = useMemo<TopMenuItem[]>(
+    () => [
+      {
+        label: t('app.menu.newThread'),
+        shortcut: 'Ctrl+N',
+        onClick: () => {
+          if (activeTab !== 'code' && activeTab !== 'studio') {
+            setActiveTab('code');
+            setTimeout(() => globalEventBus.emit('createNewThread'), 100);
+            return;
+          }
+
+          globalEventBus.emit('createNewThread');
+        },
+      },
+      { label: t('app.menu.openFolder'), shortcut: 'Ctrl+O', onClick: handleOpenFolder },
+      { label: '', divider: true },
+      {
+        label: t('app.menu.save'),
+        shortcut: 'Ctrl+S',
+        onClick: () => globalEventBus.emit('saveActiveFile'),
+      },
+      {
+        label: t('app.menu.saveAll'),
+        shortcut: 'Ctrl+Shift+S',
+        onClick: () => globalEventBus.emit('saveAllFiles'),
+      },
+      { label: '', divider: true },
+      { label: t('app.menu.logOut'), onClick: () => logout() },
+      { label: t('app.menu.exit'), onClick: handleClose },
+      { label: t('app.menu.settings'), shortcut: 'Ctrl+,', onClick: () => setActiveTab('settings') },
+      { label: '', divider: true },
+      { label: t('app.menu.aboutCodex'), onClick: () => setShowAboutModal(true) },
+    ],
+    [activeTab, handleClose, handleOpenFolder, logout, t],
+  );
+
+  const editMenuItems = useMemo<TopMenuItem[]>(
+    () => [
+      { label: t('app.menu.undo'), shortcut: 'Ctrl+Z', onClick: () => handleEditCommand('undo') },
+      { label: t('app.menu.redo'), shortcut: 'Ctrl+Y', onClick: () => handleEditCommand('redo') },
+      { label: '', divider: true },
+      { label: t('app.menu.cut'), shortcut: 'Ctrl+X', onClick: () => handleEditCommand('cut') },
+      { label: t('app.menu.copy'), shortcut: 'Ctrl+C', onClick: () => handleEditCommand('copy') },
+      { label: t('app.menu.paste'), shortcut: 'Ctrl+V', onClick: () => handleEditCommand('paste') },
+      {
+        label: t('app.menu.delete'),
+        shortcut: 'Del',
+        onClick: () => handleEditCommand('delete'),
+      },
+      { label: '', divider: true },
+      {
+        label: t('app.menu.selectAll'),
+        shortcut: 'Ctrl+A',
+        onClick: () => handleEditCommand('selectAll'),
+      },
+    ],
+    [handleEditCommand, t],
+  );
+
+  const viewMenuItems = useMemo<TopMenuItem[]>(
+    () => [
+      {
+        label: t('app.menu.toggleSidebar'),
+        shortcut: 'Ctrl+B',
+        onClick: () => globalEventBus.emit('toggleSidebar'),
+      },
+      {
+        label: t('app.menu.toggleTerminal'),
+        shortcut: 'Ctrl+J',
+        onClick: () => {
+          if (activeTab !== 'code') {
+            setActiveTab('code');
+          }
+          setTimeout(() => globalEventBus.emit('toggleTerminal'), 100);
+        },
+      },
+      {
+        label: t('app.menu.toggleDiffPanel'),
+        shortcut: 'Alt+Ctrl+B',
+        onClick: () => globalEventBus.emit('toggleDiffPanel'),
+      },
+      {
+        label: t('app.menu.find'),
+        shortcut: 'Ctrl+F',
+        onClick: () => globalEventBus.emit('findInFiles'),
+      },
+      { label: '', divider: true },
+      { label: t('app.menu.zoomIn'), shortcut: 'Ctrl+=', onClick: () => handleZoom('in') },
+      { label: t('app.menu.zoomOut'), shortcut: 'Ctrl+-', onClick: () => handleZoom('out') },
+      { label: t('app.menu.actualSize'), shortcut: 'Ctrl+0', onClick: () => handleZoom('reset') },
+      { label: '', divider: true },
+      {
+        label: t('app.menu.toggleFullScreen'),
+        shortcut: 'F11',
+        onClick: toggleFullScreen,
+      },
+    ],
+    [activeTab, handleZoom, t, toggleFullScreen],
+  );
+
+  const goMenuItems = useMemo<TopMenuItem[]>(
+    () => [
+      {
+        label: t('app.menu.goToFile'),
+        shortcut: 'Ctrl+P',
+        onClick: () => globalEventBus.emit('openQuickOpen'),
+      },
+      { label: '', divider: true },
+      {
+        label: t('app.menu.previousThread'),
+        shortcut: 'Ctrl+Shift+[',
+        onClick: () => globalEventBus.emit('previousThread'),
+      },
+      {
+        label: t('app.menu.nextThread'),
+        shortcut: 'Ctrl+Shift+]',
+        onClick: () => globalEventBus.emit('nextThread'),
+      },
+      { label: t('app.menu.back'), shortcut: 'Ctrl+[', onClick: () => window.history.back() },
+      {
+        label: t('app.menu.forward'),
+        shortcut: 'Ctrl+]',
+        onClick: () => window.history.forward(),
+      },
+    ],
+    [t],
+  );
+
+  const runMenuItems = useMemo<TopMenuItem[]>(
+    () => [
+      {
+        label: t('app.menu.startDebugging'),
+        shortcut: 'F5',
+        onClick: () => globalEventBus.emit('startDebugging'),
+      },
+      {
+        label: t('app.menu.runWithoutDebugging'),
+        shortcut: 'Ctrl+F5',
+        onClick: () => globalEventBus.emit('runWithoutDebugging'),
+      },
+      { label: '', divider: true },
+      {
+        label: t('app.menu.addConfiguration'),
+        onClick: () => globalEventBus.emit('addRunConfiguration'),
+      },
+    ],
+    [t],
+  );
+
+  const terminalMenuItems = useMemo<TopMenuItem[]>(
+    () => [
+      {
+        label: t('app.menu.newTerminal'),
+        shortcut: 'Ctrl+Shift+`',
+        onClick: () => globalEventBus.emit('newTerminal'),
+      },
+      {
+        label: t('app.menu.splitTerminal'),
+        shortcut: 'Ctrl+Shift+5',
+        onClick: () => globalEventBus.emit('splitTerminal'),
+      },
+      { label: '', divider: true },
+      { label: t('app.menu.runTask'), onClick: () => globalEventBus.emit('runTask') },
+    ],
+    [t],
+  );
+
+  const windowMenuItems = useMemo<TopMenuItem[]>(
+    () => [
+      { label: t('app.menu.minimize'), onClick: handleMinimize },
+      { label: t('app.menu.maximize'), onClick: handleMaximize },
+      { label: t('app.menu.close'), onClick: handleClose },
+    ],
+    [handleClose, handleMaximize, handleMinimize, t],
+  );
+
+  const helpMenuItems = useMemo<TopMenuItem[]>(
+    () => [
+      {
+        label: t('app.menu.documentation'),
+        onClick: () => window.open('https://github.com', '_blank'),
+      },
+      { label: t('app.menu.whatsNew'), onClick: () => setShowWhatsNewModal(true) },
+      { label: t('app.menu.skills'), onClick: () => setActiveTab('skills') },
+      { label: '', divider: true },
+      {
+        label: t('app.menu.keyboardShortcuts'),
+        shortcut: 'Ctrl+K Ctrl+R',
+        onClick: () => setShowShortcutsModal(true),
+      },
+      { label: '', divider: true },
+      {
+        label: isRecording
+          ? t('app.menu.stopTraceRecording')
+          : t('app.menu.startTraceRecording'),
+        onClick: handleToggleRecording,
+      },
+      { label: '', divider: true },
+      { label: t('app.menu.aboutCodex'), onClick: () => setShowAboutModal(true) },
+    ],
+    [handleToggleRecording, isRecording, t],
+  );
+
+  const handleWorkspaceMenuToggle = useCallback(() => {
+    if (showWorkspaceMenu) {
+      closeWorkspaceMenuSurface();
+      return;
+    }
+
+    setShowWorkspaceMenu(true);
+  }, [closeWorkspaceMenuSurface, showWorkspaceMenu]);
 
   if (isAuthLoading) {
     return (
@@ -1362,20 +1909,9 @@ function AppContent() {
     );
   }
 
-  const handleToggleRecording = () => {
-    const nextRecordingState = !isRecording;
-    setIsRecording(nextRecordingState);
-    addToast(
-      nextRecordingState ? t('app.traceRecordingStarted') : t('app.traceRecordingStopped'),
-      'success',
-    );
-  };
-
   return (
       <div
         className="flex flex-col h-full w-full bg-[#0e0e11] text-gray-100 overflow-hidden font-sans selection:bg-blue-500/30"
-        data-desktop-window-maximized={isDesktopWindowMaximized ? 'true' : 'false'}
-        data-desktop-window-minimized={isDesktopWindowMinimized ? 'true' : 'false'}
       >
       {/* Top Header / Title Bar */}
       <div
@@ -1408,88 +1944,14 @@ function AppContent() {
             data-no-drag="true"
             className="flex min-w-0 items-center gap-1"
           >
-            <TopMenu label={t('app.menu.file')} items={[
-              { label: t('app.menu.newThread'), shortcut: 'Ctrl+N', onClick: () => {
-                if (activeTab !== 'code' && activeTab !== 'studio') {
-                  setActiveTab('code');
-                  setTimeout(() => globalEventBus.emit('createNewThread'), 100);
-                } else {
-                  globalEventBus.emit('createNewThread');
-                }
-              }},
-              { label: t('app.menu.openFolder'), shortcut: 'Ctrl+O', onClick: handleOpenFolder },
-              { label: '', divider: true },
-              { label: t('app.menu.save'), shortcut: 'Ctrl+S', onClick: () => globalEventBus.emit('saveActiveFile') },
-              { label: t('app.menu.saveAll'), shortcut: 'Ctrl+Shift+S', onClick: () => globalEventBus.emit('saveAllFiles') },
-              { label: '', divider: true },
-              { label: t('app.menu.logOut'), onClick: () => logout() },
-              { label: t('app.menu.exit'), onClick: handleClose },
-              { label: t('app.menu.settings'), shortcut: 'Ctrl+,', onClick: () => setActiveTab('settings') },
-              { label: '', divider: true },
-              { label: t('app.menu.aboutCodex'), onClick: () => setShowAboutModal(true) },
-            ]} />
-            <TopMenu label={t('app.menu.edit')} items={[
-              { label: t('app.menu.undo'), shortcut: 'Ctrl+Z', onClick: () => handleEditCommand('undo') },
-              { label: t('app.menu.redo'), shortcut: 'Ctrl+Y', onClick: () => handleEditCommand('redo') },
-              { label: '', divider: true },
-              { label: t('app.menu.cut'), shortcut: 'Ctrl+X', onClick: () => handleEditCommand('cut') },
-              { label: t('app.menu.copy'), shortcut: 'Ctrl+C', onClick: () => handleEditCommand('copy') },
-              { label: t('app.menu.paste'), shortcut: 'Ctrl+V', onClick: () => handleEditCommand('paste') },
-              { label: t('app.menu.delete'), shortcut: 'Del', onClick: () => handleEditCommand('delete') },
-              { label: '', divider: true },
-              { label: t('app.menu.selectAll'), shortcut: 'Ctrl+A', onClick: () => handleEditCommand('selectAll') },
-            ]} />
-            <TopMenu label={t('app.menu.view')} items={[
-              { label: t('app.menu.toggleSidebar'), shortcut: 'Ctrl+B', onClick: () => globalEventBus.emit('toggleSidebar') },
-              { label: t('app.menu.toggleTerminal'), shortcut: 'Ctrl+J', onClick: () => {
-                if (activeTab !== 'code') setActiveTab('code');
-                setTimeout(() => globalEventBus.emit('toggleTerminal'), 100);
-              }},
-              { label: t('app.menu.toggleDiffPanel'), shortcut: 'Alt+Ctrl+B', onClick: () => globalEventBus.emit('toggleDiffPanel') },
-              { label: t('app.menu.find'), shortcut: 'Ctrl+F', onClick: () => globalEventBus.emit('findInFiles') },
-              { label: '', divider: true },
-              { label: t('app.menu.zoomIn'), shortcut: 'Ctrl+=', onClick: () => handleZoom('in') },
-              { label: t('app.menu.zoomOut'), shortcut: 'Ctrl+-', onClick: () => handleZoom('out') },
-              { label: t('app.menu.actualSize'), shortcut: 'Ctrl+0', onClick: () => handleZoom('reset') },
-              { label: '', divider: true },
-              { label: t('app.menu.toggleFullScreen'), shortcut: 'F11', onClick: toggleFullScreen },
-            ]} />
-            <TopMenu label={t('app.menu.go')} items={[
-              { label: t('app.menu.goToFile'), shortcut: 'Ctrl+P', onClick: () => globalEventBus.emit('openQuickOpen') },
-              { label: '', divider: true },
-              { label: t('app.menu.previousThread'), shortcut: 'Ctrl+Shift+[', onClick: () => globalEventBus.emit('previousThread') },
-              { label: t('app.menu.nextThread'), shortcut: 'Ctrl+Shift+]', onClick: () => globalEventBus.emit('nextThread') },
-              { label: t('app.menu.back'), shortcut: 'Ctrl+[', onClick: () => window.history.back() },
-              { label: t('app.menu.forward'), shortcut: 'Ctrl+]', onClick: () => window.history.forward() },
-            ]} />
-            <TopMenu label={t('app.menu.run')} items={[
-              { label: t('app.menu.startDebugging'), shortcut: 'F5', onClick: () => globalEventBus.emit('startDebugging') },
-              { label: t('app.menu.runWithoutDebugging'), shortcut: 'Ctrl+F5', onClick: () => globalEventBus.emit('runWithoutDebugging') },
-              { label: '', divider: true },
-              { label: t('app.menu.addConfiguration'), onClick: () => globalEventBus.emit('addRunConfiguration') },
-            ]} />
-            <TopMenu label={t('app.menu.terminal')} items={[
-              { label: t('app.menu.newTerminal'), shortcut: 'Ctrl+Shift+`', onClick: () => globalEventBus.emit('newTerminal') },
-              { label: t('app.menu.splitTerminal'), shortcut: 'Ctrl+Shift+5', onClick: () => globalEventBus.emit('splitTerminal') },
-              { label: '', divider: true },
-              { label: t('app.menu.runTask'), onClick: () => globalEventBus.emit('runTask') },
-            ]} />
-            <TopMenu label={t('app.menu.window')} items={[
-              { label: t('app.menu.minimize'), onClick: handleMinimize },
-              { label: t('app.menu.maximize'), onClick: handleMaximize },
-              { label: t('app.menu.close'), onClick: handleClose },
-            ]} />
-            <TopMenu label={t('app.menu.help')} items={[
-              { label: t('app.menu.documentation'), onClick: () => window.open('https://github.com', '_blank') },
-              { label: t('app.menu.whatsNew'), onClick: () => setShowWhatsNewModal(true) },
-              { label: t('app.menu.skills'), onClick: () => setActiveTab('skills') },
-              { label: '', divider: true },
-              { label: t('app.menu.keyboardShortcuts'), shortcut: 'Ctrl+K Ctrl+R', onClick: () => setShowShortcutsModal(true) },
-              { label: '', divider: true },
-              { label: isRecording ? t('app.menu.stopTraceRecording') : t('app.menu.startTraceRecording'), onClick: handleToggleRecording },
-              { label: '', divider: true },
-              { label: t('app.menu.aboutCodex'), onClick: () => setShowAboutModal(true) },
-            ]} />
+            <TopMenu label={t('app.menu.file')} items={fileMenuItems} />
+            <TopMenu label={t('app.menu.edit')} items={editMenuItems} />
+            <TopMenu label={t('app.menu.view')} items={viewMenuItems} />
+            <TopMenu label={t('app.menu.go')} items={goMenuItems} />
+            <TopMenu label={t('app.menu.run')} items={runMenuItems} />
+            <TopMenu label={t('app.menu.terminal')} items={terminalMenuItems} />
+            <TopMenu label={t('app.menu.window')} items={windowMenuItems} />
+            <TopMenu label={t('app.menu.help')} items={helpMenuItems} />
           </div>
         </div>
 
@@ -1502,7 +1964,7 @@ function AppContent() {
           <button
             type="button"
             data-no-drag="true"
-            onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+            onClick={handleWorkspaceMenuToggle}
             aria-expanded={showWorkspaceMenu}
             aria-haspopup="menu"
             className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/5 rounded-lg text-xs text-gray-300 transition-colors group"
@@ -1616,35 +2078,7 @@ function AppContent() {
                       return (
                         <div key={project.id} className="flex items-center group relative">
                           <button
-                            onClick={() => {
-                              const nextWorkspaceId = effectiveMenuWorkspaceId.trim();
-                              const nextProjectId = project.id.trim();
-                              const immediateProjectCollection =
-                                nextWorkspaceId === effectiveWorkspaceId
-                                  ? activeProjects
-                                  : nextWorkspaceId === effectiveMenuWorkspaceId
-                                    ? menuProjects
-                                    : [];
-                              const nextCodingSessionId =
-                                resolveLatestCodingSessionIdForProject(
-                                  immediateProjectCollection,
-                                  nextProjectId,
-                                ) ?? '';
-                              const shouldResetCodingSession =
-                                nextWorkspaceId !== effectiveWorkspaceId ||
-                                nextProjectId !== effectiveProjectId;
-
-                              if (nextWorkspaceId && nextWorkspaceId !== effectiveWorkspaceId) {
-                                setActiveWorkspaceId(nextWorkspaceId);
-                              }
-                              setMenuActiveWorkspaceId(nextWorkspaceId || effectiveWorkspaceId);
-                              setActiveProjectId(nextProjectId);
-                              if (shouldResetCodingSession || nextCodingSessionId) {
-                                setActiveCodingSessionId(nextCodingSessionId);
-                              }
-                              setProjectActionsMenuId(null);
-                              setShowWorkspaceMenu(false);
-                            }}
+                            onClick={() => handleSelectMenuProject(project.id)}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all animate-in fade-in slide-in-from-left-2 fill-mode-both ${
                               isSelected 
                                 ? 'bg-blue-500/10 text-blue-400' 
@@ -1847,8 +2281,11 @@ function AppContent() {
                 type="button"
                 onClick={handleMinimize}
                 aria-label={t('app.menu.minimize')}
+                aria-pressed={isDesktopWindowMinimized}
                 title={t('app.menu.minimize')}
-                className="h-full px-3 hover:bg-white/10 text-gray-400 hover:text-white transition-colors flex items-center justify-center rounded-md"
+                className={`h-full px-3 hover:bg-white/10 transition-colors flex items-center justify-center rounded-md ${
+                  isDesktopWindowMinimized ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white'
+                }`}
               >
                 <Minus size={14} />
               </button>
@@ -1875,76 +2312,16 @@ function AppContent() {
         </div>
       </div>
 
-      {/* Main Body */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Primary Sidebar */}
-        <div className="w-14 flex flex-col items-center py-4 border-r border-white/[0.08] bg-[#0e0e11] justify-between shrink-0">
-          <div className="flex flex-col gap-3 items-center w-full px-2">
-            <Button variant="ghost" size="icon" onClick={() => setActiveTab('code')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'code' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '0ms' }} title={t('app.code')}>
-              <Code2 size={22} strokeWidth={1.5} />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setActiveTab('studio')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'studio' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '50ms' }} title={t('app.studio')}>
-              <Sparkles size={22} strokeWidth={1.5} />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setActiveTab('terminal')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'terminal' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '100ms' }} title={t('app.terminal')}>
-              <Terminal size={22} strokeWidth={1.5} />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setActiveTab('skills')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'skills' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '150ms' }} title={t('app.skills')}>
-              <Zap size={22} strokeWidth={1.5} />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setActiveTab('templates')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'templates' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '200ms' }} title={t('app.templates')}>
-              <LayoutTemplate size={22} strokeWidth={1.5} />
-            </Button>
-          </div>
-          <div className="flex flex-col gap-3 items-center w-full px-2">
-            <Button variant="ghost" size="icon" onClick={() => setActiveTab('user')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'user' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '250ms' }} title={t('app.userProfile')}>
-              <UserCircle size={22} strokeWidth={1.5} />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setActiveTab('vip')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'vip' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '300ms' }} title="VIP Membership">
-              <Shield size={22} strokeWidth={1.5} />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setActiveTab('settings')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'settings' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '350ms' }} title={t('app.settings')}>
-              <Settings size={22} strokeWidth={1.5} />
-            </Button>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden relative bg-[#0e0e11]">
-          <Suspense fallback={<SurfaceLoader />}>
-            {activeTab === 'code' && (
-              <CodePage
-                workspaceId={effectiveWorkspaceId}
-                projectId={effectiveProjectId}
-                initialCodingSessionId={effectiveCodingSessionId}
-                onProjectChange={setActiveProjectId}
-                onCodingSessionChange={setActiveCodingSessionId}
-              />
-            )}
-            {activeTab === 'studio' && (
-              <StudioPage
-                workspaceId={effectiveWorkspaceId}
-                projectId={effectiveProjectId}
-                initialCodingSessionId={effectiveCodingSessionId}
-                onProjectChange={setActiveProjectId}
-                onCodingSessionChange={setActiveCodingSessionId}
-              />
-            )}
-            {activeTab === 'terminal' && (
-              <TerminalPage
-                terminalRequest={terminalRequest}
-                workspaceId={effectiveWorkspaceId}
-                projectId={effectiveProjectId || null}
-              />
-            )}
-            {activeTab === 'skills' && <SkillsPage workspaceId={effectiveWorkspaceId} />}
-            {activeTab === 'templates' && <TemplatesPage workspaceId={effectiveWorkspaceId} onProjectCreated={(id) => { setActiveProjectId(id); setActiveTab('code'); }} />}
-            {activeTab === 'user' && <UserCenterPage onOpenVip={() => setActiveTab('vip')} />}
-            {activeTab === 'vip' && <VipPage />}
-            {activeTab === 'settings' && <SettingsPage onBack={() => setActiveTab('code')} />}
-          </Suspense>
-        </div>
-      </div>
+      <AppMainBody
+        activeTab={activeTab}
+        terminalRequest={terminalRequest}
+        workspaceId={effectiveWorkspaceId}
+        projectId={effectiveProjectId}
+        codingSessionId={effectiveCodingSessionId}
+        onActiveTabChange={setActiveTab}
+        onProjectChange={setActiveProjectId}
+        onCodingSessionChange={setActiveCodingSessionId}
+      />
 
       {/* Delete Workspace Modal */}
       {workspaceToDelete && (

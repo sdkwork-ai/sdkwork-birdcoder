@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => ({
   }),
   optimizeDeps: {
     noDiscovery: true,
-    include: [],
+    include: ['@xterm/addon-unicode11'],
   },
   build: {
     minify: false,
@@ -122,7 +122,9 @@ export default defineConfig(({ mode }) => ({
           }
 
           if (
-            id.includes('/packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesRuntime.ts')
+            id.includes('/packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesRuntime.ts') ||
+            id.includes('/packages/sdkwork-birdcoder-infrastructure/src/services/workspaceRealtimeClient.ts') ||
+            id.includes('/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts')
           ) {
             return 'infra-runtime';
           }

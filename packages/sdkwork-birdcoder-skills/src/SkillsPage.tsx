@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   CheckCircle2,
@@ -118,20 +118,30 @@ export function SkillsPage({ workspaceId }: SkillsPageProps) {
   const selectedRegistry =
     REGISTRIES.find((registry) => registry.id === selectedRegistryId) ?? REGISTRIES[0];
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+  const handleRegistryMenuClickOutside = useCallback((event: MouseEvent) => {
+      if (!showRegistryMenu) {
+        return;
+      }
       if (
         registryMenuRef.current &&
         !registryMenuRef.current.contains(event.target as Node)
       ) {
         setShowRegistryMenu(false);
       }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
+    },
+    [showRegistryMenu],
+  );
+
+  useEffect(() => {
+    if (!showRegistryMenu) {
+      return;
+    }
+
+    document.addEventListener('mousedown', handleRegistryMenuClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleRegistryMenuClickOutside);
     };
-  }, []);
+  }, [handleRegistryMenuClickOutside, showRegistryMenu]);
 
   useEffect(() => {
     let cancelled = false;

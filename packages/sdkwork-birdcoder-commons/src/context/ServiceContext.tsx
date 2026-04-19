@@ -12,8 +12,8 @@ import {
   IReleaseService,
   ITeamService,
   IWorkspaceService,
-  createDefaultBirdCoderIdeServices,
 } from '@sdkwork/birdcoder-infrastructure';
+import { createLazyDefaultIdeServices } from './lazyDefaultIdeServices.ts';
 
 export interface IServices {
   adminDeploymentService: IAdminDeploymentService;
@@ -31,7 +31,7 @@ export interface IServices {
 }
 
 function createDefaultServicesValue(): IServices {
-  const defaultIdeServices = createDefaultBirdCoderIdeServices();
+  const defaultIdeServices = createLazyDefaultIdeServices();
   return {
     adminDeploymentService: defaultIdeServices.adminDeploymentService,
     adminPolicyService: defaultIdeServices.adminPolicyService,

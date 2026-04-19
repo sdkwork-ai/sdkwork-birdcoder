@@ -682,6 +682,12 @@ importers:
       '@sdkwork/birdcoder-types':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-types
+      '@sdkwork/terminal-infrastructure':
+        specifier: link:../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure
+        version: link:../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure
+      '@sdkwork/terminal-shell':
+        specifier: link:../../../sdkwork-terminal/packages/sdkwork-terminal-shell
+        version: link:../../../sdkwork-terminal/packages/sdkwork-terminal-shell
       '@tauri-apps/api':
         specifier: 'catalog:'
         version: 2.10.1
@@ -1345,21 +1351,18 @@ importers:
 
   packages/sdkwork-birdcoder-terminal:
     dependencies:
-      '@sdkwork/birdcoder-codeengine':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-codeengine
       '@sdkwork/birdcoder-commons':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-commons
-      '@sdkwork/birdcoder-ui':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-ui
+      '@sdkwork/terminal-infrastructure':
+        specifier: link:../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure
+        version: link:../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure
+      '@sdkwork/terminal-shell':
+        specifier: link:../../../sdkwork-terminal/packages/sdkwork-terminal-shell
+        version: link:../../../sdkwork-terminal/packages/sdkwork-terminal-shell
       '@tauri-apps/api':
         specifier: 'catalog:'
         version: 2.10.1
-      lucide-react:
-        specifier: 'catalog:'
-        version: 0.546.0(react@19.2.4)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: 'catalog:'

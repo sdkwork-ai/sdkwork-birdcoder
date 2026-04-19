@@ -12,6 +12,7 @@ import {
   executeBirdCoderCoreSessionRun,
   persistBirdCoderCoreSessionRunProjection,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
+import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
 
 const tempDirectory = await fs.mkdtemp(
   path.join(os.tmpdir(), `birdcoder-sqlite-executor-${process.pid}-`),
@@ -49,18 +50,20 @@ try {
     'coding-session-sqlite-file',
     provider,
   );
-  const projection = await executeBirdCoderCoreSessionRun({
-    sessionId: 'coding-session-sqlite-file',
-    runtimeId: 'runtime-sqlite-file-1',
-    turnId: 'turn-sqlite-file-1',
-    engineId: 'codex',
-    modelId: 'codex',
-    hostMode: 'server',
-    messages,
-    options: {
-      model: 'codex',
-    },
-  });
+  const projection = await withMockCodexCliJsonl(() =>
+    executeBirdCoderCoreSessionRun({
+      sessionId: 'coding-session-sqlite-file',
+      runtimeId: 'runtime-sqlite-file-1',
+      turnId: 'turn-sqlite-file-1',
+      engineId: 'codex',
+      modelId: 'codex',
+      hostMode: 'server',
+      messages,
+      options: {
+        model: 'codex',
+      },
+    }),
+  );
 
   await persistBirdCoderCoreSessionRunProjection(projectionStore, projection);
   await provider.close();

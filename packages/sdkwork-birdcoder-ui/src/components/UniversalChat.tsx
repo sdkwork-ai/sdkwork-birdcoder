@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, memo, useRef, useEffect, useState } from 'react';
+import React, { Suspense, lazy, memo, useCallback, useRef, useEffect, useState } from 'react';
 import { Plus, ChevronDown, ChevronUp, GripVertical, Check, Mic, ArrowUp, Edit, CheckCircle2, RotateCcw, Settings, Edit2, Copy, Trash2, Zap, FileUp, FolderUp, Image as ImageIcon, Square, Lightbulb, BookOpen, List } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
@@ -122,6 +122,17 @@ interface UniversalChatTranscriptProps {
 
 const EMPTY_CHAT_MESSAGES: BirdCoderChatMessage[] = [];
 
+function buildTranscriptSurfaceStyle(
+  animationDelay: string,
+  containIntrinsicSize: string,
+): React.CSSProperties {
+  return {
+    animationDelay,
+    contain: 'layout paint style',
+    containIntrinsicSize,
+  };
+}
+
 const UniversalChatTranscript = memo(function UniversalChatTranscript({
   emptyState,
   environmentRef,
@@ -159,7 +170,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       <div
         key={msg.id || idx}
         className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start w-full'} group animate-in fade-in slide-in-from-bottom-4 fill-mode-both`}
-        style={{ animationDelay: `${idx * 50}ms` }}
+        style={buildTranscriptSurfaceStyle(`${idx * 50}ms`, '180px')}
       >
         <div className={`${msg.role === 'user' ? 'max-w-[90%] bg-white/5 text-gray-200 rounded-2xl rounded-tr-sm px-4 py-3' : 'text-gray-300 w-full'}`}>
           <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[14px] w-full">
@@ -305,7 +316,11 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     const environment = environmentRef.current;
     const copyLabel = environment?.t('common.copy') ?? 'Copy';
     return (
-      <div key={msg.id || idx} className={`flex group w-full ${msg.role === 'user' ? 'py-4' : 'py-6'} px-4 md:px-8 animate-in fade-in slide-in-from-bottom-4 fill-mode-both`} style={{ animationDelay: `${idx * 50}ms` }}>
+      <div
+        key={msg.id || idx}
+        className={`flex group w-full ${msg.role === 'user' ? 'py-4' : 'py-6'} px-4 md:px-8 animate-in fade-in slide-in-from-bottom-4 fill-mode-both`}
+        style={buildTranscriptSurfaceStyle(`${idx * 50}ms`, msg.role === 'user' ? '160px' : '320px')}
+      >
         <div className={`w-full max-w-3xl mx-auto flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
 
           {msg.role === 'user' ? (
@@ -894,18 +909,31 @@ export function UniversalChat({
     }
   }, [inputValue]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+  const hasOpenFloatingMenu = showModelMenu || showAttachmentMenu;
+
+  const handleFloatingMenuClickOutside = useCallback(
+    (event: MouseEvent) => {
+      if (!hasOpenFloatingMenu) {
+        return;
+      }
       if (modelMenuRef.current && !modelMenuRef.current.contains(event.target as Node)) {
         setShowModelMenu(false);
       }
       if (attachmentMenuRef.current && !attachmentMenuRef.current.contains(event.target as Node)) {
         setShowAttachmentMenu(false);
       }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    },
+    [hasOpenFloatingMenu],
+  );
+
+  useEffect(() => {
+    if (!hasOpenFloatingMenu) {
+      return;
+    }
+
+    document.addEventListener('mousedown', handleFloatingMenuClickOutside);
+    return () => document.removeEventListener('mousedown', handleFloatingMenuClickOutside);
+  }, [handleFloatingMenuClickOutside, hasOpenFloatingMenu]);
 
   useEffect(() => {
     const handleFocus = () => {

@@ -38,6 +38,13 @@ const entrypointContracts = [
     launchPattern: /runLocalTypescriptCli\(\)\.catch\(/,
   },
   {
+    scriptName: 'check:workspace-package-script-runner',
+    command: 'node scripts/workspace-package-script-runner-contract.test.mjs',
+    filePath: path.join(rootDir, 'scripts', 'workspace-package-script-runner-contract.test.mjs'),
+    exportedFunctionPattern: /export function runWorkspacePackageScriptRunnerContract\(/,
+    launchPattern: /void runWorkspacePackageScriptRunnerContractCli\(\)\.catch\(/,
+  },
+  {
     scriptName: 'lint',
     command: 'node scripts/run-quality-fast-check.mjs',
     filePath: path.join(rootDir, 'scripts', 'run-quality-fast-check.mjs'),

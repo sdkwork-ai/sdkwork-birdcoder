@@ -70,8 +70,8 @@ assert.doesNotMatch(
 
 assert.match(
   sharedHookSource,
-  /useLayoutEffect\(\(\) => \{[\s\S]*setIsLoading\(false\);[\s\S]*setIsLoadingContent\(false\);[\s\S]*\}, \[projectId\]\);/,
-  'useFileSystem must clear stale loading indicators when switching projects.',
+  /useEffect\(\(\) => \{[\s\S]*setIsLoading\(false\);[\s\S]*setIsLoadingContent\(false\);[\s\S]*\}, \[projectId\]\);/,
+  'useFileSystem must clear stale loading indicators when switching projects without blocking paint in layout effects.',
 );
 
 assert.match(

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { memo, useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronDown, Check, GitBranch, CheckCircle2, Share, Upload, Terminal, X, Copy, Globe, Lock, Plus, Loader2, RefreshCw } from 'lucide-react';
 import type {
   BirdCoderCodingSession,
@@ -79,7 +79,7 @@ interface TopBarProps {
   setIsTerminalOpen: (isOpen: boolean) => void;
 }
 
-export function TopBar({
+function TopBarComponent({
   currentProject,
   selectedCodingSession,
   selectedEngineId,
@@ -93,6 +93,8 @@ export function TopBar({
   const branchMenuRef = useRef<HTMLDivElement>(null);
   const [selectedBranch, setSelectedBranch] = useState('main');
   const [branches, setBranches] = useState<string[]>(['main', 'dev', 'feature/auth']);
+  const [showSubmitMenu, setShowSubmitMenu] = useState(false);
+  const submitMenuRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
   const { t } = useTranslation();
   const { preferences } = useWorkbenchPreferences();
@@ -135,9 +137,6 @@ export function TopBar({
       fetchBranches();
     }
   }, [showBranchMenu, currentProject?.path]);
-
-  const [showSubmitMenu, setShowSubmitMenu] = useState(false);
-  const submitMenuRef = useRef<HTMLDivElement>(null);
 
   const [showShareModal, setShowShareModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
@@ -301,18 +300,29 @@ export function TopBar({
     setShowBranchMenu(false);
   };
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+  const handleClickOutside = useCallback(
+    (event: MouseEvent) => {
+      if (!showBranchMenu && !showSubmitMenu) {
+        return;
+      }
       if (branchMenuRef.current && !branchMenuRef.current.contains(event.target as Node)) {
         setShowBranchMenu(false);
       }
       if (submitMenuRef.current && !submitMenuRef.current.contains(event.target as Node)) {
         setShowSubmitMenu(false);
       }
+    },
+    [showBranchMenu, showSubmitMenu],
+  );
+
+  useEffect(() => {
+    if (!showBranchMenu && !showSubmitMenu) {
+      return;
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [handleClickOutside, showBranchMenu, showSubmitMenu]);
 
   useEffect(() => {
     if (!showShareModal || shareAccess !== 'private') {
@@ -1128,3 +1138,6 @@ export function TopBar({
     </>
   );
 }
+
+export const TopBar = memo(TopBarComponent);
+TopBar.displayName = 'TopBar';

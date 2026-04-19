@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useDeferredValue } from 'react';
 import { ChevronRight, ChevronDown, File, Folder, Search, X, Plus, FilePlus, FolderPlus, Trash2, FileJson, FileCode2, FileImage, FileText, FileType2, ListCollapse, Copy, Terminal, ExternalLink, FileEdit } from 'lucide-react';
 import { useToast } from '@sdkwork/birdcoder-commons';
 
@@ -20,6 +20,32 @@ interface FileExplorerProps {
   onRenameNode?: (oldPath: string, newPath: string) => void;
   basePath?: string;
 }
+
+type FileExplorerNodeDraft = {
+  parentPath: string;
+  type: 'file' | 'directory';
+};
+
+type FileExplorerRenameDraft = {
+  path: string;
+  name: string;
+};
+
+type FileExplorerContextMenuState = {
+  x: number;
+  y: number;
+  node: FileNode;
+};
+
+type FileExplorerRootContextMenuState = {
+  x: number;
+  y: number;
+};
+
+type ScoredFileNode = {
+  node: FileNode;
+  score: number;
+};
 
 // Advanced fuzzy search algorithm with scoring
 function fuzzyScore(pattern: string, str: string): number {
@@ -47,6 +73,47 @@ function fuzzyScore(pattern: string, str: string): number {
 }
 
 const FILE_EXPLORER_CONTEXT_MENU_Z_INDEX = 2147483647;
+
+function filterFileTree(nodes: readonly FileNode[], normalizedQuery: string): ScoredFileNode[] {
+  const nextMatches: ScoredFileNode[] = [];
+
+  for (const node of nodes) {
+    const nodeScore = fuzzyScore(normalizedQuery, node.name.toLowerCase());
+
+    if (node.type === 'directory' && node.children) {
+      const childMatches = filterFileTree(node.children, normalizedQuery);
+      let maxChildScore = 0;
+      const nextChildren: FileNode[] = [];
+
+      for (const childMatch of childMatches) {
+        nextChildren.push(childMatch.node);
+        if (childMatch.score > maxChildScore) {
+          maxChildScore = childMatch.score;
+        }
+      }
+
+      const totalScore = Math.max(nodeScore, maxChildScore);
+      if (totalScore > 0) {
+        nextMatches.push({
+          node:
+            nextChildren.length === node.children.length &&
+            nextChildren.every((childNode, childIndex) => childNode === node.children?.[childIndex])
+              ? node
+              : { ...node, children: nextChildren },
+          score: totalScore,
+        });
+      }
+      continue;
+    }
+
+    if (nodeScore > 0) {
+      nextMatches.push({ node, score: nodeScore });
+    }
+  }
+
+  nextMatches.sort((left, right) => right.score - left.score);
+  return nextMatches;
+}
 
 function trimTrailingPathSeparators(path: string): string {
   const trimmedPath = path.trim();
@@ -98,18 +165,19 @@ function resolveRootCreationParentPath(files: FileNode[]): string {
   return '';
 }
 
-export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, onCreateFolder, onDeleteFile, onDeleteFolder, onRenameNode, basePath = '' }: FileExplorerProps) {
+export const FileExplorer = React.memo(function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, onCreateFolder, onDeleteFile, onDeleteFolder, onRenameNode, basePath = '' }: FileExplorerProps) {
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [nodeToDelete, setNodeToDelete] = useState<FileNode | null>(null);
 
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, node: FileNode } | null>(null);
-  const [rootContextMenu, setRootContextMenu] = useState<{ x: number, y: number } | null>(null);
-  const [creatingNode, setCreatingNode] = useState<{ parentPath: string, type: 'file' | 'directory' } | null>(null);
-  const [renamingNode, setRenamingNode] = useState<{ path: string, name: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<FileExplorerContextMenuState | null>(null);
+  const [rootContextMenu, setRootContextMenu] = useState<FileExplorerRootContextMenuState | null>(null);
+  const [creatingNode, setCreatingNode] = useState<FileExplorerNodeDraft | null>(null);
+  const [renamingNode, setRenamingNode] = useState<FileExplorerRenameDraft | null>(null);
   const [inputValue, setInputValue] = useState('');
   const { addToast } = useToast();
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const resolveProjectBasePath = () => resolveAbsoluteExplorerPath(basePath, '');
   const resolveNodeAbsolutePath = (nodePath: string) => resolveAbsoluteExplorerPath(basePath, nodePath);
@@ -130,13 +198,21 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
     }
   }, [rootCreationParentPath]);
 
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setContextMenu(null);
-      setRootContextMenu(null);
-    };
-    document.addEventListener('click', handleClickOutside);
+  const closeFloatingMenus = useCallback(() => {
+    setContextMenu(null);
+    setRootContextMenu(null);
+  }, []);
 
+  const hasOpenViewportMenu = contextMenu !== null || rootContextMenu !== null;
+
+  const handleClickOutside = useCallback(() => {
+    if (!hasOpenViewportMenu) {
+      return;
+    }
+    closeFloatingMenus();
+  }, [closeFloatingMenus, hasOpenViewportMenu]);
+
+  useEffect(() => {
     const handleCreateRootFile = () => {
       startCreatingRootNode('file');
     };
@@ -147,24 +223,37 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
     });
 
     return () => {
-      document.removeEventListener('click', handleClickOutside);
       if (unsubscribe) unsubscribe();
     };
   }, [startCreatingRootNode]);
 
   useEffect(() => {
+    if (!hasOpenViewportMenu) {
+      return;
+    }
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [handleClickOutside, hasOpenViewportMenu]);
+
+  useEffect(() => {
+    if (!hasOpenViewportMenu) {
+      return;
+    }
+
     const handleViewportChange = () => {
-      setContextMenu(null);
-      setRootContextMenu(null);
+      closeFloatingMenus();
     };
 
-    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('resize', handleViewportChange, { passive: true });
     return () => {
       window.removeEventListener('resize', handleViewportChange);
     };
-  }, []);
+  }, [closeFloatingMenus, hasOpenViewportMenu]);
 
-  const handleContextMenu = (e: React.MouseEvent, node: FileNode) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent, node: FileNode) => {
     e.preventDefault();
     e.stopPropagation();
     setRootContextMenu(null);
@@ -180,9 +269,9 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
     }
 
     setContextMenu({ x, y, node });
-  };
+  }, []);
 
-  const handleRootContextMenu = (e: React.MouseEvent) => {
+  const handleRootContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setContextMenu(null);
@@ -198,49 +287,27 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
     }
 
     setRootContextMenu({ x, y });
-  };
+  }, []);
 
-  const toggleFolder = (path: string) => {
+  const toggleFolder = useCallback((path: string) => {
     setExpandedFolders(prev => ({
       ...prev,
       [path]: !prev[path]
     }));
-  };
+  }, []);
 
   const filteredFiles = useMemo(() => {
-    if (!searchQuery.trim()) return files;
+    const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
+    if (!normalizedSearchQuery) {
+      return files;
+    }
 
-    const query = searchQuery.trim();
-
-    const filterTree = (nodes: FileNode[]): { node: FileNode, score: number }[] => {
-      return nodes.reduce<{ node: FileNode, score: number }[]>((acc, node) => {
-        const nodeScore = fuzzyScore(query, node.name);
-        
-        if (node.type === 'directory' && node.children) {
-          const filteredChildren = filterTree(node.children);
-          const maxChildScore = filteredChildren.length > 0 ? Math.max(...filteredChildren.map(c => c.score)) : 0;
-          const totalScore = Math.max(nodeScore, maxChildScore);
-
-          if (totalScore > 0) {
-            acc.push({ 
-              node: { ...node, children: filteredChildren.map(c => c.node) }, 
-              score: totalScore 
-            });
-          }
-        } else if (nodeScore > 0) {
-          acc.push({ node, score: nodeScore });
-        }
-        
-        return acc;
-      }, []).sort((a, b) => b.score - a.score);
-    };
-
-    return filterTree(files).map(n => n.node);
-  }, [files, searchQuery]);
+    return filterFileTree(files, normalizedSearchQuery).map((entry) => entry.node);
+  }, [deferredSearchQuery, files]);
 
   // Expand all folders when searching
   const currentExpandedFolders = useMemo(() => {
-    if (!searchQuery.trim()) return expandedFolders;
+    if (!deferredSearchQuery.trim()) return expandedFolders;
     
     const allExpanded: Record<string, boolean> = {};
     const expandAll = (nodes: FileNode[]) => {
@@ -253,9 +320,9 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
     };
     expandAll(filteredFiles);
     return allExpanded;
-  }, [searchQuery, expandedFolders, filteredFiles]);
+  }, [deferredSearchQuery, expandedFolders, filteredFiles]);
 
-  const getFileIcon = (fileName: string) => {
+  const getFileIcon = useCallback((fileName: string) => {
     const ext = fileName.split('.').pop()?.toLowerCase();
     switch (ext) {
       case 'js':
@@ -281,25 +348,9 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
       default:
         return <File size={14} className="shrink-0 text-gray-500" />;
     }
-  };
+  }, []);
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleInputSubmit();
-    } else if (e.key === 'Escape') {
-      setCreatingNode(null);
-      setRenamingNode(null);
-      setInputValue('');
-    }
-  };
-
-  const handleInputBlur = () => {
-    setCreatingNode(null);
-    setRenamingNode(null);
-    setInputValue('');
-  };
-
-  const handleInputSubmit = () => {
+  const handleInputSubmit = useCallback(() => {
     if (!inputValue.trim()) {
       setCreatingNode(null);
       setRenamingNode(null);
@@ -324,133 +375,238 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
       setRenamingNode(null);
     }
     setInputValue('');
-  };
+  }, [creatingNode, inputValue, onCreateFile, onCreateFolder, onRenameNode, renamingNode]);
 
-  const renderNode = (node: FileNode, depth: number = 0, index: number = 0) => {
-    const isExpanded = currentExpandedFolders[node.path];
-    const isSelected = selectedFile === node.path;
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleInputSubmit();
+    } else if (e.key === 'Escape') {
+      setCreatingNode(null);
+      setRenamingNode(null);
+      setInputValue('');
+    }
+  }, [handleInputSubmit]);
 
-    return (
-      <div key={node.path} className="relative">
-        {/* Tree Indent Guides */}
-        {depth > 0 && (
-          <div 
-            className="absolute top-0 bottom-0 border-l border-white/10 pointer-events-none"
-            style={{ left: `${(depth - 1) * 12 + 14}px` }}
-          />
-        )}
-        <div
-          className={`group flex items-center gap-1.5 py-1 px-2 cursor-pointer hover:bg-white/5 text-[13px] transition-colors animate-in fade-in slide-in-from-left-2 fill-mode-both ${isSelected ? 'bg-white/10 text-white' : 'text-gray-400'}`}
-          style={{ paddingLeft: `${depth * 12 + 8}px`, animationDelay: `${(depth * 50) + (index * 30)}ms` }}
-          onClick={() => {
-            if (node.type === 'directory') {
-              toggleFolder(node.path);
-            } else {
-              onSelectFile(node.path);
-            }
-          }}
-          onContextMenu={(e) => handleContextMenu(e, node)}
-        >
-          {node.type === 'directory' ? (
-            isExpanded ? <ChevronDown size={14} className="shrink-0" /> : <ChevronRight size={14} className="shrink-0" />
-          ) : (
-            <span className="w-[14px] shrink-0"></span> // Placeholder for alignment
+  const handleInputBlur = useCallback(() => {
+    setCreatingNode(null);
+    setRenamingNode(null);
+    setInputValue('');
+  }, []);
+
+  const fileTreeContent = useMemo(() => {
+    const renderNode = (node: FileNode, depth: number = 0, index: number = 0): React.ReactNode => {
+      const isExpanded = currentExpandedFolders[node.path];
+      const isSelected = selectedFile === node.path;
+
+      return (
+        <div key={node.path} className="relative">
+          {depth > 0 && (
+            <div
+              className="absolute top-0 bottom-0 border-l border-white/10 pointer-events-none"
+              style={{ left: `${(depth - 1) * 12 + 14}px` }}
+            />
           )}
-          
-          {node.type === 'directory' ? (
-            <Folder size={14} className="shrink-0 text-blue-400/90" />
-          ) : (
-            getFileIcon(node.name)
-          )}
-          
-          {renamingNode?.path === node.path ? (
+          <div
+            className={`group flex items-center gap-1.5 py-1 px-2 cursor-pointer hover:bg-white/5 text-[13px] transition-colors animate-in fade-in slide-in-from-left-2 fill-mode-both ${isSelected ? 'bg-white/10 text-white' : 'text-gray-400'}`}
+            style={{ paddingLeft: `${depth * 12 + 8}px`, animationDelay: `${(depth * 50) + (index * 30)}ms` }}
+            onClick={() => {
+              if (node.type === 'directory') {
+                toggleFolder(node.path);
+              } else {
+                onSelectFile(node.path);
+              }
+            }}
+            onContextMenu={(event) => handleContextMenu(event, node)}
+          >
+            {node.type === 'directory' ? (
+              isExpanded ? <ChevronDown size={14} className="shrink-0" /> : <ChevronRight size={14} className="shrink-0" />
+            ) : (
+              <span className="w-[14px] shrink-0"></span>
+            )}
+
+            {node.type === 'directory' ? (
+              <Folder size={14} className="shrink-0 text-blue-400/90" />
+            ) : (
+              getFileIcon(node.name)
+            )}
+
+            {renamingNode?.path === node.path ? (
+              <input
+                type="text"
+                autoFocus
+                value={inputValue}
+                onChange={(event) => setInputValue(event.target.value)}
+                onKeyDown={handleInputKeyDown}
+                onBlur={handleInputBlur}
+                className="flex-1 bg-transparent border-none outline-none text-white focus:ring-1 focus:ring-blue-500 rounded px-1"
+                onClick={(event) => event.stopPropagation()}
+              />
+            ) : (
+              <span className="truncate flex-1">{node.name}</span>
+            )}
+
+            <div className="hidden group-hover:flex items-center gap-1 pr-1">
+              {node.type === 'directory' ? (
+                <>
+                  <div title="New File">
+                    <FilePlus
+                      size={12}
+                      className="text-gray-400 hover:text-white transition-colors"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setCreatingNode({ parentPath: node.path, type: 'file' });
+                        setInputValue('');
+                        setExpandedFolders((previousState) => ({ ...previousState, [node.path]: true }));
+                      }}
+                    />
+                  </div>
+                  <div title="New Folder">
+                    <FolderPlus
+                      size={12}
+                      className="text-gray-400 hover:text-white transition-colors"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setCreatingNode({ parentPath: node.path, type: 'directory' });
+                        setInputValue('');
+                        setExpandedFolders((previousState) => ({ ...previousState, [node.path]: true }));
+                      }}
+                    />
+                  </div>
+                </>
+              ) : null}
+              <div title={`Delete ${node.type}`}>
+                <Trash2
+                  size={12}
+                  className="text-gray-400 hover:text-red-400 transition-colors"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setNodeToDelete(node);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {node.type === 'directory' && isExpanded ? (
+            <div>
+              {creatingNode?.parentPath === node.path ? (
+                <div
+                  className="flex items-center gap-1.5 py-1 px-2 text-[13px] text-white bg-white/5"
+                  style={{ paddingLeft: `${(depth + 1) * 12 + 8}px` }}
+                >
+                  <span className="w-[14px] shrink-0"></span>
+                  {creatingNode.type === 'directory' ? (
+                    <Folder size={14} className="shrink-0 text-blue-400/90" />
+                  ) : (
+                    <File size={14} className="shrink-0 text-gray-500" />
+                  )}
+                  <input
+                    type="text"
+                    autoFocus
+                    value={inputValue}
+                    onChange={(event) => setInputValue(event.target.value)}
+                    onKeyDown={handleInputKeyDown}
+                    onBlur={handleInputBlur}
+                    className="flex-1 bg-transparent border-none outline-none text-white focus:ring-1 focus:ring-blue-500 rounded px-1"
+                    placeholder={`New ${creatingNode.type}...`}
+                  />
+                </div>
+              ) : null}
+              {node.children?.map((child, childIndex) => renderNode(child, depth + 1, childIndex))}
+            </div>
+          ) : null}
+        </div>
+      );
+    };
+
+    if (creatingNode?.parentPath === '') {
+      return (
+        <>
+          <div
+            className="flex items-center gap-1.5 py-1 px-2 text-[13px] text-white bg-white/5"
+            style={{ paddingLeft: '8px' }}
+          >
+            <span className="w-[14px] shrink-0"></span>
+            {creatingNode.type === 'directory' ? (
+              <Folder size={14} className="shrink-0 text-blue-400/90" />
+            ) : (
+              <File size={14} className="shrink-0 text-gray-500" />
+            )}
             <input
               type="text"
               autoFocus
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(event) => setInputValue(event.target.value)}
               onKeyDown={handleInputKeyDown}
               onBlur={handleInputBlur}
               className="flex-1 bg-transparent border-none outline-none text-white focus:ring-1 focus:ring-blue-500 rounded px-1"
-              onClick={(e) => e.stopPropagation()}
+              placeholder={`New ${creatingNode.type}...`}
             />
-          ) : (
-            <span className="truncate flex-1">{node.name}</span>
-          )}
+          </div>
+          {filteredFiles.length > 0 ? filteredFiles.map((file, index) => renderNode(file, 0, index)) : null}
+        </>
+      );
+    }
 
-          <div className="hidden group-hover:flex items-center gap-1 pr-1">
-            {node.type === 'directory' && (
-              <>
-                <div title="New File">
-                  <FilePlus 
-                    size={12} 
-                    className="text-gray-400 hover:text-white transition-colors" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCreatingNode({ parentPath: node.path, type: 'file' });
-                      setInputValue('');
-                      setExpandedFolders(prev => ({ ...prev, [node.path]: true }));
-                    }}
-                  />
-                </div>
-                <div title="New Folder">
-                  <FolderPlus 
-                    size={12} 
-                    className="text-gray-400 hover:text-white transition-colors" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCreatingNode({ parentPath: node.path, type: 'directory' });
-                      setInputValue('');
-                      setExpandedFolders(prev => ({ ...prev, [node.path]: true }));
-                    }}
-                  />
-                </div>
-              </>
-            )}
-            <div title={`Delete ${node.type}`}>
-              <Trash2 
-                size={12} 
-                className="text-gray-400 hover:text-red-400 transition-colors" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setNodeToDelete(node);
-                }}
-              />
+    if (filteredFiles.length > 0) {
+      return <>{filteredFiles.map((file, index) => renderNode(file, 0, index))}</>;
+    }
+
+    if (creatingNode) {
+      return null;
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-gray-500 px-4 text-center gap-4 animate-in fade-in zoom-in-95 duration-300">
+        {searchQuery ? (
+          <>
+            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-2">
+              <Search size={20} className="text-gray-400" />
             </div>
-          </div>
-        </div>
-        
-        {node.type === 'directory' && isExpanded && (
-          <div>
-            {creatingNode?.parentPath === node.path && (
-              <div 
-                className="flex items-center gap-1.5 py-1 px-2 text-[13px] text-white bg-white/5"
-                style={{ paddingLeft: `${(depth + 1) * 12 + 8}px` }}
-              >
-                <span className="w-[14px] shrink-0"></span>
-                {creatingNode.type === 'directory' ? (
-                  <Folder size={14} className="shrink-0 text-blue-400/90" />
-                ) : (
-                  <File size={14} className="shrink-0 text-gray-500" />
-                )}
-                <input
-                  type="text"
-                  autoFocus
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleInputKeyDown}
-                  onBlur={handleInputBlur}
-                  className="flex-1 bg-transparent border-none outline-none text-white focus:ring-1 focus:ring-blue-500 rounded px-1"
-                  placeholder={`New ${creatingNode.type}...`}
-                />
-              </div>
-            )}
-            {node.children && node.children.map((child, childIndex) => renderNode(child, depth + 1, childIndex))}
-          </div>
+            <p className="text-sm text-gray-400">No files match "{searchQuery}"</p>
+            <button
+              className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+              onClick={() => setSearchQuery('')}
+            >
+              Clear search
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-2">
+              <Folder size={20} className="text-gray-400" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-gray-300 font-medium">Project is empty</p>
+              <p className="text-xs text-gray-500">Create a file to get started.</p>
+            </div>
+            <button
+              className="mt-2 flex items-center gap-2 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-4 py-2 rounded-md transition-colors border border-blue-500/20"
+              onClick={() => startCreatingRootNode('file')}
+            >
+              <Plus size={14} />
+              <span>Create File</span>
+            </button>
+          </>
         )}
       </div>
     );
-  };
+  }, [
+    creatingNode,
+    currentExpandedFolders,
+    filteredFiles,
+    getFileIcon,
+    handleContextMenu,
+    handleInputBlur,
+    handleInputKeyDown,
+    inputValue,
+    onSelectFile,
+    renamingNode,
+    searchQuery,
+    selectedFile,
+    startCreatingRootNode,
+    toggleFolder,
+  ]);
 
   return (
     <div className="w-64 flex flex-col h-full bg-[#0e0e11] border-r border-white/5 shrink-0">
@@ -517,66 +673,7 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
         className="flex-1 overflow-y-auto py-2 custom-scrollbar"
         onContextMenu={handleRootContextMenu}
       >
-        {creatingNode?.parentPath === '' && (
-          <div 
-            className="flex items-center gap-1.5 py-1 px-2 text-[13px] text-white bg-white/5"
-            style={{ paddingLeft: '8px' }}
-          >
-            <span className="w-[14px] shrink-0"></span>
-            {creatingNode.type === 'directory' ? (
-              <Folder size={14} className="shrink-0 text-blue-400/90" />
-            ) : (
-              <File size={14} className="shrink-0 text-gray-500" />
-            )}
-            <input
-              type="text"
-              autoFocus
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleInputKeyDown}
-              onBlur={handleInputBlur}
-              className="flex-1 bg-transparent border-none outline-none text-white focus:ring-1 focus:ring-blue-500 rounded px-1"
-              placeholder={`New ${creatingNode.type}...`}
-            />
-          </div>
-        )}
-        {filteredFiles.length > 0 ? (
-          filteredFiles.map((file, index) => renderNode(file, 0, index))
-        ) : !creatingNode && (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500 px-4 text-center gap-4 animate-in fade-in zoom-in-95 duration-300">
-            {searchQuery ? (
-              <>
-                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-2">
-                  <Search size={20} className="text-gray-400" />
-                </div>
-                <p className="text-sm text-gray-400">No files match "{searchQuery}"</p>
-                <button 
-                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                  onClick={() => setSearchQuery('')}
-                >
-                  Clear search
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-2">
-                  <Folder size={20} className="text-gray-400" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-gray-300 font-medium">Project is empty</p>
-                  <p className="text-xs text-gray-500">Create a file to get started.</p>
-                </div>
-                <button 
-                  className="mt-2 flex items-center gap-2 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-4 py-2 rounded-md transition-colors border border-blue-500/20"
-                  onClick={() => startCreatingRootNode('file')}
-                >
-                  <Plus size={14} />
-                  <span>Create File</span>
-                </button>
-              </>
-            )}
-          </div>
-        )}
+        {fileTreeContent}
       </div>
 
       {rootContextMenu && (
@@ -817,4 +914,6 @@ export function FileExplorer({ files, onSelectFile, selectedFile, onCreateFile, 
       )}
     </div>
   );
-}
+});
+
+FileExplorer.displayName = 'FileExplorer';

@@ -28,7 +28,7 @@ assert.equal(
 
 assert.match(
   sidebarSource,
-  /window\.addEventListener\('resize', handleViewportChange\);/,
+  /if \(!hasOpenViewportMenu\) \{\s*return;\s*\}[\s\S]*window\.addEventListener\('resize', handleViewportChange(?:, \{ passive: true \})?\);/s,
   'Sidebar must close floating menus when the viewport changes so maximize and restore never leave context menus pinned to stale coordinates.',
 );
 

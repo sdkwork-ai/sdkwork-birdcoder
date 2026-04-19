@@ -11,6 +11,7 @@ import { ensureNodeExecPathOnPath } from './runtime-node-path.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
+const shellControlTokens = new Set(['&&', '||', '|', ';', '>', '>>', '<']);
 
 function ensureWorkspaceRelativePath(targetPath, workspaceRootDir = rootDir) {
   const absoluteTargetPath = path.resolve(workspaceRootDir, targetPath);
@@ -51,6 +52,101 @@ function readWorkspacePackageScript({
   };
 }
 
+function splitCommandTokens(commandText) {
+  const tokens = [];
+  let currentToken = '';
+  let quoteCharacter = '';
+
+  for (let index = 0; index < commandText.length; index += 1) {
+    const character = commandText[index];
+
+    if (quoteCharacter) {
+      if (character === quoteCharacter) {
+        quoteCharacter = '';
+        continue;
+      }
+
+      if (
+        quoteCharacter === '"'
+        && character === '\\'
+        && index + 1 < commandText.length
+      ) {
+        const nextCharacter = commandText[index + 1];
+        if (nextCharacter === '"' || nextCharacter === '\\') {
+          currentToken += nextCharacter;
+          index += 1;
+          continue;
+        }
+      }
+
+      currentToken += character;
+      continue;
+    }
+
+    if (character === '"' || character === '\'') {
+      quoteCharacter = character;
+      continue;
+    }
+
+    if (/\s/u.test(character)) {
+      if (currentToken) {
+        tokens.push(currentToken);
+        currentToken = '';
+      }
+      continue;
+    }
+
+    currentToken += character;
+  }
+
+  if (quoteCharacter) {
+    throw new Error(`Unterminated quote in workspace package script: ${commandText}`);
+  }
+
+  if (currentToken) {
+    tokens.push(currentToken);
+  }
+
+  return tokens;
+}
+
+function isNodeExecutableToken(token) {
+  return /(^|[\\/])node(?:\.exe)?$/iu.test(String(token ?? '').trim());
+}
+
+function createDirectNodePlan({
+  script,
+  cwd,
+  env,
+  platform,
+  execPath,
+}) {
+  const commandTokens = splitCommandTokens(script);
+  if (commandTokens.length === 0) {
+    return null;
+  }
+  if (commandTokens.some((token) => shellControlTokens.has(token))) {
+    return null;
+  }
+
+  const [commandToken, ...args] = commandTokens;
+  if (!isNodeExecutableToken(commandToken) || args.length === 0) {
+    return null;
+  }
+
+  return {
+    command: execPath,
+    args,
+    cwd,
+    env: ensureNodeExecPathOnPath({
+      env,
+      platform,
+      execPath,
+    }),
+    shell: false,
+  };
+}
+
 export function createWorkspacePackageScriptPlan({
   packageDir,
   scriptName,
@@ -77,6 +173,17 @@ export function createWorkspacePackageScriptPlan({
   }
   if (typeof packageScript.packageJson.version === 'string' && packageScript.packageJson.version.trim()) {
     nextEnv.npm_package_version = packageScript.packageJson.version.trim();
+  }
+
+  const directNodePlan = createDirectNodePlan({
+    script: packageScript.script,
+    cwd: packageScript.absolutePackageDir,
+    env: nextEnv,
+    platform,
+    execPath,
+  });
+  if (directNodePlan) {
+    return directNodePlan;
   }
 
   if (platform === 'win32') {

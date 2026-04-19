@@ -8,6 +8,12 @@ const rootDir = process.cwd();
 const packagesDir = path.join(rootDir, 'packages');
 const workspaceConfigPath = path.join(rootDir, 'pnpm-workspace.yaml');
 const dependencySections = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
+const externalTerminalPackagesRootDir = path.join(
+  rootDir,
+  '..',
+  'sdkwork-terminal',
+  'packages',
+);
 
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(rootDir, relativePath), 'utf8'));
@@ -45,6 +51,26 @@ function collectCatalogEntries(workspaceConfigSource) {
     catalogEntries.add(match[1]);
   }
   return catalogEntries;
+}
+
+function normalizeManifestDependencyPath(rawPath) {
+  return String(rawPath ?? '').replace(/\\/gu, '/');
+}
+
+function buildExpectedExternalTerminalLinkVersion(relativePath, dependencyName) {
+  const packageDir = path.dirname(path.join(rootDir, relativePath));
+  const externalPackageDirName = dependencyName.replace(/^@sdkwork\//u, 'sdkwork-');
+  const externalPackageDir = path.join(externalTerminalPackagesRootDir, externalPackageDirName);
+  const relativeExternalPackageDir = path.relative(packageDir, externalPackageDir);
+  return `link:${normalizeManifestDependencyPath(relativeExternalPackageDir)}`;
+}
+
+function isApprovedExternalTerminalLinkVersion(relativePath, dependencyName, version) {
+  if (!/^@sdkwork\/terminal-/u.test(dependencyName)) {
+    return false;
+  }
+
+  return version === buildExpectedExternalTerminalLinkVersion(relativePath, dependencyName);
 }
 
 const rootPackageJson = readJson('package.json');
@@ -130,6 +156,18 @@ for (const { relativePath, manifest } of [
         assert.ok(
           catalogEntries.has(dependencyName),
           `${relativePath} uses catalog: for ${dependencyName} in ${section}, but pnpm-workspace.yaml does not define it.`,
+        );
+        continue;
+      }
+
+      if (typeof version === 'string' && version.startsWith('link:')) {
+        assert.ok(
+          isApprovedExternalTerminalLinkVersion(relativePath, dependencyName, version),
+          [
+            `${relativePath} uses unsupported local link dependency ${dependencyName} in ${section}.`,
+            `Expected: ${buildExpectedExternalTerminalLinkVersion(relativePath, dependencyName)}`,
+            `Actual: ${version}`,
+          ].join('\n'),
         );
         continue;
       }

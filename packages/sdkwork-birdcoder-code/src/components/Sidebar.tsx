@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Edit, Clock, Zap, Folder, FolderPlus, ChevronDown, ChevronRight, Plus, ListFilter, Check, Trash2, Edit2, Archive, Copy, Pin, Search, X, RefreshCw, MoreHorizontal } from 'lucide-react';
 import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-types';
@@ -56,6 +56,17 @@ const INITIAL_VISIBLE_SESSIONS_PER_PROJECT = 5;
 const RELATIVE_TIME_REFRESH_INTERVAL_MS = 60 * 1000;
 const SESSION_EXPANSION_BATCH_SIZE = 10;
 
+function buildSidebarSurfaceStyle(
+  animationDelay: string,
+  containIntrinsicSize: string,
+): React.CSSProperties {
+  return {
+    animationDelay,
+    contain: 'layout paint style',
+    containIntrinsicSize,
+  };
+}
+
 function renderSidebarContextMenuPortal(content: React.ReactNode) {
   if (typeof document === 'undefined') {
     return null;
@@ -64,7 +75,396 @@ function renderSidebarContextMenuPortal(content: React.ReactNode) {
   return createPortal(content, document.body);
 }
 
-export function Sidebar({
+function areSidebarCodingSessionInventoriesEqual(
+  left: BirdCoderCodingSession,
+  right: BirdCoderCodingSession,
+): boolean {
+  return (
+    left.id === right.id &&
+    left.workspaceId === right.workspaceId &&
+    left.projectId === right.projectId &&
+    left.title === right.title &&
+    left.status === right.status &&
+    left.hostMode === right.hostMode &&
+    left.engineId === right.engineId &&
+    left.modelId === right.modelId &&
+    left.runtimeStatus === right.runtimeStatus &&
+    left.createdAt === right.createdAt &&
+    left.updatedAt === right.updatedAt &&
+    left.lastTurnAt === right.lastTurnAt &&
+    left.sortTimestamp === right.sortTimestamp &&
+    left.transcriptUpdatedAt === right.transcriptUpdatedAt &&
+    left.displayTime === right.displayTime &&
+    left.pinned === right.pinned &&
+    left.archived === right.archived &&
+    left.unread === right.unread
+  );
+}
+
+function areSidebarProjectInventoriesEqual(
+  leftProjects: readonly BirdCoderProject[],
+  rightProjects: readonly BirdCoderProject[],
+): boolean {
+  if (leftProjects === rightProjects) {
+    return true;
+  }
+
+  if (leftProjects.length !== rightProjects.length) {
+    return false;
+  }
+
+  for (let projectIndex = 0; projectIndex < leftProjects.length; projectIndex += 1) {
+    const leftProject = leftProjects[projectIndex];
+    const rightProject = rightProjects[projectIndex];
+    if (
+      leftProject.id !== rightProject.id ||
+      leftProject.workspaceId !== rightProject.workspaceId ||
+      leftProject.name !== rightProject.name ||
+      leftProject.description !== rightProject.description ||
+      leftProject.path !== rightProject.path ||
+      leftProject.createdAt !== rightProject.createdAt ||
+      leftProject.updatedAt !== rightProject.updatedAt ||
+      leftProject.archived !== rightProject.archived ||
+      leftProject.codingSessions.length !== rightProject.codingSessions.length
+    ) {
+      return false;
+    }
+
+    for (
+      let codingSessionIndex = 0;
+      codingSessionIndex < leftProject.codingSessions.length;
+      codingSessionIndex += 1
+    ) {
+      if (
+        !areSidebarCodingSessionInventoriesEqual(
+          leftProject.codingSessions[codingSessionIndex],
+          rightProject.codingSessions[codingSessionIndex],
+        )
+      ) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function areSidebarPropsEqual(left: SidebarProps, right: SidebarProps): boolean {
+  return (
+    areSidebarProjectInventoriesEqual(left.projects, right.projects) &&
+    left.selectedProjectId === right.selectedProjectId &&
+    left.selectedCodingSessionId === right.selectedCodingSessionId &&
+    left.onSelectProject === right.onSelectProject &&
+    left.onSelectCodingSession === right.onSelectCodingSession &&
+    left.onRenameCodingSession === right.onRenameCodingSession &&
+    left.onDeleteCodingSession === right.onDeleteCodingSession &&
+    left.onRenameProject === right.onRenameProject &&
+    left.onDeleteProject === right.onDeleteProject &&
+    left.onNewProject === right.onNewProject &&
+    left.onOpenFolder === right.onOpenFolder &&
+    left.onNewCodingSessionInProject === right.onNewCodingSessionInProject &&
+    left.onRefreshProjectSessions === right.onRefreshProjectSessions &&
+    left.onRefreshCodingSessionMessages === right.onRefreshCodingSessionMessages &&
+    left.onArchiveProject === right.onArchiveProject &&
+    left.onCopyWorkingDirectory === right.onCopyWorkingDirectory &&
+    left.onCopyProjectPath === right.onCopyProjectPath &&
+    left.onOpenInTerminal === right.onOpenInTerminal &&
+    left.onOpenInFileExplorer === right.onOpenInFileExplorer &&
+    left.onPinCodingSession === right.onPinCodingSession &&
+    left.onArchiveCodingSession === right.onArchiveCodingSession &&
+    left.onMarkCodingSessionUnread === right.onMarkCodingSessionUnread &&
+    left.onCopyCodingSessionWorkingDirectory === right.onCopyCodingSessionWorkingDirectory &&
+    left.onCopyCodingSessionSessionId === right.onCopyCodingSessionSessionId &&
+    left.onCopyCodingSessionDeeplink === right.onCopyCodingSessionDeeplink &&
+    left.onForkCodingSessionLocal === right.onForkCodingSessionLocal &&
+    left.onForkCodingSessionNewTree === right.onForkCodingSessionNewTree &&
+    left.refreshingProjectId === right.refreshingProjectId &&
+    left.refreshingCodingSessionId === right.refreshingCodingSessionId &&
+    left.searchQuery === right.searchQuery &&
+    left.setSearchQuery === right.setSearchQuery &&
+    left.width === right.width
+  );
+}
+
+type SidebarProjectEntry = {
+  canShowMoreThreads: boolean;
+  canToggleThreadExpansion: boolean;
+  filteredThreads: BirdCoderCodingSession[];
+  nextExpansionCount: number;
+  project: BirdCoderProject;
+  visibleThreads: BirdCoderCodingSession[];
+};
+
+interface SidebarSessionRowProps {
+  thread: BirdCoderCodingSession;
+  isSelected: boolean;
+  isRenaming: boolean;
+  renameValue: string;
+  relativeTimeNow: number;
+  animationDelay: string;
+  paddingClassName: string;
+  onSelectCodingSession: (codingSessionId: string) => void;
+  onCodingSessionContextMenu: (event: React.MouseEvent, codingSessionId: string) => void;
+  onRenameValueChange: (value: string) => void;
+  onRenameSubmit: (codingSessionId: string, nextValue: string, currentTitle: string) => void;
+  onRenameCancel: () => void;
+}
+
+const SidebarSessionRow = React.memo(function SidebarSessionRow({
+  thread,
+  isSelected,
+  isRenaming,
+  renameValue,
+  relativeTimeNow,
+  animationDelay,
+  paddingClassName,
+  onSelectCodingSession,
+  onCodingSessionContextMenu,
+  onRenameValueChange,
+  onRenameSubmit,
+  onRenameCancel,
+}: SidebarSessionRowProps) {
+  const isExecutingThread = isBirdCoderCodingSessionExecuting(thread);
+
+  return (
+    <div
+      className={`${paddingClassName} py-1.5 flex justify-between items-center cursor-pointer rounded-md transition-colors animate-in fade-in slide-in-from-left-2 fill-mode-both ${
+        isSelected ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200 hover:bg-white/10'
+      }`}
+      style={buildSidebarSurfaceStyle(animationDelay, '36px')}
+      onClick={() => onSelectCodingSession(thread.id)}
+      onContextMenu={(event) => onCodingSessionContextMenu(event, thread.id)}
+    >
+      <div className="flex items-center gap-2 overflow-hidden flex-1">
+        <WorkbenchCodeEngineIcon engineId={thread.engineId} />
+        {isExecutingThread && <RefreshCw size={12} className="text-emerald-400 shrink-0 animate-spin" />}
+        {thread.pinned && <Pin size={12} className="text-blue-400 shrink-0" />}
+        {thread.unread && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
+        {thread.archived && <Archive size={12} className="text-gray-500 shrink-0" />}
+        {isRenaming ? (
+          <input
+            type="text"
+            autoFocus
+            value={renameValue}
+            onChange={(event) => onRenameValueChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                onRenameSubmit(thread.id, renameValue, thread.title);
+              } else if (event.key === 'Escape') {
+                onRenameCancel();
+              }
+            }}
+            onBlur={onRenameCancel}
+            className="flex-1 bg-transparent border-none outline-none text-white focus:ring-1 focus:ring-blue-500 rounded px-1 text-sm min-w-0"
+            onClick={(event) => event.stopPropagation()}
+          />
+        ) : (
+          <span className="truncate">{thread.title}</span>
+        )}
+      </div>
+      {!isRenaming && (
+        <span className={`text-[10px] shrink-0 ml-2 ${isSelected ? 'text-gray-400' : 'opacity-50'}`}>
+          {formatBirdCoderSessionActivityDisplayTime(thread, relativeTimeNow)}
+        </span>
+      )}
+    </div>
+  );
+});
+
+interface SidebarProjectSectionProps {
+  entry: SidebarProjectEntry;
+  index: number;
+  expanded: boolean;
+  isSelectedProject: boolean;
+  selectedVisibleSessionId: string | null;
+  renamingVisibleSessionId: string | null;
+  sessionRenameValue: string;
+  isRenamingProject: boolean;
+  projectRenameValue: string;
+  relativeTimeNow: number;
+  noSessionsLabel: string;
+  toggleSessionExpansionLabel: string;
+  newThreadInProjectLabel: string;
+  moreActionsLabel: string;
+  onSelectProject: (projectId: string) => void;
+  onToggleProject: (projectId: string, event?: React.MouseEvent) => void;
+  onProjectContextMenu: (event: React.MouseEvent, projectId: string) => void;
+  onOpenProjectContextMenuFromButton: (
+    event: React.MouseEvent<HTMLButtonElement>,
+    projectId: string,
+  ) => void;
+  onNewCodingSessionInProject: (projectId: string) => void;
+  onSelectCodingSession: (codingSessionId: string) => void;
+  onCodingSessionContextMenu: (event: React.MouseEvent, codingSessionId: string) => void;
+  onProjectRenameValueChange: (value: string) => void;
+  onProjectRenameSubmit: (projectId: string, nextValue: string, currentName: string) => void;
+  onProjectRenameCancel: () => void;
+  onSessionRenameValueChange: (value: string) => void;
+  onSessionRenameSubmit: (codingSessionId: string, nextValue: string, currentTitle: string) => void;
+  onSessionRenameCancel: () => void;
+  onToggleSessionExpansion: (
+    projectId: string,
+    filteredThreadCount: number,
+    canShowMoreThreads: boolean,
+  ) => void;
+}
+
+const SidebarProjectSection = React.memo(function SidebarProjectSection({
+  entry,
+  index,
+  expanded,
+  isSelectedProject,
+  selectedVisibleSessionId,
+  renamingVisibleSessionId,
+  sessionRenameValue,
+  isRenamingProject,
+  projectRenameValue,
+  relativeTimeNow,
+  noSessionsLabel,
+  toggleSessionExpansionLabel,
+  newThreadInProjectLabel,
+  moreActionsLabel,
+  onSelectProject,
+  onToggleProject,
+  onProjectContextMenu,
+  onOpenProjectContextMenuFromButton,
+  onNewCodingSessionInProject,
+  onSelectCodingSession,
+  onCodingSessionContextMenu,
+  onProjectRenameValueChange,
+  onProjectRenameSubmit,
+  onProjectRenameCancel,
+  onSessionRenameValueChange,
+  onSessionRenameSubmit,
+  onSessionRenameCancel,
+  onToggleSessionExpansion,
+}: SidebarProjectSectionProps) {
+  const { project, filteredThreads, visibleThreads } = entry;
+
+  return (
+    <div
+      className="mb-1 animate-in fade-in slide-in-from-left-4 fill-mode-both"
+      style={buildSidebarSurfaceStyle(`${index * 50 + 150}ms`, expanded ? '260px' : '44px')}
+    >
+      <div
+        className={`relative flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors group ${
+          isSelectedProject ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/10'
+        }`}
+        onClick={() => onSelectProject(project.id)}
+        onContextMenu={(event) => onProjectContextMenu(event, project.id)}
+      >
+        <div
+          className={`transition-colors p-0.5 rounded-sm hover:bg-white/20 ${
+            isSelectedProject ? 'text-gray-300' : 'text-gray-500 group-hover:text-gray-300'
+          }`}
+          onClick={(event) => onToggleProject(project.id, event)}
+        >
+          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </div>
+        <Folder
+          size={14}
+          className={`transition-colors ${
+            isSelectedProject ? 'text-blue-400' : 'text-gray-400 group-hover:text-gray-300'
+          }`}
+        />
+        {project.archived && <Archive size={14} className="text-gray-500 shrink-0" />}
+        {isRenamingProject ? (
+          <input
+            type="text"
+            autoFocus
+            value={projectRenameValue}
+            onChange={(event) => onProjectRenameValueChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                onProjectRenameSubmit(project.id, projectRenameValue, project.name);
+              } else if (event.key === 'Escape') {
+                onProjectRenameCancel();
+              }
+            }}
+            onBlur={onProjectRenameCancel}
+            className="flex-1 bg-transparent border-none outline-none text-white focus:ring-1 focus:ring-blue-500 rounded px-1 text-sm min-w-0 font-medium"
+            onClick={(event) => event.stopPropagation()}
+          />
+        ) : (
+          <span className="min-w-0 flex-1 truncate pr-14 font-medium">{project.name}</span>
+        )}
+        {!isRenamingProject && (
+          <div className="absolute right-2 flex items-center gap-1 rounded-md bg-[#18181b]/80 px-1 opacity-0 transition-all group-hover:opacity-100">
+            <button
+              type="button"
+              className="rounded-md p-1 text-gray-500 transition-all hover:bg-white/10 hover:text-white"
+              title={newThreadInProjectLabel}
+              onClick={(event) => {
+                event.stopPropagation();
+                onNewCodingSessionInProject(project.id);
+              }}
+            >
+              <Plus size={12} />
+            </button>
+            <button
+              type="button"
+              className="rounded-md p-1 text-gray-500 transition-all hover:bg-white/10 hover:text-white"
+              title={moreActionsLabel}
+              onClick={(event) => onOpenProjectContextMenuFromButton(event, project.id)}
+            >
+              <MoreHorizontal size={12} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {expanded && (
+        <div className="flex flex-col mt-0.5">
+          {filteredThreads.length > 0 ? (
+            <>
+              {visibleThreads.map((thread, threadIndex) => (
+                <SidebarSessionRow
+                  key={thread.id}
+                  thread={thread}
+                  isSelected={selectedVisibleSessionId === thread.id}
+                  isRenaming={renamingVisibleSessionId === thread.id}
+                  renameValue={renamingVisibleSessionId === thread.id ? sessionRenameValue : ''}
+                  relativeTimeNow={relativeTimeNow}
+                  animationDelay={`${index * 50 + threadIndex * 30 + 200}ms`}
+                  paddingClassName="pl-8 pr-2"
+                  onSelectCodingSession={onSelectCodingSession}
+                  onCodingSessionContextMenu={onCodingSessionContextMenu}
+                  onRenameValueChange={onSessionRenameValueChange}
+                  onRenameSubmit={onSessionRenameSubmit}
+                  onRenameCancel={onSessionRenameCancel}
+                />
+              ))}
+              {entry.canToggleThreadExpansion && (
+                <button
+                  type="button"
+                  className="ml-8 mt-1 inline-flex items-center justify-start rounded-md px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-200"
+                  onClick={() =>
+                    onToggleSessionExpansion(
+                      project.id,
+                      filteredThreads.length,
+                      entry.canShowMoreThreads,
+                    )
+                  }
+                >
+                  {toggleSessionExpansionLabel}
+                </button>
+              )}
+            </>
+          ) : (
+            <div
+              className="pl-8 py-1 text-gray-500 text-xs italic animate-in fade-in fill-mode-both"
+              style={buildSidebarSurfaceStyle(`${index * 50 + 200}ms`, '28px')}
+            >
+              {noSessionsLabel}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+
+export const Sidebar = React.memo(function Sidebar({
   projects,
   selectedProjectId,
   selectedCodingSessionId,
@@ -129,8 +529,24 @@ export function Sidebar({
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+  const closeFloatingMenus = useCallback(() => {
+    setShowFilterMenu(false);
+    setContextMenu(null);
+    setProjectContextMenu(null);
+    setRootContextMenu(null);
+  }, []);
+
+  const hasOpenViewportMenu =
+    showFilterMenu ||
+    contextMenu !== null ||
+    projectContextMenu !== null ||
+    rootContextMenu !== null;
+
+  const handleClickOutside = useCallback(
+    (event: MouseEvent) => {
+      if (!hasOpenViewportMenu) {
+        return;
+      }
       if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
         setShowFilterMenu(false);
       }
@@ -143,24 +559,33 @@ export function Sidebar({
       if (rootContextMenuRef.current && !rootContextMenuRef.current.contains(event.target as Node)) {
         setRootContextMenu(null);
       }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    },
+    [hasOpenViewportMenu],
+  );
 
   useEffect(() => {
+    if (!hasOpenViewportMenu) {
+      return;
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [handleClickOutside, hasOpenViewportMenu]);
+
+  useEffect(() => {
+    if (!hasOpenViewportMenu) {
+      return;
+    }
+
     const handleViewportChange = () => {
-      setShowFilterMenu(false);
-      setContextMenu(null);
-      setProjectContextMenu(null);
-      setRootContextMenu(null);
+      closeFloatingMenus();
     };
 
-    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('resize', handleViewportChange, { passive: true });
     return () => {
       window.removeEventListener('resize', handleViewportChange);
     };
-  }, []);
+  }, [closeFloatingMenus, hasOpenViewportMenu]);
 
   // Expand projects by default when they are loaded
   useEffect(() => {
@@ -228,29 +653,28 @@ export function Sidebar({
     };
   }, []);
 
-  const toggleProject = (projectId: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setExpandedProjects(prev => ({ ...prev, [projectId]: !prev[projectId] }));
-  };
+  const toggleProject = useCallback((projectId: string, event?: React.MouseEvent) => {
+    event?.stopPropagation();
+    setExpandedProjects((previousExpandedProjects) => ({
+      ...previousExpandedProjects,
+      [projectId]: !previousExpandedProjects[projectId],
+    }));
+  }, []);
 
-  const selectProject = (projectId: string) => {
-    if (onSelectProject && selectedProjectId !== projectId) {
-      onSelectProject(projectId);
-    }
+  const selectProject = useCallback((projectId: string) => {
+    onSelectProject?.(projectId);
     setExpandedProjects((previousExpandedProjects) =>
       previousExpandedProjects[projectId] === true
         ? previousExpandedProjects
         : { ...previousExpandedProjects, [projectId]: true },
     );
-  };
+  }, [onSelectProject]);
 
-  const handleSelectCodingSession = (codingSessionId: string) => {
-    if (selectedCodingSessionId !== codingSessionId) {
-      onSelectCodingSession(codingSessionId);
-    }
-  };
+  const handleSelectCodingSession = useCallback((codingSessionId: string) => {
+    onSelectCodingSession(codingSessionId);
+  }, [onSelectCodingSession]);
 
-  const handleContextMenu = (e: React.MouseEvent, codingSessionId: string) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent, codingSessionId: string) => {
     e.preventDefault();
     e.stopPropagation();
     setProjectContextMenu(null);
@@ -268,9 +692,9 @@ export function Sidebar({
     }
 
     setContextMenu({ x, y, codingSessionId });
-  };
+  }, []);
 
-  const handleProjectContextMenu = (e: React.MouseEvent, projectId: string) => {
+  const handleProjectContextMenu = useCallback((e: React.MouseEvent, projectId: string) => {
     e.preventDefault();
     e.stopPropagation();
     setContextMenu(null);
@@ -288,9 +712,9 @@ export function Sidebar({
     }
 
     setProjectContextMenu({ x, y, projectId });
-  };
+  }, []);
 
-  const openProjectContextMenuFromButton = (
+  const openProjectContextMenuFromButton = useCallback((
     event: React.MouseEvent<HTMLButtonElement>,
     projectId: string,
   ) => {
@@ -314,7 +738,7 @@ export function Sidebar({
     }
 
     setProjectContextMenu({ x, y, projectId });
-  };
+  }, []);
 
   const handleRootContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -348,29 +772,82 @@ export function Sidebar({
       ),
     [projects],
   );
-  const projectEntries = useMemo(
+  const handleToggleProjectSessionExpansion = useCallback(
+    (projectId: string, filteredThreadCount: number, canShowMoreThreads: boolean) => {
+      setVisibleSessionCountByProjectId((previousState) => {
+        const currentCount =
+          previousState[projectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+        const nextCount = canShowMoreThreads
+          ? Math.min(currentCount + SESSION_EXPANSION_BATCH_SIZE, filteredThreadCount)
+          : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+        if (nextCount === currentCount) {
+          return previousState;
+        }
+        return {
+          ...previousState,
+          [projectId]: nextCount,
+        };
+      });
+    },
+    [],
+  );
+  const handleRenameValueChange = useCallback((value: string) => {
+    setRenameValue(value);
+  }, []);
+  const handleProjectRenameSubmit = useCallback(
+    (projectId: string, nextValue: string, currentName: string) => {
+      const normalizedValue = nextValue.trim();
+      if (normalizedValue && normalizedValue !== currentName) {
+        onRenameProject(projectId, normalizedValue);
+      }
+      setRenamingProjectId(null);
+    },
+    [onRenameProject],
+  );
+  const handleProjectRenameCancel = useCallback(() => {
+    setRenamingProjectId(null);
+  }, []);
+  const handleCodingSessionRenameSubmit = useCallback(
+    (codingSessionId: string, nextValue: string, currentTitle: string) => {
+      const normalizedValue = nextValue.trim();
+      if (normalizedValue && normalizedValue !== currentTitle) {
+        onRenameCodingSession(codingSessionId, normalizedValue);
+      }
+      setRenamingCodingSessionId(null);
+    },
+    [onRenameCodingSession],
+  );
+  const handleCodingSessionRenameCancel = useCallback(() => {
+    setRenamingCodingSessionId(null);
+  }, []);
+  const buildSortedCodingSessions = useCallback(
+    (codingSessions: readonly BirdCoderCodingSession[]) =>
+      codingSessions
+        .map((codingSession) => ({
+          codingSession,
+          sortTimestamp:
+            sortBy === 'created'
+              ? Math.max(0, Date.parse(codingSession.createdAt))
+              : resolveBirdCoderSessionSortTimestamp(codingSession),
+        }))
+        .sort((left, right) => right.sortTimestamp - left.sortTimestamp)
+        .map((entry) => entry.codingSession),
+    [sortBy],
+  );
+  const projectEntries = useMemo<SidebarProjectEntry[]>(
     () =>
       projects
         .filter((project) => showArchived || !project.archived)
         .map((project) => {
-          const filteredThreads = [...project.codingSessions]
-            .filter((codingSession) => showArchived || !codingSession.archived)
-            .filter(
-              (codingSession) =>
-                !normalizedSearchQuery ||
-                codingSession.title.toLowerCase().includes(normalizedSearchQuery),
-            )
-            .sort((left, right) => {
-              const leftTimestamp =
-                sortBy === 'created'
-                  ? new Date(left.createdAt).getTime()
-                  : new Date(left.updatedAt).getTime();
-              const rightTimestamp =
-                sortBy === 'created'
-                  ? new Date(right.createdAt).getTime()
-                  : new Date(right.updatedAt).getTime();
-              return rightTimestamp - leftTimestamp;
-            });
+          const filteredThreads = buildSortedCodingSessions(
+            project.codingSessions
+              .filter((codingSession) => showArchived || !codingSession.archived)
+              .filter(
+                (codingSession) =>
+                  !normalizedSearchQuery ||
+                  codingSession.title.toLowerCase().includes(normalizedSearchQuery),
+              ),
+          );
           const visibleSessionCount =
             visibleSessionCountByProjectId[project.id] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
 
@@ -394,35 +871,26 @@ export function Sidebar({
           (entry) => !normalizedSearchQuery || entry.filteredThreads.length > 0,
         ),
     [
+      buildSortedCodingSessions,
       normalizedSearchQuery,
       projects,
       showArchived,
-      sortBy,
       visibleSessionCountByProjectId,
     ],
   );
   const chronologicalThreads = useMemo(
     () =>
-      projects
-        .flatMap((project) => project.codingSessions)
-        .filter((codingSession) => showArchived || !codingSession.archived)
-        .filter(
-          (codingSession) =>
-            !normalizedSearchQuery ||
-            codingSession.title.toLowerCase().includes(normalizedSearchQuery),
-        )
-        .sort((left, right) => {
-          const leftTimestamp =
-            sortBy === 'created'
-              ? new Date(left.createdAt).getTime()
-              : resolveBirdCoderSessionSortTimestamp(left);
-          const rightTimestamp =
-            sortBy === 'created'
-              ? new Date(right.createdAt).getTime()
-              : resolveBirdCoderSessionSortTimestamp(right);
-          return rightTimestamp - leftTimestamp;
-        }),
-    [normalizedSearchQuery, projects, showArchived, sortBy],
+      buildSortedCodingSessions(
+        projects
+          .flatMap((project) => project.codingSessions)
+          .filter((codingSession) => showArchived || !codingSession.archived)
+          .filter(
+            (codingSession) =>
+              !normalizedSearchQuery ||
+              codingSession.title.toLowerCase().includes(normalizedSearchQuery),
+          ),
+      ),
+    [buildSortedCodingSessions, normalizedSearchQuery, projects, showArchived],
   );
 
   return (
@@ -572,212 +1040,74 @@ export function Sidebar({
 
         <div className="flex flex-col gap-1">
           {organizeBy === 'project' ? (
-            projectEntries.map(({ canShowMoreThreads, canToggleThreadExpansion, filteredThreads, nextExpansionCount, project, visibleThreads }, index) => {
-              return (
-              <div 
-                key={project.id} 
-                className="mb-1 animate-in fade-in slide-in-from-left-4 fill-mode-both"
-                style={{ animationDelay: `${index * 50 + 150}ms` }}
-              >
-                <div 
-                  className={`relative flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors group ${selectedProjectId === project.id ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/10'}`}
-                  onClick={() => selectProject(project.id)}
-                  onContextMenu={(e) => handleProjectContextMenu(e, project.id)}
-                >
-                  <div 
-                    className={`transition-colors p-0.5 rounded-sm hover:bg-white/20 ${selectedProjectId === project.id ? 'text-gray-300' : 'text-gray-500 group-hover:text-gray-300'}`}
-                    onClick={(e) => toggleProject(project.id, e)}
-                  >
-                    {expandedProjects[project.id] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </div>
-                  <Folder size={14} className={`transition-colors ${selectedProjectId === project.id ? 'text-blue-400' : 'text-gray-400 group-hover:text-gray-300'}`} />
-                  {project.archived && <Archive size={14} className="text-gray-500 shrink-0" />}
-                  {renamingProjectId === project.id ? (
-                    <input
-                      type="text"
-                      autoFocus
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          if (renameValue.trim() && renameValue !== project.name) {
-                            onRenameProject(project.id, renameValue.trim());
-                          }
-                          setRenamingProjectId(null);
-                        } else if (e.key === 'Escape') {
-                          setRenamingProjectId(null);
-                        }
-                      }}
-                      onBlur={() => setRenamingProjectId(null)}
-                      className="flex-1 bg-transparent border-none outline-none text-white focus:ring-1 focus:ring-blue-500 rounded px-1 text-sm min-w-0 font-medium"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  ) : (
-                    <span className="min-w-0 flex-1 truncate pr-14 font-medium">{project.name}</span>
-                  )}
-                  {renamingProjectId !== project.id && (
-                    <div className="absolute right-2 flex items-center gap-1 rounded-md bg-[#18181b]/80 px-1 opacity-0 transition-all group-hover:opacity-100">
-                      <button
-                        type="button"
-                        className="rounded-md p-1 text-gray-500 transition-all hover:bg-white/10 hover:text-white"
-                        title={t('code.newThreadInProject')}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onNewCodingSessionInProject(project.id);
-                        }}
-                      >
-                        <Plus size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-md p-1 text-gray-500 transition-all hover:bg-white/10 hover:text-white"
-                        title={t('app.moreActions')}
-                        onClick={(event) => openProjectContextMenuFromButton(event, project.id)}
-                      >
-                        <MoreHorizontal size={12} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
-                {expandedProjects[project.id] && (
-                  <div className="flex flex-col mt-0.5">
-                    {filteredThreads.length > 0 ? (
-                      <>
-                        {visibleThreads.map((thread, threadIndex) => {
-                          const isExecutingThread = isBirdCoderCodingSessionExecuting(thread);
+            projectEntries.map((entry, index) => {
+              const selectedVisibleSessionId = entry.visibleThreads.some(
+                (thread) => thread.id === selectedCodingSessionId,
+              )
+                ? selectedCodingSessionId
+                : null;
+              const renamingVisibleSessionId = entry.visibleThreads.some(
+                (thread) => thread.id === renamingCodingSessionId,
+              )
+                ? renamingCodingSessionId
+                : null;
 
-                          return (
-                            <div 
-                              key={thread.id}
-                              className={`pl-8 pr-2 py-1.5 flex justify-between items-center cursor-pointer rounded-md transition-colors animate-in fade-in slide-in-from-left-2 fill-mode-both ${selectedCodingSessionId === thread.id ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200 hover:bg-white/10'}`}
-                              style={{ animationDelay: `${(index * 50) + (threadIndex * 30) + 200}ms` }}
-                              onClick={() => handleSelectCodingSession(thread.id)}
-                              onContextMenu={(e) => handleContextMenu(e, thread.id)}
-                            >
-                              <div className="flex items-center gap-2 overflow-hidden flex-1">
-                                <WorkbenchCodeEngineIcon engineId={thread.engineId} />
-                                {isExecutingThread && <RefreshCw size={12} className="text-emerald-400 shrink-0 animate-spin" />}
-                                {thread.pinned && <Pin size={12} className="text-blue-400 shrink-0" />}
-                                {thread.unread && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
-                                {thread.archived && <Archive size={12} className="text-gray-500 shrink-0" />}
-                                {renamingCodingSessionId === thread.id ? (
-                                  <input
-                                    type="text"
-                                    autoFocus
-                                    value={renameValue}
-                                    onChange={(e) => setRenameValue(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        if (renameValue.trim() && renameValue !== thread.title) {
-                                          onRenameCodingSession(thread.id, renameValue.trim());
-                                        }
-                                        setRenamingCodingSessionId(null);
-                                      } else if (e.key === 'Escape') {
-                                        setRenamingCodingSessionId(null);
-                                      }
-                                    }}
-                                    onBlur={() => setRenamingCodingSessionId(null)}
-                                    className="flex-1 bg-transparent border-none outline-none text-white focus:ring-1 focus:ring-blue-500 rounded px-1 text-sm min-w-0"
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                ) : (
-                                  <span className="truncate">{thread.title}</span>
-                                )}
-                              </div>
-                              {renamingCodingSessionId !== thread.id && (
-                                <span className={`text-[10px] shrink-0 ml-2 ${selectedCodingSessionId === thread.id ? 'text-gray-400' : 'opacity-50'}`}>{formatBirdCoderSessionActivityDisplayTime(thread, relativeTimeNow)}</span>
-                              )}
-                            </div>
-                          );
-                        })}
-                        {canToggleThreadExpansion && (
-                          <button
-                            type="button"
-                            className="ml-8 mt-1 inline-flex items-center justify-start rounded-md px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-200"
-                            onClick={() => {
-                              setVisibleSessionCountByProjectId((previousState) => {
-                                const currentCount =
-                                  previousState[project.id] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-                                const nextCount = canShowMoreThreads
-                                  ? Math.min(
-                                      currentCount + SESSION_EXPANSION_BATCH_SIZE,
-                                      filteredThreads.length,
-                                    )
-                                  : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-                                if (nextCount === currentCount) {
-                                  return previousState;
-                                }
-                                return {
-                                  ...previousState,
-                                  [project.id]: nextCount,
-                                };
-                              });
-                            }}
-                          >
-                            {canShowMoreThreads
-                              ? t('code.showMoreSessions', {
-                                  count: nextExpansionCount,
-                                })
-                              : t('code.collapseSessions')}
-                          </button>
-                        )}
-                      </>
-                    ) : (
-                      <div className="pl-8 py-1 text-gray-500 text-xs italic animate-in fade-in fill-mode-both" style={{ animationDelay: `${(index * 50) + 200}ms` }}>
-                        {t('app.noSessions')}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )})
+              return (
+                <SidebarProjectSection
+                  key={entry.project.id}
+                  entry={entry}
+                  index={index}
+                  expanded={expandedProjects[entry.project.id] === true}
+                  isSelectedProject={selectedProjectId === entry.project.id}
+                  selectedVisibleSessionId={selectedVisibleSessionId}
+                  renamingVisibleSessionId={renamingVisibleSessionId}
+                  sessionRenameValue={renamingVisibleSessionId ? renameValue : ''}
+                  isRenamingProject={renamingProjectId === entry.project.id}
+                  projectRenameValue={renamingProjectId === entry.project.id ? renameValue : ''}
+                  relativeTimeNow={relativeTimeNow}
+                  noSessionsLabel={t('app.noSessions')}
+                  toggleSessionExpansionLabel={
+                    entry.canShowMoreThreads
+                      ? t('code.showMoreSessions', { count: entry.nextExpansionCount })
+                      : t('code.collapseSessions')
+                  }
+                  newThreadInProjectLabel={t('code.newThreadInProject')}
+                  moreActionsLabel={t('app.moreActions')}
+                  onSelectProject={selectProject}
+                  onToggleProject={toggleProject}
+                  onProjectContextMenu={handleProjectContextMenu}
+                  onOpenProjectContextMenuFromButton={openProjectContextMenuFromButton}
+                  onNewCodingSessionInProject={onNewCodingSessionInProject}
+                  onSelectCodingSession={handleSelectCodingSession}
+                  onCodingSessionContextMenu={handleContextMenu}
+                  onProjectRenameValueChange={handleRenameValueChange}
+                  onProjectRenameSubmit={handleProjectRenameSubmit}
+                  onProjectRenameCancel={handleProjectRenameCancel}
+                  onSessionRenameValueChange={handleRenameValueChange}
+                  onSessionRenameSubmit={handleCodingSessionRenameSubmit}
+                  onSessionRenameCancel={handleCodingSessionRenameCancel}
+                  onToggleSessionExpansion={handleToggleProjectSessionExpansion}
+                />
+              );
+            })
           ) : (
             chronologicalThreads.map((thread, threadIndex) => {
-              const isExecutingThread = isBirdCoderCodingSessionExecuting(thread);
-
               return (
-                <div 
+                <SidebarSessionRow
                   key={thread.id}
-                  className={`px-2 py-1.5 flex justify-between items-center cursor-pointer rounded-md transition-colors animate-in fade-in slide-in-from-left-2 fill-mode-both ${selectedCodingSessionId === thread.id ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200 hover:bg-white/10'}`}
-                  style={{ animationDelay: `${(threadIndex * 30) + 100}ms` }}
-                  onClick={() => handleSelectCodingSession(thread.id)}
-                  onContextMenu={(e) => handleContextMenu(e, thread.id)}
-                >
-                  <div className="flex items-center gap-2 overflow-hidden flex-1">
-                    <WorkbenchCodeEngineIcon engineId={thread.engineId} />
-                    {isExecutingThread && <RefreshCw size={12} className="text-emerald-400 shrink-0 animate-spin" />}
-                    {thread.pinned && <Pin size={12} className="text-blue-400 shrink-0" />}
-                    {thread.unread && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
-                    {thread.archived && <Archive size={12} className="text-gray-500 shrink-0" />}
-                    {renamingCodingSessionId === thread.id ? (
-                      <input
-                        type="text"
-                        autoFocus
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            if (renameValue.trim() && renameValue !== thread.title) {
-                              onRenameCodingSession(thread.id, renameValue.trim());
-                            }
-                            setRenamingCodingSessionId(null);
-                          } else if (e.key === 'Escape') {
-                            setRenamingCodingSessionId(null);
-                          }
-                        }}
-                        onBlur={() => setRenamingCodingSessionId(null)}
-                        className="flex-1 bg-transparent border-none outline-none text-white focus:ring-1 focus:ring-blue-500 rounded px-1 text-sm min-w-0"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <span className="truncate">{thread.title}</span>
-                    )}
-                  </div>
-                  {renamingCodingSessionId !== thread.id && (
-                    <span className={`text-[10px] shrink-0 ml-2 ${selectedCodingSessionId === thread.id ? 'text-gray-400' : 'opacity-50'}`}>{formatBirdCoderSessionActivityDisplayTime(thread, relativeTimeNow)}</span>
-                  )}
-                </div>
+                  thread={thread}
+                  isSelected={selectedCodingSessionId === thread.id}
+                  isRenaming={renamingCodingSessionId === thread.id}
+                  renameValue={renamingCodingSessionId === thread.id ? renameValue : ''}
+                  relativeTimeNow={relativeTimeNow}
+                  animationDelay={`${threadIndex * 30 + 100}ms`}
+                  paddingClassName="px-2"
+                  onSelectCodingSession={handleSelectCodingSession}
+                  onCodingSessionContextMenu={handleContextMenu}
+                  onRenameValueChange={handleRenameValueChange}
+                  onRenameSubmit={handleCodingSessionRenameSubmit}
+                  onRenameCancel={handleCodingSessionRenameCancel}
+                />
               );
             })
           )}
@@ -1030,4 +1360,6 @@ export function Sidebar({
         )}
     </div>
   );
-}
+}, areSidebarPropsEqual);
+
+Sidebar.displayName = 'Sidebar';

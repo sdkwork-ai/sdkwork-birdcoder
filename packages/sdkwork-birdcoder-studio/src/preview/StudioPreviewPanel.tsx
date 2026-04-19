@@ -1,11 +1,27 @@
-import type { ComponentProps } from 'react';
+import { memo, type ComponentProps } from 'react';
 import { DevicePreview } from '@sdkwork/birdcoder-ui';
 
 interface StudioPreviewPanelProps {
   devicePreviewProps: ComponentProps<typeof DevicePreview>;
 }
 
-export function StudioPreviewPanel({
+function arePreviewPropsEqual(
+  left: StudioPreviewPanelProps['devicePreviewProps'],
+  right: StudioPreviewPanelProps['devicePreviewProps'],
+): boolean {
+  return (
+    left.url === right.url &&
+    left.platform === right.platform &&
+    left.webDevice === right.webDevice &&
+    left.mpPlatform === right.mpPlatform &&
+    left.appPlatform === right.appPlatform &&
+    left.deviceModel === right.deviceModel &&
+    left.isLandscape === right.isLandscape &&
+    left.refreshKey === right.refreshKey
+  );
+}
+
+export const StudioPreviewPanel = memo(function StudioPreviewPanel({
   devicePreviewProps,
 }: StudioPreviewPanelProps) {
   return (
@@ -13,4 +29,6 @@ export function StudioPreviewPanel({
       <DevicePreview {...devicePreviewProps} />
     </div>
   );
-}
+}, (left, right) => arePreviewPropsEqual(left.devicePreviewProps, right.devicePreviewProps));
+
+StudioPreviewPanel.displayName = 'StudioPreviewPanel';

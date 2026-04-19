@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import { buildLocalStoreKey } from '../packages/sdkwork-birdcoder-commons/src/storage/localStore.ts';
 import {
@@ -195,8 +195,17 @@ assert.doesNotMatch(
 );
 
 const terminalPageSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-terminal/src/pages/TerminalPage.tsx', import.meta.url),
+  new URL('../packages/sdkwork-birdcoder-terminal/src/TerminalPage.tsx', import.meta.url),
   'utf8',
+);
+const sharedTerminalLaunchSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-commons/src/terminal/sdkworkTerminalLaunch.ts', import.meta.url),
+  'utf8',
+);
+assert.equal(
+  existsSync(new URL('../packages/sdkwork-birdcoder-terminal/src/pages/TerminalPage.tsx', import.meta.url)),
+  false,
+  'BirdCoder terminal package must delete the legacy pages/TerminalPage.tsx implementation.',
 );
 assert.match(
   terminalPageSource,
@@ -205,23 +214,38 @@ assert.match(
 );
 assert.match(
   terminalPageSource,
-  /ShellApp/,
-  'TerminalPage should delegate the terminal surface to the shared sdkwork-terminal ShellApp.',
+  /DesktopTerminalSurface/,
+  'TerminalPage should delegate the terminal surface to the shared sdkwork-terminal DesktopTerminalSurface.',
 );
 assert.match(
+  terminalPageSource,
+  /resolveBirdcoderTerminalLaunchRequest/,
+  'TerminalPage should normalize request launching through the shared BirdCoder terminal launch adapter.',
+);
+assert.doesNotMatch(
   terminalPageSource,
   /buildTerminalRequestLaunchPlan/,
-  'TerminalPage should normalize request launching through the shared terminal launch-plan adapter.',
+  'TerminalPage should not keep the deleted page-local terminal launch planner.',
+);
+assert.doesNotMatch(
+  terminalPageSource,
+  /setDesktopSessionReattachIntent/,
+  'TerminalPage should not keep local ShellApp reattach intent orchestration.',
+);
+assert.doesNotMatch(
+  terminalPageSource,
+  /createLocalProcessSession|createLocalShellSession/,
+  'TerminalPage should not create runtime sessions directly after the shared host surface cutover.',
 );
 assert.match(
-  terminalPageSource,
+  sharedTerminalLaunchSource,
   /listTerminalCliProfileAvailability/,
-  'TerminalPage should resolve CLI profile availability before launching unified terminal sessions.',
+  'Shared BirdCoder terminal launch adapter should resolve CLI profile availability before launching unified terminal sessions.',
 );
 assert.match(
-  terminalPageSource,
+  sharedTerminalLaunchSource,
   /buildTerminalProfileBlockedMessage/,
-  'TerminalPage should surface blocked CLI launch guidance from the shared governance runtime.',
+  'Shared BirdCoder terminal launch adapter should surface blocked CLI launch guidance from the shared governance runtime.',
 );
 assert.doesNotMatch(
   terminalPageSource,

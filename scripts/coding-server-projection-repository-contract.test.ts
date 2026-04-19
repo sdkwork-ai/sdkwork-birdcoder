@@ -6,6 +6,7 @@ import {
   executeBirdCoderCoreSessionRun,
   persistBirdCoderCoreSessionRunProjection,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
+import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
 
 const backingStore = new Map<string, string>();
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -44,18 +45,20 @@ try {
     },
   ];
 
-  const projection = await executeBirdCoderCoreSessionRun({
-    sessionId: 'coding-session-repo-1',
-    runtimeId: 'runtime-repo-1',
-    turnId: 'turn-repo-1',
-    engineId: 'codex',
-    modelId: 'codex',
-    hostMode: 'server',
-    messages,
-    options: {
-      model: 'codex',
-    },
-  });
+  const projection = await withMockCodexCliJsonl(() =>
+    executeBirdCoderCoreSessionRun({
+      sessionId: 'coding-session-repo-1',
+      runtimeId: 'runtime-repo-1',
+      turnId: 'turn-repo-1',
+      engineId: 'codex',
+      modelId: 'codex',
+      hostMode: 'server',
+      messages,
+      options: {
+        model: 'codex',
+      },
+    }),
+  );
 
   await persistBirdCoderCoreSessionRunProjection(store, projection);
 

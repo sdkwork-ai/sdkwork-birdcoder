@@ -1,35 +1,49 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 
-interface MenuItem {
+export interface TopMenuItem {
   label: string;
   shortcut?: string;
   onClick?: () => void;
   divider?: boolean;
 }
 
-interface MenuProps {
+interface TopMenuProps {
   label: string;
-  items: MenuItem[];
+  items: TopMenuItem[];
 }
 
-export function TopMenu({ label, items }: MenuProps) {
+export const TopMenu = memo(function TopMenu({ label, items }: TopMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      setIsOpen(false);
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [handleClickOutside, isOpen]);
+
+  const handleToggle = useCallback(() => {
+    setIsOpen((current) => !current);
+  }, []);
+
+  const handleItemClick = useCallback((onClick?: () => void) => {
+    onClick?.();
+    setIsOpen(false);
   }, []);
 
   return (
     <div className="relative" ref={menuRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className={`px-2.5 py-1 text-[13px] rounded-md transition-colors ${isOpen ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}
       >
         {label}
@@ -44,10 +58,7 @@ export function TopMenu({ label, items }: MenuProps) {
             return (
               <button
                 key={index}
-                onClick={() => {
-                  item.onClick?.();
-                  setIsOpen(false);
-                }}
+                onClick={() => handleItemClick(item.onClick)}
                 className="w-full flex items-center justify-between px-4 py-1.5 text-[13px] text-gray-300 hover:bg-blue-600 hover:text-white transition-colors"
               >
                 <span>{item.label}</span>
@@ -59,4 +70,6 @@ export function TopMenu({ label, items }: MenuProps) {
       )}
     </div>
   );
-}
+});
+
+TopMenu.displayName = 'TopMenu';

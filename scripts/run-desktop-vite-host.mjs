@@ -225,7 +225,7 @@ function createDesktopViteServerConfig({
     plugins,
     optimizeDeps: {
       noDiscovery: true,
-      include: [],
+      include: ['@xterm/addon-unicode11'],
     },
     resolve: {
       dedupe: [...BIRDCODER_VITE_DEDUPE_PACKAGES],

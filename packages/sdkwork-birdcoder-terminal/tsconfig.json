@@ -33,14 +33,20 @@
       "@sdkwork/birdcoder-*": [
         "packages/sdkwork-birdcoder-*/src"
       ],
-      "@sdkwork/terminal-shell": [
-        "packages/sdkwork-birdcoder-terminal/src/type-bridges/sdkwork-terminal-shell.d.ts"
-      ],
-      "@sdkwork/terminal-infrastructure": [
-        "packages/sdkwork-birdcoder-terminal/src/type-bridges/sdkwork-terminal-infrastructure.d.ts"
-      ],
       "@sdkwork/terminal-*": [
         "../sdkwork-terminal/packages/sdkwork-terminal-*/src"
+      ],
+      "@sdkwork/terminal-shell": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-shell/src"
+      ],
+      "@sdkwork/terminal-shell/*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-shell/src/*"
+      ],
+      "@sdkwork/terminal-infrastructure": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src"
+      ],
+      "@sdkwork/terminal-infrastructure/*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/*"
       ],
       "@sdkwork/terminal-core": [
         "../sdkwork-terminal/packages/sdkwork-terminal-core/src"

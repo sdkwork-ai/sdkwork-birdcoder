@@ -1,7 +1,7 @@
 import { FileExplorer, ResizeHandle, type FileNode } from '@sdkwork/birdcoder-ui';
 import { UniversalChat } from '@sdkwork/birdcoder-ui/chat';
 import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-types';
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { CodeEditorSurface } from './CodeEditorSurface';
 
 interface CodeEditorWorkspacePanelProps {
@@ -42,6 +42,87 @@ interface CodeEditorWorkspacePanelProps {
   onCreateRootFile: () => void;
   getLanguageFromPath: (path: string) => string;
 }
+
+interface WorkspaceChatProps {
+  chatEmptyState?: ReactNode;
+  inputValue: string;
+  isSending: boolean;
+  messages: BirdCoderChatMessage[];
+  selectedCodingSessionId?: string | null;
+  selectedEngineId: string;
+  selectedModelId: string;
+  onDeleteMessage: (messageId: string) => void;
+  onEditMessage: (messageId: string) => void;
+  onInputValueChange: (value: string) => void;
+  onRegenerateMessage: () => void;
+  onRestoreMessage: (messageId: string) => void;
+  onSelectedEngineIdChange: (engineId: string) => void;
+  onSelectedModelIdChange: (modelId: string) => void;
+  onSendMessage: () => void | Promise<void>;
+  onStopSending: () => void;
+  onViewChanges: (file: FileChange) => void;
+}
+
+function equalWorkspaceChatProps(
+  left: WorkspaceChatProps,
+  right: WorkspaceChatProps,
+): boolean {
+  return (
+    Boolean(left.chatEmptyState) === Boolean(right.chatEmptyState) &&
+    left.inputValue === right.inputValue &&
+    left.isSending === right.isSending &&
+    left.messages === right.messages &&
+    left.selectedCodingSessionId === right.selectedCodingSessionId &&
+    left.selectedEngineId === right.selectedEngineId &&
+    left.selectedModelId === right.selectedModelId
+  );
+}
+
+const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel({
+  chatEmptyState,
+  inputValue,
+  isSending,
+  messages,
+  selectedCodingSessionId,
+  selectedEngineId,
+  selectedModelId,
+  onDeleteMessage,
+  onEditMessage,
+  onInputValueChange,
+  onRegenerateMessage,
+  onRestoreMessage,
+  onSelectedEngineIdChange,
+  onSelectedModelIdChange,
+  onSendMessage,
+  onStopSending,
+  onViewChanges,
+}: WorkspaceChatProps) {
+  return (
+    <UniversalChat
+      chatId={selectedCodingSessionId || undefined}
+      messages={messages}
+      inputValue={inputValue}
+      setInputValue={onInputValueChange}
+      onSendMessage={onSendMessage}
+      isSending={isSending}
+      selectedEngineId={selectedEngineId}
+      selectedModelId={selectedModelId}
+      showEngineHeader={false}
+      setSelectedEngineId={onSelectedEngineIdChange}
+      setSelectedModelId={onSelectedModelIdChange}
+      layout="sidebar"
+      onViewChanges={onViewChanges}
+      onRestore={onRestoreMessage}
+      onEditMessage={onEditMessage}
+      onDeleteMessage={onDeleteMessage}
+      onRegenerateMessage={onRegenerateMessage}
+      onStop={onStopSending}
+      emptyState={chatEmptyState}
+    />
+  );
+}, equalWorkspaceChatProps);
+
+CodeEditorWorkspaceChatPanel.displayName = 'CodeEditorWorkspaceChatPanel';
 
 export function CodeEditorWorkspacePanel({
   files,
@@ -108,26 +189,24 @@ export function CodeEditorWorkspacePanel({
       />
       <ResizeHandle direction="horizontal" onResize={onChatResize} />
       <div className="flex min-w-0 max-w-full flex-col shrink-0 overflow-hidden bg-[#0e0e11]" style={{ width: chatWidth }}>
-        <UniversalChat
-          chatId={selectedCodingSessionId || undefined}
+        <CodeEditorWorkspaceChatPanel
+          selectedCodingSessionId={selectedCodingSessionId}
           messages={messages}
+          chatEmptyState={chatEmptyState}
           inputValue={inputValue}
-          setInputValue={onInputValueChange}
-          onSendMessage={onSendMessage}
           isSending={isSending}
           selectedEngineId={selectedEngineId}
           selectedModelId={selectedModelId}
-          showEngineHeader={false}
-          setSelectedEngineId={onSelectedEngineIdChange}
-          setSelectedModelId={onSelectedModelIdChange}
-          layout="sidebar"
+          onInputValueChange={onInputValueChange}
+          onSendMessage={onSendMessage}
+          onSelectedEngineIdChange={onSelectedEngineIdChange}
+          onSelectedModelIdChange={onSelectedModelIdChange}
           onViewChanges={onViewChanges}
-          onRestore={onRestoreMessage}
+          onRestoreMessage={onRestoreMessage}
           onEditMessage={onEditMessage}
           onDeleteMessage={onDeleteMessage}
           onRegenerateMessage={onRegenerateMessage}
-          onStop={onStopSending}
-          emptyState={chatEmptyState}
+          onStopSending={onStopSending}
         />
       </div>
     </div>

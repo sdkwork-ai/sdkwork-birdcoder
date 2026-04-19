@@ -1,14 +1,14 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { TopBar } from '../components/TopBar';
 import {
   buildFileChangeRestorePlan,
+  buildProjectCodingSessionIndex,
   getTerminalProfile,
   globalEventBus,
   hydrateImportedProjectFromAuthority,
   resolveLatestCodingSessionIdForProject,
   resolveCodingSessionLocationInProjects,
-  resolveProjectIdByCodingSessionId,
   importLocalFolderProject,
   rebindLocalFolderProject,
   resolveProjectMountRecoverySource,
@@ -47,7 +47,7 @@ interface CodePageProps {
   onCodingSessionChange?: (codingSessionId: string) => void;
 }
 
-export function CodePage({
+function CodePageComponent({
   workspaceId,
   projectId,
   initialCodingSessionId,
@@ -124,21 +124,40 @@ export function CodePage({
     initialChatWidth: preferences.codeEditorChatWidth,
     updatePreferences,
   });
+  const projectCodingSessionIndex = useMemo(
+    () => buildProjectCodingSessionIndex(projects),
+    [projects],
+  );
+  const resolveProjectById = useCallback(
+    (id: string | null | undefined) => {
+      const normalizedProjectId = id?.trim() ?? '';
+      return normalizedProjectId
+        ? projectCodingSessionIndex.projectsById.get(normalizedProjectId) ?? null
+        : null;
+    },
+    [projectCodingSessionIndex],
+  );
+  const resolveCodingSessionLocation = useCallback(
+    (id: string | null | undefined) => {
+      const normalizedCodingSessionId = id?.trim() ?? '';
+      return normalizedCodingSessionId
+        ? projectCodingSessionIndex.codingSessionLocationsById.get(normalizedCodingSessionId) ?? null
+        : null;
+    },
+    [projectCodingSessionIndex],
+  );
 
   // Determine the current project ID based on selected thread, or the prop
-  const selectedCodingSessionLocation = resolveCodingSessionLocationInProjects(
-    projects,
-    selectedCodingSessionId,
-  );
-  const threadProjectId =
-    selectedCodingSessionLocation?.project.id ??
-    resolveProjectIdByCodingSessionId(projects, selectedCodingSessionId);
+  const selectedCodingSessionLocation =
+    resolveCodingSessionLocation(selectedCodingSessionId) ??
+    resolveCodingSessionLocationInProjects(projects, selectedCodingSessionId);
+  const threadProjectId = selectedCodingSessionLocation?.project.id ?? '';
   const normalizedProjectId = projectId?.trim() ?? '';
   const normalizedThreadProjectId = threadProjectId?.trim() ?? '';
   const currentProjectId = normalizedThreadProjectId || normalizedProjectId;
   const currentProject =
     selectedCodingSessionLocation?.project ??
-    projects.find((project) => project.id === currentProjectId);
+    resolveProjectById(currentProjectId);
   const notifyProjectChange = useCallback((nextProjectId: string) => {
     if (!onProjectChange) {
       return;
@@ -164,11 +183,7 @@ export function CodePage({
 
     const nextProjectId =
       options?.projectId?.trim() ||
-      projects.find((project) =>
-        project.codingSessions.some(
-          (codingSession) => codingSession.id === normalizedCodingSessionId,
-        ),
-      )?.id?.trim() ||
+      resolveCodingSessionLocation(normalizedCodingSessionId)?.project.id?.trim() ||
       '';
 
     if (
@@ -184,7 +199,7 @@ export function CodePage({
     }
 
     setSelectedThreadId(normalizedCodingSessionId);
-  }, [currentProjectId, notifyProjectChange, projects, selectedCodingSessionId]);
+  }, [currentProjectId, notifyProjectChange, resolveCodingSessionLocation, selectedCodingSessionId]);
   const {
     runConfigurations,
     runConfigurationDraft,
@@ -255,24 +270,23 @@ export function CodePage({
 
     const hasSelectedCodingSession =
       !!selectedCodingSessionId &&
-      projects.some((project) =>
-        project.codingSessions.some((codingSession) => codingSession.id === selectedCodingSessionId),
-      );
+      !!resolveCodingSessionLocation(selectedCodingSessionId);
     if (hasSelectedCodingSession) {
       return;
     }
 
     if (
       normalizedInitialCodingSessionId !== selectedCodingSessionId &&
-      projects.some((project) =>
-        project.codingSessions.some(
-          (codingSession) => codingSession.id === normalizedInitialCodingSessionId,
-        ),
-      )
+      !!resolveCodingSessionLocation(normalizedInitialCodingSessionId)
     ) {
       handleSelectCodingSession(normalizedInitialCodingSessionId);
     }
-  }, [handleSelectCodingSession, initialCodingSessionId, projects, selectedCodingSessionId]);
+  }, [
+    handleSelectCodingSession,
+    initialCodingSessionId,
+    resolveCodingSessionLocation,
+    selectedCodingSessionId,
+  ]);
 
   useEffect(() => {
     const nextCodingSessionId = selectedCodingSessionId ?? '';
@@ -292,13 +306,11 @@ export function CodePage({
 
     if (
       selectedCodingSessionId &&
-      !projects.some((project) =>
-        project.codingSessions.some((codingSession) => codingSession.id === selectedCodingSessionId),
-      )
+      !resolveCodingSessionLocation(selectedCodingSessionId)
     ) {
       setSelectedThreadId(null);
     }
-  }, [hasFetchedProjects, projects, selectedCodingSessionId]);
+  }, [hasFetchedProjects, resolveCodingSessionLocation, selectedCodingSessionId]);
 
   useCodeWorkbenchCommands({
     projects,
@@ -457,20 +469,16 @@ export function CodePage({
     },
     projectService,
     resolveCodingSessionTitle: (codingSessionId: string) =>
-      projects
-        .flatMap((project) => project.codingSessions)
-        .find((codingSession) => codingSession.id === codingSessionId)?.title ?? codingSessionId,
+      resolveCodingSessionLocation(codingSessionId)?.codingSession.title ?? codingSessionId,
     resolveProjectName: (targetProjectId: string) =>
-      projects.find((project) => project.id === targetProjectId)?.name ?? targetProjectId,
+      resolveProjectById(targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
     workspaceId,
   });
 
   const handleRenameThread = async (threadId: string, newName?: string) => {
     if (newName && newName.trim()) {
-      const project = projects.find((candidate) =>
-        candidate.codingSessions.some((codingSession) => codingSession.id === threadId),
-      );
+      const project = resolveCodingSessionLocation(threadId)?.project;
       if (project) {
         await renameCodingSession(project.id, threadId, newName.trim());
       }
@@ -482,9 +490,7 @@ export function CodePage({
   };
 
   const executeDeleteThread = async (threadId: string) => {
-    const project = projects.find((candidate) =>
-      candidate.codingSessions.some((codingSession) => codingSession.id === threadId),
-    );
+    const project = resolveCodingSessionLocation(threadId)?.project;
     if (project) {
       await deleteCodingSession(project.id, threadId);
       if (selectedCodingSessionId === threadId) {
@@ -506,7 +512,7 @@ export function CodePage({
 
   const executeDeleteProject = async (projectId: string) => {
     await deleteProject(projectId);
-    const project = projects.find(p => p.id === projectId);
+    const project = resolveProjectById(projectId);
     if (
       project &&
       project.codingSessions.some((codingSession) => codingSession.id === selectedCodingSessionId)
@@ -627,7 +633,7 @@ export function CodePage({
   };
 
   const handleArchiveProject = async (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
+    const project = resolveProjectById(projectId);
     if (project) {
       await updateProject(projectId, { archived: !project.archived });
       addToast(`${!project.archived ? 'Archived' : 'Unarchived'} project: ${project.name}`, 'info');
@@ -635,7 +641,7 @@ export function CodePage({
   };
 
   const handleCopyWorkingDirectory = (projectId: string) => {
-    const target = resolveProjectActionTarget(projects.find((project) => project.id === projectId));
+    const target = resolveProjectActionTarget(resolveProjectById(projectId));
     if (!target) {
       return;
     }
@@ -645,7 +651,7 @@ export function CodePage({
   };
 
   const handleCopyProjectPath = (projectId: string) => {
-    const target = resolveProjectActionTarget(projects.find((project) => project.id === projectId));
+    const target = resolveProjectActionTarget(resolveProjectById(projectId));
     if (!target) {
       return;
     }
@@ -655,7 +661,7 @@ export function CodePage({
   };
 
   const handleOpenInTerminal = (projectId: string, profileId?: string) => {
-    const target = resolveProjectActionTarget(projects.find((project) => project.id === projectId));
+    const target = resolveProjectActionTarget(resolveProjectById(projectId));
     if (!target) {
       return;
     }
@@ -676,7 +682,7 @@ export function CodePage({
   };
 
   const handleOpenInFileExplorer = (projectId: string) => {
-    const target = resolveProjectActionTarget(projects.find((project) => project.id === projectId));
+    const target = resolveProjectActionTarget(resolveProjectById(projectId));
     if (!target) {
       return;
     }
@@ -685,11 +691,10 @@ export function CodePage({
   };
 
   const handlePinThread = async (threadId: string) => {
-    const project = projects.find((candidate) =>
-      candidate.codingSessions.some((codingSession) => codingSession.id === threadId),
-    );
+    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+    const project = resolvedThreadLocation?.project;
     if (project) {
-      const thread = project.codingSessions.find((codingSession) => codingSession.id === threadId);
+      const thread = resolvedThreadLocation?.codingSession;
       if (thread) {
         await updateCodingSession(project.id, threadId, { pinned: !thread.pinned });
         addToast(
@@ -703,11 +708,10 @@ export function CodePage({
   };
 
   const handleArchiveThread = async (threadId: string) => {
-    const project = projects.find((candidate) =>
-      candidate.codingSessions.some((codingSession) => codingSession.id === threadId),
-    );
+    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+    const project = resolvedThreadLocation?.project;
     if (project) {
-      const thread = project.codingSessions.find((codingSession) => codingSession.id === threadId);
+      const thread = resolvedThreadLocation?.codingSession;
       if (!thread) {
         return;
       }
@@ -721,11 +725,10 @@ export function CodePage({
   };
 
   const handleMarkThreadUnread = async (threadId: string) => {
-    const project = projects.find((candidate) =>
-      candidate.codingSessions.some((codingSession) => codingSession.id === threadId),
-    );
+    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+    const project = resolvedThreadLocation?.project;
     if (project) {
-      const thread = project.codingSessions.find((codingSession) => codingSession.id === threadId);
+      const thread = resolvedThreadLocation?.codingSession;
       if (thread) {
         await updateCodingSession(project.id, threadId, { unread: !thread.unread });
         addToast(
@@ -740,9 +743,7 @@ export function CodePage({
 
   const handleCopyThreadWorkingDirectory = (threadId: string) => {
     const target = resolveProjectActionTarget(
-      projects.find((project) =>
-        project.codingSessions.some((codingSession) => codingSession.id === threadId),
-      ),
+      resolveCodingSessionLocation(threadId)?.project,
     );
     if (!target) {
       return;
@@ -764,9 +765,8 @@ export function CodePage({
   };
 
   const handleForkThreadLocal = async (threadId: string) => {
-    const project = projects.find((candidate) =>
-      candidate.codingSessions.some((codingSession) => codingSession.id === threadId),
-    );
+    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+    const project = resolvedThreadLocation?.project;
     if (project) {
       try {
         const newThread = await forkCodingSession(project.id, threadId);
@@ -784,15 +784,14 @@ export function CodePage({
   };
 
   const handleForkThreadNewTree = async (threadId: string) => {
-    const project = projects.find((candidate) =>
-      candidate.codingSessions.some((codingSession) => codingSession.id === threadId),
-    );
+    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+    const project = resolvedThreadLocation?.project;
     if (project) {
       try {
         const newThread = await forkCodingSession(
           project.id,
           threadId,
-          `${project.codingSessions.find((codingSession) => codingSession.id === threadId)?.title} (New Tree)`,
+          `${resolvedThreadLocation?.codingSession.title} (New Tree)`,
         );
         handleSelectCodingSession(newThread.id, { projectId: project.id });
         addToast(
@@ -808,9 +807,7 @@ export function CodePage({
   };
 
   const handleEditMessage = (threadId: string, messageId: string) => {
-    const thread = projects
-      .flatMap((project) => project.codingSessions)
-      .find((codingSession) => codingSession.id === threadId);
+    const thread = resolveCodingSessionLocation(threadId)?.codingSession;
     const msg = thread?.messages?.find(m => m.id === messageId);
     if (msg) {
       setInputValue(msg.content);
@@ -822,9 +819,7 @@ export function CodePage({
   };
 
   const executeDeleteMessage = async (threadId: string, messageId: string) => {
-    const project = projects.find((candidate) =>
-      candidate.codingSessions.some((codingSession) => codingSession.id === threadId),
-    );
+    const project = resolveCodingSessionLocation(threadId)?.project;
     if (project) {
       try {
         await deleteCodingSessionMessage(project.id, threadId, messageId);
@@ -837,11 +832,10 @@ export function CodePage({
   };
 
   const handleRegenerateMessage = async (threadId: string) => {
-    const project = projects.find((candidate) =>
-      candidate.codingSessions.some((codingSession) => codingSession.id === threadId),
-    );
+    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+    const project = resolvedThreadLocation?.project;
     if (project) {
-      const thread = project.codingSessions.find((codingSession) => codingSession.id === threadId);
+      const thread = resolvedThreadLocation?.codingSession;
       if (thread && thread.messages && thread.messages.length > 0) {
         // Find the last user message
         const lastUserMsgIndex = [...thread.messages].reverse().findIndex(m => m.role === 'user');
@@ -877,9 +871,7 @@ export function CodePage({
   };
 
   const handleRestoreMessage = async (threadId: string, messageId: string) => {
-    const thread = projects
-      .flatMap((project) => project.codingSessions)
-      .find((codingSession) => codingSession.id === threadId);
+    const thread = resolveCodingSessionLocation(threadId)?.codingSession;
     const msg = thread?.messages?.find(m => m.id === messageId);
     const restorePlan = buildFileChangeRestorePlan(msg?.fileChanges);
     if (!restorePlan.restorable) {
@@ -1019,8 +1011,10 @@ export function CodePage({
   const handleProjectSelect = (id: string | null) => {
     if (id) {
       notifyProjectChange(id);
-      const targetProject = projects.find((project) => project.id === id);
-      const targetLatestCodingSessionId = resolveLatestCodingSessionIdForProject(projects, id);
+      const targetProject = resolveProjectById(id);
+      const targetLatestCodingSessionId =
+        projectCodingSessionIndex.latestCodingSessionIdByProjectId.get(id) ??
+        resolveLatestCodingSessionIdForProject(projects, id);
       const threadBelongsToProject =
         !!selectedCodingSessionId &&
         !!targetProject?.codingSessions.some(
@@ -1270,4 +1264,7 @@ export function CodePage({
     </div>
   );
 }
+
+export const CodePage = memo(CodePageComponent);
+CodePage.displayName = 'CodePage';
 

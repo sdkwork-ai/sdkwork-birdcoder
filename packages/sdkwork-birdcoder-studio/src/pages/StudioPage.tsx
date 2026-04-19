@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { memo, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   buildFileChangeRestorePlan,
   buildTerminalProfileBlockedMessage,
+  buildProjectCodingSessionIndex,
   getDefaultRunConfigurations,
   globalEventBus,
   hydrateImportedProjectFromAuthority,
@@ -9,7 +10,6 @@ import {
   rebindLocalFolderProject,
   resolveLatestCodingSessionIdForProject,
   resolveCodingSessionLocationInProjects,
-  resolveProjectIdByCodingSessionId,
   resolveProjectMountRecoverySource,
   resolveRunConfigurationTerminalLaunch,
   useFileSystem,
@@ -90,7 +90,7 @@ function StudioSessionTranscriptLoadingState() {
   );
 }
 
-export function StudioPage({
+function StudioPageComponent({
   workspaceId,
   projectId,
   initialCodingSessionId,
@@ -140,7 +140,7 @@ export function StudioPage({
   const { collaborationService, coreReadService, projectService } = useIDEServices();
   const { user } = useAuth();
   const { addToast } = useToast();
-  const [selectedCodingSessionId, setSelectedThreadId] = useState<string>('');
+  const [sessionId, setSessionId] = useState<string>('');
   const [selectionRefreshToken, setSelectionRefreshToken] = useState(0);
   const pendingProjectChangeIdRef = useRef<string | null>(null);
   const [menuActiveProjectId, setMenuActiveProjectId] = useState<string>('');
@@ -172,13 +172,32 @@ export function StudioPage({
   const [previewIsLandscape, setPreviewIsLandscape] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
   const [previewUrl, setPreviewUrl] = useState('about:blank');
-  const selectedCodingSessionLocation = resolveCodingSessionLocationInProjects(
-    projects,
-    selectedCodingSessionId,
+  const sessionIndex = useMemo(
+    () => buildProjectCodingSessionIndex(projects),
+    [projects],
   );
-  const threadProjectId =
-    selectedCodingSessionLocation?.project.id ??
-    resolveProjectIdByCodingSessionId(projects, selectedCodingSessionId);
+  const resolveProjectById = useCallback(
+    (id: string | null | undefined) => {
+      const normalizedProjectId = id?.trim() ?? '';
+      return normalizedProjectId
+        ? sessionIndex.projectsById.get(normalizedProjectId) ?? null
+        : null;
+    },
+    [sessionIndex],
+  );
+  const resolveCodingSessionLocation = useCallback(
+    (id: string | null | undefined) => {
+      const normalizedCodingSessionId = id?.trim() ?? '';
+      return normalizedCodingSessionId
+        ? sessionIndex.codingSessionLocationsById.get(normalizedCodingSessionId) ?? null
+        : null;
+    },
+    [sessionIndex],
+  );
+  const selectedCodingSessionLocation =
+    resolveCodingSessionLocation(sessionId) ??
+    resolveCodingSessionLocationInProjects(projects, sessionId);
+  const threadProjectId = selectedCodingSessionLocation?.project.id ?? '';
   const normalizedProjectId = projectId?.trim() ?? '';
   const normalizedThreadProjectId = threadProjectId?.trim() ?? '';
   const currentProjectId = normalizedThreadProjectId || normalizedProjectId;
@@ -218,10 +237,10 @@ export function StudioPage({
 
     const nextProjectId =
       options?.projectId?.trim() ||
-      resolveProjectIdByCodingSessionId(projects, normalizedCodingSessionId);
+      (resolveCodingSessionLocation(normalizedCodingSessionId)?.project.id ?? '');
 
     if (
-      normalizedCodingSessionId === selectedCodingSessionId &&
+      normalizedCodingSessionId === sessionId &&
       nextProjectId === currentProjectId
     ) {
       setSelectionRefreshToken((previousState) => previousState + 1);
@@ -233,10 +252,10 @@ export function StudioPage({
       setMenuActiveProjectId(nextProjectId);
     }
 
-    setSelectedThreadId(normalizedCodingSessionId);
-  }, [currentProjectId, notifyProjectChange, projects, selectedCodingSessionId]);
+    setSessionId(normalizedCodingSessionId);
+  }, [currentProjectId, notifyProjectChange, resolveCodingSessionLocation, sessionId]);
   const projectsRef = useRef(projects);
-  const selectedCodingSessionIdRef = useRef(selectedCodingSessionId);
+  const selectedCodingSessionIdRef = useRef(sessionId);
   const currentProjectIdRef = useRef(currentProjectId);
   const runConfigurationsRef = useRef(runConfigurations);
   const defaultWorkingDirectoryRef = useRef(preferences.defaultWorkingDirectory);
@@ -245,7 +264,7 @@ export function StudioPage({
 
   useEffect(() => {
     projectsRef.current = projects;
-    selectedCodingSessionIdRef.current = selectedCodingSessionId;
+    selectedCodingSessionIdRef.current = sessionId;
     currentProjectIdRef.current = currentProjectId;
     runConfigurationsRef.current = runConfigurations;
     defaultWorkingDirectoryRef.current = preferences.defaultWorkingDirectory;
@@ -258,7 +277,7 @@ export function StudioPage({
     projects,
     runConfigurations,
     selectCodingSession,
-    selectedCodingSessionId,
+    sessionId,
   ]);
 
   useEffect(() => {
@@ -316,7 +335,7 @@ export function StudioPage({
     projects,
     initialCodingSessionId,
     onCodingSessionChange,
-    selectedCodingSessionId,
+    selectedCodingSessionId: sessionId,
     selectCodingSession,
   });
 
@@ -326,26 +345,24 @@ export function StudioPage({
     }
 
     if (projects.length > 0) {
-      if (!menuActiveProjectId || !projects.find(p => p.id === menuActiveProjectId)) {
+      if (!menuActiveProjectId || !resolveProjectById(menuActiveProjectId)) {
         setMenuActiveProjectId(projects[0].id);
       }
-      if (currentProjectId && !projects.find(p => p.id === currentProjectId)) {
+      if (currentProjectId && !resolveProjectById(currentProjectId)) {
         notifyProjectChange('');
-        setSelectedThreadId('');
+        setSessionId('');
       } else if (
-        selectedCodingSessionId &&
-        !projects.some((project) =>
-          project.codingSessions.some((codingSession) => codingSession.id === selectedCodingSessionId),
-        )
+        sessionId &&
+        !resolveCodingSessionLocation(sessionId)
       ) {
-        setSelectedThreadId('');
+        setSessionId('');
       }
     } else {
       setMenuActiveProjectId('');
       if (currentProjectId) {
         notifyProjectChange('');
       }
-      setSelectedThreadId('');
+      setSessionId('');
     }
   }, [
     currentProjectId,
@@ -353,41 +370,43 @@ export function StudioPage({
     menuActiveProjectId,
     notifyProjectChange,
     projects,
-    selectedCodingSessionId,
+    resolveCodingSessionLocation,
+    resolveProjectById,
+    sessionId,
   ]);
 
   const [isSending, setIsSending] = useState(false);
 
-  const currentThread = selectedCodingSessionLocation?.codingSession;
-  const messages = currentThread?.messages || [];
-  const effectiveSelectedEngineId = currentThread?.engineId ?? selectedEngineId;
-  const effectiveSelectedModelId = currentThread?.modelId ?? selectedModelId;
+  const thread = selectedCodingSessionLocation?.codingSession;
+  const messages = thread?.messages || [];
+  const effectiveSelectedEngineId = thread?.engineId ?? selectedEngineId;
+  const effectiveSelectedModelId = thread?.modelId ?? selectedModelId;
   const currentProject =
     selectedCodingSessionLocation?.project ??
-    projects.find((project) => project.id === currentProjectId);
+    resolveProjectById(currentProjectId);
   const handleSelectedEngineChange = useCallback(
     async (engineId: string) => {
       setSelectedEngineId(engineId);
 
-      if (!currentProjectId || !selectedCodingSessionId) {
+      if (!currentProjectId || !sessionId) {
         return;
       }
 
       const nextModelId = normalizeWorkbenchCodeModelId(
         engineId,
-        currentThread?.modelId ?? selectedModelId,
+        thread?.modelId ?? selectedModelId,
         preferences,
       );
-      await updateCodingSession(currentProjectId, selectedCodingSessionId, {
+      await updateCodingSession(currentProjectId, sessionId, {
         engineId,
         modelId: nextModelId,
       });
     },
     [
       currentProjectId,
-      currentThread?.modelId,
+      thread?.modelId,
       preferences,
-      selectedCodingSessionId,
+      sessionId,
       selectedModelId,
       setSelectedEngineId,
       updateCodingSession,
@@ -397,20 +416,20 @@ export function StudioPage({
     async (modelId: string, engineId?: string) => {
       setSelectedModelId(modelId);
 
-      if (!currentProjectId || !selectedCodingSessionId) {
+      if (!currentProjectId || !sessionId) {
         return;
       }
 
-      const nextEngineId = engineId ?? currentThread?.engineId ?? selectedEngineId;
-      await updateCodingSession(currentProjectId, selectedCodingSessionId, {
+      const nextEngineId = engineId ?? thread?.engineId ?? selectedEngineId;
+      await updateCodingSession(currentProjectId, sessionId, {
         engineId: nextEngineId,
         modelId,
       });
     },
     [
       currentProjectId,
-      currentThread?.engineId,
-      selectedCodingSessionId,
+      thread?.engineId,
+      sessionId,
       selectedEngineId,
       setSelectedModelId,
       updateCodingSession,
@@ -425,7 +444,7 @@ export function StudioPage({
 
     notifyProjectChange(projectId);
     setMenuActiveProjectId(projectId);
-    setSelectedThreadId('');
+    setSessionId('');
   };
   const syncImportedProjectInBackground = (projectId: string) => {
     void (async () => {
@@ -447,7 +466,7 @@ export function StudioPage({
         } else {
           notifyProjectChange(projectId);
           setMenuActiveProjectId(projectId);
-          setSelectedThreadId('');
+          setSessionId('');
         }
       } catch (error) {
         console.error('Failed to refresh imported project sessions', error);
@@ -491,7 +510,7 @@ export function StudioPage({
   ) => {
     const normalizedTargetProjectId = targetProjectId.trim();
     const normalizedTargetCodingSessionId = targetCodingSessionId.trim();
-    const normalizedSelectedCodingSessionId = selectedCodingSessionId.trim();
+    const normalizedSelectedCodingSessionId = sessionId.trim();
 
     if (
       normalizedTargetCodingSessionId &&
@@ -554,15 +573,15 @@ export function StudioPage({
     coreReadService,
     projectService,
     selectionRefreshToken,
-    selectedCodingSession: currentThread,
-    selectedCodingSessionId,
+    selectedCodingSession: thread,
+    selectedCodingSessionId: sessionId,
     selectedProject: selectedCodingSessionLocation?.project ?? null,
     workspaceId,
   });
   const isSelectedCodingSessionHydrating = Boolean(
-    selectedCodingSessionId &&
+    sessionId &&
     isSelectedCodingSessionMessagesLoading &&
-    currentThread &&
+    thread &&
     messages.length === 0
   );
   const {
@@ -574,7 +593,7 @@ export function StudioPage({
     addToast,
     coreReadService,
     getPreservedSelection: () => ({
-      codingSessionId: selectedCodingSessionId,
+      codingSessionId: sessionId,
       projectId: currentProjectId,
     }),
     messages: {
@@ -587,11 +606,9 @@ export function StudioPage({
     },
     projectService,
     resolveCodingSessionTitle: (codingSessionId: string) =>
-      projects
-        .flatMap((project) => project.codingSessions)
-        .find((codingSession) => codingSession.id === codingSessionId)?.title ?? codingSessionId,
+      resolveCodingSessionLocation(codingSessionId)?.codingSession.title ?? codingSessionId,
     resolveProjectName: (targetProjectId: string) =>
-      projects.find((project) => project.id === targetProjectId)?.name ?? targetProjectId,
+      resolveProjectById(targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
     workspaceId,
   });
@@ -858,9 +875,7 @@ export function StudioPage({
   };
 
   const handleEditMessage = (threadId: string, messageId: string) => {
-    const thread = projects
-      .flatMap((project) => project.codingSessions)
-      .find((codingSession) => codingSession.id === threadId);
+    const thread = resolveCodingSessionLocation(threadId)?.codingSession;
     const msg = thread?.messages?.find(m => m.id === messageId);
     if (msg) {
       setInputValue(msg.content);
@@ -872,9 +887,7 @@ export function StudioPage({
   };
 
   const executeDeleteMessage = async (threadId: string, messageId: string) => {
-    const project = projects.find((candidate) =>
-      candidate.codingSessions.some((codingSession) => codingSession.id === threadId),
-    );
+    const project = resolveCodingSessionLocation(threadId)?.project;
     if (project) {
       try {
         await deleteCodingSessionMessage(project.id, threadId, messageId);
@@ -887,11 +900,10 @@ export function StudioPage({
   };
 
   const handleRegenerateMessage = async (threadId: string) => {
-    const project = projects.find((candidate) =>
-      candidate.codingSessions.some((codingSession) => codingSession.id === threadId),
-    );
+    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+    const project = resolvedThreadLocation?.project;
     if (project) {
-      const thread = project.codingSessions.find((codingSession) => codingSession.id === threadId);
+      const thread = resolvedThreadLocation?.codingSession;
       if (!thread) return;
       
       const userMessages = thread.messages.filter(m => m.role === 'user');
@@ -914,9 +926,7 @@ export function StudioPage({
   };
 
   const handleRestoreMessage = async (threadId: string, messageId: string) => {
-    const thread = projects
-      .flatMap((project) => project.codingSessions)
-      .find((codingSession) => codingSession.id === threadId);
+    const thread = resolveCodingSessionLocation(threadId)?.codingSession;
     const msg = thread?.messages?.find(m => m.id === messageId);
     const restorePlan = buildFileChangeRestorePlan(msg?.fileChanges);
     if (!restorePlan.restorable) {
@@ -941,7 +951,7 @@ export function StudioPage({
     if (!trimmedContent || isSending) return;
     
     let projectIdToUse = currentProjectId;
-    let currentThreadId = selectedCodingSessionId;
+    let threadId = sessionId;
 
     if (!projectIdToUse) {
       if (projects.length === 0) {
@@ -957,12 +967,12 @@ export function StudioPage({
       }
     }
 
-    if (!currentThreadId) {
+    if (!threadId) {
       const newTitle =
         trimmedContent.slice(0, 20) + (trimmedContent.length > 20 ? '...' : '');
       const newThread = await createCodingSessionWithSelection(projectIdToUse, newTitle);
-      currentThreadId = newThread.id;
-      selectCodingSession(currentThreadId, { projectId: projectIdToUse });
+      threadId = newThread.id;
+      selectCodingSession(threadId, { projectId: projectIdToUse });
     }
 
     setInputValue('');
@@ -971,14 +981,14 @@ export function StudioPage({
       const context = {
         workspaceId,
         projectId: projectIdToUse,
-        threadId: currentThreadId,
+        threadId,
         currentFile: selectedFile ? {
           path: selectedFile,
           content: fileContent,
           language: getLanguageFromPath(selectedFile)
         } : undefined
       };
-      await sendMessage(projectIdToUse, currentThreadId, trimmedContent, context);
+      await sendMessage(projectIdToUse, threadId, trimmedContent, context);
     } finally {
       setIsSending(false);
     }
@@ -1007,6 +1017,25 @@ export function StudioPage({
     isLandscape: previewIsLandscape,
     refreshKey: previewKey,
   };
+  const memoizedDevicePreviewProps = useMemo(
+    () => devicePreviewProps,
+    [
+      devicePreviewProps.appPlatform,
+      devicePreviewProps.deviceModel,
+      devicePreviewProps.isLandscape,
+      devicePreviewProps.mpPlatform,
+      devicePreviewProps.platform,
+      devicePreviewProps.refreshKey,
+      devicePreviewProps.url,
+      devicePreviewProps.webDevice,
+    ],
+  );
+  const handleStudioSidebarResize = useCallback((delta: number) => {
+    setChatWidth((previousState) => Math.max(300, Math.min(1280, previousState + delta)));
+  }, []);
+  const handleStudioTerminalResize = useCallback((delta: number) => {
+    setTerminalHeight((previousState) => Math.max(100, Math.min(800, previousState - delta)));
+  }, []);
 
   const handleRunTaskExecution = (configuration: RunConfigurationRecord) => {
     setIsRunTaskVisible(false);
@@ -1183,7 +1212,7 @@ export function StudioPage({
         width={chatWidth}
         projects={filteredProjects}
         currentProjectId={currentProjectId}
-        selectedCodingSessionId={selectedCodingSessionId}
+        selectedCodingSessionId={sessionId}
         menuActiveProjectId={menuActiveProjectId}
         projectSearchQuery={projectSearchQuery}
         messages={messages}
@@ -1197,7 +1226,7 @@ export function StudioPage({
         selectedEngineId={effectiveSelectedEngineId}
         selectedModelId={effectiveSelectedModelId}
         disabled={!currentProjectId}
-        onResize={(delta) => setChatWidth((previousState) => Math.max(300, Math.min(1280, previousState + delta)))}
+        onResize={handleStudioSidebarResize}
         onProjectSearchQueryChange={setProjectSearchQuery}
         onMenuActiveProjectIdChange={setMenuActiveProjectId}
         onInputValueChange={setInputValue}
@@ -1217,23 +1246,23 @@ export function StudioPage({
           setActiveTab('code');
         }}
         onEditMessage={(messageId) => {
-          if (selectedCodingSessionId) {
-            handleEditMessage(selectedCodingSessionId, messageId);
+          if (sessionId) {
+            handleEditMessage(sessionId, messageId);
           }
         }}
         onDeleteMessage={(messageId) => {
-          if (selectedCodingSessionId) {
-            void handleDeleteMessage(selectedCodingSessionId, messageId);
+          if (sessionId) {
+            void handleDeleteMessage(sessionId, messageId);
           }
         }}
         onRegenerateMessage={() => {
-          if (selectedCodingSessionId) {
-            void handleRegenerateMessage(selectedCodingSessionId);
+          if (sessionId) {
+            void handleRegenerateMessage(sessionId);
           }
         }}
         onRestoreMessage={(messageId) => {
-          if (selectedCodingSessionId) {
-            void handleRestoreMessage(selectedCodingSessionId, messageId);
+          if (sessionId) {
+            void handleRestoreMessage(sessionId, messageId);
           }
         }}
         onStopSending={() => setIsSending(false)}
@@ -1305,11 +1334,11 @@ export function StudioPage({
           <div className="flex-1 flex overflow-hidden">
             {activeTab === 'preview' ? (
               <StudioPreviewPanel
-                devicePreviewProps={devicePreviewProps}
+                devicePreviewProps={memoizedDevicePreviewProps}
               />
             ) : activeTab === 'simulator' ? (
               <StudioSimulatorPanel
-                devicePreviewProps={devicePreviewProps}
+                devicePreviewProps={memoizedDevicePreviewProps}
               />
             ) : (
               <StudioCodeWorkspacePanel
@@ -1343,9 +1372,7 @@ export function StudioPage({
             terminalRequest={terminalRequest}
             workspaceId={workspaceId}
             projectId={currentProjectId}
-            onResize={(delta) =>
-              setTerminalHeight((previousState) => Math.max(100, Math.min(800, previousState - delta)))
-            }
+            onResize={handleStudioTerminalResize}
           />
         </div>
       </div>
@@ -1391,4 +1418,7 @@ export function StudioPage({
     </div>
   );
 }
+
+export const StudioPage = memo(StudioPageComponent);
+StudioPage.displayName = 'StudioPage';
 

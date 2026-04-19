@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-commons/workbench';
 import { ResizeHandle } from '@sdkwork/birdcoder-ui';
 import { TerminalPage } from '@sdkwork/birdcoder-terminal';
@@ -11,7 +12,40 @@ interface StudioTerminalIntegrationPanelProps {
   onResize: (delta: number) => void;
 }
 
-export function StudioTerminalIntegrationPanel({
+function areTerminalRequestsEqual(
+  left: TerminalCommandRequest | undefined,
+  right: TerminalCommandRequest | undefined,
+): boolean {
+  if (left === right) {
+    return true;
+  }
+
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return (
+    left.path === right.path &&
+    left.command === right.command &&
+    left.profileId === right.profileId &&
+    left.timestamp === right.timestamp
+  );
+}
+
+function areStudioTerminalIntegrationPanelPropsEqual(
+  left: StudioTerminalIntegrationPanelProps,
+  right: StudioTerminalIntegrationPanelProps,
+): boolean {
+  return (
+    left.isOpen === right.isOpen &&
+    left.height === right.height &&
+    left.workspaceId === right.workspaceId &&
+    left.projectId === right.projectId &&
+    areTerminalRequestsEqual(left.terminalRequest, right.terminalRequest)
+  );
+}
+
+export const StudioTerminalIntegrationPanel = memo(function StudioTerminalIntegrationPanel({
   isOpen,
   height,
   terminalRequest,
@@ -34,4 +68,6 @@ export function StudioTerminalIntegrationPanel({
       </div>
     </>
   );
-}
+}, areStudioTerminalIntegrationPanelPropsEqual);
+
+StudioTerminalIntegrationPanel.displayName = 'StudioTerminalIntegrationPanel';

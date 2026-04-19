@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Button,
   DEVICE_MODELS,
@@ -50,18 +50,25 @@ function StageHeaderSelect({
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
+  const handlePointerDown = useCallback((event: MouseEvent) => {
+      if (!isOpen) {
+        return;
+      }
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
-    };
+    }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
 
     document.addEventListener('mousedown', handlePointerDown);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
     };
-  }, []);
+  }, [handlePointerDown, isOpen]);
 
   const selectedOption = options.find((option) => option.value === value) ?? options[0];
   if (!selectedOption) {
@@ -161,7 +168,26 @@ function resolveSimulatorTargetLabel(
   return `app.${previewAppPlatform} / simulator`;
 }
 
-export function StudioStageHeader({
+function areStudioStageHeaderPropsEqual(
+  left: StudioStageHeaderProps,
+  right: StudioStageHeaderProps,
+): boolean {
+  return (
+    left.activeTab === right.activeTab &&
+    left.previewUrl === right.previewUrl &&
+    left.previewPlatform === right.previewPlatform &&
+    left.previewWebDevice === right.previewWebDevice &&
+    left.previewMpPlatform === right.previewMpPlatform &&
+    left.previewAppPlatform === right.previewAppPlatform &&
+    left.previewDeviceModel === right.previewDeviceModel &&
+    left.previewIsLandscape === right.previewIsLandscape &&
+    left.selectedFile === right.selectedFile &&
+    left.viewingDiffPath === right.viewingDiffPath &&
+    left.isTerminalOpen === right.isTerminalOpen
+  );
+}
+
+export const StudioStageHeader = memo(function StudioStageHeader({
   activeTab,
   previewUrl,
   previewPlatform,
@@ -474,4 +500,6 @@ export function StudioStageHeader({
       </div>
     </div>
   );
-}
+}, areStudioStageHeaderPropsEqual);
+
+StudioStageHeader.displayName = 'StudioStageHeader';
