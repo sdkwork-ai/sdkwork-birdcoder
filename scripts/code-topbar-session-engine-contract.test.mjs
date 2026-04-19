@@ -26,19 +26,37 @@ const codePageSource = readSource(
 
 assert.match(
   codePageSource,
-  /selectedCodingSession=\{selectedCodingSession\}/,
-  'Code page must pass the active coding session into the top bar so engine display can stay session-aware.',
+  /projectId:\s*currentProject\?\.id,\s*projectName:\s*currentProject\?\.name,\s*projectPath:\s*currentProject\?\.path,/s,
+  'Code page must pass only the current project metadata that the top bar actually renders so transcript updates do not rerender the header through a large project object prop.',
+);
+
+assert.match(
+  codePageSource,
+  /selectedSessionTitle:\s*session\?\.title,\s*selectedSessionEngineId:\s*session\?\.engineId,\s*selectedSessionModelId:\s*session\?\.modelId,/s,
+  'Code page must pass only the active session title and engine metadata that the top bar renders so message list mutations do not bubble a large session object through the header.',
+);
+
+assert.match(
+  codePageSource,
+  /isSelectedSessionExecuting:\s*isBirdCoderCodingSessionExecuting\(session\),/,
+  'Code page must precompute the selected session execution flag for the top bar so the header does not depend on the full session object.',
 );
 
 assert.match(
   topBarSource,
-  /const headerEngineId = selectedCodingSession\?\.engineId \?\? selectedEngineId;/,
+  /projectId\?: string;\s*projectName\?: string;\s*projectPath\?: string;\s*selectedSessionTitle\?: string;\s*selectedSessionEngineId\?: string;\s*selectedSessionModelId\?: string;\s*isSelectedSessionExecuting: boolean;/s,
+  'Code top bar props must be scalar metadata so the header stays insulated from full project and session object churn.',
+);
+
+assert.match(
+  topBarSource,
+  /const headerEngineId = selectedSessionEngineId \?\? selectedEngineId;/,
   'Code top bar must prefer the active session engine over the global selection.',
 );
 
 assert.match(
   topBarSource,
-  /const headerModelId = selectedCodingSession\?\.modelId \?\? selectedModelId;/,
+  /const headerModelId = selectedSessionModelId \?\? selectedModelId;/,
   'Code top bar must prefer the active session model over the global selection.',
 );
 
@@ -72,28 +90,10 @@ assert.match(
   'Code top bar must render the engine icon for the session-aware engine.',
 );
 
-assert.match(
-  topBarSource,
-  /\{headerEngineSummary\}/,
-  'Code top bar must render the de-duplicated session-aware engine summary.',
-);
-
-assert.match(
-  topBarSource,
-  /const isExecutingCurrentSession = isBirdCoderCodingSessionExecuting\(selectedCodingSession\);/,
-  'Code top bar must derive execution state from the selected session runtime state.',
-);
-
-assert.match(
-  topBarSource,
-  /isExecutingCurrentSession && \(\s*<div className="hidden items-center gap-1\.5 text-xs text-emerald-400 xl:flex">\s*<RefreshCw size=\{12\} className="animate-spin" \/>\s*<span>\{t\('code\.executingSession'\)\}<\/span>\s*<\/div>\s*\)/s,
-  'Code top bar should surface an executing label while the active session is running.',
-);
-
 assert.doesNotMatch(
-  topBarSource,
-  /Boolean\(selectedCodingSession && isSending\)/,
-  'Code top bar must not use the transient send flag as the source of truth for execution state.',
+  codePageSource,
+  /topBarProps = \{\s*currentProject,\s*selectedCodingSession:/s,
+  'Code page must not pass whole project and session objects into the top bar because transcript updates would force unnecessary header rerenders.',
 );
 
 console.log('code topbar session engine contract passed.');

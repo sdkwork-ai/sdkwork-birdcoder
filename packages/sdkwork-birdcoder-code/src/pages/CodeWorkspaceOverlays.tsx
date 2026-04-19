@@ -1,7 +1,7 @@
 import type { ProjectMountRecoveryState } from '@sdkwork/birdcoder-commons/workbench';
 import type { FileNode } from '@sdkwork/birdcoder-ui';
 import { AlertCircle, FileCode2, Search, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   collectCodeQuickOpenResults,
@@ -28,7 +28,7 @@ interface CodeWorkspaceOverlaysProps {
   onNotifyNoResults: () => void;
 }
 
-export function CodeWorkspaceOverlays({
+export const CodeWorkspaceOverlays = memo(function CodeWorkspaceOverlays({
   files,
   mountRecoveryState,
   isMountRecoveryActionPending,
@@ -263,4 +263,6 @@ export function CodeWorkspaceOverlays({
       )}
     </>
   );
-}
+});
+
+CodeWorkspaceOverlays.displayName = 'CodeWorkspaceOverlays';

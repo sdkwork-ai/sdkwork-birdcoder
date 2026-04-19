@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Edit, Clock, Zap, Folder, FolderPlus, ChevronDown, ChevronRight, Plus, ListFilter, Check, Trash2, Edit2, Archive, Copy, Pin, Search, X, RefreshCw, MoreHorizontal } from 'lucide-react';
 import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-types';
@@ -75,32 +75,6 @@ function renderSidebarContextMenuPortal(content: React.ReactNode) {
   return createPortal(content, document.body);
 }
 
-function areSidebarCodingSessionInventoriesEqual(
-  left: BirdCoderCodingSession,
-  right: BirdCoderCodingSession,
-): boolean {
-  return (
-    left.id === right.id &&
-    left.workspaceId === right.workspaceId &&
-    left.projectId === right.projectId &&
-    left.title === right.title &&
-    left.status === right.status &&
-    left.hostMode === right.hostMode &&
-    left.engineId === right.engineId &&
-    left.modelId === right.modelId &&
-    left.runtimeStatus === right.runtimeStatus &&
-    left.createdAt === right.createdAt &&
-    left.updatedAt === right.updatedAt &&
-    left.lastTurnAt === right.lastTurnAt &&
-    left.sortTimestamp === right.sortTimestamp &&
-    left.transcriptUpdatedAt === right.transcriptUpdatedAt &&
-    left.displayTime === right.displayTime &&
-    left.pinned === right.pinned &&
-    left.archived === right.archived &&
-    left.unread === right.unread
-  );
-}
-
 function areSidebarProjectInventoriesEqual(
   leftProjects: readonly BirdCoderProject[],
   rightProjects: readonly BirdCoderProject[],
@@ -114,35 +88,8 @@ function areSidebarProjectInventoriesEqual(
   }
 
   for (let projectIndex = 0; projectIndex < leftProjects.length; projectIndex += 1) {
-    const leftProject = leftProjects[projectIndex];
-    const rightProject = rightProjects[projectIndex];
-    if (
-      leftProject.id !== rightProject.id ||
-      leftProject.workspaceId !== rightProject.workspaceId ||
-      leftProject.name !== rightProject.name ||
-      leftProject.description !== rightProject.description ||
-      leftProject.path !== rightProject.path ||
-      leftProject.createdAt !== rightProject.createdAt ||
-      leftProject.updatedAt !== rightProject.updatedAt ||
-      leftProject.archived !== rightProject.archived ||
-      leftProject.codingSessions.length !== rightProject.codingSessions.length
-    ) {
+    if (leftProjects[projectIndex] !== rightProjects[projectIndex]) {
       return false;
-    }
-
-    for (
-      let codingSessionIndex = 0;
-      codingSessionIndex < leftProject.codingSessions.length;
-      codingSessionIndex += 1
-    ) {
-      if (
-        !areSidebarCodingSessionInventoriesEqual(
-          leftProject.codingSessions[codingSessionIndex],
-          rightProject.codingSessions[codingSessionIndex],
-        )
-      ) {
-        return false;
-      }
     }
   }
 
@@ -528,6 +475,7 @@ export const Sidebar = React.memo(function Sidebar({
   const [renamingCodingSessionId, setRenamingCodingSessionId] = useState<string | null>(null);
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const closeFloatingMenus = useCallback(() => {
     setShowFilterMenu(false);
@@ -589,7 +537,7 @@ export const Sidebar = React.memo(function Sidebar({
 
   // Expand projects by default when they are loaded
   useEffect(() => {
-    if (!searchQuery) {
+    if (!deferredSearchQuery) {
       setExpandedProjects(prev => {
         const newExpanded = { ...prev };
         let changed = false;
@@ -602,11 +550,11 @@ export const Sidebar = React.memo(function Sidebar({
         return changed ? newExpanded : prev;
       });
     }
-  }, [projects, searchQuery]);
+  }, [deferredSearchQuery, projects]);
 
   // When search query changes, expand all projects that have matching threads
   useEffect(() => {
-    if (searchQuery) {
+    if (deferredSearchQuery) {
       setExpandedProjects((previousExpandedProjects) => {
         let changed = false;
         const nextExpandedProjects = { ...previousExpandedProjects };
@@ -619,7 +567,7 @@ export const Sidebar = React.memo(function Sidebar({
         return changed ? nextExpandedProjects : previousExpandedProjects;
       });
     }
-  }, [searchQuery, projects]);
+  }, [deferredSearchQuery, projects]);
 
   useEffect(() => {
     setVisibleSessionCountByProjectId((previousState) => {
@@ -759,7 +707,7 @@ export const Sidebar = React.memo(function Sidebar({
     setRootContextMenu({ x, y });
   };
 
-  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
   const codingSessionLookup = useMemo(
     () =>
       new Map(

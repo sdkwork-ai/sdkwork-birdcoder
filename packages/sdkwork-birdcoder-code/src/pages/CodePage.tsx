@@ -76,7 +76,7 @@ function CodePageComponent({
 
   const { addToast } = useToast();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
-  const [selectedCodingSessionId, setSelectedThreadId] = useState<string | null>(null);
+  const [sessionId, setSelectedThreadId] = useState<string | null>(null);
   const [selectionRefreshToken, setSelectionRefreshToken] = useState(0);
   const pendingProjectChangeIdRef = useRef<string | null>(null);
   const [inputValue, setInputValue] = useState('');
@@ -122,7 +122,7 @@ function CodePageComponent({
     initialChatWidth: preferences.codeEditorChatWidth,
     updatePreferences,
   });
-  const projectCodingSessionIndex = useMemo(
+  const sessionIndex = useMemo(
     () => buildProjectCodingSessionIndex(projects),
     [projects],
   );
@@ -130,25 +130,25 @@ function CodePageComponent({
     (id: string | null | undefined) => {
       const normalizedProjectId = id?.trim() ?? '';
       return normalizedProjectId
-        ? projectCodingSessionIndex.projectsById.get(normalizedProjectId) ?? null
+        ? sessionIndex.projectsById.get(normalizedProjectId) ?? null
         : null;
     },
-    [projectCodingSessionIndex],
+    [sessionIndex],
   );
-  const resolveCodingSessionLocation = useCallback(
+  const resolveSession = useCallback(
     (id: string | null | undefined) => {
       const normalizedCodingSessionId = id?.trim() ?? '';
       return normalizedCodingSessionId
-        ? projectCodingSessionIndex.codingSessionLocationsById.get(normalizedCodingSessionId) ?? null
+        ? sessionIndex.codingSessionLocationsById.get(normalizedCodingSessionId) ?? null
         : null;
     },
-    [projectCodingSessionIndex],
+    [sessionIndex],
   );
 
   // Determine the current project ID based on selected thread, or the prop
   const selectedCodingSessionLocation =
-    resolveCodingSessionLocation(selectedCodingSessionId) ??
-    resolveCodingSessionLocationInProjects(projects, selectedCodingSessionId);
+    resolveSession(sessionId) ??
+    resolveCodingSessionLocationInProjects(projects, sessionId);
   const threadProjectId = selectedCodingSessionLocation?.project.id ?? '';
   const normalizedProjectId = projectId?.trim() ?? '';
   const normalizedThreadProjectId = threadProjectId?.trim() ?? '';
@@ -169,8 +169,8 @@ function CodePageComponent({
     pendingProjectChangeIdRef.current = normalizedNextProjectId;
     onProjectChange(normalizedNextProjectId);
   }, [currentProjectId, onProjectChange]);
-  const selectedCodingSession = selectedCodingSessionLocation?.codingSession;
-  const handleSelectCodingSession = useCallback((
+  const session = selectedCodingSessionLocation?.codingSession;
+  const selectSession = useCallback((
     nextCodingSessionId: string,
     options?: { projectId?: string },
   ) => {
@@ -181,11 +181,11 @@ function CodePageComponent({
 
     const nextProjectId =
       options?.projectId?.trim() ||
-      resolveCodingSessionLocation(normalizedCodingSessionId)?.project.id?.trim() ||
+      resolveSession(normalizedCodingSessionId)?.project.id?.trim() ||
       '';
 
     if (
-      normalizedCodingSessionId === (selectedCodingSessionId?.trim() || '') &&
+      normalizedCodingSessionId === (sessionId?.trim() || '') &&
       nextProjectId === currentProjectId
     ) {
       setSelectionRefreshToken((previousState) => previousState + 1);
@@ -197,7 +197,7 @@ function CodePageComponent({
     }
 
     setSelectedThreadId(normalizedCodingSessionId);
-  }, [currentProjectId, notifyProjectChange, resolveCodingSessionLocation, selectedCodingSessionId]);
+  }, [currentProjectId, notifyProjectChange, resolveSession, sessionId]);
   const {
     runConfigurations,
     runConfigurationDraft,
@@ -222,7 +222,7 @@ function CodePageComponent({
   ) => {
     const normalizedTargetProjectId = targetProjectId.trim();
     const normalizedTargetCodingSessionId = targetCodingSessionId?.trim() ?? '';
-    const normalizedSelectedCodingSessionId = selectedCodingSessionId?.trim() ?? '';
+    const normalizedSelectedCodingSessionId = sessionId?.trim() ?? '';
 
     if (
       normalizedTargetCodingSessionId &&
@@ -233,7 +233,7 @@ function CodePageComponent({
     }
 
     if (targetCodingSessionId) {
-      handleSelectCodingSession(targetCodingSessionId, {
+      selectSession(targetCodingSessionId, {
         projectId: targetProjectId,
       });
       return;
@@ -267,57 +267,57 @@ function CodePageComponent({
     }
 
     const hasSelectedCodingSession =
-      !!selectedCodingSessionId &&
-      !!resolveCodingSessionLocation(selectedCodingSessionId);
+      !!sessionId &&
+      !!resolveSession(sessionId);
     if (hasSelectedCodingSession) {
       return;
     }
 
     if (
-      normalizedInitialCodingSessionId !== selectedCodingSessionId &&
-      !!resolveCodingSessionLocation(normalizedInitialCodingSessionId)
+      normalizedInitialCodingSessionId !== sessionId &&
+      !!resolveSession(normalizedInitialCodingSessionId)
     ) {
-      handleSelectCodingSession(normalizedInitialCodingSessionId);
+      selectSession(normalizedInitialCodingSessionId);
     }
   }, [
-    handleSelectCodingSession,
+    selectSession,
     initialCodingSessionId,
-    resolveCodingSessionLocation,
-    selectedCodingSessionId,
+    resolveSession,
+    sessionId,
   ]);
 
   useEffect(() => {
-    const nextCodingSessionId = selectedCodingSessionId ?? '';
+    const nextCodingSessionId = sessionId ?? '';
     const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
     if (nextCodingSessionId === normalizedInitialCodingSessionId) {
       return;
     }
 
     onCodingSessionChange?.(nextCodingSessionId);
-  }, [initialCodingSessionId, onCodingSessionChange, selectedCodingSessionId]);
+  }, [initialCodingSessionId, onCodingSessionChange, sessionId]);
 
-  // Clear selectedCodingSessionId if it's no longer in the current projects (e.g., workspace changed)
+  // Clear the selected session if it's no longer in the current projects.
   useEffect(() => {
     if (!hasFetchedProjects) {
       return;
     }
 
     if (
-      selectedCodingSessionId &&
-      !resolveCodingSessionLocation(selectedCodingSessionId)
+      sessionId &&
+      !resolveSession(sessionId)
     ) {
       setSelectedThreadId(null);
     }
-  }, [hasFetchedProjects, resolveCodingSessionLocation, selectedCodingSessionId]);
+  }, [hasFetchedProjects, resolveSession, sessionId]);
 
   useCodeWorkbenchCommands({
     projects,
-    selectedCodingSessionId,
+    selectedCodingSessionId: sessionId,
     currentProjectId,
     currentProjectPath: currentProject?.path,
     defaultWorkingDirectory: preferences.defaultWorkingDirectory,
     createCodingSession: createCodingSessionWithSelection,
-    selectCodingSession: handleSelectCodingSession,
+    selectCodingSession: selectSession,
     setViewingDiff,
     setIsTerminalOpen,
     setTerminalRequest,
@@ -363,7 +363,7 @@ function CodePageComponent({
   useCodingSessionActions(
     currentProjectId,
     createCodingSessionWithSelection,
-    handleSelectCodingSession,
+    selectSession,
   );
 
   const resolveProjectPath = (projectPath?: string) => {
@@ -414,13 +414,13 @@ function CodePageComponent({
   const activateImportedProject = useCallback((projectId: string) => {
     const latestCodingSessionId = resolveLatestCodingSessionIdForProject(projects, projectId);
     if (latestCodingSessionId) {
-      handleSelectCodingSession(latestCodingSessionId, { projectId });
+      selectSession(latestCodingSessionId, { projectId });
       return;
     }
 
     setSelectedThreadId(null);
     notifyProjectChange(projectId);
-  }, [handleSelectCodingSession, notifyProjectChange, projects]);
+  }, [notifyProjectChange, projects, selectSession]);
 
   const syncImportedProjectInBackground = useCallback((projectId: string) => {
     void (async () => {
@@ -438,13 +438,13 @@ function CodePageComponent({
 
         const latestCodingSessionId = hydratedProject.latestCodingSessionId;
         if (latestCodingSessionId) {
-          handleSelectCodingSession(latestCodingSessionId, { projectId });
+          selectSession(latestCodingSessionId, { projectId });
         }
       } catch (error) {
         console.error('Failed to refresh imported project sessions', error);
       }
     })();
-  }, [handleSelectCodingSession, projectService, projects, user?.id, workspaceId]);
+  }, [projectService, projects, selectSession, user?.id, workspaceId]);
   const {
     handleRefreshCodingSessionMessages,
     handleRefreshProjectSessions,
@@ -454,7 +454,7 @@ function CodePageComponent({
     addToast,
     coreReadService,
     getPreservedSelection: () => ({
-      codingSessionId: selectedCodingSessionId,
+      codingSessionId: sessionId,
       projectId: currentProjectId,
     }),
     messages: {
@@ -467,7 +467,7 @@ function CodePageComponent({
     },
     projectService,
     resolveCodingSessionTitle: (codingSessionId: string) =>
-      resolveCodingSessionLocation(codingSessionId)?.codingSession.title ?? codingSessionId,
+      resolveSession(codingSessionId)?.codingSession.title ?? codingSessionId,
     resolveProjectName: (targetProjectId: string) =>
       resolveProjectById(targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
@@ -476,7 +476,7 @@ function CodePageComponent({
 
   const handleRenameThread = async (threadId: string, newName?: string) => {
     if (newName && newName.trim()) {
-      const project = resolveCodingSessionLocation(threadId)?.project;
+      const project = resolveSession(threadId)?.project;
       if (project) {
         await renameCodingSession(project.id, threadId, newName.trim());
       }
@@ -488,10 +488,10 @@ function CodePageComponent({
   };
 
   const executeDeleteThread = async (threadId: string) => {
-    const project = resolveCodingSessionLocation(threadId)?.project;
+    const project = resolveSession(threadId)?.project;
     if (project) {
       await deleteCodingSession(project.id, threadId);
-      if (selectedCodingSessionId === threadId) {
+      if (sessionId === threadId) {
         setSelectedThreadId(null);
       }
       addToast(t('code.threadDeleted'), 'success');
@@ -513,7 +513,7 @@ function CodePageComponent({
     const project = resolveProjectById(projectId);
     if (
       project &&
-      project.codingSessions.some((codingSession) => codingSession.id === selectedCodingSessionId)
+      project.codingSessions.some((codingSession) => codingSession.id === sessionId)
     ) {
       setSelectedThreadId(null);
     }
@@ -560,7 +560,7 @@ function CodePageComponent({
     }
   }, [addToast, activateImportedProject, selectFolderAndImportProject, syncImportedProjectInBackground]);
 
-  const handleRetryMountRecovery = async () => {
+  const handleRetryMountRecovery = useCallback(async () => {
     const recoveryMountSource = resolveProjectMountRecoverySource(currentProject?.path);
     if (!currentProjectId || !recoveryMountSource) {
       addToast('No persisted local folder is available to retry.', 'error');
@@ -582,9 +582,9 @@ function CodePageComponent({
     } finally {
       setIsMountRecoveryActionPending(false);
     }
-  };
+  }, [addToast, currentProject?.name, currentProject?.path, currentProjectId, mountFolder]);
 
-  const handleReimportProjectFolder = async () => {
+  const handleReimportProjectFolder = useCallback(async () => {
     if (!currentProjectId) {
       addToast('Select a project before choosing a folder.', 'error');
       return;
@@ -619,12 +619,19 @@ function CodePageComponent({
     } finally {
       setIsMountRecoveryActionPending(false);
     }
-  };
+  }, [
+    addToast,
+    currentProject?.name,
+    currentProjectId,
+    mountFolder,
+    syncImportedProjectInBackground,
+    updateProject,
+  ]);
 
-  const handleNewThreadInProject = async (projectId: string) => {
+  const handleNewThreadInProject = useCallback(async (projectId: string) => {
     try {
       const newThread = await createCodingSessionWithSelection(projectId, t('app.menu.newThread'));
-      handleSelectCodingSession(newThread.id, { projectId });
+      selectSession(newThread.id, { projectId });
       addToast(t('code.newThreadCreated'), 'success');
       setTimeout(() => {
         globalEventBus.emit('focusChatInput');
@@ -633,17 +640,17 @@ function CodePageComponent({
       console.error("Failed to create thread", error);
       addToast(t('code.failedToCreateThread'), 'error');
     }
-  };
+  }, [addToast, createCodingSessionWithSelection, selectSession, t]);
 
-  const handleArchiveProject = async (projectId: string) => {
+  const handleArchiveProject = useCallback(async (projectId: string) => {
     const project = resolveProjectById(projectId);
     if (project) {
       await updateProject(projectId, { archived: !project.archived });
       addToast(`${!project.archived ? 'Archived' : 'Unarchived'} project: ${project.name}`, 'info');
     }
-  };
+  }, [addToast, resolveProjectById, updateProject]);
 
-  const handleCopyWorkingDirectory = (projectId: string) => {
+  const handleCopyWorkingDirectory = useCallback((projectId: string) => {
     const target = resolveProjectActionTarget(resolveProjectById(projectId));
     if (!target) {
       return;
@@ -651,9 +658,9 @@ function CodePageComponent({
 
     navigator.clipboard.writeText(target.projectPath);
     addToast(`Copied workspace directory: ${target.projectPath}`, 'success');
-  };
+  }, [addToast, resolveProjectById]);
 
-  const handleCopyProjectPath = (projectId: string) => {
+  const handleCopyProjectPath = useCallback((projectId: string) => {
     const target = resolveProjectActionTarget(resolveProjectById(projectId));
     if (!target) {
       return;
@@ -661,9 +668,9 @@ function CodePageComponent({
 
     navigator.clipboard.writeText(target.projectPath);
     addToast(`Copied path: ${target.projectPath}`, 'success');
-  };
+  }, [addToast, resolveProjectById]);
 
-  const handleOpenInTerminal = (projectId: string, profileId?: string) => {
+  const handleOpenInTerminal = useCallback((projectId: string, profileId?: string) => {
     const target = resolveProjectActionTarget(resolveProjectById(projectId));
     if (!target) {
       return;
@@ -682,19 +689,19 @@ function CodePageComponent({
         : `Opened project in terminal: ${target.project.name}`,
       'info',
     );
-  };
+  }, [addToast, resolveProjectById]);
 
-  const handleOpenInFileExplorer = (projectId: string) => {
+  const handleOpenInFileExplorer = useCallback((projectId: string) => {
     const target = resolveProjectActionTarget(resolveProjectById(projectId));
     if (!target) {
       return;
     }
 
     globalEventBus.emit('revealInExplorer', target.projectPath);
-  };
+  }, [resolveProjectById]);
 
-  const handlePinThread = async (threadId: string) => {
-    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+  const handlePinThread = useCallback(async (threadId: string) => {
+    const resolvedThreadLocation = resolveSession(threadId);
     const project = resolvedThreadLocation?.project;
     if (project) {
       const thread = resolvedThreadLocation?.codingSession;
@@ -708,10 +715,10 @@ function CodePageComponent({
         );
       }
     }
-  };
+  }, [addToast, resolveSession, t, updateCodingSession]);
 
-  const handleArchiveThread = async (threadId: string) => {
-    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+  const handleArchiveThread = useCallback(async (threadId: string) => {
+    const resolvedThreadLocation = resolveSession(threadId);
     const project = resolvedThreadLocation?.project;
     if (project) {
       const thread = resolvedThreadLocation?.codingSession;
@@ -725,10 +732,10 @@ function CodePageComponent({
         'info',
       );
     }
-  };
+  }, [addToast, resolveSession, t, updateCodingSession]);
 
-  const handleMarkThreadUnread = async (threadId: string) => {
-    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+  const handleMarkThreadUnread = useCallback(async (threadId: string) => {
+    const resolvedThreadLocation = resolveSession(threadId);
     const project = resolvedThreadLocation?.project;
     if (project) {
       const thread = resolvedThreadLocation?.codingSession;
@@ -742,11 +749,11 @@ function CodePageComponent({
         );
       }
     }
-  };
+  }, [addToast, resolveSession, t, updateCodingSession]);
 
-  const handleCopyThreadWorkingDirectory = (threadId: string) => {
+  const handleCopyThreadWorkingDirectory = useCallback((threadId: string) => {
     const target = resolveProjectActionTarget(
-      resolveCodingSessionLocation(threadId)?.project,
+      resolveSession(threadId)?.project,
     );
     if (!target) {
       return;
@@ -754,26 +761,26 @@ function CodePageComponent({
 
     navigator.clipboard.writeText(target.projectPath);
     addToast(t('code.copiedThreadWorkspaceDir', { path: target.projectPath }), 'success');
-  };
+  }, [addToast, resolveSession, t]);
 
-  const handleCopyThreadSessionId = (threadId: string) => {
+  const handleCopyThreadSessionId = useCallback((threadId: string) => {
     navigator.clipboard.writeText(threadId);
     addToast(t('code.copiedSessionId', { id: threadId }), 'success');
-  };
+  }, [addToast, t]);
 
-  const handleCopyThreadDeeplink = (threadId: string) => {
+  const handleCopyThreadDeeplink = useCallback((threadId: string) => {
     const link = `${window.location.origin}/thread/${threadId}`;
     navigator.clipboard.writeText(link);
     addToast(t('code.copiedDeeplink', { link }), 'success');
-  };
+  }, [addToast, t]);
 
-  const handleForkThreadLocal = async (threadId: string) => {
-    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+  const handleForkThreadLocal = useCallback(async (threadId: string) => {
+    const resolvedThreadLocation = resolveSession(threadId);
     const project = resolvedThreadLocation?.project;
     if (project) {
       try {
         const newThread = await forkCodingSession(project.id, threadId);
-        handleSelectCodingSession(newThread.id, { projectId: project.id });
+        selectSession(newThread.id, { projectId: project.id });
         addToast(
           t('code.forkedToLocal', {
             name: newThread.title ?? newThread.id,
@@ -784,10 +791,10 @@ function CodePageComponent({
         addToast(t('code.failedToForkThread'), 'error');
       }
     }
-  };
+  }, [addToast, forkCodingSession, resolveSession, selectSession, t]);
 
-  const handleForkThreadNewTree = async (threadId: string) => {
-    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+  const handleForkThreadNewTree = useCallback(async (threadId: string) => {
+    const resolvedThreadLocation = resolveSession(threadId);
     const project = resolvedThreadLocation?.project;
     if (project) {
       try {
@@ -796,7 +803,7 @@ function CodePageComponent({
           threadId,
           `${resolvedThreadLocation?.codingSession.title} (New Tree)`,
         );
-        handleSelectCodingSession(newThread.id, { projectId: project.id });
+        selectSession(newThread.id, { projectId: project.id });
         addToast(
           t('code.forkedToNewWorktree', {
             name: newThread.title ?? newThread.id,
@@ -807,22 +814,22 @@ function CodePageComponent({
         addToast(t('code.failedToForkThread'), 'error');
       }
     }
-  };
+  }, [addToast, forkCodingSession, resolveSession, selectSession, t]);
 
   const handleEditMessage = useCallback((threadId: string, messageId: string) => {
-    const thread = resolveCodingSessionLocation(threadId)?.codingSession;
+    const thread = resolveSession(threadId)?.codingSession;
     const msg = thread?.messages?.find(m => m.id === messageId);
     if (msg) {
       setInputValue(msg.content);
     }
-  }, [resolveCodingSessionLocation]);
+  }, [resolveSession]);
 
   const handleDeleteMessage = useCallback(async (threadId: string, messageId: string) => {
     setDeleteConfirmation({ type: 'message', id: messageId, parentId: threadId });
   }, []);
 
   const executeDeleteMessage = async (threadId: string, messageId: string) => {
-    const project = resolveCodingSessionLocation(threadId)?.project;
+    const project = resolveSession(threadId)?.project;
     if (project) {
       try {
         await deleteCodingSessionMessage(project.id, threadId, messageId);
@@ -835,7 +842,7 @@ function CodePageComponent({
   };
 
   const handleRegenerateMessage = useCallback(async (threadId: string) => {
-    const resolvedThreadLocation = resolveCodingSessionLocation(threadId);
+    const resolvedThreadLocation = resolveSession(threadId);
     const project = resolvedThreadLocation?.project;
     if (project) {
       const thread = resolvedThreadLocation?.codingSession;
@@ -874,14 +881,14 @@ function CodePageComponent({
   }, [
     deleteCodingSessionMessage,
     fileContent,
-    resolveCodingSessionLocation,
+    resolveSession,
     selectedFile,
     sendMessage,
     workspaceId,
   ]);
 
   const handleRestoreMessage = useCallback(async (threadId: string, messageId: string) => {
-    const thread = resolveCodingSessionLocation(threadId)?.codingSession;
+    const thread = resolveSession(threadId)?.codingSession;
     const msg = thread?.messages?.find(m => m.id === messageId);
     const restorePlan = buildFileChangeRestorePlan(msg?.fileChanges);
     if (!restorePlan.restorable) {
@@ -898,14 +905,14 @@ function CodePageComponent({
       console.error('Failed to restore files from checkpoint', error);
       addToast('Failed to restore files from checkpoint', 'error');
     }
-  }, [addToast, resolveCodingSessionLocation, saveFileContent]);
+  }, [addToast, resolveSession, saveFileContent]);
 
   const handleSendMessage = useCallback(async (text?: string) => {
     const content = typeof text === 'string' ? text : inputValue;
     const trimmedContent = content.trim();
     if (!trimmedContent || isSending) return;
 
-    let currentThreadId = selectedCodingSessionId;
+    let currentThreadId = sessionId;
     let projectIdToUse = currentProjectId;
 
     if (!currentThreadId) {
@@ -923,7 +930,7 @@ function CodePageComponent({
         trimmedContent.slice(0, 20) + (trimmedContent.length > 20 ? '...' : '');
       const newThread = await createCodingSessionWithSelection(projectIdToUse, newTitle);
       currentThreadId = newThread.id;
-      handleSelectCodingSession(currentThreadId, { projectId: projectIdToUse });
+      selectSession(currentThreadId, { projectId: projectIdToUse });
     }
 
     if (projectIdToUse && currentThreadId) {
@@ -950,33 +957,33 @@ function CodePageComponent({
     currentProjectId,
     fileContent,
     handleNewProject,
-    handleSelectCodingSession,
+    selectSession,
     inputValue,
     isSending,
     projects,
-    selectedCodingSessionId,
+    sessionId,
     selectedFile,
     sendMessage,
     workspaceId,
   ]);
   const effectiveSelectedEngineId =
-    selectedCodingSession?.engineId ?? selectedEngineId;
+    session?.engineId ?? selectedEngineId;
   const effectiveSelectedModelId =
-    selectedCodingSession?.modelId ?? selectedModelId;
+    session?.modelId ?? selectedModelId;
   const handleSelectedEngineChange = useCallback(
     async (engineId: string) => {
       setSelectedEngineId(engineId);
 
-      if (!currentProjectId || !selectedCodingSessionId) {
+      if (!currentProjectId || !sessionId) {
         return;
       }
 
       const nextModelId = normalizeWorkbenchCodeModelId(
         engineId,
-        selectedCodingSession?.modelId ?? selectedModelId,
+        session?.modelId ?? selectedModelId,
         preferences,
       );
-      await updateCodingSession(currentProjectId, selectedCodingSessionId, {
+      await updateCodingSession(currentProjectId, sessionId, {
         engineId,
         modelId: nextModelId,
       });
@@ -984,8 +991,8 @@ function CodePageComponent({
     [
       currentProjectId,
       preferences,
-      selectedCodingSession?.modelId,
-      selectedCodingSessionId,
+      session?.modelId,
+      sessionId,
       selectedModelId,
       setSelectedEngineId,
       updateCodingSession,
@@ -995,21 +1002,21 @@ function CodePageComponent({
     async (modelId: string, engineId?: string) => {
       setSelectedModelId(modelId);
 
-      if (!currentProjectId || !selectedCodingSessionId) {
+      if (!currentProjectId || !sessionId) {
         return;
       }
 
       const nextEngineId =
-        engineId ?? selectedCodingSession?.engineId ?? selectedEngineId;
-      await updateCodingSession(currentProjectId, selectedCodingSessionId, {
+        engineId ?? session?.engineId ?? selectedEngineId;
+      await updateCodingSession(currentProjectId, sessionId, {
         engineId: nextEngineId,
         modelId,
       });
     },
     [
       currentProjectId,
-      selectedCodingSession?.engineId,
-      selectedCodingSessionId,
+      session?.engineId,
+      sessionId,
       selectedEngineId,
       setSelectedModelId,
       updateCodingSession,
@@ -1020,19 +1027,19 @@ function CodePageComponent({
     coreReadService,
     projectService,
     selectionRefreshToken,
-    selectedCodingSession,
-    selectedCodingSessionId,
+    selectedCodingSession: session,
+    selectedCodingSessionId: sessionId,
     selectedProject: selectedCodingSessionLocation?.project ?? null,
     workspaceId,
   });
   const isSelectedCodingSessionHydrating = Boolean(
-    selectedCodingSessionId &&
+    sessionId &&
     isSelectedCodingSessionMessagesLoading &&
-    selectedCodingSession?.messages.length === 0
+    session?.messages.length === 0
   );
   const selectedCodingSessionMessages = useMemo(
-    () => selectedCodingSession?.messages ?? [],
-    [selectedCodingSession?.messages],
+    () => session?.messages ?? [],
+    [session?.messages],
   );
   const mainChatEmptyState = useMemo(
     () => (
@@ -1056,12 +1063,12 @@ function CodePageComponent({
       notifyProjectChange(id);
       const targetProject = resolveProjectById(id);
       const targetLatestCodingSessionId =
-        projectCodingSessionIndex.latestCodingSessionIdByProjectId.get(id) ??
+        sessionIndex.latestCodingSessionIdByProjectId.get(id) ??
         resolveLatestCodingSessionIdForProject(projects, id);
       const threadBelongsToProject =
-        !!selectedCodingSessionId &&
+        !!sessionId &&
         !!targetProject?.codingSessions.some(
-          (codingSession) => codingSession.id === selectedCodingSessionId,
+          (codingSession) => codingSession.id === sessionId,
         );
 
       if (threadBelongsToProject) {
@@ -1069,19 +1076,19 @@ function CodePageComponent({
       }
 
       if (targetLatestCodingSessionId) {
-        handleSelectCodingSession(targetLatestCodingSessionId, { projectId: id });
+        selectSession(targetLatestCodingSessionId, { projectId: id });
         return;
       }
 
       setSelectedThreadId(null);
     }
   }, [
-    handleSelectCodingSession,
+    selectSession,
     notifyProjectChange,
-    projectCodingSessionIndex.latestCodingSessionIdByProjectId,
+    sessionIndex.latestCodingSessionIdByProjectId,
     projects,
     resolveProjectById,
-    selectedCodingSessionId,
+    sessionId,
   ]);
 
   const handleCreateRootFile = useCallback(() => {
@@ -1090,6 +1097,21 @@ function CodePageComponent({
   const handleStopSending = useCallback(() => {
     setIsSending(false);
   }, []);
+  const handleRetryMountRecoveryAction = useCallback(() => {
+    void handleRetryMountRecovery();
+  }, [handleRetryMountRecovery]);
+  const handleReimportProjectFolderAction = useCallback(() => {
+    void handleReimportProjectFolder();
+  }, [handleReimportProjectFolder]);
+  const handleCloseFind = useCallback(() => {
+    setIsFindVisible(false);
+  }, []);
+  const handleCloseQuickOpen = useCallback(() => {
+    setIsQuickOpenVisible(false);
+  }, []);
+  const handleNotifyNoCodeResults = useCallback(() => {
+    addToast(t('code.noResultsFound'), 'info');
+  }, [addToast, t]);
   const handleViewChanges = useCallback((file: FileChange) => {
     setViewingDiff(file);
   }, []);
@@ -1116,25 +1138,25 @@ function CodePageComponent({
     setViewingDiff(null);
   }, []);
   const handleEditSelectedCodingSessionMessage = useCallback((messageId: string) => {
-    if (selectedCodingSession) {
-      handleEditMessage(selectedCodingSession.id, messageId);
+    if (session) {
+      handleEditMessage(session.id, messageId);
     }
-  }, [handleEditMessage, selectedCodingSession]);
+  }, [handleEditMessage, session]);
   const handleDeleteSelectedCodingSessionMessage = useCallback((messageId: string) => {
-    if (selectedCodingSession) {
-      void handleDeleteMessage(selectedCodingSession.id, messageId);
+    if (session) {
+      void handleDeleteMessage(session.id, messageId);
     }
-  }, [handleDeleteMessage, selectedCodingSession]);
+  }, [handleDeleteMessage, session]);
   const handleRegenerateSelectedCodingSessionMessage = useCallback(() => {
-    if (selectedCodingSession) {
-      void handleRegenerateMessage(selectedCodingSession.id);
+    if (session) {
+      void handleRegenerateMessage(session.id);
     }
-  }, [handleRegenerateMessage, selectedCodingSession]);
+  }, [handleRegenerateMessage, session]);
   const handleRestoreSelectedCodingSessionMessage = useCallback((messageId: string) => {
-    if (selectedCodingSession) {
-      void handleRestoreMessage(selectedCodingSession.id, messageId);
+    if (session) {
+      void handleRestoreMessage(session.id, messageId);
     }
-  }, [handleRestoreMessage, selectedCodingSession]);
+  }, [handleRestoreMessage, session]);
 
   const handleConfirmDelete = () => {
     if (deleteConfirmation?.type === 'thread') {
@@ -1151,9 +1173,9 @@ function CodePageComponent({
     width: sidebarWidth,
     projects: filteredProjects,
     selectedProjectId: currentProjectId,
-    selectedCodingSessionId,
+    selectedCodingSessionId: sessionId,
     onSelectProject: handleProjectSelect,
-    onSelectCodingSession: handleSelectCodingSession,
+    onSelectCodingSession: selectSession,
     onRenameCodingSession: handleRenameThread,
     onDeleteCodingSession: handleDeleteThread,
     onRenameProject: handleRenameProject,
@@ -1190,15 +1212,11 @@ function CodePageComponent({
     isQuickOpenVisible,
     searchFiles,
     onSelectFile: handleSelectWorkspaceFile,
-    onRetryMountRecovery: () => {
-      void handleRetryMountRecovery();
-    },
-    onReimportProjectFolder: () => {
-      void handleReimportProjectFolder();
-    },
-    onCloseFind: () => setIsFindVisible(false),
-    onCloseQuickOpen: () => setIsQuickOpenVisible(false),
-    onNotifyNoResults: () => addToast(t('code.noResultsFound'), 'info'),
+    onRetryMountRecovery: handleRetryMountRecoveryAction,
+    onReimportProjectFolder: handleReimportProjectFolderAction,
+    onCloseFind: handleCloseFind,
+    onCloseQuickOpen: handleCloseQuickOpen,
+    onNotifyNoResults: handleNotifyNoCodeResults,
   };
   const dialogProps = {
     isRunConfigVisible,
@@ -1221,7 +1239,7 @@ function CodePageComponent({
   };
   const topBarProps = {
     currentProject,
-    selectedCodingSession,
+    selectedCodingSession: session,
     selectedEngineId: effectiveSelectedEngineId,
     selectedModelId: effectiveSelectedModelId,
     activeTab,
@@ -1230,7 +1248,7 @@ function CodePageComponent({
     setIsTerminalOpen,
   };
   const mainChatProps = {
-    chatId: selectedCodingSessionId || undefined,
+    chatId: sessionId || undefined,
     messages: selectedCodingSessionMessages,
     inputValue,
     setInputValue,
@@ -1257,7 +1275,7 @@ function CodePageComponent({
     viewingDiff,
     fileContent,
     chatWidth: effectiveEditorChatWidth,
-    selectedCodingSessionId,
+    selectedCodingSessionId: sessionId,
     messages: selectedCodingSessionMessages,
     chatEmptyState: editorChatEmptyState,
     inputValue,
