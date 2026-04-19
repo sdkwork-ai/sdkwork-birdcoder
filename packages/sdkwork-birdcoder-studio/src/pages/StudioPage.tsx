@@ -101,27 +101,6 @@ function StudioPageComponent({
   const [activeTab, setActiveTab] = useState<'preview' | 'simulator' | 'code'>('preview');
   const [inputValue, setInputValue] = useState('');
   const { preferences, updatePreferences } = useWorkbenchPreferences();
-  const selectFolderAndImportProject = async (fallbackProjectName: string) => {
-    const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
-    const folderInfo = await openLocalFolder();
-    if (!folderInfo) {
-      return null;
-    }
-
-    const normalizedWorkspaceId = workspaceId?.trim() ?? '';
-
-    return importLocalFolderProject({
-      createProject,
-      fallbackProjectName,
-      folderInfo,
-      getProjectByPath: (projectPath) =>
-        normalizedWorkspaceId
-          ? projectService.getProjectByPath(normalizedWorkspaceId, projectPath)
-          : Promise.resolve(null),
-      mountFolder,
-      updateProject,
-    });
-  };
   const {
     hasFetched: hasFetchedProjects,
     projects,
@@ -550,6 +529,28 @@ function StudioPageComponent({
     mountFolder,
   } = useFileSystem(currentProjectId, currentProject?.path);
   const previousMountRecoveryStatusRef = useRef(mountRecoveryState.status);
+
+  const selectFolderAndImportProject = async (fallbackProjectName: string) => {
+    const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
+    const folderInfo = await openLocalFolder();
+    if (!folderInfo) {
+      return null;
+    }
+
+    const normalizedWorkspaceId = workspaceId?.trim() ?? '';
+
+    return importLocalFolderProject({
+      createProject,
+      fallbackProjectName,
+      folderInfo,
+      getProjectByPath: (projectPath) =>
+        normalizedWorkspaceId
+          ? projectService.getProjectByPath(normalizedWorkspaceId, projectPath)
+          : Promise.resolve(null),
+      mountFolder,
+      updateProject,
+    });
+  };
 
   useEffect(() => {
     if (

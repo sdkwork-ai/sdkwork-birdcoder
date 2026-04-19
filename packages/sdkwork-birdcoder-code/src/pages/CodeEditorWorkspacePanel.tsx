@@ -63,21 +63,6 @@ interface WorkspaceChatProps {
   onViewChanges: (file: FileChange) => void;
 }
 
-function equalWorkspaceChatProps(
-  left: WorkspaceChatProps,
-  right: WorkspaceChatProps,
-): boolean {
-  return (
-    Boolean(left.chatEmptyState) === Boolean(right.chatEmptyState) &&
-    left.inputValue === right.inputValue &&
-    left.isSending === right.isSending &&
-    left.messages === right.messages &&
-    left.selectedCodingSessionId === right.selectedCodingSessionId &&
-    left.selectedEngineId === right.selectedEngineId &&
-    left.selectedModelId === right.selectedModelId
-  );
-}
-
 const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel({
   chatEmptyState,
   inputValue,
@@ -120,7 +105,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
       emptyState={chatEmptyState}
     />
   );
-}, equalWorkspaceChatProps);
+});
 
 CodeEditorWorkspaceChatPanel.displayName = 'CodeEditorWorkspaceChatPanel';
 

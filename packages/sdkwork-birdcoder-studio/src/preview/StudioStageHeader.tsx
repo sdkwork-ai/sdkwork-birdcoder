@@ -168,25 +168,6 @@ function resolveSimulatorTargetLabel(
   return `app.${previewAppPlatform} / simulator`;
 }
 
-function areStudioStageHeaderPropsEqual(
-  left: StudioStageHeaderProps,
-  right: StudioStageHeaderProps,
-): boolean {
-  return (
-    left.activeTab === right.activeTab &&
-    left.previewUrl === right.previewUrl &&
-    left.previewPlatform === right.previewPlatform &&
-    left.previewWebDevice === right.previewWebDevice &&
-    left.previewMpPlatform === right.previewMpPlatform &&
-    left.previewAppPlatform === right.previewAppPlatform &&
-    left.previewDeviceModel === right.previewDeviceModel &&
-    left.previewIsLandscape === right.previewIsLandscape &&
-    left.selectedFile === right.selectedFile &&
-    left.viewingDiffPath === right.viewingDiffPath &&
-    left.isTerminalOpen === right.isTerminalOpen
-  );
-}
-
 export const StudioStageHeader = memo(function StudioStageHeader({
   activeTab,
   previewUrl,
@@ -500,6 +481,6 @@ export const StudioStageHeader = memo(function StudioStageHeader({
       </div>
     </div>
   );
-}, areStudioStageHeaderPropsEqual);
+});
 
 StudioStageHeader.displayName = 'StudioStageHeader';

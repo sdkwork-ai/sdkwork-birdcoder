@@ -253,7 +253,7 @@ function appendCodingSessionMessageIfMissing(
     return messages as BirdCoderChatMessage[];
   }
 
-  return [...messages, structuredClone(incomingMessage)];
+  return [...messages, incomingMessage];
 }
 
 function buildCodingSessionStoreVersion(
@@ -1343,7 +1343,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
             message.id === messageId
               ? {
                   ...message,
-                  ...structuredClone(updates),
+                  ...updates,
                 }
               : message,
           ),

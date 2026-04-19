@@ -73,8 +73,19 @@ export interface RefreshCodingSessionMessagesResult {
 
 const inflightRefreshes = new Map<string, Promise<unknown>>();
 
-function cloneMessages(messages: readonly BirdCoderChatMessage[]): BirdCoderChatMessage[] {
-  return messages.map((message) => structuredClone(message));
+function copyMessagesIfNeeded(
+  existingMessages: readonly BirdCoderChatMessage[],
+  nextMessages?: readonly BirdCoderChatMessage[],
+): BirdCoderChatMessage[] {
+  if (!nextMessages) {
+    return existingMessages as BirdCoderChatMessage[];
+  }
+
+  if (nextMessages === existingMessages) {
+    return existingMessages as BirdCoderChatMessage[];
+  }
+
+  return [...nextMessages];
 }
 
 function findLatestTranscriptTimestamp(
@@ -260,7 +271,7 @@ function buildRefreshedCodingSession(
     pinned: existingSession.pinned ?? false,
     archived: existingSession.archived ?? summary.status === 'archived',
     unread: existingSession.unread ?? false,
-    messages: messages ? cloneMessages(messages) : cloneMessages(existingSession.messages),
+    messages: copyMessagesIfNeeded(existingSession.messages, messages),
   };
 }
 

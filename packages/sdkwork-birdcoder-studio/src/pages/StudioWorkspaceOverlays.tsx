@@ -28,22 +28,6 @@ interface StudioWorkspaceOverlaysProps {
   onNotifyNoResults: () => void;
 }
 
-function areStudioWorkspaceOverlaysPropsEqual(
-  left: StudioWorkspaceOverlaysProps,
-  right: StudioWorkspaceOverlaysProps,
-): boolean {
-  return (
-    left.files === right.files &&
-    left.mountRecoveryState.status === right.mountRecoveryState.status &&
-    left.mountRecoveryState.message === right.mountRecoveryState.message &&
-    left.mountRecoveryState.path === right.mountRecoveryState.path &&
-    left.isMountRecoveryActionPending === right.isMountRecoveryActionPending &&
-    left.isFindVisible === right.isFindVisible &&
-    left.isSearchingFiles === right.isSearchingFiles &&
-    left.isQuickOpenVisible === right.isQuickOpenVisible
-  );
-}
-
 export const StudioWorkspaceOverlays = memo(function StudioWorkspaceOverlays({
   files,
   mountRecoveryState,
@@ -279,6 +263,6 @@ export const StudioWorkspaceOverlays = memo(function StudioWorkspaceOverlays({
       )}
     </>
   );
-}, areStudioWorkspaceOverlaysPropsEqual);
+});
 
 StudioWorkspaceOverlays.displayName = 'StudioWorkspaceOverlays';

@@ -23,37 +23,6 @@ interface StudioCodeWorkspacePanelProps {
   getLanguageFromPath: (path: string) => string;
 }
 
-function areStudioFileChangesEqual(left: FileChange | null, right: FileChange | null): boolean {
-  if (left === right) {
-    return true;
-  }
-
-  if (!left || !right) {
-    return left === right;
-  }
-
-  return (
-    left.path === right.path &&
-    left.additions === right.additions &&
-    left.deletions === right.deletions &&
-    left.content === right.content &&
-    left.originalContent === right.originalContent
-  );
-}
-
-function areStudioCodeWorkspacePanelPropsEqual(
-  left: StudioCodeWorkspacePanelProps,
-  right: StudioCodeWorkspacePanelProps,
-): boolean {
-  return (
-    left.files === right.files &&
-    left.selectedFile === right.selectedFile &&
-    left.currentProjectPath === right.currentProjectPath &&
-    left.fileContent === right.fileContent &&
-    areStudioFileChangesEqual(left.viewingDiff, right.viewingDiff)
-  );
-}
-
 export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({
   files,
   selectedFile,
@@ -127,6 +96,6 @@ export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({
       </div>
     </div>
   );
-}, areStudioCodeWorkspacePanelPropsEqual);
+});
 
 StudioCodeWorkspacePanel.displayName = 'StudioCodeWorkspacePanel';

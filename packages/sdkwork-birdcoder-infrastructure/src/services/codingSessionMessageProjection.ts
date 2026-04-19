@@ -25,10 +25,6 @@ interface BuiltProjectionMessages {
   messages: BirdCoderChatMessage[];
 }
 
-function cloneMessages(messages: readonly BirdCoderChatMessage[]): BirdCoderChatMessage[] {
-  return messages.map((message) => structuredClone(message));
-}
-
 function readProjectionPayloadString(
   payload: Record<string, unknown> | undefined,
   fieldName: string,
@@ -264,7 +260,7 @@ export function mergeBirdCoderProjectionMessages({
     messages: authoritativeMessages,
   } = buildAuthoritativeMessages(codingSessionId, idPrefix, events);
   if (authoritativeMessages.length === 0) {
-    return cloneMessages(existingMessages)
+    return existingMessages
       .filter((existingMessage) => {
         const deletionKey =
           existingMessage.turnId && existingMessage.role
@@ -280,7 +276,7 @@ export function mergeBirdCoderProjectionMessages({
 
   const existingMessagesById = new Map<string, BirdCoderChatMessage>();
   const existingMessagesByMatchKey = new Map<string, BirdCoderChatMessage>();
-  for (const existingMessage of cloneMessages(existingMessages)) {
+  for (const existingMessage of existingMessages) {
     existingMessagesById.set(existingMessage.id, existingMessage);
     existingMessagesByMatchKey.set(
       normalizeMessageMatchKey(
@@ -314,7 +310,7 @@ export function mergeBirdCoderProjectionMessages({
   });
 
   const authoritativeMessageIds = new Set(mergedMessages.map((message) => message.id));
-  for (const existingMessage of cloneMessages(existingMessages)) {
+  for (const existingMessage of existingMessages) {
     const messageMatchKey = normalizeMessageMatchKey(
       existingMessage.role,
       existingMessage.content,

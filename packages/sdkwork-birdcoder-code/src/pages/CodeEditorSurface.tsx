@@ -18,36 +18,6 @@ interface CodeEditorSurfaceProps {
   getLanguageFromPath: (path: string) => string;
 }
 
-function areFileChangesEqual(left: FileChange | null, right: FileChange | null): boolean {
-  if (left === right) {
-    return true;
-  }
-
-  if (!left || !right) {
-    return left === right;
-  }
-
-  return (
-    left.path === right.path &&
-    left.additions === right.additions &&
-    left.deletions === right.deletions &&
-    left.content === right.content &&
-    left.originalContent === right.originalContent
-  );
-}
-
-function areCodeEditorSurfacePropsEqual(
-  left: CodeEditorSurfaceProps,
-  right: CodeEditorSurfaceProps,
-): boolean {
-  return (
-    left.fileCount === right.fileCount &&
-    left.selectedFile === right.selectedFile &&
-    left.fileContent === right.fileContent &&
-    areFileChangesEqual(left.viewingDiff, right.viewingDiff)
-  );
-}
-
 export const CodeEditorSurface = memo(function CodeEditorSurface({
   fileCount,
   selectedFile,
@@ -148,6 +118,6 @@ export const CodeEditorSurface = memo(function CodeEditorSurface({
       )}
     </div>
   );
-}, areCodeEditorSurfacePropsEqual);
+});
 
 CodeEditorSurface.displayName = 'CodeEditorSurface';
