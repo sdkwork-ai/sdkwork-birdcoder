@@ -14,6 +14,98 @@ const externalTerminalPackagesRootDir = path.join(
   'sdkwork-terminal',
   'packages',
 );
+const externalTerminalAppsRootDir = path.join(
+  rootDir,
+  '..',
+  'sdkwork-terminal',
+  'apps',
+);
+const approvedExternalSdkworkLinkDirectories = new Map([
+  [
+    '@sdkwork/auth-pc-react',
+    path.join(
+      rootDir,
+      '..',
+      'sdkwork-appbase',
+      'packages',
+      'pc-react',
+      'identity',
+      'sdkwork-auth-pc-react',
+    ),
+  ],
+  [
+    '@sdkwork/auth-runtime-pc-react',
+    path.join(
+      rootDir,
+      '..',
+      'sdkwork-appbase',
+      'packages',
+      'pc-react',
+      'identity',
+      'sdkwork-auth-runtime-pc-react',
+    ),
+  ],
+  [
+    '@sdkwork/user-center-core-pc-react',
+    path.join(
+      rootDir,
+      '..',
+      'sdkwork-appbase',
+      'packages',
+      'pc-react',
+      'identity',
+      'sdkwork-user-center-core-pc-react',
+    ),
+  ],
+  [
+    '@sdkwork/user-center-pc-react',
+    path.join(
+      rootDir,
+      '..',
+      'sdkwork-appbase',
+      'packages',
+      'pc-react',
+      'identity',
+      'sdkwork-user-center-pc-react',
+    ),
+  ],
+  [
+    '@sdkwork/user-center-validation-pc-react',
+    path.join(
+      rootDir,
+      '..',
+      'sdkwork-appbase',
+      'packages',
+      'pc-react',
+      'identity',
+      'sdkwork-user-center-validation-pc-react',
+    ),
+  ],
+  [
+    '@sdkwork/user-pc-react',
+    path.join(
+      rootDir,
+      '..',
+      'sdkwork-appbase',
+      'packages',
+      'pc-react',
+      'identity',
+      'sdkwork-user-pc-react',
+    ),
+  ],
+  [
+    '@sdkwork/vip-pc-react',
+    path.join(
+      rootDir,
+      '..',
+      'sdkwork-appbase',
+      'packages',
+      'pc-react',
+      'commerce',
+      'sdkwork-vip-pc-react',
+    ),
+  ],
+]);
 
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(rootDir, relativePath), 'utf8'));
@@ -57,20 +149,35 @@ function normalizeManifestDependencyPath(rawPath) {
   return String(rawPath ?? '').replace(/\\/gu, '/');
 }
 
-function buildExpectedExternalTerminalLinkVersion(relativePath, dependencyName) {
+function resolveApprovedExternalSdkworkLinkDirectory(dependencyName) {
+  if (dependencyName === '@sdkwork/terminal-desktop') {
+    return path.join(externalTerminalAppsRootDir, 'desktop');
+  }
+
+  if (/^@sdkwork\/terminal-/u.test(dependencyName)) {
+    return path.join(
+      externalTerminalPackagesRootDir,
+      dependencyName.replace(/^@sdkwork\//u, 'sdkwork-'),
+    );
+  }
+
+  return approvedExternalSdkworkLinkDirectories.get(dependencyName) ?? null;
+}
+
+function buildExpectedApprovedExternalSdkworkLinkVersion(relativePath, dependencyName) {
+  const externalPackageDir = resolveApprovedExternalSdkworkLinkDirectory(dependencyName);
+  if (!externalPackageDir) {
+    return null;
+  }
+
   const packageDir = path.dirname(path.join(rootDir, relativePath));
-  const externalPackageDirName = dependencyName.replace(/^@sdkwork\//u, 'sdkwork-');
-  const externalPackageDir = path.join(externalTerminalPackagesRootDir, externalPackageDirName);
   const relativeExternalPackageDir = path.relative(packageDir, externalPackageDir);
   return `link:${normalizeManifestDependencyPath(relativeExternalPackageDir)}`;
 }
 
-function isApprovedExternalTerminalLinkVersion(relativePath, dependencyName, version) {
-  if (!/^@sdkwork\/terminal-/u.test(dependencyName)) {
-    return false;
-  }
-
-  return version === buildExpectedExternalTerminalLinkVersion(relativePath, dependencyName);
+function isApprovedExternalSdkworkLinkVersion(relativePath, dependencyName, version) {
+  const expectedVersion = buildExpectedApprovedExternalSdkworkLinkVersion(relativePath, dependencyName);
+  return expectedVersion !== null && version === expectedVersion;
 }
 
 const rootPackageJson = readJson('package.json');
@@ -162,10 +269,10 @@ for (const { relativePath, manifest } of [
 
       if (typeof version === 'string' && version.startsWith('link:')) {
         assert.ok(
-          isApprovedExternalTerminalLinkVersion(relativePath, dependencyName, version),
+          isApprovedExternalSdkworkLinkVersion(relativePath, dependencyName, version),
           [
             `${relativePath} uses unsupported local link dependency ${dependencyName} in ${section}.`,
-            `Expected: ${buildExpectedExternalTerminalLinkVersion(relativePath, dependencyName)}`,
+            `Expected: ${buildExpectedApprovedExternalSdkworkLinkVersion(relativePath, dependencyName)}`,
             `Actual: ${version}`,
           ].join('\n'),
         );

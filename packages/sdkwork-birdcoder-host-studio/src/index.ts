@@ -1,7 +1,7 @@
 import {
   getDistributionManifest,
   type DistributionId,
-} from '../../sdkwork-birdcoder-distribution/src/index.ts';
+} from '@sdkwork/birdcoder-distribution';
 import {
   createBirdHostDescriptorFromDistribution,
   type BirdHostDescriptor,

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const appSource = fs.readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
+const appSource = fs.readFileSync(new URL('../packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx', import.meta.url), 'utf8');
 const codePageSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx', import.meta.url),
   'utf8',
@@ -17,38 +17,26 @@ const sharedRefreshHookSource = fs.readFileSync(
 
 assert.match(
   appSource,
-  /const reloadSessionInventory = useCallback\(async \(\) => \{/,
-  'App must own a reusable session inventory reload callback.',
+  /refreshProjects: refreshActiveProjects,[\s\S]*\} = useProjects\(projectsWorkspaceId\);/,
+  'App must own the active workspace session inventory through the shared useProjects store.',
 );
 
-assert.match(
+assert.doesNotMatch(
   appSource,
-  /void reloadSessionInventory\(\);/,
-  'App must reuse the shared session inventory loader during hydration.',
+  /onSessionInventoryRefresh=/,
+  'App must not pass a redundant session inventory refresh callback once the shared projects store owns synchronization.',
 );
 
-assert.match(
-  appSource,
-  /<CodePage[\s\S]*onSessionInventoryRefresh=\{reloadSessionInventory\}/,
-  'App must pass the shared session inventory reload callback into CodePage.',
-);
-
-assert.match(
-  appSource,
-  /<StudioPage[\s\S]*onSessionInventoryRefresh=\{reloadSessionInventory\}/,
-  'App must pass the shared session inventory reload callback into StudioPage.',
-);
-
-assert.match(
+assert.doesNotMatch(
   codePageSource,
   /onSessionInventoryRefresh\?: \(\) => Promise<void>;/,
-  'CodePage props must accept the shared session inventory refresh callback.',
+  'CodePage props must not keep the obsolete App-level session inventory refresh callback once shared store upserts are authoritative.',
 );
 
-assert.match(
+assert.doesNotMatch(
   studioPageSource,
   /onSessionInventoryRefresh\?: \(\) => Promise<void>;/,
-  'StudioPage props must accept the shared session inventory refresh callback.',
+  'StudioPage props must not keep the obsolete App-level session inventory refresh callback once shared store upserts are authoritative.',
 );
 
 assert.match(
@@ -77,8 +65,26 @@ assert.match(
 
 assert.match(
   sharedRefreshHookSource,
-  /await Promise\.all\(\[refreshProjects\(\), onSessionInventoryRefresh\?\.\(\)\]\);/,
-  'Shared refresh hook must reload page projects and the shared App inventory together.',
+  /upsertProjectIntoProjectsStore\(/,
+  'Shared refresh hook must upsert refreshed project inventory into the shared projects store.',
+);
+
+assert.match(
+  sharedRefreshHookSource,
+  /upsertCodingSessionIntoProjectsStore\(/,
+  'Shared refresh hook must upsert refreshed coding session inventory into the shared projects store.',
+);
+
+assert.doesNotMatch(
+  sharedRefreshHookSource,
+  /onSessionInventoryRefresh/,
+  'Shared refresh hook must not depend on an obsolete App-level inventory refresh callback.',
+);
+
+assert.doesNotMatch(
+  sharedRefreshHookSource,
+  /Promise\.all\(\[refreshProjects\(\), onSessionInventoryRefresh\?\.\(\)\]\)/,
+  'Shared refresh hook must not fan out duplicate inventory reloads after shared store upserts became authoritative.',
 );
 
 assert.match(
@@ -101,7 +107,7 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /const restoreSelectionAfterRefresh = \(\s*targetProjectId: string,\s*targetCodingSessionId: string,\s*\) => \{/,
+  /const restoreSelectionAfterRefresh = \(\s*targetProjectId: string,\s*targetCodingSessionId: string \| null,\s*\) => \{/,
   'StudioPage must explicitly preserve the selected project and session after refresh.',
 );
 

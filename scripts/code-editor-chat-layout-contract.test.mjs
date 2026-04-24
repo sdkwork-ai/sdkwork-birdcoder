@@ -39,6 +39,13 @@ const codePageSource = readSource(
   'pages',
   'CodePage.tsx',
 );
+const codePageSurfaceSource = readSource(
+  'packages',
+  'sdkwork-birdcoder-code',
+  'src',
+  'pages',
+  'CodePageSurface.tsx',
+);
 const codeEditorChatLayoutSource = readSource(
   'packages',
   'sdkwork-birdcoder-code',
@@ -142,14 +149,20 @@ assert.match(
 
 assert.match(
   codeEditorChatHookSource,
-  /const \[chatWidth, setChatWidth\] = useState\(initialChatWidth\);/,
-  'Editor-mode chat layout hook must initialize its working width from persisted preferences.',
+  /const requestedChatWidthRef = useRef\(\s*normalizeWorkbenchCodeEditorChatWidth\(initialChatWidth\),\s*\);/s,
+  'Editor-mode chat layout hook must initialize its requested width from persisted preferences.',
 );
 
 assert.match(
   codeEditorChatHookSource,
-  /const \[editorWorkspaceWidth, setEditorWorkspaceWidth\] = useState\(0\);/,
-  'Editor-mode chat layout hook must measure the available editor workspace width.',
+  /const workspaceWidthRef = useRef\(0\);/,
+  'Editor-mode chat layout hook must track the measured editor workspace width.',
+);
+
+assert.match(
+  codeEditorChatHookSource,
+  /const \[effectiveEditorChatWidth, setEffectiveEditorChatWidth\] = useState\(\(\) =>\s*resolveCodeEditorResponsiveChatWidth\(requestedChatWidthRef\.current, 0\),\s*\);/s,
+  'Editor-mode chat layout hook must derive a responsive initial width from the persisted requested width.',
 );
 
 assert.match(
@@ -160,14 +173,14 @@ assert.match(
 
 assert.match(
   codeEditorChatHookSource,
-  /window\.requestAnimationFrame\(\(\) => \{\s*resizeAnimationFrame = 0;\s*syncEditorWorkspaceWidth\(\);/s,
+  /window\.requestAnimationFrame\(\(\) => \{\s*resizeAnimationFrame = 0;\s*syncMeasuredEditorWorkspaceWidth\(\);/s,
   'Editor-mode chat layout hook must schedule workspace width synchronization through requestAnimationFrame.',
 );
 
 assert.match(
   codeEditorChatHookSource,
-  /setEditorWorkspaceWidth\(\(previousState\) => previousState === nextWidth \? previousState : nextWidth\);/,
-  'Editor-mode chat layout hook must skip redundant width updates when the measured width has not changed.',
+  /if \(workspaceWidthRef\.current === nextWidth\) \{\s*return;\s*\}\s*workspaceWidthRef\.current = nextWidth;\s*syncEffectiveEditorChatWidth\(requestedChatWidthRef\.current, nextWidth\);/s,
+  'Editor-mode chat layout hook must skip redundant width work when the measured width has not changed.',
 );
 
 assert.match(
@@ -178,13 +191,13 @@ assert.match(
 
 assert.match(
   codeEditorChatHookSource,
-  /const effectiveEditorChatWidth = resolveCodeEditorResponsiveChatWidth\(\s*chatWidth,\s*editorWorkspaceWidth,\s*\);/s,
-  'Editor-mode chat layout hook must derive a responsive effective width from the measured workspace.',
+  /const syncEffectiveEditorChatWidth = useCallback\(\s*\(requestedChatWidth: number, workspaceWidth: number\) => \{\s*setEffectiveEditorChatWidth\(\(previousState\) => \{/s,
+  'Editor-mode chat layout hook must centralize effective width derivation behind a synchronized update helper.',
 );
 
 assert.match(
   codeEditorChatHookSource,
-  /const handleEditorChatResize = useCallback\(\s*\(delta: number\) => \{\s*setChatWidth\(\(previousState\) => \{/s,
+  /const handleEditorChatResize = useCallback\(\(delta: number\) => \{\s*const nextRequestedChatWidth = normalizeWorkbenchCodeEditorChatWidth\(\s*requestedChatWidthRef\.current - delta,\s*\);/s,
   'Editor-mode chat layout hook must own the editor-mode chat resize behavior.',
 );
 
@@ -201,20 +214,20 @@ assert.match(
 );
 
 assert.match(
-  codePageSource,
-  /<div ref=\{editorWorkspaceHostRef\} className="flex-1 flex flex-col overflow-hidden">/,
-  'CodePage must attach a measured host container around the editor workspace.',
+  codePageSurfaceSource,
+  /<div ref=\{editorWorkspaceHostRef\} className="flex-1 min-h-0 flex flex-col overflow-hidden">/,
+  'CodePageSurface must attach a measured host container around the editor workspace.',
 );
 
 assert.match(
   codePageSource,
-  /chatWidth=\{effectiveEditorChatWidth\}/,
+  /chatWidth: effectiveEditorChatWidth,/,
   'CodePage must pass the responsive editor-mode chat width into the workspace panel.',
 );
 
 assert.match(
   codePageSource,
-  /onChatResize=\{handleEditorChatResize\}/,
+  /onChatResize: handleEditorChatResize,/,
   'CodePage must route editor-mode chat resizing through the responsive resize handler.',
 );
 
@@ -232,7 +245,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /<div className=\{`flex min-w-0 overflow-hidden flex-col h-full bg-\[#0e0e11\] relative \$\{className\}`\}>/,
+  /<div className=\{`flex flex-1 h-full w-full min-w-0 overflow-hidden flex-col bg-\[#0e0e11\] relative \$\{className\}`\}>/,
   'UniversalChat must allow sidebar-mode chat content to shrink without forcing horizontal overflow.',
 );
 

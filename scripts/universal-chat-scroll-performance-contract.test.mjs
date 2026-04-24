@@ -36,7 +36,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /window\.requestAnimationFrame\(\(\) => \{\s*messagesEndRef\.current\?\.scrollIntoView\(\{\s*behavior: scrollBehavior,\s*block: 'end',?\s*\}\);?\s*\}\)/s,
+  /window\.requestAnimationFrame\(\(\) => \{[\s\S]*messagesEndRef\.current\?\.scrollIntoView\(\{\s*behavior: scrollBehavior,\s*block: 'end',?\s*\}\);[\s\S]*\}\)/s,
   'UniversalChat must batch transcript autoscroll onto animation frames so layout work does not run synchronously inside React commit bursts.',
 );
 

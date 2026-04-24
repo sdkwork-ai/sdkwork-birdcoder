@@ -6,31 +6,22 @@
   "dependencies": {
     "@babel/runtime": "catalog:",
     "html-parse-stringify": "catalog:",
-    "@sdkwork/birdcoder-appbase": "workspace:*",
-    "@sdkwork/birdcoder-distribution": "workspace:*",
-    "@sdkwork/birdcoder-host-core": "workspace:*",
     "@sdkwork/birdcoder-i18n": "workspace:*",
+    "@sdkwork/birdcoder-auth": "workspace:*",
+    "@sdkwork/birdcoder-user": "workspace:*",
     "lucide-react": "catalog:",
-    "motion": "^12.23.24",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-i18next": "catalog:",
-    "@sdkwork/birdcoder-chat": "workspace:*",
-    "@sdkwork/birdcoder-chat-claude": "workspace:*",
-    "@sdkwork/birdcoder-chat-codex": "workspace:*",
-    "@sdkwork/birdcoder-chat-gemini": "workspace:*",
-    "@sdkwork/birdcoder-chat-opencode": "workspace:*",
     "@sdkwork/birdcoder-code": "workspace:*",
     "@sdkwork/birdcoder-commons": "workspace:*",
-    "@sdkwork/birdcoder-core": "workspace:*",
-    "@sdkwork/birdcoder-infrastructure": "workspace:*",
     "@sdkwork/birdcoder-settings": "workspace:*",
     "@sdkwork/birdcoder-skills": "workspace:*",
     "@sdkwork/birdcoder-studio": "workspace:*",
     "@sdkwork/birdcoder-templates": "workspace:*",
-    "@sdkwork/birdcoder-terminal": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
-    "@sdkwork/birdcoder-ui": "workspace:*",
+    "@sdkwork/birdcoder-ui-shell": "workspace:*",
+    "@sdkwork/terminal-desktop": "link:../../../sdkwork-terminal/apps/desktop",
     "use-sync-external-store": "catalog:"
   },
   "devDependencies": {
@@ -42,14 +33,6 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
-    },
-    "./app": {
-      "import": "./src/app.ts",
-      "types": "./src/app.ts"
-    },
-    "./runtime": {
-      "import": "./src/runtime.ts",
-      "types": "./src/runtime.ts"
     }
   }
 }

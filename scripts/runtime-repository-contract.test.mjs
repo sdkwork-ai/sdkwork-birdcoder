@@ -73,10 +73,11 @@ try {
   const runConfigurations = await runConfigsModule.listStoredRunConfigurations('project-alpha');
   assert.equal(runConfigurations[0].id, 'lint');
 
-  assert.equal(typeof sessionsModule.getTerminalSessionRepository, 'function');
+  assert.equal(typeof sessionsModule.listStoredTerminalSessions, 'function');
   assert.equal(
-    sessionsModule.getTerminalSessionRepository().binding.entityName,
-    'terminal_session',
+    'getTerminalSessionRepository' in sessionsModule,
+    false,
+    'Terminal sessions should no longer expose a BirdCoder-owned repository once sdkwork-terminal runtime inventory is the single source of truth.',
   );
 } finally {
   if (originalWindowDescriptor) {

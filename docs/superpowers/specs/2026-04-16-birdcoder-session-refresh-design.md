@@ -119,7 +119,7 @@ Add the same refresh actions to the Studio project/session menu:
 - selected project refresh
 - selected session refresh
 
-All visible wording should use `Session` instead of `Thread` wherever the current UX still mixes them in these refresh paths.
+All visible wording should use `Session` instead of legacy `Thread` wherever the current UX still mixes them in these refresh paths.
 
 ### UX rules
 

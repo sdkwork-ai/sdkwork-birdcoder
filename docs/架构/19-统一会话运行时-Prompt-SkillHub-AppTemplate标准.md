@@ -18,7 +18,7 @@
 
 ## 3. 多引擎映射
 
-- Codex：`thread -> turn -> item/event` 映射到 `coding_session -> coding_session_turn -> coding_session_event`。
+- Codex：`native thread -> turn -> item/event` 映射到 `coding_session -> coding_session_turn -> coding_session_event`。
 - Gemini：`session -> event stream` 映射到 `coding_session_runtime -> coding_session_event`。
 - OpenCode：`session -> message/part + diff/todo/question` 映射到 `coding_session_message + coding_session_event + coding_session_artifact`。
 - Claude Code：`session_id -> sdk messages -> stream_event/result` 映射到 `coding_session_runtime + coding_session_event + coding_session_artifact`。

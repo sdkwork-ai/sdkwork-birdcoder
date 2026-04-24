@@ -166,15 +166,24 @@ const studioPageSource = readFileSync(
   new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
-assert.equal(
-  studioPageSource.includes('resolveStudioBuildExecutionLaunch('),
-  true,
-  'StudioPage should use the shared studio build execution launch contract.',
+const studioExecutionHookSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
+  'utf8',
 );
 assert.equal(
-  studioPageSource.includes('resolveStudioBuildProfile('),
+  studioPageSource.includes("from './useStudioExecutionActions';"),
   true,
-  'StudioPage should resolve build targets through the build profile registry.',
+  'StudioPage should delegate build execution wiring through the shared studio execution hook.',
+);
+assert.equal(
+  studioExecutionHookSource.includes('resolveStudioBuildExecutionLaunch('),
+  true,
+  'Studio execution hook should use the shared studio build execution launch contract.',
+);
+assert.equal(
+  studioExecutionHookSource.includes('resolveStudioBuildProfile('),
+  true,
+  'Studio execution hook should resolve build targets through the build profile registry.',
 );
 
 console.log('studio build execution contract passed.');

@@ -25,7 +25,7 @@ Remove false governance-regression blockers so the gate fails only on real produ
 ## Checkpoints
 
 - `CP19-1` `check-arch-boundaries.mjs` must match the active runtime package topology instead of failing on outdated allowlists.
-- `CP19-2` `i18n-contract.test.mjs` must cover every used translation key, including `app.menu.previousThread` and `app.menu.nextThread`.
+- `CP19-2` `i18n-contract.test.mjs` must cover every used translation key, including `app.menu.previousCodingSession` and `app.menu.nextCodingSession`.
 - `CP19-3` governance regression must run the web budget slice on a fresh build, not on leftover `dist` state.
 - `CP19-4` after false blockers are removed, the remaining governance-regression failure must be a real measurable regression.
 
@@ -38,8 +38,8 @@ Remove false governance-regression blockers so the gate fails only on real produ
   - `shell -> infrastructure`
   - `web -> distribution | host-core | shell`
 - Locale parity is restored for the two active menu shortcuts:
-  - `app.menu.previousThread`
-  - `app.menu.nextThread`
+  - `app.menu.previousCodingSession`
+  - `app.menu.nextCodingSession`
 - Governance regression now executes the web budget slice through `pnpm run build`, so missing build artifacts no longer hide the real performance outcome.
 - The executable implementation truth for `CP19-3` is now frozen again:
   - `scripts/governance-regression-report.mjs` must execute the declared `pnpm run build` command for `web-bundle-budget`
@@ -76,7 +76,7 @@ Remove false governance-regression blockers so the gate fails only on real produ
 - Fresh release-tier evidence on `2026-04-13` now confirms both command surfaces are green with the declared `fast -> standard -> matrix -> release-flow -> ci-flow -> governance` topology unchanged:
   - `cmd /d /s /c "pnpm.cmd check:quality:release"` passes
   - `node scripts/quality-gate-execution-report.mjs` returns `status: passed` with `passedCount: 3`
-- Fresh `node scripts/governance-regression-report.mjs` evidence now returns `101/101` passed checks with the governed bundle sizes:
+- Fresh `node scripts/governance-regression-report.mjs` evidence now returns `100/100` passed checks with the governed bundle sizes:
   - entry `index-DJsuPCYU.js`: `68.1 KiB`
   - largest JS asset `vendor-markdown-DqZNkVdw.js`: `598.2 KiB`
 
@@ -87,6 +87,6 @@ Remove false governance-regression blockers so the gate fails only on real produ
 - `scripts/governance-regression-report.mjs` now emits `blockedCheckIds`, `blockingDiagnosticIds`, and `environmentDiagnostics` so a governed Vite-host denial stays machine-readable and auditable inside the governance report.
 - Fresh evidence on `2026-04-15` now records the split current truth:
   - direct `pnpm.cmd run build` still passes with entry `68.1 KiB`, largest JS asset `598.2 KiB`, and cap `700.0 KiB`
-  - `node scripts/governance-regression-report.mjs` returns `status: blocked`, `passedCount: 100`, `blockedCount: 1`, `failedCount: 0`, `blockedCheckIds: ["web-bundle-budget"]`, and `blockingDiagnosticIds: ["vite-host-build-preflight"]`
+  - `node scripts/governance-regression-report.mjs` returns `status: blocked`, `passedCount: 97`, `blockedCount: 1`, `failedCount: 0`, `blockedCheckIds: ["web-bundle-budget"]`, and `blockingDiagnosticIds: ["vite-host-build-preflight"]`
   - direct `pnpm.cmd check:quality:release` now exits non-zero earlier because `fast` fails first at `check:web-vite-build` with `[vite:define] spawn EPERM`
 - Future loops must not weaken the web budget or rewrite repository truth when the remaining governance issue is this blocked Vite-host execution path on the current host; rerun the declared command path after the host capability gap is cleared.

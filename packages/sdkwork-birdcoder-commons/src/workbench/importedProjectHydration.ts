@@ -1,5 +1,5 @@
 import type { BirdCoderProject } from '@sdkwork/birdcoder-types';
-import { upsertProjectIntoProjectsStore } from '../hooks/useProjects.ts';
+import { upsertProjectIntoProjectsStore } from '../stores/projectsStore.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import { resolveLatestCodingSessionIdForProject } from './codingSessionSelection.ts';
 

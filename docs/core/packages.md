@@ -13,7 +13,8 @@ BirdCoder uses the same package-first workspace approach as Claw Studio, with Bi
 - `@sdkwork/birdcoder-types`: shared contracts
 - `@sdkwork/birdcoder-i18n`: i18n bootstrap and locale resources
 - `@sdkwork/birdcoder-infrastructure`: service interfaces, mock implementations, runtime utilities
-- `@sdkwork/birdcoder-ui`: shared UI building blocks
+- `@sdkwork/birdcoder-ui-shell`: lightweight shell-safe UI primitives
+- `@sdkwork/birdcoder-ui`: heavy workbench UI runtime surfaces
 - `@sdkwork/birdcoder-commons`: React providers, hooks, event bus, composition helpers
 
 ## Host and shell packages
@@ -31,4 +32,4 @@ BirdCoder uses the same package-first workspace approach as Claw Studio, with Bi
 
 ## Business packages
 
-BirdCoder business modules stay product-specific and remain outside the Claw feature set. The current workspace keeps packages for chat, code, settings, templates, terminal, and skills, while `@sdkwork/birdcoder-appbase` becomes the single BirdCoder bridge for appbase-aligned `auth`, `user`, and `vip` capability flows. That bridge is not page-only: it owns the shared catalog, registry, appbase manifest, per-capability workspace manifest, package meta, route intent, and storage-key standards, and `check:appbase-parity` protects those boundaries from drifting away from the sibling `sdkwork-appbase` reference architecture.
+BirdCoder business modules stay product-specific and remain outside the Claw feature set. The current workspace keeps packages for chat, code, settings, templates, terminal, and skills, while `@sdkwork/birdcoder-auth` and `@sdkwork/birdcoder-user` form the canonical BirdCoder identity surface for `auth`, `user`, and `vip` capability flows. `@sdkwork/birdcoder-auth` owns login-facing route contracts and shared auth UI entrypoints, while `@sdkwork/birdcoder-user` owns the shared user-center runtime, validation bridge, storage-key standards, membership flows, and user-facing pages. `check:identity-standard` protects those boundaries from drifting away from the sibling `sdkwork-appbase` reference architecture.

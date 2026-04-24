@@ -1,7 +1,10 @@
+/// <reference path="../react-syntax-highlighter.d.ts" />
+
 import React, { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import SyntaxHighlighter from 'react-syntax-highlighter/dist/esm/prism-light';
 import bash from 'react-syntax-highlighter/dist/esm/languages/prism/bash';
+import css from 'react-syntax-highlighter/dist/esm/languages/prism/css';
 import diff from 'react-syntax-highlighter/dist/esm/languages/prism/diff';
 import javascript from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
 import json from 'react-syntax-highlighter/dist/esm/languages/prism/json';
@@ -11,12 +14,13 @@ import markup from 'react-syntax-highlighter/dist/esm/languages/prism/markup';
 import python from 'react-syntax-highlighter/dist/esm/languages/prism/python';
 import rust from 'react-syntax-highlighter/dist/esm/languages/prism/rust';
 import sql from 'react-syntax-highlighter/dist/esm/languages/prism/sql';
+import toml from 'react-syntax-highlighter/dist/esm/languages/prism/toml';
 import tsx from 'react-syntax-highlighter/dist/esm/languages/prism/tsx';
 import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
 import yaml from 'react-syntax-highlighter/dist/esm/languages/prism/yaml';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTranslation } from 'react-i18next';
-import { Button } from './ui/button';
+import { Button } from '@sdkwork/birdcoder-ui-shell';
 
 export interface UniversalChatCodeBlockProps extends Record<string, unknown> {
   language: string;
@@ -29,6 +33,7 @@ const LANGUAGE_ALIASES = new Map<string, string>([
   ['sh', 'bash'],
   ['shell', 'bash'],
   ['shell-session', 'bash'],
+  ['css', 'css'],
   ['diff', 'diff'],
   ['javascript', 'javascript'],
   ['js', 'javascript'],
@@ -44,6 +49,7 @@ const LANGUAGE_ALIASES = new Map<string, string>([
   ['rust', 'rust'],
   ['rs', 'rust'],
   ['sql', 'sql'],
+  ['toml', 'toml'],
   ['typescript', 'typescript'],
   ['ts', 'typescript'],
   ['tsx', 'tsx'],
@@ -53,6 +59,7 @@ const LANGUAGE_ALIASES = new Map<string, string>([
 
 const LANGUAGE_REGISTRATIONS = [
   ['bash', bash],
+  ['css', css],
   ['diff', diff],
   ['javascript', javascript],
   ['json', json],
@@ -62,12 +69,17 @@ const LANGUAGE_REGISTRATIONS = [
   ['python', python],
   ['rust', rust],
   ['sql', sql],
+  ['toml', toml],
   ['tsx', tsx],
   ['typescript', typescript],
   ['yaml', yaml],
 ] as const;
 
 let languagesRegistered = false;
+
+const SyntaxHighlighterComponent = SyntaxHighlighter as React.ComponentType<
+  React.ComponentProps<typeof SyntaxHighlighter>
+>;
 
 function ensureLanguagesRegistered() {
   if (languagesRegistered) {
@@ -119,7 +131,7 @@ export function UniversalChatCodeBlock({
         </div>
       </div>
       <div className="overflow-x-auto custom-scrollbar text-[13px] leading-relaxed font-mono">
-        <SyntaxHighlighter
+        <SyntaxHighlighterComponent
           language={resolveLanguage(language || 'text')}
           style={vscDarkPlus}
           customStyle={{
@@ -132,7 +144,7 @@ export function UniversalChatCodeBlock({
           {...props}
         >
           {String(children).replace(/\n$/, '')}
-        </SyntaxHighlighter>
+        </SyntaxHighlighterComponent>
       </div>
     </div>
   );

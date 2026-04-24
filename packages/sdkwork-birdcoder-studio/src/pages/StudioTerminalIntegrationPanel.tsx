@@ -1,7 +1,11 @@
 import { memo } from 'react';
-import type { TerminalCommandRequest } from '@sdkwork/birdcoder-commons/workbench';
-import { ResizeHandle } from '@sdkwork/birdcoder-ui';
-import { TerminalPage } from '@sdkwork/birdcoder-terminal';
+import {
+  areTerminalCommandRequestsEqual,
+  useBirdcoderTerminalLaunchPlanResolver,
+  type TerminalCommandRequest,
+} from '@sdkwork/birdcoder-commons';
+import { ResizeHandle } from '@sdkwork/birdcoder-ui-shell';
+import { DesktopTerminalApp } from '@sdkwork/terminal-desktop';
 
 interface StudioTerminalIntegrationPanelProps {
   isOpen: boolean;
@@ -10,26 +14,6 @@ interface StudioTerminalIntegrationPanelProps {
   workspaceId?: string;
   projectId?: string;
   onResize: (delta: number) => void;
-}
-
-function areTerminalRequestsEqual(
-  left: TerminalCommandRequest | undefined,
-  right: TerminalCommandRequest | undefined,
-): boolean {
-  if (left === right) {
-    return true;
-  }
-
-  if (!left || !right) {
-    return left === right;
-  }
-
-  return (
-    left.path === right.path &&
-    left.command === right.command &&
-    left.profileId === right.profileId &&
-    left.timestamp === right.timestamp
-  );
 }
 
 function areStudioTerminalIntegrationPanelPropsEqual(
@@ -41,7 +25,7 @@ function areStudioTerminalIntegrationPanelPropsEqual(
     left.height === right.height &&
     left.workspaceId === right.workspaceId &&
     left.projectId === right.projectId &&
-    areTerminalRequestsEqual(left.terminalRequest, right.terminalRequest)
+    areTerminalCommandRequestsEqual(left.terminalRequest, right.terminalRequest)
   );
 }
 
@@ -53,18 +37,26 @@ export const StudioTerminalIntegrationPanel = memo(function StudioTerminalIntegr
   projectId,
   onResize,
 }: StudioTerminalIntegrationPanelProps) {
+  const resolveTerminalLaunchPlan = useBirdcoderTerminalLaunchPlanResolver(
+    workspaceId,
+    projectId,
+  );
+
   return (
     <>
-      {isOpen && <ResizeHandle direction="vertical" onResize={onResize} />}
+      {isOpen ? <ResizeHandle direction="vertical" onResize={onResize} /> : null}
       <div
         className={`border-white/10 shrink-0 flex flex-col bg-[#18181b] transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'opacity-100 border-t' : 'h-0 opacity-0 border-t-0'}`}
         style={isOpen ? { height } : undefined}
       >
-        <TerminalPage
-          terminalRequest={terminalRequest}
-          workspaceId={workspaceId}
-          projectId={projectId}
-        />
+        {isOpen ? (
+          <DesktopTerminalApp
+            launchRequest={terminalRequest}
+            launchRequestKey={terminalRequest?.timestamp ?? null}
+            resolveLaunchPlan={resolveTerminalLaunchPlan}
+            showWindowControls={false}
+          />
+        ) : null}
       </div>
     </>
   );

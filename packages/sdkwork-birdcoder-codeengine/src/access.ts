@@ -136,34 +136,20 @@ export const GEMINI_ENGINE_ACCESS_PLAN = createAccessPlan({
 });
 
 export const OPENCODE_ENGINE_ACCESS_PLAN = createAccessPlan({
-  primaryLaneId: 'opencode-rust-cli-jsonl',
-  fallbackLaneIds: ['opencode-openapi-proxy'],
+  primaryLaneId: 'opencode-rust-openapi-http',
   lanes: [
     {
-      laneId: 'opencode-rust-cli-jsonl',
-      label: 'Rust native OpenCode runtime',
-      strategyKind: 'rust-native',
-      runtimeOwner: 'rust-server',
-      bridgeProtocol: 'direct',
-      transportKind: 'cli-jsonl',
-      status: 'ready',
-      enabledByDefault: true,
-      hostModes: STANDARD_HOST_MODES,
-      description:
-        'Primary OpenCode lane runs directly inside the Rust server using the local OpenCode runtime and native session provider plugin.',
-    },
-    {
-      laneId: 'opencode-openapi-proxy',
-      label: 'OpenAPI HTTP proxy',
+      laneId: 'opencode-rust-openapi-http',
+      label: 'Rust native OpenCode server bridge',
       strategyKind: 'openapi-proxy',
       runtimeOwner: 'rust-server',
       bridgeProtocol: 'http',
       transportKind: 'openapi-http',
-      status: 'planned',
-      enabledByDefault: false,
+      status: 'ready',
+      enabledByDefault: true,
       hostModes: STANDARD_HOST_MODES,
       description:
-        'Fallback lane for hosted OpenCode-compatible backends that can be normalized through the BirdCoder Rust server API gateway.',
+        'Primary OpenCode lane runs inside the Rust server by attaching to an existing OpenCode server or spawning `opencode serve`, then normalizing the native HTTP session API.',
     },
   ],
 });
@@ -190,9 +176,18 @@ const ENGINE_ACCESS_ALIAS_TO_ID = new Map<string, BirdCoderStandardEngineId>([
 
 function normalizeAccessPlanEngineId(
   value: BirdCoderCodeEngineKey | null | undefined,
-): BirdCoderStandardEngineId {
+): BirdCoderStandardEngineId | null {
   const normalizedValue = value?.trim().toLowerCase() || '';
-  return ENGINE_ACCESS_ALIAS_TO_ID.get(normalizedValue) ?? 'codex';
+  return ENGINE_ACCESS_ALIAS_TO_ID.get(normalizedValue) ?? null;
+}
+
+export function findBirdCoderCodeEngineAccessPlan(
+  value: BirdCoderCodeEngineKey | null | undefined,
+): BirdCoderEngineAccessPlan | null {
+  const normalizedEngineId = normalizeAccessPlanEngineId(value);
+  return normalizedEngineId
+    ? BIRDCODER_STANDARD_ENGINE_ACCESS_PLANS[normalizedEngineId]
+    : null;
 }
 
 export function listBirdCoderCodeEngineAccessPlans(): ReadonlyArray<
@@ -205,14 +200,18 @@ export function listBirdCoderCodeEngineAccessPlans(): ReadonlyArray<
 
 export function getBirdCoderCodeEngineAccessPlan(
   value: BirdCoderCodeEngineKey | null | undefined,
-): BirdCoderEngineAccessPlan {
-  return BIRDCODER_STANDARD_ENGINE_ACCESS_PLANS[normalizeAccessPlanEngineId(value)];
+): BirdCoderEngineAccessPlan | null {
+  return findBirdCoderCodeEngineAccessPlan(value);
 }
 
 export function resolveBirdCoderCodeEnginePrimaryAccessLane(
   value: BirdCoderCodeEngineKey | null | undefined,
 ): BirdCoderEngineAccessLane | null {
   const accessPlan = getBirdCoderCodeEngineAccessPlan(value);
+  if (!accessPlan) {
+    return null;
+  }
+
   return accessPlan.lanes.find((lane) => lane.laneId === accessPlan.primaryLaneId) ?? null;
 }
 
@@ -223,6 +222,10 @@ export function resolveBirdCoderCodeEngineAccessLaneStatus(
     value && typeof value === 'object' && 'lanes' in value
       ? value
       : getBirdCoderCodeEngineAccessPlan(value as BirdCoderCodeEngineKey | null | undefined);
+  if (!accessPlan) {
+    return 'planned';
+  }
+
   const primaryLane =
     accessPlan.lanes.find((lane) => lane.laneId === accessPlan.primaryLaneId) ?? accessPlan.lanes[0];
   return primaryLane?.status === 'ready' ? 'ready' : 'planned';

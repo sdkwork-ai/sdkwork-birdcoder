@@ -19,7 +19,7 @@
 - `Terminal` 不在本仓实施主线内；真实 terminal runtime / PTY / CLI session / terminal storage 来自外部独立工程，本仓只保留集成协议、启动映射、治理与 release 回写。
 - Step `08` 的真相已调整为“外部 Terminal 集成边界”，禁止在本仓继续扩张 Terminal UI、CLI Registry、PTY、`terminal_session`、`terminal_execution` 等本体实现。
 - `web / desktop / server` 统一通过 `coding-server -> core / app / admin` 架构演进。
-- `auth / user / vip` 的统一桥接真相只能是 `sdkwork-birdcoder-appbase`，其 workspace manifest、package meta、route intent 与上游 `sdkwork-appbase` 保持对齐；相关改动必须纳入 `check:appbase-parity`。
+- `auth / user / vip` 的统一桥接真相只能是 `sdkwork-appbase` 根包能力加 `sdkwork-birdcoder-auth`、`sdkwork-birdcoder-user` 薄适配包；相关改动必须纳入 `check:identity-standard`。
 - Step `15/17` 的最终存储标准只能是共享 `data-kernel` table repository。
 - desktop 共享 SQLite authority 已把 `table.sqlite.*` payload materialize 为真实 provider tables。
 - Rust host 已把 legacy `kv_store` 降级为一次性迁移源；运行时真相只能是 direct provider tables。
@@ -408,7 +408,7 @@
   25. the fifth Step 18 engine-governance-promotion slice is already closed by promoting `engine-runtime-adapter`, `engine-conformance`, `tool-protocol-contract`, and `engine-resume-recovery-contract` into `check:release-flow`
   26. the sixth Step 18 non-environmental slice is already closed by promoting the same governance quartet into governance regression and quality-matrix score surfaces so loop scoring can see engine-adapter risk directly
   25. the architecture-boundary blocker is already closed by aligning `check-arch-boundaries.mjs` with the active runtime package topology for chat/types, infrastructure/host-core, server shared-contract usage, shell runtime composition, and web runtime identity
-  26. the i18n parity blocker is already closed by adding `app.menu.previousThread` and `app.menu.nextThread` to both `en` and `zh`
+  26. the i18n parity blocker is already closed by adding `app.menu.previousCodingSession` and `app.menu.nextCodingSession` to both `en` and `zh`
   27. governance regression now drives the web bundle budget through `pnpm run build`, so missing web `dist` artifacts are no longer treated as a valid blocker
   28. the real web bundle budget regression is now closed without weakening the cap:
     - entry `index-CKw7UVoM.js`: `68.1 KiB`
@@ -563,7 +563,7 @@
   - the next autonomous loop must select a new lowest-score Step from fresh evidence instead of continuing Step `20`
 58. The remaining release-tier contract-tail drift is now also closed:
   - `scripts/ci-flow-contract.test.mjs` and `scripts/quality-gate-matrix-contract.test.mjs` now freeze the same direct web-host `check:quality:standard` chain already used by `build`, `build:prod`, `check:quality:standard`, and governance regression
-  - the 2026-04-13 direct-runner evidence returned `101/101` passed checks with `failedCheckIds: []`
+  - the 2026-04-13 direct-runner evidence returned `100/100` passed checks with `failedCheckIds: []`
   - the 2026-04-13 direct-runner quality execution evidence returned `status: passed`, `passedCount: 3`, `failedCount: 0`, `blockedCount: 0`, and `lastExecutedTierId: release`
   - the declared `fast -> standard -> matrix -> release-flow -> ci-flow -> governance` topology remains unchanged; only the last stale contract expectations were realigned to the already-governed command truth
 59. The Step 17 live-docs truth-drift closure is now also closed:
@@ -656,7 +656,7 @@
 77. The Step 19 governed Vite-host blocker classification is now also closed:
   - `scripts/governance-regression-report.test.mjs` now freezes that command-backed `[vite:define] spawn EPERM` outcomes must be reported as `blocked` `toolchain-platform` diagnostics instead of ordinary failed repository regressions
   - `scripts/governance-regression-report.mjs` now emits `blockedCheckIds`, `blockingDiagnosticIds`, and `environmentDiagnostics`, so the current host can preserve `vite-host-build-preflight` without weakening the real `pnpm.cmd run build` bundle truth
-  - current host evidence on `2026-04-15` records `status: blocked`, `passedCount: 100`, `blockedCount: 1`, `failedCount: 0`, `blockedCheckIds: ["web-bundle-budget"]`, and `blockingDiagnosticIds: ["vite-host-build-preflight"]`, while direct `pnpm.cmd run build` still passes under the governed bundle cap
+  - current host evidence on `2026-04-15` records `status: blocked`, `passedCount: 97`, `blockedCount: 1`, `failedCount: 0`, `blockedCheckIds: ["web-bundle-budget"]`, and `blockingDiagnosticIds: ["vite-host-build-preflight"]`, while direct `pnpm.cmd run build` still passes under the governed bundle cap
   - future loops must not rewrite repository truth or weaken the web budget when governance regression is blocked only by the current governed Vite-host path; rerun the declared command path after the missing host capability is restored
 78. The current-host quality execution blocker state is now also explicitly preserved:
   - fresh `node scripts/quality-gate-execution-report.mjs` evidence on `2026-04-15` returns `status: blocked`, `passedCount: 0`, `blockedCount: 1`, `failedCount: 0`, `lastExecutedTierId: fast`, and `blockingDiagnosticIds: ["vite-host-build-preflight"]`

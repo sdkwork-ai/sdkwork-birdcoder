@@ -95,6 +95,7 @@ function createSdkStream(engineId: string): AsyncGenerator<ChatStreamChunk, void
 const providers = [
   {
     engineId: 'codex',
+    fallbackBehavior: 'supported',
     createWithSdk: () =>
       new CodexChatEngine({
         officialSdkBridgeLoader: {
@@ -128,6 +129,7 @@ const providers = [
   },
   {
     engineId: 'claude-code',
+    fallbackBehavior: 'unavailable',
     createWithSdk: () =>
       new ClaudeChatEngine({
         officialSdkBridgeLoader: {
@@ -148,6 +150,7 @@ const providers = [
   },
   {
     engineId: 'gemini',
+    fallbackBehavior: 'unavailable',
     createWithSdk: () =>
       new GeminiChatEngine({
         officialSdkBridgeLoader: {
@@ -168,6 +171,7 @@ const providers = [
   },
   {
     engineId: 'opencode',
+    fallbackBehavior: 'unavailable',
     createWithSdk: () =>
       new OpenCodeChatEngine({
         officialSdkBridgeLoader: {
@@ -213,25 +217,46 @@ for (const provider of providers) {
   );
 
   const fallbackEngine = provider.createFallback();
-  const fallbackResponse = await fallbackEngine.sendMessage(messages, {
-    model: provider.engineId,
-  });
-  const fallbackChunks = await collectStream(
-    fallbackEngine.sendMessageStream(messages, {
+  if (provider.fallbackBehavior === 'supported') {
+    const fallbackResponse = await fallbackEngine.sendMessage(messages, {
       model: provider.engineId,
-    }),
-  );
+    });
+    const fallbackChunks = await collectStream(
+      fallbackEngine.sendMessageStream(messages, {
+        model: provider.engineId,
+      }),
+    );
 
-  assert.notEqual(
-    fallbackResponse.choices[0]?.message.content,
-    `${provider.engineId} official sdk response`,
-    `${provider.engineId} should fall back when no official SDK bridge is available`,
-  );
-  assert.notEqual(
-    fallbackChunks.map((chunk) => chunk.choices[0]?.delta.content ?? '').join(''),
-    `${provider.engineId} official sdk stream`,
-    `${provider.engineId} stream should fall back when no official SDK bridge is available`,
-  );
+    assert.notEqual(
+      fallbackResponse.choices[0]?.message.content,
+      `${provider.engineId} official sdk response`,
+      `${provider.engineId} should fall back when no official SDK bridge is available`,
+    );
+    assert.notEqual(
+      fallbackChunks.map((chunk) => chunk.choices[0]?.delta.content ?? '').join(''),
+      `${provider.engineId} official sdk stream`,
+      `${provider.engineId} stream should fall back when no official SDK bridge is available`,
+    );
+  } else {
+    await assert.rejects(
+      () =>
+        fallbackEngine.sendMessage(messages, {
+          model: provider.engineId,
+        }),
+      /bridge is unavailable/i,
+      `${provider.engineId} should fail loudly instead of synthesizing a fallback one-shot response`,
+    );
+    await assert.rejects(
+      () =>
+        collectStream(
+          fallbackEngine.sendMessageStream(messages, {
+            model: provider.engineId,
+          }),
+        ),
+      /bridge is unavailable/i,
+      `${provider.engineId} should fail loudly instead of synthesizing a fallback stream`,
+    );
+  }
 }
 
 console.log('engine official sdk runtime selection contract passed.');

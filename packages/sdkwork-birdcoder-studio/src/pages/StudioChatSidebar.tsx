@@ -1,16 +1,22 @@
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-commons';
 import {
-  getWorkbenchCodeEngineDefinition,
-  getWorkbenchCodeModelLabel,
-  normalizeWorkbenchCodeModelId,
+  getWorkbenchCodeEngineSessionSummary,
 } from '@sdkwork/birdcoder-codeengine';
-import { ResizeHandle } from '@sdkwork/birdcoder-ui';
-import { UniversalChat } from '@sdkwork/birdcoder-ui/chat';
-import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-ui';
+import {
+  UniversalChat,
+  WorkbenchNewSessionButton,
+} from '@sdkwork/birdcoder-ui';
+import {
+  ResizeHandle,
+  WorkbenchCodeEngineIcon,
+  useFixedSizeWindowedRange,
+  useRelativeMinuteNow,
+} from '@sdkwork/birdcoder-ui-shell';
 import {
   formatBirdCoderSessionActivityDisplayTime,
   isBirdCoderCodingSessionExecuting,
   type BirdCoderChatMessage,
+  type BirdCoderCodingSession,
   type BirdCoderProject,
   type FileChange,
 } from '@sdkwork/birdcoder-types';
@@ -29,17 +35,57 @@ import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useSta
 import { useTranslation } from 'react-i18next';
 
 const INITIAL_VISIBLE_SESSIONS_PER_PROJECT = 5;
-const RELATIVE_TIME_REFRESH_INTERVAL_MS = 60 * 1000;
 const SESSION_EXPANSION_BATCH_SIZE = 10;
+const STUDIO_MENU_PROJECT_ROW_HEIGHT = 46;
+const STUDIO_MENU_SESSION_ROW_HEIGHT = 52;
+const STUDIO_MENU_WINDOWED_LIST_THRESHOLD = 20;
 const EMPTY_STUDIO_PROJECTS: BirdCoderProject[] = [];
 const EMPTY_STUDIO_CODING_SESSIONS: BirdCoderProject['codingSessions'] = [];
 
-function buildStudioSidebarSurfaceStyle(
-  animationDelay: string,
-  containIntrinsicSize: string,
-): CSSProperties {
+function areStudioProjectInventoriesEqual(
+  leftProjects: readonly BirdCoderProject[],
+  rightProjects: readonly BirdCoderProject[],
+): boolean {
+  if (leftProjects === rightProjects) {
+    return true;
+  }
+
+  if (leftProjects.length !== rightProjects.length) {
+    return false;
+  }
+
+  for (let projectIndex = 0; projectIndex < leftProjects.length; projectIndex += 1) {
+    if (leftProjects[projectIndex] !== rightProjects[projectIndex]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function areStudioChatMessagesEqual(
+  leftMessages: readonly BirdCoderChatMessage[],
+  rightMessages: readonly BirdCoderChatMessage[],
+): boolean {
+  if (leftMessages === rightMessages) {
+    return true;
+  }
+
+  if (leftMessages.length !== rightMessages.length) {
+    return false;
+  }
+
+  for (let messageIndex = 0; messageIndex < leftMessages.length; messageIndex += 1) {
+    if (leftMessages[messageIndex] !== rightMessages[messageIndex]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function buildStudioSidebarSurfaceStyle(containIntrinsicSize: string): CSSProperties {
   return {
-    animationDelay,
     contain: 'layout paint style',
     containIntrinsicSize,
   };
@@ -55,37 +101,36 @@ interface StudioChatSidebarProps {
   projectSearchQuery: string;
   messages: BirdCoderChatMessage[];
   emptyState?: ReactNode;
-  inputValue: string;
-  isSending: boolean;
+  isBusy: boolean;
   selectedEngineId: string;
   selectedModelId: string;
   disabled: boolean;
   onResize: (delta: number) => void;
   onProjectSearchQueryChange: (value: string) => void;
   onMenuActiveProjectIdChange: (projectId: string) => void;
-  onInputValueChange: (value: string) => void;
   onSelectedEngineIdChange: (engineId: string) => void | Promise<void>;
   onSelectedModelIdChange: (modelId: string, engineId?: string) => void | Promise<void>;
-  onSendMessage: (text?: string) => void;
+  onSendMessage: (text?: string) => void | Promise<void>;
   onSelectCodingSession: (projectId: string, codingSessionId: string) => void;
   onCreateProject: () => Promise<void>;
   onOpenFolder: () => Promise<void>;
-  onCreateCodingSession: (projectId: string) => Promise<void>;
+  onCreateCodingSession: (
+    projectId: string,
+    engineId?: string,
+  ) => Promise<BirdCoderCodingSession | null | void>;
   onRefreshProjectSessions: (projectId: string) => Promise<void>;
   onRefreshCodingSessionMessages: (codingSessionId: string) => Promise<void>;
   refreshingProjectId: string | null;
   refreshingCodingSessionId: string | null;
   onViewChanges: (file: FileChange) => void;
   onEditMessage: (messageId: string) => void;
-  onDeleteMessage: (messageId: string) => void;
+  onDeleteMessage: (messageIds: string[]) => void;
   onRegenerateMessage: () => void;
   onRestoreMessage: (messageId: string) => void;
-  onStopSending: () => void;
 }
 
 interface StudioProjectMenuRowProps {
   project: BirdCoderProject;
-  index: number;
   isMenuSelected: boolean;
   isActualSelected: boolean;
   onSelectProject: (projectId: string) => void;
@@ -93,7 +138,6 @@ interface StudioProjectMenuRowProps {
 
 const StudioProjectMenuRow = memo(function StudioProjectMenuRow({
   project,
-  index,
   isMenuSelected,
   isActualSelected,
   onSelectProject,
@@ -101,12 +145,12 @@ const StudioProjectMenuRow = memo(function StudioProjectMenuRow({
   return (
     <button
       onClick={() => onSelectProject(project.id)}
-      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group animate-in fade-in slide-in-from-left-2 fill-mode-both ${
+      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group ${
         isMenuSelected
           ? 'bg-white/5 text-gray-100 shadow-sm'
           : 'text-gray-400 hover:bg-white/5/60 hover:text-gray-200'
       }`}
-      style={buildStudioSidebarSurfaceStyle(`${index * 30}ms`, '42px')}
+      style={buildStudioSidebarSurfaceStyle('42px')}
     >
       <div className="flex items-center gap-2.5 truncate">
         {isMenuSelected ? (
@@ -126,47 +170,45 @@ const StudioProjectMenuRow = memo(function StudioProjectMenuRow({
 
 interface StudioSessionMenuRowProps {
   projectId: string;
-  thread: BirdCoderProject['codingSessions'][number];
-  index: number;
-  isSelected: boolean;
   relativeTimeNow: number;
+  session: BirdCoderProject['codingSessions'][number];
+  isSelected: boolean;
   onSelectCodingSession: (projectId: string, codingSessionId: string) => void;
 }
 
 const StudioSessionMenuRow = memo(function StudioSessionMenuRow({
   projectId,
-  thread,
-  index,
-  isSelected,
   relativeTimeNow,
+  session,
+  isSelected,
   onSelectCodingSession,
 }: StudioSessionMenuRowProps) {
-  const isExecutingThread = isBirdCoderCodingSessionExecuting(thread);
+  const isExecutingSession = isBirdCoderCodingSessionExecuting(session);
 
   return (
     <button
-      onClick={() => onSelectCodingSession(projectId, thread.id)}
-      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group animate-in fade-in slide-in-from-left-2 fill-mode-both ${
+      onClick={() => onSelectCodingSession(projectId, session.id)}
+      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group ${
         isSelected
           ? 'bg-blue-500/10 text-blue-400'
           : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
       }`}
-      style={buildStudioSidebarSurfaceStyle(`${index * 30}ms`, '48px')}
+      style={buildStudioSidebarSurfaceStyle('48px')}
     >
       <div className="flex items-center gap-3 truncate">
-        <WorkbenchCodeEngineIcon engineId={thread.engineId} />
+        <WorkbenchCodeEngineIcon engineId={session.engineId} />
         <div className="flex flex-col items-start truncate">
-          <span className="truncate font-medium">{thread.title}</span>
+          <span className="truncate font-medium">{session.title}</span>
           <span
             className={`text-[10px] ${
               isSelected ? 'text-blue-400/70' : 'text-gray-600 group-hover:text-gray-500'
             }`}
           >
-            {formatBirdCoderSessionActivityDisplayTime(thread, relativeTimeNow)}
+            {formatBirdCoderSessionActivityDisplayTime(session, relativeTimeNow)}
           </span>
         </div>
       </div>
-      {isExecutingThread ? (
+      {isExecutingSession ? (
         <RefreshCw size={14} className="animate-spin text-emerald-400 shrink-0" />
       ) : isSelected ? (
         <Check size={14} className="text-blue-400 shrink-0" />
@@ -174,6 +216,46 @@ const StudioSessionMenuRow = memo(function StudioSessionMenuRow({
     </button>
   );
 });
+
+function areStudioChatSidebarPropsEqual(
+  left: StudioChatSidebarProps,
+  right: StudioChatSidebarProps,
+): boolean {
+  return (
+    left.isVisible === right.isVisible &&
+    left.width === right.width &&
+    areStudioProjectInventoriesEqual(left.projects, right.projects) &&
+    left.currentProjectId === right.currentProjectId &&
+    left.selectedCodingSessionId === right.selectedCodingSessionId &&
+    left.menuActiveProjectId === right.menuActiveProjectId &&
+    left.projectSearchQuery === right.projectSearchQuery &&
+    areStudioChatMessagesEqual(left.messages, right.messages) &&
+    left.emptyState === right.emptyState &&
+    left.isBusy === right.isBusy &&
+    left.selectedEngineId === right.selectedEngineId &&
+    left.selectedModelId === right.selectedModelId &&
+    left.disabled === right.disabled &&
+    left.onResize === right.onResize &&
+    left.onProjectSearchQueryChange === right.onProjectSearchQueryChange &&
+    left.onMenuActiveProjectIdChange === right.onMenuActiveProjectIdChange &&
+    left.onSelectedEngineIdChange === right.onSelectedEngineIdChange &&
+    left.onSelectedModelIdChange === right.onSelectedModelIdChange &&
+    left.onSendMessage === right.onSendMessage &&
+    left.onSelectCodingSession === right.onSelectCodingSession &&
+    left.onCreateProject === right.onCreateProject &&
+    left.onOpenFolder === right.onOpenFolder &&
+    left.onCreateCodingSession === right.onCreateCodingSession &&
+    left.onRefreshProjectSessions === right.onRefreshProjectSessions &&
+    left.onRefreshCodingSessionMessages === right.onRefreshCodingSessionMessages &&
+    left.refreshingProjectId === right.refreshingProjectId &&
+    left.refreshingCodingSessionId === right.refreshingCodingSessionId &&
+    left.onViewChanges === right.onViewChanges &&
+    left.onEditMessage === right.onEditMessage &&
+    left.onDeleteMessage === right.onDeleteMessage &&
+    left.onRegenerateMessage === right.onRegenerateMessage &&
+    left.onRestoreMessage === right.onRestoreMessage
+  );
+}
 
 export const StudioChatSidebar = memo(function StudioChatSidebar({
   isVisible,
@@ -185,15 +267,13 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   projectSearchQuery,
   messages,
   emptyState,
-  inputValue,
-  isSending,
+  isBusy,
   selectedEngineId,
   selectedModelId,
   disabled,
   onResize,
   onProjectSearchQueryChange,
   onMenuActiveProjectIdChange,
-  onInputValueChange,
   onSelectedEngineIdChange,
   onSelectedModelIdChange,
   onSendMessage,
@@ -210,16 +290,16 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onDeleteMessage,
   onRegenerateMessage,
   onRestoreMessage,
-  onStopSending,
 }: StudioChatSidebarProps) {
   const { t } = useTranslation();
   const { preferences } = useWorkbenchPreferences();
-  const [relativeTimeNow, setRelativeTimeNow] = useState(() => Date.now());
   const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [visibleSessionCountByProjectId, setVisibleSessionCountByProjectId] = useState<
     Record<string, number>
   >({});
   const projectMenuRef = useRef<HTMLDivElement>(null);
+  const projectMenuProjectsRef = useRef<HTMLDivElement>(null);
+  const projectMenuSessionsRef = useRef<HTMLDivElement>(null);
 
   const handleProjectMenuClickOutside = useCallback((event: MouseEvent) => {
       if (!showProjectMenu) {
@@ -261,22 +341,10 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     });
   }, [projects]);
 
-  useEffect(() => {
-    if (!isVisible) {
-      return undefined;
-    }
-
-    setRelativeTimeNow(Date.now());
-    const timer = window.setInterval(() => {
-      setRelativeTimeNow(Date.now());
-    }, RELATIVE_TIME_REFRESH_INTERVAL_MS);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [isVisible]);
-
   const deferredProjectSearchQuery = useDeferredValue(projectSearchQuery);
+  const relativeTimeNow = useRelativeMinuteNow({
+    isEnabled: isVisible && showProjectMenu,
+  });
   const normalizedProjectSearchQuery = deferredProjectSearchQuery.trim().toLowerCase();
   const projectsById = useMemo(
     () => new Map(projects.map((project) => [project.id, project] as const)),
@@ -291,23 +359,18 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     [currentProject, selectedCodingSessionId],
   );
   const currentCodingSessionTitle = currentCodingSession?.title;
-  const headerEngineId = currentCodingSession?.engineId ?? selectedEngineId;
-  const headerModelId = currentCodingSession?.modelId ?? selectedModelId;
-  const headerEngine = getWorkbenchCodeEngineDefinition(headerEngineId, preferences);
-  const headerModelIdNormalized = normalizeWorkbenchCodeModelId(
-    headerEngineId,
-    headerModelId,
-    preferences,
-  );
-  const headerModelLabel = getWorkbenchCodeModelLabel(
-    headerEngineId,
-    headerModelIdNormalized,
-    preferences,
-  );
-  const headerEngineSummary =
-    headerModelLabel.trim().toLowerCase() === headerEngine.label.trim().toLowerCase()
-      ? headerEngine.label
-      : `${headerEngine.label} / ${headerModelLabel}`;
+  const headerEngineSummary = currentCodingSession?.engineId?.trim()
+    ? getWorkbenchCodeEngineSessionSummary(
+        currentCodingSession.engineId,
+        currentCodingSession.modelId,
+        preferences,
+      )
+    : getWorkbenchCodeEngineSessionSummary(selectedEngineId, selectedModelId, preferences);
+  const currentChatEngineId =
+    currentCodingSession?.engineId?.trim() || selectedEngineId;
+  const currentChatModelId = currentCodingSession
+    ? (currentCodingSession.modelId?.trim() ?? '')
+    : selectedModelId;
   const isExecutingCurrentSession = isBirdCoderCodingSessionExecuting(currentCodingSession);
   const visibleMenuProjects = useMemo(() => {
     if (!showProjectMenu) {
@@ -342,7 +405,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   const menuSelectedSessionId =
     currentProjectId === effectiveMenuProjectId ? selectedCodingSessionId : '';
   const menuProject = showProjectMenu ? projectsById.get(effectiveMenuProjectId) ?? null : null;
-  const menuProjectThreads = useMemo(() => {
+  const menuProjectSessions = useMemo(() => {
     if (!showProjectMenu || !menuProject) {
       return EMPTY_STUDIO_CODING_SESSIONS;
     }
@@ -357,21 +420,74 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   }, [menuProject, normalizedProjectSearchQuery, showProjectMenu]);
   const visibleSessionCount =
     visibleSessionCountByProjectId[effectiveMenuProjectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-  const visibleThreads = useMemo(
+  const visibleSessions = useMemo(
     () =>
       showProjectMenu
-        ? menuProjectThreads.slice(0, visibleSessionCount)
+        ? menuProjectSessions.slice(0, visibleSessionCount)
         : EMPTY_STUDIO_CODING_SESSIONS,
-    [menuProjectThreads, showProjectMenu, visibleSessionCount],
+    [menuProjectSessions, showProjectMenu, visibleSessionCount],
   );
-  const canToggleThreadExpansion = menuProjectThreads.length > INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-  const canShowMoreThreads = visibleSessionCount < menuProjectThreads.length;
+  const shouldWindowMenuProjects =
+    showProjectMenu && visibleMenuProjects.length >= STUDIO_MENU_WINDOWED_LIST_THRESHOLD;
+  const shouldWindowMenuSessions =
+    showProjectMenu && visibleSessions.length >= STUDIO_MENU_WINDOWED_LIST_THRESHOLD;
+  const menuProjectsWindowedRange = useFixedSizeWindowedRange({
+    containerRef: projectMenuProjectsRef,
+    isEnabled: shouldWindowMenuProjects,
+    itemCount: visibleMenuProjects.length,
+    itemHeight: STUDIO_MENU_PROJECT_ROW_HEIGHT,
+    overscan: 6,
+  });
+  const menuSessionsWindowedRange = useFixedSizeWindowedRange({
+    containerRef: projectMenuSessionsRef,
+    isEnabled: shouldWindowMenuSessions,
+    itemCount: visibleSessions.length,
+    itemHeight: STUDIO_MENU_SESSION_ROW_HEIGHT,
+    overscan: 6,
+  });
+  const renderedMenuProjects = useMemo(
+    () =>
+      shouldWindowMenuProjects
+        ? visibleMenuProjects.slice(
+            menuProjectsWindowedRange.startIndex,
+            menuProjectsWindowedRange.endIndex,
+          )
+        : visibleMenuProjects,
+    [
+      menuProjectsWindowedRange.endIndex,
+      menuProjectsWindowedRange.startIndex,
+      shouldWindowMenuProjects,
+      visibleMenuProjects,
+    ],
+  );
+  const renderedMenuSessions = useMemo(
+    () =>
+      shouldWindowMenuSessions
+        ? visibleSessions.slice(
+            menuSessionsWindowedRange.startIndex,
+            menuSessionsWindowedRange.endIndex,
+          )
+        : visibleSessions,
+    [
+      menuSessionsWindowedRange.endIndex,
+      menuSessionsWindowedRange.startIndex,
+      shouldWindowMenuSessions,
+      visibleSessions,
+    ],
+  );
+  const canToggleSessionExpansion = menuProjectSessions.length > INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+  const canShowMoreSessions = visibleSessionCount < menuProjectSessions.length;
   const nextExpansionCount = Math.min(
     SESSION_EXPANSION_BATCH_SIZE,
-    Math.max(0, menuProjectThreads.length - visibleSessionCount),
+    Math.max(0, menuProjectSessions.length - visibleSessionCount),
   );
   const hasEffectiveMenuProject = effectiveMenuProjectId.trim().length > 0;
-  const canRefreshCurrentContext = Boolean(selectedCodingSessionId || currentProjectId);
+  const showExecutingCurrentSessionIndicator =
+    isExecutingCurrentSession && Boolean(selectedCodingSessionId);
+  const canRefreshCurrentContext = Boolean(
+    (selectedCodingSessionId || currentProjectId) &&
+      !showExecutingCurrentSessionIndicator,
+  );
   const isRefreshingCurrentContext = selectedCodingSessionId
     ? refreshingCodingSessionId === selectedCodingSessionId
     : refreshingProjectId === currentProjectId;
@@ -382,6 +498,11 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     : isRefreshingCurrentContext
       ? 'studio.refreshingSessions'
       : 'studio.refreshSessions';
+  const headerRefreshIconClassName = showExecutingCurrentSessionIndicator
+    ? 'animate-spin text-emerald-400'
+    : isRefreshingCurrentContext
+      ? 'animate-spin text-gray-300'
+      : 'text-gray-500';
 
   const handleToggleProjectMenu = () => {
     if (!showProjectMenu) {
@@ -408,12 +529,12 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   }, [onSelectCodingSession]);
 
   const handleToggleMenuProjectSessionExpansion = useCallback(
-    (projectId: string, threadCount: number, canShowMoreThreadsForProject: boolean) => {
+    (projectId: string, sessionCount: number, canShowMoreSessionsForProject: boolean) => {
       setVisibleSessionCountByProjectId((previousState) => {
         const currentCount =
           previousState[projectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-        const nextCount = canShowMoreThreadsForProject
-          ? Math.min(currentCount + SESSION_EXPANSION_BATCH_SIZE, threadCount)
+        const nextCount = canShowMoreSessionsForProject
+          ? Math.min(currentCount + SESSION_EXPANSION_BATCH_SIZE, sessionCount)
           : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
         if (nextCount === currentCount) {
           return previousState;
@@ -436,6 +557,18 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
       void onRefreshProjectSessions(currentProjectId);
     }
   };
+
+  const handleCreateProjectCodingSession = useCallback(
+    async (engineId?: string) => {
+      if (!hasEffectiveMenuProject) {
+        return;
+      }
+
+      await onCreateCodingSession(effectiveMenuProjectId, engineId);
+      setShowProjectMenu(false);
+    },
+    [effectiveMenuProjectId, hasEffectiveMenuProject, onCreateCodingSession],
+  );
 
   if (!isVisible) {
     return null;
@@ -485,21 +618,37 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                   </div>
 
                   <div className="flex h-[360px]">
-                  <div className="w-[40%] border-r border-white/10 overflow-y-auto p-2 custom-scrollbar bg-[#0e0e11]/30 flex flex-col gap-1">
+                  <div
+                    ref={projectMenuProjectsRef}
+                    className="w-[40%] border-r border-white/10 overflow-y-auto p-2 custom-scrollbar bg-[#0e0e11]/30"
+                  >
                     <div className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                       {t('studio.projects')}
                     </div>
                     {visibleMenuProjects.length > 0 ? (
-                      visibleMenuProjects.map((project, index) => (
-                        <StudioProjectMenuRow
-                          key={project.id}
-                          project={project}
-                          index={index}
-                          isMenuSelected={effectiveMenuProjectId === project.id}
-                          isActualSelected={currentProjectId === project.id}
-                          onSelectProject={handleSelectMenuProject}
-                        />
-                      ))
+                      <>
+                        {shouldWindowMenuProjects ? (
+                          <div style={{ height: menuProjectsWindowedRange.paddingTop }} />
+                        ) : null}
+                        {renderedMenuProjects.map((project, projectIndex) => (
+                          <div
+                            key={project.id}
+                            className={
+                              projectIndex === renderedMenuProjects.length - 1 ? '' : 'pb-1'
+                            }
+                          >
+                            <StudioProjectMenuRow
+                              project={project}
+                              isMenuSelected={effectiveMenuProjectId === project.id}
+                              isActualSelected={currentProjectId === project.id}
+                              onSelectProject={handleSelectMenuProject}
+                            />
+                          </div>
+                        ))}
+                        {shouldWindowMenuProjects ? (
+                          <div style={{ height: menuProjectsWindowedRange.paddingBottom }} />
+                        ) : null}
+                      </>
                     ) : (
                       <div className="py-8 text-center text-gray-500 text-xs">
                         {t('studio.noProjectsFound')}
@@ -507,37 +656,51 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                     )}
                   </div>
 
-                  <div className="w-[60%] overflow-y-auto p-2 custom-scrollbar bg-[#0e0e11]/10 flex flex-col gap-1">
+                  <div
+                    ref={projectMenuSessionsRef}
+                    className="w-[60%] overflow-y-auto p-2 custom-scrollbar bg-[#0e0e11]/10"
+                  >
                     <div className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                      {t('studio.threads')}
+                      {t('studio.sessions')}
                     </div>
-                    {visibleThreads.map((thread, index) => (
-                      <StudioSessionMenuRow
-                        key={thread.id}
-                        projectId={effectiveMenuProjectId}
-                        thread={thread}
-                        index={index}
-                        isSelected={
-                          currentProjectId === effectiveMenuProjectId &&
-                          selectedCodingSessionId === thread.id
+                    {shouldWindowMenuSessions ? (
+                      <div style={{ height: menuSessionsWindowedRange.paddingTop }} />
+                    ) : null}
+                    {renderedMenuSessions.map((session, sessionIndex) => (
+                      <div
+                        key={session.id}
+                        className={
+                          sessionIndex === renderedMenuSessions.length - 1 ? '' : 'pb-1'
                         }
-                        relativeTimeNow={relativeTimeNow}
-                        onSelectCodingSession={handleSelectMenuCodingSession}
-                      />
+                      >
+                        <StudioSessionMenuRow
+                          projectId={effectiveMenuProjectId}
+                          relativeTimeNow={relativeTimeNow}
+                          session={session}
+                          isSelected={
+                            currentProjectId === effectiveMenuProjectId &&
+                            selectedCodingSessionId === session.id
+                          }
+                          onSelectCodingSession={handleSelectMenuCodingSession}
+                        />
+                      </div>
                     ))}
-                    {canToggleThreadExpansion && (
+                    {shouldWindowMenuSessions ? (
+                      <div style={{ height: menuSessionsWindowedRange.paddingBottom }} />
+                    ) : null}
+                    {canToggleSessionExpansion && (
                       <button
                         type="button"
                         className="mx-3 mt-1 inline-flex items-center justify-start rounded-lg px-3 py-2 text-xs font-medium text-gray-500 transition-all hover:bg-white/5 hover:text-gray-200"
                         onClick={() =>
                           handleToggleMenuProjectSessionExpansion(
                             effectiveMenuProjectId,
-                            menuProjectThreads.length,
-                            canShowMoreThreads,
+                            menuProjectSessions.length,
+                            canShowMoreSessions,
                           )
                         }
                       >
-                        {canShowMoreThreads
+                        {canShowMoreSessions
                           ? t('studio.showMoreSessions', {
                               count: nextExpansionCount,
                             })
@@ -588,21 +751,19 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                     </button>
                   </div>
                   <div className="w-[60%] p-2 flex gap-1">
-                    <button
-                      onClick={() => {
-                        if (!hasEffectiveMenuProject) {
-                          return;
-                        }
-                        void onCreateCodingSession(effectiveMenuProjectId).then(() => {
-                          setShowProjectMenu(false);
-                        });
-                      }}
+                    <WorkbenchNewSessionButton
+                      buttonLabel={t('studio.newSession')}
+                      currentSessionEngineId={currentCodingSession?.engineId}
+                      currentSessionModelId={currentCodingSession?.modelId}
                       disabled={!hasEffectiveMenuProject}
-                      className="flex items-center justify-center gap-2 w-full px-3 py-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 border border-dashed border-blue-500/30 hover:border-blue-500/50 rounded-lg transition-all font-medium"
-                    >
-                      <Plus size={12} />
-                      {t('studio.newThread')}
-                    </button>
+                      disabledTitle={t('studio.pleaseSelectProject')}
+                      selectedEngineId={selectedEngineId}
+                      selectedModelId={selectedModelId}
+                      variant="studio"
+                      onCreateSession={(engineId) => {
+                        void handleCreateProjectCodingSession(engineId);
+                      }}
+                    />
                     <button
                       onClick={() => {
                         if (!menuSelectedSessionId) {
@@ -626,11 +787,8 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <div className="flex items-center gap-2 px-1.5 py-1 text-xs text-gray-300">
-                <div className={disabled ? 'opacity-50' : undefined}>
-                  <WorkbenchCodeEngineIcon engineId={headerEngine.id} />
-                </div>
                 <span
-                  className={`max-w-[220px] truncate font-medium ${
+                  className={`max-w-[220px] truncate whitespace-nowrap font-medium ${
                     disabled ? 'text-gray-500' : 'text-gray-300'
                   }`}
                 >
@@ -639,47 +797,47 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
               </div>
               <button
                 type="button"
-                className="text-gray-500 hover:text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                className={`inline-flex items-center gap-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                  showExecutingCurrentSessionIndicator
+                    ? 'text-emerald-400'
+                    : 'text-gray-500 hover:text-white'
+                }`}
                 disabled={!canRefreshCurrentContext || isRefreshingCurrentContext}
                 title={t(refreshActionKey)}
                 onClick={handleRefreshCurrentContext}
               >
                 <RefreshCw
                   size={14}
-                  className={isExecutingCurrentSession ? 'animate-spin text-emerald-400' : 'text-gray-500'}
+                  className={headerRefreshIconClassName}
                 />
+                {showExecutingCurrentSessionIndicator ? (
+                  <span className="hidden text-xs xl:inline">
+                    {t('studio.executingSession')}
+                  </span>
+                ) : null}
               </button>
-              {isExecutingCurrentSession && selectedCodingSessionId ? (
-                <div className="hidden items-center gap-1.5 text-xs text-emerald-400 xl:flex">
-                  <RefreshCw size={12} className="animate-spin" />
-                  <span>{t('studio.executingSession')}</span>
-                </div>
-              ) : null}
             </div>
           </div>
         </div>
 
         <div className="flex-1 min-h-0">
           <UniversalChat
-            chatId={selectedCodingSessionId || undefined}
+            sessionId={selectedCodingSessionId || undefined}
             messages={messages}
-            inputValue={inputValue}
-            setInputValue={onInputValueChange}
             onSendMessage={onSendMessage}
-            isSending={isSending}
-            selectedEngineId={selectedEngineId}
-            selectedModelId={selectedModelId}
+            isBusy={isBusy}
+            selectedEngineId={currentChatEngineId}
+            selectedModelId={currentChatModelId}
             setSelectedEngineId={onSelectedEngineIdChange}
             setSelectedModelId={onSelectedModelIdChange}
             showEngineHeader={false}
-            showComposerEngineSelector={false}
+            showComposerEngineSelector={!selectedCodingSessionId}
             layout="sidebar"
             onViewChanges={onViewChanges}
             onEditMessage={onEditMessage}
             onDeleteMessage={onDeleteMessage}
             onRegenerateMessage={onRegenerateMessage}
             onRestore={onRestoreMessage}
-            onStop={onStopSending}
             disabled={disabled}
             emptyState={
               emptyState ?? (
@@ -708,6 +866,6 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
       />
     </>
   );
-});
+}, areStudioChatSidebarPropsEqual);
 
 StudioChatSidebar.displayName = 'StudioChatSidebar';

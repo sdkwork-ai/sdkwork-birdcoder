@@ -2,27 +2,32 @@ import type {
   ChatCanonicalEvent,
   ChatMessage,
   ChatOptions,
-} from '@sdkwork/birdcoder-chat';
+} from '../../sdkwork-birdcoder-chat/src/index.ts';
 import {
+  createWorkbenchServerSessionEngineBinding,
   getBirdCoderCodeEngineCapabilities,
   getBirdCoderCodeEngineDescriptor,
-  getWorkbenchCodeEngineKernel,
   listBirdCoderCodeEngineNativeSessionProviders,
   listBirdCoderCodeEngineDescriptors,
   listBirdCoderCodeEngineModels,
-} from '@sdkwork/birdcoder-codeengine';
-import { createChatEngineById } from '@sdkwork/birdcoder-codeengine/engines';
+} from '../../sdkwork-birdcoder-codeengine/src/index.ts';
 import {
   resolveTransportKindForRuntimeMode,
-} from '@sdkwork/birdcoder-chat';
+} from '../../sdkwork-birdcoder-chat/src/index.ts';
 import {
   BIRDCODER_DEFAULT_LOCAL_API_BASE_URL,
   BIRDCODER_DEFAULT_LOCAL_API_HOST,
   BIRDCODER_DEFAULT_LOCAL_API_PORT,
   createBirdHostDescriptorFromDistribution,
   type BirdHostDescriptor,
-} from '@sdkwork/birdcoder-host-core';
-import { bindDefaultBirdCoderIdeServicesRuntime } from '@sdkwork/birdcoder-infrastructure';
+} from '../../sdkwork-birdcoder-host-core/src/index.ts';
+import {
+  createUserCenterBridgeConfig,
+} from '../../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react/src/domain/userCenterBridge.ts';
+import {
+  createUserCenterStandardAppRouteProjection,
+  type CreateUserCenterStandardAppRouteProjectionOptions,
+} from '../../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react/src/domain/userCenterStandardAppRoutes.ts';
 import type {
   BirdCoderApiEnvelope,
   BirdCoderApiGatewaySummary,
@@ -44,7 +49,7 @@ import type {
   BirdCoderCodingSessionRuntime,
   BirdCoderHostMode,
   BirdCoderAppAdminApiClient,
-} from '@sdkwork/birdcoder-types';
+} from '../../sdkwork-birdcoder-types/src/index.ts';
 import {
   BIRDCODER_CODING_SERVER_API_VERSION as BIRDCODER_CODING_SERVER_API_VERSION_VALUE,
   BIRDCODER_CODING_SESSION_ARTIFACT_KINDS,
@@ -52,8 +57,10 @@ import {
   BIRDCODER_CODING_SESSION_MESSAGE_ROLES,
   BIRDCODER_CODING_SESSION_RUNTIME_STATUSES,
   BIRDCODER_CODING_SESSION_STATUSES,
+  BIRDCODER_ENGINE_INTEGRATION_CLASSES,
+  BIRDCODER_ENGINE_RUNTIME_MODES,
   BIRDCODER_HOST_MODES,
-} from '@sdkwork/birdcoder-types';
+} from '../../sdkwork-birdcoder-types/src/index.ts';
 
 export const BIRD_SERVER_DEFAULT_HOST = BIRDCODER_DEFAULT_LOCAL_API_HOST;
 export const BIRD_SERVER_DEFAULT_PORT = BIRDCODER_DEFAULT_LOCAL_API_PORT;
@@ -72,7 +79,7 @@ export interface BirdCoderCoreSessionRunRequest {
   runtimeId: string;
   turnId: string;
   engineId: string;
-  modelId?: string;
+  modelId: string;
   hostMode?: BirdCoderHostMode;
   messages: ChatMessage[];
   options?: ChatOptions;
@@ -230,6 +237,8 @@ const BIRDCODER_COLLABORATION_ROLES = ['owner', 'admin', 'member', 'viewer'] as 
 
 const BIRDCODER_COLLABORATION_STATUSES = ['invited', 'active', 'suspended', 'removed'] as const;
 
+const BIRDCODER_GIT_OVERVIEW_STATUSES = ['ready', 'not_repository'] as const;
+
 const BIRDCODER_DOCUMENT_KINDS = [
   'prd',
   'architecture',
@@ -241,7 +250,41 @@ const BIRDCODER_DOCUMENT_KINDS = [
 
 const BIRDCODER_DOCUMENT_STATUSES = ['draft', 'active', 'archived'] as const;
 
-const BIRDCODER_USER_CENTER_MODES = ['local', 'external'] as const;
+const BIRDCODER_USER_CENTER_MODES = [
+  'builtin-local',
+  'sdkwork-cloud-app-api',
+  'external-user-center',
+] as const;
+
+const BIRDCODER_USER_CENTER_LOGIN_METHODS = [
+  'emailCode',
+  'password',
+  'phoneCode',
+  'sessionBridge',
+] as const;
+
+const BIRDCODER_USER_CENTER_REGISTER_METHODS = ['email', 'phone'] as const;
+
+const BIRDCODER_USER_CENTER_RECOVERY_METHODS = ['email', 'phone'] as const;
+
+const BIRDCODER_USER_CENTER_VERIFY_TYPES = ['EMAIL', 'PHONE'] as const;
+
+const BIRDCODER_USER_CENTER_VERIFY_SCENES = [
+  'LOGIN',
+  'REGISTER',
+  'RESET_PASSWORD',
+] as const;
+
+const BIRDCODER_USER_CENTER_PASSWORD_RESET_CHANNELS = ['EMAIL', 'SMS'] as const;
+
+const BIRDCODER_USER_CENTER_DEVICE_TYPES = ['android', 'desktop', 'ios', 'web'] as const;
+
+const BIRDCODER_USER_CENTER_LOGIN_QR_STATUSES = [
+  'pending',
+  'scanned',
+  'confirmed',
+  'expired',
+] as const;
 
 const BIRDCODER_DEPLOYMENT_RECORD_STATUSES = [
   'planned',
@@ -293,6 +336,13 @@ const BIRDCODER_CODING_SESSION_CHECKPOINT_KINDS = [
 ] as const;
 
 const BIRDCODER_MODEL_STATUSES = ['active', 'preview', 'deprecated', 'disabled'] as const;
+const BIRDCODER_SERVER_USER_CENTER_NAMESPACE = 'sdkwork-birdcoder';
+const BIRDCODER_SERVER_USER_CENTER_LOCAL_API_BASE_PATH = '/api/app/v1';
+const BIRDCODER_SERVER_USER_CENTER_ROUTES = Object.freeze({
+  authBasePath: '/auth',
+  userRoutePath: '/user',
+  vipRoutePath: '/vip',
+});
 
 export interface BirdServerRuntime extends BirdHostDescriptor {
   host: string;
@@ -314,6 +364,42 @@ interface BirdCoderCoreSessionProjectionState {
   operationsById: Map<string, BirdCoderOperationDescriptor>;
 }
 
+interface BirdCoderInfrastructureRuntimeModule {
+  bindDefaultBirdCoderIdeServicesRuntime(options: {
+    apiBaseUrl?: string;
+    appAdminClient?: BirdCoderAppAdminApiClient;
+    host?: BirdHostDescriptor;
+  }): void;
+}
+
+let birdCoderInfrastructureRuntimeModulePromise:
+  | Promise<BirdCoderInfrastructureRuntimeModule>
+  | null = null;
+
+function createBirdCoderServerUserCenterAppRouteProjection<
+  TProjectedRoute,
+  TSurface extends string = 'app',
+  TAuthMode extends string = 'user',
+>(
+  options: CreateUserCenterStandardAppRouteProjectionOptions<
+    TProjectedRoute,
+    TSurface,
+    TAuthMode
+  >,
+) {
+  return createUserCenterStandardAppRouteProjection(
+    createUserCenterBridgeConfig({
+      localApiBasePath: BIRDCODER_SERVER_USER_CENTER_LOCAL_API_BASE_PATH,
+      namespace: BIRDCODER_SERVER_USER_CENTER_NAMESPACE,
+      provider: {
+        kind: 'builtin-local',
+      },
+      routes: BIRDCODER_SERVER_USER_CENTER_ROUTES,
+    }),
+    options,
+  );
+}
+
 function createRoute(
   surface: BirdCoderApiSurface,
   authMode: BirdCoderApiRouteDefinition['authMode'],
@@ -328,6 +414,57 @@ function createRoute(
     surface,
     summary,
   };
+}
+
+function toBirdCoderApiRouteDefinition(
+  route: Pick<BirdCoderApiRouteDefinition, 'authMode' | 'method' | 'path' | 'summary' | 'surface'>,
+): BirdCoderApiRouteDefinition {
+  return {
+    authMode: route.authMode,
+    method: route.method,
+    path: route.path,
+    surface: route.surface,
+    summary: route.summary,
+  };
+}
+
+async function loadBirdCoderInfrastructureRuntimeModule(): Promise<BirdCoderInfrastructureRuntimeModule> {
+  if (!birdCoderInfrastructureRuntimeModulePromise) {
+    birdCoderInfrastructureRuntimeModulePromise = import(
+      '@sdkwork/birdcoder-infrastructure'
+    ).then(({ bindDefaultBirdCoderIdeServicesRuntime }) => ({
+      bindDefaultBirdCoderIdeServicesRuntime,
+    }));
+  }
+
+  return birdCoderInfrastructureRuntimeModulePromise;
+}
+
+const BIRDCODER_USER_CENTER_APP_EXTRA_OPERATION_ENTRIES = [
+  ['POST /api/app/v1/auth/oauth/url', 'app.getOAuthAuthorizationUrl'],
+  ['POST /api/app/v1/auth/oauth/login', 'app.loginWithOAuth'],
+  ['POST /api/app/v1/auth/qr/generate', 'app.generateLoginQrCode'],
+  ['GET /api/app/v1/auth/qr/status/:qrKey', 'app.checkLoginQrCodeStatus'],
+] as const;
+
+let birdCoderUserCenterAppRouteProjection:
+  | ReturnType<typeof createBirdCoderServerUserCenterAppRouteProjection<BirdCoderApiRouteDefinition>>
+  | null = null;
+let birdCoderAppApiContract: BirdCoderAppApiContract | null = null;
+
+function getBirdCoderUserCenterAppRouteProjection() {
+  birdCoderUserCenterAppRouteProjection ??= createBirdCoderServerUserCenterAppRouteProjection(
+    {
+      authMode: 'user',
+      mapRoute: (route) => toBirdCoderApiRouteDefinition(route),
+      surface: 'app',
+    },
+  );
+  return birdCoderUserCenterAppRouteProjection;
+}
+
+function getBirdCoderUserCenterAppRouteOperationEntries() {
+  return getBirdCoderUserCenterAppRouteProjection().operationEntries;
 }
 
 function getSurfaceDescription(surface: BirdCoderApiSurface): string {
@@ -618,6 +755,26 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
       ),
     ),
   ];
+  const engineIntegrationClasses = [
+    ...new Set([
+      ...BIRDCODER_ENGINE_INTEGRATION_CLASSES,
+      ...engineDescriptors.flatMap((descriptor) =>
+        descriptor.officialIntegration?.integrationClass
+          ? [descriptor.officialIntegration.integrationClass]
+          : [],
+      ),
+    ]),
+  ];
+  const engineRuntimeModes = [
+    ...new Set([
+      ...BIRDCODER_ENGINE_RUNTIME_MODES,
+      ...engineDescriptors.flatMap((descriptor) =>
+        descriptor.officialIntegration?.runtimeMode
+          ? [descriptor.officialIntegration.runtimeMode]
+          : [],
+      ),
+    ]),
+  ];
   const engineAccessLaneStatuses = [
     ...new Set(
       engineDescriptors.flatMap((descriptor) =>
@@ -838,8 +995,38 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         required: ['primaryLaneId', 'fallbackLaneIds', 'lanes'],
       },
     ),
+    BirdCoderEngineOfficialEntry: createOpenApiObjectSchema(
+      {
+        packageName: createOpenApiStringSchema(),
+        packageVersion: createOpenApiStringSchema(),
+        sdkPath: createOpenApiNullableStringSchema(),
+        cliPackageName: createOpenApiNullableStringSchema(),
+        sourceMirrorPath: createOpenApiNullableStringSchema(),
+        supplementalLanes: createOpenApiArraySchema(createOpenApiStringSchema()),
+      },
+      {
+        required: ['packageName'],
+      },
+    ),
+    BirdCoderEngineOfficialIntegration: createOpenApiObjectSchema(
+      {
+        integrationClass: createOpenApiStringEnumSchema(engineIntegrationClasses),
+        runtimeMode: createOpenApiStringEnumSchema(engineRuntimeModes),
+        officialEntry: createOpenApiSchemaReference('BirdCoderEngineOfficialEntry'),
+        notes: createOpenApiStringSchema(),
+      },
+      {
+        required: ['integrationClass', 'runtimeMode', 'officialEntry'],
+      },
+    ),
     BirdCoderEngineDescriptor: createOpenApiObjectSchema(
       {
+        id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         engineKey: createOpenApiStringEnumSchema(engineKeys),
         displayName: createOpenApiStringSchema(),
         vendor: createOpenApiStringSchema(),
@@ -853,22 +1040,36 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
           createOpenApiStringEnumSchema(engineTransportKinds),
         ),
         capabilityMatrix: createOpenApiSchemaReference('BirdCoderEngineCapabilityMatrix'),
+        status: createOpenApiStringEnumSchema(BIRDCODER_MODEL_STATUSES),
         accessPlan: createOpenApiSchemaReference('BirdCoderEngineAccessPlan'),
+        officialIntegration: createOpenApiSchemaReference('BirdCoderEngineOfficialIntegration'),
       },
       {
         required: [
+          'id',
+          'uuid',
+          'createdAt',
+          'updatedAt',
           'engineKey',
           'displayName',
           'vendor',
           'installationKind',
+          'defaultModelId',
           'supportedHostModes',
           'transportKinds',
           'capabilityMatrix',
+          'status',
         ],
       },
     ),
     BirdCoderModelCatalogEntry: createOpenApiObjectSchema(
       {
+        id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         engineKey: createOpenApiStringEnumSchema(engineKeys),
         modelId: createOpenApiStringSchema(),
         displayName: createOpenApiStringSchema(),
@@ -882,6 +1083,10 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
       },
       {
         required: [
+          'id',
+          'uuid',
+          'createdAt',
+          'updatedAt',
           'engineKey',
           'modelId',
           'displayName',
@@ -966,6 +1171,7 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         'status',
         'hostMode',
         'engineId',
+        'modelId',
         'createdAt',
         'updatedAt',
       ],
@@ -1149,7 +1355,7 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderCodingSessionTurnIdeContext: createOpenApiObjectSchema({
       workspaceId: createOpenApiStringSchema(),
       projectId: createOpenApiStringSchema(),
-      threadId: createOpenApiStringSchema(),
+      sessionId: createOpenApiStringSchema(),
       currentFile: createOpenApiSchemaReference('BirdCoderCodingSessionTurnCurrentFileContext'),
     }),
     BirdCoderCreateCodingSessionRequest: createOpenApiObjectSchema(
@@ -1162,9 +1368,17 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         modelId: createOpenApiStringSchema(),
       },
       {
-        required: ['workspaceId', 'projectId'],
+        required: ['workspaceId', 'projectId', 'engineId', 'modelId'],
       },
     ),
+    BirdCoderUpdateCodingSessionRequest: createOpenApiObjectSchema({
+      title: createOpenApiStringSchema(),
+      status: createOpenApiStringEnumSchema(BIRDCODER_CODING_SESSION_STATUSES),
+      hostMode: createOpenApiStringEnumSchema(BIRDCODER_HOST_MODES),
+    }),
+    BirdCoderForkCodingSessionRequest: createOpenApiObjectSchema({
+      title: createOpenApiStringSchema(),
+    }),
     BirdCoderCreateCodingSessionTurnRequest: createOpenApiObjectSchema(
       {
         runtimeId: createOpenApiStringSchema(),
@@ -1184,6 +1398,15 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         required: ['id'],
       },
     ),
+    BirdCoderDeleteCodingSessionMessageResult: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        codingSessionId: createOpenApiStringSchema(),
+      },
+      {
+        required: ['id', 'codingSessionId'],
+      },
+    ),
     BirdCoderBooleanSuccessResult: createOpenApiObjectSchema(
       {
         success: createOpenApiBooleanSchema(),
@@ -1195,19 +1418,36 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderAuthenticatedUserSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         name: createOpenApiStringSchema(),
         email: createOpenApiStringSchema(),
         avatarUrl: createOpenApiStringSchema(),
       },
       {
-        required: ['id', 'name', 'email'],
+        required: ['id', 'uuid', 'createdAt', 'updatedAt', 'name', 'email'],
       },
     ),
     BirdCoderUserCenterMetadataSummary: createOpenApiObjectSchema(
       {
         integrationKind: createOpenApiStringSchema(),
+        loginMethods: createOpenApiArraySchema(
+          createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_LOGIN_METHODS),
+        ),
         mode: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_MODES),
+        oauthLoginEnabled: createOpenApiBooleanSchema(),
+        oauthProviders: createOpenApiArraySchema(createOpenApiStringSchema()),
         providerKey: createOpenApiStringSchema(),
+        qrLoginEnabled: createOpenApiBooleanSchema(),
+        recoveryMethods: createOpenApiArraySchema(
+          createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_RECOVERY_METHODS),
+        ),
+        registerMethods: createOpenApiArraySchema(
+          createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_REGISTER_METHODS),
+        ),
         sessionHeaderName: createOpenApiStringSchema(),
         supportsLocalCredentials: createOpenApiBooleanSchema(),
         supportsMembershipWrite: createOpenApiBooleanSchema(),
@@ -1217,44 +1457,157 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
       },
       {
         required: [
+          'loginMethods',
           'mode',
+          'oauthLoginEnabled',
+          'oauthProviders',
           'providerKey',
+          'qrLoginEnabled',
+          'recoveryMethods',
+          'registerMethods',
           'sessionHeaderName',
           'supportsLocalCredentials',
+          'supportsMembershipWrite',
+          'supportsProfileWrite',
           'supportsSessionExchange',
         ],
       },
     ),
     BirdCoderUserCenterSessionSummary: createOpenApiObjectSchema(
       {
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        accessToken: createOpenApiStringSchema(),
+        authToken: createOpenApiStringSchema(),
         createdAt: createOpenApiDateTimeSchema(),
         providerKey: createOpenApiStringSchema(),
         providerMode: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_MODES),
+        refreshToken: createOpenApiStringSchema(),
         sessionId: createOpenApiStringSchema(),
+        tokenType: createOpenApiStringSchema(),
         updatedAt: createOpenApiDateTimeSchema(),
         user: createOpenApiSchemaReference('BirdCoderAuthenticatedUserSummary'),
       },
       {
-        required: ['createdAt', 'providerKey', 'providerMode', 'sessionId', 'updatedAt', 'user'],
+        required: [
+          'uuid',
+          'accessToken',
+          'authToken',
+          'createdAt',
+          'providerKey',
+          'providerMode',
+          'sessionId',
+          'tokenType',
+          'updatedAt',
+          'user',
+        ],
       },
     ),
     BirdCoderUserCenterLoginRequest: createOpenApiObjectSchema(
       {
+        account: createOpenApiStringSchema(),
         email: createOpenApiStringSchema(),
         password: createOpenApiStringSchema(),
-      },
-      {
-        required: ['email'],
       },
     ),
     BirdCoderUserCenterRegisterRequest: createOpenApiObjectSchema(
       {
+        channel: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_VERIFY_TYPES),
+        confirmPassword: createOpenApiStringSchema(),
         email: createOpenApiStringSchema(),
         name: createOpenApiStringSchema(),
         password: createOpenApiStringSchema(),
+        phone: createOpenApiStringSchema(),
+        username: createOpenApiStringSchema(),
+        verificationCode: createOpenApiStringSchema(),
+      },
+    ),
+    BirdCoderUserCenterSendVerifyCodeRequest: createOpenApiObjectSchema(
+      {
+        scene: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_VERIFY_SCENES),
+        target: createOpenApiStringSchema(),
+        verifyType: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_VERIFY_TYPES),
       },
       {
-        required: ['email'],
+        required: ['scene', 'target', 'verifyType'],
+      },
+    ),
+    BirdCoderUserCenterEmailCodeLoginRequest: createOpenApiObjectSchema(
+      {
+        appVersion: createOpenApiStringSchema(),
+        code: createOpenApiStringSchema(),
+        deviceId: createOpenApiStringSchema(),
+        deviceName: createOpenApiStringSchema(),
+        deviceType: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_DEVICE_TYPES),
+        email: createOpenApiStringSchema(),
+      },
+      {
+        required: ['code', 'email'],
+      },
+    ),
+    BirdCoderUserCenterPhoneCodeLoginRequest: createOpenApiObjectSchema(
+      {
+        appVersion: createOpenApiStringSchema(),
+        code: createOpenApiStringSchema(),
+        deviceId: createOpenApiStringSchema(),
+        deviceName: createOpenApiStringSchema(),
+        deviceType: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_DEVICE_TYPES),
+        phone: createOpenApiStringSchema(),
+      },
+      {
+        required: ['code', 'phone'],
+      },
+    ),
+    BirdCoderUserCenterPasswordResetChallengeRequest: createOpenApiObjectSchema(
+      {
+        account: createOpenApiStringSchema(),
+        channel: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_PASSWORD_RESET_CHANNELS),
+      },
+      {
+        required: ['account', 'channel'],
+      },
+    ),
+    BirdCoderUserCenterPasswordResetRequest: createOpenApiObjectSchema(
+      {
+        account: createOpenApiStringSchema(),
+        code: createOpenApiStringSchema(),
+        confirmPassword: createOpenApiStringSchema(),
+        newPassword: createOpenApiStringSchema(),
+      },
+      {
+        required: ['account', 'code', 'newPassword'],
+      },
+    ),
+    BirdCoderUserCenterOAuthAuthorizationRequest: createOpenApiObjectSchema(
+      {
+        provider: createOpenApiStringSchema(),
+        redirectUri: createOpenApiStringSchema(),
+        scope: createOpenApiStringSchema(),
+        state: createOpenApiStringSchema(),
+      },
+      {
+        required: ['provider', 'redirectUri'],
+      },
+    ),
+    BirdCoderUserCenterOAuthLoginRequest: createOpenApiObjectSchema(
+      {
+        code: createOpenApiStringSchema(),
+        deviceId: createOpenApiStringSchema(),
+        deviceType: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_DEVICE_TYPES),
+        provider: createOpenApiStringSchema(),
+        state: createOpenApiStringSchema(),
+      },
+      {
+        required: ['code', 'provider'],
+      },
+    ),
+    BirdCoderUserCenterOAuthAuthorizationSummary: createOpenApiObjectSchema(
+      {
+        authUrl: createOpenApiStringSchema(),
+      },
+      {
+        required: ['authUrl'],
       },
     ),
     BirdCoderUserCenterSessionExchangeRequest: createOpenApiObjectSchema(
@@ -1270,8 +1623,37 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         required: ['email'],
       },
     ),
+    BirdCoderUserCenterLoginQrCodeSummary: createOpenApiObjectSchema(
+      {
+        description: createOpenApiStringSchema(),
+        expireTime: createOpenApiIntegerSchema(0),
+        qrContent: createOpenApiStringSchema(),
+        qrKey: createOpenApiStringSchema(),
+        qrUrl: createOpenApiStringSchema(),
+        title: createOpenApiStringSchema(),
+        type: createOpenApiStringSchema(),
+      },
+      {
+        required: ['qrKey'],
+      },
+    ),
+    BirdCoderUserCenterLoginQrStatusSummary: createOpenApiObjectSchema(
+      {
+        session: createOpenApiSchemaReference('BirdCoderUserCenterSessionSummary'),
+        status: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_LOGIN_QR_STATUSES),
+        user: createOpenApiSchemaReference('BirdCoderAuthenticatedUserSummary'),
+      },
+      {
+        required: ['status'],
+      },
+    ),
     BirdCoderUserCenterProfileSummary: createOpenApiObjectSchema(
       {
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         avatarUrl: createOpenApiStringSchema(),
         bio: createOpenApiStringSchema(),
         company: createOpenApiStringSchema(),
@@ -1282,7 +1664,18 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         website: createOpenApiStringSchema(),
       },
       {
-        required: ['bio', 'company', 'displayName', 'email', 'userId', 'location', 'website'],
+        required: [
+          'uuid',
+          'createdAt',
+          'updatedAt',
+          'bio',
+          'company',
+          'displayName',
+          'email',
+          'userId',
+          'location',
+          'website',
+        ],
       },
     ),
     BirdCoderUpdateCurrentUserProfileRequest: createOpenApiObjectSchema({
@@ -1295,6 +1688,11 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     }),
     BirdCoderUserCenterMembershipSummary: createOpenApiObjectSchema(
       {
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         creditsPerMonth: createOpenApiNumberSchema(),
         userId: createOpenApiStringSchema(),
         planId: createOpenApiStringSchema(),
@@ -1304,7 +1702,17 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         status: createOpenApiStringSchema(),
       },
       {
-        required: ['creditsPerMonth', 'userId', 'planId', 'planTitle', 'seats', 'status'],
+        required: [
+          'uuid',
+          'createdAt',
+          'updatedAt',
+          'creditsPerMonth',
+          'userId',
+          'planId',
+          'planTitle',
+          'seats',
+          'status',
+        ],
       },
     ),
     BirdCoderUpdateCurrentUserMembershipRequest: createOpenApiObjectSchema({
@@ -1321,15 +1729,27 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         uuid: createOpenApiStringSchema(),
         tenantId: createOpenApiStringSchema(),
         organizationId: createOpenApiStringSchema(),
+        dataScope: createOpenApiStringSchema(),
         code: createOpenApiStringSchema(),
         title: createOpenApiStringSchema(),
         name: createOpenApiStringSchema(),
         description: createOpenApiStringSchema(),
+        icon: createOpenApiStringSchema(),
+        color: createOpenApiStringSchema(),
         ownerId: createOpenApiStringSchema(),
         leaderId: createOpenApiStringSchema(),
         createdByUserId: createOpenApiStringSchema(),
         type: createOpenApiStringSchema(),
+        startTime: createOpenApiStringSchema(),
+        endTime: createOpenApiStringSchema(),
+        maxMembers: createOpenApiIntegerSchema(0),
+        currentMembers: createOpenApiIntegerSchema(0),
         memberCount: createOpenApiIntegerSchema(0),
+        maxStorage: createOpenApiIntegerSchema(0),
+        usedStorage: createOpenApiIntegerSchema(0),
+        settings: createOpenApiObjectSchema({}, { additionalProperties: true }),
+        isPublic: createOpenApiBooleanSchema(),
+        isTemplate: createOpenApiBooleanSchema(),
         status: createOpenApiStringEnumSchema(BIRDCODER_WORKSPACE_RESOURCE_STATUSES),
         viewerRole: createOpenApiStringEnumSchema(BIRDCODER_COLLABORATION_ROLES),
       },
@@ -1343,12 +1763,25 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         name: createOpenApiStringSchema(),
         tenantId: createOpenApiStringSchema(),
         organizationId: createOpenApiStringSchema(),
+        dataScope: createOpenApiStringSchema(),
         code: createOpenApiStringSchema(),
         title: createOpenApiStringSchema(),
         ownerId: createOpenApiStringSchema(),
         leaderId: createOpenApiStringSchema(),
         createdByUserId: createOpenApiStringSchema(),
+        icon: createOpenApiStringSchema(),
+        color: createOpenApiStringSchema(),
         type: createOpenApiStringSchema(),
+        startTime: createOpenApiStringSchema(),
+        endTime: createOpenApiStringSchema(),
+        maxMembers: createOpenApiIntegerSchema(0),
+        currentMembers: createOpenApiIntegerSchema(0),
+        memberCount: createOpenApiIntegerSchema(0),
+        maxStorage: createOpenApiIntegerSchema(0),
+        usedStorage: createOpenApiIntegerSchema(0),
+        settings: createOpenApiObjectSchema({}, { additionalProperties: true }),
+        isPublic: createOpenApiBooleanSchema(),
+        isTemplate: createOpenApiBooleanSchema(),
       },
       {
         required: ['name'],
@@ -1356,12 +1789,26 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     ),
     BirdCoderUpdateWorkspaceRequest: createOpenApiObjectSchema({
       description: createOpenApiStringSchema(),
+      dataScope: createOpenApiStringSchema(),
       code: createOpenApiStringSchema(),
       title: createOpenApiStringSchema(),
       name: createOpenApiStringSchema(),
       ownerId: createOpenApiStringSchema(),
       leaderId: createOpenApiStringSchema(),
+      createdByUserId: createOpenApiStringSchema(),
+      icon: createOpenApiStringSchema(),
+      color: createOpenApiStringSchema(),
       type: createOpenApiStringSchema(),
+      startTime: createOpenApiStringSchema(),
+      endTime: createOpenApiStringSchema(),
+      maxMembers: createOpenApiIntegerSchema(0),
+      currentMembers: createOpenApiIntegerSchema(0),
+      memberCount: createOpenApiIntegerSchema(0),
+      maxStorage: createOpenApiIntegerSchema(0),
+      usedStorage: createOpenApiIntegerSchema(0),
+      settings: createOpenApiObjectSchema({}, { additionalProperties: true }),
+      isPublic: createOpenApiBooleanSchema(),
+      isTemplate: createOpenApiBooleanSchema(),
       status: createOpenApiStringEnumSchema(BIRDCODER_WORKSPACE_RESOURCE_STATUSES),
     }),
     BirdCoderProjectSummary: createOpenApiObjectSchema(
@@ -1371,18 +1818,32 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         uuid: createOpenApiStringSchema(),
         tenantId: createOpenApiStringSchema(),
         organizationId: createOpenApiStringSchema(),
+        dataScope: createOpenApiStringSchema(),
         workspaceId: createOpenApiStringSchema(),
         workspaceUuid: createOpenApiStringSchema(),
+        userId: createOpenApiStringSchema(),
+        parentId: createOpenApiStringSchema(),
+        parentUuid: createOpenApiStringSchema(),
+        parentMetadata: createOpenApiObjectSchema({}, { additionalProperties: true }),
         code: createOpenApiStringSchema(),
         title: createOpenApiStringSchema(),
         name: createOpenApiStringSchema(),
         description: createOpenApiStringSchema(),
         rootPath: createOpenApiStringSchema(),
+        sitePath: createOpenApiStringSchema(),
+        domainPrefix: createOpenApiStringSchema(),
         ownerId: createOpenApiStringSchema(),
         leaderId: createOpenApiStringSchema(),
         createdByUserId: createOpenApiStringSchema(),
         author: createOpenApiStringSchema(),
+        fileId: createOpenApiStringSchema(),
+        conversationId: createOpenApiStringSchema(),
         type: createOpenApiStringSchema(),
+        startTime: createOpenApiStringSchema(),
+        endTime: createOpenApiStringSchema(),
+        budgetAmount: createOpenApiIntegerSchema(0),
+        coverImage: createOpenApiObjectSchema({}, { additionalProperties: true }),
+        isTemplate: createOpenApiBooleanSchema(),
         collaboratorCount: createOpenApiIntegerSchema(0),
         status: createOpenApiStringEnumSchema(BIRDCODER_WORKSPACE_RESOURCE_STATUSES),
         updatedAt: createOpenApiDateTimeSchema(),
@@ -1392,6 +1853,129 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         required: ['createdAt', 'id', 'workspaceId', 'name', 'status', 'updatedAt'],
       },
     ),
+    BirdCoderGitStatusCounts: createOpenApiObjectSchema(
+      {
+        conflicted: createOpenApiIntegerSchema(0),
+        deleted: createOpenApiIntegerSchema(0),
+        modified: createOpenApiIntegerSchema(0),
+        staged: createOpenApiIntegerSchema(0),
+        untracked: createOpenApiIntegerSchema(0),
+      },
+      {
+        required: ['conflicted', 'deleted', 'modified', 'staged', 'untracked'],
+      },
+    ),
+    BirdCoderGitBranchSummary: createOpenApiObjectSchema(
+      {
+        ahead: createOpenApiIntegerSchema(0),
+        behind: createOpenApiIntegerSchema(0),
+        isCurrent: createOpenApiBooleanSchema(),
+        kind: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        upstreamName: createOpenApiStringSchema(),
+      },
+      {
+        required: ['ahead', 'behind', 'isCurrent', 'kind', 'name'],
+      },
+    ),
+    BirdCoderGitWorktreeSummary: createOpenApiObjectSchema(
+      {
+        branch: createOpenApiStringSchema(),
+        head: createOpenApiStringSchema(),
+        id: createOpenApiStringSchema(),
+        isCurrent: createOpenApiBooleanSchema(),
+        isDetached: createOpenApiBooleanSchema(),
+        isLocked: createOpenApiBooleanSchema(),
+        isPrunable: createOpenApiBooleanSchema(),
+        label: createOpenApiStringSchema(),
+        lockedReason: createOpenApiStringSchema(),
+        path: createOpenApiStringSchema(),
+        prunableReason: createOpenApiStringSchema(),
+      },
+      {
+        required: [
+          'id',
+          'isCurrent',
+          'isDetached',
+          'isLocked',
+          'isPrunable',
+          'label',
+          'path',
+        ],
+      },
+    ),
+    BirdCoderProjectGitOverview: createOpenApiObjectSchema(
+      {
+        branches: createOpenApiArraySchema(
+          createOpenApiSchemaReference('BirdCoderGitBranchSummary'),
+        ),
+        currentBranch: createOpenApiStringSchema(),
+        currentRevision: createOpenApiStringSchema(),
+        currentWorktreePath: createOpenApiStringSchema(),
+        detachedHead: createOpenApiBooleanSchema(),
+        repositoryRootPath: createOpenApiStringSchema(),
+        status: createOpenApiStringEnumSchema(BIRDCODER_GIT_OVERVIEW_STATUSES),
+        statusCounts: createOpenApiSchemaReference('BirdCoderGitStatusCounts'),
+        worktrees: createOpenApiArraySchema(
+          createOpenApiSchemaReference('BirdCoderGitWorktreeSummary'),
+        ),
+      },
+      {
+        required: [
+          'branches',
+          'detachedHead',
+          'status',
+          'statusCounts',
+          'worktrees',
+        ],
+      },
+    ),
+    BirdCoderCreateProjectGitBranchRequest: createOpenApiObjectSchema(
+      {
+        branchName: createOpenApiStringSchema(),
+      },
+      {
+        required: ['branchName'],
+      },
+    ),
+    BirdCoderSwitchProjectGitBranchRequest: createOpenApiObjectSchema(
+      {
+        branchName: createOpenApiStringSchema(),
+      },
+      {
+        required: ['branchName'],
+      },
+    ),
+    BirdCoderCommitProjectGitChangesRequest: createOpenApiObjectSchema(
+      {
+        message: createOpenApiStringSchema(),
+      },
+      {
+        required: ['message'],
+      },
+    ),
+    BirdCoderPushProjectGitBranchRequest: createOpenApiObjectSchema({
+      branchName: createOpenApiStringSchema(),
+      remoteName: createOpenApiStringSchema(),
+    }),
+    BirdCoderCreateProjectGitWorktreeRequest: createOpenApiObjectSchema(
+      {
+        branchName: createOpenApiStringSchema(),
+        path: createOpenApiStringSchema(),
+      },
+      {
+        required: ['branchName', 'path'],
+      },
+    ),
+    BirdCoderRemoveProjectGitWorktreeRequest: createOpenApiObjectSchema(
+      {
+        force: createOpenApiBooleanSchema(),
+        path: createOpenApiStringSchema(),
+      },
+      {
+        required: ['path'],
+      },
+    ),
     BirdCoderCreateProjectRequest: createOpenApiObjectSchema(
       {
         description: createOpenApiStringSchema(),
@@ -1399,6 +1983,11 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         workspaceUuid: createOpenApiStringSchema(),
         tenantId: createOpenApiStringSchema(),
         organizationId: createOpenApiStringSchema(),
+        dataScope: createOpenApiStringSchema(),
+        userId: createOpenApiStringSchema(),
+        parentId: createOpenApiStringSchema(),
+        parentUuid: createOpenApiStringSchema(),
+        parentMetadata: createOpenApiObjectSchema({}, { additionalProperties: true }),
         code: createOpenApiStringSchema(),
         title: createOpenApiStringSchema(),
         ownerId: createOpenApiStringSchema(),
@@ -1407,6 +1996,15 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         author: createOpenApiStringSchema(),
         type: createOpenApiStringSchema(),
         rootPath: createOpenApiStringSchema(),
+        sitePath: createOpenApiStringSchema(),
+        domainPrefix: createOpenApiStringSchema(),
+        fileId: createOpenApiStringSchema(),
+        conversationId: createOpenApiStringSchema(),
+        startTime: createOpenApiStringSchema(),
+        endTime: createOpenApiStringSchema(),
+        budgetAmount: createOpenApiIntegerSchema(0),
+        coverImage: createOpenApiObjectSchema({}, { additionalProperties: true }),
+        isTemplate: createOpenApiBooleanSchema(),
         appTemplateVersionId: createOpenApiStringSchema(),
         templatePresetKey: createOpenApiStringSchema(),
         status: createOpenApiStringEnumSchema(BIRDCODER_WORKSPACE_RESOURCE_STATUSES),
@@ -1418,14 +2016,29 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     ),
     BirdCoderUpdateProjectRequest: createOpenApiObjectSchema({
       description: createOpenApiStringSchema(),
+      dataScope: createOpenApiStringSchema(),
+      userId: createOpenApiStringSchema(),
+      parentId: createOpenApiStringSchema(),
+      parentUuid: createOpenApiStringSchema(),
+      parentMetadata: createOpenApiObjectSchema({}, { additionalProperties: true }),
       code: createOpenApiStringSchema(),
       title: createOpenApiStringSchema(),
       name: createOpenApiStringSchema(),
       ownerId: createOpenApiStringSchema(),
       leaderId: createOpenApiStringSchema(),
+      createdByUserId: createOpenApiStringSchema(),
       author: createOpenApiStringSchema(),
       type: createOpenApiStringSchema(),
       rootPath: createOpenApiStringSchema(),
+      sitePath: createOpenApiStringSchema(),
+      domainPrefix: createOpenApiStringSchema(),
+      fileId: createOpenApiStringSchema(),
+      conversationId: createOpenApiStringSchema(),
+      startTime: createOpenApiStringSchema(),
+      endTime: createOpenApiStringSchema(),
+      budgetAmount: createOpenApiIntegerSchema(0),
+      coverImage: createOpenApiObjectSchema({}, { additionalProperties: true }),
+      isTemplate: createOpenApiBooleanSchema(),
       status: createOpenApiStringEnumSchema(BIRDCODER_WORKSPACE_RESOURCE_STATUSES),
     }),
     BirdCoderSkillCatalogEntrySummary: createOpenApiObjectSchema(
@@ -1467,6 +2080,11 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderSkillPackageSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         slug: createOpenApiStringSchema(),
         name: createOpenApiStringSchema(),
         description: createOpenApiStringSchema(),
@@ -1478,7 +2096,6 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         longDescription: createOpenApiStringSchema(),
         sourceUri: createOpenApiStringSchema(),
         installed: createOpenApiBooleanSchema(),
-        updatedAt: createOpenApiDateTimeSchema(),
         skills: createOpenApiArraySchema(createOpenApiSchemaReference('BirdCoderSkillCatalogEntrySummary')),
       },
       {
@@ -1490,7 +2107,6 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
           'versionId',
           'versionLabel',
           'installed',
-          'updatedAt',
           'skills',
         ],
       },
@@ -1507,6 +2123,11 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderSkillInstallationSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         packageId: createOpenApiStringSchema(),
         scopeId: createOpenApiStringSchema(),
         scopeType: createOpenApiStringEnumSchema(['workspace', 'project']),
@@ -1521,6 +2142,11 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderAppTemplateSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         slug: createOpenApiStringSchema(),
         name: createOpenApiStringSchema(),
         description: createOpenApiStringSchema(),
@@ -1535,7 +2161,6 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         downloads: createOpenApiIntegerSchema(0),
         stars: createOpenApiIntegerSchema(0),
         status: createOpenApiStringSchema('Known values include active and archived.'),
-        updatedAt: createOpenApiDateTimeSchema(),
       },
       {
         required: [
@@ -1557,15 +2182,20 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderProjectDocumentSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         projectId: createOpenApiStringSchema(),
         documentKind: createOpenApiStringEnumSchema(BIRDCODER_DOCUMENT_KINDS),
         title: createOpenApiStringSchema(),
         slug: createOpenApiStringSchema(),
+        bodyRef: createOpenApiStringSchema(),
         status: createOpenApiStringEnumSchema(BIRDCODER_DOCUMENT_STATUSES),
-        updatedAt: createOpenApiDateTimeSchema(),
       },
       {
-        required: ['id', 'projectId', 'documentKind', 'title', 'slug', 'status', 'updatedAt'],
+        required: ['id', 'projectId', 'documentKind', 'title', 'slug', 'status'],
       },
     ),
     BirdCoderTeamSummary: createOpenApiObjectSchema(
@@ -1574,6 +2204,8 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         uuid: createOpenApiStringSchema(),
         tenantId: createOpenApiStringSchema(),
         organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         workspaceId: createOpenApiStringSchema(),
         code: createOpenApiStringSchema(),
         title: createOpenApiStringSchema(),
@@ -1582,6 +2214,7 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         ownerId: createOpenApiStringSchema(),
         leaderId: createOpenApiStringSchema(),
         createdByUserId: createOpenApiStringSchema(),
+        metadata: createOpenApiObjectSchema({}, { additionalProperties: true }),
         status: createOpenApiStringEnumSchema(BIRDCODER_WORKSPACE_RESOURCE_STATUSES),
       },
       {
@@ -1591,12 +2224,17 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderTeamMemberSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
         teamId: createOpenApiStringSchema(),
         userId: createOpenApiStringSchema(),
         role: createOpenApiStringEnumSchema(BIRDCODER_COLLABORATION_ROLES),
         status: createOpenApiStringEnumSchema(BIRDCODER_COLLABORATION_STATUSES),
         createdByUserId: createOpenApiStringSchema(),
         grantedByUserId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
       },
       {
         required: ['id', 'teamId', 'userId', 'role', 'status'],
@@ -1605,6 +2243,9 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderWorkspaceMemberSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
         workspaceId: createOpenApiStringSchema(),
         userId: createOpenApiStringSchema(),
         userEmail: createOpenApiStringSchema(),
@@ -1625,6 +2266,9 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderProjectCollaboratorSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
         projectId: createOpenApiStringSchema(),
         workspaceId: createOpenApiStringSchema(),
         userId: createOpenApiStringSchema(),
@@ -1670,6 +2314,11 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderDeploymentTargetSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         projectId: createOpenApiStringSchema(),
         name: createOpenApiStringSchema(),
         environmentKey: createOpenApiStringSchema(
@@ -1687,9 +2336,16 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderDeploymentRecordSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         projectId: createOpenApiStringSchema(),
         targetId: createOpenApiStringSchema(),
+        releaseRecordId: createOpenApiStringSchema(),
         status: createOpenApiStringEnumSchema(BIRDCODER_DEPLOYMENT_RECORD_STATUSES),
+        endpointUrl: createOpenApiStringSchema(),
         startedAt: createOpenApiDateTimeSchema(),
         completedAt: createOpenApiDateTimeSchema(),
       },
@@ -1700,11 +2356,17 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderReleaseSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         releaseVersion: createOpenApiStringSchema(),
         releaseKind: createOpenApiStringSchema(
           `Known values include ${BIRDCODER_RELEASE_KINDS.join(', ')}.`,
         ),
         rolloutStage: createOpenApiStringSchema(),
+        manifest: createOpenApiObjectSchema({}, { additionalProperties: true }),
         status: createOpenApiStringSchema(
           `Known values include ${BIRDCODER_RELEASE_STATUSES.join(', ')}.`,
         ),
@@ -1736,22 +2398,31 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderAdminAuditEventSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         scopeType: createOpenApiStringSchema(),
         scopeId: createOpenApiStringSchema(),
         eventType: createOpenApiStringSchema(),
-        createdAt: createOpenApiDateTimeSchema(),
         payload: {
           type: 'object',
           additionalProperties: true,
         },
       },
       {
-        required: ['id', 'scopeType', 'scopeId', 'eventType', 'createdAt', 'payload'],
+        required: ['id', 'scopeType', 'scopeId', 'eventType', 'payload'],
       },
     ),
     BirdCoderAdminPolicySummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
         scopeType: createOpenApiStringSchema(
           'Known values include global, workspace, project, team, release, and runtime.',
         ),
@@ -1766,7 +2437,6 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         approvalPolicy: createOpenApiStringEnumSchema(BIRDCODER_APPROVAL_POLICIES),
         rationale: createOpenApiStringSchema(),
         status: createOpenApiStringSchema('Known values include draft, active, and archived.'),
-        updatedAt: createOpenApiDateTimeSchema(),
       },
       {
         required: [
@@ -1839,14 +2509,26 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderDeletedResourceEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderDeletedResourceResult'),
     ),
+    BirdCoderDeleteCodingSessionMessageResultEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderDeleteCodingSessionMessageResult'),
+    ),
     BirdCoderBooleanSuccessEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderBooleanSuccessResult'),
     ),
     BirdCoderUserCenterMetadataEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderUserCenterMetadataSummary'),
     ),
+    BirdCoderUserCenterLoginQrCodeEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderUserCenterLoginQrCodeSummary'),
+    ),
+    BirdCoderUserCenterLoginQrStatusEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderUserCenterLoginQrStatusSummary'),
+    ),
     BirdCoderUserCenterSessionEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderUserCenterSessionSummary'),
+    ),
+    BirdCoderUserCenterOAuthAuthorizationEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderUserCenterOAuthAuthorizationSummary'),
     ),
     BirdCoderNullableUserCenterSessionEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiNullableSchema(createOpenApiSchemaReference('BirdCoderUserCenterSessionSummary')),
@@ -1865,6 +2547,9 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     ),
     BirdCoderProjectSummaryEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderProjectSummary'),
+    ),
+    BirdCoderProjectGitOverviewEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderProjectGitOverview'),
     ),
     BirdCoderProjectSummaryListEnvelope: createOpenApiListEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderProjectSummary'),
@@ -1968,6 +2653,10 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'id',
     'BirdCoder coding session identifier.',
   );
+  const messageIdPathParameter = createOpenApiPathParameter(
+    'messageId',
+    'BirdCoder coding session message identifier.',
+  );
   const engineKeyPathParameter = createOpenApiPathParameter(
     'engineKey',
     'BirdCoder engine key.',
@@ -2002,6 +2691,10 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
   const packageIdPathParameter = createOpenApiPathParameter(
     'packageId',
     'Skill package identifier.',
+  );
+  const qrKeyPathParameter = createOpenApiPathParameter(
+    'qrKey',
+    'BirdCoder login QR challenge identifier.',
   );
 
   return {
@@ -2066,6 +2759,65 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         extraResponses: {
           '404': createProblemResponse('Coding session was not found.'),
           '500': createProblemResponse('Coding session summary could not be read.'),
+        },
+      }),
+    },
+    'core.updateCodingSession': {
+      parameters: [codingSessionIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUpdateCodingSessionRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Coding session updated successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCodingSessionSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Coding session update request is invalid.'),
+          '404': createProblemResponse('Coding session was not found.'),
+          '500': createProblemResponse('Coding session could not be updated.'),
+        },
+      }),
+    },
+    'core.deleteCodingSession': {
+      parameters: [codingSessionIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Coding session deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('Coding session was not found.'),
+          '500': createProblemResponse('Coding session could not be deleted.'),
+        },
+      }),
+    },
+    'core.deleteCodingSessionMessage': {
+      parameters: [codingSessionIdPathParameter, messageIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Coding session message deleted successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderDeleteCodingSessionMessageResultEnvelope',
+        ),
+        extraResponses: {
+          '404': createProblemResponse('Coding session message was not found.'),
+          '500': createProblemResponse('Coding session message could not be deleted.'),
+        },
+      }),
+    },
+    'core.forkCodingSession': {
+      parameters: [codingSessionIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderForkCodingSessionRequest'),
+        false,
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '201',
+        successDescription: 'Coding session forked successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCodingSessionSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Coding session fork request is invalid.'),
+          '404': createProblemResponse('Coding session was not found.'),
+          '500': createProblemResponse('Coding session could not be forked.'),
         },
       }),
     },
@@ -2239,6 +2991,27 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successSchema: createOpenApiSchemaReference('BirdCoderNullableUserCenterSessionEnvelope'),
       }),
     },
+    'app.generateLoginQrCode': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'User center login QR challenge created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterLoginQrCodeEnvelope'),
+        extraResponses: {
+          '500': createProblemResponse('User center login QR challenge could not be created.'),
+        },
+      }),
+    },
+    'app.checkLoginQrCodeStatus': {
+      parameters: [qrKeyPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'User center login QR status returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterLoginQrStatusEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('User center login QR challenge was not found.'),
+        },
+      }),
+    },
     'app.login': {
       requestBody: createOpenApiRequestBody(
         createOpenApiSchemaReference('BirdCoderUserCenterLoginRequest'),
@@ -2253,6 +3026,61 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
+    'app.loginWithEmailCode': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUserCenterEmailCodeLoginRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'User center session created successfully with email verification.',
+        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterSessionEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Email-code login request is invalid.'),
+          '401': createProblemResponse('Email verification code was rejected.'),
+        },
+      }),
+    },
+    'app.loginWithPhoneCode': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUserCenterPhoneCodeLoginRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'User center session created successfully with phone verification.',
+        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterSessionEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Phone-code login request is invalid.'),
+          '401': createProblemResponse('Phone verification code was rejected.'),
+        },
+      }),
+    },
+    'app.getOAuthAuthorizationUrl': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUserCenterOAuthAuthorizationRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'OAuth authorization URL resolved successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterOAuthAuthorizationEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('OAuth authorization request is invalid.'),
+        },
+      }),
+    },
+    'app.loginWithOAuth': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUserCenterOAuthLoginRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'User center session created successfully with OAuth authorization.',
+        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterSessionEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('OAuth login request is invalid.'),
+          '401': createProblemResponse('OAuth authorization code was rejected.'),
+        },
+      }),
+    },
     'app.register': {
       requestBody: createOpenApiRequestBody(
         createOpenApiSchemaReference('BirdCoderUserCenterRegisterRequest'),
@@ -2263,6 +3091,46 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successSchema: createOpenApiSchemaReference('BirdCoderUserCenterSessionEnvelope'),
         extraResponses: {
           '400': createProblemResponse('User center registration request is invalid.'),
+        },
+      }),
+    },
+    'app.sendVerifyCode': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUserCenterSendVerifyCodeRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Verification code dispatch accepted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Verification code request is invalid.'),
+        },
+      }),
+    },
+    'app.requestPasswordReset': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUserCenterPasswordResetChallengeRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Password reset challenge accepted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Password reset challenge request is invalid.'),
+        },
+      }),
+    },
+    'app.resetPassword': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUserCenterPasswordResetRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Password reset completed successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Password reset request is invalid.'),
+          '401': createProblemResponse('Password reset verification failed.'),
         },
       }),
     },
@@ -2395,6 +3263,120 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successDescription: 'Project returned successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderProjectSummaryEnvelope'),
         extraResponses: {
+          '404': createProblemResponse('Project was not found.'),
+        },
+      }),
+    },
+    'app.getProjectGitOverview': {
+      parameters: [projectIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project Git overview returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('Project was not found.'),
+        },
+      }),
+    },
+    'app.createProjectGitBranch': {
+      parameters: [projectIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateProjectGitBranchRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project Git branch created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Project Git branch creation request is invalid.'),
+          '404': createProblemResponse('Project was not found.'),
+        },
+      }),
+    },
+    'app.switchProjectGitBranch': {
+      parameters: [projectIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderSwitchProjectGitBranchRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project Git branch switched successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Project Git branch switch request is invalid.'),
+          '404': createProblemResponse('Project was not found.'),
+        },
+      }),
+    },
+    'app.commitProjectGitChanges': {
+      parameters: [projectIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCommitProjectGitChangesRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project Git changes committed successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Project Git commit request is invalid.'),
+          '404': createProblemResponse('Project was not found.'),
+        },
+      }),
+    },
+    'app.pushProjectGitBranch': {
+      parameters: [projectIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderPushProjectGitBranchRequest'),
+        false,
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project Git branch pushed successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Project Git push request is invalid.'),
+          '404': createProblemResponse('Project was not found.'),
+        },
+      }),
+    },
+    'app.createProjectGitWorktree': {
+      parameters: [projectIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateProjectGitWorktreeRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project Git worktree created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Project Git worktree creation request is invalid.'),
+          '404': createProblemResponse('Project was not found.'),
+        },
+      }),
+    },
+    'app.removeProjectGitWorktree': {
+      parameters: [projectIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderRemoveProjectGitWorktreeRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project Git worktree removed successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Project Git worktree removal request is invalid.'),
+          '404': createProblemResponse('Project was not found.'),
+        },
+      }),
+    },
+    'app.pruneProjectGitWorktrees': {
+      parameters: [projectIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project Git worktrees pruned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Project Git worktree prune request is invalid.'),
           '404': createProblemResponse('Project was not found.'),
         },
       }),
@@ -2685,22 +3667,23 @@ function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
     ['GET /api/core/v1/coding-sessions', 'core.listCodingSessions'],
     ['POST /api/core/v1/coding-sessions', 'core.createCodingSession'],
     ['GET /api/core/v1/coding-sessions/:id', 'core.getCodingSession'],
+    ['PATCH /api/core/v1/coding-sessions/:id', 'core.updateCodingSession'],
+    ['DELETE /api/core/v1/coding-sessions/:id', 'core.deleteCodingSession'],
+    ['DELETE /api/core/v1/coding-sessions/:id/messages/:messageId', 'core.deleteCodingSessionMessage'],
+    ['POST /api/core/v1/coding-sessions/:id/fork', 'core.forkCodingSession'],
     ['POST /api/core/v1/coding-sessions/:id/turns', 'core.createCodingSessionTurn'],
     ['GET /api/core/v1/coding-sessions/:id/events', 'core.listCodingSessionEvents'],
     ['GET /api/core/v1/coding-sessions/:id/artifacts', 'core.listCodingSessionArtifacts'],
     ['GET /api/core/v1/coding-sessions/:id/checkpoints', 'core.listCodingSessionCheckpoints'],
     ['POST /api/core/v1/approvals/:approvalId/decision', 'core.submitApprovalDecision'],
     ['GET /api/core/v1/operations/:operationId', 'core.getOperation'],
-    ['GET /api/app/v1/auth/config', 'app.getUserCenterConfig'],
-    ['GET /api/app/v1/auth/session', 'app.getCurrentUserSession'],
-    ['POST /api/app/v1/auth/login', 'app.login'],
-    ['POST /api/app/v1/auth/register', 'app.register'],
-    ['POST /api/app/v1/auth/logout', 'app.logout'],
-    ['POST /api/app/v1/auth/session/exchange', 'app.exchangeUserCenterSession'],
-    ['GET /api/app/v1/user-center/profile', 'app.getCurrentUserProfile'],
-    ['PATCH /api/app/v1/user-center/profile', 'app.updateCurrentUserProfile'],
-    ['GET /api/app/v1/user-center/membership', 'app.getCurrentUserMembership'],
-    ['PATCH /api/app/v1/user-center/membership', 'app.updateCurrentUserMembership'],
+    ...getBirdCoderUserCenterAppRouteOperationEntries(),
+    ...BIRDCODER_USER_CENTER_APP_EXTRA_OPERATION_ENTRIES,
+    ['POST /api/app/v1/auth/email/login', 'app.loginWithEmailCode'],
+    ['POST /api/app/v1/auth/phone/login', 'app.loginWithPhoneCode'],
+    ['POST /api/app/v1/auth/verify/send', 'app.sendVerifyCode'],
+    ['POST /api/app/v1/auth/password/reset/request', 'app.requestPasswordReset'],
+    ['POST /api/app/v1/auth/password/reset', 'app.resetPassword'],
     ['GET /api/app/v1/workspaces', 'app.listWorkspaces'],
     ['POST /api/app/v1/workspaces', 'app.createWorkspace'],
     ['PATCH /api/app/v1/workspaces/:workspaceId', 'app.updateWorkspace'],
@@ -2708,6 +3691,14 @@ function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
     ['GET /api/app/v1/workspaces/:workspaceId/realtime', 'app.subscribeWorkspaceRealtime'],
     ['GET /api/app/v1/projects', 'app.listProjects'],
     ['GET /api/app/v1/projects/:projectId', 'app.getProject'],
+    ['GET /api/app/v1/projects/:projectId/git/overview', 'app.getProjectGitOverview'],
+    ['POST /api/app/v1/projects/:projectId/git/branches', 'app.createProjectGitBranch'],
+    ['POST /api/app/v1/projects/:projectId/git/branch-switch', 'app.switchProjectGitBranch'],
+    ['POST /api/app/v1/projects/:projectId/git/commits', 'app.commitProjectGitChanges'],
+    ['POST /api/app/v1/projects/:projectId/git/pushes', 'app.pushProjectGitBranch'],
+    ['POST /api/app/v1/projects/:projectId/git/worktrees', 'app.createProjectGitWorktree'],
+    ['POST /api/app/v1/projects/:projectId/git/worktree-removals', 'app.removeProjectGitWorktree'],
+    ['POST /api/app/v1/projects/:projectId/git/worktree-prune', 'app.pruneProjectGitWorktrees'],
     ['GET /api/app/v1/projects/:projectId/collaborators', 'app.listProjectCollaborators'],
     ['POST /api/app/v1/projects/:projectId/collaborators', 'app.upsertProjectCollaborator'],
     ['POST /api/app/v1/projects', 'app.createProject'],
@@ -2850,7 +3841,7 @@ function mapCanonicalEventToCoreEvent(
     payload: {
       ...canonicalEvent.payload,
       engineId: request.engineId,
-      modelId: request.modelId ?? request.options?.model ?? null,
+      modelId: request.modelId,
       runtimeStatus: canonicalEvent.runtimeStatus,
     },
     createdAt,
@@ -2878,6 +3869,30 @@ function mapCanonicalEventToCoreEvent(
     event,
     artifact,
   };
+}
+
+function resolveRequiredRuntimeModelId(
+  request: BirdCoderCoreSessionRunRequest,
+): string {
+  const requestModelId =
+    typeof request.modelId === 'string' ? request.modelId.trim() : '';
+  if (!requestModelId) {
+    throw new Error(
+      `Coding session run requires an explicit model id for engine "${request.engineId}".`,
+    );
+  }
+
+  const optionsModelId = request.options?.model?.trim();
+  if (
+    optionsModelId &&
+    optionsModelId.localeCompare(requestModelId, undefined, { sensitivity: 'accent' }) !== 0
+  ) {
+    throw new Error(
+      `Coding session run model id mismatch for engine "${request.engineId}": request model "${requestModelId}" does not match options model "${optionsModelId}".`,
+    );
+  }
+
+  return requestModelId;
 }
 
 function resolveOperationStatus(
@@ -2924,6 +3939,13 @@ const CORE_API_CONTRACT: BirdCoderCoreApiContract = {
     'Get runtime capabilities for one engine',
   ),
   engines: createRoute('core', 'host', 'GET', '/api/core/v1/engines', 'List available engines'),
+  forkCodingSession: createRoute(
+    'core',
+    'host',
+    'POST',
+    '/api/core/v1/coding-sessions/:id/fork',
+    'Fork coding session',
+  ),
   nativeSession: createRoute(
     'core',
     'host',
@@ -2991,6 +4013,20 @@ const CORE_API_CONTRACT: BirdCoderCoreApiContract = {
     '/api/core/v1/coding-sessions/:id/checkpoints',
     'List coding session checkpoints',
   ),
+  deleteCodingSession: createRoute(
+    'core',
+    'host',
+    'DELETE',
+    '/api/core/v1/coding-sessions/:id',
+    'Delete coding session',
+  ),
+  deleteCodingSessionMessage: createRoute(
+    'core',
+    'host',
+    'DELETE',
+    '/api/core/v1/coding-sessions/:id/messages/:messageId',
+    'Delete coding session message',
+  ),
   sessionTurns: createRoute(
     'core',
     'host',
@@ -2998,12 +4034,82 @@ const CORE_API_CONTRACT: BirdCoderCoreApiContract = {
     '/api/core/v1/coding-sessions/:id/turns',
     'Create coding session turn',
   ),
+  updateCodingSession: createRoute(
+    'core',
+    'host',
+    'PATCH',
+    '/api/core/v1/coding-sessions/:id',
+    'Update coding session',
+  ),
 };
 
-const APP_API_CONTRACT: BirdCoderAppApiContract = {
+function getResolvedBirdCoderAppApiContract(): BirdCoderAppApiContract {
+  birdCoderAppApiContract ??=
+    getBirdCoderUserCenterAppRouteProjection().mergeContract({
   appTemplates: createRoute('app', 'user', 'GET', '/api/app/v1/app-templates', 'List app templates'),
-  authConfig: createRoute('app', 'user', 'GET', '/api/app/v1/auth/config', 'Get user center provider metadata'),
-  authSession: createRoute('app', 'user', 'GET', '/api/app/v1/auth/session', 'Get current user center session'),
+  authQrGenerate: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/auth/qr/generate',
+    'Generate user center login QR code',
+  ),
+  authQrStatus: createRoute(
+    'app',
+    'user',
+    'GET',
+    '/api/app/v1/auth/qr/status/:qrKey',
+    'Check user center login QR code status',
+  ),
+  authOAuthUrl: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/auth/oauth/url',
+    'Resolve OAuth authorization URL for social sign-in',
+  ),
+  authOAuthLogin: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/auth/oauth/login',
+    'Create user center session with OAuth authorization code',
+  ),
+  loginWithEmailCode: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/auth/email/login',
+    'Create user center session with email verification code',
+  ),
+  loginWithPhoneCode: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/auth/phone/login',
+    'Create user center session with phone verification code',
+  ),
+  requestPasswordReset: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/auth/password/reset/request',
+    'Request password reset verification challenge',
+  ),
+  resetPassword: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/auth/password/reset',
+    'Reset local user center password',
+  ),
+  sendVerifyCode: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/auth/verify/send',
+    'Send verification code for login, registration, or password reset',
+  ),
   createProject: createRoute('app', 'user', 'POST', '/api/app/v1/projects', 'Create project'),
   createProjectCollaborator: createRoute(
     'app',
@@ -3043,28 +4149,63 @@ const APP_API_CONTRACT: BirdCoderAppApiContract = {
   ),
   deployments: createRoute('app', 'user', 'GET', '/api/app/v1/deployments', 'List deployments'),
   documents: createRoute('app', 'user', 'GET', '/api/app/v1/documents', 'List project documents'),
-  exchangeUserCenterSession: createRoute(
+  project: createRoute('app', 'user', 'GET', '/api/app/v1/projects/:projectId', 'Get project'),
+  projectGitOverview: createRoute(
+    'app',
+    'user',
+    'GET',
+    '/api/app/v1/projects/:projectId/git/overview',
+    'Get project Git overview',
+  ),
+  createProjectGitBranch: createRoute(
     'app',
     'user',
     'POST',
-    '/api/app/v1/auth/session/exchange',
-    'Exchange third-party user into a BirdCoder session',
+    '/api/app/v1/projects/:projectId/git/branches',
+    'Create project Git branch',
   ),
-  getCurrentUserMembership: createRoute(
+  switchProjectGitBranch: createRoute(
     'app',
     'user',
-    'GET',
-    '/api/app/v1/user-center/membership',
-    'Get current user membership',
+    'POST',
+    '/api/app/v1/projects/:projectId/git/branch-switch',
+    'Switch project Git branch',
   ),
-  getCurrentUserProfile: createRoute(
+  commitProjectGitChanges: createRoute(
     'app',
     'user',
-    'GET',
-    '/api/app/v1/user-center/profile',
-    'Get current user profile',
+    'POST',
+    '/api/app/v1/projects/:projectId/git/commits',
+    'Commit project Git changes',
   ),
-  project: createRoute('app', 'user', 'GET', '/api/app/v1/projects/:projectId', 'Get project'),
+  pushProjectGitBranch: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/projects/:projectId/git/pushes',
+    'Push project Git branch',
+  ),
+  createProjectGitWorktree: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/projects/:projectId/git/worktrees',
+    'Create project Git worktree',
+  ),
+  removeProjectGitWorktree: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/projects/:projectId/git/worktree-removals',
+    'Remove project Git worktree',
+  ),
+  pruneProjectGitWorktrees: createRoute(
+    'app',
+    'user',
+    'POST',
+    '/api/app/v1/projects/:projectId/git/worktree-prune',
+    'Prune project Git worktrees',
+  ),
   installSkillPackage: createRoute(
     'app',
     'user',
@@ -3072,8 +4213,6 @@ const APP_API_CONTRACT: BirdCoderAppApiContract = {
     '/api/app/v1/skill-packages/:packageId/installations',
     'Install skill package for a scope',
   ),
-  login: createRoute('app', 'user', 'POST', '/api/app/v1/auth/login', 'Create local user center session'),
-  logout: createRoute('app', 'user', 'POST', '/api/app/v1/auth/logout', 'Revoke current user center session'),
   publishProject: createRoute(
     'app',
     'user',
@@ -3089,23 +4228,8 @@ const APP_API_CONTRACT: BirdCoderAppApiContract = {
     'List project collaborators',
   ),
   projects: createRoute('app', 'user', 'GET', '/api/app/v1/projects', 'List projects'),
-  register: createRoute('app', 'user', 'POST', '/api/app/v1/auth/register', 'Register local user center user'),
   skillPackages: createRoute('app', 'user', 'GET', '/api/app/v1/skill-packages', 'List skill packages'),
   teams: createRoute('app', 'user', 'GET', '/api/app/v1/teams', 'List workspace teams'),
-  updateCurrentUserMembership: createRoute(
-    'app',
-    'user',
-    'PATCH',
-    '/api/app/v1/user-center/membership',
-    'Update current user membership',
-  ),
-  updateCurrentUserProfile: createRoute(
-    'app',
-    'user',
-    'PATCH',
-    '/api/app/v1/user-center/profile',
-    'Update current user profile',
-  ),
   updateProject: createRoute(
     'app',
     'user',
@@ -3128,7 +4252,9 @@ const APP_API_CONTRACT: BirdCoderAppApiContract = {
     'List workspace members',
   ),
   workspaces: createRoute('app', 'user', 'GET', '/api/app/v1/workspaces', 'List workspaces'),
-};
+  });
+  return birdCoderAppApiContract;
+}
 
 const ADMIN_API_CONTRACT: BirdCoderAdminApiContract = {
   audit: createRoute('admin', 'admin', 'GET', '/api/admin/v1/audit', 'List audit events'),
@@ -3179,11 +4305,13 @@ export function resolveServerRuntime(
   };
 }
 
-export function bindBirdCoderServerRuntimeTransport(
+export async function bindBirdCoderServerRuntimeTransport(
   options: BindBirdCoderServerRuntimeTransportOptions = {},
-): BirdServerRuntime {
+): Promise<BirdServerRuntime> {
   const host = options.host ?? resolveServerRuntime(options.distributionId);
   const distributionId = options.distributionId ?? (host.distributionId as BirdServerDistributionId);
+  const { bindDefaultBirdCoderIdeServicesRuntime } =
+    await loadBirdCoderInfrastructureRuntimeModule();
   bindDefaultBirdCoderIdeServicesRuntime({
     appAdminClient: options.appAdminClient,
     apiBaseUrl:
@@ -3236,7 +4364,7 @@ export function getBirdCoderCoreApiContract(): BirdCoderCoreApiContract {
 }
 
 export function getBirdCoderAppApiContract(): BirdCoderAppApiContract {
-  return APP_API_CONTRACT;
+  return getResolvedBirdCoderAppApiContract();
 }
 
 export function getBirdCoderAdminApiContract(): BirdCoderAdminApiContract {
@@ -3246,7 +4374,7 @@ export function getBirdCoderAdminApiContract(): BirdCoderAdminApiContract {
 export function listBirdCoderCodingServerRoutes(): BirdCoderApiRouteDefinition[] {
   return [
     ...Object.values(CORE_API_CONTRACT),
-    ...Object.values(APP_API_CONTRACT),
+    ...Object.values(getResolvedBirdCoderAppApiContract()),
     ...Object.values(ADMIN_API_CONTRACT),
   ];
 }
@@ -3341,16 +4469,25 @@ export function buildBirdCoderCodingServerOpenApiDocumentSeed(
 export async function executeBirdCoderCoreSessionRun(
   request: BirdCoderCoreSessionRunRequest,
 ): Promise<BirdCoderCoreSessionRunProjection> {
-  const kernel = getWorkbenchCodeEngineKernel(request.engineId);
-  const chatEngine = createChatEngineById(request.engineId);
+  const resolvedModelId = resolveRequiredRuntimeModelId(request);
+  const { kernel, chatEngine } = createWorkbenchServerSessionEngineBinding(request.engineId);
   const runtimeDescriptor =
     chatEngine.describeRuntime?.({
       ...request.options,
-      model: request.modelId ?? request.options?.model ?? kernel.defaultModelId,
+      model: resolvedModelId,
     }) ??
     (() => {
       throw new Error(`Engine ${request.engineId} does not expose describeRuntime()`);
     })();
+  if (
+    runtimeDescriptor.modelId.trim().localeCompare(resolvedModelId, undefined, {
+      sensitivity: 'accent',
+    }) !== 0
+  ) {
+    throw new Error(
+      `Coding session runtime model id mismatch for engine "${request.engineId}": runtime resolved "${runtimeDescriptor.modelId}" but request requires "${resolvedModelId}".`,
+    );
+  }
   const runtimeHealth = await chatEngine.getHealth?.();
   const runtimeTransportKind = runtimeHealth
     ? resolveTransportKindForRuntimeMode(
@@ -3366,10 +4503,16 @@ export async function executeBirdCoderCoreSessionRun(
     request.messages,
     {
       ...request.options,
-      model: runtimeDescriptor.modelId,
+      model: resolvedModelId,
     },
   ) ?? []) {
-    const projection = mapCanonicalEventToCoreEvent(request, canonicalEvent);
+    const projection = mapCanonicalEventToCoreEvent(
+      {
+        ...request,
+        modelId: resolvedModelId,
+      },
+      canonicalEvent,
+    );
     events.push(projection.event);
     if (projection.artifact) {
       artifacts.push(projection.artifact);
@@ -3384,7 +4527,7 @@ export async function executeBirdCoderCoreSessionRun(
       (String(events.at(-1)?.payload.runtimeStatus ?? 'initializing') as BirdCoderCodingSessionRuntime['status']) ??
       'initializing',
     engineId: runtimeDescriptor.engineId,
-    modelId: runtimeDescriptor.modelId,
+    modelId: resolvedModelId,
     nativeRef: {
       engineId: runtimeDescriptor.engineId,
       transportKind: runtimeTransportKind,
@@ -3483,11 +4626,3 @@ export {
   type BirdCoderRepresentativeReleaseRecord,
   type BirdCoderRepresentativeTeamRecord,
 } from './appAdminRepository.ts';
-
-export {
-  buildBirdCoderCoreSessionProjectionBindings,
-  createProviderBackedBirdCoderCoreSessionProjectionStore,
-  createJsonBirdCoderCoreSessionProjectionStore,
-  type JsonBirdCoderCoreSessionProjectionStore,
-  type ProviderBackedBirdCoderCoreSessionProjectionStore,
-} from './projectionRepository.ts';

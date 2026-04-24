@@ -12,9 +12,8 @@ Close the real web bundle budget regression without weakening the cap by enforci
 
 - `packages/sdkwork-birdcoder-ui/package.json`
 - `packages/sdkwork-birdcoder-ui/src/index.ts`
-- `packages/sdkwork-birdcoder-ui/src/chat.ts`
-- `packages/sdkwork-birdcoder-ui/src/editors.ts`
-- `packages/sdkwork-birdcoder-ui/src/run-config.ts`
+- `packages/sdkwork-birdcoder-ui-shell/package.json`
+- `packages/sdkwork-birdcoder-ui-shell/src/index.ts`
 - `packages/sdkwork-birdcoder-commons/package.json`
 - `packages/sdkwork-birdcoder-commons/src/shell.ts`
 - `packages/sdkwork-birdcoder-web/vite.config.ts`
@@ -39,8 +38,8 @@ Close the real web bundle budget regression without weakening the cap by enforci
 
 ## Checkpoints
 
-- `CP19A-1` `@sdkwork/birdcoder-ui` root barrel must stay lightweight.
-- `CP19A-2` heavy UI surfaces must move to explicit subpath exports and consumers must adopt them.
+- `CP19A-1` `@sdkwork/birdcoder-ui-shell` must own the shell-safe root barrel.
+- `CP19A-2` `@sdkwork/birdcoder-ui` must keep heavy UI surfaces off the shell-safe root barrel while consumers remain on curated root imports.
 - `CP19A-3` app-shell imports must move onto `@sdkwork/birdcoder-commons/shell`.
 - `CP19A-4` web Vite production builds must pass the live `mode` into `createBirdcoderVitePlugins(...)`.
 - `CP19A-5` chunk governance must keep React, markdown, editors, shell, and infrastructure split out of the entry chunk.
@@ -49,11 +48,8 @@ Close the real web bundle budget regression without weakening the cap by enforci
 
 ## Closure Facts
 
-- `@sdkwork/birdcoder-ui` root export now exposes only lightweight shared UI surfaces; heavy runtime components moved to:
-  - `@sdkwork/birdcoder-ui/chat`
-  - `@sdkwork/birdcoder-ui/editors`
-  - `@sdkwork/birdcoder-ui/run-config`
-- Code and Studio consumers now import those heavy surfaces through subpath entries instead of the root UI barrel.
+- `@sdkwork/birdcoder-ui-shell` now owns shell-safe primitives, while `@sdkwork/birdcoder-ui` stays focused on heavy workbench runtime surfaces.
+- Code and Studio consumers stay on the root UI package import surface instead of package subpath entries.
 - `@sdkwork/birdcoder-commons/shell` is the new shell-safe entrypoint; root app bootstrap now avoids the broader commons barrel.
 - `packages/sdkwork-birdcoder-web/vite.config.ts` now propagates the active `mode` into `createBirdcoderVitePlugins(...)`, removing production leakage of React dev-compat helpers.
 - The bundle boundary is now explicit in manual chunks:
@@ -61,14 +57,16 @@ Close the real web bundle budget regression without weakening the cap by enforci
   - `vendor-react-dom`
   - `vendor-markdown`
   - `vendor-monaco`
-  - `commons-shell`
-  - `birdcoder-infrastructure`
-  - `ui-chat`
-  - `ui-editors`
-  - `ui-run-config`
+  - `ui-shell`
+  - `ui-workbench`
+  - `ui-workbench-editors`
+  - `ui-workbench-preview`
+  - `ui-run-dialogs`
+  - `birdcoder-platform-runtime`
+  - `birdcoder-platform-services`
 - Root workspace resolution now stays honest:
-  - root `package.json` declares the workspace packages used by `src/*`
-  - `tsconfig.json` maps `@sdkwork/birdcoder-commons/shell`
+  - dependency consumers remain on root package imports
+  - `tsconfig.json` no longer needs package subpath shims for UI entrypoints
 - New executable contracts freeze the closure:
   - `ui-bundle-segmentation-contract`
   - `web-react-compat-mode-contract`

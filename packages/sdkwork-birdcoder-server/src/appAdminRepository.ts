@@ -10,4 +10,4 @@ export {
   type BirdCoderRepresentativeReleaseRecord,
   type BirdCoderRepresentativeTeamRecord,
   type BirdCoderWorkspaceRecord,
-} from '@sdkwork/birdcoder-infrastructure/storage/appConsoleRepository';
+} from '../../sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';

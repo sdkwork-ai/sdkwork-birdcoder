@@ -8,10 +8,7 @@ import type {
   ChatCanonicalRuntimeDescriptor,
   ChatMessage,
   ChatOptions,
-  IChatCodingSession,
   IChatEngine,
-  IChatSession,
-  ICodeEngineConfig,
   ToolCall,
 } from '@sdkwork/birdcoder-chat';
 import type {
@@ -39,18 +36,30 @@ function resolveRuntimeModelId(
   binding: WorkbenchCanonicalRuntimeBinding,
   options?: ChatOptions,
 ): string {
-  return (
-    options?.model?.trim() ||
-    binding.defaultModelId ||
-    binding.descriptor.defaultModelId ||
-    String(binding.descriptor.engineKey)
+  const explicitModelId = options?.model?.trim();
+  if (explicitModelId) {
+    return explicitModelId;
+  }
+
+  const defaultModelId = binding.defaultModelId.trim();
+  if (defaultModelId) {
+    return defaultModelId;
+  }
+
+  throw new Error(
+    `BirdCoder runtime binding for engine "${binding.descriptor.engineKey}" must expose a non-empty defaultModelId.`,
   );
 }
 
 function resolveRuntimeTransportKind(
   binding: WorkbenchCanonicalRuntimeBinding,
 ): ChatCanonicalRuntimeDescriptor['transportKind'] {
-  return binding.descriptor.transportKinds[0] ?? 'sdk-stream';
+  const primaryAccessLane =
+    binding.descriptor.accessPlan?.lanes.find(
+      (lane) => lane.laneId === binding.descriptor.accessPlan?.primaryLaneId,
+    ) ?? binding.descriptor.accessPlan?.lanes[0];
+
+  return primaryAccessLane?.transportKind ?? binding.descriptor.transportKinds[0] ?? 'sdk-stream';
 }
 
 function resolveRuntimeApprovalPolicy(
@@ -187,15 +196,15 @@ async function resolveStreamingRuntimeDescriptor(
   };
 }
 
-function proxyMethod<TMethod extends ((...args: never[]) => unknown) | undefined>(
-  method: TMethod,
+function proxyMethod<TArgs extends unknown[], TResult>(
+  method: ((...args: TArgs) => TResult) | undefined,
   engine: IChatEngine,
-): TMethod {
+): ((...args: TArgs) => TResult) | undefined {
   if (!method) {
     return method;
   }
 
-  return method.bind(engine) as TMethod;
+  return method.bind(engine) as (...args: TArgs) => TResult;
 }
 
 export function createWorkbenchCanonicalChatEngine(
@@ -208,17 +217,11 @@ export function createWorkbenchCanonicalChatEngine(
   return {
     name: engine.name,
     version: engine.version,
-    initialize: proxyMethod<(config: ICodeEngineConfig) => Promise<void> | undefined>(
-      engine.initialize,
-      engine,
-    ),
+    initialize: proxyMethod(engine.initialize, engine),
     sendMessage,
     sendMessageStream,
     describeRuntime: (options?: ChatOptions) => buildRuntimeDescriptor(binding, options),
-    describeIntegration: proxyMethod<() => ReturnType<NonNullable<IChatEngine['describeIntegration']>>>(
-      engine.describeIntegration,
-      engine,
-    ),
+    describeIntegration: proxyMethod(engine.describeIntegration, engine),
     getCapabilities: async () => {
       const health = await engine.getHealth?.();
       return createCapabilitySnapshot({
@@ -240,10 +243,7 @@ export function createWorkbenchCanonicalChatEngine(
         experimentalCapabilities: engine.describeRawExtensions?.()?.experimentalFeatures ?? [],
       });
     },
-    describeRawExtensions: proxyMethod<() => ReturnType<NonNullable<IChatEngine['describeRawExtensions']>>>(
-      engine.describeRawExtensions,
-      engine,
-    ),
+    describeRawExtensions: proxyMethod(engine.describeRawExtensions, engine),
     async *sendCanonicalEvents(
       messages: ChatMessage[],
       options?: ChatOptions,
@@ -350,22 +350,13 @@ export function createWorkbenchCanonicalChatEngine(
         finishReason: sawToolCall ? 'tool_calls' : 'stop',
       });
     },
-    getHealth: proxyMethod<() => ReturnType<NonNullable<IChatEngine['getHealth']>>>(
-      engine.getHealth,
-      engine,
-    ),
-    createSession: proxyMethod<(projectId: string) => Promise<IChatSession>>(engine.createSession, engine),
-    getSession: proxyMethod<(sessionId: string) => Promise<IChatSession | null>>(engine.getSession, engine),
-    createCodingSession: proxyMethod<
-      (sessionId: string, title?: string) => Promise<IChatCodingSession>
-    >(engine.createCodingSession, engine),
-    getCodingSession: proxyMethod<
-      (codingSessionId: string) => Promise<IChatCodingSession | null>
-    >(engine.getCodingSession, engine),
-    addMessageToCodingSession: proxyMethod<
-      (codingSessionId: string, message: ChatMessage) => Promise<void>
-    >(engine.addMessageToCodingSession, engine),
-    updateContext: proxyMethod<(context: ChatOptions['context']) => void>(engine.updateContext, engine),
-    onToolCall: proxyMethod<(toolCall: ToolCall) => Promise<string>>(engine.onToolCall, engine),
+    getHealth: proxyMethod(engine.getHealth, engine),
+    createSession: proxyMethod(engine.createSession, engine),
+    getSession: proxyMethod(engine.getSession, engine),
+    createCodingSession: proxyMethod(engine.createCodingSession, engine),
+    getCodingSession: proxyMethod(engine.getCodingSession, engine),
+    addMessageToCodingSession: proxyMethod(engine.addMessageToCodingSession, engine),
+    updateContext: proxyMethod(engine.updateContext, engine),
+    onToolCall: proxyMethod(engine.onToolCall, engine),
   };
 }

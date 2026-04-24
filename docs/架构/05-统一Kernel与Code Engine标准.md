@@ -37,7 +37,7 @@ BirdCoder 的统一运行时骨架固定为：
 - 用户界面消费 `coding_session_message`
 - 审计与回放消费 `coding_session_event`
 - 差异、命令、测试、预览、计划等结构化结果进入 `coding_session_artifact`
-- provider 私有 session id、thread id、bridge id、connection token 只允许落在 `coding_session_runtime`
+- provider 私有 session id、native thread id、bridge id、connection token 只允许落在 `coding_session_runtime`
 
 ## 5. Code Engine SPI
 

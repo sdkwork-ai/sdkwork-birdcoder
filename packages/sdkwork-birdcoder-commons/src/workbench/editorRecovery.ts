@@ -59,5 +59,5 @@ export function resolveStartupSelectedFile(
     return persistedSelectedFilePath;
   }
 
-  return findFirstFile(options.files);
+  return null;
 }

@@ -6,17 +6,49 @@ import { readFile } from 'node:fs/promises';
 import {
   ENGINE_TERMINAL_PROFILE_IDS,
   WORKBENCH_ENGINE_KERNELS,
+  findWorkbenchCodeEngineKernel,
   getWorkbenchCodeEngineKernel,
   listWorkbenchCliEngines,
   listWorkbenchCodeEngineDescriptors,
   listWorkbenchModelCatalogEntries,
 } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
+import { listBirdCoderCodeEngineManifests } from '../packages/sdkwork-birdcoder-codeengine/src/manifest.ts';
+import {
+  getWorkbenchCodeEngineSessionSummary,
+  getWorkbenchCodeEngineSummary,
+  getWorkbenchCodeModelLabel,
+} from '../packages/sdkwork-birdcoder-codeengine/src/preferences.ts';
+import { resolveWorkbenchPreferredNewSessionSelection } from '../packages/sdkwork-birdcoder-codeengine/src/serverSupport.ts';
 import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
 
 assert.deepEqual(
   WORKBENCH_ENGINE_KERNELS.map((engine) => engine.id),
   ['codex', 'claude-code', 'gemini', 'opencode'],
 );
+
+for (const manifest of listBirdCoderCodeEngineManifests()) {
+  const defaultModels = manifest.modelCatalog.filter((entry) => entry.defaultForEngine);
+  assert.equal(
+    defaultModels.length,
+    1,
+    `${manifest.id} manifest must declare exactly one default model instead of relying on fallback assembly`,
+  );
+  assert.equal(
+    manifest.defaultModelId,
+    defaultModels[0]?.modelId,
+    `${manifest.id} manifest defaultModelId must come from the explicit default model entry`,
+  );
+  assert.equal(
+    manifest.descriptor.defaultModelId,
+    defaultModels[0]?.modelId,
+    `${manifest.id} descriptor defaultModelId must come from the explicit default model entry`,
+  );
+  assert.equal(
+    manifest.modelCatalog.every((entry) => entry.engineKey === manifest.id),
+    true,
+    `${manifest.id} manifest must not contain model catalog entries owned by a different engine`,
+  );
+}
 
 assert.deepEqual(ENGINE_TERMINAL_PROFILE_IDS, ['codex', 'claude-code', 'gemini', 'opencode']);
 assert.deepEqual(
@@ -32,6 +64,13 @@ assert.equal(codexKernel.source.sdkPath, 'external/codex/sdk/typescript');
 assert.equal(codexKernel.source.sourceStatus, 'mirrored');
 assert.equal(createChatEngineById(codexKernel.id).name, 'codex-official-sdk-adapter');
 assert.equal(codexKernel.descriptor.engineKey, 'codex');
+assert.equal(
+  codexKernel.descriptor.officialIntegration?.officialEntry.packageName,
+  '@openai/codex-sdk',
+);
+assert.equal(codexKernel.executionTopology.authorityPath, 'rust-native');
+assert.equal(codexKernel.executionTopology.bridgeRequired, false);
+assert.equal(codexKernel.executionTopology.officialSdkPackageName, '@openai/codex-sdk');
 assert.ok(codexKernel.descriptor.transportKinds.includes('sdk-stream'));
 assert.ok(codexKernel.descriptor.transportKinds.includes('cli-jsonl'));
 assert.equal(
@@ -45,6 +84,22 @@ assert.equal(
   createChatEngineById(codexKernel.id).describeIntegration?.()?.officialEntry.packageName,
   '@openai/codex-sdk',
 );
+assert.equal(findWorkbenchCodeEngineKernel('missing-engine'), null);
+assert.equal(
+  findWorkbenchCodeEngineKernel('gpt-5.4'),
+  null,
+  'Engine kernel lookup must not treat model ids as engine ids.',
+);
+assert.throws(
+  () => createChatEngineById('missing-engine'),
+  /unknown engineId/i,
+  'Chat engine creation must reject unknown engine ids instead of silently falling back to Codex.',
+);
+assert.throws(
+  () => createChatEngineById('gpt-5.4'),
+  /unknown engineId/i,
+  'Chat engine creation must reject model ids passed as engine ids instead of coercing them to an engine.',
+);
 
 const claudeKernel = getWorkbenchCodeEngineKernel('claude-code');
 assert.equal(claudeKernel.cli.executable, 'claude');
@@ -55,6 +110,12 @@ assert.equal(claudeKernel.source.sourceStatus, 'mirrored');
 assert.equal(claudeKernel.source.sourceKind, 'repository');
 assert.equal(createChatEngineById(claudeKernel.id).name, 'claude-agent-sdk-adapter');
 assert.equal(claudeKernel.descriptor.engineKey, 'claude-code');
+assert.equal(
+  claudeKernel.descriptor.officialIntegration?.officialEntry.packageName,
+  '@anthropic-ai/claude-agent-sdk',
+);
+assert.equal(claudeKernel.executionTopology.authorityPath, 'typescript-rpc-bridge');
+assert.equal(claudeKernel.executionTopology.bridgeRequired, true);
 assert.ok(claudeKernel.descriptor.transportKinds.includes('sdk-stream'));
 assert.ok(claudeKernel.descriptor.transportKinds.includes('remote-control-http'));
 assert.equal(claudeKernel.descriptor.capabilityMatrix.remoteBridge, true);
@@ -72,6 +133,11 @@ assert.equal(geminiKernel.source.sdkPath, 'external/gemini/packages/sdk');
 assert.equal(geminiKernel.source.sourceStatus, 'mirrored');
 assert.equal(createChatEngineById(geminiKernel.id).name, 'gemini-cli-sdk-adapter');
 assert.equal(
+  geminiKernel.descriptor.officialIntegration?.officialEntry.packageName,
+  '@google/gemini-cli-sdk',
+);
+assert.equal(geminiKernel.executionTopology.authorityPath, 'typescript-rpc-bridge');
+assert.equal(
   createChatEngineById(geminiKernel.id).describeIntegration?.()?.officialEntry.packageName,
   '@google/gemini-cli-sdk',
 );
@@ -84,6 +150,12 @@ assert.equal(opencodeKernel.source.sdkPath, 'external/opencode/packages/sdk/js')
 assert.equal(opencodeKernel.source.sourceStatus, 'mirrored');
 assert.equal(opencodeKernel.source.sourceKind, 'repository');
 assert.equal(createChatEngineById(opencodeKernel.id).name, 'opencode-sdk-adapter');
+assert.equal(
+  opencodeKernel.descriptor.officialIntegration?.officialEntry.packageName,
+  '@opencode-ai/sdk',
+);
+assert.equal(opencodeKernel.executionTopology.authorityPath, 'rust-rpc-bridge');
+assert.equal(opencodeKernel.executionTopology.bridgeRequired, true);
 assert.ok(opencodeKernel.descriptor.transportKinds.includes('sdk-stream'));
 assert.ok(opencodeKernel.descriptor.transportKinds.includes('openapi-http'));
 assert.equal(opencodeKernel.descriptor.capabilityMatrix.todoArtifacts, true);
@@ -101,6 +173,68 @@ assert.ok(
     (entry) => entry.engineKey === 'claude-code' && entry.defaultForEngine,
   ),
 );
+assert.equal(
+  getWorkbenchCodeEngineSessionSummary('codex', undefined),
+  'Codex',
+  'Existing session header must not inject the engine default model when the persisted session model is empty.',
+);
+assert.equal(
+  getWorkbenchCodeEngineSessionSummary('codex', 'gpt-5.4'),
+  'Codex / GPT-5.4',
+);
+assert.equal(
+  getWorkbenchCodeModelLabel('codex', undefined),
+  '',
+  'Display helpers must not inject the engine default model label when no explicit model id exists.',
+);
+assert.equal(
+  getWorkbenchCodeModelLabel('codex', 'gpt-5.4-preview'),
+  'gpt-5.4-preview',
+  'Display helpers must preserve explicit unknown model ids instead of rewriting them to the engine default model.',
+);
+assert.equal(
+  getWorkbenchCodeEngineSummary('codex', undefined),
+  'Codex',
+  'Engine summary helpers must collapse to the engine label when no explicit model id exists.',
+);
+assert.equal(
+  getWorkbenchCodeEngineSummary('codex', 'gpt-5.4-preview'),
+  'Codex / gpt-5.4-preview',
+  'Engine summary helpers must preserve explicit unknown model ids instead of silently substituting the engine default model.',
+);
+assert.equal(
+  getWorkbenchCodeEngineSessionSummary('custom-engine', 'custom-model'),
+  'custom-engine / custom-model',
+  'Unknown persisted session engine/model values must be preserved for display instead of coerced to defaults.',
+);
+assert.equal(
+  resolveWorkbenchPreferredNewSessionSelection({
+    currentSessionEngineId: 'codex',
+    currentSessionModelId: 'gpt-5.4-preview',
+    preferredEngineId: 'codex',
+    preferredModelId: 'gpt-5.4',
+  }).modelId,
+  'gpt-5.4-preview',
+  'New session selection must preserve the authoritative current session model instead of silently coercing it to the engine default.',
+);
+assert.equal(
+  resolveWorkbenchPreferredNewSessionSelection({
+    preferredEngineId: 'codex',
+    preferredModelId: 'gpt-5.4-preview',
+  }).modelId,
+  'gpt-5.4-preview',
+  'New session selection must preserve an explicit preferred model for the selected engine instead of silently coercing it to the default.',
+);
+assert.equal(
+  resolveWorkbenchPreferredNewSessionSelection({
+    currentSessionEngineId: 'claude-code',
+    currentSessionModelId: 'claude-3-opus',
+    preferredEngineId: 'codex',
+    preferredModelId: 'gpt-5.4',
+  }).modelId,
+  'gpt-5.4',
+  'New session selection must not leak a model from a different non-server-ready engine after engine fallback resolves to the default implemented engine.',
+);
 
 for (const engine of listWorkbenchCliEngines()) {
   assert.equal(
@@ -110,23 +244,23 @@ for (const engine of listWorkbenchCliEngines()) {
   );
 }
 
-const terminalPageSource = await readFile(
-  new URL('../packages/sdkwork-birdcoder-terminal/src/TerminalPage.tsx', import.meta.url),
-  'utf8',
-);
 const terminalLaunchAdapterSource = await readFile(
   new URL('../packages/sdkwork-birdcoder-commons/src/terminal/sdkworkTerminalLaunch.ts', import.meta.url),
   'utf8',
 );
-assert.equal(
-  terminalPageSource.includes("session.profileId === 'codex'"),
-  false,
-  'TerminalPage facade should not keep hardcoded engine session checks.',
+const manifestSource = await readFile(
+  new URL('../packages/sdkwork-birdcoder-codeengine/src/manifest.ts', import.meta.url),
+  'utf8',
 );
 assert.equal(
-  terminalPageSource.includes('isTerminalCliProfileId('),
+  manifestSource.includes('defaultModel?.modelId ?? input.id'),
   false,
-  'TerminalPage facade should not keep CLI profile classification logic after launch normalization moved to commons.',
+  'Engine manifest assembly must not synthesize defaultModelId from the engine id.',
+);
+assert.equal(
+  fs.existsSync(path.join(process.cwd(), 'packages', 'sdkwork-birdcoder-terminal')),
+  false,
+  'BirdCoder workspace must not keep a local terminal package after direct sdkwork-terminal integration.',
 );
 assert.equal(
   terminalLaunchAdapterSource.includes("profile.id === 'codex'"),

@@ -175,10 +175,19 @@ const studioPageSource = readFileSync(
   new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
+const studioExecutionHookSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
+  'utf8',
+);
 assert.equal(
-  studioPageSource.includes('resolveStudioPreviewExecutionLaunch('),
+  studioPageSource.includes("from './useStudioExecutionActions';"),
   true,
-  'StudioPage should use the shared preview execution launch contract.',
+  'StudioPage should delegate preview execution wiring through the shared studio execution hook.',
+);
+assert.equal(
+  studioExecutionHookSource.includes('resolveStudioPreviewExecutionLaunch('),
+  true,
+  'Studio execution hook should use the shared preview execution launch contract.',
 );
 
 console.log('studio preview execution contract passed.');

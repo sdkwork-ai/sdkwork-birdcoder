@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 
 import {
   createDesktopViteServerConfig,
@@ -8,6 +9,10 @@ import {
   isCompatibleRunningDesktopHost,
   parseArgs,
 } from './run-desktop-vite-host.mjs';
+import {
+  resolveBirdcoderTerminalInfrastructureRuntimePath,
+  resolveSdkworkTerminalInfrastructureEntryPath,
+} from './create-birdcoder-vite-plugins.mjs';
 
 assert.deepEqual(parseArgs([]), {
   host: undefined,
@@ -24,7 +29,9 @@ assert.deepEqual(parseArgs(['serve', '--host', '127.0.0.1', '--port', '1520', '-
   mode: 'test',
 });
 
-const desktopRootDir = path.join('C:', 'repo', 'packages', 'sdkwork-birdcoder-desktop');
+const rootDir = process.cwd();
+const desktopRootDir = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop');
+const appbaseWorkspaceRoot = path.resolve(rootDir, '..', 'sdkwork-appbase');
 const config = createDesktopViteServerConfig({
   argv: ['--host', '127.0.0.1', '--port', '1520', '--strictPort', '--mode', 'test'],
   env: {
@@ -42,36 +49,124 @@ assert.equal(config.esbuild, false);
 assert.deepEqual(config.plugins, ['react-plugin', 'tailwind-plugin']);
 assert.ok(!('disabled' in config.optimizeDeps));
 assert.equal(config.optimizeDeps.noDiscovery, true);
-assert.deepEqual(config.optimizeDeps.include, ['@xterm/addon-unicode11']);
-assert.deepEqual(config.resolve.dedupe, ['react', 'react-dom', 'react-i18next', 'scheduler', 'use-sync-external-store']);
+assert.deepEqual(config.optimizeDeps.include, []);
+assert.deepEqual(config.resolve.dedupe, [
+  'react',
+  'react-dom',
+  'react-i18next',
+  'react-router',
+  'react-router-dom',
+  'scheduler',
+  'use-sync-external-store',
+]);
 assert.equal('preserveSymlinks' in config.resolve, false);
-assert.equal(config.resolve.alias[0]?.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'), true);
+
+const normalizePath = (value) => String(value).replace(/\\/g, '/');
+const findAlias = (predicate, message) => {
+  const aliasEntry = config.resolve.alias.find(predicate);
+  assert.ok(aliasEntry, message);
+  return aliasEntry;
+};
+
+const birdcoderPackageSubpathAlias = findAlias(
+  (entry) => entry.find instanceof RegExp
+    && entry.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
+  'Desktop host config must define a dedicated BirdCoder package-subpath alias.',
+);
 assert.equal(
-  config.resolve.alias[0]?.replacement,
+  birdcoderPackageSubpathAlias.replacement,
   path.resolve(desktopRootDir, '../sdkwork-birdcoder-$1/src/$2'),
 );
-assert.equal(config.resolve.alias[1]?.find.test('@sdkwork/birdcoder-chat'), true);
+
+const birdcoderPackageRootAlias = findAlias(
+  (entry) => entry.find instanceof RegExp && entry.find.test('@sdkwork/birdcoder-chat'),
+  'Desktop host config must define a BirdCoder package-root alias.',
+);
 assert.equal(
-  config.resolve.alias[1]?.replacement,
+  birdcoderPackageRootAlias.replacement,
   path.resolve(desktopRootDir, '../sdkwork-birdcoder-$1/src'),
 );
-assert.equal(config.resolve.alias[2]?.find.test('@sdkwork/terminal-core/runtime/session'), true);
+
+const reactRouterDomAlias = findAlias(
+  (entry) => entry.find === 'react-router-dom',
+  'Desktop host config must resolve react-router-dom from the shared appbase workspace.',
+);
+assert.ok(
+  normalizePath(reactRouterDomAlias.replacement).startsWith(normalizePath(appbaseWorkspaceRoot)),
+  'Desktop host config must source react-router-dom from the shared appbase workspace root.',
+);
+assert.match(
+  normalizePath(reactRouterDomAlias.replacement),
+  /\/react-router-dom\/dist\/index\.mjs$/u,
+  'Desktop host config must point react-router-dom at the ESM dist entry exported by the shared appbase workspace.',
+);
+
+const reactRouterDomExportAlias = findAlias(
+  (entry) => entry.find === 'react-router/dom',
+  'Desktop host config must resolve react-router/dom from the shared appbase workspace.',
+);
+assert.ok(
+  normalizePath(reactRouterDomExportAlias.replacement).startsWith(normalizePath(appbaseWorkspaceRoot)),
+  'Desktop host config must source react-router/dom from the shared appbase workspace root.',
+);
+assert.match(
+  normalizePath(reactRouterDomExportAlias.replacement),
+  /\/react-router\/dist\/development\/dom-export\.mjs$/u,
+  'Desktop host config must point react-router/dom at the shared development DOM export entry.',
+);
+
+const reactRouterAlias = findAlias(
+  (entry) => entry.find === 'react-router',
+  'Desktop host config must resolve react-router from the shared appbase workspace.',
+);
+assert.ok(
+  normalizePath(reactRouterAlias.replacement).startsWith(normalizePath(appbaseWorkspaceRoot)),
+  'Desktop host config must source react-router from the shared appbase workspace root.',
+);
+assert.match(
+  normalizePath(reactRouterAlias.replacement),
+  /\/react-router\/dist\/development\/index\.mjs$/u,
+  'Desktop host config must point react-router at the shared development index entry.',
+);
+
+const terminalInfrastructureAlias = findAlias(
+  (entry) => entry.find === '@sdkwork/terminal-infrastructure',
+  'Desktop host config must keep the terminal infrastructure alias.',
+);
 assert.equal(
-  config.resolve.alias[2]?.replacement,
+  terminalInfrastructureAlias.replacement,
+  path.resolve(desktopRootDir, '../sdkwork-birdcoder-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts'),
+);
+
+const terminalDesktopAlias = findAlias(
+  (entry) => entry.find === '@sdkwork/terminal-desktop',
+  'Desktop host config must keep the terminal desktop alias.',
+);
+assert.equal(
+  terminalDesktopAlias.replacement,
+  path.resolve(desktopRootDir, '../../../sdkwork-terminal/apps/desktop/src/index.ts'),
+);
+
+const terminalPackageSubpathAlias = findAlias(
+  (entry) => entry.find instanceof RegExp
+    && entry.find.test('@sdkwork/terminal-core/runtime/session'),
+  'Desktop host config must keep the terminal package-subpath alias.',
+);
+assert.equal(
+  terminalPackageSubpathAlias.replacement,
   path.resolve(desktopRootDir, '../../../sdkwork-terminal/packages/sdkwork-terminal-$1/src/$2'),
 );
-assert.equal(config.resolve.alias[3]?.find.test('@sdkwork/terminal-core'), true);
+
+const terminalPackageRootAlias = findAlias(
+  (entry) => entry.find instanceof RegExp && entry.find.test('@sdkwork/terminal-core'),
+  'Desktop host config must keep the terminal package-root alias.',
+);
 assert.equal(
-  config.resolve.alias[3]?.replacement,
+  terminalPackageRootAlias.replacement,
   path.resolve(desktopRootDir, '../../../sdkwork-terminal/packages/sdkwork-terminal-$1/src'),
 );
-assert.equal(config.resolve.alias[4]?.find.test('@xterm/xterm'), true);
-assert.equal(
-  config.resolve.alias[4]?.replacement,
-  path.resolve(desktopRootDir, '../../node_modules/@xterm/$1'),
-);
 assert.notEqual(
-  config.resolve.alias[0]?.replacement,
+  birdcoderPackageSubpathAlias.replacement,
   path.resolve(desktopRootDir, '../sdkwork-birdcoder-$1/src'),
   'Desktop host config must keep a dedicated package-subpath alias before the package-root alias.',
 );
@@ -81,10 +176,14 @@ assert.equal(config.server.strictPort, true);
 assert.equal(config.server.hmr, false);
 assert.deepEqual(config.server.fs.allow, [
   path.resolve(desktopRootDir, '../..'),
-  path.join('C:', 'sdkwork-terminal'),
+  path.resolve(rootDir, '..', 'sdkwork-appbase'),
+  path.resolve(rootDir, '..', 'sdkwork-core'),
+  path.resolve(rootDir, '..', 'sdkwork-ui'),
+  path.resolve(rootDir, '..', 'sdkwork-terminal'),
+  path.resolve(rootDir, '..', '..', 'spring-ai-plus-app-api'),
+  path.resolve(rootDir, '..', '..', 'sdk'),
 ]);
 
-const rootDir = process.cwd();
 const uiRequire = createRequire(path.join(rootDir, 'packages', 'sdkwork-birdcoder-ui', 'package.json'));
 const rootRequire = createRequire(path.join(rootDir, 'package.json'));
 const lucideEntryPath = rootRequire.resolve('lucide-react');
@@ -92,13 +191,54 @@ const lucidePackageDir = path.resolve(path.dirname(lucideEntryPath), '..');
 const defaultLucideProbePath = `http://127.0.0.1:1520/@fs/${path
   .join(lucidePackageDir, 'esm', 'Icon.js')
   .replace(/\\/g, '/')}`;
+const defaultTerminalInfrastructureProbePath = `http://127.0.0.1:1520/@fs/${path
+  .resolve(rootDir, '..', 'sdkwork-terminal', 'packages', 'sdkwork-terminal-infrastructure', 'src', 'index.ts')
+  .replace(/\\/g, '/')}`;
+const defaultBirdcoderTerminalRuntimeProbePath = `http://127.0.0.1:1520/@fs/${path
+  .resolve(resolveBirdcoderTerminalInfrastructureRuntimePath(desktopRootDir))
+  .replace(/\\/g, '/')}`;
 const defaultUnifiedProbePath = `http://127.0.0.1:1520/@fs/${path
   .join(path.dirname(uiRequire.resolve('unified')), 'lib', 'index.js')
   .replace(/\\/g, '/')}`;
+const desktopViteHostSource = readFileSync(
+  path.join(rootDir, 'scripts', 'run-desktop-vite-host.mjs'),
+  'utf8',
+);
+
+assert.equal(
+  resolveBirdcoderTerminalInfrastructureRuntimePath(desktopRootDir),
+  path.resolve(
+    desktopRootDir,
+    '../sdkwork-birdcoder-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
+  ),
+  'Shared terminal path resolver must return the canonical BirdCoder terminal runtime entry path.',
+);
+assert.equal(
+  resolveSdkworkTerminalInfrastructureEntryPath(desktopRootDir),
+  path.resolve(
+    desktopRootDir,
+    '../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/index.ts',
+  ),
+  'Shared terminal path resolver must return the canonical sdkwork-terminal infrastructure entry path.',
+);
+assert.match(
+  desktopViteHostSource,
+  /resolveBirdcoderTerminalInfrastructureRuntimePath/u,
+  'Desktop host reuse logic must import the shared BirdCoder terminal runtime path resolver instead of hardcoding the runtime entry path.',
+);
+assert.match(
+  desktopViteHostSource,
+  /resolveSdkworkTerminalInfrastructureEntryPath/u,
+  'Desktop host reuse logic must import the shared sdkwork-terminal infrastructure path resolver instead of hardcoding the upstream entry path.',
+);
 
 const compatibleFetchLog = [];
 const compatibilityProbes = [
   { path: '/src/main.tsx', incompatiblePatterns: ['Internal Server Error'] },
+  {
+    path: '/@fs/mock/birdcoder-terminal-runtime/src/index.ts',
+    incompatiblePatterns: ['Internal Server Error', 'Pre-transform error', 'Failed to resolve import'],
+  },
   {
     path: '/@fs/mock/lucide-react/dist/esm/Icon.js',
     incompatiblePatterns: ['/react/index.js', '_container'],
@@ -112,6 +252,13 @@ const compatibilityProbes = [
   {
     path: '/@fs/mock/micromark/lib/create-tokenizer.js',
     incompatiblePatterns: ['/@fs/mock/debug/src/browser.js'],
+  },
+  {
+    path: '/@fs/mock/sdkwork-terminal-infrastructure/src/index.ts',
+    incompatiblePatterns: [
+      '/@fs/mock/@xterm/xterm/lib/xterm.js',
+      '/@fs/mock/@xterm/addon-fit/lib/addon-fit.js',
+    ],
   },
 ];
 
@@ -140,6 +287,14 @@ assert.ok(
 assert.ok(
   defaultProbeFetchLog.includes(defaultUnifiedProbePath),
   'Desktop host reuse check must probe unified/lib/index.js so hosts that still leak the raw extend CommonJS entry are rejected before reuse.',
+);
+assert.ok(
+  defaultProbeFetchLog.includes(defaultBirdcoderTerminalRuntimeProbePath),
+  'Desktop host reuse check must probe the BirdCoder terminal runtime entry so hosts that fail to transform the local terminal integration layer are rejected before reuse.',
+);
+assert.ok(
+  defaultProbeFetchLog.includes(defaultTerminalInfrastructureProbePath),
+  'Desktop host reuse check must probe sdkwork-terminal infrastructure so hosts that still leak raw xterm CommonJS entries are rejected before reuse.',
 );
 
 const compatibleFetch = async (url) => {
@@ -176,11 +331,13 @@ assert.deepEqual(
   compatibleFetchLog,
   [
     'http://127.0.0.1:1520/src/main.tsx',
+    'http://127.0.0.1:1520/@fs/mock/birdcoder-terminal-runtime/src/index.ts',
     'http://127.0.0.1:1520/@fs/mock/lucide-react/dist/esm/Icon.js',
     'http://127.0.0.1:1520/@fs/mock/html-parse-stringify.module.js',
     'http://127.0.0.1:1520/@fs/mock/hast-util-to-jsx-runtime/lib/index.js',
     'http://127.0.0.1:1520/@fs/mock/react-syntax-highlighter/dist/esm/languages/hljs/vue.js',
     'http://127.0.0.1:1520/@fs/mock/micromark/lib/create-tokenizer.js',
+    'http://127.0.0.1:1520/@fs/mock/sdkwork-terminal-infrastructure/src/index.ts',
   ],
   'Desktop host reuse check should probe the startup entry and each dependency compatibility path before reusing an existing host.',
 );
@@ -207,6 +364,30 @@ assert.equal(
   }),
   false,
   'Desktop host reuse check must reject a host whose lucide-react transform still leaks the raw React CommonJS entry.',
+);
+
+assert.equal(
+  await isCompatibleRunningDesktopHost({
+    host: '127.0.0.1',
+    port: 1520,
+    fetchImpl: async (url) => ({
+      status: 200,
+      async text() {
+        if (url.endsWith('/src/main.tsx')) {
+          return 'export const main = true;';
+        }
+
+        if (url.endsWith('/@fs/mock/birdcoder-terminal-runtime/src/index.ts')) {
+          return 'Internal Server Error: Failed to resolve import "./terminalRuntimeSanitization.ts"';
+        }
+
+        return 'export default { area: true };';
+      },
+    }),
+    probes: compatibilityProbes,
+  }),
+  false,
+  'Desktop host reuse check must reject a host whose BirdCoder terminal runtime entry fails to resolve its local sanitization dependency.',
 );
 
 assert.equal(
@@ -321,6 +502,30 @@ assert.equal(
   }),
   false,
   'Desktop host reuse check must reject a host whose micromark transform still leaks the raw debug browser CommonJS entry.',
+);
+
+assert.equal(
+  await isCompatibleRunningDesktopHost({
+    host: '127.0.0.1',
+    port: 1520,
+    fetchImpl: async (url) => ({
+      status: 200,
+      async text() {
+        if (url.endsWith('/src/main.tsx')) {
+          return 'export const main = true;';
+        }
+
+        if (url.endsWith('/@fs/mock/sdkwork-terminal-infrastructure/src/index.ts')) {
+          return 'const Terminal = () => import("/@fs/mock/@xterm/xterm/lib/xterm.js"); export { Terminal };';
+        }
+
+        return 'export default { area: true };';
+      },
+    }),
+    probes: compatibilityProbes,
+  }),
+  false,
+  'Desktop host reuse check must reject a host whose sdkwork-terminal infrastructure transform still leaks the raw xterm CommonJS entry.',
 );
 
 const retryableProbeError = new TypeError('fetch failed');

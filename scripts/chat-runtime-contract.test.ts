@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 
 import {
-  buildChatHistoryStorageKey,
-  mergeStoredPromptEntry,
-  normalizeStoredPromptEntries,
+  mergePromptEntryRecord,
+  normalizePromptEntryRecords,
+  normalizeSessionChatInputHistory,
 } from '../packages/sdkwork-birdcoder-commons/src/chat/persistence.ts';
 import {
   getWorkbenchCodeEngineDefinition,
@@ -17,8 +17,13 @@ assert.deepEqual(getWorkbenchCodeEngineDefinition('gemini').modelIds, [
   'gemini-1.5-flash',
 ]);
 
+const codexEngine = getWorkbenchCodeEngineDefinition('codex');
+
 assert.equal(normalizeWorkbenchCodeModelId('claude-code', 'gpt-4o'), 'claude-code');
-assert.equal(normalizeWorkbenchCodeModelId('codex', 'gpt-4o'), 'gpt-4o');
+assert.equal(
+  normalizeWorkbenchCodeModelId('codex', 'gpt-4o'),
+  codexEngine.defaultModelId,
+);
 
 assert.deepEqual(
   resolveWorkbenchChatSelection({
@@ -31,10 +36,8 @@ assert.deepEqual(
   },
 );
 
-assert.equal(buildChatHistoryStorageKey('thread-7'), 'history.thread-7');
-
 assert.deepEqual(
-  normalizeStoredPromptEntries([
+  normalizePromptEntryRecords([
     { text: '  build terminal  ', timestamp: 30 },
     { text: '', timestamp: 40 },
     { text: 'build terminal', timestamp: 50 },
@@ -47,7 +50,7 @@ assert.deepEqual(
 );
 
 assert.deepEqual(
-  mergeStoredPromptEntry(
+  mergePromptEntryRecord(
     [
       { text: 'build terminal', timestamp: 30 },
       { text: 'restore session', timestamp: 20 },
@@ -60,6 +63,11 @@ assert.deepEqual(
     { text: 'build terminal', timestamp: 60 },
     { text: 'restore session', timestamp: 20 },
   ],
+);
+
+assert.deepEqual(
+  normalizeSessionChatInputHistory(['  build terminal  ', '', 'review session']),
+  ['build terminal', 'review session'],
 );
 
 console.log('chat runtime contract passed.');

@@ -85,7 +85,7 @@ const client = createBirdCoderGeneratedCoreWriteApiClient({
                 status: 'paused',
                 hostMode: 'server',
                 engineId: 'codex',
-                modelId: 'gpt-5-codex-mini',
+                modelId: 'gpt-5-codex',
                 createdAt: '2026-04-11T11:00:00.000Z',
                 updatedAt: '2026-04-11T11:00:45.000Z',
                 lastTurnAt: '2026-04-11T11:00:45.000Z',
@@ -172,14 +172,12 @@ assert.equal(forkedSession.title, 'Forked Generated Core Write Session');
 const updatedSession = await client.updateCodingSession('coding-session-generated-write', {
   title: 'Renamed Generated Core Write Session',
   status: 'paused',
-  engineId: 'codex',
-  modelId: 'gpt-5-codex-mini',
 });
 
 assert.equal(updatedSession.id, 'coding-session-generated-write');
 assert.equal(updatedSession.title, 'Renamed Generated Core Write Session');
 assert.equal(updatedSession.status, 'paused');
-assert.equal(updatedSession.modelId, 'gpt-5-codex-mini');
+assert.equal(updatedSession.modelId, 'gpt-5-codex');
 
 await assert.rejects(
   () => client.updateCodingSession('coding-session-generated-write', {}),
@@ -246,8 +244,6 @@ assert.deepEqual(observedRequests, [
     body: {
       title: 'Renamed Generated Core Write Session',
       status: 'paused',
-      engineId: 'codex',
-      modelId: 'gpt-5-codex-mini',
     },
   },
   {

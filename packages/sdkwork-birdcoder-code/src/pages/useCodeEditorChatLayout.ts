@@ -1,14 +1,14 @@
 import {
   normalizeWorkbenchCodeEditorChatWidth,
   type WorkbenchPreferences,
-} from '@sdkwork/birdcoder-commons/workbench';
+} from '@sdkwork/birdcoder-commons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { resolveCodeEditorResponsiveChatWidth } from './codeEditorChatLayout';
 
 const CODE_EDITOR_CHAT_WIDTH_PERSIST_DELAY_MS = 160;
 
 interface UseCodeEditorChatLayoutOptions {
-  activeTab: 'ai' | 'editor';
+  activeTab: 'ai' | 'editor' | 'mobile';
   initialChatWidth: number;
   updatePreferences: (
     value:
@@ -22,64 +22,100 @@ export function useCodeEditorChatLayout({
   initialChatWidth,
   updatePreferences,
 }: UseCodeEditorChatLayoutOptions) {
-  const [chatWidth, setChatWidth] = useState(initialChatWidth);
+  const requestedChatWidthRef = useRef(
+    normalizeWorkbenchCodeEditorChatWidth(initialChatWidth),
+  );
+  const persistedChatWidthRef = useRef(
+    normalizeWorkbenchCodeEditorChatWidth(initialChatWidth),
+  );
+  const workspaceWidthRef = useRef(0);
+  const persistTimeoutRef = useRef<number | null>(null);
   const [effectiveEditorChatWidth, setEffectiveEditorChatWidth] = useState(() =>
-    resolveCodeEditorResponsiveChatWidth(initialChatWidth, 0),
+    resolveCodeEditorResponsiveChatWidth(requestedChatWidthRef.current, 0),
   );
   const editorWorkspaceHostRef = useRef<HTMLDivElement>(null);
-  const requestedChatWidthRef = useRef(initialChatWidth);
-  const editorWorkspaceWidthRef = useRef(0);
+
+  const clearScheduledPersistence = useCallback(() => {
+    if (persistTimeoutRef.current === null || typeof window === 'undefined') {
+      return;
+    }
+
+    window.clearTimeout(persistTimeoutRef.current);
+    persistTimeoutRef.current = null;
+  }, []);
 
   const syncEffectiveEditorChatWidth = useCallback(
-    (requestedWidth: number, workspaceWidth: number) => {
-      const nextEffectiveChatWidth = resolveCodeEditorResponsiveChatWidth(
-        requestedWidth,
-        workspaceWidth,
-      );
-      setEffectiveEditorChatWidth((previousState) =>
-        previousState === nextEffectiveChatWidth ? previousState : nextEffectiveChatWidth,
-      );
+    (requestedChatWidth: number, workspaceWidth: number) => {
+      setEffectiveEditorChatWidth((previousState) => {
+        const nextEffectiveWidth = resolveCodeEditorResponsiveChatWidth(
+          requestedChatWidth,
+          workspaceWidth,
+        );
+        return previousState === nextEffectiveWidth ? previousState : nextEffectiveWidth;
+      });
     },
     [],
   );
 
-  useEffect(() => {
-    setChatWidth(initialChatWidth);
-    requestedChatWidthRef.current = initialChatWidth;
-    syncEffectiveEditorChatWidth(initialChatWidth, editorWorkspaceWidthRef.current);
-  }, [initialChatWidth, syncEffectiveEditorChatWidth]);
+  const scheduleRequestedChatWidthPersistence = useCallback(
+    (requestedChatWidth: number) => {
+      clearScheduledPersistence();
+
+      if (requestedChatWidth === persistedChatWidthRef.current) {
+        return;
+      }
+
+      const nextChatWidth = requestedChatWidth;
+      const persist = () => {
+        persistTimeoutRef.current = null;
+        persistedChatWidthRef.current = nextChatWidth;
+        updatePreferences((previousPreferences) => ({
+          ...previousPreferences,
+          codeEditorChatWidth: nextChatWidth,
+        }));
+      };
+
+      if (typeof window === 'undefined') {
+        persist();
+        return;
+      }
+
+      persistTimeoutRef.current = window.setTimeout(
+        persist,
+        CODE_EDITOR_CHAT_WIDTH_PERSIST_DELAY_MS,
+      );
+    },
+    [clearScheduledPersistence, updatePreferences],
+  );
 
   useEffect(() => {
-    requestedChatWidthRef.current = chatWidth;
-    syncEffectiveEditorChatWidth(chatWidth, editorWorkspaceWidthRef.current);
-  }, [chatWidth, syncEffectiveEditorChatWidth]);
-
-  useEffect(() => {
-    if (chatWidth === initialChatWidth) {
-      return undefined;
+    const normalizedInitialChatWidth =
+      normalizeWorkbenchCodeEditorChatWidth(initialChatWidth);
+    if (
+      normalizedInitialChatWidth === persistedChatWidthRef.current &&
+      normalizedInitialChatWidth === requestedChatWidthRef.current
+    ) {
+      return;
     }
 
-    const persist = () => {
-      updatePreferences((previousPreferences) => ({
-        ...previousPreferences,
-        codeEditorChatWidth: chatWidth,
-      }));
-    };
-
-    if (typeof window === 'undefined') {
-      persist();
-      return undefined;
-    }
-
-    const timeoutHandle = window.setTimeout(
-      persist,
-      CODE_EDITOR_CHAT_WIDTH_PERSIST_DELAY_MS,
+    persistedChatWidthRef.current = normalizedInitialChatWidth;
+    requestedChatWidthRef.current = normalizedInitialChatWidth;
+    clearScheduledPersistence();
+    syncEffectiveEditorChatWidth(
+      normalizedInitialChatWidth,
+      workspaceWidthRef.current,
     );
+  }, [
+    clearScheduledPersistence,
+    initialChatWidth,
+    syncEffectiveEditorChatWidth,
+  ]);
 
+  useEffect(() => {
     return () => {
-      window.clearTimeout(timeoutHandle);
+      clearScheduledPersistence();
     };
-  }, [chatWidth, initialChatWidth, updatePreferences]);
+  }, [clearScheduledPersistence]);
 
   useEffect(() => {
     if (activeTab !== 'editor') {
@@ -93,19 +129,19 @@ export function useCodeEditorChatLayout({
 
     let resizeAnimationFrame = 0;
 
-    const syncEditorWorkspaceWidth = () => {
+    const syncMeasuredEditorWorkspaceWidth = () => {
       const nextWidth = host.clientWidth;
-      if (editorWorkspaceWidthRef.current === nextWidth) {
+      if (workspaceWidthRef.current === nextWidth) {
         return;
       }
 
-      editorWorkspaceWidthRef.current = nextWidth;
+      workspaceWidthRef.current = nextWidth;
       syncEffectiveEditorChatWidth(requestedChatWidthRef.current, nextWidth);
     };
 
-    const scheduleEditorWorkspaceWidthSync = () => {
+    const scheduleMeasuredEditorWorkspaceWidthSync = () => {
       if (typeof window === 'undefined') {
-        syncEditorWorkspaceWidth();
+        syncMeasuredEditorWorkspaceWidth();
         return;
       }
 
@@ -115,11 +151,11 @@ export function useCodeEditorChatLayout({
 
       resizeAnimationFrame = window.requestAnimationFrame(() => {
         resizeAnimationFrame = 0;
-        syncEditorWorkspaceWidth();
+        syncMeasuredEditorWorkspaceWidth();
       });
     };
 
-    scheduleEditorWorkspaceWidthSync();
+    scheduleMeasuredEditorWorkspaceWidthSync();
 
     if (typeof ResizeObserver === 'undefined') {
       return () => {
@@ -130,7 +166,7 @@ export function useCodeEditorChatLayout({
     }
 
     const observer = new ResizeObserver(() => {
-      scheduleEditorWorkspaceWidthSync();
+      scheduleMeasuredEditorWorkspaceWidthSync();
     });
 
     observer.observe(host);
@@ -143,10 +179,21 @@ export function useCodeEditorChatLayout({
   }, [activeTab, syncEffectiveEditorChatWidth]);
 
   const handleEditorChatResize = useCallback((delta: number) => {
-    setChatWidth((previousState) =>
-      normalizeWorkbenchCodeEditorChatWidth(previousState - delta),
+    const nextRequestedChatWidth = normalizeWorkbenchCodeEditorChatWidth(
+      requestedChatWidthRef.current - delta,
     );
-  }, []);
+
+    if (nextRequestedChatWidth === requestedChatWidthRef.current) {
+      return;
+    }
+
+    requestedChatWidthRef.current = nextRequestedChatWidth;
+    syncEffectiveEditorChatWidth(
+      nextRequestedChatWidth,
+      workspaceWidthRef.current,
+    );
+    scheduleRequestedChatWidthPersistence(nextRequestedChatWidth);
+  }, [scheduleRequestedChatWidthPersistence, syncEffectiveEditorChatWidth]);
 
   return {
     editorWorkspaceHostRef,

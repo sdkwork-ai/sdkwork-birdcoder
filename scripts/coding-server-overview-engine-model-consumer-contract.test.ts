@@ -20,10 +20,10 @@ const descriptorFixture: BirdCoderCodingServerDescriptor = {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/api/core/v1/routes',
-    routeCount: 57,
+    routeCount: 58,
     routesBySurface: {
       core: 19,
-      app: 31,
+      app: 32,
       admin: 7,
     },
     surfaces: [
@@ -39,7 +39,7 @@ const descriptorFixture: BirdCoderCodingServerDescriptor = {
         basePath: '/api/app/v1',
         description: 'Application-facing workspace, project, collaboration, and user-center routes.',
         name: 'app',
-        routeCount: 31,
+        routeCount: 32,
       },
       {
         authMode: 'admin',
@@ -89,19 +89,33 @@ const geminiCapabilities: BirdCoderEngineCapabilityMatrix = {
   ptyArtifacts: false,
 };
 
+function buildCatalogSummaryFixture(id: string) {
+  return {
+    id,
+    uuid: `${id}-uuid`,
+    tenantId: '0',
+    organizationId: undefined,
+    createdAt: '2026-04-24T00:00:00.000Z',
+    updatedAt: '2026-04-24T00:00:00.000Z',
+  } as const;
+}
+
 const enginesFixture: BirdCoderEngineDescriptor[] = [
   {
+    ...buildCatalogSummaryFixture('engine-registry:codex'),
     engineKey: 'codex',
     displayName: 'Codex',
     vendor: 'OpenAI',
     installationKind: 'external-cli',
-    defaultModelId: 'codex',
+    defaultModelId: 'gpt-5.4',
     homepage: 'https://openai.com/codex',
     supportedHostModes: ['web', 'desktop', 'server'],
     transportKinds: ['cli-jsonl', 'json-rpc-v2'],
     capabilityMatrix: codexCapabilities,
+    status: 'active',
   },
   {
+    ...buildCatalogSummaryFixture('engine-registry:gemini'),
     engineKey: 'gemini',
     displayName: 'Gemini',
     vendor: 'Google',
@@ -111,14 +125,16 @@ const enginesFixture: BirdCoderEngineDescriptor[] = [
     supportedHostModes: ['web', 'desktop', 'server'],
     transportKinds: ['sdk-stream', 'openapi-http'],
     capabilityMatrix: geminiCapabilities,
+    status: 'active',
   },
 ];
 
 const modelsFixture: BirdCoderModelCatalogEntry[] = [
   {
+    ...buildCatalogSummaryFixture('model-catalog:codex:gpt-5.4'),
     engineKey: 'codex',
-    modelId: 'codex',
-    displayName: 'Codex',
+    modelId: 'gpt-5.4',
+    displayName: 'GPT-5.4',
     providerId: 'openai',
     status: 'active',
     defaultForEngine: true,
@@ -129,6 +145,7 @@ const modelsFixture: BirdCoderModelCatalogEntry[] = [
     },
   },
   {
+    ...buildCatalogSummaryFixture('model-catalog:gemini:gemini-1.5-pro'),
     engineKey: 'gemini',
     modelId: 'gemini-1.5-pro',
     displayName: 'Gemini 1.5 Pro',

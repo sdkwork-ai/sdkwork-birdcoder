@@ -1,6 +1,6 @@
-import type { ProjectMountRecoveryState } from '@sdkwork/birdcoder-commons/workbench';
+import type { ProjectMountRecoveryState } from '@sdkwork/birdcoder-commons';
 import { type FileNode } from '@sdkwork/birdcoder-ui';
-import { AlertCircle, FileCode2, Search, X } from 'lucide-react';
+import { AlertCircle, FileCode2, RefreshCw, Search, X } from 'lucide-react';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -9,6 +9,7 @@ import {
 } from './studioFileSearch';
 
 interface StudioWorkspaceOverlaysProps {
+  currentProjectId?: string;
   files: FileNode[];
   mountRecoveryState: ProjectMountRecoveryState;
   isMountRecoveryActionPending: boolean;
@@ -29,6 +30,7 @@ interface StudioWorkspaceOverlaysProps {
 }
 
 export const StudioWorkspaceOverlays = memo(function StudioWorkspaceOverlays({
+  currentProjectId,
   files,
   mountRecoveryState,
   isMountRecoveryActionPending,
@@ -47,6 +49,11 @@ export const StudioWorkspaceOverlays = memo(function StudioWorkspaceOverlays({
   const [findResults, setFindResults] = useState<StudioWorkspaceSearchResult[]>([]);
   const [isResultLimitReached, setIsResultLimitReached] = useState(false);
   const [quickOpenQuery, setQuickOpenQuery] = useState('');
+  useEffect(() => {
+    setFindResults([]);
+    setIsResultLimitReached(false);
+    setQuickOpenQuery('');
+  }, [currentProjectId]);
 
   useEffect(() => {
     if (isFindVisible) {
@@ -56,15 +63,18 @@ export const StudioWorkspaceOverlays = memo(function StudioWorkspaceOverlays({
   }, [isFindVisible]);
 
   useEffect(() => {
-    if (isQuickOpenVisible) {
+    if (!isQuickOpenVisible) {
       setQuickOpenQuery('');
     }
   }, [isQuickOpenVisible]);
 
-  const quickOpenResults = useMemo(
-    () => collectStudioQuickOpenResults(files, quickOpenQuery, t('studio.fileMatch')),
-    [files, quickOpenQuery, t],
-  );
+  const quickOpenResults = useMemo(() => {
+    if (!isQuickOpenVisible) {
+      return [];
+    }
+
+    return collectStudioQuickOpenResults(files, quickOpenQuery, t('studio.fileMatch'));
+  }, [files, isQuickOpenVisible, quickOpenQuery, t]);
 
   const handleFindSubmit = async (query: string) => {
     if (!query.trim()) {
@@ -87,18 +97,18 @@ export const StudioWorkspaceOverlays = memo(function StudioWorkspaceOverlays({
     <>
       {mountRecoveryState.status === 'recovering' && (
         <div className="absolute top-16 left-4 z-40 max-w-xl">
-          <div className="rounded-xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 shadow-2xl backdrop-blur">
+          <div className="rounded-xl border border-blue-400/20 bg-blue-500/10 px-4 py-3 shadow-2xl backdrop-blur">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 border-sky-200/80 border-t-transparent animate-spin" />
+              <RefreshCw size={16} className="mt-0.5 shrink-0 animate-spin text-blue-300" />
               <div className="min-w-0">
-                <div className="text-sm font-medium text-sky-100">
+                <div className="text-sm font-medium text-blue-100">
                   Reconnecting local project folder
                 </div>
-                <div className="mt-1 text-sm leading-6 text-sky-50/90">
-                  BirdCoder is reopening the persisted local folder for this project.
+                <div className="mt-1 text-sm leading-6 text-blue-50/90">
+                  Restoring file access for the current project.
                 </div>
                 {mountRecoveryState.path && (
-                  <div className="mt-2 break-all font-mono text-xs text-sky-100/80">
+                  <div className="mt-2 break-all font-mono text-xs text-blue-100/80">
                     {mountRecoveryState.path}
                   </div>
                 )}

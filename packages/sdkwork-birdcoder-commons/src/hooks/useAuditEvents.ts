@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { BirdCoderAdminAuditEventSummary } from '@sdkwork/birdcoder-types';
-import type { IAuditService } from '@sdkwork/birdcoder-infrastructure';
+import type { IAuditService } from '@sdkwork/birdcoder-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
 
 export async function loadAuditEvents(

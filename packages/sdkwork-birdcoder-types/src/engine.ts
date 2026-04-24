@@ -1,4 +1,5 @@
 import type { BirdCoderHostMode } from './coding-session.ts';
+import type { BirdCoderCanonicalEntityId } from './data.ts';
 
 export const BIRDCODER_CODE_ENGINE_KEYS = [
   'claude-code',
@@ -62,6 +63,27 @@ export type BirdCoderEngineRuntimeOwner =
   | (typeof BIRDCODER_ENGINE_RUNTIME_OWNERS)[number]
   | (string & {});
 
+export const BIRDCODER_ENGINE_INTEGRATION_CLASSES = [
+  'official-sdk',
+  'official-protocol',
+  'source-derived',
+] as const;
+
+export type BirdCoderEngineIntegrationClass =
+  | (typeof BIRDCODER_ENGINE_INTEGRATION_CLASSES)[number]
+  | (string & {});
+
+export const BIRDCODER_ENGINE_RUNTIME_MODES = [
+  'sdk',
+  'headless',
+  'remote-control',
+  'protocol-fallback',
+] as const;
+
+export type BirdCoderEngineRuntimeMode =
+  | (typeof BIRDCODER_ENGINE_RUNTIME_MODES)[number]
+  | (string & {});
+
 export const BIRDCODER_ENGINE_BRIDGE_PROTOCOLS = [
   'direct',
   'grpc',
@@ -73,6 +95,22 @@ export const BIRDCODER_ENGINE_BRIDGE_PROTOCOLS = [
 export type BirdCoderEngineBridgeProtocol =
   | (typeof BIRDCODER_ENGINE_BRIDGE_PROTOCOLS)[number]
   | (string & {});
+
+export type BirdCoderEngineAvailabilityStatus =
+  | 'active'
+  | 'preview'
+  | 'deprecated'
+  | 'disabled'
+  | (string & {});
+
+export interface BirdCoderEngineCatalogEntitySummary {
+  id: BirdCoderCanonicalEntityId;
+  uuid: string;
+  tenantId?: string;
+  organizationId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface BirdCoderEngineAccessLane {
   laneId: string;
@@ -93,6 +131,22 @@ export interface BirdCoderEngineAccessPlan {
   lanes: readonly BirdCoderEngineAccessLane[];
 }
 
+export interface BirdCoderEngineOfficialEntry {
+  packageName: string;
+  packageVersion?: string;
+  sdkPath?: string | null;
+  cliPackageName?: string | null;
+  sourceMirrorPath?: string | null;
+  supplementalLanes?: readonly string[];
+}
+
+export interface BirdCoderEngineOfficialIntegration {
+  integrationClass: BirdCoderEngineIntegrationClass;
+  runtimeMode: BirdCoderEngineRuntimeMode;
+  officialEntry: BirdCoderEngineOfficialEntry;
+  notes?: string;
+}
+
 export interface BirdCoderEngineCapabilityMatrix {
   chat: boolean;
   streaming: boolean;
@@ -111,35 +165,36 @@ export interface BirdCoderEngineCapabilityMatrix {
   mcp: boolean;
 }
 
-export interface BirdCoderEngineDescriptor {
+export interface BirdCoderEngineDescriptor extends BirdCoderEngineCatalogEntitySummary {
   engineKey: BirdCoderCodeEngineKey;
   displayName: string;
   vendor: string;
   installationKind: BirdCoderEngineInstallationKind;
-  defaultModelId?: string;
+  defaultModelId: string;
   homepage?: string;
   supportedHostModes: readonly BirdCoderHostMode[];
   transportKinds: readonly BirdCoderEngineTransportKind[];
   capabilityMatrix: BirdCoderEngineCapabilityMatrix;
+  status: BirdCoderEngineAvailabilityStatus;
   accessPlan?: BirdCoderEngineAccessPlan;
+  officialIntegration?: BirdCoderEngineOfficialIntegration;
 }
 
-export interface BirdCoderModelCatalogEntry {
+export interface BirdCoderModelCatalogEntry extends BirdCoderEngineCatalogEntitySummary {
   engineKey: BirdCoderCodeEngineKey;
   modelId: string;
   displayName: string;
   providerId?: string;
-  status: 'active' | 'preview' | 'deprecated' | 'disabled';
+  status: BirdCoderEngineAvailabilityStatus;
   defaultForEngine: boolean;
   transportKinds: readonly BirdCoderEngineTransportKind[];
   capabilityMatrix: Partial<BirdCoderEngineCapabilityMatrix>;
 }
 
-export interface BirdCoderEngineBindingSummary {
-  id: string;
+export interface BirdCoderEngineBindingSummary extends BirdCoderEngineCatalogEntitySummary {
   scopeType: 'global' | 'workspace' | 'project';
   scopeId: string;
   engineKey: BirdCoderCodeEngineKey;
-  modelId?: string;
+  modelId: string;
   hostModes?: readonly BirdCoderHostMode[];
 }

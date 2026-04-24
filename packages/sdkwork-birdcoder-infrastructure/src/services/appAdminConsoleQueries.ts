@@ -17,7 +17,12 @@ import type {
   BirdCoderRepresentativeTeamRecord,
   BirdCoderWorkspaceRecord,
 } from '../storage/appConsoleRepository.ts';
-import { ensureBirdCoderBootstrapConsoleCatalog } from '../storage/bootstrapConsoleCatalog.ts';
+import {
+  BIRDCODER_DEFAULT_LOCAL_ORGANIZATION_ID,
+  BIRDCODER_DEFAULT_LOCAL_OWNER_USER_ID,
+  BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
+  ensureBirdCoderBootstrapConsoleCatalog,
+} from '../storage/bootstrapConsoleCatalog.ts';
 
 export interface BirdCoderAppAdminConsoleQueries {
   createProject(
@@ -110,12 +115,33 @@ function createTimestamp(): string {
 }
 
 function createIdentifier(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  void prefix;
+  const timestampPart = BigInt(Date.now()) * 1_000_000n;
+  const randomPart = BigInt(Math.floor(Math.random() * 1_000_000));
+  return (timestampPart + randomPart).toString();
+}
+
+function createUuid(): string {
+  return crypto.randomUUID();
 }
 
 function normalizeOptionalText(value: string | null | undefined): string | undefined {
   const normalizedValue = value?.trim();
   return normalizedValue && normalizedValue.length > 0 ? normalizedValue : undefined;
+}
+
+function normalizeOptionalNumber(value: number | null | undefined): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function normalizeOptionalBoolean(value: boolean | null | undefined): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function normalizeOptionalObject(
+  value: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' ? { ...value } : undefined;
 }
 
 function normalizeRequiredText(value: string | null | undefined, fieldName: string): string {
@@ -227,23 +253,38 @@ export function createBirdCoderAppAdminConsoleQueries({
     ): Promise<BirdCoderWorkspaceRecord> {
       await ensureBirdCoderBootstrapConsoleCatalog({ repositories });
       const name = normalizeRequiredText(request.name, 'name');
-      const ownerId = normalizeOptionalText(request.ownerId) ?? 'user-local-default';
+      const ownerId =
+        normalizeOptionalText(request.ownerId) ?? BIRDCODER_DEFAULT_LOCAL_OWNER_USER_ID;
       const createdByUserId =
         normalizeOptionalText(request.createdByUserId) ?? ownerId;
       const now = createTimestamp();
       const workspaceRecord = await repositories.workspaces.save({
         id: createIdentifier('workspace'),
-        uuid: createIdentifier('workspace-uuid'),
-        tenantId: normalizeOptionalText(request.tenantId) ?? 'tenant-local-default',
-        organizationId: normalizeOptionalText(request.organizationId),
+        uuid: createUuid(),
+        tenantId: normalizeOptionalText(request.tenantId) ?? BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
+        organizationId:
+          normalizeOptionalText(request.organizationId) ?? BIRDCODER_DEFAULT_LOCAL_ORGANIZATION_ID,
+        dataScope: normalizeOptionalText(request.dataScope) ?? 'PRIVATE',
         code: normalizeOptionalText(request.code) ?? name,
         title: normalizeOptionalText(request.title) ?? name,
         name,
         description: normalizeOptionalText(request.description),
+        icon: normalizeOptionalText(request.icon) ?? 'Folder',
+        color: normalizeOptionalText(request.color),
         ownerId,
         leaderId: normalizeOptionalText(request.leaderId) ?? ownerId,
         createdByUserId,
         type: normalizeOptionalText(request.type) ?? 'DEFAULT',
+        startTime: normalizeOptionalText(request.startTime),
+        endTime: normalizeOptionalText(request.endTime),
+        maxMembers: normalizeOptionalNumber(request.maxMembers),
+        currentMembers: normalizeOptionalNumber(request.currentMembers),
+        memberCount: normalizeOptionalNumber(request.memberCount),
+        maxStorage: normalizeOptionalNumber(request.maxStorage),
+        usedStorage: normalizeOptionalNumber(request.usedStorage),
+        settings: normalizeOptionalObject(request.settings) ?? {},
+        isPublic: normalizeOptionalBoolean(request.isPublic) ?? false,
+        isTemplate: normalizeOptionalBoolean(request.isTemplate) ?? false,
         status: 'active',
         createdAt: now,
         updatedAt: now,
@@ -252,7 +293,7 @@ export function createBirdCoderAppAdminConsoleQueries({
       const defaultTeamId = createIdentifier('team');
       await repositories.teams.save({
         id: defaultTeamId,
-        uuid: createIdentifier('team-uuid'),
+        uuid: createUuid(),
         tenantId: workspaceRecord.tenantId,
         organizationId: workspaceRecord.organizationId,
         workspaceId: workspaceRecord.id,
@@ -263,16 +304,22 @@ export function createBirdCoderAppAdminConsoleQueries({
         ownerId: workspaceRecord.ownerId,
         leaderId: workspaceRecord.leaderId,
         createdByUserId: workspaceRecord.createdByUserId,
+        metadata: { source: 'local-console-bootstrap' },
         status: 'active',
         createdAt: now,
         updatedAt: now,
       });
       await repositories.members.save({
         id: createIdentifier('team-member'),
+        uuid: createUuid(),
+        tenantId: workspaceRecord.tenantId,
+        organizationId: workspaceRecord.organizationId,
         teamId: defaultTeamId,
         userId: workspaceRecord.ownerId ?? ownerId,
         role: 'owner',
         status: 'active',
+        createdByUserId: workspaceRecord.createdByUserId ?? workspaceRecord.ownerId ?? ownerId,
+        grantedByUserId: workspaceRecord.createdByUserId ?? workspaceRecord.ownerId ?? ownerId,
         createdAt: now,
         updatedAt: now,
       });
@@ -296,11 +343,62 @@ export function createBirdCoderAppAdminConsoleQueries({
           request.description === undefined
             ? existingWorkspace.description
             : normalizeOptionalText(request.description),
+        dataScope: normalizeOptionalText(request.dataScope) ?? existingWorkspace.dataScope,
         code: normalizeOptionalText(request.code) ?? existingWorkspace.code,
         title: normalizeOptionalText(request.title) ?? existingWorkspace.title,
+        icon:
+          request.icon === undefined
+            ? existingWorkspace.icon
+            : normalizeOptionalText(request.icon),
+        color:
+          request.color === undefined
+            ? existingWorkspace.color
+            : normalizeOptionalText(request.color),
         ownerId: normalizeOptionalText(request.ownerId) ?? existingWorkspace.ownerId,
         leaderId: normalizeOptionalText(request.leaderId) ?? existingWorkspace.leaderId,
+        createdByUserId:
+          normalizeOptionalText(request.createdByUserId) ?? existingWorkspace.createdByUserId,
         type: normalizeOptionalText(request.type) ?? existingWorkspace.type,
+        startTime:
+          request.startTime === undefined
+            ? existingWorkspace.startTime
+            : normalizeOptionalText(request.startTime),
+        endTime:
+          request.endTime === undefined
+            ? existingWorkspace.endTime
+            : normalizeOptionalText(request.endTime),
+        maxMembers:
+          request.maxMembers === undefined
+            ? existingWorkspace.maxMembers
+            : normalizeOptionalNumber(request.maxMembers),
+        currentMembers:
+          request.currentMembers === undefined
+            ? existingWorkspace.currentMembers
+            : normalizeOptionalNumber(request.currentMembers),
+        memberCount:
+          request.memberCount === undefined
+            ? existingWorkspace.memberCount
+            : normalizeOptionalNumber(request.memberCount),
+        maxStorage:
+          request.maxStorage === undefined
+            ? existingWorkspace.maxStorage
+            : normalizeOptionalNumber(request.maxStorage),
+        usedStorage:
+          request.usedStorage === undefined
+            ? existingWorkspace.usedStorage
+            : normalizeOptionalNumber(request.usedStorage),
+        settings:
+          request.settings === undefined
+            ? existingWorkspace.settings
+            : normalizeOptionalObject(request.settings),
+        isPublic:
+          request.isPublic === undefined
+            ? existingWorkspace.isPublic
+            : normalizeOptionalBoolean(request.isPublic),
+        isTemplate:
+          request.isTemplate === undefined
+            ? existingWorkspace.isTemplate
+            : normalizeOptionalBoolean(request.isTemplate),
         status: normalizeOptionalText(request.status) ?? existingWorkspace.status,
         updatedAt: createTimestamp(),
       });
@@ -408,7 +506,7 @@ export function createBirdCoderAppAdminConsoleQueries({
       const ownerId =
         normalizeOptionalText(request.ownerId) ??
         workspaceRecord.ownerId ??
-        'user-local-default';
+        BIRDCODER_DEFAULT_LOCAL_OWNER_USER_ID;
       const createdByUserId =
         normalizeOptionalText(request.createdByUserId) ??
         workspaceRecord.createdByUserId ??
@@ -416,24 +514,41 @@ export function createBirdCoderAppAdminConsoleQueries({
       const now = createTimestamp();
       return repositories.projects.save({
         id: createIdentifier('project'),
-        uuid: createIdentifier('project-uuid'),
+        uuid: createUuid(),
         tenantId:
           normalizeOptionalText(request.tenantId) ?? workspaceRecord.tenantId,
         organizationId:
           normalizeOptionalText(request.organizationId) ?? workspaceRecord.organizationId,
+        dataScope:
+          normalizeOptionalText(request.dataScope) ??
+          workspaceRecord.dataScope ??
+          'PRIVATE',
         workspaceId,
         workspaceUuid:
           normalizeOptionalText(request.workspaceUuid) ?? workspaceRecord.uuid,
+        userId: normalizeOptionalText(request.userId) ?? createdByUserId,
+        parentId: normalizeOptionalText(request.parentId) ?? '0',
+        parentUuid: normalizeOptionalText(request.parentUuid) ?? '0',
+        parentMetadata: normalizeOptionalObject(request.parentMetadata),
         name,
         code: normalizeOptionalText(request.code),
         title: normalizeOptionalText(request.title) ?? name,
         description: normalizeOptionalText(request.description),
+        sitePath: normalizeOptionalText(request.sitePath),
+        domainPrefix: normalizeOptionalText(request.domainPrefix),
         rootPath,
         ownerId,
         leaderId: normalizeOptionalText(request.leaderId) ?? ownerId,
         createdByUserId,
         author: normalizeOptionalText(request.author) ?? createdByUserId,
+        fileId: normalizeOptionalText(request.fileId),
+        conversationId: normalizeOptionalText(request.conversationId),
         type: normalizeOptionalText(request.type) ?? 'CODE',
+        coverImage: normalizeOptionalObject(request.coverImage),
+        startTime: normalizeOptionalText(request.startTime),
+        endTime: normalizeOptionalText(request.endTime),
+        budgetAmount: normalizeOptionalNumber(request.budgetAmount),
+        isTemplate: normalizeOptionalBoolean(request.isTemplate) ?? false,
         status: normalizeOptionalText(request.status) ?? 'active',
         createdAt: now,
         updatedAt: now,
@@ -453,12 +568,14 @@ export function createBirdCoderAppAdminConsoleQueries({
         request.rootPath === undefined
           ? existingProject.rootPath
           : normalizeRequiredProjectRootPath(request.rootPath);
-      const conflictingProject = await findProjectByWorkspaceAndRootPath(
-        repositories,
-        existingProject.workspaceId,
-        nextRootPath,
-        normalizedProjectId,
-      );
+      const conflictingProject = nextRootPath
+        ? await findProjectByWorkspaceAndRootPath(
+            repositories,
+            existingProject.workspaceId,
+            nextRootPath,
+            normalizedProjectId,
+          )
+        : null;
       if (conflictingProject) {
         throw new Error(
           `Workspace already contains project "${conflictingProject.name}" for rootPath "${nextRootPath}".`,
@@ -472,13 +589,68 @@ export function createBirdCoderAppAdminConsoleQueries({
           request.description === undefined
             ? existingProject.description
             : normalizeOptionalText(request.description),
+        dataScope: normalizeOptionalText(request.dataScope) ?? existingProject.dataScope,
+        userId:
+          request.userId === undefined
+            ? existingProject.userId
+            : normalizeOptionalText(request.userId),
+        parentId:
+          request.parentId === undefined
+            ? existingProject.parentId
+            : normalizeOptionalText(request.parentId),
+        parentUuid:
+          request.parentUuid === undefined
+            ? existingProject.parentUuid
+            : normalizeOptionalText(request.parentUuid),
+        parentMetadata:
+          request.parentMetadata === undefined
+            ? existingProject.parentMetadata
+            : normalizeOptionalObject(request.parentMetadata),
         code: normalizeOptionalText(request.code) ?? existingProject.code,
         title: normalizeOptionalText(request.title) ?? existingProject.title,
+        sitePath:
+          request.sitePath === undefined
+            ? existingProject.sitePath
+            : normalizeOptionalText(request.sitePath),
+        domainPrefix:
+          request.domainPrefix === undefined
+            ? existingProject.domainPrefix
+            : normalizeOptionalText(request.domainPrefix),
         rootPath: nextRootPath,
         ownerId: normalizeOptionalText(request.ownerId) ?? existingProject.ownerId,
         leaderId: normalizeOptionalText(request.leaderId) ?? existingProject.leaderId,
+        createdByUserId:
+          normalizeOptionalText(request.createdByUserId) ?? existingProject.createdByUserId,
         author: normalizeOptionalText(request.author) ?? existingProject.author,
+        fileId:
+          request.fileId === undefined
+            ? existingProject.fileId
+            : normalizeOptionalText(request.fileId),
+        conversationId:
+          request.conversationId === undefined
+            ? existingProject.conversationId
+            : normalizeOptionalText(request.conversationId),
         type: normalizeOptionalText(request.type) ?? existingProject.type,
+        coverImage:
+          request.coverImage === undefined
+            ? existingProject.coverImage
+            : normalizeOptionalObject(request.coverImage),
+        startTime:
+          request.startTime === undefined
+            ? existingProject.startTime
+            : normalizeOptionalText(request.startTime),
+        endTime:
+          request.endTime === undefined
+            ? existingProject.endTime
+            : normalizeOptionalText(request.endTime),
+        budgetAmount:
+          request.budgetAmount === undefined
+            ? existingProject.budgetAmount
+            : normalizeOptionalNumber(request.budgetAmount),
+        isTemplate:
+          request.isTemplate === undefined
+            ? existingProject.isTemplate
+            : normalizeOptionalBoolean(request.isTemplate),
         status: normalizeOptionalText(request.status) ?? existingProject.status,
         updatedAt: createTimestamp(),
       });

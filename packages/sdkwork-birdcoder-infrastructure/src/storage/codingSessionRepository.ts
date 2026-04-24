@@ -1,4 +1,3 @@
-import { BIRDCODER_STANDARD_DEFAULT_ENGINE_ID } from '@sdkwork/birdcoder-codeengine';
 import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
@@ -20,7 +19,12 @@ import {
   type BirdCoderStorageAccess,
   type BirdCoderTableRecordRepository,
 } from './dataKernel.ts';
+import {
+  createBirdCoderCodingSessionPromptHistoryRepository,
+  type BirdCoderCodingSessionPromptHistoryRepository,
+} from './codingSessionPromptEntryRepository.ts';
 import { coerceBirdCoderSqlEntityRow } from './sqlRowCodec.ts';
+import type { BirdCoderSqlRow } from './sqlPlans.ts';
 
 const ZERO_TIMESTAMP = new Date(0).toISOString();
 const CODING_SESSION_STATUS_SET = new Set<string>(BIRDCODER_CODING_SESSION_STATUSES);
@@ -103,7 +107,7 @@ export interface BirdCoderPersistedCodingSessionRecord {
   hostMode: BirdCoderCodingSession['hostMode'];
   id: string;
   lastTurnAt?: string;
-  modelId?: string;
+  modelId: string;
   pinned: boolean;
   projectId: string;
   sortTimestamp?: number;
@@ -119,6 +123,7 @@ export type BirdCoderPersistedCodingSessionMessageRecord = BirdCoderChatMessage;
 
 export interface BirdCoderCodingSessionRepositories {
   messages: BirdCoderTableRecordRepository<BirdCoderPersistedCodingSessionMessageRecord>;
+  promptEntries: BirdCoderCodingSessionPromptHistoryRepository;
   sessions: BirdCoderTableRecordRepository<BirdCoderPersistedCodingSessionRecord>;
 }
 
@@ -153,6 +158,20 @@ function normalizeCodingSessionStorageRecord(
             lastTurnAt: lastTurnAtCandidate,
             transcriptUpdatedAt: transcriptUpdatedAtCandidate,
           });
+    const normalizedEngineId =
+      typeof value.engineId === 'string' && value.engineId.trim().length > 0
+        ? (value.engineId.trim() as BirdCoderCodingSession['engineId'])
+        : null;
+    if (!normalizedEngineId) {
+      return null;
+    }
+    const normalizedModelId =
+      typeof value.modelId === 'string' && value.modelId.trim().length > 0
+        ? value.modelId.trim()
+        : null;
+    if (!normalizedModelId) {
+      return null;
+    }
 
     return {
       id: value.id,
@@ -161,14 +180,11 @@ function normalizeCodingSessionStorageRecord(
       title:
         typeof value.title === 'string' && value.title.trim().length > 0
           ? value.title.trim()
-          : 'New Thread',
+          : 'New Session',
       status: normalizeCodingSessionStatus(value.status),
       hostMode: normalizeHostMode(value.hostMode),
-      engineId:
-        typeof value.engineId === 'string' && value.engineId.trim().length > 0
-          ? (value.engineId as BirdCoderCodingSession['engineId'])
-          : BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
-      modelId: typeof value.modelId === 'string' ? value.modelId : undefined,
+      engineId: normalizedEngineId,
+      modelId: normalizedModelId,
       createdAt: createdAtCandidate,
       updatedAt: updatedAtCandidate,
       lastTurnAt: lastTurnAtCandidate,
@@ -203,27 +219,39 @@ function normalizeCodingSessionStorageRecord(
           lastTurnAt: lastTurnAtCandidate,
           transcriptUpdatedAt: transcriptUpdatedAtCandidate,
         });
+  const normalizedEngineId =
+    typeof row.engine_id === 'string' && row.engine_id.trim().length > 0
+      ? (row.engine_id.trim() as BirdCoderCodingSession['engineId'])
+      : null;
+  if (!normalizedEngineId) {
+    return null;
+  }
+  const normalizedModelId =
+    typeof row.model_id === 'string' && row.model_id.trim().length > 0
+      ? row.model_id.trim()
+      : null;
+  if (!normalizedModelId) {
+    return null;
+  }
 
   return {
     id: String(row.id),
     workspaceId: String(row.workspace_id),
     projectId: String(row.project_id),
-    title: typeof row.title === 'string' && row.title.trim().length > 0 ? row.title.trim() : 'New Thread',
+    title: typeof row.title === 'string' && row.title.trim().length > 0 ? row.title.trim() : 'New Session',
     status: normalizeCodingSessionStatus(row.status),
-    hostMode: normalizeHostMode(undefined),
-    engineId:
-      typeof row.engine_id === 'string' && row.engine_id.trim().length > 0
-        ? (row.engine_id as BirdCoderCodingSession['engineId'])
-        : BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
-    modelId: typeof row.model_id === 'string' ? row.model_id : undefined,
+    hostMode: normalizeHostMode(row.host_mode),
+    engineId: normalizedEngineId,
+    modelId: normalizedModelId,
     createdAt: createdAtCandidate,
     updatedAt: updatedAtCandidate,
     lastTurnAt: lastTurnAtCandidate,
     sortTimestamp: rowSortTimestampCandidate,
     transcriptUpdatedAt: transcriptUpdatedAtCandidate,
-    pinned: false,
-    archived: normalizeCodingSessionStatus(row.status) === 'archived',
-    unread: false,
+    pinned: row.pinned === true,
+    archived:
+      row.archived === true || normalizeCodingSessionStatus(row.status) === 'archived',
+    unread: row.unread === true,
   };
 }
 
@@ -271,6 +299,67 @@ function normalizeCodingSessionMessageStorageRecord(
     content: typeof row.content === 'string' ? row.content : '',
     metadata: isRecord(row.metadata_json) ? row.metadata_json : undefined,
     createdAt: normalizeTimestamp(row.created_at, ZERO_TIMESTAMP),
+    timestamp: typeof row.timestamp_ms === 'number' && Number.isFinite(row.timestamp_ms)
+      ? row.timestamp_ms
+      : undefined,
+    name: typeof row.name === 'string' ? row.name : undefined,
+    tool_calls: Array.isArray(row.tool_calls_json) ? row.tool_calls_json : undefined,
+    tool_call_id: typeof row.tool_call_id === 'string' ? row.tool_call_id : undefined,
+    fileChanges: Array.isArray(row.file_changes_json)
+      ? (row.file_changes_json as BirdCoderChatMessage['fileChanges'])
+      : undefined,
+    commands: Array.isArray(row.commands_json)
+      ? (row.commands_json as BirdCoderChatMessage['commands'])
+      : undefined,
+    taskProgress: isRecord(row.task_progress_json)
+      ? (row.task_progress_json as unknown as BirdCoderChatMessage['taskProgress'])
+      : undefined,
+  };
+}
+
+function toCodingSessionStorageRow(
+  value: BirdCoderPersistedCodingSessionRecord,
+): BirdCoderSqlRow {
+  return {
+    id: value.id,
+    workspace_id: value.workspaceId,
+    project_id: value.projectId,
+    title: value.title,
+    status: value.status,
+    entry_surface: null,
+    host_mode: value.hostMode,
+    engine_id: value.engineId,
+    model_id: value.modelId,
+    last_turn_at: value.lastTurnAt ?? null,
+    sort_timestamp: value.sortTimestamp ?? null,
+    transcript_updated_at: value.transcriptUpdatedAt ?? null,
+    pinned: value.pinned === true,
+    archived: value.archived === true,
+    unread: value.unread === true,
+    created_at: value.createdAt,
+    updated_at: value.updatedAt,
+  };
+}
+
+function toCodingSessionMessageStorageRow(
+  value: BirdCoderPersistedCodingSessionMessageRecord,
+): BirdCoderSqlRow {
+  return {
+    id: value.id,
+    coding_session_id: value.codingSessionId,
+    turn_id: value.turnId ?? null,
+    role: value.role,
+    content: value.content,
+    metadata_json: value.metadata ?? null,
+    timestamp_ms: value.timestamp ?? null,
+    name: value.name ?? null,
+    tool_calls_json: value.tool_calls ?? null,
+    tool_call_id: value.tool_call_id ?? null,
+    file_changes_json: value.fileChanges ?? null,
+    commands_json: value.commands ?? null,
+    task_progress_json: value.taskProgress ?? null,
+    created_at: value.createdAt,
+    updated_at: value.createdAt,
   };
 }
 
@@ -281,6 +370,7 @@ function createCodingSessionRepository<TEntity>({
   providerId,
   sort,
   storage,
+  toRow,
 }: {
   binding: BirdCoderEntityStorageBinding;
   identify: (value: TEntity) => string;
@@ -288,6 +378,7 @@ function createCodingSessionRepository<TEntity>({
   providerId: BirdCoderDatabaseProviderId;
   sort: (left: TEntity, right: TEntity) => number;
   storage: BirdCoderStorageAccess;
+  toRow?: (value: TEntity) => BirdCoderSqlRow;
 }): BirdCoderTableRecordRepository<TEntity> {
   return createBirdCoderTableRecordRepository({
     binding,
@@ -297,6 +388,7 @@ function createCodingSessionRepository<TEntity>({
     identify,
     normalize,
     sort,
+    toRow,
   });
 }
 
@@ -314,6 +406,11 @@ export function createBirdCoderCodingSessionRepositories({
       },
       normalize: normalizeCodingSessionStorageRecord,
       sort: sortByUpdatedAtDescending,
+      toRow: toCodingSessionStorageRow,
+    }),
+    promptEntries: createBirdCoderCodingSessionPromptHistoryRepository({
+      providerId,
+      storage,
     }),
     messages: createCodingSessionRepository({
       binding: BIRDCODER_CODING_SESSION_MESSAGE_STORAGE_BINDING,
@@ -324,6 +421,7 @@ export function createBirdCoderCodingSessionRepositories({
       },
       normalize: normalizeCodingSessionMessageStorageRecord,
       sort: sortByCreatedAtAscending,
+      toRow: toCodingSessionMessageStorageRow,
     }),
   };
 }

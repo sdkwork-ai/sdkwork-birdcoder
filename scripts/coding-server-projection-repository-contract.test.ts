@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 
 import type { ChatMessage } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
 import {
-  createJsonBirdCoderCoreSessionProjectionStore,
   executeBirdCoderCoreSessionRun,
   persistBirdCoderCoreSessionRunProjection,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
+import { createJsonBirdCoderCoreSessionProjectionStore } from '../packages/sdkwork-birdcoder-server/src/projectionRepository.ts';
 import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
 
 const backingStore = new Map<string, string>();
@@ -66,6 +66,7 @@ try {
   const snapshot = await reloadedStore.getSessionSnapshot('coding-session-repo-1');
 
   assert.equal(snapshot.runtime?.id, 'runtime-repo-1');
+  assert.equal(snapshot.runtime?.modelId, 'codex');
   assert.equal(snapshot.events.length, projection.events.length);
   assert.equal(snapshot.artifacts.length, projection.artifacts.length);
   assert.deepEqual(

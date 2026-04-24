@@ -6,25 +6,44 @@ import type {
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import {
-  buildBirdCoderSessionSynchronizationVersion,
-  formatBirdCoderSessionActivityDisplayTime,
-  resolveBirdCoderSessionSortTimestamp,
+  areBirdCoderChatMessagesLogicallyMatched,
+  mergeBirdCoderComparableChatMessages,
 } from '@sdkwork/birdcoder-types';
 import {
   canSubscribeBirdCoderWorkspaceRealtime,
   subscribeBirdCoderWorkspaceRealtime,
-  type BirdCoderWorkspaceRealtimeSubscription,
-} from '@sdkwork/birdcoder-infrastructure/services/workspaceRealtimeClient';
+} from '@sdkwork/birdcoder-infrastructure-runtime';
 import { useAuth } from '../context/AuthContext.ts';
 import { useIDEServices } from '../context/IDEContext.ts';
 import {
+  buildProjectsStoreScopeKey,
+  createProjectsStoreSnapshot,
+  deleteProjectsStore,
+  getProjectsStore,
+  mergeProjectsForStore,
+  mutateProjectsStore,
+  normalizeProjectsStoreUserScope,
+  removeCodingSessionFromCollection,
+  removeProjectFromCollection,
+  type ProjectsStore,
+  type ProjectsStoreRealtimeBinding,
+  type ProjectsStoreSnapshot,
+  updateCodingSessionInCollection,
+  updateProjectInCollection,
+  updateProjectsStoreSnapshot,
+  upsertCodingSessionIntoCollection,
+  upsertProjectIntoCollection,
+  upsertProjectIntoProjectsStore,
+} from '../stores/projectsStore.ts';
+import {
   applyWorkspaceRealtimeEventToProjects,
   isWorkspaceRealtimeEventSatisfiedByProjects,
-} from '../workbench/workspaceRealtime.ts';
+} from '../stores/workspaceRealtime.ts';
 import type {
   BirdCoderProjectMirrorSnapshot,
   CreateCodingSessionOptions,
   CreateProjectOptions,
+  UpdateCodingSessionOptions,
 } from '../services/interfaces/IProjectService.ts';
 
 function fuzzyScore(pattern: string, value: string): number {
@@ -40,7 +59,7 @@ function fuzzyScore(pattern: string, value: string): number {
   let score = 0;
 
   while (patternIndex < pattern.length && valueIndex < value.length) {
-    if (pattern[patternIndex].toLowerCase() === value[valueIndex].toLowerCase()) {
+    if (pattern[patternIndex] === value[valueIndex]) {
       score += 10;
       if (patternIndex === valueIndex) {
         score += 5;
@@ -58,33 +77,152 @@ type EditableCodingSessionMessage = Omit<
   'codingSessionId' | 'createdAt' | 'id'
 >;
 
+interface ProjectSearchInventoryCodingSessionEntry {
+  codingSession: BirdCoderCodingSession;
+  normalizedTitle: string;
+}
+
+interface ProjectSearchInventoryEntry {
+  codingSessions: ProjectSearchInventoryCodingSessionEntry[];
+  normalizedName: string;
+  project: BirdCoderProject;
+}
+
+interface ScoredCodingSessionCandidate {
+  codingSession: BirdCoderCodingSession;
+  score: number;
+}
+
+interface ScoredProjectCandidate {
+  project: BirdCoderProject;
+  score: number;
+}
+
 type BirdCoderSendMessageContext = BirdCoderCodingSessionTurnIdeContext;
-
-interface ProjectsStoreSnapshot {
-  error: string | null;
-  hasFetched: boolean;
-  isLoading: boolean;
-  projects: BirdCoderProject[];
-}
-
-interface ProjectsStore {
-  inflight: Promise<BirdCoderProject[]> | null;
-  listeners: Set<(snapshot: ProjectsStoreSnapshot) => void>;
-  pendingRefreshTimer: ReturnType<typeof setTimeout> | null;
-  realtime: ProjectsStoreRealtimeBinding | null;
-  snapshot: ProjectsStoreSnapshot;
-}
-
-interface ProjectsStoreRealtimeBinding {
-  close(): void;
-  reconnectAttempt: number;
-  reconnectTimer: ReturnType<typeof setTimeout> | null;
-  subscription: BirdCoderWorkspaceRealtimeSubscription | null;
-}
-
-const projectStoresByScopeKey = new Map<string, ProjectsStore>();
 const WORKSPACE_REALTIME_EVENT_DEDUP_LIMIT = 256;
 const EMPTY_PROJECT_INVENTORY_MESSAGES: BirdCoderChatMessage[] = [];
+const EMPTY_FILTERED_PROJECT_CODING_SESSIONS: BirdCoderCodingSession[] = [];
+
+function normalizeSearchValue(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function buildProjectSearchInventory(
+  projects: readonly BirdCoderProject[],
+): ProjectSearchInventoryEntry[] {
+  return projects.map((project) => ({
+    project,
+    normalizedName: normalizeSearchValue(project.name),
+    codingSessions: project.codingSessions.map((codingSession) => ({
+      codingSession,
+      normalizedTitle: normalizeSearchValue(codingSession.title),
+    })),
+  }));
+}
+
+function areCodingSessionListsIdentical(
+  left: readonly BirdCoderCodingSession[],
+  right: readonly BirdCoderCodingSession[],
+): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((codingSession, index) => codingSession === right[index]);
+}
+
+function compareScoredCodingSessions(
+  left: ScoredCodingSessionCandidate,
+  right: ScoredCodingSessionCandidate,
+): number {
+  return right.score - left.score;
+}
+
+function compareScoredProjects(
+  left: ScoredProjectCandidate,
+  right: ScoredProjectCandidate,
+): number {
+  return right.score - left.score;
+}
+
+function searchProjectsInventory(
+  projectSearchInventory: readonly ProjectSearchInventoryEntry[],
+  normalizedSearchQuery: string,
+): BirdCoderProject[] {
+  if (!normalizedSearchQuery) {
+    return projectSearchInventory.map((entry) => entry.project);
+  }
+
+  const scoredProjects: ScoredProjectCandidate[] = [];
+
+  for (const projectEntry of projectSearchInventory) {
+    const projectScore = fuzzyScore(normalizedSearchQuery, projectEntry.normalizedName);
+    let maxCodingSessionScore = 0;
+    let scoredCodingSessions: ScoredCodingSessionCandidate[] | null = null;
+
+    for (const codingSessionEntry of projectEntry.codingSessions) {
+      const score = fuzzyScore(normalizedSearchQuery, codingSessionEntry.normalizedTitle);
+      if (score <= 0) {
+        continue;
+      }
+
+      maxCodingSessionScore = Math.max(maxCodingSessionScore, score);
+      if (scoredCodingSessions === null) {
+        scoredCodingSessions = [
+          {
+            codingSession: codingSessionEntry.codingSession,
+            score,
+          },
+        ];
+        continue;
+      }
+
+      scoredCodingSessions.push({
+        codingSession: codingSessionEntry.codingSession,
+        score,
+      });
+    }
+
+    const totalScore = Math.max(projectScore, maxCodingSessionScore);
+    if (totalScore <= 0) {
+      continue;
+    }
+
+    let matchedProject = projectEntry.project;
+
+    if (scoredCodingSessions && scoredCodingSessions.length > 0) {
+      if (scoredCodingSessions.length > 1) {
+        scoredCodingSessions.sort(compareScoredCodingSessions);
+      }
+
+      const filteredCodingSessions = scoredCodingSessions.map(
+        (candidate) => candidate.codingSession,
+      );
+      if (!areCodingSessionListsIdentical(projectEntry.project.codingSessions, filteredCodingSessions)) {
+        matchedProject = {
+          ...projectEntry.project,
+          codingSessions: filteredCodingSessions,
+        };
+      }
+    } else if (projectScore > 0) {
+      matchedProject = {
+        ...projectEntry.project,
+        codingSessions: EMPTY_FILTERED_PROJECT_CODING_SESSIONS,
+      };
+    }
+
+    scoredProjects.push({
+      project: matchedProject,
+      score: totalScore,
+    });
+  }
+
+  if (scoredProjects.length > 1) {
+    scoredProjects.sort(compareScoredProjects);
+  }
+
+  return scoredProjects.map((candidate) => candidate.project);
+}
 
 function materializeProjectInventoryFromMirrorSnapshot(
   projectSnapshot: BirdCoderProjectMirrorSnapshot,
@@ -104,111 +242,6 @@ function materializeProjectInventoryFromMirrorSnapshot(
       };
     }),
   };
-}
-
-function normalizeProjectsStoreUserScope(userId: string | null | undefined): string {
-  const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
-  return normalizedUserId || 'anonymous';
-}
-
-function buildProjectsStoreScopeKey(userScope: string, workspaceId: string): string {
-  return `${normalizeProjectsStoreUserScope(userScope)}::${workspaceId.trim()}`;
-}
-
-function createProjectsStoreSnapshot(): ProjectsStoreSnapshot {
-  return {
-    error: null,
-    hasFetched: false,
-    isLoading: false,
-    projects: [],
-  };
-}
-
-function areProjectScalarsEqual(left: BirdCoderProject, right: BirdCoderProject): boolean {
-  return (
-    left.id === right.id &&
-    left.uuid === right.uuid &&
-    left.tenantId === right.tenantId &&
-    left.organizationId === right.organizationId &&
-    left.workspaceId === right.workspaceId &&
-    left.workspaceUuid === right.workspaceUuid &&
-    left.code === right.code &&
-    left.title === right.title &&
-    left.name === right.name &&
-    left.description === right.description &&
-    left.path === right.path &&
-    left.ownerId === right.ownerId &&
-    left.leaderId === right.leaderId &&
-    left.createdByUserId === right.createdByUserId &&
-    left.author === right.author &&
-    left.type === right.type &&
-    left.viewerRole === right.viewerRole &&
-    left.createdAt === right.createdAt &&
-    left.updatedAt === right.updatedAt &&
-    left.archived === right.archived
-  );
-}
-
-function areCodingSessionScalarsEqual(
-  left: BirdCoderCodingSession,
-  right: BirdCoderCodingSession,
-): boolean {
-  return (
-    left.id === right.id &&
-    left.workspaceId === right.workspaceId &&
-    left.projectId === right.projectId &&
-    left.title === right.title &&
-    left.status === right.status &&
-    left.hostMode === right.hostMode &&
-    left.engineId === right.engineId &&
-    left.modelId === right.modelId &&
-    left.createdAt === right.createdAt &&
-    left.updatedAt === right.updatedAt &&
-    left.lastTurnAt === right.lastTurnAt &&
-    left.sortTimestamp === right.sortTimestamp &&
-    left.transcriptUpdatedAt === right.transcriptUpdatedAt &&
-    left.runtimeStatus === right.runtimeStatus &&
-    left.displayTime === right.displayTime &&
-    left.pinned === right.pinned &&
-    left.archived === right.archived &&
-    left.unread === right.unread
-  );
-}
-
-function areCollectionsReferentiallyEqual<TValue>(
-  left: readonly TValue[],
-  right: readonly TValue[],
-): boolean {
-  if (left === right) {
-    return true;
-  }
-
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return left.every((value, index) => Object.is(value, right[index]));
-}
-
-function areProjectsStoreSnapshotsEqual(
-  left: ProjectsStoreSnapshot,
-  right: ProjectsStoreSnapshot,
-): boolean {
-  return (
-    left.error === right.error &&
-    left.hasFetched === right.hasFetched &&
-    left.isLoading === right.isLoading &&
-    left.projects === right.projects
-  );
-}
-
-function reuseProjectCollectionIfUnchanged(
-  previousProjects: readonly BirdCoderProject[],
-  nextProjects: readonly BirdCoderProject[],
-): BirdCoderProject[] {
-  return areCollectionsReferentiallyEqual(previousProjects, nextProjects)
-    ? (previousProjects as BirdCoderProject[])
-    : [...nextProjects];
 }
 
 function normalizeProjectsForInventoryStore(
@@ -241,455 +274,108 @@ function appendCodingSessionMessageIfMissing(
   messages: readonly BirdCoderChatMessage[],
   incomingMessage: BirdCoderChatMessage,
 ): BirdCoderChatMessage[] {
-  const hasSameMessage = messages.some(
-    (message) =>
-      message.id === incomingMessage.id ||
-      (message.turnId === incomingMessage.turnId &&
-        message.role === incomingMessage.role &&
-        message.content === incomingMessage.content &&
-        message.createdAt === incomingMessage.createdAt),
+  const matchingMessageIndex = messages.findIndex((message) =>
+    areBirdCoderChatMessagesLogicallyMatched(message, incomingMessage),
   );
-  if (hasSameMessage) {
+  if (matchingMessageIndex < 0) {
+    return [...messages, incomingMessage];
+  }
+
+  const existingMessage = messages[matchingMessageIndex]!;
+  const mergedMessage = mergeBirdCoderComparableChatMessages(existingMessage, incomingMessage);
+  if (mergedMessage === existingMessage) {
     return messages as BirdCoderChatMessage[];
   }
 
-  return [...messages, incomingMessage];
-}
-
-function buildCodingSessionStoreVersion(
-  codingSession: BirdCoderCodingSession,
-  messageCount: number = codingSession.messages.length,
-): string {
-  return buildBirdCoderSessionSynchronizationVersion(codingSession, messageCount);
-}
-
-function areChatMessageReuseBoundariesEqual(
-  left: BirdCoderChatMessage,
-  right: BirdCoderChatMessage,
-): boolean {
-  return (
-    left.id === right.id &&
-    left.codingSessionId === right.codingSessionId &&
-    left.turnId === right.turnId &&
-    left.role === right.role &&
-    left.content === right.content &&
-    left.createdAt === right.createdAt &&
-    left.timestamp === right.timestamp &&
-    left.name === right.name &&
-    left.tool_call_id === right.tool_call_id
+  return messages.map((message, index) =>
+    index === matchingMessageIndex ? mergedMessage : message,
   );
 }
 
-function canReuseCodingSessionMessages(
-  existingCodingSession: BirdCoderCodingSession,
-  incomingCodingSession: BirdCoderCodingSession,
-): boolean {
-  const existingMessages = existingCodingSession.messages;
-  const incomingMessages = incomingCodingSession.messages;
+function reconcileCodingSessionMessage(
+  messages: readonly BirdCoderChatMessage[],
+  optimisticMessageId: string,
+  resolvedMessage: BirdCoderChatMessage,
+): BirdCoderChatMessage[] {
+  const optimisticMessageIndex = messages.findIndex(
+    (message) => message.id === optimisticMessageId,
+  );
+  const messagesWithoutOptimistic = messages.filter(
+    (message) => message.id !== optimisticMessageId,
+  );
+  const matchingResolvedMessageIndex = messagesWithoutOptimistic.findIndex((message) =>
+    areBirdCoderChatMessagesLogicallyMatched(message, resolvedMessage),
+  );
+  if (matchingResolvedMessageIndex >= 0) {
+    const existingMessage = messagesWithoutOptimistic[matchingResolvedMessageIndex]!;
+    const mergedMessage = mergeBirdCoderComparableChatMessages(existingMessage, resolvedMessage);
+    if (mergedMessage === existingMessage) {
+      return messagesWithoutOptimistic as BirdCoderChatMessage[];
+    }
 
-  if (incomingMessages.length === 0) {
-    return existingMessages.length > 0;
-  }
-
-  if (existingMessages.length !== incomingMessages.length) {
-    return false;
+    return messagesWithoutOptimistic.map((message, index) =>
+      index === matchingResolvedMessageIndex ? mergedMessage : message,
+    );
   }
 
   if (
-    buildCodingSessionStoreVersion(existingCodingSession, existingMessages.length) !==
-    buildCodingSessionStoreVersion(incomingCodingSession, incomingMessages.length)
+    optimisticMessageIndex < 0 ||
+    optimisticMessageIndex >= messagesWithoutOptimistic.length
   ) {
-    return false;
+    return [...messagesWithoutOptimistic, resolvedMessage];
   }
 
-  return (
-    areChatMessageReuseBoundariesEqual(existingMessages[0], incomingMessages[0]) &&
-    areChatMessageReuseBoundariesEqual(
-      existingMessages[existingMessages.length - 1],
-      incomingMessages[incomingMessages.length - 1],
-    )
-  );
+  return [
+    ...messagesWithoutOptimistic.slice(0, optimisticMessageIndex),
+    resolvedMessage,
+    ...messagesWithoutOptimistic.slice(optimisticMessageIndex),
+  ];
 }
 
-function cloneCodingSessionForStore(
-  codingSession: BirdCoderCodingSession,
-  existingCodingSession?: BirdCoderCodingSession,
-): BirdCoderCodingSession {
-  const messages =
-    codingSession.messages.length === 0
-      ? existingCodingSession?.messages ?? []
-      : existingCodingSession && canReuseCodingSessionMessages(existingCodingSession, codingSession)
-        ? existingCodingSession.messages
-        : codingSession.messages as BirdCoderChatMessage[];
-
-  const nextCodingSession = {
-    ...codingSession,
-    messages,
-  };
-
-  return existingCodingSession &&
-    areCodingSessionScalarsEqual(existingCodingSession, nextCodingSession) &&
-    existingCodingSession.messages === nextCodingSession.messages
-    ? existingCodingSession
-    : nextCodingSession;
-}
-
-function resolveTimestampValue(value: string | undefined): number {
-  if (typeof value !== 'string') {
-    return 0;
-  }
-
-  const parsedValue = Date.parse(value);
-  return Number.isNaN(parsedValue) ? 0 : parsedValue;
-}
-
-function compareCodingSessionsForStore(
-  left: BirdCoderCodingSession,
-  right: BirdCoderCodingSession,
-): number {
-  return (
-    resolveBirdCoderSessionSortTimestamp(right) -
-      resolveBirdCoderSessionSortTimestamp(left) ||
-    left.id.localeCompare(right.id)
-  );
-}
-
-function sortCodingSessionsForStore(
-  codingSessions: readonly BirdCoderCodingSession[],
-): BirdCoderCodingSession[] {
-  if (codingSessions.length < 2) {
-    return codingSessions as BirdCoderCodingSession[];
-  }
-
-  for (let index = 1; index < codingSessions.length; index += 1) {
-    if (compareCodingSessionsForStore(codingSessions[index - 1], codingSessions[index]) > 0) {
-      return [...codingSessions].sort(compareCodingSessionsForStore);
-    }
-  }
-
-  return codingSessions as BirdCoderCodingSession[];
-}
-
-function compareProjectsForStore(left: BirdCoderProject, right: BirdCoderProject): number {
-  return (
-    resolveTimestampValue(right.updatedAt) - resolveTimestampValue(left.updatedAt) ||
-    left.id.localeCompare(right.id)
-  );
-}
-
-function sortProjectsForStore(projects: readonly BirdCoderProject[]): BirdCoderProject[] {
-  if (projects.length < 2) {
-    return projects as BirdCoderProject[];
-  }
-
-  for (let index = 1; index < projects.length; index += 1) {
-    if (compareProjectsForStore(projects[index - 1], projects[index]) > 0) {
-      return [...projects].sort(compareProjectsForStore);
-    }
-  }
-
-  return projects as BirdCoderProject[];
-}
-
-function reconcileProjectCodingSessionsForStore(
-  incomingCodingSessions: readonly BirdCoderCodingSession[],
-  existingCodingSessions: readonly BirdCoderCodingSession[],
-): BirdCoderCodingSession[] {
-  const existingCodingSessionsById = new Map(
-    existingCodingSessions.map((codingSession) => [codingSession.id, codingSession]),
-  );
-
-  return sortCodingSessionsForStore(
-    incomingCodingSessions.map((codingSession) =>
-      cloneCodingSessionForStore(
-        codingSession,
-        existingCodingSessionsById.get(codingSession.id),
-      ),
-    ),
-  );
-}
-
-function mergeProjectForStore(
-  existingProject: BirdCoderProject | undefined,
-  incomingProject: BirdCoderProject,
-): BirdCoderProject {
-  const incomingProjectCodingSessions =
-    incomingProject.codingSessions.length === 0 && (existingProject?.codingSessions.length ?? 0) > 0
-      ? existingProject!.codingSessions
-      : incomingProject.codingSessions;
-  const nextCodingSessions = reconcileProjectCodingSessionsForStore(
-    incomingProjectCodingSessions,
-    existingProject?.codingSessions ?? [],
-  );
-  const nextProject = {
-    ...incomingProject,
-    codingSessions: nextCodingSessions,
-  };
-
-  return existingProject &&
-    areProjectScalarsEqual(existingProject, nextProject) &&
-    areCollectionsReferentiallyEqual(
-      existingProject.codingSessions,
-      nextProject.codingSessions,
-    )
-    ? existingProject
-    : nextProject;
-}
-
-function upsertProjectIntoCollection(
-  projects: readonly BirdCoderProject[],
-  incomingProject: BirdCoderProject,
-): BirdCoderProject[] {
-  const existingProject = projects.find((project) => project.id === incomingProject.id);
-  const mergedProject = mergeProjectForStore(existingProject, incomingProject);
-  return reuseProjectCollectionIfUnchanged(projects, sortProjectsForStore([
-    ...projects.filter((project) => project.id !== incomingProject.id),
-    mergedProject,
-  ]));
-}
-
-function mergeProjectsForStore(
-  existingProjects: readonly BirdCoderProject[],
-  incomingProjects: readonly BirdCoderProject[],
-): BirdCoderProject[] {
-  const existingProjectsById = new Map(
-    existingProjects.map((project) => [project.id, project]),
-  );
-  return reuseProjectCollectionIfUnchanged(existingProjects, sortProjectsForStore(
-    incomingProjects.map((project) =>
-      mergeProjectForStore(existingProjectsById.get(project.id), project),
-    ),
-  ));
-}
-
-function updateProjectInCollection(
-  projects: readonly BirdCoderProject[],
-  projectId: string,
-  updates: Partial<BirdCoderProject>,
-): BirdCoderProject[] {
-  const nextTimestamp = new Date().toISOString();
-  return reuseProjectCollectionIfUnchanged(projects, sortProjectsForStore(
-    projects.map((project) =>
-      project.id === projectId
-        ? {
-            ...project,
-            ...updates,
-            codingSessions: sortCodingSessionsForStore(project.codingSessions),
-            updatedAt: updates.updatedAt ?? nextTimestamp,
-          }
-        : project,
-    ),
-  ));
-}
-
-function removeProjectFromCollection(
-  projects: readonly BirdCoderProject[],
-  projectId: string,
-): BirdCoderProject[] {
-  return reuseProjectCollectionIfUnchanged(
-    projects,
-    sortProjectsForStore(projects.filter((project) => project.id !== projectId)),
-  );
-}
-
-function upsertCodingSessionIntoCollection(
-  projects: readonly BirdCoderProject[],
-  projectId: string,
-  codingSession: BirdCoderCodingSession,
-): BirdCoderProject[] {
-  const nextTimestamp = new Date().toISOString();
-  return reuseProjectCollectionIfUnchanged(projects, sortProjectsForStore(
-    projects.map((project) => {
-      if (project.id !== projectId) {
-        return project;
-      }
-
-      const nextCodingSessions = sortCodingSessionsForStore([
-        ...project.codingSessions.filter(
-          (candidateCodingSession) => candidateCodingSession.id !== codingSession.id,
-        ),
-        cloneCodingSessionForStore(
-          codingSession,
-          project.codingSessions.find(
-            (candidateCodingSession) => candidateCodingSession.id === codingSession.id,
-          ),
-        ),
-      ]);
-
-      return {
-        ...project,
-        codingSessions: nextCodingSessions,
-        updatedAt: codingSession.updatedAt || nextTimestamp,
-      };
-    }),
-  ));
-}
-
-function finalizeCodingSessionForStore(
-  codingSession: BirdCoderCodingSession,
-): BirdCoderCodingSession {
-  const sortTimestamp = resolveBirdCoderSessionSortTimestamp(codingSession);
+function buildOptimisticCodingSessionMessage(
+  codingSessionId: string,
+  content: string,
+  context?: BirdCoderSendMessageContext,
+): BirdCoderChatMessage {
+  const createdAt = new Date().toISOString();
+  const randomToken = Math.random().toString(36).slice(2, 10);
   return {
-    ...codingSession,
-    sortTimestamp,
-    displayTime: formatBirdCoderSessionActivityDisplayTime({
-      ...codingSession,
-      sortTimestamp,
-    }),
+    id: `${codingSessionId}:optimistic:${createdAt}:${randomToken}`,
+    codingSessionId,
+    role: 'user',
+    content,
+    metadata: context ? { ideContext: structuredClone(context) } : undefined,
+    createdAt,
+    timestamp: Date.parse(createdAt),
   };
 }
 
-function updateCodingSessionInCollection(
+function removeCodingSessionMessageById(
+  messages: readonly BirdCoderChatMessage[],
+  messageId: string,
+): BirdCoderChatMessage[] {
+  const hasSameMessage = messages.some((message) => message.id === messageId);
+  if (!hasSameMessage) {
+    return messages as BirdCoderChatMessage[];
+  }
+
+  return messages.filter((message) => message.id !== messageId);
+}
+
+function findCodingSessionInCollection(
   projects: readonly BirdCoderProject[],
   projectId: string,
   codingSessionId: string,
-  updater: (codingSession: BirdCoderCodingSession) => BirdCoderCodingSession,
-): BirdCoderProject[] {
-  return reuseProjectCollectionIfUnchanged(projects, sortProjectsForStore(
-    projects.map((project) => {
-      if (project.id !== projectId) {
-        return project;
-      }
-
-      const currentCodingSession = project.codingSessions.find(
-        (candidateCodingSession) => candidateCodingSession.id === codingSessionId,
-      );
-      if (!currentCodingSession) {
-        return project;
-      }
-
-      const nextCodingSession = finalizeCodingSessionForStore(
-        updater(currentCodingSession),
-      );
-      const nextCodingSessions = sortCodingSessionsForStore([
-        ...project.codingSessions.filter(
-          (candidateCodingSession) => candidateCodingSession.id !== codingSessionId,
-        ),
-        nextCodingSession,
-      ]);
-
-      return {
-        ...project,
-        codingSessions: nextCodingSessions,
-        updatedAt: nextCodingSession.updatedAt || project.updatedAt,
-      };
-    }),
-  ));
-}
-
-function removeCodingSessionFromCollection(
-  projects: readonly BirdCoderProject[],
-  projectId: string,
-  codingSessionId: string,
-): BirdCoderProject[] {
-  return reuseProjectCollectionIfUnchanged(projects, sortProjectsForStore(
-    projects.map((project) =>
-      project.id === projectId
-        ? {
-            ...project,
-            codingSessions: project.codingSessions.filter(
-              (codingSession) => codingSession.id !== codingSessionId,
-            ),
-          }
-        : project,
-    ),
-  ));
-}
-
-function getProjectsStore(scopeKey: string): ProjectsStore {
-  let store = projectStoresByScopeKey.get(scopeKey);
-  if (!store) {
-    store = {
-      inflight: null,
-      listeners: new Set(),
-      pendingRefreshTimer: null,
-      realtime: null,
-      snapshot: createProjectsStoreSnapshot(),
-    };
-    projectStoresByScopeKey.set(scopeKey, store);
+): BirdCoderCodingSession | null {
+  const project = projects.find((candidateProject) => candidateProject.id === projectId);
+  if (!project) {
+    return null;
   }
 
-  return store;
-}
-
-function emitProjectsStoreSnapshot(store: ProjectsStore): void {
-  const snapshot = store.snapshot;
-  store.listeners.forEach((listener) => {
-    listener(snapshot);
-  });
-}
-
-function updateProjectsStoreSnapshot(
-  store: ProjectsStore,
-  updater: (previousSnapshot: ProjectsStoreSnapshot) => ProjectsStoreSnapshot,
-): void {
-  const nextSnapshot = updater(store.snapshot);
-  if (areProjectsStoreSnapshotsEqual(store.snapshot, nextSnapshot)) {
-    return;
-  }
-
-  store.snapshot = nextSnapshot;
-  emitProjectsStoreSnapshot(store);
-}
-
-function mutateProjectsStore(
-  userScope: string,
-  workspaceId: string,
-  updater: (projects: readonly BirdCoderProject[]) => BirdCoderProject[],
-): void {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return;
-  }
-
-  const store = getProjectsStore(buildProjectsStoreScopeKey(userScope, normalizedWorkspaceId));
-  updateProjectsStoreSnapshot(store, (previousSnapshot) => {
-    const nextProjects = updater(previousSnapshot.projects);
-    if (
-      previousSnapshot.error === null &&
-      previousSnapshot.hasFetched &&
-      areCollectionsReferentiallyEqual(previousSnapshot.projects, nextProjects)
-    ) {
-      return previousSnapshot;
-    }
-
-    return {
-      ...previousSnapshot,
-      error: null,
-      hasFetched: true,
-      projects: reuseProjectCollectionIfUnchanged(previousSnapshot.projects, nextProjects),
-    };
-  });
-}
-
-export function upsertCodingSessionIntoProjectsStore(
-  workspaceId: string,
-  projectId: string,
-  codingSession: BirdCoderCodingSession,
-  userScope?: string,
-): void {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return;
-  }
-
-  mutateProjectsStore(normalizeProjectsStoreUserScope(userScope), normalizedWorkspaceId, (projects) =>
-    upsertCodingSessionIntoCollection(projects, projectId, codingSession),
-  );
-}
-
-export function upsertProjectIntoProjectsStore(
-  workspaceId: string,
-  project: BirdCoderProject,
-  userScope?: string,
-): void {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return;
-  }
-
-  mutateProjectsStore(normalizeProjectsStoreUserScope(userScope), normalizedWorkspaceId, (projects) =>
-    upsertProjectIntoCollection(projects, project),
+  return (
+    project.codingSessions.find(
+      (candidateCodingSession) => candidateCodingSession.id === codingSessionId,
+    ) ?? null
   );
 }
 
@@ -955,12 +641,13 @@ function disposeProjectsStoreRealtimeIfUnused(scopeKey: string): void {
 
   clearProjectsStorePendingRefresh(store);
   store.realtime?.close();
-  projectStoresByScopeKey.delete(scopeKey);
+  deleteProjectsStore(scopeKey);
 }
 
 export interface UseProjectsOptions {
   enableRealtime?: boolean;
   fetchOnMount?: boolean;
+  isActive?: boolean;
 }
 
 export function useProjects(workspaceId?: string, options?: UseProjectsOptions) {
@@ -970,6 +657,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   const normalizedWorkspaceId = workspaceId?.trim() ?? '';
   const shouldEnableRealtime = options?.enableRealtime ?? true;
   const shouldFetchOnMount = options?.fetchOnMount ?? true;
+  const isActive = options?.isActive ?? true;
   const storeScopeKey = normalizedWorkspaceId
     ? buildProjectsStoreScopeKey(normalizedUserScope, normalizedWorkspaceId)
     : '';
@@ -989,6 +677,10 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
 
     const store = getProjectsStore(storeScopeKey);
     setStoreSnapshot(store.snapshot);
+
+    if (!isActive) {
+      return;
+    }
 
     const handleStoreChange = (nextSnapshot: ProjectsStoreSnapshot) => {
       startTransition(() => {
@@ -1022,6 +714,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     projectService,
     shouldEnableRealtime,
     shouldFetchOnMount,
+    isActive,
     storeScopeKey,
   ]);
 
@@ -1039,44 +732,19 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     return fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService);
   }, [normalizedWorkspaceId, projectService, storeScopeKey]);
 
+  const projectSearchInventory = useMemo(() => buildProjectSearchInventory(storeSnapshot.projects), [storeSnapshot.projects]);
+  const normalizedSearchQuery = useMemo(
+    () => normalizeSearchValue(deferredSearchQuery),
+    [deferredSearchQuery],
+  );
+
   const filteredProjects = useMemo(() => {
-    const projects = storeSnapshot.projects;
-    if (!deferredSearchQuery.trim()) {
-      return projects;
+    if (!normalizedSearchQuery) {
+      return storeSnapshot.projects;
     }
 
-    const query = deferredSearchQuery.trim();
-
-    return projects
-      .map((project) => {
-        const projectScore = fuzzyScore(query, project.name);
-        const scoredCodingSessions = project.codingSessions
-          .map((codingSession) => ({
-            codingSession,
-            score: fuzzyScore(query, codingSession.title),
-          }))
-          .filter((candidate) => candidate.score > 0)
-          .sort((left, right) => right.score - left.score);
-        const maxCodingSessionScore =
-          scoredCodingSessions.length > 0 ? scoredCodingSessions[0].score : 0;
-        const totalScore = Math.max(projectScore, maxCodingSessionScore);
-
-        if (totalScore === 0) {
-          return null;
-        }
-
-        return {
-          project: {
-            ...project,
-            codingSessions: scoredCodingSessions.map((candidate) => candidate.codingSession),
-          },
-          score: totalScore,
-        };
-      })
-      .filter(Boolean)
-      .sort((left, right) => right!.score - left!.score)
-      .map((candidate) => candidate!.project);
-  }, [deferredSearchQuery, storeSnapshot.projects]);
+    return searchProjectsInventory(projectSearchInventory, normalizedSearchQuery);
+  }, [normalizedSearchQuery, projectSearchInventory, storeSnapshot.projects]);
 
   const createProject = async (name: string, options?: CreateProjectOptions) => {
     if (!normalizedWorkspaceId) {
@@ -1110,13 +778,25 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   const createCodingSession = async (
     projectId: string,
     title: string,
-    options?: CreateCodingSessionOptions,
+    options: CreateCodingSessionOptions,
   ) => {
     try {
       const codingSession = await projectService.createCodingSession(projectId, title, options);
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        upsertCodingSessionIntoCollection(projects, projectId, codingSession),
+      const synchronizedProjectSession = await resolveSynchronizedProjectSession(
+        projectId,
+        codingSession.id,
       );
+      if (synchronizedProjectSession?.project) {
+        upsertProjectIntoProjectsStore(
+          synchronizedProjectSession.project.workspaceId,
+          synchronizedProjectSession.project,
+          normalizedUserScope,
+        );
+      } else {
+        mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+          upsertCodingSessionIntoCollection(projects, projectId, codingSession),
+        );
+      }
       return codingSession;
     } catch (error: unknown) {
       const message =
@@ -1215,11 +895,11 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   const updateCodingSession = async (
     projectId: string,
     codingSessionId: string,
-    updates: Partial<BirdCoderCodingSession>,
+    updates: UpdateCodingSessionOptions,
   ) => {
     try {
       await projectService.updateCodingSession(projectId, codingSessionId, updates);
-      const updatedAt = updates.updatedAt ?? new Date().toISOString();
+      const updatedAt = new Date().toISOString();
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
         updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
           ...codingSession,
@@ -1250,9 +930,21 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         codingSessionId,
         newTitle,
       );
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        upsertCodingSessionIntoCollection(projects, projectId, codingSession),
+      const synchronizedProjectSession = await resolveSynchronizedProjectSession(
+        projectId,
+        codingSession.id,
       );
+      if (synchronizedProjectSession?.project) {
+        upsertProjectIntoProjectsStore(
+          synchronizedProjectSession.project.workspaceId,
+          synchronizedProjectSession.project,
+          normalizedUserScope,
+        );
+      } else {
+        mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+          upsertCodingSessionIntoCollection(projects, projectId, codingSession),
+        );
+      }
       return codingSession;
     } catch (error: unknown) {
       const message =
@@ -1282,6 +974,29 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         ...previousSnapshot,
         error: message,
       }));
+    }
+  };
+
+  const resolveSynchronizedProjectSession = async (
+    projectId: string,
+    codingSessionId: string,
+  ): Promise<{ codingSession: BirdCoderCodingSession | null; project: BirdCoderProject } | null> => {
+    try {
+      const refreshedProject = await projectService.getProjectById(projectId);
+      if (!refreshedProject) {
+        return null;
+      }
+
+      return {
+        codingSession:
+          refreshedProject.codingSessions.find(
+            (candidateCodingSession) => candidateCodingSession.id === codingSessionId,
+          ) ?? null,
+        project: refreshedProject,
+      };
+    } catch (error) {
+      console.error('Failed to rehydrate coding session after message mutation', error);
+      return null;
     }
   };
 
@@ -1401,6 +1116,30 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     content: string,
     context?: BirdCoderSendMessageContext,
   ) => {
+    const previousCodingSession = findCodingSessionInCollection(
+      storeSnapshot.projects,
+      projectId,
+      codingSessionId,
+    );
+    const optimisticMessage = buildOptimisticCodingSessionMessage(
+      codingSessionId,
+      content,
+      context,
+    );
+    mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+      updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
+        ...codingSession,
+        messages: appendCodingSessionMessageIfMissing(
+          codingSession.messages,
+          optimisticMessage,
+        ),
+        runtimeStatus: 'streaming',
+        updatedAt: optimisticMessage.createdAt,
+        lastTurnAt: optimisticMessage.createdAt,
+        transcriptUpdatedAt: optimisticMessage.createdAt,
+      })),
+    );
+
     try {
       const newMessage = await projectService.addCodingSessionMessage(projectId, codingSessionId, {
         role: 'user',
@@ -1410,10 +1149,12 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
         updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
           ...codingSession,
-          messages: appendCodingSessionMessageIfMissing(
+          messages: reconcileCodingSessionMessage(
             codingSession.messages,
+            optimisticMessage.id,
             newMessage,
           ),
+          runtimeStatus: 'streaming',
           updatedAt: newMessage.createdAt,
           lastTurnAt: newMessage.createdAt,
           transcriptUpdatedAt: newMessage.createdAt,
@@ -1421,6 +1162,20 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       );
       return newMessage;
     } catch (error: unknown) {
+      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+        updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
+          ...codingSession,
+          messages: removeCodingSessionMessageById(
+            codingSession.messages,
+            optimisticMessage.id,
+          ),
+          runtimeStatus: previousCodingSession?.runtimeStatus,
+          updatedAt: previousCodingSession?.updatedAt ?? codingSession.updatedAt,
+          lastTurnAt: previousCodingSession?.lastTurnAt,
+          transcriptUpdatedAt:
+            previousCodingSession?.transcriptUpdatedAt ?? codingSession.transcriptUpdatedAt,
+        })),
+      );
       const message =
         error instanceof Error && error.message.trim()
           ? error.message

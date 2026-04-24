@@ -1,13 +1,14 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   buildTerminalProfileBlockedMessage,
-  getDefaultRunConfigurations,
+  emitOpenTerminalRequest,
   globalEventBus,
+  getDefaultRunConfigurations,
   resolveRunConfigurationTerminalLaunch,
   useProjectRunConfigurations,
   type RunConfigurationRecord,
   type ToastType,
-} from '@sdkwork/birdcoder-commons/workbench';
+} from '@sdkwork/birdcoder-commons';
 import { useTranslation } from 'react-i18next';
 
 interface UseCodeRunEntryActionsOptions {
@@ -72,8 +73,7 @@ export function useCodeRunEntryActions({
       return;
     }
 
-    globalEventBus.emit('openTerminal');
-    globalEventBus.emit('terminalRequest', launch.request);
+    emitOpenTerminalRequest(launch.request);
   };
 
   const handleSubmitRunConfiguration = async () => {

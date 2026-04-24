@@ -7,10 +7,10 @@ const rootDir = process.cwd();
 const packagesDir = path.join(rootDir, 'packages');
 
 const allowedInternalDependencies = new Map([
-  ['@sdkwork/birdcoder-appbase', new Set([
+  ['@sdkwork/birdcoder-auth', new Set([
     '@sdkwork/birdcoder-commons',
+    '@sdkwork/birdcoder-core',
     '@sdkwork/birdcoder-types',
-    '@sdkwork/birdcoder-ui',
   ])],
   ['@sdkwork/birdcoder-chat', new Set(['@sdkwork/birdcoder-types'])],
   ['@sdkwork/birdcoder-chat-claude', new Set(['@sdkwork/birdcoder-chat'])],
@@ -20,8 +20,8 @@ const allowedInternalDependencies = new Map([
   ['@sdkwork/birdcoder-code', new Set([
     '@sdkwork/birdcoder-codeengine',
     '@sdkwork/birdcoder-commons',
-    '@sdkwork/birdcoder-terminal',
     '@sdkwork/birdcoder-types',
+    '@sdkwork/birdcoder-ui-shell',
     '@sdkwork/birdcoder-ui',
   ])],
   ['@sdkwork/birdcoder-codeengine', new Set([
@@ -41,6 +41,7 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-codeengine',
     '@sdkwork/birdcoder-i18n',
     '@sdkwork/birdcoder-infrastructure',
+    '@sdkwork/birdcoder-infrastructure-runtime',
     '@sdkwork/birdcoder-types',
   ])],
   ['@sdkwork/birdcoder-core', new Set(['@sdkwork/birdcoder-types'])],
@@ -48,6 +49,7 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-distribution',
     '@sdkwork/birdcoder-host-core',
     '@sdkwork/birdcoder-shell',
+    '@sdkwork/birdcoder-shell-runtime',
   ])],
   ['@sdkwork/birdcoder-distribution', new Set()],
   ['@sdkwork/birdcoder-host-core', new Set()],
@@ -55,12 +57,20 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-distribution',
     '@sdkwork/birdcoder-host-core',
   ])],
+  ['@sdkwork/birdcoder-identity', new Set([
+    '@sdkwork/birdcoder-auth',
+    '@sdkwork/birdcoder-core',
+    '@sdkwork/birdcoder-infrastructure',
+    '@sdkwork/birdcoder-user',
+  ])],
   ['@sdkwork/birdcoder-i18n', new Set()],
   ['@sdkwork/birdcoder-infrastructure', new Set([
     '@sdkwork/birdcoder-codeengine',
+    '@sdkwork/birdcoder-core',
     '@sdkwork/birdcoder-host-core',
     '@sdkwork/birdcoder-types',
   ])],
+  ['@sdkwork/birdcoder-infrastructure-runtime', new Set()],
   ['@sdkwork/birdcoder-server', new Set([
     '@sdkwork/birdcoder-chat',
     '@sdkwork/birdcoder-codeengine',
@@ -72,29 +82,33 @@ const allowedInternalDependencies = new Map([
   ['@sdkwork/birdcoder-settings', new Set([
     '@sdkwork/birdcoder-codeengine',
     '@sdkwork/birdcoder-commons',
+    '@sdkwork/birdcoder-infrastructure-runtime',
+    '@sdkwork/birdcoder-skills',
+    '@sdkwork/birdcoder-ui-shell',
     '@sdkwork/birdcoder-ui',
   ])],
   ['@sdkwork/birdcoder-shell', new Set([
-    '@sdkwork/birdcoder-appbase',
-    '@sdkwork/birdcoder-chat',
-    '@sdkwork/birdcoder-chat-claude',
-    '@sdkwork/birdcoder-chat-codex',
-    '@sdkwork/birdcoder-chat-gemini',
-    '@sdkwork/birdcoder-chat-opencode',
+    '@sdkwork/birdcoder-auth',
     '@sdkwork/birdcoder-code',
     '@sdkwork/birdcoder-commons',
-    '@sdkwork/birdcoder-core',
-    '@sdkwork/birdcoder-distribution',
-    '@sdkwork/birdcoder-host-core',
     '@sdkwork/birdcoder-i18n',
-    '@sdkwork/birdcoder-infrastructure',
     '@sdkwork/birdcoder-settings',
     '@sdkwork/birdcoder-skills',
     '@sdkwork/birdcoder-studio',
     '@sdkwork/birdcoder-templates',
-    '@sdkwork/birdcoder-terminal',
     '@sdkwork/birdcoder-types',
-    '@sdkwork/birdcoder-ui',
+    '@sdkwork/birdcoder-ui-shell',
+    '@sdkwork/birdcoder-user',
+  ])],
+  ['@sdkwork/birdcoder-shell-runtime', new Set([
+    '@sdkwork/birdcoder-core',
+    '@sdkwork/birdcoder-host-core',
+    '@sdkwork/birdcoder-infrastructure',
+    '@sdkwork/birdcoder-infrastructure-runtime',
+    '@sdkwork/birdcoder-types',
+    '@sdkwork/birdcoder-user',
+    '@sdkwork/birdcoder-workbench-state',
+    '@sdkwork/birdcoder-workbench-storage',
   ])],
   ['@sdkwork/birdcoder-skills', new Set([
     '@sdkwork/birdcoder-types',
@@ -103,27 +117,43 @@ const allowedInternalDependencies = new Map([
   ['@sdkwork/birdcoder-studio', new Set([
     '@sdkwork/birdcoder-codeengine',
     '@sdkwork/birdcoder-commons',
-    '@sdkwork/birdcoder-terminal',
+    '@sdkwork/birdcoder-ui-shell',
     '@sdkwork/birdcoder-ui',
   ])],
   ['@sdkwork/birdcoder-templates', new Set([
     '@sdkwork/birdcoder-types',
     '@sdkwork/birdcoder-ui',
   ])],
-  ['@sdkwork/birdcoder-terminal', new Set([
-    '@sdkwork/birdcoder-codeengine',
-    '@sdkwork/birdcoder-commons',
-    '@sdkwork/birdcoder-ui',
-  ])],
   ['@sdkwork/birdcoder-types', new Set()],
+  ['@sdkwork/birdcoder-ui-shell', new Set([
+    '@sdkwork/birdcoder-codeengine',
+  ])],
+  ['@sdkwork/birdcoder-user', new Set([
+    '@sdkwork/birdcoder-commons',
+    '@sdkwork/birdcoder-core',
+    '@sdkwork/birdcoder-infrastructure',
+    '@sdkwork/birdcoder-types',
+    '@sdkwork/birdcoder-ui-shell',
+    '@sdkwork/birdcoder-workbench-state',
+  ])],
   ['@sdkwork/birdcoder-ui', new Set([
     '@sdkwork/birdcoder-codeengine',
     '@sdkwork/birdcoder-commons',
+    '@sdkwork/birdcoder-ui-shell',
   ])],
   ['@sdkwork/birdcoder-web', new Set([
     '@sdkwork/birdcoder-distribution',
     '@sdkwork/birdcoder-host-core',
     '@sdkwork/birdcoder-shell',
+    '@sdkwork/birdcoder-shell-runtime',
+  ])],
+  ['@sdkwork/birdcoder-workbench-state', new Set([
+    '@sdkwork/birdcoder-commons',
+    '@sdkwork/birdcoder-types',
+    '@sdkwork/birdcoder-workbench-storage',
+  ])],
+  ['@sdkwork/birdcoder-workbench-storage', new Set([
+    '@sdkwork/birdcoder-commons',
   ])],
 ]);
 

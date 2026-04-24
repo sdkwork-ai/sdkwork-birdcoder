@@ -1,44 +1,57 @@
-import { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useEffect, useRef } from 'react';
 import { globalEventBus } from '../utils/EventBus.ts';
-import { useToast } from '../contexts/ToastProvider.ts';
+import {
+  createWorkbenchCodingSessionInProject,
+  type CreateNewCodingSessionRequest,
+  type CreateWorkbenchCodingSessionWithSelection,
+  type SelectWorkbenchCodingSession,
+} from '../workbench/codingSessionCreation.ts';
 
 export function useCodingSessionActions(
-  currentProjectId: string | undefined,
-  createCodingSession: (projectId: string, name: string) => Promise<any>,
-  onCodingSessionCreated: (codingSessionId: string) => void,
+  currentProjectId: string,
+  createCodingSessionWithSelection: CreateWorkbenchCodingSessionWithSelection,
+  selectCodingSession: SelectWorkbenchCodingSession,
+  options?: {
+    isActive?: boolean;
+  },
 ) {
-  const { t } = useTranslation();
-  const { addToast } = useToast();
+  const isActive = options?.isActive ?? true;
+  const currentProjectIdRef = useRef(currentProjectId);
+  const createCodingSessionWithSelectionRef = useRef(createCodingSessionWithSelection);
+  const selectCodingSessionRef = useRef(selectCodingSession);
 
   useEffect(() => {
-    const handleCreateNewCodingSession = async () => {
-      if (!currentProjectId) {
-        addToast(t('thread.selectProjectFirst'), 'error');
+    currentProjectIdRef.current = currentProjectId;
+    createCodingSessionWithSelectionRef.current = createCodingSessionWithSelection;
+    selectCodingSessionRef.current = selectCodingSession;
+  }, [createCodingSessionWithSelection, currentProjectId, selectCodingSession]);
+
+  useEffect(() => {
+    if (!isActive) {
+      return undefined;
+    }
+
+    const handleCreateNewCodingSession = async (request?: CreateNewCodingSessionRequest) => {
+      const targetProjectId = request?.projectId?.trim() || currentProjectIdRef.current.trim();
+      if (!targetProjectId) {
         return;
       }
+
       try {
-        const newCodingSession = await createCodingSession(
-          currentProjectId,
-          t('app.menu.newThread'),
-        );
-        onCodingSessionCreated(newCodingSession.id);
-        addToast(t('thread.createdSuccessfully'), 'success');
-        setTimeout(() => {
-          globalEventBus.emit('focusChatInput');
-        }, 100);
+        await createWorkbenchCodingSessionInProject({
+          createCodingSessionWithSelection: createCodingSessionWithSelectionRef.current,
+          projectId: targetProjectId,
+          requestedEngineId: request?.engineId,
+          selectCodingSession: selectCodingSessionRef.current,
+        });
       } catch (error) {
-        console.error('Failed to create coding session', error);
-        addToast(t('thread.failedToCreate'), 'error');
+        console.error('Failed to create session', error);
       }
     };
 
-    const unsubscribe = globalEventBus.on(
-      'createNewCodingSession',
-      handleCreateNewCodingSession,
-    );
+    const unsubscribe = globalEventBus.on('createNewCodingSession', handleCreateNewCodingSession);
     return () => {
       unsubscribe();
     };
-  }, [currentProjectId, createCodingSession, onCodingSessionCreated, addToast, t]);
+  }, [isActive]);
 }

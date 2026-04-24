@@ -326,11 +326,6 @@ function main() {
   );
   assert.match(
     releaseDoc,
-    /governanceEvidence/,
-    'release docs must describe the finalized governanceEvidence manifest summary',
-  );
-  assert.match(
-    releaseDoc,
     /studio\/preview\/studio-preview-evidence\.json/,
     'release docs must describe the studio preview evidence archive path',
   );
@@ -348,11 +343,6 @@ function main() {
     releaseDoc,
     /studio\/test\/studio-test-evidence\.json/,
     'release docs must describe the studio test evidence archive path',
-  );
-  assert.match(
-    releaseDoc,
-    /terminal\/governance\/terminal-governance-diagnostics\.json/,
-    'release docs must describe the terminal governance evidence archive path',
   );
   assert.match(
     releaseDoc,

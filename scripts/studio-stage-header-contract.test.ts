@@ -5,6 +5,10 @@ const studioStageHeaderSource = readFileSync(
   new URL('../packages/sdkwork-birdcoder-studio/src/preview/StudioStageHeader.tsx', import.meta.url),
   'utf8',
 );
+const studioPageSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
+  'utf8',
+);
 
 assert.equal(
   studioStageHeaderSource.includes("onClick={() => onTabChange('preview')}"),
@@ -76,6 +80,35 @@ assert.equal(
   studioStageHeaderSource.includes("onClick={() => onTabChange('simulator')}"),
   false,
   'StudioStageHeader should not expose a simulator tab entry in the header.',
+);
+
+assert.match(
+  studioStageHeaderSource,
+  /import \{[\s\S]*ProjectGitHeaderControls,[\s\S]*\} from '@sdkwork\/birdcoder-ui';/s,
+  'StudioStageHeader must reuse the shared ProjectGitHeaderControls component instead of duplicating studio-local Git runtime logic.',
+);
+
+assert.match(
+  studioStageHeaderSource,
+  /<ProjectGitHeaderControls[\s\S]*projectId=\{normalizedProjectId\}[\s\S]*variant="studio"/s,
+  'StudioStageHeader should mount the shared studio Git header controls when a project is active on the code tab.',
+);
+
+assert.match(
+  studioStageHeaderSource,
+  /className="flex items-center gap-2 lg:hidden"[\s\S]*<ProjectGitHeaderControls[\s\S]*showBranchControl=\{false\}[\s\S]*showWorktreeControl=\{false\}/s,
+  'StudioStageHeader must keep a compact Git overview toggle visible below lg widths so the drawer remains reachable when header space is tight.',
+);
+
+assert.doesNotMatch(
+  studioStageHeaderSource,
+  /useProjectGitMutationActions|useProjectGitOverview|ProjectGitBranchMenu|ProjectGitWorktreeMenu|ProjectGitCreateBranchDialog/,
+  'StudioStageHeader must not re-inline Git overview hooks, Git mutation hooks, or Git menus once the shared ProjectGitHeaderControls component is adopted.',
+);
+
+assert.ok(
+  studioPageSource.includes("projectId={activeTab === 'code' ? currentProjectId || undefined : undefined}"),
+  'StudioPage should only activate StageHeader Git loading when the code tab is visible.',
 );
 
 console.log('studio stage header contract passed.');

@@ -174,8 +174,13 @@ assert.match(
 
 assert.match(
   releaseAndDeploymentSource,
-  /pnpm check:appbase-parity/,
+  /pnpm check:identity-standard/,
   'core release-and-deployment doc must include the appbase parity command when release-facing changes touch the unified auth, user, and vip boundary.',
+);
+assert.match(
+  releaseAndDeploymentSource,
+  /pnpm test:user-center-standard/,
+  'core release-and-deployment doc must include the canonical user-center standard command when release-facing changes touch the unified user-center and validation boundary.',
 );
 
 assert.match(
@@ -432,8 +437,18 @@ assert.match(
 
 assert.match(
   commandsReferenceSource,
-  /pnpm check:appbase-parity/,
+  /pnpm check:identity-standard/,
   'commands reference must list the appbase parity command.',
+);
+assert.match(
+  commandsReferenceSource,
+  /pnpm test:user-center-standard/,
+  'commands reference must list the canonical user-center standard command.',
+);
+assert.match(
+  commandsReferenceSource,
+  /`pnpm test:user-center-standard`/,
+  'commands reference must describe the canonical user-center standard command in prose, not only list it in the verification command block.',
 );
 
 assert.match(
@@ -498,8 +513,13 @@ assert.match(
 
 assert.match(
   developmentGuideSource,
-  /`pnpm check:appbase-parity`/,
+  /`pnpm check:identity-standard`/,
   'development guide must describe the appbase parity command in prose, not only list it in the release-oriented verification block.',
+);
+assert.match(
+  developmentGuideSource,
+  /`pnpm test:user-center-standard`/,
+  'development guide must describe the canonical user-center standard command in prose, not only list it in the release-oriented verification block.',
 );
 
 assert.match(
@@ -606,8 +626,13 @@ assert.match(
 
 assert.match(
   developmentGuideSource,
-  /pnpm check:appbase-parity/,
+  /pnpm check:identity-standard/,
   'development guide must include the appbase parity command in the release-oriented verification flow.',
+);
+assert.match(
+  developmentGuideSource,
+  /pnpm test:user-center-standard/,
+  'development guide must include the canonical user-center standard command in the release-oriented verification flow.',
 );
 
 assert.match(

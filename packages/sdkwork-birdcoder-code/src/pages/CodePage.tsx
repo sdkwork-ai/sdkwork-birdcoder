@@ -1,51 +1,61 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  buildFileChangeRestorePlan,
   buildProjectCodingSessionIndex,
+  buildWorkbenchCodingSessionTurnContext,
+  createIdleProjectMountRecoveryState,
+  emitOpenTerminalRequest,
+  emitProjectMountRecoveryState,
   getTerminalProfile,
   globalEventBus,
   hydrateImportedProjectFromAuthority,
   resolveLatestCodingSessionIdForProject,
-  resolveCodingSessionLocationInProjects,
+  ensureWorkbenchCodingSessionForMessage,
   importLocalFolderProject,
+  openLocalFolder,
   rebindLocalFolderProject,
+  regenerateWorkbenchCodingSessionFromLastUserMessage,
   resolveProjectMountRecoverySource,
+  restoreWorkbenchCodingSessionMessageFiles,
+  setWorkbenchChatInputDraft,
+  type TerminalCommandRequest,
+  useCodingSessionActions,
+  useCodingSessionEngineModelSelection,
   useFileSystem,
   useIDEServices,
+  useProjectGitOverview,
   useProjects,
   useSelectedCodingSessionMessages,
   useSessionRefreshActions,
-  useCodingSessionActions,
-  useAuth,
-  useToast,
+  useWorkbenchCodingSessionCreationActions,
   useWorkbenchChatSelection,
   useWorkbenchPreferences,
-} from '@sdkwork/birdcoder-commons/workbench';
-import type { TerminalCommandRequest } from '@sdkwork/birdcoder-commons/workbench';
-import type { FileChange } from '@sdkwork/birdcoder-types';
-import { normalizeWorkbenchCodeModelId } from '@sdkwork/birdcoder-codeengine';
-import { UniversalChat } from '@sdkwork/birdcoder-ui/chat';
+  useAuth,
+  useToast,
+} from '@sdkwork/birdcoder-commons';
+import {
+  isBirdCoderCodingSessionExecuting,
+  type FileChange,
+} from '@sdkwork/birdcoder-types';
 import { useTranslation } from 'react-i18next';
 import { CodeChatEmptyState } from './CodeChatEmptyState';
-import { CodeEditorWorkspacePanel } from './CodeEditorWorkspacePanel';
-import { CodePageDialogs, type CodeDeleteConfirmation } from './CodePageDialogs';
 import { CodeSessionTranscriptLoadingState, getLanguageFromPath } from './CodePageShared';
 import { CodePageSurface } from './CodePageSurface';
-import { CodeTerminalIntegrationPanel } from './CodeTerminalIntegrationPanel';
-import { CodeWorkspaceOverlays } from './CodeWorkspaceOverlays';
+import { useCodeDeleteConfirmation } from './useCodeDeleteConfirmation';
 import { useCodeEditorChatLayout } from './useCodeEditorChatLayout';
+import { useCodePageSurfaceProps } from './useCodePageSurfaceProps';
 import { useCodeRunEntryActions } from './useCodeRunEntryActions';
 import { useCodeWorkbenchCommands } from './useCodeWorkbenchCommands';
 
 interface CodePageProps {
+  isVisible?: boolean;
   workspaceId?: string;
   projectId?: string;
   initialCodingSessionId?: string;
   onProjectChange?: (projectId: string) => void;
   onCodingSessionChange?: (codingSessionId: string) => void;
 }
-
 function CodePageComponent({
+  isVisible = true,
   workspaceId,
   projectId,
   initialCodingSessionId,
@@ -70,48 +80,50 @@ function CodePageComponent({
     deleteCodingSessionMessage,
     sendMessage,
     forkCodingSession,
-  } = useProjects(workspaceId);
+  } = useProjects(workspaceId, {
+    isActive: isVisible,
+  });
   const { coreReadService, projectService } = useIDEServices();
   const { user } = useAuth();
 
   const { addToast } = useToast();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
-  const [sessionId, setSelectedThreadId] = useState<string | null>(null);
+  const [sessionId, setSelectedSessionId] = useState<string | null>(null);
   const [selectionRefreshToken, setSelectionRefreshToken] = useState(0);
   const pendingProjectChangeIdRef = useRef<string | null>(null);
-  const [inputValue, setInputValue] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [activeTab, setActiveTab] = useState<'ai' | 'editor'>('ai');
-  const {
-    createCodingSessionWithSelection,
-    selectedEngineId,
-    selectedModelId,
-    setSelectedEngineId,
-    setSelectedModelId,
-  } = useWorkbenchChatSelection({
-    createCodingSession,
-    preferences,
-    updatePreferences,
-  });
-
+  const lastNotifiedCodingSessionIdRef = useRef<string | null>(null);
+  const [isSubmittingTurn, setIsSubmittingTurn] = useState(false);
+  const [activeTab, setActiveTab] = useState<'ai' | 'editor' | 'mobile'>('ai');
+  const handleActiveTabChange = useCallback((tab: 'ai' | 'editor' | 'mobile') => {
+    startTransition(() => {
+      setActiveTab((previousTab) => (previousTab === tab ? previousTab : tab));
+    });
+  }, []);
   const [viewingDiff, setViewingDiff] = useState<FileChange | null>(null);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   const [terminalRequest, setTerminalRequest] = useState<TerminalCommandRequest>();
   const [terminalHeight, setTerminalHeight] = useState(256);
   const [sidebarWidth, setSidebarWidth] = useState(256);
+  const [editorExplorerWidth, setEditorExplorerWidth] = useState(256);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [isFindVisible, setIsFindVisible] = useState(false);
   const [isQuickOpenVisible, setIsQuickOpenVisible] = useState(false);
   const [isRunConfigVisible, setIsRunConfigVisible] = useState(false);
   const [isDebugConfigVisible, setIsDebugConfigVisible] = useState(false);
   const [isRunTaskVisible, setIsRunTaskVisible] = useState(false);
+  const [isProjectGitOverviewDrawerOpen, setIsProjectGitOverviewDrawerOpen] = useState(false);
   const [isMountRecoveryActionPending, setIsMountRecoveryActionPending] = useState(false);
-  const [deleteConfirmation, setDeleteConfirmation] = useState<CodeDeleteConfirmation | null>(null);
   const handleSidebarResize = useCallback((delta: number) => {
     setSidebarWidth((previousState) => Math.max(200, Math.min(600, previousState + delta)));
   }, []);
   const handleTerminalResize = useCallback((delta: number) => {
     setTerminalHeight((previousState) => Math.max(100, Math.min(800, previousState - delta)));
+  }, []);
+  const handleCloseTerminal = useCallback(() => {
+    setIsTerminalOpen(false);
+  }, []);
+  const handleEditorExplorerResize = useCallback((delta: number) => {
+    setEditorExplorerWidth((previousState) => Math.max(220, Math.min(560, previousState + delta)));
   }, []);
   const {
     editorWorkspaceHostRef,
@@ -145,17 +157,57 @@ function CodePageComponent({
     [sessionIndex],
   );
 
-  // Determine the current project ID based on selected thread, or the prop
-  const selectedCodingSessionLocation =
-    resolveSession(sessionId) ??
-    resolveCodingSessionLocationInProjects(projects, sessionId);
-  const threadProjectId = selectedCodingSessionLocation?.project.id ?? '';
+  // Determine the current project ID based on the selected session, or the prop.
+  const selectedCodingSessionLocation = resolveSession(sessionId);
+  const sessionProjectId = selectedCodingSessionLocation?.project.id ?? '';
   const normalizedProjectId = projectId?.trim() ?? '';
-  const normalizedThreadProjectId = threadProjectId?.trim() ?? '';
-  const currentProjectId = normalizedThreadProjectId || normalizedProjectId;
+  const normalizedSessionProjectId = sessionProjectId?.trim() ?? '';
+  const currentProjectId = normalizedSessionProjectId || normalizedProjectId;
   const currentProject =
     selectedCodingSessionLocation?.project ??
     resolveProjectById(currentProjectId);
+  const projectGitOverviewState = useProjectGitOverview({
+    projectId: currentProject?.id,
+  });
+  const session = selectedCodingSessionLocation?.codingSession;
+  const {
+    createCodingSessionWithSelection,
+    selectedEngineId,
+    selectedModelId,
+    setSelectedEngineId,
+    setSelectedModelId,
+  } = useWorkbenchChatSelection({
+    createCodingSession,
+    preferences,
+    updatePreferences,
+    currentSessionEngineId: session?.engineId,
+    currentSessionModelId: session?.modelId,
+  });
+  const handleTopBarTerminalVisibilityChange = useCallback((nextIsOpen: boolean) => {
+    if (nextIsOpen) {
+      const normalizedProjectPath = currentProject?.path?.trim() ?? '';
+      setTerminalRequest({
+        path: normalizedProjectPath || undefined,
+        timestamp: Date.now(),
+      });
+    }
+
+    setIsTerminalOpen(nextIsOpen);
+  }, [currentProject?.path]);
+  const handleToggleProjectGitOverviewDrawer = useCallback(() => {
+    setIsProjectGitOverviewDrawerOpen((previousState) => !previousState);
+  }, []);
+  const handleCloseProjectGitOverviewDrawer = useCallback(() => {
+    setIsProjectGitOverviewDrawerOpen(false);
+  }, []);
+  useEffect(() => {
+    setViewingDiff(null);
+  }, [currentProjectId, sessionId]);
+  useEffect(() => {
+    if (activeTab !== 'editor' || !currentProjectId) {
+      setIsProjectGitOverviewDrawerOpen(false);
+    }
+  }, [activeTab, currentProjectId]);
   const notifyProjectChange = useCallback((nextProjectId: string) => {
     if (!onProjectChange) {
       return;
@@ -169,7 +221,8 @@ function CodePageComponent({
     pendingProjectChangeIdRef.current = normalizedNextProjectId;
     onProjectChange(normalizedNextProjectId);
   }, [currentProjectId, onProjectChange]);
-  const session = selectedCodingSessionLocation?.codingSession;
+  const isSelectedSessionExecuting = isBirdCoderCodingSessionExecuting(session);
+  const isChatBusy = isSubmittingTurn || isSelectedSessionExecuting;
   const selectSession = useCallback((
     nextCodingSessionId: string,
     options?: { projectId?: string },
@@ -196,8 +249,30 @@ function CodePageComponent({
       notifyProjectChange(nextProjectId);
     }
 
-    setSelectedThreadId(normalizedCodingSessionId);
+    setSelectedSessionId(normalizedCodingSessionId);
   }, [currentProjectId, notifyProjectChange, resolveSession, sessionId]);
+  const {
+    createCodingSessionFromCurrentProject,
+    createCodingSessionInProject,
+  } = useWorkbenchCodingSessionCreationActions({
+    addToast,
+    createCodingSessionWithSelection,
+    currentProjectId,
+    selectCodingSession: selectSession,
+    labels: {
+      creationFailed: t('code.failedToCreateSession'),
+      creationSucceeded: t('code.newSessionCreated'),
+      noProjectSelected: t('code.selectProjectFirst'),
+    },
+  });
+  const handleSidebarCodingSessionSelect = useCallback((nextCodingSessionId: string | null) => {
+    if (!nextCodingSessionId) {
+      setSelectedSessionId(null);
+      return;
+    }
+
+    selectSession(nextCodingSessionId);
+  }, [selectSession]);
   const {
     runConfigurations,
     runConfigurationDraft,
@@ -245,20 +320,20 @@ function CodePageComponent({
 
   useEffect(() => {
     if (
-      !normalizedThreadProjectId ||
+      !normalizedSessionProjectId ||
       !onProjectChange ||
-      normalizedThreadProjectId === normalizedProjectId
+      normalizedSessionProjectId === normalizedProjectId
     ) {
       return;
     }
 
-    if (pendingProjectChangeIdRef.current === normalizedThreadProjectId) {
+    if (pendingProjectChangeIdRef.current === normalizedSessionProjectId) {
       pendingProjectChangeIdRef.current = null;
       return;
     }
 
-    onProjectChange(normalizedThreadProjectId);
-  }, [normalizedProjectId, normalizedThreadProjectId, onProjectChange]);
+    onProjectChange(normalizedSessionProjectId);
+  }, [normalizedProjectId, normalizedSessionProjectId, onProjectChange]);
 
   useEffect(() => {
     const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
@@ -287,12 +362,18 @@ function CodePageComponent({
   ]);
 
   useEffect(() => {
-    const nextCodingSessionId = sessionId ?? '';
+    const nextCodingSessionId = sessionId?.trim() ?? '';
     const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
     if (nextCodingSessionId === normalizedInitialCodingSessionId) {
+      lastNotifiedCodingSessionIdRef.current = nextCodingSessionId;
       return;
     }
 
+    if (lastNotifiedCodingSessionIdRef.current === nextCodingSessionId) {
+      return;
+    }
+
+    lastNotifiedCodingSessionIdRef.current = nextCodingSessionId;
     onCodingSessionChange?.(nextCodingSessionId);
   }, [initialCodingSessionId, onCodingSessionChange, sessionId]);
 
@@ -306,17 +387,25 @@ function CodePageComponent({
       sessionId &&
       !resolveSession(sessionId)
     ) {
-      setSelectedThreadId(null);
+      setSelectedSessionId(null);
     }
   }, [hasFetchedProjects, resolveSession, sessionId]);
 
+  useCodingSessionActions(
+    currentProjectId,
+    createCodingSessionWithSelection,
+    selectSession,
+    {
+      isActive: isVisible,
+    },
+  );
+
   useCodeWorkbenchCommands({
+    isActive: isVisible,
     projects,
     selectedCodingSessionId: sessionId,
-    currentProjectId,
     currentProjectPath: currentProject?.path,
     defaultWorkingDirectory: preferences.defaultWorkingDirectory,
-    createCodingSession: createCodingSessionWithSelection,
     selectCodingSession: selectSession,
     setViewingDiff,
     setIsTerminalOpen,
@@ -333,12 +422,16 @@ function CodePageComponent({
 
   const {
     files,
+    loadingDirectoryPaths,
+    openFiles,
     selectedFile,
     fileContent,
     isSearchingFiles,
     mountRecoveryState,
     selectFile,
-    saveFile,
+    loadDirectory,
+    closeFile,
+    updateFileDraft,
     saveFileContent,
     createFile,
     createFolder,
@@ -347,7 +440,11 @@ function CodePageComponent({
     renameNode,
     searchFiles,
     mountFolder,
-  } = useFileSystem(currentProjectId, currentProject?.path);
+  } = useFileSystem(currentProjectId, currentProject?.path, {
+    isActive: isVisible,
+    loadActive: isVisible && activeTab === 'editor',
+    realtimeActive: isVisible && activeTab === 'editor',
+  });
   const previousMountRecoveryStatusRef = useRef(mountRecoveryState.status);
 
   useEffect(() => {
@@ -360,11 +457,33 @@ function CodePageComponent({
     previousMountRecoveryStatusRef.current = mountRecoveryState.status;
   }, [addToast, mountRecoveryState.message, mountRecoveryState.status]);
 
-  useCodingSessionActions(
-    currentProjectId,
-    createCodingSessionWithSelection,
-    selectSession,
-  );
+  useEffect(() => {
+    if (!isVisible) {
+      emitProjectMountRecoveryState({
+        surface: 'code',
+        projectId: null,
+        projectName: null,
+        state: createIdleProjectMountRecoveryState(),
+      });
+      return;
+    }
+
+    emitProjectMountRecoveryState({
+      surface: 'code',
+      projectId: currentProjectId ?? null,
+      projectName: currentProject?.name ?? null,
+      state: mountRecoveryState,
+    });
+
+    return () => {
+      emitProjectMountRecoveryState({
+        surface: 'code',
+        projectId: null,
+        projectName: null,
+        state: createIdleProjectMountRecoveryState(),
+      });
+    };
+  }, [currentProject?.name, currentProjectId, isVisible, mountRecoveryState]);
 
   const resolveProjectPath = (projectPath?: string) => {
     const normalizedProjectPath = projectPath?.trim() ?? '';
@@ -390,7 +509,6 @@ function CodePageComponent({
   };
 
   const selectFolderAndImportProject = useCallback(async (fallbackProjectName: string) => {
-    const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
     const folderInfo = await openLocalFolder();
     if (!folderInfo) {
       return null;
@@ -418,7 +536,7 @@ function CodePageComponent({
       return;
     }
 
-    setSelectedThreadId(null);
+    setSelectedSessionId(null);
     notifyProjectChange(projectId);
   }, [notifyProjectChange, projects, selectSession]);
 
@@ -474,54 +592,50 @@ function CodePageComponent({
     workspaceId,
   });
 
-  const handleRenameThread = async (threadId: string, newName?: string) => {
+  const handleRenameSession = useCallback(async (codingSessionId: string, newName?: string) => {
     if (newName && newName.trim()) {
-      const project = resolveSession(threadId)?.project;
+      const project = resolveSession(codingSessionId)?.project;
       if (project) {
-        await renameCodingSession(project.id, threadId, newName.trim());
+        await renameCodingSession(project.id, codingSessionId, newName.trim());
       }
     }
-  };
+  }, [renameCodingSession, resolveSession]);
 
-  const handleDeleteThread = async (threadId: string) => {
-    setDeleteConfirmation({ type: 'thread', id: threadId });
-  };
-
-  const executeDeleteThread = async (threadId: string) => {
-    const project = resolveSession(threadId)?.project;
-    if (project) {
-      await deleteCodingSession(project.id, threadId);
-      if (sessionId === threadId) {
-        setSelectedThreadId(null);
-      }
-      addToast(t('code.threadDeleted'), 'success');
-    }
-  };
-
-  const handleRenameProject = async (projectId: string, newName?: string) => {
+  const handleRenameProject = useCallback(async (projectId: string, newName?: string) => {
     if (newName && newName.trim()) {
       await renameProject(projectId, newName.trim());
     }
-  };
+  }, [renameProject]);
 
-  const handleDeleteProject = async (projectId: string) => {
-    setDeleteConfirmation({ type: 'project', id: projectId });
-  };
+  const {
+    cancelDeleteConfirmation,
+    confirmDeleteConfirmation,
+    deleteConfirmation,
+    requestDeleteMessage,
+    requestDeleteProject,
+    requestDeleteSession,
+  } = useCodeDeleteConfirmation({
+    addToast,
+    currentProjectId,
+    deleteCodingSession,
+    deleteCodingSessionMessage,
+    deleteProject,
+    onProjectChange,
+    projectRemovedMessage: t('code.projectRemoved'),
+    resolveProjectById,
+    resolveSession,
+    sessionId,
+    setSelectedSessionId,
+    sessionDeletedMessage: t('code.sessionDeleted'),
+  });
 
-  const executeDeleteProject = async (projectId: string) => {
-    await deleteProject(projectId);
-    const project = resolveProjectById(projectId);
-    if (
-      project &&
-      project.codingSessions.some((codingSession) => codingSession.id === sessionId)
-    ) {
-      setSelectedThreadId(null);
-    }
-    if (currentProjectId === projectId) {
-      onProjectChange?.('');
-    }
-    addToast(t('code.projectRemoved'), 'success');
-  };
+  const handleDeleteSession = useCallback(async (codingSessionId: string) => {
+    requestDeleteSession(codingSessionId);
+  }, [requestDeleteSession]);
+
+  const handleDeleteProject = useCallback(async (projectId: string) => {
+    requestDeleteProject(projectId);
+  }, [requestDeleteProject]);
 
   const handleNewProject = useCallback(async () => {
     try {
@@ -592,7 +706,6 @@ function CodePageComponent({
 
     setIsMountRecoveryActionPending(true);
     try {
-      const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
       const folderInfo = await openLocalFolder();
       if (!folderInfo) {
         return;
@@ -627,20 +740,6 @@ function CodePageComponent({
     syncImportedProjectInBackground,
     updateProject,
   ]);
-
-  const handleNewThreadInProject = useCallback(async (projectId: string) => {
-    try {
-      const newThread = await createCodingSessionWithSelection(projectId, t('app.menu.newThread'));
-      selectSession(newThread.id, { projectId });
-      addToast(t('code.newThreadCreated'), 'success');
-      setTimeout(() => {
-        globalEventBus.emit('focusChatInput');
-      }, 100);
-    } catch (error) {
-      console.error("Failed to create thread", error);
-      addToast(t('code.failedToCreateThread'), 'error');
-    }
-  }, [addToast, createCodingSessionWithSelection, selectSession, t]);
 
   const handleArchiveProject = useCallback(async (projectId: string) => {
     const project = resolveProjectById(projectId);
@@ -681,8 +780,7 @@ function CodePageComponent({
       profileId: profileId ? getTerminalProfile(profileId).id : undefined,
       timestamp: Date.now(),
     };
-    globalEventBus.emit('openTerminal');
-    globalEventBus.emit('terminalRequest', request);
+    emitOpenTerminalRequest(request);
     addToast(
       profileId
         ? `Opened ${getTerminalProfile(profileId).title} terminal: ${target.project.name}`
@@ -700,16 +798,16 @@ function CodePageComponent({
     globalEventBus.emit('revealInExplorer', target.projectPath);
   }, [resolveProjectById]);
 
-  const handlePinThread = useCallback(async (threadId: string) => {
-    const resolvedThreadLocation = resolveSession(threadId);
-    const project = resolvedThreadLocation?.project;
+  const handlePinSession = useCallback(async (codingSessionId: string) => {
+    const resolvedSessionLocation = resolveSession(codingSessionId);
+    const project = resolvedSessionLocation?.project;
     if (project) {
-      const thread = resolvedThreadLocation?.codingSession;
-      if (thread) {
-        await updateCodingSession(project.id, threadId, { pinned: !thread.pinned });
+      const codingSession = resolvedSessionLocation?.codingSession;
+      if (codingSession) {
+        await updateCodingSession(project.id, codingSessionId, { pinned: !codingSession.pinned });
         addToast(
-          t(thread.pinned ? 'code.unpinnedThread' : 'code.pinnedThread', {
-            name: thread.title,
+          t(codingSession.pinned ? 'code.unpinnedSession' : 'code.pinnedSession', {
+            name: codingSession.title,
           }),
           'success',
         );
@@ -717,33 +815,35 @@ function CodePageComponent({
     }
   }, [addToast, resolveSession, t, updateCodingSession]);
 
-  const handleArchiveThread = useCallback(async (threadId: string) => {
-    const resolvedThreadLocation = resolveSession(threadId);
-    const project = resolvedThreadLocation?.project;
+  const handleArchiveSession = useCallback(async (codingSessionId: string) => {
+    const resolvedSessionLocation = resolveSession(codingSessionId);
+    const project = resolvedSessionLocation?.project;
     if (project) {
-      const thread = resolvedThreadLocation?.codingSession;
-      if (!thread) {
+      const codingSession = resolvedSessionLocation?.codingSession;
+      if (!codingSession) {
         return;
       }
 
-      await updateCodingSession(project.id, threadId, { archived: !thread.archived });
+      await updateCodingSession(project.id, codingSessionId, { archived: !codingSession.archived });
       addToast(
-        t(thread.archived ? 'code.unarchivedThread' : 'code.archivedThread', { id: threadId }),
+        t(codingSession.archived ? 'code.unarchivedSession' : 'code.archivedSession', {
+          id: codingSessionId,
+        }),
         'info',
       );
     }
   }, [addToast, resolveSession, t, updateCodingSession]);
 
-  const handleMarkThreadUnread = useCallback(async (threadId: string) => {
-    const resolvedThreadLocation = resolveSession(threadId);
-    const project = resolvedThreadLocation?.project;
+  const handleMarkSessionUnread = useCallback(async (codingSessionId: string) => {
+    const resolvedSessionLocation = resolveSession(codingSessionId);
+    const project = resolvedSessionLocation?.project;
     if (project) {
-      const thread = resolvedThreadLocation?.codingSession;
-      if (thread) {
-        await updateCodingSession(project.id, threadId, { unread: !thread.unread });
+      const codingSession = resolvedSessionLocation?.codingSession;
+      if (codingSession) {
+        await updateCodingSession(project.id, codingSessionId, { unread: !codingSession.unread });
         addToast(
-          t(thread.unread ? 'code.markedAsRead' : 'code.markedAsUnread', {
-            name: thread.title,
+          t(codingSession.unread ? 'code.markedAsRead' : 'code.markedAsUnread', {
+            name: codingSession.title,
           }),
           'info',
         );
@@ -751,280 +851,224 @@ function CodePageComponent({
     }
   }, [addToast, resolveSession, t, updateCodingSession]);
 
-  const handleCopyThreadWorkingDirectory = useCallback((threadId: string) => {
+  const handleCopySessionWorkingDirectory = useCallback((codingSessionId: string) => {
     const target = resolveProjectActionTarget(
-      resolveSession(threadId)?.project,
+      resolveSession(codingSessionId)?.project,
     );
     if (!target) {
       return;
     }
 
     navigator.clipboard.writeText(target.projectPath);
-    addToast(t('code.copiedThreadWorkspaceDir', { path: target.projectPath }), 'success');
+    addToast(t('code.copiedSessionWorkspaceDir', { path: target.projectPath }), 'success');
   }, [addToast, resolveSession, t]);
 
-  const handleCopyThreadSessionId = useCallback((threadId: string) => {
-    navigator.clipboard.writeText(threadId);
-    addToast(t('code.copiedSessionId', { id: threadId }), 'success');
+  const handleCopySessionId = useCallback((codingSessionId: string) => {
+    navigator.clipboard.writeText(codingSessionId);
+    addToast(t('code.copiedSessionId', { id: codingSessionId }), 'success');
   }, [addToast, t]);
 
-  const handleCopyThreadDeeplink = useCallback((threadId: string) => {
-    const link = `${window.location.origin}/thread/${threadId}`;
+  const handleCopySessionDeeplink = useCallback((codingSessionId: string) => {
+    const link = `${window.location.origin}/session/${codingSessionId}`;
     navigator.clipboard.writeText(link);
     addToast(t('code.copiedDeeplink', { link }), 'success');
   }, [addToast, t]);
 
-  const handleForkThreadLocal = useCallback(async (threadId: string) => {
-    const resolvedThreadLocation = resolveSession(threadId);
-    const project = resolvedThreadLocation?.project;
+  const handleForkSessionLocal = useCallback(async (codingSessionId: string) => {
+    const resolvedSessionLocation = resolveSession(codingSessionId);
+    const project = resolvedSessionLocation?.project;
     if (project) {
       try {
-        const newThread = await forkCodingSession(project.id, threadId);
-        selectSession(newThread.id, { projectId: project.id });
+        const newSession = await forkCodingSession(project.id, codingSessionId);
+        selectSession(newSession.id, { projectId: project.id });
         addToast(
           t('code.forkedToLocal', {
-            name: newThread.title ?? newThread.id,
+            name: newSession.title ?? newSession.id,
           }),
           'success',
         );
       } catch (err) {
-        addToast(t('code.failedToForkThread'), 'error');
+        addToast(t('code.failedToForkSession'), 'error');
       }
     }
   }, [addToast, forkCodingSession, resolveSession, selectSession, t]);
 
-  const handleForkThreadNewTree = useCallback(async (threadId: string) => {
-    const resolvedThreadLocation = resolveSession(threadId);
-    const project = resolvedThreadLocation?.project;
+  const handleForkSessionNewTree = useCallback(async (codingSessionId: string) => {
+    const resolvedSessionLocation = resolveSession(codingSessionId);
+    const project = resolvedSessionLocation?.project;
     if (project) {
       try {
-        const newThread = await forkCodingSession(
+        const newSession = await forkCodingSession(
           project.id,
-          threadId,
-          `${resolvedThreadLocation?.codingSession.title} (New Tree)`,
+          codingSessionId,
+          `${resolvedSessionLocation?.codingSession.title} (New Tree)`,
         );
-        selectSession(newThread.id, { projectId: project.id });
+        selectSession(newSession.id, { projectId: project.id });
         addToast(
           t('code.forkedToNewWorktree', {
-            name: newThread.title ?? newThread.id,
+            name: newSession.title ?? newSession.id,
           }),
           'success',
         );
       } catch (err) {
-        addToast(t('code.failedToForkThread'), 'error');
+        addToast(t('code.failedToForkSession'), 'error');
       }
     }
   }, [addToast, forkCodingSession, resolveSession, selectSession, t]);
 
-  const handleEditMessage = useCallback((threadId: string, messageId: string) => {
-    const thread = resolveSession(threadId)?.codingSession;
-    const msg = thread?.messages?.find(m => m.id === messageId);
+  const handleEditMessage = useCallback((codingSessionId: string, messageId: string) => {
+    const codingSession = resolveSession(codingSessionId)?.codingSession;
+    const msg = codingSession?.messages?.find(m => m.id === messageId);
     if (msg) {
-      setInputValue(msg.content);
+      setWorkbenchChatInputDraft(codingSessionId, msg.content);
     }
   }, [resolveSession]);
 
-  const handleDeleteMessage = useCallback(async (threadId: string, messageId: string) => {
-    setDeleteConfirmation({ type: 'message', id: messageId, parentId: threadId });
-  }, []);
+  const handleDeleteMessage = useCallback(async (codingSessionId: string, messageIds: string[]) => {
+    requestDeleteMessage(codingSessionId, messageIds);
+  }, [requestDeleteMessage]);
 
-  const executeDeleteMessage = async (threadId: string, messageId: string) => {
-    const project = resolveSession(threadId)?.project;
-    if (project) {
-      try {
-        await deleteCodingSessionMessage(project.id, threadId, messageId);
-        addToast('Message deleted successfully', 'success');
-      } catch (error) {
-        console.error('Failed to delete coding session message', error);
-        addToast('Failed to delete message', 'error');
-      }
+  const handleRegenerateMessage = useCallback(async (codingSessionId: string) => {
+    if (isChatBusy) {
+      return;
     }
-  };
 
-  const handleRegenerateMessage = useCallback(async (threadId: string) => {
-    const resolvedThreadLocation = resolveSession(threadId);
-    const project = resolvedThreadLocation?.project;
+    const resolvedSessionLocation = resolveSession(codingSessionId);
+    const project = resolvedSessionLocation?.project;
     if (project) {
-      const thread = resolvedThreadLocation?.codingSession;
-      if (thread && thread.messages && thread.messages.length > 0) {
-        // Find the last user message
-        const lastUserMsgIndex = [...thread.messages].reverse().findIndex(m => m.role === 'user');
-        if (lastUserMsgIndex !== -1) {
-          const actualIndex = thread.messages.length - 1 - lastUserMsgIndex;
-          const lastUserMsg = thread.messages[actualIndex];
-          
-          // Delete all messages including the last user message
-          for (let i = thread.messages.length - 1; i >= actualIndex; i--) {
-            await deleteCodingSessionMessage(project.id, threadId, thread.messages[i].id);
-          }
-          
-          // Resend the last user message content
-          setIsSending(true);
-          try {
-            const context = {
-              workspaceId,
+      const codingSession = resolvedSessionLocation?.codingSession;
+      if (codingSession && codingSession.messages && codingSession.messages.length > 0) {
+        setIsSubmittingTurn(true);
+        try {
+          const didRegenerate =
+            await regenerateWorkbenchCodingSessionFromLastUserMessage({
+              codingSession,
+              deleteCodingSessionMessage,
               projectId: project.id,
-              threadId: thread.id,
-              currentFile: selectedFile ? {
-                path: selectedFile,
-                content: fileContent,
-                language: getLanguageFromPath(selectedFile)
-              } : undefined
-            };
-            await sendMessage(project.id, threadId, lastUserMsg.content, context);
-          } finally {
-            setIsSending(false);
+              regenerateMessageContext: buildWorkbenchCodingSessionTurnContext({
+                currentFileContent: fileContent,
+                currentFileLanguage: selectedFile ? getLanguageFromPath(selectedFile) : null,
+                currentFilePath: selectedFile,
+                projectId: project.id,
+                sessionId: codingSession.id,
+                workspaceId,
+              }),
+              sendCodingSessionMessage: (targetProjectId, targetCodingSessionId, content, context) =>
+                sendMessage(targetProjectId, targetCodingSessionId, content, context),
+            });
+          if (didRegenerate) {
+            setSelectionRefreshToken((previousState) => previousState + 1);
           }
+        } finally {
+          setIsSubmittingTurn(false);
         }
       }
     }
   }, [
     deleteCodingSessionMessage,
     fileContent,
+    getLanguageFromPath,
+    isChatBusy,
+    buildWorkbenchCodingSessionTurnContext,
+    regenerateWorkbenchCodingSessionFromLastUserMessage,
     resolveSession,
     selectedFile,
     sendMessage,
+    setSelectionRefreshToken,
     workspaceId,
   ]);
 
-  const handleRestoreMessage = useCallback(async (threadId: string, messageId: string) => {
-    const thread = resolveSession(threadId)?.codingSession;
-    const msg = thread?.messages?.find(m => m.id === messageId);
-    const restorePlan = buildFileChangeRestorePlan(msg?.fileChanges);
-    if (!restorePlan.restorable) {
-      addToast('This checkpoint cannot be safely restored.', 'error');
-      return;
-    }
-
+  const handleRestoreMessage = useCallback(async (codingSessionId: string, messageId: string) => {
+    const codingSession = resolveSession(codingSessionId)?.codingSession;
+    const msg = codingSession?.messages?.find(m => m.id === messageId);
     try {
-      for (const operation of restorePlan.operations) {
-        await saveFileContent(operation.path, operation.content);
+      const didRestore = await restoreWorkbenchCodingSessionMessageFiles({
+        fileChanges: msg?.fileChanges,
+        saveFileContent,
+      });
+      if (!didRestore) {
+        addToast('This checkpoint cannot be safely restored.', 'error');
+        return;
       }
       addToast('Restored files to previous state', 'success');
     } catch (error) {
       console.error('Failed to restore files from checkpoint', error);
       addToast('Failed to restore files from checkpoint', 'error');
     }
-  }, [addToast, resolveSession, saveFileContent]);
+  }, [addToast, resolveSession, restoreWorkbenchCodingSessionMessageFiles, saveFileContent]);
 
   const handleSendMessage = useCallback(async (text?: string) => {
-    const content = typeof text === 'string' ? text : inputValue;
-    const trimmedContent = content.trim();
-    if (!trimmedContent || isSending) return;
-
-    let currentThreadId = sessionId;
-    let projectIdToUse = currentProjectId;
-
-    if (!currentThreadId) {
-      if (!projectIdToUse) {
+    const trimmedContent = typeof text === 'string' ? text.trim() : '';
+    if (!trimmedContent || isChatBusy) return;
+    const bootstrappedSession = await ensureWorkbenchCodingSessionForMessage({
+      createCodingSessionWithSelection,
+      currentCodingSessionId: sessionId,
+      currentProjectId,
+      messageContent: trimmedContent,
+      resolveProjectId: async () => {
         if (projects.length === 0) {
-          projectIdToUse = await handleNewProject();
-          if (!projectIdToUse) {
-            return;
-          }
-        } else {
-          projectIdToUse = projects[0].id;
+          return handleNewProject();
         }
-      }
-      const newTitle =
-        trimmedContent.slice(0, 20) + (trimmedContent.length > 20 ? '...' : '');
-      const newThread = await createCodingSessionWithSelection(projectIdToUse, newTitle);
-      currentThreadId = newThread.id;
-      selectSession(currentThreadId, { projectId: projectIdToUse });
+        return projects[0]?.id;
+      },
+      selectCodingSession: selectSession,
+    });
+    if (!bootstrappedSession) {
+      return;
     }
 
-    if (projectIdToUse && currentThreadId) {
-      setInputValue('');
-      setIsSending(true);
-      try {
-        const context = {
-          workspaceId,
-          projectId: projectIdToUse,
-          threadId: currentThreadId,
-          currentFile: selectedFile ? {
-            path: selectedFile,
-            content: fileContent,
-            language: getLanguageFromPath(selectedFile)
-          } : undefined
-        };
-        await sendMessage(projectIdToUse, currentThreadId, trimmedContent, context);
-      } finally {
-        setIsSending(false);
-      }
+    setIsSubmittingTurn(true);
+    try {
+      const context = buildWorkbenchCodingSessionTurnContext({
+        currentFileContent: fileContent,
+        currentFileLanguage: selectedFile ? getLanguageFromPath(selectedFile) : null,
+        currentFilePath: selectedFile,
+        projectId: bootstrappedSession.projectId,
+        sessionId: bootstrappedSession.codingSessionId,
+        workspaceId,
+      });
+      await sendMessage(
+        bootstrappedSession.projectId,
+        bootstrappedSession.codingSessionId,
+        trimmedContent,
+        context,
+      );
+      setSelectionRefreshToken((previousState) => previousState + 1);
+    } finally {
+      setIsSubmittingTurn(false);
     }
   }, [
+    buildWorkbenchCodingSessionTurnContext,
+    ensureWorkbenchCodingSessionForMessage,
     createCodingSessionWithSelection,
     currentProjectId,
     fileContent,
     handleNewProject,
+    getLanguageFromPath,
+    isChatBusy,
     selectSession,
-    inputValue,
-    isSending,
     projects,
     sessionId,
     selectedFile,
     sendMessage,
+    setSelectionRefreshToken,
     workspaceId,
   ]);
-  const effectiveSelectedEngineId =
-    session?.engineId ?? selectedEngineId;
-  const effectiveSelectedModelId =
-    session?.modelId ?? selectedModelId;
-  const handleSelectedEngineChange = useCallback(
-    async (engineId: string) => {
-      setSelectedEngineId(engineId);
-
-      if (!currentProjectId || !sessionId) {
-        return;
-      }
-
-      const nextModelId = normalizeWorkbenchCodeModelId(
-        engineId,
-        session?.modelId ?? selectedModelId,
-        preferences,
-      );
-      await updateCodingSession(currentProjectId, sessionId, {
-        engineId,
-        modelId: nextModelId,
-      });
-    },
-    [
-      currentProjectId,
-      preferences,
-      session?.modelId,
-      sessionId,
-      selectedModelId,
-      setSelectedEngineId,
-      updateCodingSession,
-    ],
-  );
-  const handleSelectedModelChange = useCallback(
-    async (modelId: string, engineId?: string) => {
-      setSelectedModelId(modelId);
-
-      if (!currentProjectId || !sessionId) {
-        return;
-      }
-
-      const nextEngineId =
-        engineId ?? session?.engineId ?? selectedEngineId;
-      await updateCodingSession(currentProjectId, sessionId, {
-        engineId: nextEngineId,
-        modelId,
-      });
-    },
-    [
-      currentProjectId,
-      session?.engineId,
-      sessionId,
-      selectedEngineId,
-      setSelectedModelId,
-      updateCodingSession,
-    ],
-  );
-
+  const {
+    handleSelectedEngineChange,
+    handleSelectedModelChange,
+  } = useCodingSessionEngineModelSelection({
+    preferences,
+    selectedModelId,
+    sessionId,
+    setSelectedEngineId,
+    setSelectedModelId,
+  });
+  const isSelectedCodingSessionTranscriptVisible =
+    isVisible && (activeTab === 'ai' || activeTab === 'editor');
   const isSelectedCodingSessionMessagesLoading = useSelectedCodingSessionMessages({
     coreReadService,
+    isActive: isSelectedCodingSessionTranscriptVisible,
     projectService,
     selectionRefreshToken,
     selectedCodingSession: session,
@@ -1032,14 +1076,15 @@ function CodePageComponent({
     selectedProject: selectedCodingSessionLocation?.project ?? null,
     workspaceId,
   });
+  const selectedCodingSession = session;
+  const selectedCodingSessionMessages = useMemo(
+    () => selectedCodingSession?.messages ?? [],
+    [selectedCodingSession?.messages],
+  );
   const isSelectedCodingSessionHydrating = Boolean(
     sessionId &&
     isSelectedCodingSessionMessagesLoading &&
-    session?.messages.length === 0
-  );
-  const selectedCodingSessionMessages = useMemo(
-    () => session?.messages ?? [],
-    [session?.messages],
+    selectedCodingSessionMessages.length === 0
   );
   const mainChatEmptyState = useMemo(
     () => (
@@ -1065,13 +1110,13 @@ function CodePageComponent({
       const targetLatestCodingSessionId =
         sessionIndex.latestCodingSessionIdByProjectId.get(id) ??
         resolveLatestCodingSessionIdForProject(projects, id);
-      const threadBelongsToProject =
+      const sessionBelongsToProject =
         !!sessionId &&
         !!targetProject?.codingSessions.some(
           (codingSession) => codingSession.id === sessionId,
         );
 
-      if (threadBelongsToProject) {
+      if (sessionBelongsToProject) {
         return;
       }
 
@@ -1080,7 +1125,7 @@ function CodePageComponent({
         return;
       }
 
-      setSelectedThreadId(null);
+      setSelectedSessionId(null);
     }
   }, [
     selectSession,
@@ -1093,9 +1138,6 @@ function CodePageComponent({
 
   const handleCreateRootFile = useCallback(() => {
     globalEventBus.emit('createRootFile');
-  }, []);
-  const handleStopSending = useCallback(() => {
-    setIsSending(false);
   }, []);
   const handleRetryMountRecoveryAction = useCallback(() => {
     void handleRetryMountRecovery();
@@ -1123,9 +1165,9 @@ function CodePageComponent({
     setViewingDiff(null);
     selectFile(path);
   }, [selectFile]);
-  const handleClearSelectedWorkspaceFile = useCallback(() => {
-    selectFile('');
-  }, [selectFile]);
+  const handleCloseWorkspaceFile = useCallback((path: string) => {
+    closeFile(path);
+  }, [closeFile]);
   const handleAcceptViewingDiff = useCallback(async () => {
     if (!viewingDiff) {
       return;
@@ -1142,9 +1184,9 @@ function CodePageComponent({
       handleEditMessage(session.id, messageId);
     }
   }, [handleEditMessage, session]);
-  const handleDeleteSelectedCodingSessionMessage = useCallback((messageId: string) => {
+  const handleDeleteSelectedCodingSessionMessage = useCallback((messageIds: string[]) => {
     if (session) {
-      void handleDeleteMessage(session.id, messageId);
+      void handleDeleteMessage(session.id, messageIds);
     }
   }, [handleDeleteMessage, session]);
   const handleRegenerateSelectedCodingSessionMessage = useCallback(() => {
@@ -1158,173 +1200,168 @@ function CodePageComponent({
     }
   }, [handleRestoreMessage, session]);
 
-  const handleConfirmDelete = () => {
-    if (deleteConfirmation?.type === 'thread') {
-      void executeDeleteThread(deleteConfirmation.id);
-    } else if (deleteConfirmation?.type === 'project') {
-      void executeDeleteProject(deleteConfirmation.id);
-    } else if (deleteConfirmation?.type === 'message' && deleteConfirmation.parentId) {
-      void executeDeleteMessage(deleteConfirmation.parentId, deleteConfirmation.id);
-    }
-    setDeleteConfirmation(null);
-  };
-
-  const sidebarProps = {
-    width: sidebarWidth,
-    projects: filteredProjects,
-    selectedProjectId: currentProjectId,
-    selectedCodingSessionId: sessionId,
-    onSelectProject: handleProjectSelect,
-    onSelectCodingSession: selectSession,
-    onRenameCodingSession: handleRenameThread,
-    onDeleteCodingSession: handleDeleteThread,
-    onRenameProject: handleRenameProject,
-    onDeleteProject: handleDeleteProject,
-    onNewProject: handleNewProject,
-    onOpenFolder: handleOpenFolder,
-    onNewCodingSessionInProject: handleNewThreadInProject,
-    onRefreshProjectSessions: handleRefreshProjectSessions,
-    onRefreshCodingSessionMessages: handleRefreshCodingSessionMessages,
-    onArchiveProject: handleArchiveProject,
-    onCopyWorkingDirectory: handleCopyWorkingDirectory,
-    onCopyProjectPath: handleCopyProjectPath,
-    onOpenInTerminal: handleOpenInTerminal,
-    onOpenInFileExplorer: handleOpenInFileExplorer,
-    onPinCodingSession: handlePinThread,
-    onArchiveCodingSession: handleArchiveThread,
-    onMarkCodingSessionUnread: handleMarkThreadUnread,
-    onCopyCodingSessionWorkingDirectory: handleCopyThreadWorkingDirectory,
-    onCopyCodingSessionSessionId: handleCopyThreadSessionId,
-    onCopyCodingSessionDeeplink: handleCopyThreadDeeplink,
-    onForkCodingSessionLocal: handleForkThreadLocal,
-    onForkCodingSessionNewTree: handleForkThreadNewTree,
-    refreshingProjectId,
-    refreshingCodingSessionId,
-    searchQuery,
-    setSearchQuery,
-  };
-  const overlayProps = {
+  const handleCloseRunConfig = useCallback(() => {
+    setIsRunConfigVisible(false);
+  }, []);
+  const handleSubmitRunConfigurationAction = useCallback(() => {
+    void handleSubmitRunConfiguration();
+  }, [handleSubmitRunConfiguration]);
+  const handleCloseDebugConfig = useCallback(() => {
+    setIsDebugConfigVisible(false);
+  }, []);
+  const handleCloseRunTask = useCallback(() => {
+    setIsRunTaskVisible(false);
+  }, []);
+  const handleCancelDelete = useCallback(() => {
+    cancelDeleteConfirmation();
+  }, [cancelDeleteConfirmation]);
+  const handleConfirmDelete = useCallback(() => {
+    void confirmDeleteConfirmation();
+  }, [confirmDeleteConfirmation]);
+  const {
+    dialogProps,
+    gitOverviewDrawerProps,
+    mainChatProps,
+    mobileProgrammingProps,
+    overlayProps,
+    projectExplorerProps,
+    terminalProps,
+    topBarProps,
+    workspaceProps,
+  } = useCodePageSurfaceProps({
+    activeTab,
+    currentProjectId,
+    isProjectGitOverviewDrawerOpen,
+    projectId: currentProject?.id,
+    projectGitOverviewState,
+    projectName: currentProject?.name,
+    projectPath: currentProject?.path,
+    deleteConfirmation,
+    editorChatEmptyState,
+    editorExplorerWidth,
+    chatWidth: effectiveEditorChatWidth,
+    fileContent,
     files,
-    mountRecoveryState,
-    isMountRecoveryActionPending,
+    filteredProjects,
+    isChatBusy,
+    isDebugConfigVisible,
     isFindVisible,
-    isSearchingFiles,
+    isMountRecoveryActionPending,
     isQuickOpenVisible,
-    searchFiles,
-    onSelectFile: handleSelectWorkspaceFile,
-    onRetryMountRecovery: handleRetryMountRecoveryAction,
-    onReimportProjectFolder: handleReimportProjectFolderAction,
+    isRunConfigVisible,
+    isRunTaskVisible,
+    isSearchingFiles,
+    isSelectedSessionExecuting,
+    selectedEngineId,
+    selectedModelId,
+    isSidebarVisible,
+    isTerminalOpen,
+    isVisible,
+    loadingDirectoryPaths,
+    mainChatEmptyState,
+    mountRecoveryState,
+    openFiles,
+    refreshingCodingSessionId,
+    refreshingProjectId,
+    runConfigurationDraft,
+    runConfigurations,
+    searchQuery,
+    selectedCodingSessionMessages,
+    selectedFile,
+    selectedSessionTitle: session?.title,
+    selectedSessionEngineId: session?.engineId,
+    selectedSessionModelId: session?.modelId,
+    sessionId,
+    showComposerEngineSelector: !sessionId,
+    sidebarWidth,
+    terminalHeight,
+    terminalRequest,
+    viewingDiff,
+    workspaceId,
+    onAcceptDiff: handleAcceptViewingDiff,
+    onArchiveCodingSession: handleArchiveSession,
+    onArchiveProject: handleArchiveProject,
+    onCancelDelete: handleCancelDelete,
+    onChatResize: handleEditorChatResize,
+    onCloseDebugConfig: handleCloseDebugConfig,
+    onCloseFile: handleCloseWorkspaceFile,
     onCloseFind: handleCloseFind,
     onCloseQuickOpen: handleCloseQuickOpen,
-    onNotifyNoResults: handleNotifyNoCodeResults,
-  };
-  const dialogProps = {
-    isRunConfigVisible,
-    runConfigurationDraft,
-    onRunConfigurationDraftChange: setRunConfigurationDraft,
-    onCloseRunConfig: () => setIsRunConfigVisible(false),
-    onSubmitRunConfig: () => {
-      void handleSubmitRunConfiguration();
-    },
-    isDebugConfigVisible,
-    onCloseDebugConfig: () => setIsDebugConfigVisible(false),
-    onSaveDebugConfig: handleSaveDebugConfiguration,
-    isRunTaskVisible,
-    runConfigurations,
-    onCloseRunTask: () => setIsRunTaskVisible(false),
-    onRunTask: handleRunTaskExecution,
-    deleteConfirmation,
-    onCancelDelete: () => setDeleteConfirmation(null),
+    onCloseRunConfig: handleCloseRunConfig,
+    onCloseRunTask: handleCloseRunTask,
+    onCloseTerminal: handleCloseTerminal,
     onConfirmDelete: handleConfirmDelete,
-  };
-  const topBarProps = {
-    currentProject,
-    selectedCodingSession: session,
-    selectedEngineId: effectiveSelectedEngineId,
-    selectedModelId: effectiveSelectedModelId,
-    activeTab,
-    setActiveTab,
-    isTerminalOpen,
-    setIsTerminalOpen,
-  };
-  const mainChatProps = {
-    chatId: sessionId || undefined,
-    messages: selectedCodingSessionMessages,
-    inputValue,
-    setInputValue,
-    onSendMessage: handleSendMessage,
-    isSending,
-    selectedEngineId: effectiveSelectedEngineId,
-    selectedModelId: effectiveSelectedModelId,
-    showEngineHeader: false,
-    setSelectedEngineId: handleSelectedEngineChange,
-    setSelectedModelId: handleSelectedModelChange,
-    layout: 'main' as const,
-    onEditMessage: handleEditSelectedCodingSessionMessage,
-    onDeleteMessage: handleDeleteSelectedCodingSessionMessage,
-    onRegenerateMessage: handleRegenerateSelectedCodingSessionMessage,
-    onStop: handleStopSending,
-    onViewChanges: handleViewChangesAndOpenEditor,
-    onRestore: handleRestoreSelectedCodingSessionMessage,
-    emptyState: mainChatEmptyState,
-  };
-  const workspaceProps = {
-    files,
-    selectedFile,
-    currentProjectPath: currentProject?.path,
-    viewingDiff,
-    fileContent,
-    chatWidth: effectiveEditorChatWidth,
-    selectedCodingSessionId: sessionId,
-    messages: selectedCodingSessionMessages,
-    chatEmptyState: editorChatEmptyState,
-    inputValue,
-    isSending,
-    selectedEngineId: effectiveSelectedEngineId,
-    selectedModelId: effectiveSelectedModelId,
-    onSelectFile: handleSelectWorkspaceFile,
-    onClearSelectedFile: handleClearSelectedWorkspaceFile,
+    onCopyCodingSessionDeeplink: handleCopySessionDeeplink,
+    onCopyCodingSessionSessionId: handleCopySessionId,
+    onCopyCodingSessionWorkingDirectory: handleCopySessionWorkingDirectory,
+    onCopyProjectPath: handleCopyProjectPath,
+    onCopyWorkingDirectory: handleCopyWorkingDirectory,
     onCreateFile: createFile,
     onCreateFolder: createFolder,
+    onCreateNewSession: createCodingSessionFromCurrentProject,
+    onCreateRootFile: handleCreateRootFile,
+    onCloseProjectGitOverviewDrawer: handleCloseProjectGitOverviewDrawer,
+    onDeleteCodingSession: handleDeleteSession,
     onDeleteFile: deleteFile,
     onDeleteFolder: deleteFolder,
-    onRenameNode: renameNode,
-    onAcceptDiff: handleAcceptViewingDiff,
+    onDeleteMessage: handleDeleteSelectedCodingSessionMessage,
+    onDeleteProject: handleDeleteProject,
+    onEditMessage: handleEditSelectedCodingSessionMessage,
+    onExpandDirectory: loadDirectory,
+    onExplorerResize: handleEditorExplorerResize,
+    onFileDraftChange: updateFileDraft,
+    onForkCodingSessionLocal: handleForkSessionLocal,
+    onForkCodingSessionNewTree: handleForkSessionNewTree,
+    onMarkCodingSessionUnread: handleMarkSessionUnread,
+    onNewCodingSessionInProject: createCodingSessionInProject,
+    onNewProject: handleNewProject,
+    onNotifyNoResults: handleNotifyNoCodeResults,
+    onOpenFolder: handleOpenFolder,
+    onOpenInFileExplorer: handleOpenInFileExplorer,
+    onOpenInTerminal: handleOpenInTerminal,
+    onPinCodingSession: handlePinSession,
+    onProjectSelect: handleProjectSelect,
+    onRefreshCodingSessionMessages: handleRefreshCodingSessionMessages,
+    onRefreshProjectSessions: handleRefreshProjectSessions,
+    onRegenerateMessage: handleRegenerateSelectedCodingSessionMessage,
     onRejectDiff: handleRejectViewingDiff,
-    onFileContentChange: saveFile,
-    onChatResize: handleEditorChatResize,
-    onInputValueChange: setInputValue,
+    onReimportProjectFolder: handleReimportProjectFolderAction,
+    onRenameCodingSession: handleRenameSession,
+    onRenameNode: renameNode,
+    onRenameProject: handleRenameProject,
+    onRestoreMessage: handleRestoreSelectedCodingSessionMessage,
+    onRetryMountRecovery: handleRetryMountRecoveryAction,
+    onRunConfigurationDraftChange: setRunConfigurationDraft,
+    onRunTask: handleRunTaskExecution,
+    onSaveDebugConfig: handleSaveDebugConfiguration,
+    onSearchFiles: searchFiles,
+    onSelectCodingSession: handleSidebarCodingSessionSelect,
+    onSelectFile: handleSelectWorkspaceFile,
     onSelectedEngineIdChange: handleSelectedEngineChange,
     onSelectedModelIdChange: handleSelectedModelChange,
     onSendMessage: handleSendMessage,
+    onSetActiveTab: handleActiveTabChange,
+    onSetIsTerminalOpen: handleTopBarTerminalVisibilityChange,
+    onToggleProjectGitOverviewDrawer: handleToggleProjectGitOverviewDrawer,
+    onSubmitRunConfig: handleSubmitRunConfigurationAction,
+    onTerminalResize: handleTerminalResize,
     onViewChanges: handleViewChanges,
-    onRestoreMessage: handleRestoreSelectedCodingSessionMessage,
-    onEditMessage: handleEditSelectedCodingSessionMessage,
-    onDeleteMessage: handleDeleteSelectedCodingSessionMessage,
-    onRegenerateMessage: handleRegenerateSelectedCodingSessionMessage,
-    onStopSending: handleStopSending,
-    onCreateRootFile: handleCreateRootFile,
-    getLanguageFromPath,
-  };
-  const terminalProps = {
-    isOpen: isTerminalOpen,
-    height: terminalHeight,
-    terminalRequest,
-    workspaceId,
-    projectId: currentProjectId,
-    onResize: handleTerminalResize,
-  };
+    onViewChangesAndOpenEditor: handleViewChangesAndOpenEditor,
+    setSearchQuery,
+  });
 
   return (
     <CodePageSurface
       activeTab={activeTab}
       dialogProps={dialogProps}
       editorWorkspaceHostRef={editorWorkspaceHostRef}
+      gitOverviewDrawerProps={gitOverviewDrawerProps}
       isSidebarVisible={isSidebarVisible}
       mainChatProps={mainChatProps}
+      mobileProgrammingProps={mobileProgrammingProps}
       onSidebarResize={handleSidebarResize}
       overlayProps={overlayProps}
-      sidebarProps={sidebarProps}
+      projectExplorerProps={projectExplorerProps}
       terminalProps={terminalProps}
       topBarProps={topBarProps}
       workspaceProps={workspaceProps}

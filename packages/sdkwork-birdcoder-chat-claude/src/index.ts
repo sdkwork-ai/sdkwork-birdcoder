@@ -17,7 +17,7 @@ import {
   type ChatResponse,
   type ChatStreamChunk,
   type IChatEngine,
-} from '../../sdkwork-birdcoder-chat/src/index.ts';
+} from '@sdkwork/birdcoder-chat';
 
 const CLAUDE_PACKAGE = resolvePackagePresence({
   packageName: '@anthropic-ai/claude-agent-sdk',
@@ -26,7 +26,7 @@ const CLAUDE_PACKAGE = resolvePackagePresence({
 const CLAUDE_INTEGRATION = createStaticIntegrationDescriptor({
   engineId: 'claude-code',
   runtimeMode: 'sdk',
-  transportKinds: ['sdk-stream', 'remote-control-http'],
+  transportKinds: ['sdk-stream'],
   sourceMirrorPath: 'external/claude-code',
   officialEntry: {
     packageName: '@anthropic-ai/claude-agent-sdk',
@@ -34,7 +34,7 @@ const CLAUDE_INTEGRATION = createStaticIntegrationDescriptor({
     cliPackageName: 'claude-code',
     sdkPath: null,
     sourceMirrorPath: 'external/claude-code',
-    supplementalLanes: ['Headless CLI', 'remote-control', 'preview sessions'],
+    supplementalLanes: ['query stream', 'tool progress', 'preview sessions'],
   },
   notes: 'BirdCoder uses the official Claude Agent SDK as the primary stable integration lane.',
 });
@@ -51,6 +51,12 @@ const CLAUDE_RAW_EXTENSIONS = createRawExtensionDescriptor({
 
 export interface ClaudeChatEngineOptions {
   officialSdkBridgeLoader?: ChatEngineOfficialSdkBridgeLoader | null;
+}
+
+function createUnavailableClaudeSdkError(): Error {
+  return new Error(
+    'Claude Agent SDK bridge is unavailable. BirdCoder does not synthesize fallback Claude responses.',
+  );
 }
 
 function buildClaudePrompt(messages: readonly ChatMessage[]): string {
@@ -289,6 +295,10 @@ const DEFAULT_CLAUDE_OFFICIAL_SDK_BRIDGE_LOADER = createModuleBackedOfficialSdkB
       kind: 'package',
       specifier: '@anthropic-ai/claude-agent-sdk',
     },
+    {
+      kind: 'path',
+      specifier: 'packages/sdkwork-birdcoder-chat-claude/src/developmentOfficialSdkCandidate.ts',
+    },
   ],
   createBridge: createClaudeOfficialSdkBridge,
 });
@@ -318,6 +328,8 @@ export class ClaudeChatEngine implements IChatEngine {
       packagePresence: CLAUDE_PACKAGE,
       executable: 'claude',
       authEnvKeys: ['ANTHROPIC_API_KEY'],
+      fallbackRuntimeMode: null,
+      fallbackAvailable: false,
     });
   }
 
@@ -327,30 +339,7 @@ export class ClaudeChatEngine implements IChatEngine {
       messages,
       options,
       fallback: async () => {
-        const prompt = messages.at(-1)?.content ?? 'Review the current workspace.';
-        return {
-          id: `claude-chat-${Date.now()}`,
-          object: 'chat.completion',
-          created: Math.floor(Date.now() / 1000),
-          model: options?.model || 'claude-code',
-          choices: [
-            {
-              index: 0,
-              message: {
-                id: `claude-msg-${Date.now()}`,
-                role: 'assistant',
-                content: `Claude Agent SDK adapter reviewed the local task for: ${prompt}`,
-                timestamp: Date.now(),
-              },
-              finish_reason: 'stop',
-            },
-          ],
-          usage: {
-            prompt_tokens: 18,
-            completion_tokens: 18,
-            total_tokens: 36,
-          },
-        };
+        throw createUnavailableClaudeSdkError();
       },
     });
   }
@@ -364,58 +353,7 @@ export class ClaudeChatEngine implements IChatEngine {
       messages,
       options,
       fallback: async function* fallbackStream() {
-        const words = ['Claude ', 'agent ', 'planned ', 'the ', 'tool ', 'progress. '];
-        const id = `claude-chat-${Date.now()}`;
-        const created = Math.floor(Date.now() / 1000);
-        const model = options?.model || 'claude-code';
-
-        for (let index = 0; index < words.length; index += 1) {
-          yield {
-            id,
-            object: 'chat.completion.chunk',
-            created,
-            model,
-            choices: [
-              {
-                index: 0,
-                delta: {
-                  content: words[index],
-                  role: index === 0 ? 'assistant' : undefined,
-                },
-                finish_reason: null,
-              },
-            ],
-          };
-        }
-
-        yield {
-          id,
-          object: 'chat.completion.chunk',
-          created,
-          model,
-          choices: [
-            {
-              index: 0,
-              delta: {
-                tool_calls: [
-                  {
-                    id: `claude-call-${Date.now()}`,
-                    type: 'function',
-                    function: {
-                      name: 'run_command',
-                      arguments: JSON.stringify({
-                        sessionRef: 'claude-agent-local',
-                        command: 'pnpm lint',
-                        rationale: messages.at(-1)?.content ?? 'Validate the current workbench change.',
-                      }),
-                    },
-                  },
-                ],
-              },
-              finish_reason: 'tool_calls',
-            },
-          ],
-        };
+        throw createUnavailableClaudeSdkError();
       },
     });
   }

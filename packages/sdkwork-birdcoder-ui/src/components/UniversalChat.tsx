@@ -1,32 +1,42 @@
-import React, { Suspense, lazy, memo, useCallback, useRef, useEffect, useState } from 'react';
-import { Plus, ChevronDown, ChevronUp, GripVertical, Check, Mic, ArrowUp, Edit, CheckCircle2, RotateCcw, Settings, Edit2, Copy, Trash2, Zap, FileUp, FolderUp, Image as ImageIcon, Square, Lightbulb, BookOpen, List } from 'lucide-react';
+import React, { Suspense, lazy, memo, useCallback, useMemo, useRef, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { Plus, ChevronDown, ChevronUp, GripVertical, Check, Mic, ArrowUp, Edit, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, FileUp, FolderUp, Image as ImageIcon, Lightbulb, BookOpen, List, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Button } from './ui/button';
+import { Button, ResizeHandle, WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-ui-shell';
 import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-types';
 import {
+  findWorkbenchCodeEngineDefinition,
   getWorkbenchCodeEngineDefinition,
   getWorkbenchCodeModelLabel,
   isWorkbenchServerImplementedEngineId,
-  listWorkbenchCodeEngines,
+  listWorkbenchServerImplementedCodeEngines,
   normalizeWorkbenchServerImplementedCodeEngineId,
   normalizeWorkbenchCodeModelId,
   resolveWorkbenchServerEngineSupportState,
 } from '@sdkwork/birdcoder-codeengine';
 import {
   deleteSavedPrompt,
-  deleteStoredPromptHistoryEntry,
+  deleteSessionPromptHistoryEntry,
   globalEventBus,
   hasRestorableFileChanges,
-  listChatInputHistory,
   listSavedPrompts,
-  listStoredPromptHistory,
-  saveChatInputHistoryEntry,
+  listSessionPromptHistory,
   saveSavedPrompt,
-  saveStoredPromptHistoryEntry,
-  useWorkbenchPreferences,
+  saveSessionPromptHistoryEntry,
   useToast,
+  useWorkbenchChatInputDraft,
+  useWorkbenchPreferences,
 } from '@sdkwork/birdcoder-commons';
-import { WorkbenchCodeEngineIcon } from './WorkbenchCodeEngineIcon';
+import {
+  resolveComposerInputAfterSendFailure,
+  restoreQueuedMessagesAfterSendFailure,
+} from './chatComposerRecovery';
+import { shouldUseRichChatMarkdown } from './chatMarkdownHeuristics';
+import {
+  isTranscriptNearBottom,
+  type TranscriptScrollMetrics,
+} from './chatScrollBehavior';
+import { useProgressiveTranscriptWindow } from './useProgressiveTranscriptWindow';
+import { useVirtualizedTranscriptWindow } from './useVirtualizedTranscriptWindow';
 
 export interface ChatSkill {
   id: string;
@@ -40,27 +50,35 @@ type PromptEntry = {
   timestamp: number;
 };
 
+const AUTO_RESIZE_TEXTAREA_MAX_HEIGHT = 200;
+const RESIZABLE_COMPOSER_MIN_HEIGHT = 72;
+const RESIZABLE_COMPOSER_MAX_HEIGHT = 360;
+const FOLDER_UPLOAD_YIELD_INTERVAL = 8;
+const MAX_FOLDER_UPLOAD_FILE_CHARACTERS = 4000;
+const MAX_FOLDER_UPLOAD_INPUT_CHARACTERS = 64000;
+const MAX_FOLDER_UPLOAD_TEXT_FILES = 24;
+
 export interface UniversalChatProps {
-  chatId?: string;
+  sessionId?: string;
+  isActive?: boolean;
   messages: BirdCoderChatMessage[];
-  inputValue: string;
-  setInputValue: (value: string) => void;
-  onSendMessage: (text?: string) => void;
-  isSending?: boolean;
+  inputValue?: string;
+  setInputValue?: Dispatch<SetStateAction<string>>;
+  onSendMessage: (text?: string) => void | Promise<void>;
+  isBusy?: boolean;
   selectedEngineId?: string;
   selectedModelId?: string;
   setSelectedEngineId?: (engineId: string) => void;
-  setSelectedModelId?: (modelId: string) => void;
+  setSelectedModelId?: (modelId: string, engineId?: string) => void;
   header?: React.ReactNode;
   showEngineHeader?: boolean;
   showComposerEngineSelector?: boolean;
   layout?: 'sidebar' | 'main';
   onEditMessage?: (messageId: string) => void;
-  onDeleteMessage?: (messageId: string) => void;
+  onDeleteMessage?: (messageIds: string[]) => void;
   onRegenerateMessage?: () => void;
   onViewChanges?: (file: FileChange) => void;
   onRestore?: (msgId: string) => void;
-  onStop?: () => void;
   className?: string;
   emptyState?: React.ReactNode;
   skills?: ChatSkill[];
@@ -90,11 +108,60 @@ function arePromptEntriesEqual(left: readonly PromptEntry[], right: readonly Pro
   );
 }
 
+function promptEntriesToSessionChatInputHistory(entries: readonly PromptEntry[]): string[] {
+  return entries.map((entry) => entry.text);
+}
+
 function appendChatInput(currentInputValue: string, appendedContent: string): string {
   return `${currentInputValue}${appendedContent}`;
 }
 
-function MarkdownMessageLoader({ content }: { content: string }) {
+function buildFolderUploadContentBlock(
+  path: string,
+  content: string,
+  maxCharacters: number = MAX_FOLDER_UPLOAD_FILE_CHARACTERS,
+): string {
+  const normalizedMaxCharacters = Math.max(0, Math.floor(maxCharacters));
+  const needsTruncation = content.length > normalizedMaxCharacters;
+  const visibleContent = content.slice(0, normalizedMaxCharacters);
+  return `\n\nFile: ${path}\n\`\`\`\n${visibleContent}${needsTruncation ? '\n...[truncated]' : ''}\n\`\`\`\n`;
+}
+
+function clampComposerHeight(height: number): number {
+  return Math.max(RESIZABLE_COMPOSER_MIN_HEIGHT, Math.min(RESIZABLE_COMPOSER_MAX_HEIGHT, height));
+}
+
+function readFileAsText(file: File): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(event.target?.result as string);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(event.target?.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function yieldToMainThread(): Promise<void> {
+  if (typeof window === 'undefined') {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => {
+      resolve();
+    });
+  });
+}
+
+function PlainMessageContent({ content }: { content: string }) {
   return <div className="whitespace-pre-wrap break-words">{content}</div>;
 }
 
@@ -102,7 +169,7 @@ type UniversalChatTranslate = ReturnType<typeof useTranslation>['t'];
 
 interface UniversalChatTranscriptEnvironment {
   addToast: ReturnType<typeof useToast>['addToast'];
-  onDeleteMessage?: (messageId: string) => void;
+  onDeleteMessage?: (messageIds: string[]) => void;
   onEditMessage?: (messageId: string) => void;
   onRegenerateMessage?: () => void;
   onRestore?: (msgId: string) => void;
@@ -114,45 +181,164 @@ interface UniversalChatTranscriptEnvironment {
 interface UniversalChatTranscriptProps {
   emptyState?: React.ReactNode;
   environmentRef: React.MutableRefObject<UniversalChatTranscriptEnvironment | null>;
+  isActive: boolean;
   layout: 'sidebar' | 'main';
   localeKey: string;
   messages: readonly BirdCoderChatMessage[];
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  shouldStickToBottomRef: React.MutableRefObject<boolean>;
 }
 
 const EMPTY_CHAT_MESSAGES: BirdCoderChatMessage[] = [];
 
-function buildTranscriptSurfaceStyle(
-  animationDelay: string,
-  containIntrinsicSize: string,
-): React.CSSProperties {
+type ChatScrollSnapshot = {
+  contentLength: number;
+  messageCount: number;
+  messageId: string;
+};
+
+function resolveChatScrollBehavior(
+  previousSnapshot: ChatScrollSnapshot | null,
+  nextSnapshot: ChatScrollSnapshot,
+): ScrollBehavior {
+  if (!previousSnapshot || previousSnapshot.messageCount === 0 || nextSnapshot.messageCount === 0) {
+    return 'auto';
+  }
+
+  if (
+    previousSnapshot.messageId === nextSnapshot.messageId &&
+    previousSnapshot.contentLength !== nextSnapshot.contentLength
+  ) {
+    return 'auto';
+  }
+
+  return 'smooth';
+}
+
+function buildTranscriptSurfaceStyle(containIntrinsicSize: string): React.CSSProperties {
   return {
-    animationDelay,
     contain: 'layout paint style',
     containIntrinsicSize,
   };
 }
 
+function isReplySegmentRole(role: BirdCoderChatMessage['role']): boolean {
+  return (
+    role === 'assistant' ||
+    role === 'planner' ||
+    role === 'reviewer' ||
+    role === 'tool'
+  );
+}
+
+interface ChatMessageActionTarget {
+  copyText: string;
+  endIndex: number;
+  messageIds: string[];
+}
+
+function buildMessageActionTargets(
+  messages: readonly BirdCoderChatMessage[],
+): Array<ChatMessageActionTarget | null> {
+  const targets = new Array<ChatMessageActionTarget | null>(messages.length).fill(null);
+
+  for (let index = 0; index < messages.length; index += 1) {
+    const currentMessage = messages[index];
+    if (!currentMessage) {
+      continue;
+    }
+
+    if (currentMessage.role === 'user') {
+      targets[index] = {
+        copyText: currentMessage.content,
+        endIndex: index,
+        messageIds: [currentMessage.id],
+      };
+      continue;
+    }
+
+    if (!isReplySegmentRole(currentMessage.role)) {
+      continue;
+    }
+
+    let endIndex = index;
+    while (
+      endIndex + 1 < messages.length &&
+      isReplySegmentRole(messages[endIndex + 1]?.role ?? 'system')
+    ) {
+      endIndex += 1;
+    }
+
+    const groupedMessages = messages.slice(index, endIndex + 1);
+    const copyText = groupedMessages
+      .map((message) => message.content.trim())
+      .filter((content) => content.length > 0)
+      .join('\n\n');
+    const messageIds = groupedMessages
+      .map((message) => message.id)
+      .filter((messageId): messageId is string => messageId.trim().length > 0);
+    const target: ChatMessageActionTarget = {
+      copyText: copyText || currentMessage.content,
+      endIndex,
+      messageIds,
+    };
+
+    for (let groupedIndex = index; groupedIndex <= endIndex; groupedIndex += 1) {
+      targets[groupedIndex] = target;
+    }
+
+    index = endIndex;
+  }
+
+  return targets;
+}
+
 const UniversalChatTranscript = memo(function UniversalChatTranscript({
   emptyState,
   environmentRef,
+  isActive,
   layout,
   localeKey: _localeKey,
   messages,
   messagesEndRef,
+  scrollContainerRef,
+  shouldStickToBottomRef: _shouldStickToBottomRef,
 }: UniversalChatTranscriptProps) {
+  const { isLoadingEarlierMessages, renderedMessages } = useProgressiveTranscriptWindow(
+    messages,
+    messagesEndRef,
+    isActive,
+  );
+  const messageActionTargets = useMemo(
+    () => buildMessageActionTargets(renderedMessages),
+    [renderedMessages],
+  );
+  const { paddingBottom, paddingTop, registerMessageElement, visibleMessages, visibleStartIndex } =
+    useVirtualizedTranscriptWindow(
+      renderedMessages,
+      scrollContainerRef,
+      isActive,
+    );
+
   const renderMarkdownContent = (
     content: string,
     mode: 'basic' | 'rich' = 'rich',
-  ) => (
-    <Suspense fallback={<MarkdownMessageLoader content={content} />}>
-      <UniversalChatMarkdown
-        content={content}
-        skills={environmentRef.current?.skills ?? []}
-        mode={mode}
-      />
-    </Suspense>
-  );
+  ) => {
+    if (!shouldUseRichChatMarkdown(content, mode)) {
+      return <PlainMessageContent content={content} />;
+    }
+
+    return (
+      <Suspense fallback={<PlainMessageContent content={content} />}>
+        <UniversalChatMarkdown
+          content={content}
+          skills={environmentRef.current?.skills ?? []}
+          mode={mode}
+        />
+      </Suspense>
+    );
+  };
 
   const copyMessageToClipboard = (content: string) => {
     const environment = environmentRef.current;
@@ -163,21 +349,28 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     environment.addToast(environment.t('chat.messageCopied'), 'success');
   };
 
-  const renderSidebarMessage = (msg: BirdCoderChatMessage, idx: number) => {
+  const renderSidebarMessage = (
+    msg: BirdCoderChatMessage,
+    idx: number,
+    messageRef?: (element: HTMLDivElement | null) => void,
+  ) => {
     const environment = environmentRef.current;
     const copyLabel = environment?.t('common.copy') ?? 'Copy';
+    const actionTarget = messageActionTargets[idx];
+    const showMessageActions = !!actionTarget && actionTarget.endIndex === idx;
     return (
       <div
+        ref={messageRef}
         key={msg.id || idx}
-        className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start w-full'} group animate-in fade-in slide-in-from-bottom-4 fill-mode-both`}
-        style={buildTranscriptSurfaceStyle(`${idx * 50}ms`, '180px')}
+        className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start w-full'} group`}
+        style={buildTranscriptSurfaceStyle('180px')}
       >
         <div className={`${msg.role === 'user' ? 'max-w-[90%] bg-white/5 text-gray-200 rounded-2xl rounded-tr-sm px-4 py-3' : 'text-gray-300 w-full'}`}>
-          <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[14px] w-full">
+          <div className="prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1rem] prose-h2:text-[0.95rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-li:my-0.5 prose-li:text-[13px] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[13px] w-full">
             {renderMarkdownContent(msg.content)}
           </div>
 
-          {msg.role === 'user' && (
+          {msg.role === 'user' && showMessageActions && (
             <div className="mt-1.5 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {environment?.onEditMessage && (
                 <Button
@@ -205,7 +398,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                   size="icon"
                   className="h-5 w-5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
                   title="Delete"
-                  onClick={() => environment.onDeleteMessage?.(msg.id)}
+                  onClick={() => environment.onDeleteMessage?.(actionTarget?.messageIds ?? [msg.id])}
                 >
                   <Trash2 size={10} />
                 </Button>
@@ -214,7 +407,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
           )}
 
           {msg.fileChanges && msg.fileChanges.length > 0 && (
-            <div className="mt-4 flex flex-col gap-3 w-full">
+            <div className="mt-3 flex flex-col gap-2 w-full">
               <div className="bg-[#18181b] rounded-lg border border-white/10 overflow-hidden">
                 <div className="px-3 py-2 border-b border-white/10 flex items-center gap-2 text-gray-400">
                   <Edit size={14} />
@@ -258,28 +451,46 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
           )}
 
           {msg.commands && msg.commands.length > 0 && (
-            <div className="mt-3 flex flex-col gap-1.5 w-full">
+            <div className="mt-1.5 flex flex-col gap-1 w-full">
               {msg.commands.map((cmd, cmdIdx) => (
-                <div key={cmdIdx} className="text-[13px] text-gray-400 flex items-center gap-2">
-                  <span className="truncate">
-                    {cmd.status === 'success' ? 'Completed' : cmd.status === 'error' ? 'Failed' : 'Running'} <span className="font-mono text-xs bg-white/5 px-1.5 py-0.5 rounded ml-1">{cmd.command}</span>
-                  </span>
-                  {cmd.status === 'success' && (
-                    <span className="text-gray-500 shrink-0">(2s)</span>
-                  )}
+                <div
+                  key={cmdIdx}
+                  className="group/command flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/30 px-3 py-2 font-mono text-[13px] text-gray-300"
+                >
+                  <div className="flex min-w-0 items-center gap-3 overflow-hidden">
+                    <span className="text-blue-400 shrink-0">$</span>
+                    <span className="truncate">{cmd.command}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      className="opacity-0 transition-opacity group-hover/command:opacity-100 text-gray-500 hover:text-gray-200 hover:bg-white/10 rounded-md p-1"
+                      title={copyLabel}
+                      onClick={() => copyMessageToClipboard(cmd.command)}
+                    >
+                      <Copy size={12} />
+                    </button>
+                    {cmd.status === 'success' ? (
+                      <CheckCircle2 size={13} className="text-green-500/70 shrink-0" />
+                    ) : cmd.status === 'error' ? (
+                      <span className="shrink-0 text-[11px] text-red-400">Failed</span>
+                    ) : (
+                      <div className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
 
-          {msg.role === 'assistant' && (
-            <div className="mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {isReplySegmentRole(msg.role) && showMessageActions && (
+            <div className="mt-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
                 title={copyLabel}
-                onClick={() => copyMessageToClipboard(msg.content)}
+                onClick={() => copyMessageToClipboard(actionTarget?.copyText ?? msg.content)}
               >
                 <Copy size={12} />
               </Button>
@@ -300,7 +511,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                   size="icon"
                   className="h-6 w-6 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
                   title="Delete"
-                  onClick={() => environment.onDeleteMessage?.(msg.id)}
+                  onClick={() => environment.onDeleteMessage?.(actionTarget?.messageIds ?? [msg.id])}
                 >
                   <Trash2 size={12} />
                 </Button>
@@ -312,101 +523,76 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     );
   };
 
-  const renderMainMessage = (msg: BirdCoderChatMessage, idx: number) => {
+  const renderMainMessage = (
+    msg: BirdCoderChatMessage,
+    idx: number,
+    messageRef?: (element: HTMLDivElement | null) => void,
+  ) => {
     const environment = environmentRef.current;
     const copyLabel = environment?.t('common.copy') ?? 'Copy';
+    const actionTarget = messageActionTargets[idx];
+    const showMessageActions = !!actionTarget && actionTarget.endIndex === idx;
     return (
       <div
+        ref={messageRef}
         key={msg.id || idx}
-        className={`flex group w-full ${msg.role === 'user' ? 'py-4' : 'py-6'} px-4 md:px-8 animate-in fade-in slide-in-from-bottom-4 fill-mode-both`}
-        style={buildTranscriptSurfaceStyle(`${idx * 50}ms`, msg.role === 'user' ? '160px' : '320px')}
+        className={`flex group w-full ${msg.role === 'user' ? 'py-2' : 'py-2.5'} px-4 md:px-8`}
+        style={buildTranscriptSurfaceStyle(msg.role === 'user' ? '160px' : '320px')}
       >
         <div className={`w-full max-w-3xl mx-auto flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
 
           {msg.role === 'user' ? (
-            <div className="flex flex-col items-end max-w-[85%] md:max-w-2xl">
-              <div className="bg-white/5 text-gray-200 px-5 py-3.5 rounded-3xl text-[15px] whitespace-pre-wrap leading-relaxed">
-                <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-p:first:mt-0 prose-p:last:mb-0 prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none text-[15px]">
+            <div className="flex w-full flex-col items-end">
+              <div className="max-w-[85%] bg-white/5 text-gray-200 px-4 py-2.5 rounded-3xl text-[14px] whitespace-pre-wrap leading-relaxed">
+                <div className="prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1rem] prose-h2:text-[0.95rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-p:first:mt-0 prose-p:last:mb-0 prose-li:my-0.5 prose-li:text-[14px] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none text-[14px]">
                   {renderMarkdownContent(msg.content, 'basic')}
                 </div>
               </div>
 
-              <div className="mt-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pr-2">
-                {environment?.onEditMessage && (
+              {showMessageActions ? (
+                <div className="mt-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pr-2">
+                  {environment?.onEditMessage && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
+                      title="Edit"
+                      onClick={() => environment.onEditMessage?.(msg.id)}
+                    >
+                      <Edit2 size={12} />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
-                    title="Edit"
-                    onClick={() => environment.onEditMessage?.(msg.id)}
+                    title={copyLabel}
+                    onClick={() => copyMessageToClipboard(actionTarget?.copyText ?? msg.content)}
                   >
-                    <Edit2 size={12} />
+                    <Copy size={12} />
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
-                  title={copyLabel}
-                  onClick={() => copyMessageToClipboard(msg.content)}
-                >
-                  <Copy size={12} />
-                </Button>
-                {environment?.onDeleteMessage && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
-                    title="Delete"
-                    onClick={() => environment.onDeleteMessage?.(msg.id)}
-                  >
-                    <Trash2 size={12} />
-                  </Button>
-                )}
-              </div>
+                  {environment?.onDeleteMessage && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
+                      title="Delete"
+                      onClick={() => environment.onDeleteMessage?.(actionTarget?.messageIds ?? [msg.id])}
+                    >
+                      <Trash2 size={12} />
+                    </Button>
+                  )}
+                </div>
+              ) : null}
             </div>
           ) : (
-            <div className="flex-1 min-w-0 flex flex-col w-full">
-              <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[15px] text-gray-300 w-full">
+            <div className="flex min-w-0 w-full flex-col">
+              <div className="prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1.02rem] prose-h2:text-[0.96rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-li:my-0.5 prose-li:text-[14px] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[14px] text-gray-300 w-full">
                 {renderMarkdownContent(msg.content)}
               </div>
 
-              <div className="mt-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
-                  title={copyLabel}
-                  onClick={() => copyMessageToClipboard(msg.content)}
-                >
-                  <Copy size={14} />
-                </Button>
-                {environment?.onRegenerateMessage && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
-                    title="Regenerate"
-                    onClick={() => environment.onRegenerateMessage?.()}
-                  >
-                    <RotateCcw size={14} />
-                  </Button>
-                )}
-                {environment?.onDeleteMessage && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
-                    title="Delete"
-                    onClick={() => environment.onDeleteMessage?.(msg.id)}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                )}
-              </div>
-
               {msg.fileChanges && msg.fileChanges.length > 0 && (
-                <div className="mt-4 flex flex-col gap-3 w-full">
+                <div className="mt-2 flex flex-col gap-2 w-full">
                   <div className="bg-[#18181b]/80 rounded-xl border border-white/10 overflow-hidden shadow-sm">
                     <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between bg-white/5">
                       <div className="flex items-center gap-2 text-gray-300">
@@ -446,32 +632,73 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
               )}
 
               {msg.commands && msg.commands.length > 0 && (
-                <div className="mt-4 flex flex-col gap-2 w-full">
+                <div className="mt-2 flex flex-col gap-1.5 w-full">
                   {msg.commands.map((cmd, cmdIdx) => (
-                    <div key={cmdIdx} className="bg-[#18181b]/80 rounded-xl border border-white/10 overflow-hidden shadow-sm">
-                      <div className="px-4 py-2.5 border-b border-white/10 flex items-center gap-2 bg-white/5">
-                        <Settings size={14} className="text-gray-400" />
-                        <span className="text-sm font-medium text-gray-300">Terminal</span>
+                    <div
+                      key={cmdIdx}
+                      className="group/command flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/30 px-3 py-2 font-mono text-[13px] text-gray-300"
+                    >
+                      <div className="flex min-w-0 items-center gap-3 overflow-hidden">
+                        <span className="text-blue-400 shrink-0">$</span>
+                        <span className="truncate">{cmd.command}</span>
                       </div>
-                      <div className="p-3 text-sm">
-                        <div className="flex items-center justify-between text-gray-300 bg-black/30 px-3 py-2 rounded-lg font-mono text-[13px] border border-white/5">
-                          <div className="flex items-center gap-3 overflow-hidden">
-                            <span className="text-blue-400 shrink-0">$</span>
-                            <span className="truncate">{cmd.command}</span>
-                          </div>
-                          {cmd.status === 'success' ? (
-                            <CheckCircle2 size={14} className="text-green-500/70 shrink-0 ml-4" />
-                          ) : cmd.status === 'error' ? (
-                            <span className="text-red-400 shrink-0 ml-4 text-xs">Failed</span>
-                          ) : (
-                            <div className="w-3.5 h-3.5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin shrink-0 ml-4" />
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          className="opacity-0 transition-opacity group-hover/command:opacity-100 text-gray-500 hover:text-gray-200 hover:bg-white/10 rounded-md p-1"
+                          title={copyLabel}
+                          onClick={() => copyMessageToClipboard(cmd.command)}
+                        >
+                          <Copy size={12} />
+                        </button>
+                        {cmd.status === 'success' ? (
+                          <CheckCircle2 size={14} className="text-green-500/70 shrink-0" />
+                        ) : cmd.status === 'error' ? (
+                          <span className="shrink-0 text-[11px] text-red-400">Failed</span>
+                        ) : (
+                          <div className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+
+              {showMessageActions ? (
+                <div className="mt-1.5 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
+                    title={copyLabel}
+                    onClick={() => copyMessageToClipboard(actionTarget?.copyText ?? msg.content)}
+                  >
+                    <Copy size={14} />
+                  </Button>
+                  {environment?.onRegenerateMessage && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
+                      title="Regenerate"
+                      onClick={() => environment.onRegenerateMessage?.()}
+                    >
+                      <RotateCcw size={14} />
+                    </Button>
+                  )}
+                  {environment?.onDeleteMessage && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
+                      title="Delete"
+                      onClick={() => environment.onDeleteMessage?.(actionTarget?.messageIds ?? [msg.id])}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
+                </div>
+              ) : null}
             </div>
           )}
         </div>
@@ -481,28 +708,76 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
 
   return (
     <>
+      {isLoadingEarlierMessages ? (
+        <div className="flex items-center justify-center gap-2 px-4 py-2 text-xs text-gray-500">
+          <Loader2 size={12} className="animate-spin" />
+          <span>Loading earlier messages...</span>
+        </div>
+      ) : null}
       {messages.length === 0 ? (
-        emptyState || (
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-4 animate-in fade-in zoom-in-95 duration-500">
-            <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20 shadow-lg shadow-blue-500/10">
-              <Zap size={32} className="text-blue-400" />
+        layout === 'main' ? (
+          <div className="flex min-h-full w-full px-4 md:px-8">
+            <div className="flex w-full max-w-3xl mx-auto flex-1 items-center justify-center">
+              {emptyState ? (
+                <div className="w-full">{emptyState}</div>
+              ) : (
+                <div className="flex w-full max-w-xl flex-col items-center justify-center text-center px-4 animate-in fade-in zoom-in-95 duration-500">
+                  <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20 shadow-lg shadow-blue-500/10">
+                    <Zap size={32} className="text-blue-400" />
+                  </div>
+                  <h2 className="text-2xl font-semibold text-white mb-2 tracking-tight">What do you want to build?</h2>
+                  <p className="text-gray-400 max-w-md text-[15px] leading-relaxed">
+                    Describe your idea, ask a question, or paste some code to get started. I can help you write code, debug errors, or build entire features.
+                  </p>
+                </div>
+              )}
             </div>
-            <h2 className="text-2xl font-semibold text-white mb-2 tracking-tight">What do you want to build?</h2>
-            <p className="text-gray-400 max-w-md text-[15px] leading-relaxed">
-              Describe your idea, ask a question, or paste some code to get started. I can help you write code, debug errors, or build entire features.
-            </p>
           </div>
+        ) : (
+          emptyState || (
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-4 animate-in fade-in zoom-in-95 duration-500">
+              <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20 shadow-lg shadow-blue-500/10">
+                <Zap size={32} className="text-blue-400" />
+              </div>
+              <h2 className="text-2xl font-semibold text-white mb-2 tracking-tight">What do you want to build?</h2>
+              <p className="text-gray-400 max-w-md text-[15px] leading-relaxed">
+                Describe your idea, ask a question, or paste some code to get started. I can help you write code, debug errors, or build entire features.
+              </p>
+            </div>
+          )
         )
       ) : (
-        messages.map((msg, idx) =>
-          layout === 'sidebar' ? renderSidebarMessage(msg, idx) : renderMainMessage(msg, idx)
-        )
+        <>
+          {paddingTop > 0 ? (
+            <div
+              aria-hidden="true"
+              className="shrink-0"
+              style={{ height: `${paddingTop}px` }}
+            />
+          ) : null}
+          {visibleMessages.map((msg, idx) => {
+            const messageIndex = visibleStartIndex + idx;
+            const messageId = msg.id.trim() || `message-${messageIndex}`;
+            const messageRef = registerMessageElement(messageId);
+            return layout === 'sidebar'
+              ? renderSidebarMessage(msg, messageIndex, messageRef)
+              : renderMainMessage(msg, messageIndex, messageRef);
+          })}
+          {paddingBottom > 0 ? (
+            <div
+              aria-hidden="true"
+              className="shrink-0"
+              style={{ height: `${paddingBottom}px` }}
+            />
+          ) : null}
+        </>
       )}
       <div ref={messagesEndRef} />
     </>
   );
 }, (previousProps, nextProps) => {
   if (
+    previousProps.isActive !== nextProps.isActive ||
     previousProps.layout !== nextProps.layout ||
     previousProps.localeKey !== nextProps.localeKey ||
     previousProps.messages !== nextProps.messages
@@ -517,13 +792,14 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   return true;
 });
 
-export function UniversalChat({
-  chatId,
+export const UniversalChat = memo(function UniversalChat({
+  sessionId,
+  isActive = true,
   messages,
-  inputValue,
-  setInputValue,
+  inputValue: controlledInputValue,
+  setInputValue: controlledSetInputValue,
   onSendMessage,
-  isSending = false,
+  isBusy = false,
   selectedEngineId,
   selectedModelId,
   setSelectedEngineId,
@@ -537,7 +813,6 @@ export function UniversalChat({
   onRegenerateMessage,
   onViewChanges,
   onRestore,
-  onStop,
   className = '',
   emptyState,
   skills = [],
@@ -550,18 +825,72 @@ export function UniversalChat({
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [promptTab, setPromptTab] = useState<'history' | 'mine'>('history');
-  const [globalPrompts, setGlobalPrompts] = useState<PromptEntry[]>([]);
+  const [historyPrompts, setHistoryPrompts] = useState<PromptEntry[]>([]);
   const [myPrompts, setMyPrompts] = useState<PromptEntry[]>([]);
-  const normalizedChatId = chatId?.trim() || '';
-  const chatHistoryRef = useRef<string[]>([]);
+  const normalizedSessionId = sessionId?.trim() || '';
+  const {
+    clearDraftValue: clearSessionDraftValue,
+    draftValue: sessionDraftValue,
+    setDraftValue: setSessionDraftValue,
+  } = useWorkbenchChatInputDraft(normalizedSessionId);
+  const [ephemeralInputValue, setEphemeralInputValue] = useState('');
+  const isControlledInput =
+    typeof controlledInputValue === 'string' && typeof controlledSetInputValue === 'function';
+  const inputValue = isControlledInput
+    ? controlledInputValue
+    : normalizedSessionId
+      ? sessionDraftValue
+      : ephemeralInputValue;
+  const setInputValue = useCallback<Dispatch<SetStateAction<string>>>((nextValue) => {
+    if (isControlledInput) {
+      controlledSetInputValue?.(nextValue);
+      return;
+    }
+
+    if (normalizedSessionId) {
+      setSessionDraftValue(nextValue);
+      return;
+    }
+
+    setEphemeralInputValue(nextValue);
+  }, [
+    controlledSetInputValue,
+    isControlledInput,
+    normalizedSessionId,
+    setSessionDraftValue,
+  ]);
+  const clearInputValue = useCallback(() => {
+    if (isControlledInput) {
+      controlledSetInputValue?.('');
+      return;
+    }
+
+    if (normalizedSessionId) {
+      clearSessionDraftValue();
+      return;
+    }
+
+    setEphemeralInputValue((previousValue) =>
+      previousValue.length === 0 ? previousValue : '',
+    );
+  }, [
+    clearSessionDraftValue,
+    controlledSetInputValue,
+    isControlledInput,
+    normalizedSessionId,
+  ]);
+  const sessionChatInputHistoryRef = useRef<string[]>([]);
+  const pendingPromptHistoryEntriesRef = useRef<string[]>([]);
   const inputValueRef = useRef(inputValue);
-  const hydratedChatHistoryIdRef = useRef<string | null>(null);
+  const hydratedSessionPromptHistoryIdRef = useRef<string | null>(null);
   const [autoSendPrompt, setAutoSendPrompt] = useState(true);
   const [messageQueue, setMessageQueue] = useState<string[]>([]);
   const [isQueueExpanded, setIsQueueExpanded] = useState(false);
   const [editingQueueIndex, setEditingQueueIndex] = useState(-1);
   const [editingQueueText, setEditingQueueText] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [manualComposerHeight, setManualComposerHeight] = useState<number | null>(null);
+  const [isDispatchingMessage, setIsDispatchingMessage] = useState(false);
   const { addToast } = useToast();
   const { preferences } = useWorkbenchPreferences();
   const modelMenuRef = useRef<HTMLDivElement>(null);
@@ -572,22 +901,37 @@ export function UniversalChat({
     selectedEngineId ?? preferences.codeEngineId,
     preferences,
   );
-  const availableEngines = listWorkbenchCodeEngines(preferences);
-  const currentEngine = getWorkbenchCodeEngineDefinition(resolvedSelectedEngineId, preferences);
+  const availableEngines = listWorkbenchServerImplementedCodeEngines(preferences);
+  const currentEngine =
+    findWorkbenchCodeEngineDefinition(resolvedSelectedEngineId, preferences) ??
+    getWorkbenchCodeEngineDefinition(resolvedSelectedEngineId, preferences);
   const currentModelId = normalizeWorkbenchCodeModelId(
     resolvedSelectedEngineId,
     selectedModelId ?? preferences.codeModelId,
     preferences,
   );
-  const currentModelLabel = getWorkbenchCodeModelLabel(
-    resolvedSelectedEngineId,
-    currentModelId,
-    preferences,
-  );
+  const displayEngineId =
+    !showComposerEngineSelector && selectedEngineId ? selectedEngineId : resolvedSelectedEngineId;
+  const displayModelId =
+    !showComposerEngineSelector ? (selectedModelId ?? '') : currentModelId;
+  const currentModelLabel =
+    getWorkbenchCodeModelLabel(
+      displayEngineId,
+      displayModelId,
+      preferences,
+    ) || displayModelId.trim();
+  const currentEngineSummary =
+    currentModelLabel.trim().toLowerCase() === currentEngine.label.trim().toLowerCase()
+      ? currentEngine.label
+      : `${currentEngine.label} / ${currentModelLabel}`;
+  const isComposerBusy = isBusy || isDispatchingMessage;
   const lastMessage = messages[messages.length - 1];
   const lastMessageContentLength = lastMessage?.content.length ?? 0;
   const normalizedMessages = messages.length === 0 ? EMPTY_CHAT_MESSAGES : messages;
   const transcriptEnvironmentRef = useRef<UniversalChatTranscriptEnvironment | null>(null);
+  const lastScrollSnapshotRef = useRef<ChatScrollSnapshot | null>(null);
+  const transcriptScrollContainerRef = useRef<HTMLDivElement>(null);
+  const shouldStickTranscriptToBottomRef = useRef(true);
 
   transcriptEnvironmentRef.current = {
     addToast,
@@ -600,8 +944,8 @@ export function UniversalChat({
     t,
   };
 
-  const syncGlobalPrompts = (nextPrompts: PromptEntry[]) => {
-    setGlobalPrompts((previousPrompts) =>
+  const syncHistoryPrompts = (nextPrompts: PromptEntry[]) => {
+    setHistoryPrompts((previousPrompts) =>
       arePromptEntriesEqual(previousPrompts, nextPrompts) ? previousPrompts : nextPrompts,
     );
   };
@@ -616,51 +960,153 @@ export function UniversalChat({
     inputValueRef.current = inputValue;
   }, [inputValue]);
 
-  useEffect(() => {
-    if (showPromptModal) {
-      void Promise.all([listStoredPromptHistory(), listSavedPrompts()])
-        .then(([history, mine]) => {
-          syncGlobalPrompts(history);
-          syncMyPrompts(mine);
-        })
-        .catch((error) => {
-          console.error('Failed to load prompts', error);
-        });
+  const readTranscriptScrollMetrics = useCallback((): TranscriptScrollMetrics | null => {
+    const scrollContainer = transcriptScrollContainerRef.current;
+    if (!scrollContainer) {
+      return null;
     }
-  }, [showPromptModal]);
 
-  useEffect(() => {
-    if (hydratedChatHistoryIdRef.current === normalizedChatId) {
+    return {
+      clientHeight: scrollContainer.clientHeight,
+      scrollHeight: scrollContainer.scrollHeight,
+      scrollTop: scrollContainer.scrollTop,
+    };
+  }, []);
+
+  const updateTranscriptStickiness = useCallback(() => {
+    const scrollMetrics = readTranscriptScrollMetrics();
+    if (!scrollMetrics) {
       return;
     }
 
-    hydratedChatHistoryIdRef.current = normalizedChatId;
-    chatHistoryRef.current = [];
+    shouldStickTranscriptToBottomRef.current = isTranscriptNearBottom(scrollMetrics);
+  }, [readTranscriptScrollMetrics]);
+
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
+    if (!showPromptModal) {
+      return;
+    }
+
+    void Promise.all([
+      normalizedSessionId
+        ? listSessionPromptHistory(normalizedSessionId)
+        : Promise.resolve<PromptEntry[]>([]),
+      listSavedPrompts(),
+    ])
+      .then(([history, mine]) => {
+        syncHistoryPrompts(history);
+        syncMyPrompts(mine);
+      })
+      .catch((error) => {
+        console.error('Failed to load prompts', error);
+      });
+  }, [isActive, normalizedSessionId, showPromptModal]);
+
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
+    if (hydratedSessionPromptHistoryIdRef.current === normalizedSessionId) {
+      return;
+    }
+
+    hydratedSessionPromptHistoryIdRef.current = normalizedSessionId;
+    lastScrollSnapshotRef.current = null;
+    sessionChatInputHistoryRef.current = [];
     setHistoryIndex((previousHistoryIndex) => (previousHistoryIndex === -1 ? previousHistoryIndex : -1));
     setTempInput((previousTempInput) => (previousTempInput ? '' : previousTempInput));
-    if (!normalizedChatId) {
+    syncHistoryPrompts([]);
+    if (!normalizedSessionId) {
       return;
     }
 
     let isMounted = true;
-    void listChatInputHistory(normalizedChatId)
-      .then((history) => {
+    void listSessionPromptHistory(normalizedSessionId)
+      .then((historyEntries) => {
         if (!isMounted) {
           return;
         }
 
-        chatHistoryRef.current = areStringListsEqual(chatHistoryRef.current, history)
-          ? chatHistoryRef.current
+        syncHistoryPrompts(historyEntries);
+        const history = promptEntriesToSessionChatInputHistory(historyEntries);
+        sessionChatInputHistoryRef.current = areStringListsEqual(sessionChatInputHistoryRef.current, history)
+          ? sessionChatInputHistoryRef.current
           : history;
       })
       .catch((error) => {
-        console.error('Failed to load chat history', error);
+        console.error('Failed to load session prompt history', error);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [normalizedChatId]);
+  }, [isActive, normalizedSessionId]);
+
+  useEffect(() => {
+    if (!isActive || !normalizedSessionId || pendingPromptHistoryEntriesRef.current.length === 0) {
+      return;
+    }
+
+    let isMounted = true;
+    const pendingEntries = [...pendingPromptHistoryEntriesRef.current];
+
+    void (async () => {
+      let latestHistoryEntries: PromptEntry[] = [];
+      for (const pendingEntry of pendingEntries) {
+        latestHistoryEntries = await saveSessionPromptHistoryEntry(
+          pendingEntry,
+          normalizedSessionId,
+        );
+      }
+
+      if (!isMounted) {
+        return;
+      }
+
+      pendingPromptHistoryEntriesRef.current = pendingPromptHistoryEntriesRef.current.filter(
+        (pendingEntry) => !pendingEntries.includes(pendingEntry),
+      );
+      syncHistoryPrompts(latestHistoryEntries);
+      const nextChatHistory = promptEntriesToSessionChatInputHistory(latestHistoryEntries);
+      sessionChatInputHistoryRef.current = areStringListsEqual(sessionChatInputHistoryRef.current, nextChatHistory)
+        ? sessionChatInputHistoryRef.current
+        : nextChatHistory;
+    })().catch((error) => {
+      console.error('Failed to flush pending session prompt history', error);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isActive, normalizedSessionId]);
+
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
+    shouldStickTranscriptToBottomRef.current = true;
+    const scrollContainer = transcriptScrollContainerRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+
+    const handleTranscriptScroll = () => {
+      updateTranscriptStickiness();
+    };
+
+    updateTranscriptStickiness();
+    scrollContainer.addEventListener('scroll', handleTranscriptScroll, { passive: true });
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleTranscriptScroll);
+    };
+  }, [isActive, normalizedSessionId, updateTranscriptStickiness]);
 
   const formatTime = (ts: number) => {
     const d = new Date(ts);
@@ -690,21 +1136,28 @@ export function UniversalChat({
   };
 
   const deleteFromHistory = (text: string) => {
-    void deleteStoredPromptHistoryEntry(text)
+    if (!normalizedSessionId) {
+      return;
+    }
+
+    void deleteSessionPromptHistoryEntry(text, normalizedSessionId)
       .then((history) => {
-        syncGlobalPrompts(history);
+        syncHistoryPrompts(history);
+        const nextChatHistory = promptEntriesToSessionChatInputHistory(history);
+        sessionChatInputHistoryRef.current = areStringListsEqual(sessionChatInputHistoryRef.current, nextChatHistory)
+          ? sessionChatInputHistoryRef.current
+          : nextChatHistory;
       })
       .catch((error) => {
         console.error('Failed to delete from history', error);
       });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const content = event.target?.result as string;
+      try {
+        const content = await readFileAsText(file);
         setInputValue(
           appendChatInput(
             inputValueRef.current,
@@ -712,8 +1165,10 @@ export function UniversalChat({
           ),
         );
         addToast(t('chat.fileAttached', { name: file.name }), 'success');
-      };
-      reader.readAsText(file);
+      } catch (err) {
+        console.error(`Failed to read file ${file.name}`, err);
+        addToast(t('chat.fileReadFailed'), 'error');
+      }
     }
     setShowAttachmentMenu(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -725,37 +1180,68 @@ export function UniversalChat({
     const files = e.target.files;
     if (files && files.length > 0) {
       addToast(t('chat.processingFiles', { count: files.length }), 'info');
-      let combinedContent = '';
+      const combinedContentParts: string[] = [];
+      let appendedInputLength = inputValueRef.current.length;
       let processedCount = 0;
-      
+      let isTruncated = false;
+
       for (let i = 0; i < files.length; i++) {
+        if (i > 0 && i % FOLDER_UPLOAD_YIELD_INTERVAL === 0) {
+          await yieldToMainThread();
+        }
+
+        if (
+          processedCount >= MAX_FOLDER_UPLOAD_TEXT_FILES ||
+          appendedInputLength >= MAX_FOLDER_UPLOAD_INPUT_CHARACTERS
+        ) {
+          isTruncated = true;
+          break;
+        }
+
         const file = files[i];
         // Skip files > 1MB or common binary extensions
-        if (file.size > 1024 * 1024) continue; 
+        if (file.size > 1024 * 1024) continue;
         if (file.name.match(/\.(png|jpe?g|gif|ico|pdf|zip|tar|gz|mp4|mp3|wav)$/i)) continue;
-        
+
         try {
-          const content = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (event) => resolve(event.target?.result as string);
-            reader.onerror = reject;
-            reader.readAsText(file);
-          });
-          
+          const content = await readFileAsText(file);
+
           // Only append if it looks like text (not binary)
           if (!content.includes('\x00')) {
             const path = file.webkitRelativePath || file.name;
-            combinedContent += `\n\nFile: ${path}\n\`\`\`\n${content}\n\`\`\`\n`;
+            const remainingInputBudget =
+              MAX_FOLDER_UPLOAD_INPUT_CHARACTERS - appendedInputLength;
+            const nextContentBlock = buildFolderUploadContentBlock(
+              path,
+              content,
+              Math.min(MAX_FOLDER_UPLOAD_FILE_CHARACTERS, remainingInputBudget),
+            );
+            const nextInputLength = appendedInputLength + nextContentBlock.length;
+            if (nextInputLength > MAX_FOLDER_UPLOAD_INPUT_CHARACTERS) {
+              isTruncated = true;
+              break;
+            }
+
+            combinedContentParts.push(nextContentBlock);
+            appendedInputLength = nextInputLength;
             processedCount++;
+            if (content.length > MAX_FOLDER_UPLOAD_FILE_CHARACTERS) {
+              isTruncated = true;
+            }
           }
         } catch (err) {
           console.error(`Failed to read ${file.name}`, err);
         }
       }
-      
+
       if (processedCount > 0) {
-        setInputValue(appendChatInput(inputValueRef.current, combinedContent));
-        addToast(t('chat.folderAttached', { count: processedCount }), 'success');
+        setInputValue(appendChatInput(inputValueRef.current, combinedContentParts.join('')));
+        addToast(
+          t(isTruncated ? 'chat.folderAttachedTruncated' : 'chat.folderAttached', {
+            count: processedCount,
+          }),
+          'success',
+        );
       } else {
         addToast(t('chat.noReadableFiles'), 'info');
       }
@@ -768,15 +1254,12 @@ export function UniversalChat({
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
         addToast(t('chat.imageTooLarge'), 'error');
+        setShowAttachmentMenu(false);
+        if (imageInputRef.current) imageInputRef.current.value = '';
         return;
       }
       try {
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (event) => resolve(event.target?.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+        const base64 = await readFileAsDataUrl(file);
         setInputValue(
           appendChatInput(inputValueRef.current, `\n![${file.name}](${base64})\n`),
         );
@@ -791,47 +1274,94 @@ export function UniversalChat({
   };
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const recognitionEnvironmentRef = useRef({
+    addToast,
+    setInputValue,
+    t,
+  });
+  recognitionEnvironmentRef.current = {
+    addToast,
+    setInputValue,
+    t,
+  };
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = false;
-        recognitionRef.current.interimResults = true;
-        
-        recognitionRef.current.onresult = (event: any) => {
-          let interimTranscript = '';
-          let finalTranscript = '';
-          
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
-            }
-          }
-          
-          if (finalTranscript) {
-            const currentInputValue = inputValueRef.current;
-            setInputValue(
-              currentInputValue + (currentInputValue ? ' ' : '') + finalTranscript,
-            );
-          }
-        };
-        
-        recognitionRef.current.onerror = (event: any) => {
-          console.error('Speech recognition error', event.error);
-          setIsListening(false);
-          addToast(t('chat.voiceInputError', { error: event.error }), 'error');
-        };
-        
-        recognitionRef.current.onend = () => {
-          setIsListening(false);
-        };
-      }
+    if (!isActive || typeof window === 'undefined' || recognitionRef.current) {
+      return;
     }
-  }, [addToast, setInputValue, t]);
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        }
+      }
+
+      if (!finalTranscript) {
+        return;
+      }
+
+      const { setInputValue: applyInputValue } = recognitionEnvironmentRef.current;
+      const currentInputValue = inputValueRef.current;
+      applyInputValue(
+        currentInputValue + (currentInputValue ? ' ' : '') + finalTranscript,
+      );
+    };
+
+    recognition.onerror = (event: any) => {
+      const environment = recognitionEnvironmentRef.current;
+      console.error('Speech recognition error', event.error);
+      setIsListening(false);
+      environment.addToast(
+        environment.t('chat.voiceInputError', { error: event.error }),
+        'error',
+      );
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+
+      try {
+        recognition.stop();
+      } catch (error) {
+        // Ignore stop failures when recognition is already inactive.
+      }
+
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+      }
+    };
+  }, [isActive]);
+
+  useEffect(() => {
+    if (isActive) {
+      return;
+    }
+
+    setIsListening((previousIsListening) =>
+      previousIsListening ? false : previousIsListening,
+    );
+  }, [isActive]);
 
   const toggleVoiceInput = () => {
     if (!recognitionRef.current) {
@@ -863,51 +1393,150 @@ export function UniversalChat({
     preferences,
   );
 
-  const handleSend = (textOverride?: string) => {
-    const currentInput = textOverride !== undefined ? textOverride : inputValue.trim();
-    const fullText = [...messageQueue, currentInput].filter(Boolean).join('\n\n');
-    
-    if (!disabled && fullText) {
-      void saveStoredPromptHistoryEntry(fullText)
-        .then((history) => {
-          syncGlobalPrompts(history);
-        })
-        .catch((error) => {
-          console.error('Failed to save global prompt history', error);
-        });
+  useEffect(() => {
+    setSelectedProvider((previousProvider) =>
+      previousProvider === resolvedSelectedEngineId
+        ? previousProvider
+        : resolvedSelectedEngineId,
+    );
+  }, [resolvedSelectedEngineId]);
 
-      if (chatId) {
-        void saveChatInputHistoryEntry(chatId, fullText)
-          .then((history) => {
-            chatHistoryRef.current = areStringListsEqual(chatHistoryRef.current, history)
-              ? chatHistoryRef.current
-              : history;
-          })
-          .catch((error) => {
-            console.error('Failed to save chat history', error);
-          });
+  const persistSubmittedPromptHistory = useCallback(
+    async (submittedText: string) => {
+      if (!normalizedSessionId) {
+        pendingPromptHistoryEntriesRef.current = [
+          ...pendingPromptHistoryEntriesRef.current,
+          submittedText,
+        ];
+        return;
       }
-      setHistoryIndex(-1);
-      setTempInput('');
-      setMessageQueue((previousQueue) => (previousQueue.length === 0 ? previousQueue : []));
-      onSendMessage(fullText);
+
+      const history = await saveSessionPromptHistoryEntry(submittedText, normalizedSessionId);
+      syncHistoryPrompts(history);
+      const nextChatHistory = promptEntriesToSessionChatInputHistory(history);
+      sessionChatInputHistoryRef.current = areStringListsEqual(sessionChatInputHistoryRef.current, nextChatHistory)
+        ? sessionChatInputHistoryRef.current
+        : nextChatHistory;
+    },
+    [normalizedSessionId],
+  );
+
+  const handleSend = async (textOverride?: string) => {
+    const currentInput = textOverride !== undefined ? textOverride.trim() : inputValue.trim();
+    if (disabled) {
+      return;
+    }
+
+    if (isComposerBusy) {
+      if (!currentInput) {
+        return;
+      }
+
+      setMessageQueue((previousQueue) => [...previousQueue, currentInput]);
+      clearInputValue();
+      addToast(t('chat.messageQueued'), 'success');
+      return;
+    }
+
+    const fullText = [...messageQueue, currentInput].filter(Boolean).join('\n\n');
+    if (!fullText) {
+      return;
+    }
+
+    const queuedMessagesSnapshot = [...messageQueue];
+    const currentInputSnapshot = currentInput;
+    setHistoryIndex(-1);
+    setTempInput('');
+    clearInputValue();
+    setMessageQueue((previousQueue) => (previousQueue.length === 0 ? previousQueue : []));
+    setIsDispatchingMessage(true);
+
+    try {
+      try {
+        await Promise.resolve(onSendMessage(fullText));
+      } catch (error) {
+        setInputValue((previousInputValue) =>
+          resolveComposerInputAfterSendFailure(currentInputSnapshot, previousInputValue),
+        );
+        setMessageQueue((previousQueue) =>
+          restoreQueuedMessagesAfterSendFailure(queuedMessagesSnapshot, previousQueue),
+        );
+        addToast(
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : t('chat.sendMessageFailed'),
+          'error',
+        );
+        return;
+      }
+
+      try {
+        await persistSubmittedPromptHistory(fullText);
+      } catch (error) {
+        console.error('Failed to persist prompt history after successful send', error);
+      }
+    } finally {
+      setIsDispatchingMessage(false);
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
+    if (messages.length === 0) {
+      lastScrollSnapshotRef.current = null;
+      shouldStickTranscriptToBottomRef.current = true;
+      return;
+    }
+
+    const nextSnapshot: ChatScrollSnapshot = {
+      contentLength: lastMessageContentLength,
+      messageCount: messages.length,
+      messageId: lastMessage?.id ?? '',
+    };
+    const shouldAutoScroll =
+      lastScrollSnapshotRef.current === null ||
+      shouldStickTranscriptToBottomRef.current;
+    const scrollBehavior = resolveChatScrollBehavior(
+      lastScrollSnapshotRef.current,
+      nextSnapshot,
+    );
+    lastScrollSnapshotRef.current = nextSnapshot;
+
+    if (typeof window === 'undefined' || !shouldAutoScroll) {
+      return;
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: scrollBehavior,
+        block: 'end',
+      });
+      shouldStickTranscriptToBottomRef.current = true;
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [isActive, lastMessage?.createdAt, lastMessage?.id, lastMessageContentLength, messages.length]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [lastMessage?.createdAt, lastMessage?.id, lastMessageContentLength, messages.length]);
+    if (!isActive) {
+      return;
+    }
 
-  useEffect(() => {
     if (textareaRef.current) {
+      const measuredScrollHeight = textareaRef.current.scrollHeight;
+      const targetHeight =
+        manualComposerHeight === null
+          ? Math.min(measuredScrollHeight, AUTO_RESIZE_TEXTAREA_MAX_HEIGHT)
+          : clampComposerHeight(manualComposerHeight);
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+      textareaRef.current.style.height = `${Math.max(24, targetHeight)}px`;
     }
-  }, [inputValue]);
+  }, [inputValue, isActive, manualComposerHeight]);
 
   const hasOpenFloatingMenu = showModelMenu || showAttachmentMenu;
 
@@ -927,15 +1556,19 @@ export function UniversalChat({
   );
 
   useEffect(() => {
-    if (!hasOpenFloatingMenu) {
+    if (!isActive || !hasOpenFloatingMenu) {
       return;
     }
 
     document.addEventListener('mousedown', handleFloatingMenuClickOutside);
     return () => document.removeEventListener('mousedown', handleFloatingMenuClickOutside);
-  }, [handleFloatingMenuClickOutside, hasOpenFloatingMenu]);
+  }, [handleFloatingMenuClickOutside, hasOpenFloatingMenu, isActive]);
 
   useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
     const handleFocus = () => {
       if (!disabled && textareaRef.current) {
         textareaRef.current.focus();
@@ -943,40 +1576,59 @@ export function UniversalChat({
     };
     const unsubscribe = globalEventBus.on('focusChatInput', handleFocus);
     return () => unsubscribe();
-  }, [disabled]);
+  }, [disabled, isActive]);
+
+  useEffect(() => {
+    if (isActive) {
+      return;
+    }
+
+    if (showModelMenu) {
+      setShowModelMenu(false);
+    }
+
+    if (showAttachmentMenu) {
+      setShowAttachmentMenu(false);
+    }
+
+    if (showPromptModal) {
+      setShowPromptModal(false);
+    }
+  }, [isActive, showAttachmentMenu, showModelMenu, showPromptModal]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Tab') {
       e.preventDefault();
       if (inputValue.trim()) {
-        if (!isSending) {
-          handleSend();
-        } else {
-          const queuedMessage = inputValue.trim();
-          setMessageQueue((previousQueue) => [...previousQueue, queuedMessage]);
-          setInputValue('');
-          addToast(t('chat.messageQueued'), 'success');
-        }
+        void handleSend();
       }
     } else if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      void handleSend();
     } else if (e.key === 'ArrowUp') {
-      if (chatId && textareaRef.current && textareaRef.current.selectionStart === 0) {
-        if (chatHistoryRef.current.length > 0 && historyIndex < chatHistoryRef.current.length - 1) {
+      if (
+        normalizedSessionId &&
+        textareaRef.current &&
+        textareaRef.current.selectionStart === 0
+      ) {
+        if (sessionChatInputHistoryRef.current.length > 0 && historyIndex < sessionChatInputHistoryRef.current.length - 1) {
           if (historyIndex === -1) setTempInput(inputValue);
           const nextIndex = historyIndex + 1;
           setHistoryIndex(nextIndex);
-          setInputValue(chatHistoryRef.current[nextIndex]);
+          setInputValue(sessionChatInputHistoryRef.current[nextIndex]);
           e.preventDefault();
         }
       }
     } else if (e.key === 'ArrowDown') {
-      if (chatId && textareaRef.current && textareaRef.current.selectionEnd === inputValue.length) {
+      if (
+        normalizedSessionId &&
+        textareaRef.current &&
+        textareaRef.current.selectionEnd === inputValue.length
+      ) {
         if (historyIndex > 0) {
           const prevIndex = historyIndex - 1;
           setHistoryIndex(prevIndex);
-          setInputValue(chatHistoryRef.current[prevIndex]);
+          setInputValue(sessionChatInputHistoryRef.current[prevIndex]);
           e.preventDefault();
         } else if (historyIndex === 0) {
           setHistoryIndex(-1);
@@ -987,9 +1639,28 @@ export function UniversalChat({
     }
   };
 
+  const canSendQueuedOrTypedMessage =
+    !disabled && (inputValue.trim().length > 0 || messageQueue.length > 0);
+  const handleComposerResize = useCallback((delta: number) => {
+    const textareaElement = textareaRef.current;
+    const measuredHeight = textareaElement
+      ? Math.max(
+          textareaElement.clientHeight,
+          textareaElement.scrollHeight,
+          RESIZABLE_COMPOSER_MIN_HEIGHT,
+        )
+      : RESIZABLE_COMPOSER_MIN_HEIGHT;
+    const nextHeight = clampComposerHeight((manualComposerHeight ?? measuredHeight) - delta);
+    setManualComposerHeight(nextHeight);
+  }, [manualComposerHeight]);
+
   return (
-    <div className={`flex min-w-0 overflow-hidden flex-col h-full bg-[#0e0e11] relative ${className}`}>
+    <div className={`flex flex-1 h-full w-full min-w-0 overflow-hidden flex-col bg-[#0e0e11] relative ${className}`}>
       <style>{`
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+        }
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
           height: 6px;
@@ -1009,16 +1680,15 @@ export function UniversalChat({
         <div className="shrink-0 border-b border-white/10 bg-[#0e0e11]/95 px-4 py-3 backdrop-blur-sm">
           <div className="flex items-center justify-between gap-4">
             {showEngineHeader ? (
-              <div className="min-w-0 flex items-center gap-3">
-                <WorkbenchCodeEngineIcon engineId={currentEngine.id} size="md" />
+              <div className="min-w-0">
                 <div className="min-w-0">
                   <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-gray-500">
                     {t('chat.codeEngine')}
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="truncate font-semibold text-white">{currentEngine.label}</span>
-                    <span className="text-gray-600">/</span>
-                    <span className="truncate text-gray-300">{currentModelLabel}</span>
+                    <span className="truncate whitespace-nowrap font-semibold text-white">
+                      {currentEngineSummary}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1030,24 +1700,40 @@ export function UniversalChat({
         </div>
       ) : null}
 
-      <div className={`flex-1 min-w-0 overflow-x-hidden overflow-y-auto custom-scrollbar flex flex-col ${layout === 'sidebar' ? 'gap-6 p-4 pb-32' : 'pb-40'}`}>
+      <div
+        ref={transcriptScrollContainerRef}
+        className={`flex-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto custom-scrollbar flex flex-col ${layout === 'sidebar' ? 'gap-4 p-4 pb-4' : 'pb-6'}`}
+        style={{ overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}
+      >
         <UniversalChatTranscript
           emptyState={emptyState}
           environmentRef={transcriptEnvironmentRef}
+          isActive={isActive}
           layout={layout}
           localeKey={i18n.resolvedLanguage ?? i18n.language ?? ''}
           messages={normalizedMessages}
           messagesEndRef={messagesEndRef}
+          scrollContainerRef={transcriptScrollContainerRef}
+          shouldStickToBottomRef={shouldStickTranscriptToBottomRef}
         />
       </div>
 
       {/* Input Area */}
-      <div className={`absolute bottom-0 left-0 right-0 ${layout === 'sidebar' ? 'p-4 pt-10' : 'p-6 pt-12'} bg-gradient-to-t from-[#0e0e11] via-[#0e0e11] to-transparent`}>
+      <div className={`shrink-0 ${layout === 'sidebar' ? 'px-4 pb-4 pt-3' : 'px-5 pb-5 pt-4'} bg-transparent`}>
         <div className={`mx-auto ${layout === 'main' ? 'max-w-3xl' : 'w-full'}`}>
-          <div 
-            className={`bg-[#18181b] rounded-2xl border p-3 flex flex-col gap-2 shadow-lg transition-all duration-300 ${isFocused ? 'border-white/20 shadow-white/5' : 'border-white/10'}`}
-            style={{ animationDelay: '150ms' }}
-          >
+          <div className="group/composer relative">
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center opacity-0 transition-opacity duration-150 group-hover/composer:opacity-100 group-focus-within/composer:opacity-100">
+              <div className="mt-[1px] h-1 w-16 rounded-full bg-blue-400/55 shadow-[0_0_14px_rgba(96,165,250,0.35)]" />
+            </div>
+            <ResizeHandle
+              className="absolute left-4 right-4 top-0 z-20 opacity-0 transition-opacity duration-150 group-hover/composer:opacity-100 group-focus-within/composer:opacity-100 bg-transparent hover:bg-blue-400/75"
+              direction="vertical"
+              onResize={handleComposerResize}
+            />
+            <div 
+              className={`bg-[#18181b]/88 backdrop-blur-xl rounded-2xl border p-3 flex flex-col gap-2 shadow-lg transition-all duration-300 ${isFocused ? 'border-white/20 shadow-white/5' : 'border-white/10'}`}
+              style={{ animationDelay: '150ms' }}
+            >
             <div className="relative flex-1">
               {messageQueue.length > 0 && (
                 <div className="relative mb-2">
@@ -1203,9 +1889,12 @@ export function UniversalChat({
               onBlur={() => setIsFocused(false)}
               onKeyDown={handleKeyDown}
               placeholder={disabled ? t('chat.placeholderDisabled') : t('chat.placeholderEnabled')}
-              className={`w-full bg-transparent outline-none text-[15px] placeholder-gray-500 text-white resize-none min-h-[24px] max-h-[200px] overflow-y-auto px-1 custom-scrollbar ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`w-full bg-transparent outline-none text-[15px] placeholder-gray-500 text-white resize-none min-h-[24px] overflow-y-auto px-1 custom-scrollbar ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               rows={1}
               disabled={disabled}
+              style={{
+                maxHeight: `${manualComposerHeight ?? AUTO_RESIZE_TEXTAREA_MAX_HEIGHT}px`,
+              }}
             />
             </div>
             <div className="flex items-center justify-between mt-2">
@@ -1267,7 +1956,7 @@ export function UniversalChat({
                       }}
                     >
                       <WorkbenchCodeEngineIcon engineId={currentEngine.id} />
-                      <span className="text-[11px] font-medium">{`${currentEngine.label} / ${currentModelLabel}`}</span>
+                      <span className="text-[11px] font-medium">{currentEngineSummary}</span>
                       <ChevronDown size={12} />
                     </div>
                     
@@ -1323,8 +2012,7 @@ export function UniversalChat({
                                 key={model.id}
                                 className={`px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center justify-between gap-3 mx-1 rounded-md transition-colors text-xs ${currentModelId === model.id ? 'text-blue-400 font-medium bg-blue-500/10' : 'text-gray-300'}`}
                                 onClick={() => {
-                                  setSelectedEngineId?.(selectedProvider);
-                                  setSelectedModelId?.(model.id);
+                                  setSelectedModelId?.(model.id, selectedProvider);
                                   setShowModelMenu(false);
                                 }}
                               >
@@ -1369,26 +2057,29 @@ export function UniversalChat({
                 >
                   <Mic size={16} className={isListening ? "animate-pulse" : ""} />
                 </Button>
-                {isSending ? (
-                  <Button 
+                {isComposerBusy ? (
+                  <Button
                     size="icon"
-                    className="h-8 w-8 rounded-full transition-all duration-200 bg-white/10 hover:bg-white/20 text-white shadow-lg"
-                    onClick={onStop}
-                    title={t('chat.stopGenerating')}
+                    className="h-8 w-8 rounded-full transition-all duration-200 bg-white/5 text-gray-400"
+                    disabled
+                    title={t('chat.generatingResponse')}
                   >
-                    <Square size={12} className="fill-current" />
+                    <Loader2 size={14} className="animate-spin" />
                   </Button>
                 ) : (
                   <Button 
                     size="icon"
-                    className={`h-8 w-8 rounded-full transition-all duration-200 ${inputValue.trim() && !disabled ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-white/5 text-gray-500'}`}
-                    onClick={() => handleSend()}
-                    disabled={!inputValue.trim() || disabled}
+                    className={`h-8 w-8 rounded-full transition-all duration-200 ${canSendQueuedOrTypedMessage ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-white/5 text-gray-500'}`}
+                    onClick={() => {
+                      void handleSend();
+                    }}
+                    disabled={!canSendQueuedOrTypedMessage}
                     title={t('chat.sendMessage')}
                   >
                     <ArrowUp size={16} />
                   </Button>
                 )}
+              </div>
               </div>
             </div>
           </div>
@@ -1425,13 +2116,15 @@ export function UniversalChat({
             
             <div className="flex-1 overflow-y-auto p-2 custom-scrollbar min-h-[300px]">
               {promptTab === 'history' ? (
-                globalPrompts.length > 0 ? (
-                  globalPrompts.map((p, i) => (
+                historyPrompts.length > 0 ? (
+                  historyPrompts.map((p, i) => (
                     <div key={i} className="group flex items-start justify-between p-3 hover:bg-white/5 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-white/5" onClick={() => { 
                       if (autoSendPrompt) {
                         setInputValue(p.text);
                         setShowPromptModal(false);
-                        setTimeout(() => handleSend(p.text), 50);
+                        setTimeout(() => {
+                          void handleSend(p.text);
+                        }, 50);
                       } else {
                         setInputValue(p.text);
                         setShowPromptModal(false);
@@ -1464,7 +2157,9 @@ export function UniversalChat({
                       if (autoSendPrompt) {
                         setInputValue(p.text);
                         setShowPromptModal(false);
-                        setTimeout(() => handleSend(p.text), 50);
+                        setTimeout(() => {
+                          void handleSend(p.text);
+                        }, 50);
                       } else {
                         setInputValue(p.text);
                         setShowPromptModal(false);
@@ -1506,4 +2201,6 @@ export function UniversalChat({
       )}
     </div>
   );
-}
+});
+
+UniversalChat.displayName = 'UniversalChat';

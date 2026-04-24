@@ -5,24 +5,22 @@ import {
   type SetStateAction,
 } from 'react';
 import {
+  buildProjectCodingSessionIndex,
   buildTerminalProfileBlockedMessage,
+  emitOpenTerminalRequest,
   getDefaultRunConfigurations,
   globalEventBus,
   resolveRunConfigurationTerminalLaunch,
-} from '@sdkwork/birdcoder-commons/workbench';
-import type {
-  RunConfigurationRecord,
-  TerminalCommandRequest,
-} from '@sdkwork/birdcoder-commons/workbench';
+  type RunConfigurationRecord,
+  type TerminalCommandRequest,
+} from '@sdkwork/birdcoder-commons';
 import type { BirdCoderProject, FileChange } from '@sdkwork/birdcoder-types';
 
 type ToastVariant = 'success' | 'info' | 'error';
 
 interface UseStudioWorkbenchEventBindingsOptions {
   addToast: (message: string, variant: ToastVariant) => void;
-  createCodingSessionWithSelectionRef: MutableRefObject<
-    (projectId: string, title: string) => Promise<{ id: string }>
-  >;
+  isActive?: boolean;
   currentProjectIdRef: MutableRefObject<string>;
   defaultWorkingDirectoryRef: MutableRefObject<string>;
   projectsRef: MutableRefObject<BirdCoderProject[]>;
@@ -42,13 +40,9 @@ interface UseStudioWorkbenchEventBindingsOptions {
   t: (key: string, options?: Record<string, unknown>) => string;
 }
 
-function listCodingSessions(projects: BirdCoderProject[]) {
-  return projects.flatMap((project) => project.codingSessions);
-}
-
 export function useStudioWorkbenchEventBindings({
   addToast,
-  createCodingSessionWithSelectionRef,
+  isActive = true,
   currentProjectIdRef,
   defaultWorkingDirectoryRef,
   projectsRef,
@@ -66,18 +60,18 @@ export function useStudioWorkbenchEventBindings({
   t,
 }: UseStudioWorkbenchEventBindingsOptions) {
   useEffect(() => {
-    const handleOpenTerminal = (path?: string, command?: string) => {
+    if (!isActive) {
+      return undefined;
+    }
+
+    const handleOpenTerminal = () => {
       setIsTerminalOpen(true);
-      setTerminalRequest({ path, command, timestamp: Date.now() });
     };
     const handleCloseTerminal = () => {
       setIsTerminalOpen(false);
     };
     const handleToggleTerminal = () => {
       setIsTerminalOpen((previousState) => !previousState);
-    };
-    const handleSplitTerminal = () => {
-      addToast(t('terminal.splitTerminalNotSupported'), 'info');
     };
     const handleTerminalRequest = (request: TerminalCommandRequest) => {
       setTerminalRequest(request);
@@ -95,10 +89,12 @@ export function useStudioWorkbenchEventBindings({
         return;
       }
 
-      const allSessions = listCodingSessions(projectsRef.current);
-      const currentIndex = allSessions.findIndex((session) => session.id === activeCodingSessionId);
-      if (currentIndex > 0) {
-        selectCodingSessionRef.current(allSessions[currentIndex - 1].id);
+      const previousCodingSessionId =
+        buildProjectCodingSessionIndex(projectsRef.current).previousCodingSessionIdById.get(
+          activeCodingSessionId,
+        ) ?? null;
+      if (previousCodingSessionId) {
+        selectCodingSessionRef.current(previousCodingSessionId);
       }
     };
     const handleNextCodingSession = () => {
@@ -107,10 +103,12 @@ export function useStudioWorkbenchEventBindings({
         return;
       }
 
-      const allSessions = listCodingSessions(projectsRef.current);
-      const currentIndex = allSessions.findIndex((session) => session.id === activeCodingSessionId);
-      if (currentIndex !== -1 && currentIndex < allSessions.length - 1) {
-        selectCodingSessionRef.current(allSessions[currentIndex + 1].id);
+      const nextCodingSessionId =
+        buildProjectCodingSessionIndex(projectsRef.current).nextCodingSessionIdById.get(
+          activeCodingSessionId,
+        ) ?? null;
+      if (nextCodingSessionId) {
+        selectCodingSessionRef.current(nextCodingSessionId);
       }
     };
     const handleRevealInExplorer = async (targetPath: string) => {
@@ -125,25 +123,6 @@ export function useStudioWorkbenchEventBindings({
       } catch (error) {
         console.error('Failed to reveal in explorer', error);
         addToast(t('studio.revealedInExplorer', { path: targetPath }), 'info');
-      }
-    };
-    const handleCreateNewCodingSession = async () => {
-      const activeProjectId = currentProjectIdRef.current;
-      if (!activeProjectId) {
-        addToast(t('studio.pleaseSelectProject'), 'error');
-        return;
-      }
-
-      try {
-        const newThread = await createCodingSessionWithSelectionRef.current(
-          activeProjectId,
-          t('studio.newThread'),
-        );
-        selectCodingSessionRef.current(newThread.id, { projectId: activeProjectId });
-        addToast(t('studio.newThreadCreated'), 'success');
-      } catch (error) {
-        console.error('Failed to create thread', error);
-        addToast(t('studio.failedToCreateThread'), 'error');
       }
     };
     const handleRunTask = () => {
@@ -185,8 +164,7 @@ export function useStudioWorkbenchEventBindings({
           return;
         }
 
-        globalEventBus.emit('openTerminal');
-        globalEventBus.emit('terminalRequest', launch.request);
+        emitOpenTerminalRequest(launch.request);
         addToast(t('studio.startingApplication'), 'info');
       })();
     };
@@ -213,14 +191,12 @@ export function useStudioWorkbenchEventBindings({
     globalEventBus.on('openTerminal', handleOpenTerminal);
     globalEventBus.on('closeTerminal', handleCloseTerminal);
     globalEventBus.on('toggleTerminal', handleToggleTerminal);
-    globalEventBus.on('splitTerminal', handleSplitTerminal);
     globalEventBus.on('terminalRequest', handleTerminalRequest);
     globalEventBus.on('saveActiveFile', handleSaveActiveFile);
     globalEventBus.on('saveAllFiles', handleSaveAllFiles);
     globalEventBus.on('previousCodingSession', handlePreviousCodingSession);
     globalEventBus.on('nextCodingSession', handleNextCodingSession);
     globalEventBus.on('revealInExplorer', handleRevealInExplorer);
-    globalEventBus.on('createNewCodingSession', handleCreateNewCodingSession);
     globalEventBus.on('runTask', handleRunTask);
     globalEventBus.on('startDebugging', handleStartDebugging);
     globalEventBus.on('runWithoutDebugging', handleRunWithoutDebugging);
@@ -233,14 +209,12 @@ export function useStudioWorkbenchEventBindings({
       globalEventBus.off('openTerminal', handleOpenTerminal);
       globalEventBus.off('closeTerminal', handleCloseTerminal);
       globalEventBus.off('toggleTerminal', handleToggleTerminal);
-      globalEventBus.off('splitTerminal', handleSplitTerminal);
       globalEventBus.off('terminalRequest', handleTerminalRequest);
       globalEventBus.off('saveActiveFile', handleSaveActiveFile);
       globalEventBus.off('saveAllFiles', handleSaveAllFiles);
       globalEventBus.off('previousCodingSession', handlePreviousCodingSession);
       globalEventBus.off('nextCodingSession', handleNextCodingSession);
       globalEventBus.off('revealInExplorer', handleRevealInExplorer);
-      globalEventBus.off('createNewCodingSession', handleCreateNewCodingSession);
       globalEventBus.off('runTask', handleRunTask);
       globalEventBus.off('startDebugging', handleStartDebugging);
       globalEventBus.off('runWithoutDebugging', handleRunWithoutDebugging);
@@ -251,9 +225,9 @@ export function useStudioWorkbenchEventBindings({
     };
   }, [
     addToast,
-    createCodingSessionWithSelectionRef,
     currentProjectIdRef,
     defaultWorkingDirectoryRef,
+    isActive,
     projectsRef,
     runConfigurationsRef,
     selectedCodingSessionIdRef,

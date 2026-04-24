@@ -1,4 +1,9 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import {
+  BIRDCODER_DEFAULT_LOCAL_API_BASE_URL,
+  createBirdHostDescriptorFromDistribution,
+} from '../packages/sdkwork-birdcoder-host-core/src/index.ts';
 
 interface CapturedRequest {
   method: string;
@@ -29,12 +34,20 @@ function readRequestUrl(input: URL | RequestInfo): string {
   return input.url;
 }
 
-const serverEntryModulePath = new URL(
+const serverEntrySourcePath = new URL(
   '../packages/sdkwork-birdcoder-server/src/index.ts',
   import.meta.url,
 );
-const infrastructureEntryModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/index.ts',
+const serverRuntimeDefaultIdeServicesRuntimeModulePath = new URL(
+  '../packages/sdkwork-birdcoder-server/node_modules/@sdkwork/birdcoder-infrastructure/src/services/defaultIdeServicesRuntime.ts',
+  import.meta.url,
+);
+const appAdminApiClientModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
+  import.meta.url,
+);
+const serverApiModulePath = new URL(
+  '../packages/sdkwork-birdcoder-types/src/server-api.ts',
   import.meta.url,
 );
 
@@ -162,24 +175,85 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
 }) as typeof fetch;
 
 try {
-  const { bindBirdCoderServerRuntimeTransport } = await import(
-    `${serverEntryModulePath.href}?t=${Date.now()}`
+  const {
+    bindDefaultBirdCoderIdeServicesRuntime,
+    getDefaultBirdCoderIdeServicesRuntimeConfig,
+    resetDefaultBirdCoderIdeServicesRuntimeForTests,
+  } = await import(serverRuntimeDefaultIdeServicesRuntimeModulePath.href);
+  const { createBirdCoderHttpApiTransport } = await import(
+    `${appAdminApiClientModulePath.href}?t=${Date.now()}`
   );
   const {
-    createDefaultBirdCoderIdeServices,
-    resetDefaultBirdCoderIdeServicesRuntimeForTests,
-  } = await import(`${infrastructureEntryModulePath.href}?t=${Date.now()}`);
+    createBirdCoderGeneratedAppAdminApiClient,
+    createBirdCoderGeneratedCoreReadApiClient,
+  } = await import(`${serverApiModulePath.href}?t=${Date.now()}`);
 
   resetDefaultBirdCoderIdeServicesRuntimeForTests();
-  bindBirdCoderServerRuntimeTransport({
-    distributionId: 'cn',
+  const serverIndexSource = readFileSync(serverEntrySourcePath, 'utf8');
+  assert.match(
+    serverIndexSource,
+    /export async function bindBirdCoderServerRuntimeTransport\(/u,
+    'coding-server entry must continue to expose the canonical runtime transport binder.',
+  );
+  assert.match(
+    serverIndexSource,
+    /const host = options\.host \?\? resolveServerRuntime\(options\.distributionId\);/u,
+    'server runtime binding must continue to derive the host descriptor from the canonical server runtime resolver when no host override is supplied.',
+  );
+  assert.match(
+    serverIndexSource,
+    /cn:\s*'https:\/\/cn\.sdkwork\.local\/birdcoder'/u,
+    'server runtime binding must keep the cn runtime transport base URL normalized to the canonical authority host.',
+  );
+  assert.match(
+    serverIndexSource,
+    /options\.apiBaseUrl \?\?\s*\(options\.host \? undefined : BIRD_SERVER_RUNTIME_TRANSPORT_BASE_URLS\[distributionId\]\)/u,
+    'server runtime binding must continue to prefer the canonical runtime transport base URL when only a distribution id is supplied.',
+  );
+
+  const host = createBirdHostDescriptorFromDistribution(
+    'server',
+    {
+      id: 'cn',
+      appId: 'sdkwork-birdcoder-cn',
+      appName: 'SDKWork BirdCoder',
+      apiBaseUrl: BIRDCODER_DEFAULT_LOCAL_API_BASE_URL,
+    },
+  );
+  bindDefaultBirdCoderIdeServicesRuntime({
+    apiBaseUrl: 'https://cn.sdkwork.local/birdcoder',
+    host,
   });
 
-  const services = createDefaultBirdCoderIdeServices();
+  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
+  assert.equal(
+    runtimeConfig.apiBaseUrl,
+    'https://cn.sdkwork.local/birdcoder',
+    'server runtime binding must normalize the distribution host base URL without adding an extra /api segment.',
+  );
+  assert.equal(runtimeConfig.executionAuthorityMode, 'remote-required');
 
-  await services.workspaceService.getWorkspaces();
-  await services.projectService.getProjects('workspace-server-runtime-contract');
-  await services.teamService.getTeams('workspace-server-runtime-contract');
+  const transport = createBirdCoderHttpApiTransport({
+    baseUrl: runtimeConfig.apiBaseUrl!,
+    fetchImpl: globalThis.fetch,
+  });
+  const appAdminClient = createBirdCoderGeneratedAppAdminApiClient({
+    transport,
+  });
+  const coreReadClient = createBirdCoderGeneratedCoreReadApiClient({
+    transport,
+  });
+
+  await appAdminClient.listWorkspaces();
+  await appAdminClient.listProjects({
+    workspaceId: 'workspace-server-runtime-contract',
+  });
+  await coreReadClient.listCodingSessions({
+    workspaceId: 'workspace-server-runtime-contract',
+  });
+  await appAdminClient.listTeams({
+    workspaceId: 'workspace-server-runtime-contract',
+  });
 
   assert.deepEqual(
     requests,
@@ -201,7 +275,7 @@ try {
         url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/teams?workspaceId=workspace-server-runtime-contract',
       },
     ],
-    'server runtime binding must normalize the distribution host base URL and route both app and core authority calls without duplicating the /api prefix.',
+    'server runtime binding must normalize the distribution host base URL and generated clients must route both app and core authority calls without duplicating the /api prefix.',
   );
 
   resetDefaultBirdCoderIdeServicesRuntimeForTests();

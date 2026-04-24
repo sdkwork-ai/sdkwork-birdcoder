@@ -245,42 +245,6 @@ fs.writeFileSync(
   }, null, 2),
 );
 fs.writeFileSync(
-  path.join(releaseAssetsDir, 'terminal', 'governance', 'terminal-governance-diagnostics.json'),
-  JSON.stringify({
-    scope: 'terminal-governance',
-    generatedAt: '2026-04-08T12:14:00.000Z',
-    summary: {
-      totalRecords: 1,
-      blockedRecords: 1,
-      riskLevels: ['P3'],
-      approvalPolicies: ['Restricted'],
-    },
-    records: [
-      {
-        traceId: 'terminal-governance:test',
-        recordedAt: 1712577840000,
-        profileId: 'powershell',
-        cwd: 'D:/workspace/app',
-        command: 'rm -rf .',
-        reason: 'Restricted policy blocked high-risk terminal command.',
-        approvalPolicy: 'Restricted',
-        category: 'dangerous.command',
-        engine: 'birdcoder',
-        tool: 'terminal.exec',
-        riskLevel: 'P3',
-        approvalDecision: 'blocked',
-        inputDigest: 'in',
-        outputDigest: 'out',
-        artifactRefs: ['cwd:D:/workspace/app'],
-        operator: 'terminal:powershell',
-        recoveryActionId: 'open-settings',
-        recoveryActionLabel: 'Open Settings',
-        recoveryDescription: 'Review terminal approval settings or rerun a safer command: rm -rf .',
-      },
-    ],
-  }, null, 2),
-);
-fs.writeFileSync(
   qualityExecutionReportSourcePath,
   JSON.stringify({
     status: 'blocked',
@@ -438,14 +402,6 @@ assert.deepEqual(manifest.testEvidence, {
   projectIds: ['project-1'],
   latestLaunchedAt: 1712577780000,
 });
-assert.deepEqual(manifest.governanceEvidence, {
-  archiveRelativePath: 'terminal/governance/terminal-governance-diagnostics.json',
-  entryCount: 1,
-  blockedRecords: 1,
-  riskLevels: ['P3'],
-  approvalPolicies: ['Restricted'],
-  latestRecordedAt: 1712577840000,
-});
 const qualityReportPath = path.join(releaseAssetsDir, manifest.qualityEvidence.archiveRelativePath);
 assert.ok(fs.existsSync(qualityReportPath));
 const qualityReport = JSON.parse(fs.readFileSync(qualityReportPath, 'utf8'));
@@ -494,7 +450,6 @@ assert.deepEqual(manifest.qualityEvidence, {
 });
 const expectedManifestStopShipSignals = collectReleaseStopShipSignals({
   qualityEvidence: manifest.qualityEvidence,
-  governanceEvidence: manifest.governanceEvidence,
   assets: manifest.assets,
 });
 assert.deepEqual(manifest.stopShipSignals, expectedManifestStopShipSignals);
@@ -527,7 +482,6 @@ assert.deepEqual(rerunManifest.qualityEvidence.executionBlockingDiagnosticIds, [
 assert.deepEqual(rerunManifest.qualityEvidence.loopScoreboard, expectedLoopScoreboard);
 const expectedRerunStopShipSignals = collectReleaseStopShipSignals({
   qualityEvidence: rerunManifest.qualityEvidence,
-  governanceEvidence: rerunManifest.governanceEvidence,
   assets: rerunManifest.assets,
 });
 assert.deepEqual(rerunManifest.stopShipSignals, expectedRerunStopShipSignals);
@@ -578,7 +532,6 @@ assert.deepEqual(degradedManifest.qualityEvidence.releaseReadinessSignals, [
 ]);
 const expectedDegradedStopShipSignals = collectReleaseStopShipSignals({
   qualityEvidence: degradedManifest.qualityEvidence,
-  governanceEvidence: degradedManifest.governanceEvidence,
   assets: degradedManifest.assets,
 });
 assert.deepEqual(degradedManifest.stopShipSignals, expectedDegradedStopShipSignals);

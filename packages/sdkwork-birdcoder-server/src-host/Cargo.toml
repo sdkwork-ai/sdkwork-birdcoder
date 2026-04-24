@@ -7,15 +7,19 @@ edition = "2021"
 argon2 = "0.5"
 axum = { version = "0.8", features = ["ws"] }
 base64 = "0.22"
+hmac = "0.12"
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
 sdkwork-birdcoder-codeengine = { path = "../../sdkwork-birdcoder-codeengine/src-host" }
+sdkwork-birdcoder-git = { path = "../../sdkwork-birdcoder-git/src-host" }
+sdkwork_user_center_native = { path = "../../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react/native/tauri-rust" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
 tower-http = { version = "0.6", features = ["cors"] }
 time = { version = "0.3", features = ["formatting", "parsing"] }
 ureq = "2"
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "v5"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

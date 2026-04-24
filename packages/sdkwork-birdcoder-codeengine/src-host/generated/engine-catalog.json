@@ -1,6 +1,11 @@
 {
   "engines": [
     {
+      "id": "engine-registry:codex",
+      "uuid": "656e6769-6e65-2d72-6567-69737472793a",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "codex",
       "displayName": "Codex",
       "vendor": "OpenAI",
@@ -12,8 +17,8 @@
         "server"
       ],
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {
         "chat": true,
@@ -72,9 +77,29 @@
           }
         ]
       },
-      "defaultModelId": "codex"
+      "officialIntegration": {
+        "integrationClass": "official-sdk",
+        "runtimeMode": "sdk",
+        "officialEntry": {
+          "packageName": "@openai/codex-sdk",
+          "cliPackageName": "@openai/codex",
+          "sdkPath": "external/codex/sdk/typescript",
+          "sourceMirrorPath": "external/codex/sdk/typescript",
+          "supplementalLanes": [
+            "CLI JSONL"
+          ]
+        },
+        "notes": "BirdCoder standardizes Codex on the official TypeScript SDK contract while keeping the Rust-native CLI JSONL authority lane as the production baseline."
+      },
+      "defaultModelId": "gpt-5.4",
+      "status": "active"
     },
     {
+      "id": "engine-registry:claude-code",
+      "uuid": "656e6769-6e65-2d72-6567-69737472793a",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "claude-code",
       "displayName": "Claude Code",
       "vendor": "Anthropic",
@@ -146,9 +171,31 @@
           }
         ]
       },
-      "defaultModelId": "claude-code"
+      "officialIntegration": {
+        "integrationClass": "official-sdk",
+        "runtimeMode": "sdk",
+        "officialEntry": {
+          "packageName": "@anthropic-ai/claude-agent-sdk",
+          "cliPackageName": "claude-code",
+          "sdkPath": null,
+          "sourceMirrorPath": "external/claude-code",
+          "supplementalLanes": [
+            "query stream",
+            "tool progress",
+            "preview sessions"
+          ]
+        },
+        "notes": "BirdCoder standardizes Claude Code on the official Agent SDK contract and routes execution through a dedicated bridge lane when Rust authority needs to delegate."
+      },
+      "defaultModelId": "claude-code",
+      "status": "active"
     },
     {
+      "id": "engine-registry:gemini",
+      "uuid": "656e6769-6e65-2d72-6567-69737472793a",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "gemini",
       "displayName": "Gemini",
       "vendor": "Google",
@@ -220,9 +267,30 @@
           }
         ]
       },
-      "defaultModelId": "gemini"
+      "officialIntegration": {
+        "integrationClass": "official-sdk",
+        "runtimeMode": "sdk",
+        "officialEntry": {
+          "packageName": "@google/gemini-cli-sdk",
+          "cliPackageName": "@google/gemini-cli",
+          "sdkPath": "external/gemini/packages/sdk",
+          "sourceMirrorPath": "external/gemini/packages/sdk",
+          "supplementalLanes": [
+            "CLI core runtime",
+            "tool and skill registry"
+          ]
+        },
+        "notes": "BirdCoder standardizes Gemini on the Gemini CLI SDK contract and treats the gRPC bridge as the primary authority delegation lane."
+      },
+      "defaultModelId": "gemini",
+      "status": "active"
     },
     {
+      "id": "engine-registry:opencode",
+      "uuid": "656e6769-6e65-2d72-6567-69737472793a",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "opencode",
       "displayName": "OpenCode",
       "vendor": "Anomaly",
@@ -234,9 +302,8 @@
         "server"
       ],
       "transportKinds": [
-        "sdk-stream",
         "openapi-http",
-        "cli-jsonl"
+        "sdk-stream"
       ],
       "capabilityMatrix": {
         "chat": true,
@@ -256,18 +323,16 @@
         "mcp": true
       },
       "accessPlan": {
-        "primaryLaneId": "opencode-rust-cli-jsonl",
-        "fallbackLaneIds": [
-          "opencode-openapi-proxy"
-        ],
+        "primaryLaneId": "opencode-rust-openapi-http",
+        "fallbackLaneIds": [],
         "lanes": [
           {
-            "laneId": "opencode-rust-cli-jsonl",
-            "label": "Rust native OpenCode runtime",
-            "strategyKind": "rust-native",
+            "laneId": "opencode-rust-openapi-http",
+            "label": "Rust native OpenCode server bridge",
+            "strategyKind": "openapi-proxy",
             "runtimeOwner": "rust-server",
-            "bridgeProtocol": "direct",
-            "transportKind": "cli-jsonl",
+            "bridgeProtocol": "http",
+            "transportKind": "openapi-http",
             "status": "ready",
             "enabledByDefault": true,
             "hostModes": [
@@ -275,86 +340,177 @@
               "desktop",
               "server"
             ],
-            "description": "Primary OpenCode lane runs directly inside the Rust server using the local OpenCode runtime and native session provider plugin."
-          },
-          {
-            "laneId": "opencode-openapi-proxy",
-            "label": "OpenAPI HTTP proxy",
-            "strategyKind": "openapi-proxy",
-            "runtimeOwner": "rust-server",
-            "bridgeProtocol": "http",
-            "transportKind": "openapi-http",
-            "status": "planned",
-            "enabledByDefault": false,
-            "hostModes": [
-              "web",
-              "desktop",
-              "server"
-            ],
-            "description": "Fallback lane for hosted OpenCode-compatible backends that can be normalized through the BirdCoder Rust server API gateway."
+            "description": "Primary OpenCode lane runs inside the Rust server by attaching to an existing OpenCode server or spawning `opencode serve`, then normalizing the native HTTP session API."
           }
         ]
       },
-      "defaultModelId": "opencode"
+      "officialIntegration": {
+        "integrationClass": "official-sdk",
+        "runtimeMode": "sdk",
+        "officialEntry": {
+          "packageName": "@opencode-ai/sdk",
+          "cliPackageName": "opencode-ai",
+          "sdkPath": "external/opencode/packages/sdk/js",
+          "sourceMirrorPath": "external/opencode/packages/sdk/js",
+          "supplementalLanes": [
+            "OpenAPI",
+            "SSE",
+            "server mode"
+          ]
+        },
+        "notes": "BirdCoder standardizes OpenCode on the official JavaScript SDK contract while the Rust authority owns the OpenAPI-native server lane."
+      },
+      "defaultModelId": "opencode",
+      "status": "active"
     }
   ],
   "models": [
     {
+      "id": "model-catalog:codex:gpt-5.4",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "codex",
-      "modelId": "codex",
-      "displayName": "Codex",
+      "modelId": "gpt-5.4",
+      "displayName": "GPT-5.4",
       "status": "active",
       "defaultForEngine": true,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
     {
+      "id": "model-catalog:codex:gpt-5.3-codex",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "codex",
-      "modelId": "gpt-4o",
-      "displayName": "GPT-4o",
+      "modelId": "gpt-5.3-codex",
+      "displayName": "GPT-5.3 Codex",
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
-      "capabilityMatrix": {
-        "previewArtifacts": false
-      }
+      "capabilityMatrix": {}
     },
     {
+      "id": "model-catalog:codex:gpt-5.2-codex",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "codex",
-      "modelId": "gpt-4-turbo",
-      "displayName": "GPT-4 Turbo",
+      "modelId": "gpt-5.2-codex",
+      "displayName": "GPT-5.2 Codex",
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
-      "capabilityMatrix": {
-        "previewArtifacts": false
-      }
+      "capabilityMatrix": {}
     },
     {
+      "id": "model-catalog:codex:gpt-5.1-codex-max",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "codex",
-      "modelId": "gpt-3.5-turbo",
-      "displayName": "GPT-3.5 Turbo",
+      "modelId": "gpt-5.1-codex-max",
+      "displayName": "GPT-5.1 Codex Max",
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:codex:gpt-5.1-codex",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5.1-codex",
+      "displayName": "GPT-5.1 Codex",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "cli-jsonl",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:codex:gpt-5.1-codex-mini",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5.1-codex-mini",
+      "displayName": "GPT-5.1 Codex Mini",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {
-        "planning": false,
-        "previewArtifacts": false
+        "planning": false
       }
     },
     {
+      "id": "model-catalog:codex:gpt-5-codex",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5-codex",
+      "displayName": "GPT-5 Codex",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "cli-jsonl",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:codex:gpt-5-codex-mini",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5-codex-mini",
+      "displayName": "GPT-5 Codex Mini",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "cli-jsonl",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {
+        "planning": false
+      }
+    },
+    {
+      "id": "model-catalog:claude-code:claude-code",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "claude-code",
       "modelId": "claude-code",
       "displayName": "Claude Code Default",
@@ -369,6 +525,11 @@
       }
     },
     {
+      "id": "model-catalog:claude-code:claude-3-opus",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "claude-code",
       "modelId": "claude-3-opus",
       "displayName": "Claude 3 Opus",
@@ -383,6 +544,11 @@
       }
     },
     {
+      "id": "model-catalog:claude-code:claude-3-sonnet",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "claude-code",
       "modelId": "claude-3-sonnet",
       "displayName": "Claude 3 Sonnet",
@@ -397,6 +563,11 @@
       }
     },
     {
+      "id": "model-catalog:claude-code:claude-3-haiku",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "claude-code",
       "modelId": "claude-3-haiku",
       "displayName": "Claude 3 Haiku",
@@ -412,6 +583,11 @@
       }
     },
     {
+      "id": "model-catalog:gemini:gemini",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "gemini",
       "modelId": "gemini",
       "displayName": "Gemini Default",
@@ -424,6 +600,11 @@
       "capabilityMatrix": {}
     },
     {
+      "id": "model-catalog:gemini:gemini-1.5-pro",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "gemini",
       "modelId": "gemini-1.5-pro",
       "displayName": "Gemini 1.5 Pro",
@@ -436,6 +617,11 @@
       "capabilityMatrix": {}
     },
     {
+      "id": "model-catalog:gemini:gemini-1.5-flash",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "gemini",
       "modelId": "gemini-1.5-flash",
       "displayName": "Gemini 1.5 Flash",
@@ -450,15 +636,19 @@
       }
     },
     {
+      "id": "model-catalog:opencode:opencode",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "opencode",
       "modelId": "opencode",
       "displayName": "OpenCode",
       "status": "active",
       "defaultForEngine": true,
       "transportKinds": [
-        "sdk-stream",
         "openapi-http",
-        "cli-jsonl"
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     }
@@ -469,39 +659,16 @@
       "displayName": "Codex",
       "nativeSessionIdPrefix": "codex-native:",
       "transportKinds": [
-        "sdk-stream",
         "cli-jsonl"
       ],
       "discoveryMode": "passive-global"
-    },
-    {
-      "engineId": "claude-code",
-      "displayName": "Claude Code",
-      "nativeSessionIdPrefix": "claude-code-native:",
-      "transportKinds": [
-        "sdk-stream",
-        "remote-control-http"
-      ],
-      "discoveryMode": "explicit-only"
-    },
-    {
-      "engineId": "gemini",
-      "displayName": "Gemini",
-      "nativeSessionIdPrefix": "gemini-native:",
-      "transportKinds": [
-        "sdk-stream",
-        "openapi-http"
-      ],
-      "discoveryMode": "explicit-only"
     },
     {
       "engineId": "opencode",
       "displayName": "OpenCode",
       "nativeSessionIdPrefix": "opencode-native:",
       "transportKinds": [
-        "sdk-stream",
-        "openapi-http",
-        "cli-jsonl"
+        "openapi-http"
       ],
       "discoveryMode": "explicit-only"
     }

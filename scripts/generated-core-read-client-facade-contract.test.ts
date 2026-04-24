@@ -62,10 +62,10 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
                 liveOpenApiPath: '/openapi.json',
                 openApiPath: '/openapi/coding-server-v1.json',
                 routeCatalogPath: '/api/core/v1/routes',
-                routeCount: 57,
+                routeCount: 58,
                 routesBySurface: {
                   core: 19,
-                  app: 31,
+                  app: 32,
                   admin: 7,
                 },
                 surfaces: [
@@ -81,7 +81,7 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
                     basePath: '/api/app/v1',
                     description: 'Application-facing workspace, project, collaboration, and user-center routes.',
                     name: 'app',
-                    routeCount: 31,
+                    routeCount: 32,
                   },
                   {
                     authMode: 'admin',
@@ -241,7 +241,7 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
             [
               {
                 createdAt: '2026-04-17T00:00:00.000Z',
-                id: 'codex-native:thread-generated-contract',
+                id: 'codex-native:session-generated-contract',
                 workspaceId: 'workspace-generated-contract',
                 projectId: 'project-generated-contract',
                 title: 'Generated native session',
@@ -259,12 +259,12 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
             ],
             'req.core.native-sessions',
           ) as TResponse;
-        case '/api/core/v1/native-sessions/codex-native%3Athread-generated-contract':
+        case '/api/core/v1/native-sessions/codex-native%3Asession-generated-contract':
           return createEnvelope(
             {
               summary: {
                 createdAt: '2026-04-17T00:00:00.000Z',
-                id: 'codex-native:thread-generated-contract',
+                id: 'codex-native:session-generated-contract',
                 workspaceId: 'workspace-generated-contract',
                 projectId: 'project-generated-contract',
                 title: 'Generated native session',
@@ -282,7 +282,7 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
               messages: [
                 {
                   id: 'native-message-generated-contract',
-                  codingSessionId: 'codex-native:thread-generated-contract',
+                  codingSessionId: 'codex-native:session-generated-contract',
                   turnId: 'native-turn-generated-contract',
                   role: 'assistant',
                   content: 'Generated native session message.',
@@ -330,7 +330,7 @@ const nativeSessions = await client.listNativeSessions({
   projectId: 'project-generated-contract',
   workspaceId: 'workspace-generated-contract',
 });
-const nativeSession = await client.getNativeSession('codex-native:thread-generated-contract', {
+const nativeSession = await client.getNativeSession('codex-native:session-generated-contract', {
   engineId: 'codex',
   projectId: 'project-generated-contract',
   workspaceId: 'workspace-generated-contract',
@@ -347,8 +347,8 @@ assert.equal(models[0]?.modelId, 'codex');
 assert.equal(nativeSessionProviders[0]?.engineId, 'codex');
 assert.equal(routes[0]?.operationId, 'core.listRoutes');
 assert.equal(codingSessions[0]?.id, 'coding-session-generated-contract');
-assert.equal(nativeSessions[0]?.id, 'codex-native:thread-generated-contract');
-assert.equal(nativeSession.summary.id, 'codex-native:thread-generated-contract');
+assert.equal(nativeSessions[0]?.id, 'codex-native:session-generated-contract');
+assert.equal(nativeSession.summary.id, 'codex-native:session-generated-contract');
 assert.equal(operation.operationId, 'op-generated-core-read');
 assert.deepEqual(observedRequests, [
   {
@@ -405,7 +405,7 @@ assert.deepEqual(observedRequests, [
   },
   {
     method: 'GET',
-    path: '/api/core/v1/native-sessions/codex-native%3Athread-generated-contract',
+    path: '/api/core/v1/native-sessions/codex-native%3Asession-generated-contract',
     query: {
       engineId: 'codex',
       projectId: 'project-generated-contract',

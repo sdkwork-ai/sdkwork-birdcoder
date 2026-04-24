@@ -60,6 +60,21 @@ export interface BuildWorkbenchRecoveryAnnouncementOptions {
   activeCodingSessionId: string;
 }
 
+export interface ResolveWorkbenchRecoveryPersistenceSelectionOptions {
+  currentWorkspaceId: string | null | undefined;
+  currentProjectId: string | null | undefined;
+  currentCodingSessionId: string | null | undefined;
+  fallbackSnapshot?:
+    | Pick<
+        WorkbenchRecoverySnapshot,
+        'activeWorkspaceId' | 'activeProjectId' | 'activeCodingSessionId'
+      >
+    | null
+    | undefined;
+  hasProjectsFetched: boolean;
+  hasWorkspacesFetched: boolean;
+}
+
 const ZERO_TIMESTAMP = new Date(0).toISOString();
 
 export const DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT: WorkbenchRecoverySnapshot = {
@@ -149,6 +164,45 @@ export function resolveStartupWorkspaceId(
   }
 
   return options.workspaces[0]?.id ?? '';
+}
+
+export function resolveWorkbenchRecoveryPersistenceSelection(
+  options: ResolveWorkbenchRecoveryPersistenceSelectionOptions,
+): Pick<
+  WorkbenchRecoverySnapshot,
+  'activeWorkspaceId' | 'activeProjectId' | 'activeCodingSessionId'
+> {
+  const currentWorkspaceId = normalizeIdentifier(options.currentWorkspaceId);
+  const currentProjectId = normalizeIdentifier(options.currentProjectId);
+  const currentCodingSessionId = normalizeIdentifier(options.currentCodingSessionId);
+  const fallbackWorkspaceId = normalizeIdentifier(options.fallbackSnapshot?.activeWorkspaceId);
+  const fallbackProjectId = normalizeIdentifier(options.fallbackSnapshot?.activeProjectId);
+  const fallbackCodingSessionId = normalizeIdentifier(
+    options.fallbackSnapshot?.activeCodingSessionId,
+  );
+  const workspacesReady = options.hasWorkspacesFetched;
+  const projectsReady = workspacesReady && (!currentWorkspaceId || options.hasProjectsFetched);
+
+  return {
+    activeWorkspaceId: workspacesReady ? currentWorkspaceId : fallbackWorkspaceId,
+    activeProjectId: projectsReady ? currentProjectId : fallbackProjectId,
+    activeCodingSessionId: projectsReady
+      ? currentCodingSessionId
+      : fallbackCodingSessionId,
+  };
+}
+
+export function isWorkbenchRecoverySelectionResolutionReady(
+  options: Pick<
+    ResolveWorkbenchRecoveryPersistenceSelectionOptions,
+    'currentWorkspaceId' | 'hasProjectsFetched' | 'hasWorkspacesFetched'
+  >,
+): boolean {
+  const currentWorkspaceId = normalizeIdentifier(options.currentWorkspaceId);
+  return (
+    options.hasWorkspacesFetched &&
+    (!currentWorkspaceId || options.hasProjectsFetched)
+  );
 }
 
 export function resolveStartupProjectId(

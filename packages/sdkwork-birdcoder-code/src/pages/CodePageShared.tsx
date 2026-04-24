@@ -1,4 +1,4 @@
-import { SessionTranscriptLoadingState } from '@sdkwork/birdcoder-ui/chat';
+import { SessionTranscriptLoadingState } from '@sdkwork/birdcoder-ui-shell';
 
 export function CodeSessionTranscriptLoadingState() {
   return (

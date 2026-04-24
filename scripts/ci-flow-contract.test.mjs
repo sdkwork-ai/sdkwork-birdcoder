@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -6,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 
 const rootDir = process.cwd();
 const ciWorkflow = fs.readFileSync(path.join(rootDir, '.github/workflows/ci.yml'), 'utf8');
+const userCenterUpstreamSyncWorkflowPath = path.join(rootDir, '.github/workflows/user-center-upstream-sync.yml');
 const rootPackageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
 const qualityFastRunnerModule = await import(
   pathToFileURL(path.join(rootDir, 'scripts/run-quality-fast-check.mjs')).href
@@ -31,6 +33,10 @@ assert.match(ciWorkflow, /pnpm docs:build/);
 assert.match(ciWorkflow, /libgbm-dev/);
 assert.match(ciWorkflow, /libpipewire-0\.3-dev/);
 assert.match(ciWorkflow, /desktop-rust-windows:/);
+assert.ok(
+  fs.existsSync(userCenterUpstreamSyncWorkflowPath),
+  'BirdCoder CI governance must keep the dedicated user-center upstream sync workflow in the repository.',
+);
 
 assert.equal(rootPackageJson.scripts.typecheck, 'node scripts/run-local-typescript.mjs --noEmit');
 assert.equal(rootPackageJson.scripts['check:quality-matrix'], 'node scripts/quality-gate-matrix-contract.test.mjs');
@@ -39,6 +45,40 @@ assert.equal(rootPackageJson.scripts['check:quality:fast'], rootPackageJson.scri
 assert.equal(rootPackageJson.scripts.lint, 'node scripts/run-quality-fast-check.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/run-quality-standard-check.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');
+assert.equal(
+  rootPackageJson.scripts['test:react-syntax-highlighter-types-contract'],
+  'node scripts/react-syntax-highlighter-types-contract.test.mjs',
+);
+assert.equal(
+  rootPackageJson.scripts['test:prompt-service-contract'],
+  'node scripts/prompt-service-contract.test.mjs',
+);
+assert.equal(
+  rootPackageJson.scripts['test:coding-session-prompt-history-persistence-contract'],
+  'node --experimental-strip-types scripts/coding-session-prompt-history-persistence-contract.test.ts',
+);
+assert.equal(
+  rootPackageJson.scripts['test:user-center-standard'],
+  'node scripts/run-user-center-standard.mjs',
+);
+
+for (const governedWorkflowContract of [
+  'scripts/user-center-upstream-sync-payload.test.mjs',
+  'scripts/user-center-upstream-sync-workflow.test.mjs',
+]) {
+  const result = spawnSync(process.execPath, [governedWorkflowContract], {
+    cwd: rootDir,
+    shell: false,
+    stdio: 'inherit',
+    windowsHide: process.platform === 'win32',
+  });
+
+  assert.equal(
+    result.status,
+    0,
+    `BirdCoder CI flow must pass the governed ${governedWorkflowContract} contract.`,
+  );
+}
 assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . typecheck',
   'node scripts/run-workspace-package-script.mjs . check:workspace-package-script-runner',
@@ -61,6 +101,7 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:desktop-startup-graph',
   'node scripts/run-workspace-package-script.mjs . check:ui-dependency-resolution',
   'node scripts/run-workspace-package-script.mjs . check:ui-bundle-segmentation',
+  'node scripts/run-workspace-package-script.mjs . test:react-syntax-highlighter-types-contract',
   'node scripts/run-workspace-package-script.mjs . check:runtime-symlink-dependency-resolution',
   'node scripts/run-workspace-package-script.mjs . check:tailwind-source',
   'node scripts/run-workspace-package-script.mjs . check:studio-chat-layout',
@@ -75,11 +116,13 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:local-store-browser-fallback',
   'node scripts/run-workspace-package-script.mjs . check:package-governance',
   'node scripts/run-workspace-package-script.mjs . check:package-subpath-exports',
+  'node scripts/run-workspace-package-script.mjs . test:user-center-standard',
   'node scripts/run-workspace-package-script.mjs . check:governance-baseline',
-  'node scripts/run-workspace-package-script.mjs . check:terminal-governance',
   'node scripts/run-workspace-package-script.mjs . check:governance-regression-contract',
   'node scripts/run-workspace-package-script.mjs . check:live-docs-governance-baseline',
   'node scripts/run-workspace-package-script.mjs . check:quality-loop-scoreboard',
+  'node scripts/run-workspace-package-script.mjs . test:prompt-service-contract',
+  'node scripts/run-workspace-package-script.mjs . test:coding-session-prompt-history-persistence-contract',
   'node scripts/run-workspace-package-script.mjs . test:skill-binding-contract',
   'node scripts/run-workspace-package-script.mjs . test:template-instantiation-contract',
   'node scripts/run-workspace-package-script.mjs . test:prompt-skill-template-runtime-assembly-contract',

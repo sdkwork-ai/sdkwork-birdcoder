@@ -2,13 +2,26 @@ import type { BirdCoderWorkspaceSummary, IWorkspace } from '@sdkwork/birdcoder-t
 import type { IWorkspaceService } from '../interfaces/IWorkspaceService.ts';
 import type { BirdCoderTableRecordRepository } from '../../storage/dataKernel.ts';
 import type { BirdCoderWorkspaceRecord } from '../../storage/appConsoleRepository.ts';
+import {
+  BIRDCODER_DEFAULT_LOCAL_ORGANIZATION_ID,
+  BIRDCODER_DEFAULT_LOCAL_OWNER_USER_ID,
+  BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
+  createBirdCoderBootstrapWorkspaceRecord,
+} from '../../storage/bootstrapConsoleCatalog.ts';
 
 function createTimestamp(): string {
   return new Date().toISOString();
 }
 
 function createIdentifier(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  void prefix;
+  const timestampPart = BigInt(Date.now()) * 1_000_000n;
+  const randomPart = BigInt(Math.floor(Math.random() * 1_000_000));
+  return (timestampPart + randomPart).toString();
+}
+
+function createUuid(): string {
+  return crypto.randomUUID();
 }
 
 function mapWorkspaceRecordToWorkspace(value: BirdCoderWorkspaceRecord): IWorkspace {
@@ -17,15 +30,28 @@ function mapWorkspaceRecordToWorkspace(value: BirdCoderWorkspaceRecord): IWorksp
     uuid: value.uuid,
     tenantId: value.tenantId,
     organizationId: value.organizationId,
+    dataScope: value.dataScope,
     code: value.code,
     title: value.title,
     name: value.name,
     description: value.description,
-    icon: 'Folder',
+    icon: value.icon,
+    color: value.color,
     ownerId: value.ownerId,
     leaderId: value.leaderId,
     type: value.type,
     createdByUserId: value.createdByUserId,
+    status: value.status === 'archived' ? 'archived' : 'active',
+    startTime: value.startTime,
+    endTime: value.endTime,
+    maxMembers: value.maxMembers,
+    currentMembers: value.currentMembers,
+    memberCount: value.memberCount,
+    maxStorage: value.maxStorage,
+    usedStorage: value.usedStorage,
+    settings: value.settings,
+    isPublic: value.isPublic,
+    isTemplate: value.isTemplate,
   };
 }
 
@@ -39,7 +65,7 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
   private readonly repository: BirdCoderTableRecordRepository<BirdCoderWorkspaceRecord>;
 
   constructor({
-    defaultOwnerUserId = 'user-local-default',
+    defaultOwnerUserId = BIRDCODER_DEFAULT_LOCAL_OWNER_USER_ID,
     repository,
   }: ProviderBackedWorkspaceServiceOptions) {
     this.defaultOwnerUserId = defaultOwnerUserId;
@@ -60,16 +86,23 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
     const now = createTimestamp();
     const record = await this.repository.save({
       id: createIdentifier('workspace'),
-      uuid: createIdentifier('workspace-uuid'),
-      tenantId: 'tenant-local-default',
+      uuid: createUuid(),
+      tenantId: BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
+      organizationId: BIRDCODER_DEFAULT_LOCAL_ORGANIZATION_ID,
+      dataScope: 'PRIVATE',
       code: normalizedName,
       title: normalizedName,
       name: normalizedName,
       description: description?.trim() || undefined,
+      icon: 'Folder',
+      color: '#4f6f52',
       ownerId: this.defaultOwnerUserId,
       leaderId: this.defaultOwnerUserId,
       createdByUserId: this.defaultOwnerUserId,
       type: 'DEFAULT',
+      settings: {},
+      isPublic: false,
+      isTemplate: false,
       status: 'active',
       createdAt: now,
       updatedAt: now,
@@ -85,10 +118,13 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
       uuid: summary.uuid ?? existingRecord?.uuid ?? summary.id,
       tenantId: summary.tenantId ?? existingRecord?.tenantId,
       organizationId: summary.organizationId ?? existingRecord?.organizationId,
+      dataScope: summary.dataScope ?? existingRecord?.dataScope ?? 'PRIVATE',
       code: summary.code?.trim() || existingRecord?.code || summary.id,
       title: summary.title?.trim() || existingRecord?.title || summary.name,
       name: summary.name.trim() || existingRecord?.name || summary.id,
       description: summary.description?.trim() || existingRecord?.description,
+      icon: summary.icon?.trim() || existingRecord?.icon || 'Folder',
+      color: summary.color?.trim() || existingRecord?.color,
       ownerId:
         summary.ownerId?.trim() ||
         existingRecord?.ownerId ||
@@ -105,6 +141,16 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
         existingRecord?.ownerId ||
         this.defaultOwnerUserId,
       type: summary.type?.trim() || existingRecord?.type || 'DEFAULT',
+      startTime: summary.startTime ?? existingRecord?.startTime,
+      endTime: summary.endTime ?? existingRecord?.endTime,
+      maxMembers: summary.maxMembers ?? existingRecord?.maxMembers,
+      currentMembers: summary.currentMembers ?? existingRecord?.currentMembers,
+      memberCount: summary.memberCount ?? existingRecord?.memberCount,
+      maxStorage: summary.maxStorage ?? existingRecord?.maxStorage,
+      usedStorage: summary.usedStorage ?? existingRecord?.usedStorage,
+      settings: summary.settings ?? existingRecord?.settings,
+      isPublic: summary.isPublic ?? existingRecord?.isPublic ?? false,
+      isTemplate: summary.isTemplate ?? existingRecord?.isTemplate ?? false,
       status: summary.status,
       createdAt: existingRecord?.createdAt || now,
       updatedAt: now,
@@ -136,23 +182,7 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
       return existingRecords;
     }
 
-    const now = createTimestamp();
-    await this.repository.save({
-      id: 'workspace-default',
-      uuid: 'workspace-default',
-      tenantId: 'tenant-local-default',
-      code: 'workspace-default',
-      title: 'Default Workspace',
-      name: 'Default Workspace',
-      description: 'Primary local workspace for BirdCoder.',
-      ownerId: this.defaultOwnerUserId,
-      leaderId: this.defaultOwnerUserId,
-      createdByUserId: this.defaultOwnerUserId,
-      type: 'DEFAULT',
-      status: 'active',
-      createdAt: now,
-      updatedAt: now,
-    });
+    await this.repository.save(createBirdCoderBootstrapWorkspaceRecord(this.defaultOwnerUserId));
 
     return this.repository.list();
   }

@@ -1,33 +1,29 @@
-import React, { memo, useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronDown, Check, GitBranch, CheckCircle2, Share, Upload, Terminal, X, Copy, Globe, Lock, Plus, Loader2, RefreshCw } from 'lucide-react';
+import { memo, useState, useRef, useEffect, useCallback } from 'react';
+import { ChevronDown, CheckCircle2, Share, Upload, Terminal, X, Copy, Globe, Lock, Loader2, RefreshCw } from 'lucide-react';
 import type {
-  BirdCoderCodingSession,
   BirdCoderDeploymentTargetSummary,
-  BirdCoderProject,
   BirdCoderProjectCollaboratorSummary,
   BirdCoderProjectPublishResult,
   BirdCoderReleaseSummary,
 } from '@sdkwork/birdcoder-types';
-import { isBirdCoderCodingSessionExecuting } from '@sdkwork/birdcoder-types';
 import {
-  getWorkbenchCodeEngineDefinition,
-  getWorkbenchCodeModelLabel,
-  normalizeWorkbenchCodeModelId,
+  getWorkbenchCodeEngineSessionSummary,
 } from '@sdkwork/birdcoder-codeengine';
-import { Button, WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-ui';
+import {
+  ProjectGitHeaderControls,
+  WorkbenchNewSessionButton,
+} from '@sdkwork/birdcoder-ui';
+import { Button } from '@sdkwork/birdcoder-ui-shell';
 import {
   globalEventBus,
+  type ProjectGitOverviewViewState,
+  useProjectGitMutationActions,
+  useProjectGitOverview,
+  useWorkbenchPreferences,
   useIDEServices,
   useToast,
-  useWorkbenchPreferences,
-} from '@sdkwork/birdcoder-commons/workbench';
+} from '@sdkwork/birdcoder-commons';
 import { useTranslation } from 'react-i18next';
-import {
-  executeGitCommand,
-  listGitBranches,
-  normalizeGitBranchName,
-  requireDesktopGitRepositoryPath,
-} from './gitRuntime';
 
 type PublishTargetMode = 'existing' | 'new';
 
@@ -69,82 +65,69 @@ const PUBLISH_ROLLOUT_STAGE_OPTIONS = [
 ];
 
 interface TopBarProps {
-  currentProject: BirdCoderProject | undefined;
-  selectedCodingSession: BirdCoderCodingSession | undefined;
+  projectId?: string;
+  projectName?: string;
+  projectPath?: string;
+  isProjectGitOverviewDrawerOpen: boolean;
+  onCreateNewSession: (engineId?: string) => void | Promise<void>;
+  onToggleProjectGitOverviewDrawer: () => void;
+  selectedSessionTitle?: string;
+  selectedSessionEngineId?: string;
+  selectedSessionModelId?: string;
+  isSelectedSessionExecuting: boolean;
   selectedEngineId: string;
   selectedModelId: string;
-  activeTab: 'ai' | 'editor';
-  setActiveTab: (tab: 'ai' | 'editor') => void;
+  projectGitOverviewState?: ProjectGitOverviewViewState;
+  activeTab: 'ai' | 'editor' | 'mobile';
+  setActiveTab: (tab: 'ai' | 'editor' | 'mobile') => void;
   isTerminalOpen: boolean;
   setIsTerminalOpen: (isOpen: boolean) => void;
 }
 
 function TopBarComponent({
-  currentProject,
-  selectedCodingSession,
+  projectId,
+  projectName,
+  isProjectGitOverviewDrawerOpen,
+  onCreateNewSession,
+  onToggleProjectGitOverviewDrawer,
+  selectedSessionTitle,
+  selectedSessionEngineId,
+  selectedSessionModelId,
+  isSelectedSessionExecuting,
   selectedEngineId,
   selectedModelId,
+  projectGitOverviewState,
   activeTab,
   setActiveTab,
   isTerminalOpen,
   setIsTerminalOpen,
 }: TopBarProps) {
-  const [showBranchMenu, setShowBranchMenu] = useState(false);
-  const branchMenuRef = useRef<HTMLDivElement>(null);
-  const [selectedBranch, setSelectedBranch] = useState('main');
-  const [branches, setBranches] = useState<string[]>(['main', 'dev', 'feature/auth']);
   const [showSubmitMenu, setShowSubmitMenu] = useState(false);
   const submitMenuRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
   const { t } = useTranslation();
   const { preferences } = useWorkbenchPreferences();
-  const headerEngineId = selectedCodingSession?.engineId ?? selectedEngineId;
-  const headerModelId = selectedCodingSession?.modelId ?? selectedModelId;
-  const headerEngine = getWorkbenchCodeEngineDefinition(headerEngineId, preferences);
-  const headerModelIdNormalized = normalizeWorkbenchCodeModelId(
-    headerEngineId,
-    headerModelId,
-    preferences,
-  );
-  const headerModelLabel = getWorkbenchCodeModelLabel(
-    headerEngineId,
-    headerModelIdNormalized,
-    preferences,
-  );
-  const headerEngineSummary =
-    headerModelLabel.trim().toLowerCase() === headerEngine.label.trim().toLowerCase()
-      ? headerEngine.label
-      : `${headerEngine.label} / ${headerModelLabel}`;
-  const isExecutingCurrentSession = isBirdCoderCodingSessionExecuting(selectedCodingSession);
-
-  useEffect(() => {
-    const fetchBranches = async () => {
-      try {
-        const repositoryPath = requireDesktopGitRepositoryPath(currentProject?.path);
-        const branchState = await listGitBranches(repositoryPath);
-        if (branchState.currentBranch) {
-          setSelectedBranch(branchState.currentBranch);
-        }
-        if (branchState.branches.length > 0) {
-          setBranches(branchState.branches);
-        }
-      } catch (err) {
-        console.error('Failed to fetch branches', err);
-      }
-    };
-    
-    if (showBranchMenu) {
-      fetchBranches();
-    }
-  }, [showBranchMenu, currentProject?.path]);
+  const headerEngineSummary = selectedSessionEngineId?.trim()
+    ? getWorkbenchCodeEngineSessionSummary(
+        selectedSessionEngineId,
+        selectedSessionModelId,
+        preferences,
+      )
+    : getWorkbenchCodeEngineSessionSummary(selectedEngineId, selectedModelId, preferences);
+  const isExecutingCurrentSession = isSelectedSessionExecuting;
+  const isNewSessionEnabled = !!projectId?.trim();
+  const localProjectGitOverviewState = useProjectGitOverview({
+    isActive: !projectGitOverviewState,
+    projectId,
+  });
+  const resolvedProjectGitOverviewState =
+    projectGitOverviewState ?? localProjectGitOverviewState;
 
   const [showShareModal, setShowShareModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showCommitModal, setShowCommitModal] = useState(false);
   const [showPushModal, setShowPushModal] = useState(false);
-  const [showBranchModal, setShowBranchModal] = useState(false);
   const [commitMessage, setCommitMessage] = useState('');
-  const [newBranchName, setNewBranchName] = useState('');
   const [shareAccess, setShareAccess] = useState<'private' | 'public'>('private');
   const [inviteEmail, setInviteEmail] = useState('');
   const [projectCollaborators, setProjectCollaborators] = useState<
@@ -171,28 +154,42 @@ function TopBarComponent({
   const [isLoadingDeploymentTargets, setIsLoadingDeploymentTargets] = useState(false);
   const [isPublishingProject, setIsPublishingProject] = useState(false);
   const { collaborationService, deploymentService } = useIDEServices();
+  const {
+    applyGitOverview,
+    currentBranchLabel,
+    overview,
+  } = resolvedProjectGitOverviewState;
+  const {
+    commitChanges,
+    isCommitting,
+    isPushingBranch,
+    pushBranch,
+  } = useProjectGitMutationActions({
+    applyGitOverview,
+    projectId,
+  });
 
   const applyPublishTargetDraft = useCallback(
     (target?: BirdCoderDeploymentTargetSummary | null) => {
       setPublishEnvironmentKey(target?.environmentKey ?? 'prod');
       setPublishRuntime(target?.runtime ?? 'web');
       setPublishTargetName(
-        target?.name?.trim() || `${currentProject?.name?.trim() || 'Project'} Production`,
+        target?.name?.trim() || `${projectName?.trim() || 'Project'} Production`,
       );
     },
-    [currentProject?.name],
+    [projectName],
   );
 
   const loadProjectCollaborators = useCallback(async () => {
-    const projectId = currentProject?.id?.trim();
-    if (!projectId) {
+    const normalizedProjectId = projectId?.trim();
+    if (!normalizedProjectId) {
       setProjectCollaborators([]);
       return;
     }
 
     setIsLoadingCollaborators(true);
     try {
-      const collaborators = await collaborationService.listProjectCollaborators(projectId);
+      const collaborators = await collaborationService.listProjectCollaborators(normalizedProjectId);
       setProjectCollaborators(collaborators);
     } catch (error) {
       console.error('Failed to load project collaborators', error);
@@ -205,11 +202,11 @@ function TopBarComponent({
     } finally {
       setIsLoadingCollaborators(false);
     }
-  }, [addToast, collaborationService, currentProject?.id]);
+  }, [addToast, collaborationService, projectId]);
 
   const loadDeploymentTargets = useCallback(async () => {
-    const projectId = currentProject?.id?.trim();
-    if (!projectId) {
+    const normalizedProjectId = projectId?.trim();
+    if (!normalizedProjectId) {
       setDeploymentTargets([]);
       setSelectedPublishTargetId('');
       setPublishTargetMode('new');
@@ -219,7 +216,7 @@ function TopBarComponent({
 
     setIsLoadingDeploymentTargets(true);
     try {
-      const targets = await deploymentService.getDeploymentTargets(projectId);
+      const targets = await deploymentService.getDeploymentTargets(normalizedProjectId);
       setDeploymentTargets(targets);
       const primaryTarget = targets[0];
       setSelectedPublishTargetId(primaryTarget?.id ?? '');
@@ -236,15 +233,13 @@ function TopBarComponent({
     } finally {
       setIsLoadingDeploymentTargets(false);
     }
-  }, [addToast, applyPublishTargetDraft, currentProject?.id, deploymentService]);
+  }, [addToast, applyPublishTargetDraft, deploymentService, projectId]);
 
   const handleCommit = async () => {
     if (!commitMessage.trim()) return;
     
     try {
-      const repositoryPath = requireDesktopGitRepositoryPath(currentProject?.path);
-      await executeGitCommand(repositoryPath, ['add', '--all']);
-      await executeGitCommand(repositoryPath, ['commit', '-m', commitMessage.trim()]);
+      await commitChanges(commitMessage);
       addToast(t('code.changesCommitted'), 'success');
     } catch (err) {
       addToast(t('code.failedToCommit', { error: String(err) }), 'error');
@@ -256,10 +251,15 @@ function TopBarComponent({
 
   const handlePush = async () => {
     try {
-      const repositoryPath = requireDesktopGitRepositoryPath(currentProject?.path);
-      const branchName = normalizeGitBranchName(selectedBranch);
+      const branchName = overview?.currentBranch?.trim() ?? '';
+      if (!branchName) {
+        throw new Error('A checked-out branch is required before pushing to a remote.');
+      }
       addToast(t('code.pushingToRemote'), 'info');
-      await executeGitCommand(repositoryPath, ['push', 'origin', branchName]);
+      await pushBranch({
+        branchName,
+        remoteName: 'origin',
+      });
       addToast(t('code.pushedToRemote'), 'success');
     } catch (err) {
       addToast(t('code.failedToPush', { error: String(err) }), 'error');
@@ -267,62 +267,26 @@ function TopBarComponent({
     setShowPushModal(false);
   };
 
-  const handleCreateBranch = async () => {
-    if (!newBranchName.trim()) return;
-    
-    try {
-      const repositoryPath = requireDesktopGitRepositoryPath(currentProject?.path);
-      const branchName = normalizeGitBranchName(newBranchName);
-      await executeGitCommand(repositoryPath, ['switch', '-c', branchName]);
-      setSelectedBranch(branchName);
-      setBranches((previousBranches) =>
-        previousBranches.includes(branchName) ? previousBranches : [branchName, ...previousBranches],
-      );
-      addToast(t('code.createdAndSwitchedBranch', { branch: branchName }), 'success');
-    } catch (err) {
-      addToast(t('code.failedToCreateBranch', { error: String(err) }), 'error');
-    }
-    
-    setShowBranchModal(false);
-    setNewBranchName('');
-  };
-
-  const handleSwitchBranch = async (branch: string) => {
-    try {
-      const repositoryPath = requireDesktopGitRepositoryPath(currentProject?.path);
-      const branchName = normalizeGitBranchName(branch);
-      await executeGitCommand(repositoryPath, ['switch', branchName]);
-      setSelectedBranch(branchName);
-      addToast(t('code.switchedToBranch', { branch: branchName }), 'success');
-    } catch (err) {
-      addToast(t('code.failedToSwitchBranch', { error: String(err) }), 'error');
-    }
-    setShowBranchMenu(false);
-  };
-
   const handleClickOutside = useCallback(
     (event: MouseEvent) => {
-      if (!showBranchMenu && !showSubmitMenu) {
+      if (!showSubmitMenu) {
         return;
-      }
-      if (branchMenuRef.current && !branchMenuRef.current.contains(event.target as Node)) {
-        setShowBranchMenu(false);
       }
       if (submitMenuRef.current && !submitMenuRef.current.contains(event.target as Node)) {
         setShowSubmitMenu(false);
       }
     },
-    [showBranchMenu, showSubmitMenu],
+    [showSubmitMenu],
   );
 
   useEffect(() => {
-    if (!showBranchMenu && !showSubmitMenu) {
+    if (!showSubmitMenu) {
       return;
     }
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [handleClickOutside, showBranchMenu, showSubmitMenu]);
+  }, [handleClickOutside, showSubmitMenu]);
 
   useEffect(() => {
     if (!showShareModal || shareAccess !== 'private') {
@@ -361,9 +325,9 @@ function TopBarComponent({
   ]);
 
   const handleInviteCollaborator = async () => {
-    const projectId = currentProject?.id?.trim();
+    const normalizedProjectId = projectId?.trim();
     const email = inviteEmail.trim();
-    if (!projectId) {
+    if (!normalizedProjectId) {
       addToast('Please select a project before inviting collaborators.', 'error');
       return;
     }
@@ -373,7 +337,7 @@ function TopBarComponent({
 
     setIsInvitingCollaborator(true);
     try {
-      await collaborationService.upsertProjectCollaborator(projectId, {
+      await collaborationService.upsertProjectCollaborator(normalizedProjectId, {
         email,
         role: 'member',
         status: 'invited',
@@ -408,8 +372,8 @@ function TopBarComponent({
   };
 
   const handlePublishProject = async () => {
-    const projectId = currentProject?.id?.trim();
-    if (!projectId) {
+    const normalizedProjectId = projectId?.trim();
+    if (!normalizedProjectId) {
       addToast('Please select a project before publishing.', 'error');
       return;
     }
@@ -427,7 +391,7 @@ function TopBarComponent({
 
     setIsPublishingProject(true);
     try {
-      const result = await deploymentService.publishProject(projectId, {
+      const result = await deploymentService.publishProject(normalizedProjectId, {
         endpointUrl: publishEndpointUrl.trim() || undefined,
         releaseKind: publishReleaseKind,
         releaseVersion: publishReleaseVersion.trim() || undefined,
@@ -446,7 +410,7 @@ function TopBarComponent({
       setSelectedPublishTargetId(result.target.id);
       setPublishTargetMode('existing');
       applyPublishTargetDraft(result.target);
-      addToast(`Published ${currentProject?.name || 'project'} release ${result.release.releaseVersion}.`, 'success');
+      addToast(`Published ${projectName || 'project'} release ${result.release.releaseVersion}.`, 'success');
       await loadDeploymentTargets();
     } catch (error) {
       console.error('Failed to publish project', error);
@@ -465,20 +429,21 @@ function TopBarComponent({
     <>
       <div className="h-12 border-b border-white/5 flex items-center justify-between px-4 text-sm shrink-0 bg-[#0e0e11] relative">
         <div className="min-w-0 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 fill-mode-both" style={{ animationDelay: '100ms' }}>
-          <div className="min-w-0 font-medium text-gray-200 flex items-center gap-1.5">
-            <span className="text-sm font-semibold text-gray-200 transition-colors">
-              {currentProject?.name || '-'}
+          <div className="min-w-0 flex items-center gap-1.5 overflow-hidden whitespace-nowrap font-medium text-gray-200">
+            <span className="truncate text-sm font-semibold text-gray-200 transition-colors">
+              {projectName || '-'}
             </span>
             <span className="text-gray-600 text-xs">/</span>
-            <span className="text-sm text-gray-400 transition-colors truncate max-w-[150px]">
-              {selectedCodingSession ? selectedCodingSession.title : '-'}
+            <span className="max-w-[150px] truncate whitespace-nowrap text-sm text-gray-400 transition-colors">
+              {selectedSessionTitle || '-'}
             </span>
           </div>
-          <div className="hidden min-w-0 items-center gap-2 text-xs md:flex">
+          <div className="hidden min-w-0 items-center gap-2 overflow-hidden text-xs md:flex">
             <span className="text-gray-700">/</span>
-            <WorkbenchCodeEngineIcon engineId={headerEngine.id} />
-            <div className="min-w-0 flex items-center gap-1.5 whitespace-nowrap text-gray-300">
-              <span className="truncate font-medium text-gray-200">{headerEngineSummary}</span>
+            <div className="min-w-0 flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-gray-300">
+              <span className="truncate whitespace-nowrap font-medium text-gray-200">
+                {headerEngineSummary}
+              </span>
             </div>
             {isExecutingCurrentSession && (
               <div className="hidden items-center gap-1.5 text-xs text-emerald-400 xl:flex">
@@ -502,40 +467,45 @@ function TopBarComponent({
           >
             {t('app.menu.editorMode')}
           </button>
+          <button
+            onClick={() => setActiveTab('mobile')}
+            className={`px-4 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-all duration-200 ${activeTab === 'mobile' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
+          >
+            {t('app.menu.mobileCodingMode')}
+          </button>
         </div>
 
         <div className="flex items-center gap-3 text-gray-400">
-          <div className="relative animate-in fade-in slide-in-from-top-2 fill-mode-both" style={{ animationDelay: '150ms' }}>
-            <div 
-              className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1.5 rounded-md text-xs cursor-pointer hover:bg-white/10 transition-colors border border-white/5"
-              onClick={() => setShowBranchMenu(!showBranchMenu)}
-            >
-              <GitBranch size={14} className="text-blue-400" />
-              <span className="font-medium">{selectedBranch}</span>
-              <ChevronDown size={14} className="text-gray-500" />
-            </div>
-
-            {showBranchMenu && (
-              <div ref={branchMenuRef} className="absolute right-0 top-full mt-1.5 w-48 bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
-                <div className="px-3 py-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('app.menu.switchBranch')}</div>
-                {branches.map(branch => (
-                  <div key={branch} className="px-3 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer flex items-center justify-between transition-colors" onClick={() => handleSwitchBranch(branch)}>
-                    <span>{branch}</span>
-                    {selectedBranch === branch && <Check size={14} className="text-blue-400" />}
-                  </div>
-                ))}
-                <div className="h-px bg-white/10 my-1.5"></div>
-                <div className="px-3 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer flex items-center gap-2 transition-colors" onClick={() => { setShowBranchMenu(false); setShowBranchModal(true); }}>
-                  <Plus size={14} className="text-gray-400" />
-                  <span>{t('app.menu.newBranch')}</span>
-                </div>
-              </div>
-            )}
-          </div>
+          <WorkbenchNewSessionButton
+            buttonLabel={t('app.menu.newSession')}
+            currentSessionEngineId={selectedSessionEngineId}
+            currentSessionModelId={selectedSessionModelId}
+            disabled={!isNewSessionEnabled}
+            disabledTitle={t('code.selectProjectFirst')}
+            selectedEngineId={selectedEngineId}
+            selectedModelId={selectedModelId}
+            variant="topbar"
+            onCreateSession={(engineId) => {
+              void onCreateNewSession(engineId);
+            }}
+          />
+          <ProjectGitHeaderControls
+            isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
+            onToggleOverviewDrawer={onToggleProjectGitOverviewDrawer}
+            projectId={projectId}
+            projectGitOverviewState={resolvedProjectGitOverviewState}
+            showOverviewDrawerToggle={activeTab === 'editor'}
+            variant="topbar"
+            onAnyMenuOpen={() => {
+              setShowSubmitMenu(false);
+            }}
+          />
           <div className="relative animate-in fade-in slide-in-from-top-2 fill-mode-both" style={{ animationDelay: '200ms' }}>
             <div 
               className="flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors px-2 py-1.5 rounded-md hover:bg-white/10"
-              onClick={() => setShowSubmitMenu(!showSubmitMenu)}
+              onClick={() => {
+                setShowSubmitMenu(!showSubmitMenu);
+              }}
             >
               <CheckCircle2 size={14} className="text-gray-400" />
               <span className="font-medium">{t('app.menu.commit')}</span>
@@ -637,12 +607,12 @@ function TopBarComponent({
                     <input 
                       type="text" 
                       readOnly 
-                      value={`https://ide.sdkwork.com/p/${currentProject?.id || 'demo'}`}
+                      value={`https://ide.sdkwork.com/p/${projectId || 'demo'}`}
                       className="flex-1 bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
                     />
                     <Button 
                       onClick={() => {
-                        navigator.clipboard.writeText(`https://ide.sdkwork.com/p/${currentProject?.id || 'demo'}`);
+                        navigator.clipboard.writeText(`https://ide.sdkwork.com/p/${projectId || 'demo'}`);
                         addToast(t('code.linkCopied'), 'success');
                       }}
                       className="bg-[#18181b] hover:bg-white/10 text-white border border-white/10"
@@ -672,7 +642,7 @@ function TopBarComponent({
                     />
                     <Button 
                       onClick={() => void handleInviteCollaborator()}
-                      disabled={!inviteEmail.trim() || isInvitingCollaborator || !currentProject?.id}
+                      disabled={!inviteEmail.trim() || isInvitingCollaborator || !projectId}
                       className="bg-blue-600 hover:bg-blue-500 text-white"
                     >
                       {isInvitingCollaborator ? (
@@ -742,7 +712,7 @@ function TopBarComponent({
               </button>
             </div>
             <div className="p-6 space-y-6">
-              {!currentProject?.id ? (
+              {!projectId ? (
                 <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
                   Select a project before publishing.
                 </div>
@@ -993,7 +963,7 @@ function TopBarComponent({
                 className="bg-blue-600 hover:bg-blue-500 text-white"
                 onClick={handlePublishProject}
                 disabled={
-                  !currentProject?.id ||
+                  !projectId ||
                   isLoadingDeploymentTargets ||
                   isPublishingProject ||
                   (publishTargetMode === 'existing' && !selectedPublishTargetId.trim()) ||
@@ -1008,49 +978,6 @@ function TopBarComponent({
                 ) : (
                   'Publish'
                 )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Branch Modal */}
-      {showBranchModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
-          <div className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-4 border-b border-white/5 bg-[#121214]">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <GitBranch size={18} className="text-blue-400" />
-                {t('app.createNewBranch')}
-              </h3>
-              <button 
-                onClick={() => setShowBranchModal(false)}
-                className="text-gray-400 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">{t('app.branchName')}</label>
-                <input 
-                  type="text" 
-                  value={newBranchName}
-                  onChange={(e) => setNewBranchName(e.target.value)}
-                  placeholder={t('app.branchNamePlaceholder')}
-                  className="w-full bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
-                  autoFocus
-                />
-              </div>
-            </div>
-            <div className="p-4 border-t border-white/5 bg-[#121214] flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setShowBranchModal(false)}>{t('app.cancel')}</Button>
-              <Button 
-                className="bg-blue-600 hover:bg-blue-500 text-white"
-                disabled={!newBranchName.trim()}
-                onClick={handleCreateBranch}
-              >
-                {t('app.createBranch')}
               </Button>
             </div>
           </div>
@@ -1089,10 +1016,15 @@ function TopBarComponent({
               <Button variant="outline" onClick={() => setShowCommitModal(false)}>{t('app.cancel')}</Button>
               <Button 
                 className="bg-green-600 hover:bg-green-500 text-white"
-                disabled={!commitMessage.trim()}
+                disabled={!commitMessage.trim() || isCommitting}
                 onClick={handleCommit}
               >
-                {t('app.commit')}
+                {isCommitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 size={16} className="animate-spin" />
+                    {t('app.commit')}
+                  </span>
+                ) : t('app.commit')}
               </Button>
             </div>
           </div>
@@ -1120,16 +1052,22 @@ function TopBarComponent({
                 {t('app.pushToRemoteDesc')}
               </p>
               <div className="text-xs text-gray-500 bg-[#0e0e11] p-2 rounded border border-white/5 font-mono">
-                git push origin {selectedBranch}
+                git push origin {overview?.currentBranch || currentBranchLabel || 'HEAD'}
               </div>
             </div>
             <div className="p-4 border-t border-white/5 bg-[#121214] flex justify-end gap-3">
               <Button variant="outline" onClick={() => setShowPushModal(false)}>{t('app.cancel')}</Button>
               <Button 
                 className="bg-blue-600 hover:bg-blue-500 text-white"
+                disabled={isPushingBranch}
                 onClick={handlePush}
               >
-                {t('app.push')}
+                {isPushingBranch ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 size={16} className="animate-spin" />
+                    {t('app.push')}
+                  </span>
+                ) : t('app.push')}
               </Button>
             </div>
           </div>

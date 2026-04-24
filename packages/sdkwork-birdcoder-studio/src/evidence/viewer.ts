@@ -1,8 +1,8 @@
-import type { TerminalCommandRequest } from '../../../sdkwork-birdcoder-commons/src/terminal/runtime.ts';
 import {
   getTerminalProfile,
+  type TerminalCommandRequest,
   type TerminalProfileId,
-} from '../../../sdkwork-birdcoder-commons/src/terminal/profiles.ts';
+} from '@sdkwork/birdcoder-commons';
 import type { StudioBuildExecutionEvidence } from '../build/runtime.ts';
 import { listStoredStudioBuildExecutionEvidence } from '../build/evidenceStore.ts';
 import type { StudioPreviewExecutionEvidence } from '../preview/runtime.ts';

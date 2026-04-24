@@ -47,9 +47,11 @@ function createDesktopTypeScriptTransformPlugin({
 function createDesktopVitePlugins({
   desktopRootDir = defaultDesktopRootDir,
   mode = 'development',
+  runtimeEnvSource = process.env,
 } = {}) {
   return createBirdcoderVitePlugins({
     appRootDir: desktopRootDir,
+    runtimeEnvSource,
     toolingRootDir: desktopRootDir,
     mode,
     namespace: desktopNamespace,

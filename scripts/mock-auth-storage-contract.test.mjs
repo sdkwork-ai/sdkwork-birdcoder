@@ -61,23 +61,28 @@ assert.match(
 
 assert.match(
   runtimeAuthServiceSource,
-  /this\.requireClient\(\)\.login\(\{\s*email,\s*password\s*\}\)/u,
-  'runtime auth service must call the user-center API client for login.',
+  /createBirdCoderRuntimeUserCenterClient/u,
+  'runtime auth service must build BirdCoder auth flows on top of the canonical appbase runtime client bridge.',
 );
 assert.match(
   runtimeAuthServiceSource,
-  /this\.requireClient\(\)\.register\(\{\s*email,\s*name,\s*password\s*\}\)/u,
-  'runtime auth service must call the user-center API client for registration.',
+  /runtimeClient\.loginSession\(/u,
+  'runtime auth service login must delegate to the canonical user-center runtime client.',
 );
 assert.match(
   runtimeAuthServiceSource,
-  /this\.requireClient\(\)\.exchangeSession\(request\)/u,
-  'runtime auth service must call the user-center API client for external session exchange.',
+  /runtimeClient\.bootstrapSession\(/u,
+  'runtime auth service external session exchange must delegate to the canonical user-center runtime client.',
 );
 assert.match(
   runtimeAuthServiceSource,
-  /await\s+this\.client\.getCurrentSession\(\)/u,
-  'runtime auth service must hydrate identity from the server session endpoint.',
+  /runtimeClient\.getProfile\(/u,
+  'runtime auth service must hydrate identity through the canonical user-center runtime client profile endpoint.',
+);
+assert.match(
+  runtimeAuthServiceSource,
+  /runtimeClient\.logoutSession\(/u,
+  'runtime auth service logout must delegate to the canonical user-center runtime client.',
 );
 assert.doesNotMatch(
   runtimeAuthServiceSource,
@@ -87,13 +92,28 @@ assert.doesNotMatch(
 
 assert.match(
   runtimeServerSessionSource,
-  /const\s+RUNTIME_SERVER_SESSION_STORAGE_KEY\s*=\s*'birdcoder\.server\.user-center\.session\.v1';/u,
-  'runtime auth storage must persist only the canonical server session identifier key.',
+  /const\s+RUNTIME_SERVER_SESSION_STORAGE_KEY\s*=\s*BIRDCODER_USER_CENTER_STORAGE_PLAN\.sessionTokenKey;/u,
+  'runtime auth storage must source the canonical server session identifier key from the shared user-center bridge.',
+);
+assert.match(
+  runtimeServerSessionSource,
+  /const\s+RUNTIME_SERVER_SESSION_HEADER_NAME\s*=\s*BIRDCODER_USER_CENTER_SESSION_HEADER_NAME;/u,
+  'runtime auth storage must source the canonical user-center session header from the shared user-center bridge.',
+);
+assert.match(
+  runtimeServerSessionSource,
+  /resolveBirdCoderProtectedToken/u,
+  'runtime auth storage must resolve protected runtime session transport through the validation bridge.',
 );
 assert.doesNotMatch(
   runtimeServerSessionSource,
   /currentUser|mockUser|mockSession/u,
   'runtime auth storage must not persist mock identities or duplicate user payloads locally.',
+);
+assert.doesNotMatch(
+  runtimeServerSessionSource,
+  /sdkwork-birdcoder\.user-center\.session-token|x-sdkwork-user-center-session-id/u,
+  'runtime auth storage must not hardcode canonical user-center storage or header names.',
 );
 
 console.log('mock auth storage contract passed.');

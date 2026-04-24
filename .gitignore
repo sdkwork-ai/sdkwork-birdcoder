@@ -16,8 +16,13 @@ server/**/*.tar.gz
 *.log
 .codex-protocol-dump/
 .codex-smoke/
+.codex-temp/
+**/.codex-temp/
+.cargo-targets/
+.cargo-home/
 claude-*.txt
 codex-*.txt
+console.log*
 packages/sdkwork-birdcoder-desktop/.local/
 .env*
 !.env.example

@@ -12,8 +12,15 @@ export interface BirdCoderResolvedCodingSessionLocation {
 export interface BirdCoderProjectCodingSessionIndex {
   codingSessionLocationsById: ReadonlyMap<string, BirdCoderResolvedCodingSessionLocation>;
   latestCodingSessionIdByProjectId: ReadonlyMap<string, string | null>;
+  nextCodingSessionIdById: ReadonlyMap<string, string | null>;
+  previousCodingSessionIdById: ReadonlyMap<string, string | null>;
   projectsById: ReadonlyMap<string, BirdCoderProject>;
 }
+
+const projectCodingSessionIndexCache = new WeakMap<
+  readonly BirdCoderProject[],
+  BirdCoderProjectCodingSessionIndex
+>();
 
 function isLaterCodingSession(
   candidate: BirdCoderCodingSession,
@@ -33,15 +40,29 @@ function isLaterCodingSession(
 export function buildProjectCodingSessionIndex(
   projects: readonly BirdCoderProject[],
 ): BirdCoderProjectCodingSessionIndex {
+  const cachedIndex = projectCodingSessionIndexCache.get(projects);
+  if (cachedIndex) {
+    return cachedIndex;
+  }
+
   const projectsById = new Map<string, BirdCoderProject>();
   const codingSessionLocationsById = new Map<string, BirdCoderResolvedCodingSessionLocation>();
   const latestCodingSessionIdByProjectId = new Map<string, string | null>();
+  const previousCodingSessionIdById = new Map<string, string | null>();
+  const nextCodingSessionIdById = new Map<string, string | null>();
+  let previousTraversalCodingSessionId: string | null = null;
 
   for (const project of projects) {
     projectsById.set(project.id, project);
 
     let latestCodingSession: BirdCoderCodingSession | null = null;
     for (const codingSession of project.codingSessions) {
+      previousCodingSessionIdById.set(codingSession.id, previousTraversalCodingSessionId);
+      nextCodingSessionIdById.set(codingSession.id, null);
+      if (previousTraversalCodingSessionId) {
+        nextCodingSessionIdById.set(previousTraversalCodingSessionId, codingSession.id);
+      }
+      previousTraversalCodingSessionId = codingSession.id;
       codingSessionLocationsById.set(codingSession.id, {
         codingSession,
         project,
@@ -55,11 +76,15 @@ export function buildProjectCodingSessionIndex(
     latestCodingSessionIdByProjectId.set(project.id, latestCodingSession?.id ?? null);
   }
 
-  return {
+  const nextIndex = {
     codingSessionLocationsById,
     latestCodingSessionIdByProjectId,
+    nextCodingSessionIdById,
+    previousCodingSessionIdById,
     projectsById,
   };
+  projectCodingSessionIndexCache.set(projects, nextIndex);
+  return nextIndex;
 }
 
 export function resolveCodingSessionLocationInProjects(
@@ -70,27 +95,26 @@ export function resolveCodingSessionLocationInProjects(
   if (!normalizedCodingSessionId) {
     return null;
   }
-
-  for (const project of projects) {
-    const codingSession = project.codingSessions.find(
-      (candidate) => candidate.id === normalizedCodingSessionId,
-    );
-    if (codingSession) {
-      return {
-        codingSession,
-        project,
-      };
-    }
-  }
-
-  return null;
+  return (
+    buildProjectCodingSessionIndex(projects).codingSessionLocationsById.get(
+      normalizedCodingSessionId,
+    ) ?? null
+  );
 }
 
 export function resolveProjectIdByCodingSessionId(
   projects: readonly BirdCoderProject[],
   codingSessionId: string | null | undefined,
 ): string {
-  return resolveCodingSessionLocationInProjects(projects, codingSessionId)?.project.id ?? '';
+  const normalizedCodingSessionId = codingSessionId?.trim() ?? '';
+  if (!normalizedCodingSessionId) {
+    return '';
+  }
+  return (
+    buildProjectCodingSessionIndex(projects).codingSessionLocationsById.get(
+      normalizedCodingSessionId,
+    )?.project.id ?? ''
+  );
 }
 
 export function resolveLatestCodingSessionIdForProject(
@@ -101,19 +125,9 @@ export function resolveLatestCodingSessionIdForProject(
   if (!normalizedProjectId) {
     return null;
   }
-
-  const project = projects.find((candidate) => candidate.id === normalizedProjectId);
-  if (!project || project.codingSessions.length === 0) {
-    return null;
-  }
-
-  let latestCodingSession = project.codingSessions[0];
-  for (let index = 1; index < project.codingSessions.length; index += 1) {
-    const candidate = project.codingSessions[index];
-    if (isLaterCodingSession(candidate, latestCodingSession)) {
-      latestCodingSession = candidate;
-    }
-  }
-
-  return latestCodingSession?.id ?? null;
+  return (
+    buildProjectCodingSessionIndex(projects).latestCodingSessionIdByProjectId.get(
+      normalizedProjectId,
+    ) ?? null
+  );
 }

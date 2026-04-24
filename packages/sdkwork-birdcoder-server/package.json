@@ -4,8 +4,16 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "cargo run --manifest-path src-host/Cargo.toml",
-    "build": "node ../../scripts/run-birdcoder-server-build.mjs",
+    "dev:base": "cargo run --manifest-path src-host/Cargo.toml",
+    "build:base": "node ../../scripts/run-birdcoder-server-build.mjs",
+    "dev": "node ../../scripts/run-birdcoder-server-command.mjs dev --identity-mode server-private",
+    "dev:private": "node ../../scripts/run-birdcoder-server-command.mjs dev --identity-mode server-private",
+    "dev:external": "node ../../scripts/run-birdcoder-server-command.mjs dev --identity-mode server-private --user-center-provider external-user-center",
+    "dev:cloud": "node ../../scripts/run-birdcoder-server-command.mjs dev --identity-mode cloud-saas",
+    "build": "node ../../scripts/run-birdcoder-server-command.mjs build --identity-mode server-private",
+    "build:private": "node ../../scripts/run-birdcoder-server-command.mjs build --identity-mode server-private",
+    "build:external": "node ../../scripts/run-birdcoder-server-command.mjs build --identity-mode server-private --user-center-provider external-user-center",
+    "build:cloud": "node ../../scripts/run-birdcoder-server-command.mjs build --identity-mode cloud-saas",
     "lint": "node ../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {

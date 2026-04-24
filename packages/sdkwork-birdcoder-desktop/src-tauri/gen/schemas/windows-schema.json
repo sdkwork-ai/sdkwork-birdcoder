@@ -387,16 +387,22 @@
       "description": "Permission identifier",
       "oneOf": [
         {
-          "description": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-local-store`\n- `allow-file-system-bridge`\n- `allow-sdkwork-terminal-bridge`\n- `allow-terminal-detection`",
+          "description": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-local-store`\n- `allow-file-system-bridge`\n- `allow-desktop-window-controls-bridge`\n- `allow-sdkwork-terminal-bridge`\n- `allow-terminal-detection`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-local-store`\n- `allow-file-system-bridge`\n- `allow-sdkwork-terminal-bridge`\n- `allow-terminal-detection`"
+          "markdownDescription": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-local-store`\n- `allow-file-system-bridge`\n- `allow-desktop-window-controls-bridge`\n- `allow-sdkwork-terminal-bridge`\n- `allow-terminal-detection`"
         },
         {
-          "description": "Allows mounted project file-system bridge commands.\n#### This permission set includes:\n\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`",
+          "description": "Allows native desktop window controls bridge commands.\n#### This permission set includes:\n\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-perform-window-control-action`",
+          "type": "string",
+          "const": "allow-desktop-window-controls-bridge",
+          "markdownDescription": "Allows native desktop window controls bridge commands.\n#### This permission set includes:\n\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-perform-window-control-action`"
+        },
+        {
+          "description": "Allows mounted project file-system bridge commands.\n#### This permission set includes:\n\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`",
           "type": "string",
           "const": "allow-file-system-bridge",
-          "markdownDescription": "Allows mounted project file-system bridge commands.\n#### This permission set includes:\n\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`"
+          "markdownDescription": "Allows mounted project file-system bridge commands.\n#### This permission set includes:\n\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`"
         },
         {
           "description": "Allows desktop local store bridge commands.\n#### This permission set includes:\n\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-local-store-list`",
@@ -417,6 +423,12 @@
           "markdownDescription": "Allows terminal CLI profile detection bridge commands.\n#### This permission set includes:\n\n- `allow-terminal-cli-profile-detect`"
         },
         {
+          "description": "Enables the desktop_configure_window_controls_bridge command.",
+          "type": "string",
+          "const": "allow-desktop-configure-window-controls-bridge",
+          "markdownDescription": "Enables the desktop_configure_window_controls_bridge command."
+        },
+        {
           "description": "Enables the desktop_local_process_session_create command.",
           "type": "string",
           "const": "allow-desktop-local-process-session-create",
@@ -433,6 +445,12 @@
           "type": "string",
           "const": "allow-desktop-local-shell-session-create",
           "markdownDescription": "Enables the desktop_local_shell_session_create command."
+        },
+        {
+          "description": "Enables the desktop_perform_window_control_action command.",
+          "type": "string",
+          "const": "allow-desktop-perform-window-control-action",
+          "markdownDescription": "Enables the desktop_perform_window_control_action command."
         },
         {
           "description": "Enables the desktop_pick_working_directory command.",
@@ -513,6 +531,12 @@
           "markdownDescription": "Enables the desktop_terminal_session_inventory_list command."
         },
         {
+          "description": "Enables the desktop_window_controls_bridge_capabilities command.",
+          "type": "string",
+          "const": "allow-desktop-window-controls-bridge-capabilities",
+          "markdownDescription": "Enables the desktop_window_controls_bridge_capabilities command."
+        },
+        {
           "description": "Enables the fs_create_directory command.",
           "type": "string",
           "const": "allow-fs-create-directory",
@@ -531,6 +555,30 @@
           "markdownDescription": "Enables the fs_delete_entry command."
         },
         {
+          "description": "Enables the fs_get_directory_revisions command.",
+          "type": "string",
+          "const": "allow-fs-get-directory-revisions",
+          "markdownDescription": "Enables the fs_get_directory_revisions command."
+        },
+        {
+          "description": "Enables the fs_get_file_revision command.",
+          "type": "string",
+          "const": "allow-fs-get-file-revision",
+          "markdownDescription": "Enables the fs_get_file_revision command."
+        },
+        {
+          "description": "Enables the fs_get_file_revisions command.",
+          "type": "string",
+          "const": "allow-fs-get-file-revisions",
+          "markdownDescription": "Enables the fs_get_file_revisions command."
+        },
+        {
+          "description": "Enables the fs_list_directory command.",
+          "type": "string",
+          "const": "allow-fs-list-directory",
+          "markdownDescription": "Enables the fs_list_directory command."
+        },
+        {
           "description": "Enables the fs_read_file command.",
           "type": "string",
           "const": "allow-fs-read-file",
@@ -547,6 +595,18 @@
           "type": "string",
           "const": "allow-fs-snapshot-folder",
           "markdownDescription": "Enables the fs_snapshot_folder command."
+        },
+        {
+          "description": "Enables the fs_watch_start command.",
+          "type": "string",
+          "const": "allow-fs-watch-start",
+          "markdownDescription": "Enables the fs_watch_start command."
+        },
+        {
+          "description": "Enables the fs_watch_stop command.",
+          "type": "string",
+          "const": "allow-fs-watch-stop",
+          "markdownDescription": "Enables the fs_watch_stop command."
         },
         {
           "description": "Enables the fs_write_file command.",

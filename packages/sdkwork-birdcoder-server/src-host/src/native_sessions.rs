@@ -3,17 +3,16 @@ use std::{
     path::{Path as FsPath, PathBuf},
 };
 
-use serde::{Deserialize, Serialize};
 use sdkwork_birdcoder_codeengine::{
     build_native_session_id as build_standard_native_session_id,
-    standard_codeengine_provider_registry,
     is_authority_backed_native_session_id as is_standard_authority_backed_native_session_id,
     resolve_native_session_engine_id as resolve_standard_native_session_engine_id,
-    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord,
-    CodeEngineSessionMessageRecord, CodeEngineSessionSummaryRecord,
+    standard_codeengine_provider_registry, CodeEngineSessionCommandRecord,
+    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord, CodeEngineSessionSummaryRecord,
     CodeEngineTurnConfigRecord, CodeEngineTurnCurrentFileContextRecord,
     CodeEngineTurnIdeContextRecord, CodeEngineTurnRequestRecord, CodeEngineTurnResultRecord,
 };
+use serde::{Deserialize, Serialize};
 
 use super::ProjectPayload;
 
@@ -45,7 +44,7 @@ pub(crate) struct NativeSessionTurnConfig {
 #[derive(Clone, Default)]
 pub(crate) struct NativeSessionTurnRequest {
     pub(crate) engine_id: String,
-    pub(crate) model_id: Option<String>,
+    pub(crate) model_id: String,
     pub(crate) native_session_id: Option<String>,
     pub(crate) request_kind: String,
     pub(crate) input_summary: String,
@@ -65,7 +64,7 @@ pub(crate) struct NativeSessionTurnCurrentFileContext {
 pub(crate) struct NativeSessionTurnIdeContext {
     pub(crate) workspace_id: Option<String>,
     pub(crate) project_id: Option<String>,
-    pub(crate) thread_id: Option<String>,
+    pub(crate) session_id: Option<String>,
     pub(crate) current_file: Option<NativeSessionTurnCurrentFileContext>,
 }
 
@@ -111,11 +110,12 @@ pub(crate) struct NativeSessionSummaryPayload {
     pub(crate) status: String,
     pub(crate) host_mode: String,
     pub(crate) engine_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) model_id: Option<String>,
+    pub(crate) model_id: String,
     pub(crate) updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) last_turn_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) runtime_status: Option<String>,
     pub(crate) kind: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) native_cwd: Option<String>,
@@ -151,9 +151,12 @@ fn map_codeengine_message_record(
         turn_id: message.turn_id,
         role: message.role,
         content: message.content,
-        commands: message
-            .commands
-            .map(|commands| commands.into_iter().map(map_codeengine_command_record).collect()),
+        commands: message.commands.map(|commands| {
+            commands
+                .into_iter()
+                .map(map_codeengine_command_record)
+                .collect()
+        }),
         metadata: message.metadata,
         created_at: message.created_at,
     }
@@ -162,6 +165,11 @@ fn map_codeengine_message_record(
 fn map_codeengine_summary_record(
     summary: CodeEngineSessionSummaryRecord,
 ) -> NativeSessionSummaryPayload {
+    let runtime_status = match summary.status.as_str() {
+        "completed" | "archived" => Some("completed".to_owned()),
+        "failed" => Some("failed".to_owned()),
+        _ => Some("ready".to_owned()),
+    };
     NativeSessionSummaryPayload {
         created_at: summary.created_at,
         id: summary.id,
@@ -174,6 +182,7 @@ fn map_codeengine_summary_record(
         model_id: summary.model_id,
         updated_at: summary.updated_at,
         last_turn_at: summary.last_turn_at,
+        runtime_status,
         kind: summary.kind,
         native_cwd: summary.native_cwd,
         sort_timestamp: summary.sort_timestamp,
@@ -243,9 +252,10 @@ pub(crate) fn get_native_session(
     projects: &[ProjectPayload],
     lookup: &NativeSessionLookup,
 ) -> Result<Option<NativeSessionDetailPayload>, String> {
-    let resolved_engine_id = normalize_non_empty_string(lookup.engine_id.as_deref()).or_else(|| {
-        resolve_standard_native_session_engine_id(lookup.session_id.as_str()).map(str::to_owned)
-    });
+    let resolved_engine_id =
+        normalize_non_empty_string(lookup.engine_id.as_deref()).or_else(|| {
+            resolve_standard_native_session_engine_id(lookup.session_id.as_str()).map(str::to_owned)
+        });
     let providers =
         standard_codeengine_provider_registry().resolve_provider(resolved_engine_id.as_deref())?;
 
@@ -271,9 +281,10 @@ pub(crate) fn get_native_session_summary(
     projects: &[ProjectPayload],
     lookup: &NativeSessionLookup,
 ) -> Result<Option<NativeSessionSummaryPayload>, String> {
-    let resolved_engine_id = normalize_non_empty_string(lookup.engine_id.as_deref()).or_else(|| {
-        resolve_standard_native_session_engine_id(lookup.session_id.as_str()).map(str::to_owned)
-    });
+    let resolved_engine_id =
+        normalize_non_empty_string(lookup.engine_id.as_deref()).or_else(|| {
+            resolve_standard_native_session_engine_id(lookup.session_id.as_str()).map(str::to_owned)
+        });
     let providers =
         standard_codeengine_provider_registry().resolve_provider(resolved_engine_id.as_deref())?;
 
@@ -323,8 +334,8 @@ fn matches_native_session_lookup_scope(
 pub(crate) fn execute_native_session_turn(
     request: &NativeSessionTurnRequest,
 ) -> Result<NativeSessionTurnResult, String> {
-    let providers =
-        standard_codeengine_provider_registry().resolve_provider(Some(request.engine_id.as_str()))?;
+    let providers = standard_codeengine_provider_registry()
+        .resolve_provider(Some(request.engine_id.as_str()))?;
     let provider = providers.into_iter().next().ok_or_else(|| {
         "Native session provider registry did not resolve an engine provider.".to_owned()
     })?;
@@ -372,7 +383,7 @@ fn map_codeengine_turn_ide_context_record(
     CodeEngineTurnIdeContextRecord {
         workspace_id: ide_context.workspace_id.clone(),
         project_id: ide_context.project_id.clone(),
-        thread_id: ide_context.thread_id.clone(),
+        session_id: ide_context.session_id.clone(),
         current_file: ide_context
             .current_file
             .as_ref()
@@ -522,7 +533,7 @@ mod tests {
         let fixture_path = write_temp_jsonl(
             "codex-summary-title",
             concat!(
-                "{\"timestamp\":\"2026-04-17T05:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-a\",\"timestamp\":\"2026-04-17T05:00:00Z\",\"cwd\":\"D:/javasource/spring-ai-plus/spring-ai-plus-business/apps/sdkwork-birdcoder\"}}\n",
+                "{\"timestamp\":\"2026-04-17T05:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-a\",\"timestamp\":\"2026-04-17T05:00:00Z\",\"cwd\":\"D:/javasource/spring-ai-plus/spring-ai-plus-business/apps/sdkwork-birdcoder\",\"model\":\"gpt-5.4\"}}\n",
                 "{\"timestamp\":\"2026-04-17T05:00:01Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"developer\",\"content\":[{\"type\":\"input_text\",\"text\":\"developer instructions\"}]}}\n",
                 "{\"timestamp\":\"2026-04-17T05:00:02Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"# AGENTS.md instructions for D:/repo\\n<environment_context>cwd</environment_context>\"}]}}\n",
                 "{\"timestamp\":\"2026-04-17T05:00:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"修复 open folder 重复导入，并正确显示 session 标题\"}}\n"
@@ -532,7 +543,7 @@ mod tests {
         session_index.insert(
             "019d-session-a".to_owned(),
             SessionIndexEntry {
-                thread_name: Some("Wrong Thread Index Title".to_owned()),
+                thread_name: Some("Wrong Session Index Title".to_owned()),
                 updated_at: Some("2026-04-17T05:00:04Z".to_owned()),
             },
         );
@@ -558,7 +569,7 @@ mod tests {
         let fixture_path = write_temp_jsonl(
             "codex-detail-transcript",
             concat!(
-                "{\"timestamp\":\"2026-04-17T06:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-b\",\"timestamp\":\"2026-04-17T06:00:00Z\",\"cwd\":\"D:/repo/demo\"}}\n",
+                "{\"timestamp\":\"2026-04-17T06:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-b\",\"timestamp\":\"2026-04-17T06:00:00Z\",\"cwd\":\"D:/repo/demo\",\"model\":\"gpt-5.4\"}}\n",
                 "{\"timestamp\":\"2026-04-17T06:00:01Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"developer\",\"content\":[{\"type\":\"input_text\",\"text\":\"developer instructions should not appear\"}]}}\n",
                 "{\"timestamp\":\"2026-04-17T06:00:02Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"## My request for Codex:\\nBuild the server-backed session reader\"}]}}\n",
                 "{\"timestamp\":\"2026-04-17T06:00:03Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"I will inspect the server provider first.\"}]}}\n",
@@ -604,11 +615,8 @@ mod tests {
             .expect("parse summary")
             .expect("summary");
 
-        assert_eq!(
-            summary.native_cwd.as_deref(),
-            Some("D:/repo/demo/subdir")
-        );
-        assert_eq!(summary.model_id.as_deref(), Some("gpt-5.4"));
+        assert_eq!(summary.native_cwd.as_deref(), Some("D:/repo/demo/subdir"));
+        assert_eq!(summary.model_id, "gpt-5.4");
         assert_eq!(
             summary.title,
             "Fix the missing project attribution for Codex sessions"
@@ -622,6 +630,48 @@ mod tests {
         assert_eq!(detail.messages[1].role, "assistant");
 
         fs::remove_file(&fixture_path).expect("remove codex turn context fixture");
+    }
+
+    #[test]
+    fn codex_summary_requires_explicit_model_id() {
+        let fixture_path = write_temp_jsonl(
+            "codex-summary-missing-model",
+            concat!(
+                "{\"timestamp\":\"2026-04-18T09:20:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-missing-model\",\"timestamp\":\"2026-04-18T09:20:00Z\",\"cwd\":\"D:/repo/demo\"}}\n",
+                "{\"timestamp\":\"2026-04-18T09:20:01Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"Implement strict model contract\"}}\n"
+            ),
+        );
+
+        let summary = parse_codex_session_summary(&fixture_path, &BTreeMap::new())
+            .expect("parse summary with default model fallback")
+            .expect("summary");
+        let expected_default_model =
+            sdkwork_birdcoder_codeengine::find_codeengine_descriptor("codex")
+                .expect("codex descriptor")
+                .default_model_id;
+
+        assert_eq!(summary.model_id, expected_default_model);
+
+        fs::remove_file(&fixture_path).expect("remove codex missing model fixture");
+    }
+
+    #[test]
+    fn map_codeengine_turn_request_record_keeps_explicit_model_id() {
+        let request = super::NativeSessionTurnRequest {
+            engine_id: "codex".to_owned(),
+            model_id: "gpt-5.4".to_owned(),
+            native_session_id: Some("codex-native:thread-1".to_owned()),
+            request_kind: "chat".to_owned(),
+            input_summary: "Implement strict turn contract".to_owned(),
+            ide_context: None,
+            working_directory: None,
+            config: super::NativeSessionTurnConfig::default(),
+        };
+
+        let mapped = super::map_codeengine_turn_request_record(&request);
+
+        assert_eq!(mapped.engine_id, "codex");
+        assert_eq!(mapped.model_id, "gpt-5.4");
     }
 
     #[test]
@@ -669,7 +719,7 @@ mod tests {
         let fixture_path = write_temp_jsonl(
             "codex-shell-command-output",
             concat!(
-                "{\"timestamp\":\"2026-04-18T08:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-c\",\"timestamp\":\"2026-04-18T08:00:00Z\",\"cwd\":\"D:/repo/demo\"}}\n",
+                "{\"timestamp\":\"2026-04-18T08:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-c\",\"timestamp\":\"2026-04-18T08:00:00Z\",\"cwd\":\"D:/repo/demo\",\"model\":\"gpt-5.4\"}}\n",
                 "{\"timestamp\":\"2026-04-18T08:00:01Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"function_call\",\"name\":\"shell_command\",\"arguments\":\"{\\\"command\\\":\\\"Get-Content foo.txt\\\"}\",\"call_id\":\"call-shell-1\"}}\n",
                 "{\"timestamp\":\"2026-04-18T08:00:02Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"call_id\":\"call-shell-1\",\"output\":\". : C:\\\\Users\\\\admin\\\\Documents\\\\WindowsPowerShell\\\\profile.ps1\\nhttps:/go.microsoft.com/fwlink/?LinkID=135170\\nCategoryInfo\\nFullyQualifiedErrorId\\nActual output line\"}}\n"
             ),
@@ -706,7 +756,7 @@ mod tests {
         let fixture_path = write_temp_jsonl(
             "codex-custom-tool-output",
             concat!(
-                "{\"timestamp\":\"2026-04-18T08:10:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-d\",\"timestamp\":\"2026-04-18T08:10:00Z\",\"cwd\":\"D:/repo/demo\"}}\n",
+                "{\"timestamp\":\"2026-04-18T08:10:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-d\",\"timestamp\":\"2026-04-18T08:10:00Z\",\"cwd\":\"D:/repo/demo\",\"model\":\"gpt-5.4\"}}\n",
                 "{\"timestamp\":\"2026-04-18T08:10:01Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call\",\"status\":\"completed\",\"call_id\":\"call-patch-1\",\"name\":\"apply_patch\",\"input\":\"*** Begin Patch\"}}\n",
                 "{\"timestamp\":\"2026-04-18T08:10:02Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call_output\",\"call_id\":\"call-patch-1\",\"output\":\"{\\\"output\\\":\\\"Success. Updated the following files:\\nA src/example.ts\\n\\\",\\\"metadata\\\":{\\\"exit_code\\\":0}}\"}}\n"
             ),
@@ -726,7 +776,9 @@ mod tests {
                 .map(|command| command.command.as_str()),
             Some("apply_patch")
         );
-        assert!(detail.messages[0].content.contains("Success. Updated the following files:"));
+        assert!(detail.messages[0]
+            .content
+            .contains("Success. Updated the following files:"));
 
         fs::remove_file(&fixture_path).expect("remove codex custom tool fixture");
     }
@@ -736,7 +788,7 @@ mod tests {
         let fixture_path = write_temp_jsonl(
             "codex-patch-apply-event",
             concat!(
-                "{\"timestamp\":\"2026-04-18T08:20:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-e\",\"timestamp\":\"2026-04-18T08:20:00Z\",\"cwd\":\"D:/repo/demo\"}}\n",
+                "{\"timestamp\":\"2026-04-18T08:20:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-e\",\"timestamp\":\"2026-04-18T08:20:00Z\",\"cwd\":\"D:/repo/demo\",\"model\":\"gpt-5.4\"}}\n",
                 "{\"timestamp\":\"2026-04-18T08:20:01Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call\",\"status\":\"completed\",\"call_id\":\"call-patch-2\",\"name\":\"apply_patch\",\"input\":\"*** Begin Patch\"}}\n",
                 "{\"timestamp\":\"2026-04-18T08:20:02Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"patch_apply_end\",\"call_id\":\"call-patch-2\",\"turn_id\":\"turn-patch-2\",\"stdout\":\"Success. Updated the following files:\\nM src/example.ts\\n\",\"stderr\":\"\",\"success\":true}}\n",
                 "{\"timestamp\":\"2026-04-18T08:20:03Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call_output\",\"call_id\":\"call-patch-2\",\"output\":\"{\\\"output\\\":\\\"Success. Updated the following files:\\nM src/example.ts\\n\\\",\\\"metadata\\\":{\\\"exit_code\\\":0}}\"}}\n"
@@ -761,4 +813,3 @@ mod tests {
         fs::remove_file(&fixture_path).expect("remove codex patch apply fixture");
     }
 }
-

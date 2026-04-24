@@ -9,6 +9,18 @@ const sidebarSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx', import.meta.url),
   'utf8',
 );
+const projectExplorerSharedSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorer.shared.ts', import.meta.url),
+  'utf8',
+);
+const projectExplorerSessionRowSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorerSessionRow.tsx', import.meta.url),
+  'utf8',
+);
+const projectExplorerProjectSectionSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorerProjectSection.tsx', import.meta.url),
+  'utf8',
+);
 const studioSidebarSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioChatSidebar.tsx', import.meta.url),
   'utf8',
@@ -33,15 +45,15 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  sidebarSource,
+  `${sidebarSource}\n${projectExplorerSharedSource}\n${projectExplorerSessionRowSource}\n${projectExplorerProjectSectionSource}`,
   /contain:\s*'layout paint style'/,
-  'Code sidebar rows must keep CSS containment so large project/session inventories do not force unnecessary cross-surface relayout.',
+  'Code ProjectExplorer rows must keep CSS containment so large project/session inventories do not force unnecessary cross-surface relayout.',
 );
 
 assert.doesNotMatch(
-  sidebarSource,
+  `${sidebarSource}\n${projectExplorerSharedSource}\n${projectExplorerSessionRowSource}\n${projectExplorerProjectSectionSource}`,
   /contentVisibility:\s*'auto'/,
-  'Code sidebar rows must not use content-visibility:auto because the sidebar must repaint immediately during maximize and restore.',
+  'Code ProjectExplorer rows must not use content-visibility:auto because the sidebar must repaint immediately during maximize and restore.',
 );
 
 assert.match(

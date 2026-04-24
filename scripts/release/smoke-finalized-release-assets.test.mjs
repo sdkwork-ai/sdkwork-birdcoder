@@ -87,42 +87,6 @@ fs.writeFileSync(
   }, null, 2),
 );
 fs.writeFileSync(
-  path.join(releaseAssetsDir, 'terminal', 'governance', 'terminal-governance-diagnostics.json'),
-  JSON.stringify({
-    scope: 'terminal-governance',
-    generatedAt: '2026-04-08T13:14:00.000Z',
-    summary: {
-      totalRecords: 1,
-      blockedRecords: 1,
-      riskLevels: ['P3'],
-      approvalPolicies: ['Restricted'],
-    },
-    records: [
-      {
-        traceId: 'terminal-governance:test',
-        recordedAt: 1712577840000,
-        profileId: 'powershell',
-        cwd: 'D:/workspace/app',
-        command: 'rm -rf .',
-        reason: 'Restricted policy blocked high-risk terminal command.',
-        approvalPolicy: 'Restricted',
-        category: 'dangerous.command',
-        engine: 'birdcoder',
-        tool: 'terminal.exec',
-        riskLevel: 'P3',
-        approvalDecision: 'blocked',
-        inputDigest: 'in',
-        outputDigest: 'out',
-        artifactRefs: ['cwd:D:/workspace/app'],
-        operator: 'terminal:powershell',
-        recoveryActionId: 'open-settings',
-        recoveryActionLabel: 'Open Settings',
-        recoveryDescription: 'Review terminal approval settings or rerun a safer command: rm -rf .',
-      },
-    ],
-  }, null, 2),
-);
-fs.writeFileSync(
   path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'desktop-startup-evidence.json'),
   JSON.stringify({
     platform: 'windows',
@@ -366,14 +330,6 @@ fs.writeFileSync(
       projectIds: ['project-1'],
       latestLaunchedAt: 1712577780000,
     },
-    governanceEvidence: {
-      archiveRelativePath: 'terminal/governance/terminal-governance-diagnostics.json',
-      entryCount: 1,
-      blockedRecords: 1,
-      riskLevels: ['P3'],
-      approvalPolicies: ['Restricted'],
-      latestRecordedAt: 1712577840000,
-    },
     qualityEvidence: {
       archiveRelativePath: 'quality/quality-gate-matrix-report.json',
       totalTiers: 3,
@@ -417,7 +373,6 @@ fs.writeFileSync(
       'quality blockers `vite-host-build-preflight`',
       'runtime blocked tiers `standard`',
       'runtime blockers `vite-host-build-preflight`',
-      'governance blocked records `1`',
     ],
     promotionReadiness: {
       currentReleaseKind: 'canary',
@@ -427,7 +382,6 @@ fs.writeFileSync(
         'quality blockers `vite-host-build-preflight`',
         'runtime blocked tiers `standard`',
         'runtime blockers `vite-host-build-preflight`',
-        'governance blocked records `1`',
       ],
     },
   }, null, 2),
@@ -483,14 +437,6 @@ assert.deepEqual(result.testEvidence, {
   projectIds: ['project-1'],
   latestLaunchedAt: 1712577780000,
 });
-assert.deepEqual(result.governanceEvidence, {
-  archiveRelativePath: 'terminal/governance/terminal-governance-diagnostics.json',
-  entryCount: 1,
-  blockedRecords: 1,
-  riskLevels: ['P3'],
-  approvalPolicies: ['Restricted'],
-  latestRecordedAt: 1712577840000,
-});
 assert.deepEqual(result.desktopStartupReadiness, [
   {
     target: 'windows/x64',
@@ -516,7 +462,6 @@ assert.deepEqual(result.stopShipSignals, [
   'quality blockers `vite-host-build-preflight`',
   'runtime blocked tiers `standard`',
   'runtime blockers `vite-host-build-preflight`',
-  'governance blocked records `1`',
 ]);
 assert.deepEqual(result.promotionReadiness, {
   currentReleaseKind: 'canary',
@@ -526,7 +471,6 @@ assert.deepEqual(result.promotionReadiness, {
     'quality blockers `vite-host-build-preflight`',
     'runtime blocked tiers `standard`',
     'runtime blockers `vite-host-build-preflight`',
-    'governance blocked records `1`',
   ],
 });
 assert.deepEqual(result.qualityEvidence, {
@@ -578,7 +522,6 @@ assert.deepEqual(report.stopShipSignals, [
   'quality blockers `vite-host-build-preflight`',
   'runtime blocked tiers `standard`',
   'runtime blockers `vite-host-build-preflight`',
-  'governance blocked records `1`',
 ]);
 assert.deepEqual(report.promotionReadiness, {
   currentReleaseKind: 'canary',
@@ -588,7 +531,6 @@ assert.deepEqual(report.promotionReadiness, {
     'quality blockers `vite-host-build-preflight`',
     'runtime blocked tiers `standard`',
     'runtime blockers `vite-host-build-preflight`',
-    'governance blocked records `1`',
   ],
 });
 assert.equal(
@@ -609,10 +551,6 @@ assert.equal(
 );
 assert.equal(
   report.checks.find((entry) => entry.id === 'test-evidence-summary-match')?.status,
-  'passed',
-);
-assert.equal(
-  report.checks.find((entry) => entry.id === 'governance-evidence-summary-match')?.status,
   'passed',
 );
 assert.equal(
@@ -719,7 +657,6 @@ missingPromotionReadinessManifest.stopShipSignals = [
   'quality blockers `vite-host-build-preflight`',
   'runtime blocked tiers `standard`',
   'runtime blockers `vite-host-build-preflight`',
-  'governance blocked records `1`',
 ];
 delete missingPromotionReadinessManifest.promotionReadiness;
 fs.writeFileSync(manifestPath, `${JSON.stringify(missingPromotionReadinessManifest, null, 2)}\n`);
@@ -772,7 +709,6 @@ missingOpenApiManifest.stopShipSignals = [
   'quality blockers `vite-host-build-preflight`',
   'runtime blocked tiers `standard`',
   'runtime blockers `vite-host-build-preflight`',
-  'governance blocked records `1`',
 ];
 missingOpenApiManifest.promotionReadiness = {
   currentReleaseKind: 'canary',
@@ -782,7 +718,6 @@ missingOpenApiManifest.promotionReadiness = {
     'quality blockers `vite-host-build-preflight`',
     'runtime blocked tiers `standard`',
     'runtime blockers `vite-host-build-preflight`',
-    'governance blocked records `1`',
   ],
 };
 delete missingOpenApiManifest.codingServerOpenApiEvidence;

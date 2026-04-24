@@ -122,6 +122,16 @@ function sortBindingsByScope(
 export function assembleBirdCoderPromptRuntime(
   options: BirdCoderPromptRuntimeAssemblyOptions,
 ): BirdCoderPromptRuntimeAssembly {
+  const engineKey = String(options.engineKey ?? '').trim();
+  if (!engineKey) {
+    throw new Error('Prompt runtime assembly requires an explicit engine key.');
+  }
+
+  const modelId = String(options.modelId ?? '').trim();
+  if (!modelId) {
+    throw new Error(`Prompt runtime assembly requires an explicit model id for engine "${engineKey}".`);
+  }
+
   const fragmentsByLayer = new Map<string, BirdCoderPromptFragmentInput[]>();
 
   for (const fragment of options.fragments ?? []) {
@@ -155,8 +165,8 @@ export function assembleBirdCoderPromptRuntime(
   );
 
   return {
-    engineKey: options.engineKey,
-    modelId: options.modelId,
+    engineKey,
+    modelId,
     layerIds: [...BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS],
     layers,
     promptText: layers

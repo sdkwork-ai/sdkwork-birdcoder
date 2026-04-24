@@ -1,37 +1,27 @@
 import assert from 'node:assert/strict';
-import type { ChatMessage } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
+import fs from 'node:fs';
+import type { BirdCoderEngineCapabilityMatrix } from '@sdkwork/birdcoder-types';
 import { createBirdCoderStorageProvider } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
 import { createBirdCoderPromptSkillTemplateEvidenceRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts';
 import { getBirdCoderSchemaMigrationDefinition } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts';
-import {
-  createProviderBackedBirdCoderCoreSessionProjectionStore,
-  executeBirdCoderCoreSessionRun,
-  persistBirdCoderCoreSessionRunProjection,
-} from '../packages/sdkwork-birdcoder-server/src/index.ts';
-import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
+import { createProviderBackedBirdCoderCoreSessionProjectionStore } from '../packages/sdkwork-birdcoder-server/src/projectionRepository.ts';
 
-const codexFakeJsonlLines = [
-  `${JSON.stringify({
-    type: 'item.updated',
-    item: {
-      id: 'codex-evidence-contract-message',
-      type: 'agent_message',
-      text: 'Stored coding-server evidence for the current turn.',
-    },
-  })}\n`,
-  `${JSON.stringify({
-    type: 'turn.completed',
-  })}\n`,
-];
+const serverIndexPath = new URL(
+  '../packages/sdkwork-birdcoder-server/src/index.ts',
+  import.meta.url,
+);
+const serverIndexSource = fs.readFileSync(serverIndexPath, 'utf8');
 
-const messages: ChatMessage[] = [
-  {
-    id: 'msg-coding-server-evidence-1',
-    role: 'user',
-    content: 'Generate coding-server evidence records for this turn.',
-    timestamp: Date.now(),
-  },
-];
+assert.match(
+  serverIndexSource,
+  /export async function executeBirdCoderCoreSessionRun/u,
+  'coding-server module must expose the canonical core-session execution entrypoint.',
+);
+assert.match(
+  serverIndexSource,
+  /export async function persistBirdCoderCoreSessionRunProjection/u,
+  'coding-server module must expose the canonical core-session projection persistence entrypoint.',
+);
 
 const provider = createBirdCoderStorageProvider('sqlite');
 await provider.open();
@@ -53,26 +43,81 @@ const store = createProviderBackedBirdCoderCoreSessionProjectionStore(
   provider,
 );
 
-const projection = await withMockCodexCliJsonl(
-  () =>
-    executeBirdCoderCoreSessionRun({
-      sessionId: 'coding-session-evidence-consumer-contract',
-      runtimeId: 'runtime-evidence-consumer-contract',
-      turnId: 'turn-evidence-consumer-contract',
-      engineId: 'codex',
-      modelId: 'codex',
-      hostMode: 'server',
-      messages,
-      options: {
-        model: 'codex',
-      },
-    }),
-  {
-    stdoutLines: codexFakeJsonlLines,
-  },
-);
+const capabilitySnapshot: BirdCoderEngineCapabilityMatrix = {
+  chat: true,
+  streaming: true,
+  structuredOutput: true,
+  toolCalls: true,
+  planning: true,
+  patchArtifacts: true,
+  commandArtifacts: true,
+  todoArtifacts: true,
+  ptyArtifacts: true,
+  previewArtifacts: true,
+  testArtifacts: true,
+  approvalCheckpoints: true,
+  sessionResume: true,
+  remoteBridge: false,
+  mcp: true,
+};
 
-await persistBirdCoderCoreSessionRunProjection(store, projection);
+const projection = {
+  runtime: {
+    id: 'runtime-evidence-consumer-contract',
+    codingSessionId: 'coding-session-evidence-consumer-contract',
+    hostMode: 'server',
+    status: 'ready',
+    engineId: 'codex',
+    modelId: 'codex',
+    nativeRef: {
+      engineId: 'codex',
+      transportKind: 'stdio',
+      nativeSessionId: 'coding-session-evidence-consumer-contract',
+      nativeTurnContainerId: 'turn-evidence-consumer-contract',
+      metadata: {},
+    },
+    capabilitySnapshot,
+    metadata: {},
+    createdAt: '2026-04-12T11:00:00.000Z',
+    updatedAt: '2026-04-12T11:00:09.000Z',
+  },
+  events: [
+    {
+      id: 'event-evidence-consumer-contract-1',
+      codingSessionId: 'coding-session-evidence-consumer-contract',
+      turnId: 'turn-evidence-consumer-contract',
+      runtimeId: 'runtime-evidence-consumer-contract',
+      kind: 'turn.completed',
+      sequence: 1,
+      payload: {
+        runtimeStatus: 'ready',
+      },
+      createdAt: '2026-04-12T11:00:09.000Z',
+    },
+  ],
+  artifacts: [
+    {
+      id: 'artifact-evidence-consumer-contract-1',
+      codingSessionId: 'coding-session-evidence-consumer-contract',
+      turnId: 'turn-evidence-consumer-contract',
+      kind: 'transcript',
+      status: 'sealed',
+      title: 'Coding Server Transcript Artifact',
+      blobRef: 'memory://artifact-evidence-consumer-contract-1',
+      metadata: {},
+      createdAt: '2026-04-12T11:00:09.000Z',
+    },
+  ],
+  operation: {
+    operationId: 'turn-evidence-consumer-contract:operation',
+    status: 'succeeded',
+    artifactRefs: ['artifact-evidence-consumer-contract-1'],
+    streamUrl: '/api/core/v1/coding-sessions/coding-session-evidence-consumer-contract/events',
+    streamKind: 'sse',
+  },
+} satisfies Parameters<typeof store.persistRunProjection>[0];
+
+await store.persistRunProjection(projection);
 
 const promptRunId = `prompt-run-${projection.operation.operationId}`;
 const promptEvaluationId = `prompt-evaluation-${projection.operation.operationId}`;
@@ -84,7 +129,7 @@ assert.equal(promptRun?.codingSessionId, projection.runtime.codingSessionId);
 assert.equal(promptRun?.promptBundleId, `coding-server-${projection.runtime.engineId}-prompt-bundle`);
 assert.equal(
   promptRun?.promptAssetVersionId,
-  `coding-server-${projection.runtime.engineId}-${projection.runtime.modelId ?? 'default-model'}-prompt-asset-version`,
+  `coding-server-${projection.runtime.engineId}-${projection.runtime.modelId}-prompt-asset-version`,
 );
 assert.equal(promptRun?.status, 'completed');
 assert.equal(

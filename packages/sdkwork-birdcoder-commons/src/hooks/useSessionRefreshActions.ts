@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext.ts';
 import {
   upsertCodingSessionIntoProjectsStore,
   upsertProjectIntoProjectsStore,
-} from './useProjects.ts';
+} from '../stores/projectsStore.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
   refreshCodingSessionMessages,
@@ -130,12 +130,30 @@ export function useSessionRefreshActions({
       }
 
       if (result.codingSession) {
-        upsertCodingSessionIntoProjectsStore(
-          result.workspaceId ?? workspaceId?.trim() ?? result.codingSession.workspaceId,
-          result.projectId,
-          result.codingSession,
-          normalizedUserScope,
+        const synchronizedProject = await projectService.getProjectById(result.projectId).catch(
+          (error) => {
+            console.error(
+              `Failed to resolve synchronized project "${result.projectId}" after manual session refresh`,
+              error,
+            );
+            return null;
+          },
         );
+
+        if (synchronizedProject) {
+          upsertProjectIntoProjectsStore(
+            synchronizedProject.workspaceId,
+            synchronizedProject,
+            normalizedUserScope,
+          );
+        } else {
+          upsertCodingSessionIntoProjectsStore(
+            result.workspaceId ?? workspaceId?.trim() ?? result.codingSession.workspaceId,
+            result.projectId,
+            result.codingSession,
+            normalizedUserScope,
+          );
+        }
       }
 
       restoreSelectionAfterRefresh(

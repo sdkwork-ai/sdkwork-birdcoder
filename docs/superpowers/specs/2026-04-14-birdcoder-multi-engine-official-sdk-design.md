@@ -17,7 +17,7 @@ Use a canonical runtime facade with provider-specific adapters.
 
 | Engine | Official package | Primary mode | Notes |
 | --- | --- | --- | --- |
-| Codex | `@openai/codex-sdk` | stable SDK | thread/turn/item/event model |
+| Codex | `@openai/codex-sdk` | stable SDK | native thread/turn/item/event model |
 | Claude | `@anthropic-ai/claude-agent-sdk` | stable SDK | `query()` stable, session preview available |
 | Gemini | `@google/gemini-cli-sdk` | stable SDK lane | agent/session/tool/skill model |
 | OpenCode | `@opencode-ai/sdk` | stable SDK | client/server/openapi model |

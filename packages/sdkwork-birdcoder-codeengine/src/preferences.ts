@@ -9,6 +9,7 @@ import {
   normalizeWorkbenchCodeEngineKernelId,
   WORKBENCH_ENGINE_KERNELS,
   type WorkbenchCodeEngineId,
+  type WorkbenchCodeEngineExecutionTopology,
 } from './kernel.ts';
 import { BIRDCODER_STANDARD_DEFAULT_ENGINE_ID } from './catalog.ts';
 
@@ -60,6 +61,7 @@ export interface WorkbenchCodeEngineDefinition {
   modelCatalog: readonly WorkbenchCodeEngineModelDefinition[];
   accessPlan: BirdCoderEngineAccessPlan | null;
   primaryAccessLane: BirdCoderEngineAccessLane | null;
+  executionTopology: WorkbenchCodeEngineExecutionTopology;
 }
 
 export interface WorkbenchChatSelection {
@@ -103,6 +105,7 @@ export const WORKBENCH_CODE_ENGINES: ReadonlyArray<WorkbenchCodeEngineDefinition
     modelCatalog: engine.modelCatalog.map(toWorkbenchCodeEngineModelDefinition),
     accessPlan: engine.accessPlan,
     primaryAccessLane: engine.primaryAccessLane,
+    executionTopology: engine.executionTopology,
   }));
 
 export const DEFAULT_WORKBENCH_CHAT_SELECTION: WorkbenchChatSelection = {
@@ -243,16 +246,44 @@ export function listWorkbenchCodeEngines(
   return WORKBENCH_CODE_ENGINES.map((engine) => buildMergedEngineDefinition(engine, settingsMap));
 }
 
+export function findWorkbenchCodeEngineDefinition(
+  value: string | null | undefined,
+  settings?: WorkbenchCodeEngineSettingsCarrier | null,
+): WorkbenchCodeEngineDefinition | null {
+  const normalizedValue = value?.trim().toLowerCase();
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const settingsMap = resolveEngineSettingsCarrier(settings);
+  return (
+    listWorkbenchCodeEngines({ codeEngineSettings: settingsMap }).find(
+      (engine) =>
+        engine.id === normalizedValue ||
+        engine.aliases.some((alias) => alias.toLowerCase() === normalizedValue) ||
+        engine.label.toLowerCase() === normalizedValue,
+    ) ?? null
+  );
+}
+
 export function getWorkbenchCodeEngineDefinition(
   value: string | null | undefined,
   settings?: WorkbenchCodeEngineSettingsCarrier | null,
 ): WorkbenchCodeEngineDefinition {
   const normalizedEngineId = normalizeWorkbenchCodeEngineId(value);
-  const settingsMap = resolveEngineSettingsCarrier(settings);
   return (
-    listWorkbenchCodeEngines({ codeEngineSettings: settingsMap }).find(
-      (engine) => engine.id === normalizedEngineId,
-    ) ?? WORKBENCH_CODE_ENGINES[0]
+    findWorkbenchCodeEngineDefinition(normalizedEngineId, settings) ?? WORKBENCH_CODE_ENGINES[0]
+  );
+}
+
+export function getWorkbenchCodeEngineLabel(
+  value: string | null | undefined,
+  settings?: WorkbenchCodeEngineSettingsCarrier | null,
+): string {
+  return (
+    findWorkbenchCodeEngineDefinition(value, settings)?.label ??
+    value?.trim() ??
+    getWorkbenchCodeEngineDefinition(null, settings).label
   );
 }
 
@@ -285,15 +316,63 @@ export function getWorkbenchCodeModelLabel(
   modelId: string | null | undefined,
   settings?: WorkbenchCodeEngineSettingsCarrier | null,
 ): string {
-  const engine = getWorkbenchCodeEngineDefinition(engineId, settings);
-  const normalizedModelId = modelId?.trim().toLowerCase() || engine.defaultModelId.toLowerCase();
-  const model =
-    engine.modelCatalog.find((candidate) => candidate.id.toLowerCase() === normalizedModelId) ??
-    engine.modelCatalog.find(
-      (candidate) => candidate.id.toLowerCase() === engine.defaultModelId.toLowerCase(),
-    );
+  const normalizedModelId = modelId?.trim() ?? '';
+  if (!normalizedModelId) {
+    return '';
+  }
 
-  return model?.label ?? modelId?.trim() ?? engine.defaultModelId;
+  const engine = findWorkbenchCodeEngineDefinition(engineId, settings);
+  if (!engine) {
+    return normalizedModelId;
+  }
+
+  return (
+    engine.modelCatalog.find(
+      (candidate) => candidate.id.toLowerCase() === normalizedModelId.toLowerCase(),
+    )?.label ?? normalizedModelId
+  );
+}
+
+export function getWorkbenchCodeEngineSummary(
+  engineId: string | null | undefined,
+  modelId: string | null | undefined,
+  settings?: WorkbenchCodeEngineSettingsCarrier | null,
+): string {
+  const engineLabel = getWorkbenchCodeEngineLabel(engineId, settings);
+  const modelLabel = getWorkbenchCodeModelLabel(engineId, modelId, settings).trim();
+  if (!modelLabel || modelLabel.toLowerCase() === engineLabel.trim().toLowerCase()) {
+    return engineLabel;
+  }
+
+  return `${engineLabel} / ${modelLabel}`;
+}
+
+export function getWorkbenchCodeEngineSessionSummary(
+  engineId: string | null | undefined,
+  modelId: string | null | undefined,
+  settings?: WorkbenchCodeEngineSettingsCarrier | null,
+): string {
+  const normalizedEngineId = engineId?.trim() ?? '';
+  if (!normalizedEngineId) {
+    return '';
+  }
+
+  const engine = findWorkbenchCodeEngineDefinition(normalizedEngineId, settings);
+  const engineLabel = engine?.label ?? normalizedEngineId;
+  const normalizedModelId = modelId?.trim() ?? '';
+  if (!normalizedModelId) {
+    return engineLabel;
+  }
+
+  const modelLabel =
+    engine?.modelCatalog.find(
+      (candidate) => candidate.id.toLowerCase() === normalizedModelId.toLowerCase(),
+    )?.label ?? normalizedModelId;
+  if (!modelLabel || modelLabel.toLowerCase() === engineLabel.trim().toLowerCase()) {
+    return engineLabel;
+  }
+
+  return `${engineLabel} / ${modelLabel}`;
 }
 
 export function hasWorkbenchCodeModel(
@@ -306,7 +385,11 @@ export function hasWorkbenchCodeModel(
     return false;
   }
 
-  const engine = getWorkbenchCodeEngineDefinition(engineId, settings);
+  const engine = findWorkbenchCodeEngineDefinition(engineId, settings);
+  if (!engine) {
+    return false;
+  }
+
   return engine.modelCatalog.some((candidate) => candidate.id.toLowerCase() === normalizedModelId);
 }
 

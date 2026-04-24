@@ -1,16 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  getDefaultBirdCoderIdeServicesRuntimeConfig,
   useAuth,
-  usePersistedState,
+  useBirdcoderAppSettings,
   useWorkbenchPreferences,
 } from '@sdkwork/birdcoder-commons';
-import { SkillsPage } from '@sdkwork/birdcoder-skills';
+import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-infrastructure-runtime';
 import {
   SettingsTab,
   SettingsSidebar,
   GeneralSettings,
+  CodeEngineSettings,
   AppearanceSettings,
   ConfigSettings,
   PersonalizationSettings,
@@ -22,46 +22,28 @@ import {
   type AppSettings,
   type UpdateSetting,
 } from '../components';
-import { DEFAULT_APP_SETTINGS } from '../components/appSettings';
 
 interface SettingsPageProps {
+  currentProjectId?: string;
+  currentProjectName?: string;
   onBack?: () => void;
 }
 
-function normalizeAppSettings(value: Partial<AppSettings> | null | undefined): AppSettings {
-  const rawValue =
-    value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
-  const normalizedSettings = { ...DEFAULT_APP_SETTINGS };
-  const writableSettings =
-    normalizedSettings as Record<keyof AppSettings, AppSettings[keyof AppSettings]>;
+const LazySkillsPage = lazy(async () => {
+  const module = await import('@sdkwork/birdcoder-skills');
+  return { default: module.SkillsPage };
+});
 
-  for (const key of Object.keys(DEFAULT_APP_SETTINGS) as Array<keyof AppSettings>) {
-    const nextValue = rawValue[key];
-    if (nextValue !== undefined && nextValue !== null) {
-      writableSettings[key] = nextValue as AppSettings[keyof AppSettings];
-    }
-  }
-
-  return normalizedSettings;
-}
-
-function appSettingsEqual(left: AppSettings, right: AppSettings): boolean {
-  return (
-    JSON.stringify(normalizeAppSettings(left)) === JSON.stringify(normalizeAppSettings(right))
-  );
-}
-
-export function SettingsPage({ onBack }: SettingsPageProps) {
+export function SettingsPage({
+  currentProjectId,
+  currentProjectName,
+  onBack,
+}: SettingsPageProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const { logout } = useAuth();
-  const [storedSettings, setSettings, areSettingsHydrated] = usePersistedState<AppSettings>(
-    'settings',
-    'app',
-    DEFAULT_APP_SETTINGS,
-  );
-  const settings = normalizeAppSettings(storedSettings);
-  const { preferences, updatePreferences, isHydrated: isWorkbenchHydrated } = useWorkbenchPreferences();
+  const { isHydrated: areSettingsHydrated, settings, updateSettings } = useBirdcoderAppSettings();
+  const { preferences, updatePreferences } = useWorkbenchPreferences();
   const currentServerBaseUrl = getDefaultBirdCoderIdeServicesRuntimeConfig().apiBaseUrl ?? '';
   const bootServerBaseUrlOverrideRef = useRef<string | null>(null);
 
@@ -73,27 +55,16 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     bootServerBaseUrlOverrideRef.current = settings.serverBaseUrl ?? '';
   }, [areSettingsHydrated, settings.serverBaseUrl]);
 
-  useEffect(() => {
-    if (!areSettingsHydrated) {
-      return;
-    }
-
-    if (appSettingsEqual(storedSettings, settings)) {
-      return;
-    }
-
-    setSettings(settings);
-  }, [areSettingsHydrated, setSettings, settings, storedSettings]);
-
   const updateSetting: UpdateSetting = (key, value) => {
-    setSettings({
-      ...settings,
+    updateSettings({
       [key]: value,
-    } as AppSettings);
+    } as Partial<AppSettings>);
   };
 
   const renderContent = () => {
     const props = {
+      currentProjectId,
+      currentProjectName,
       settings,
       updateSetting,
       currentServerBaseUrl,
@@ -105,6 +76,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     switch (activeTab) {
       case 'general':
         return <GeneralSettings {...props} />;
+      case 'codeEngines':
+        return <CodeEngineSettings {...props} />;
       case 'appearance':
         return <AppearanceSettings {...props} />;
       case 'config':
@@ -124,7 +97,15 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       case 'skills':
         return (
           <div className="flex-1 bg-[#0e0e11] overflow-hidden relative">
-            <SkillsPage />
+            <Suspense
+              fallback={
+                <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
+                  {t('common.loading', 'Loading...')}
+                </div>
+              }
+            >
+              <LazySkillsPage />
+            </Suspense>
           </div>
         );
       default:

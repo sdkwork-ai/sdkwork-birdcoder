@@ -31,15 +31,28 @@ function mapWorkspaceSummaryToWorkspace(
     uuid: workspace.uuid,
     tenantId: workspace.tenantId,
     organizationId: workspace.organizationId,
+    dataScope: workspace.dataScope,
     code: workspace.code,
     title: workspace.title,
     name: workspace.name,
     description: workspace.description,
-    icon: 'Folder',
+    icon: workspace.icon ?? 'Folder',
+    color: workspace.color,
     ownerId: workspace.ownerId,
     leaderId: workspace.leaderId,
     createdByUserId: workspace.createdByUserId,
     type: workspace.type,
+    status: workspace.status,
+    startTime: workspace.startTime,
+    endTime: workspace.endTime,
+    maxMembers: workspace.maxMembers,
+    currentMembers: workspace.currentMembers,
+    memberCount: workspace.memberCount,
+    maxStorage: workspace.maxStorage,
+    usedStorage: workspace.usedStorage,
+    settings: workspace.settings,
+    isPublic: workspace.isPublic,
+    isTemplate: workspace.isTemplate,
     viewerRole: workspace.viewerRole,
   };
 }
@@ -204,13 +217,21 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
     const summary = await this.client.createWorkspace({
       name,
       description,
+      dataScope: 'PRIVATE',
       ownerId: currentUserId,
       leaderId: currentUserId,
       createdByUserId: currentUserId,
     });
+    const normalizedSummary: BirdCoderWorkspaceSummary = {
+      ...summary,
+      dataScope: summary.dataScope ?? 'PRIVATE',
+      createdByUserId: summary.createdByUserId ?? currentUserId,
+      leaderId: summary.leaderId ?? currentUserId,
+      ownerId: summary.ownerId ?? currentUserId,
+    };
     const workspace =
-      (await this.workspaceMirror?.syncWorkspaceSummary(summary)) ??
-      mapWorkspaceSummaryToWorkspace(summary);
+      (await this.workspaceMirror?.syncWorkspaceSummary(normalizedSummary)) ??
+      mapWorkspaceSummaryToWorkspace(normalizedSummary);
     this.upsertCachedWorkspace(currentUserScope, workspace);
     return workspace;
   }

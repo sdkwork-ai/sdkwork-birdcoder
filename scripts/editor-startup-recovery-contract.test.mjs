@@ -66,7 +66,7 @@ assert.equal(
     files: fileTree,
     persistedSelectedFilePath: 'missing/file.ts',
   }),
-  'src/main.ts',
+  null,
 );
 assert.equal(
   resolveStartupSelectedFile({

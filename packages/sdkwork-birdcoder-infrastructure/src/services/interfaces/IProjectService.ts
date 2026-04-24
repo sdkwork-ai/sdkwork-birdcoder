@@ -6,9 +6,18 @@ import type {
 } from '@sdkwork/birdcoder-types';
 
 export interface CreateCodingSessionOptions {
-  engineId?: BirdCoderCodingSession['engineId'];
+  engineId: BirdCoderCodingSession['engineId'];
   hostMode?: BirdCoderCodingSession['hostMode'];
-  modelId?: string;
+  modelId: string;
+}
+
+export interface UpdateCodingSessionOptions {
+  archived?: boolean;
+  hostMode?: BirdCoderCodingSession['hostMode'];
+  pinned?: boolean;
+  status?: BirdCoderCodingSession['status'];
+  title?: string;
+  unread?: boolean;
 }
 
 export interface CreateProjectOptions {
@@ -48,6 +57,10 @@ export interface IProjectService {
   recordProjectCreationEvidence?(
     projectId: string,
     options?: CreateProjectOptions,
+    projectSnapshot?: Pick<
+      BirdCoderProject,
+      'createdAt' | 'id' | 'path' | 'updatedAt'
+    >,
   ): Promise<void>;
   createProject(
     workspaceId: string,
@@ -61,7 +74,7 @@ export interface IProjectService {
   createCodingSession(
     projectId: string,
     title: string,
-    options?: CreateCodingSessionOptions,
+    options: CreateCodingSessionOptions,
   ): Promise<BirdCoderCodingSession>;
   upsertCodingSession?(
     projectId: string,
@@ -71,7 +84,7 @@ export interface IProjectService {
   updateCodingSession(
     projectId: string,
     codingSessionId: string,
-    updates: Partial<BirdCoderCodingSession>,
+    updates: UpdateCodingSessionOptions,
   ): Promise<void>;
   forkCodingSession(
     projectId: string,

@@ -69,14 +69,6 @@ fs.writeFileSync(
         file: 'web/release-manifest.json',
       },
     ],
-    governanceEvidence: {
-      archiveRelativePath: 'terminal/governance/terminal-governance-diagnostics.json',
-      entryCount: 1,
-      blockedRecords: 1,
-      riskLevels: ['P3'],
-      approvalPolicies: ['Restricted'],
-      latestRecordedAt: 1712577840000,
-    },
     codingServerOpenApiEvidence: {
       canonicalRelativePath: 'server/windows/x64/openapi/coding-server-v1.json',
       mirroredRelativePaths: ['server/windows/x64/openapi/coding-server-v1.json'],
@@ -143,7 +135,7 @@ assert.match(markdown, /Finalized at: 2026-04-08T00:00:00.000Z/);
 assert.match(markdown, /Finalized release readiness: `blocked`/);
 assert.match(
   markdown,
-  /Finalized readiness signals: workflow topology drift `2\/3` missing `release`; manifest topology drift `2\/3` missing `release`; quality blockers `vite-host-build-preflight`; runtime blocked tiers `standard`; runtime blockers `vite-host-build-preflight`; governance blocked records `1`/,
+  /Finalized readiness signals: workflow topology drift `2\/3` missing `release`; manifest topology drift `2\/3` missing `release`; quality blockers `vite-host-build-preflight`; runtime blocked tiers `standard`; runtime blockers `vite-host-build-preflight`/,
 );
 assert.match(markdown, /Release kind: `canary`/);
 assert.match(markdown, /Rollout stage: `ring-1`/);
@@ -154,10 +146,6 @@ assert.match(markdown, /smoke: `passed`/);
 assert.match(markdown, /startup readiness: `ready`/);
 assert.match(markdown, /workspace bootstrap: `defaultProjectReady`, `defaultWorkspaceReady`, `recoverySnapshotReady`/);
 assert.match(markdown, /local project recovery: `autoRemountSupported`, `failedStateVisible`, `recoveringStateVisible`, `reimportSupported`, `retrySupported`/);
-assert.match(markdown, /terminal\/governance\/terminal-governance-diagnostics\.json/);
-assert.match(markdown, /Governance evidence: 1 blocked\/1 total/);
-assert.match(markdown, /Restricted/);
-assert.match(markdown, /P3/);
 assert.match(markdown, /## Coding-server OpenAPI evidence/);
 assert.match(markdown, /Canonical snapshot: `server\/windows\/x64\/openapi\/coding-server-v1\.json`/);
 assert.match(markdown, /Targets: `windows\/x64`/);
@@ -187,7 +175,7 @@ assert.match(markdown, /Lowest score item: `commercial_readiness`/);
 assert.match(markdown, /Next focus: Clear blocking diagnostics \(`vite-host-build-preflight`\) and rerun quality gates\./);
 assert.match(markdown, /## Post-release operations/);
 assert.match(markdown, /Observation window: `45` minutes on `ring-1`/);
-assert.match(markdown, /Stop-ship signals: workflow topology drift `2\/3` missing `release`; manifest topology drift `2\/3` missing `release`; quality blockers `vite-host-build-preflight`; runtime blocked tiers `standard`; runtime blockers `vite-host-build-preflight`; governance blocked records `1`/);
+assert.match(markdown, /Stop-ship signals: workflow topology drift `2\/3` missing `release`; manifest topology drift `2\/3` missing `release`; quality blockers `vite-host-build-preflight`; runtime blocked tiers `standard`; runtime blockers `vite-host-build-preflight`/);
 assert.match(markdown, /Rollback entry: `gh workflow run rollback\.yml --ref main`/);
 assert.match(markdown, /Re-issue path: `pnpm release:plan` -> affected `release:package:\*` \/ `release:smoke:\*` -> `pnpm release:finalize`/);
 assert.match(markdown, /Writeback targets: `docs\/release\/releases\.json`/);

@@ -13,8 +13,12 @@ const apiProjectServiceSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts', import.meta.url),
   'utf8',
 );
+const serverApiSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-types/src/server-api.ts', import.meta.url),
+  'utf8',
+);
 const workspaceRealtimeSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-commons/src/workbench/workspaceRealtime.ts', import.meta.url),
+  new URL('../packages/sdkwork-birdcoder-commons/src/stores/workspaceRealtime.ts', import.meta.url),
   'utf8',
 );
 
@@ -55,9 +59,39 @@ assert.match(
 );
 
 assert.match(
+  serverApiSource,
+  /codingSessionRuntimeStatus\?: BirdCoderCodingSessionRuntimeStatus;/,
+  'Workspace realtime event contracts must expose an optional codingSessionRuntimeStatus field.',
+);
+
+assert.match(
+  serverApiSource,
+  /export type BirdCoderUserCenterMode = 'builtin-local' \| 'sdkwork-cloud-app-api' \| 'external-user-center';/,
+  'BirdCoder server-api user-center mode type must expose the canonical unified deployment selectors.',
+);
+
+assert.match(
   workspaceRealtimeSource,
-  /event\.eventKind === 'coding-session\.turn\.created' \? 'streaming' : codingSession\.runtimeStatus/,
-  'Workspace realtime updates should optimistically mark a session as streaming when a new turn starts.',
+  /function shouldPreferLocalCodingSessionRuntimeStatus\(/,
+  'Workspace realtime updates must define an explicit guard that prevents stale events from regressing newer local runtime state.',
+);
+
+assert.match(
+  workspaceRealtimeSource,
+  /resolveRealtimeCodingSessionRuntimeStatus\(event,\s*codingSession\.runtimeStatus\)/,
+  'Workspace realtime updates must still resolve the incoming runtimeStatus through the shared realtime runtime-status normalizer.',
+);
+
+assert.match(
+  workspaceRealtimeSource,
+  /shouldPreferLocalCodingSessionMetadata\(codingSession, event\)\s*\|\|\s*shouldPreferLocalCodingSessionRuntimeStatus\(codingSession, event\)/s,
+  'Workspace realtime event satisfaction must treat newer local session state as already satisfying stale events.',
+);
+
+assert.match(
+  workspaceRealtimeSource,
+  /return !requiredRuntimeStatus \|\| codingSession\.runtimeStatus === requiredRuntimeStatus;/,
+  'Workspace realtime event satisfaction must still account for runtimeStatus when timestamps alone do not settle the event.',
 );
 
 console.log('coding session runtime status contract passed.');

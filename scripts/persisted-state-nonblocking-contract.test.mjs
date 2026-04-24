@@ -5,7 +5,7 @@ const persistedStatePath = new URL(
   '../packages/sdkwork-birdcoder-commons/src/hooks/usePersistedState.ts',
   import.meta.url,
 );
-const appPath = new URL('../src/App.tsx', import.meta.url);
+const appPath = new URL('../packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx', import.meta.url);
 
 const persistedStateSource = fs.readFileSync(persistedStatePath, 'utf8');
 const appSource = fs.readFileSync(appPath, 'utf8');

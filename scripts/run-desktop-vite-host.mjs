@@ -8,7 +8,14 @@ import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { createDesktopVitePlugins } from '../packages/sdkwork-birdcoder-desktop/vite/createDesktopVitePlugins.mjs';
-import { BIRDCODER_VITE_DEDUPE_PACKAGES } from './create-birdcoder-vite-plugins.mjs';
+import {
+  BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE,
+  BIRDCODER_VITE_DEDUPE_PACKAGES,
+  createBirdcoderWorkspaceAliasEntries,
+  createBirdcoderWorkspaceFsAllowList,
+  resolveBirdcoderTerminalInfrastructureRuntimePath,
+  resolveSdkworkTerminalInfrastructureEntryPath,
+} from './create-birdcoder-vite-plugins.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,9 +43,26 @@ const unifiedLibIndexRequestPath = `/@fs/${path
   .join(path.dirname(uiRequire.resolve('unified')), 'lib', 'index.js')
   .replace(/\\/g, '/')}`;
 const rawExtendRequestPath = `/@fs/${uiRequire.resolve('extend').replace(/\\/g, '/')}`;
+const birdcoderTerminalRuntimeRequestPath = `/@fs/${path
+  .resolve(resolveBirdcoderTerminalInfrastructureRuntimePath(desktopRootDir))
+  .replace(/\\/g, '/')}`;
+const terminalInfrastructureRequestPath = `/@fs/${path
+  .resolve(resolveSdkworkTerminalInfrastructureEntryPath(desktopRootDir))
+  .replace(/\\/g, '/')}`;
+const rawXtermRequestPaths = [
+  `/@fs/${desktopRequire.resolve('@xterm/xterm').replace(/\\/g, '/')}`,
+  `/@fs/${desktopRequire.resolve('@xterm/addon-canvas').replace(/\\/g, '/')}`,
+  `/@fs/${desktopRequire.resolve('@xterm/addon-fit').replace(/\\/g, '/')}`,
+  `/@fs/${desktopRequire.resolve('@xterm/addon-search').replace(/\\/g, '/')}`,
+  `/@fs/${desktopRequire.resolve('@xterm/addon-unicode11').replace(/\\/g, '/')}`,
+];
 const desktopHostCompatibilityProbes = [
   {
     path: '/src/main.tsx',
+    incompatiblePatterns: ['Internal Server Error', 'Pre-transform error', 'Failed to resolve import'],
+  },
+  {
+    path: birdcoderTerminalRuntimeRequestPath,
     incompatiblePatterns: ['Internal Server Error', 'Pre-transform error', 'Failed to resolve import'],
   },
   {
@@ -64,6 +88,10 @@ const desktopHostCompatibilityProbes = [
   {
     path: unifiedLibIndexRequestPath,
     incompatiblePatterns: ['Internal Server Error', 'Pre-transform error', 'Failed to resolve import', rawExtendRequestPath],
+  },
+  {
+    path: terminalInfrastructureRequestPath,
+    incompatiblePatterns: ['Internal Server Error', 'Pre-transform error', 'Failed to resolve import', ...rawXtermRequestPaths],
   },
 ];
 
@@ -225,35 +253,11 @@ function createDesktopViteServerConfig({
     plugins,
     optimizeDeps: {
       noDiscovery: true,
-      include: ['@xterm/addon-unicode11'],
+      include: [...BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE],
     },
     resolve: {
       dedupe: [...BIRDCODER_VITE_DEDUPE_PACKAGES],
-      alias: [
-        {
-          find: /^@sdkwork\/birdcoder-([^/]+)\/(.+)$/u,
-          replacement: path.resolve(resolvedDesktopRootDir, '../sdkwork-birdcoder-$1/src/$2'),
-        },
-        {
-          find: /^@sdkwork\/birdcoder-([^/]+)$/u,
-          replacement: path.resolve(resolvedDesktopRootDir, '../sdkwork-birdcoder-$1/src'),
-        },
-        {
-          find: /^@sdkwork\/terminal-([^/]+)\/(.+)$/u,
-          replacement: path.resolve(
-            resolvedDesktopRootDir,
-            '../../../sdkwork-terminal/packages/sdkwork-terminal-$1/src/$2',
-          ),
-        },
-        {
-          find: /^@sdkwork\/terminal-([^/]+)$/u,
-          replacement: path.resolve(resolvedDesktopRootDir, '../../../sdkwork-terminal/packages/sdkwork-terminal-$1/src'),
-        },
-        {
-          find: /^@xterm\/(.*)$/u,
-          replacement: path.resolve(resolvedDesktopRootDir, '../../node_modules/@xterm/$1'),
-        },
-      ],
+      alias: createBirdcoderWorkspaceAliasEntries(resolvedDesktopRootDir),
     },
     server: {
       host,
@@ -261,10 +265,7 @@ function createDesktopViteServerConfig({
       strictPort,
       hmr: env.DISABLE_HMR !== 'true',
       fs: {
-        allow: [
-          path.resolve(resolvedDesktopRootDir, '../..'),
-          path.resolve(resolvedDesktopRootDir, '../../../sdkwork-terminal'),
-        ],
+        allow: createBirdcoderWorkspaceFsAllowList(resolvedDesktopRootDir),
       },
     },
   };

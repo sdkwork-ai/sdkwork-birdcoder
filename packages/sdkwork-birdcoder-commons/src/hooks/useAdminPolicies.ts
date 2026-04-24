@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { BirdCoderAdminPolicySummary } from '@sdkwork/birdcoder-types';
-import type { IAdminPolicyService } from '@sdkwork/birdcoder-infrastructure';
+import type { IAdminPolicyService } from '@sdkwork/birdcoder-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
 
 export async function loadAdminPolicies(

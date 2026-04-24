@@ -1,5 +1,4 @@
-import { getStoredJson, setStoredJson } from '../../../sdkwork-birdcoder-commons/src/storage/localStore.ts';
-import { getTerminalProfile } from '../../../sdkwork-birdcoder-commons/src/terminal/profiles.ts';
+import { getStoredJson, getTerminalProfile, setStoredJson } from '@sdkwork/birdcoder-commons';
 
 import {
   STUDIO_SIMULATOR_EXECUTION_ADAPTER_ID,

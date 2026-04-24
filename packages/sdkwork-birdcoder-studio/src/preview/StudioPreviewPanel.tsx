@@ -1,5 +1,5 @@
 import { memo, type ComponentProps } from 'react';
-import { DevicePreview } from '@sdkwork/birdcoder-ui';
+import { DevicePreview } from '@sdkwork/birdcoder-ui-shell';
 
 interface StudioPreviewPanelProps {
   devicePreviewProps: ComponentProps<typeof DevicePreview>;

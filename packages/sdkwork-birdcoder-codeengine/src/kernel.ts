@@ -18,6 +18,10 @@ import {
   type WorkbenchCodeEngineSourceDefinition,
 } from './manifest.ts';
 import { resolveBirdCoderCodeEnginePrimaryAccessLane } from './access.ts';
+import {
+  getWorkbenchCodeEngineExecutionTopology,
+  type WorkbenchCodeEngineExecutionTopology,
+} from './topology.ts';
 
 export const WORKBENCH_CODE_ENGINE_IDS = BIRDCODER_STANDARD_ENGINE_IDS;
 
@@ -29,6 +33,7 @@ export type {
   WorkbenchCodeEngineSourceKind,
   WorkbenchCodeEngineSourceStatus,
 } from './manifest.ts';
+export type { WorkbenchCodeEngineExecutionTopology } from './topology.ts';
 
 export interface WorkbenchCodeEngineKernelDefinition {
   id: WorkbenchCodeEngineId;
@@ -46,6 +51,7 @@ export interface WorkbenchCodeEngineKernelDefinition {
   descriptor: BirdCoderEngineDescriptor;
   accessPlan: BirdCoderEngineAccessPlan | null;
   primaryAccessLane: BirdCoderEngineAccessLane | null;
+  executionTopology: WorkbenchCodeEngineExecutionTopology;
   modelCatalog: readonly BirdCoderModelCatalogEntry[];
 }
 
@@ -67,6 +73,7 @@ export const WORKBENCH_ENGINE_KERNELS: ReadonlyArray<WorkbenchCodeEngineKernelDe
       descriptor: manifest.descriptor,
       accessPlan: manifest.descriptor.accessPlan ?? null,
       primaryAccessLane: resolveBirdCoderCodeEnginePrimaryAccessLane(manifest.id),
+      executionTopology: getWorkbenchCodeEngineExecutionTopology(manifest.id),
       modelCatalog: manifest.modelCatalog,
     };
   });
@@ -98,6 +105,24 @@ export function getWorkbenchCodeEngineKernel(
     WORKBENCH_ENGINE_KERNELS.find((engine) => engine.id === normalizedEngineId) ??
     WORKBENCH_ENGINE_KERNELS.find((engine) => engine.id === BIRDCODER_STANDARD_DEFAULT_ENGINE_ID) ??
     WORKBENCH_ENGINE_KERNELS[0]
+  );
+}
+
+export function findWorkbenchCodeEngineKernel(
+  value: string | null | undefined,
+): WorkbenchCodeEngineKernelDefinition | null {
+  const normalizedValue = value?.trim().toLowerCase();
+  if (!normalizedValue) {
+    return null;
+  }
+
+  return (
+    WORKBENCH_ENGINE_KERNELS.find(
+      (engine) =>
+        engine.id === normalizedValue ||
+        engine.aliases.some((alias) => alias.toLowerCase() === normalizedValue) ||
+        engine.label.toLowerCase() === normalizedValue,
+    ) ?? null
   );
 }
 

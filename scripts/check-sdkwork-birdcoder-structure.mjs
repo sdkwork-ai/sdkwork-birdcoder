@@ -8,7 +8,7 @@ const packagesDir = path.join(rootDir, 'packages');
 const workspaceConfigPath = path.join(rootDir, 'pnpm-workspace.yaml');
 
 const requiredPackages = [
-  ['packages/sdkwork-birdcoder-appbase', '@sdkwork/birdcoder-appbase'],
+  ['packages/sdkwork-birdcoder-auth', '@sdkwork/birdcoder-auth'],
   ['packages/sdkwork-birdcoder-chat', '@sdkwork/birdcoder-chat'],
   ['packages/sdkwork-birdcoder-chat-claude', '@sdkwork/birdcoder-chat-claude'],
   ['packages/sdkwork-birdcoder-chat-codex', '@sdkwork/birdcoder-chat-codex'],
@@ -26,19 +26,24 @@ const requiredPackages = [
   ['packages/sdkwork-birdcoder-server', '@sdkwork/birdcoder-server'],
   ['packages/sdkwork-birdcoder-settings', '@sdkwork/birdcoder-settings'],
   ['packages/sdkwork-birdcoder-shell', '@sdkwork/birdcoder-shell'],
+  ['packages/sdkwork-birdcoder-shell-runtime', '@sdkwork/birdcoder-shell-runtime'],
   ['packages/sdkwork-birdcoder-skills', '@sdkwork/birdcoder-skills'],
   ['packages/sdkwork-birdcoder-studio', '@sdkwork/birdcoder-studio'],
   ['packages/sdkwork-birdcoder-templates', '@sdkwork/birdcoder-templates'],
-  ['packages/sdkwork-birdcoder-terminal', '@sdkwork/birdcoder-terminal'],
   ['packages/sdkwork-birdcoder-types', '@sdkwork/birdcoder-types'],
   ['packages/sdkwork-birdcoder-ui', '@sdkwork/birdcoder-ui'],
+  ['packages/sdkwork-birdcoder-ui-shell', '@sdkwork/birdcoder-ui-shell'],
+  ['packages/sdkwork-birdcoder-user', '@sdkwork/birdcoder-user'],
   ['packages/sdkwork-birdcoder-web', '@sdkwork/birdcoder-web'],
+  ['packages/sdkwork-birdcoder-workbench-state', '@sdkwork/birdcoder-workbench-state'],
+  ['packages/sdkwork-birdcoder-workbench-storage', '@sdkwork/birdcoder-workbench-storage'],
 ];
 
 const requiredPaths = [
   '.github/workflows/ci.yml',
   '.github/workflows/release.yml',
   '.github/workflows/release-reusable.yml',
+  '.github/workflows/user-center-upstream-sync.yml',
   'deploy/docker/Dockerfile',
   'deploy/docker/docker-compose.yml',
   'deploy/kubernetes/Chart.yaml',
@@ -62,6 +67,9 @@ const requiredPaths = [
   'scripts/live-docs-governance-baseline.test.mjs',
   'scripts/governance-regression-report.mjs',
   'scripts/governance-regression-report.test.mjs',
+  'scripts/user-center-upstream-sync-payload.mjs',
+  'scripts/user-center-upstream-sync-payload.test.mjs',
+  'scripts/user-center-upstream-sync-workflow.test.mjs',
   'scripts/run-vite-host.mjs',
   'scripts/run-vite-host.test.mjs',
   'scripts/vite-host-preflight.mjs',
@@ -83,6 +91,9 @@ const requiredPaths = [
   'scripts/run-birdcoder-server-build.mjs',
   'scripts/run-release-flow-check.mjs',
   'scripts/run-release-flow-check.test.mjs',
+  'scripts/run-tauri-dev-binary-unlock.mjs',
+  'scripts/run-tauri-dev-binary-unlock-check.mjs',
+  'scripts/run-tauri-dev-binary-unlock-check.test.mjs',
   'scripts/provider-sdk-package-manifest-contract.test.mjs',
   'scripts/prepare-shared-sdk-git-sources.mjs',
   'scripts/prepare-shared-sdk-packages.mjs',
@@ -125,8 +136,8 @@ const requiredPaths = [
 ];
 
 const forbiddenResidualPaths = [
-  'packages/sdkwork-birdcoder-auth',
-  'packages/sdkwork-birdcoder-user',
+  'packages/sdkwork-birdcoder-appbase',
+  'packages/sdkwork-birdcoder-appbase-storage',
 ];
 
 const rootScanTargets = [
@@ -307,6 +318,19 @@ function assertNoLegacyPackageDirs() {
   }
 }
 
+function assertNoFacadeSourceBypass(relativePath, forbiddenPattern, label) {
+  const absolutePath = path.join(rootDir, relativePath);
+  if (!fs.existsSync(absolutePath)) {
+    errors.push(`Missing facade source file: ${relativePath}`);
+    return;
+  }
+
+  const source = fs.readFileSync(absolutePath, 'utf8');
+  if (forbiddenPattern.test(source)) {
+    errors.push(`${label} must not bypass package boundaries via relative source re-exports: ${relativePath}`);
+  }
+}
+
 export function runSdkworkBirdcoderStructureCheck({
   stderr = console.error,
   stdout = console.log,
@@ -357,6 +381,17 @@ export function runSdkworkBirdcoderStructureCheck({
   for (const relativePath of rootScanTargets) {
     scanForLegacyReferences(path.join(rootDir, relativePath));
   }
+
+  assertNoFacadeSourceBypass(
+    'packages/sdkwork-birdcoder-workbench-storage/src/index.ts',
+    /sdkwork-birdcoder-commons[\\/]src[\\/]storage[\\/]/u,
+    '@sdkwork/birdcoder-workbench-storage',
+  );
+  assertNoFacadeSourceBypass(
+    'packages/sdkwork-birdcoder-workbench-state/src/index.ts',
+    /sdkwork-birdcoder-commons[\\/]src[\\/](?:terminal[\\/]runConfigStorage|workbench[\\/](?:preferences|recovery))\.ts/u,
+    '@sdkwork/birdcoder-workbench-state',
+  );
 
   if (errors.length > 0) {
     stderr('SDKWork BirdCoder structure check failed:');

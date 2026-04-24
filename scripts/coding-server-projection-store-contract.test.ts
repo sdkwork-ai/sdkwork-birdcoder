@@ -20,6 +20,21 @@ const messages: ChatMessage[] = [
 const store = createInMemoryBirdCoderCoreSessionProjectionStore();
 
 await withMockCodexCliJsonl(async () => {
+  await assert.rejects(
+    () =>
+      executeBirdCoderCoreSessionRun({
+        sessionId: 'coding-session-missing-model',
+        runtimeId: 'runtime-missing-model',
+        turnId: 'turn-missing-model',
+        engineId: 'codex',
+        hostMode: 'server',
+        messages,
+        options: {},
+      } as Parameters<typeof executeBirdCoderCoreSessionRun>[0]),
+    /model id/i,
+    'coding-server execution must reject session runs that do not carry an explicit model id.',
+  );
+
   const firstProjection = await executeBirdCoderCoreSessionRun({
     sessionId: 'coding-session-aggregate-1',
     runtimeId: 'runtime-shared-1',
@@ -32,6 +47,7 @@ await withMockCodexCliJsonl(async () => {
       model: 'codex',
     },
   });
+  assert.equal(firstProjection.runtime.modelId, 'codex');
 
   const secondProjection = await executeBirdCoderCoreSessionRun({
     sessionId: 'coding-session-aggregate-1',
@@ -45,6 +61,7 @@ await withMockCodexCliJsonl(async () => {
       model: 'codex',
     },
   });
+  assert.equal(secondProjection.runtime.modelId, 'codex');
 
   await persistBirdCoderCoreSessionRunProjection(store, firstProjection);
   const snapshot = await persistBirdCoderCoreSessionRunProjection(store, secondProjection);

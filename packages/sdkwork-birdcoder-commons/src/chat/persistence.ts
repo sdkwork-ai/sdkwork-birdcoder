@@ -1,35 +1,44 @@
-import { getStoredJson, setStoredJson } from '../storage/localStore.ts';
+import { createLazyDefaultIdeServices } from '../context/lazyDefaultIdeServices.ts';
+import type { IPromptService } from '../../../sdkwork-birdcoder-infrastructure/src/services/interfaces/IPromptService.ts';
 
-const CHAT_STORAGE_SCOPE = 'chat';
-const GLOBAL_PROMPT_HISTORY_KEY = 'prompt-history';
-const SAVED_PROMPTS_KEY = 'saved-prompts';
 const DEFAULT_PROMPT_HISTORY_LIMIT = 100;
 const DEFAULT_CHAT_HISTORY_LIMIT = 50;
 
-export interface StoredPromptEntry {
+export interface PromptEntryRecord {
   text: string;
   timestamp: number;
 }
 
-export function buildChatHistoryStorageKey(chatId: string): string {
-  return `history.${chatId}`;
+let defaultIdeServices = createLazyDefaultIdeServices();
+let promptServiceOverrideForTests: IPromptService | null = null;
+
+function normalizeSessionScopeId(sessionId: string): string {
+  return sessionId.trim();
 }
 
-export function normalizeStoredPromptEntries(
+function getPromptService() {
+  return promptServiceOverrideForTests ?? defaultIdeServices.promptService;
+}
+
+export function setPromptServiceOverrideForTests(promptService: IPromptService | null): void {
+  promptServiceOverrideForTests = promptService;
+}
+
+export function normalizePromptEntryRecords(
   value: unknown,
   limit = DEFAULT_PROMPT_HISTORY_LIMIT,
-): StoredPromptEntry[] {
+): PromptEntryRecord[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
   return value
     .filter(
-      (entry): entry is StoredPromptEntry =>
+      (entry): entry is PromptEntryRecord =>
         typeof entry === 'object' &&
         entry !== null &&
-        typeof (entry as StoredPromptEntry).text === 'string' &&
-        typeof (entry as StoredPromptEntry).timestamp === 'number',
+        typeof (entry as PromptEntryRecord).text === 'string' &&
+        typeof (entry as PromptEntryRecord).timestamp === 'number',
     )
     .map((entry) => ({
       text: entry.text.trim(),
@@ -39,65 +48,110 @@ export function normalizeStoredPromptEntries(
     .slice(0, Math.max(limit, 0));
 }
 
-export function mergeStoredPromptEntry(
-  entries: ReadonlyArray<StoredPromptEntry>,
+export function mergePromptEntryRecord(
+  entries: ReadonlyArray<PromptEntryRecord>,
   text: string,
   timestamp = Date.now(),
   limit = DEFAULT_PROMPT_HISTORY_LIMIT,
-): StoredPromptEntry[] {
+): PromptEntryRecord[] {
   const normalizedText = text.trim();
   if (!normalizedText) {
-    return normalizeStoredPromptEntries(entries, limit);
+    return normalizePromptEntryRecords(entries, limit);
   }
 
   return [
     { text: normalizedText, timestamp },
-    ...normalizeStoredPromptEntries(entries, limit).filter((entry) => entry.text !== normalizedText),
+    ...normalizePromptEntryRecords(entries, limit).filter((entry) => entry.text !== normalizedText),
   ].slice(0, Math.max(limit, 0));
 }
 
-async function readPromptEntries(key: string, limit = DEFAULT_PROMPT_HISTORY_LIMIT) {
-  const storedEntries = await getStoredJson<StoredPromptEntry[]>(CHAT_STORAGE_SCOPE, key, []);
-  return normalizeStoredPromptEntries(storedEntries, limit);
+export async function listSessionPromptHistory(sessionId: string): Promise<PromptEntryRecord[]> {
+  const normalizedSessionId = normalizeSessionScopeId(sessionId);
+  if (!normalizedSessionId) {
+    return [];
+  }
+
+  return (
+    await getPromptService().listSessionPromptHistory(
+      normalizedSessionId,
+      DEFAULT_PROMPT_HISTORY_LIMIT,
+    )
+  ).map((entry) => ({
+    text: entry.text,
+    timestamp: entry.timestamp,
+  }));
 }
 
-async function writePromptEntries(key: string, entries: ReadonlyArray<StoredPromptEntry>) {
-  await setStoredJson(CHAT_STORAGE_SCOPE, key, normalizeStoredPromptEntries(entries));
+export async function saveSessionPromptHistoryEntry(
+  text: string,
+  sessionId: string,
+): Promise<PromptEntryRecord[]> {
+  const normalizedSessionId = normalizeSessionScopeId(sessionId);
+  if (!normalizedSessionId) {
+    return [];
+  }
+
+  return (
+    await getPromptService().recordSessionPromptUsage(
+      normalizedSessionId,
+      text,
+      DEFAULT_PROMPT_HISTORY_LIMIT,
+    )
+  )
+    .map((entry) => ({
+      text: entry.text,
+      timestamp: entry.timestamp,
+    }));
 }
 
-export async function listStoredPromptHistory(): Promise<StoredPromptEntry[]> {
-  return readPromptEntries(GLOBAL_PROMPT_HISTORY_KEY);
+export async function deleteSessionPromptHistoryEntry(
+  text: string,
+  sessionId: string,
+): Promise<PromptEntryRecord[]> {
+  const normalizedSessionId = normalizeSessionScopeId(sessionId);
+  if (!normalizedSessionId) {
+    return [];
+  }
+
+  await getPromptService().deleteSessionPromptHistoryEntry(normalizedSessionId, text);
+  return (
+    await getPromptService().listSessionPromptHistory(
+      normalizedSessionId,
+      DEFAULT_PROMPT_HISTORY_LIMIT,
+    )
+  ).map((entry) => ({
+    text: entry.text,
+    timestamp: entry.timestamp,
+  }));
 }
 
-export async function saveStoredPromptHistoryEntry(text: string): Promise<StoredPromptEntry[]> {
-  const nextEntries = mergeStoredPromptEntry(await listStoredPromptHistory(), text);
-  await writePromptEntries(GLOBAL_PROMPT_HISTORY_KEY, nextEntries);
-  return nextEntries;
+export async function listSavedPrompts(): Promise<PromptEntryRecord[]> {
+  return (await getPromptService().listSavedPrompts(DEFAULT_PROMPT_HISTORY_LIMIT)).map((entry) => ({
+    text: entry.text,
+    timestamp: entry.timestamp,
+  }));
 }
 
-export async function deleteStoredPromptHistoryEntry(text: string): Promise<StoredPromptEntry[]> {
-  const nextEntries = (await listStoredPromptHistory()).filter((entry) => entry.text !== text.trim());
-  await writePromptEntries(GLOBAL_PROMPT_HISTORY_KEY, nextEntries);
-  return nextEntries;
+export async function saveSavedPrompt(text: string): Promise<PromptEntryRecord[]> {
+  return (await getPromptService().saveSavedPrompt(text, DEFAULT_PROMPT_HISTORY_LIMIT)).map(
+    (entry) => ({
+      text: entry.text,
+      timestamp: entry.timestamp,
+    }),
+  );
 }
 
-export async function listSavedPrompts(): Promise<StoredPromptEntry[]> {
-  return readPromptEntries(SAVED_PROMPTS_KEY);
+export async function deleteSavedPrompt(text: string): Promise<PromptEntryRecord[]> {
+  return (await getPromptService().deleteSavedPrompt(text)).map((entry) => ({
+    text: entry.text,
+    timestamp: entry.timestamp,
+  }));
 }
 
-export async function saveSavedPrompt(text: string): Promise<StoredPromptEntry[]> {
-  const nextEntries = mergeStoredPromptEntry(await listSavedPrompts(), text);
-  await writePromptEntries(SAVED_PROMPTS_KEY, nextEntries);
-  return nextEntries;
-}
-
-export async function deleteSavedPrompt(text: string): Promise<StoredPromptEntry[]> {
-  const nextEntries = (await listSavedPrompts()).filter((entry) => entry.text !== text.trim());
-  await writePromptEntries(SAVED_PROMPTS_KEY, nextEntries);
-  return nextEntries;
-}
-
-function normalizeChatInputHistory(value: unknown, limit = DEFAULT_CHAT_HISTORY_LIMIT): string[] {
+export function normalizeSessionChatInputHistory(
+  value: unknown,
+  limit = DEFAULT_CHAT_HISTORY_LIMIT,
+): string[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -109,39 +163,26 @@ function normalizeChatInputHistory(value: unknown, limit = DEFAULT_CHAT_HISTORY_
     .slice(0, Math.max(limit, 0));
 }
 
-export async function listChatInputHistory(chatId: string): Promise<string[]> {
-  if (!chatId.trim()) {
-    return [];
-  }
-
-  const storedEntries = await getStoredJson<string[]>(
-    CHAT_STORAGE_SCOPE,
-    buildChatHistoryStorageKey(chatId),
-    [],
+export async function listSessionChatInputHistory(sessionId: string): Promise<string[]> {
+  return normalizeSessionChatInputHistory(
+    (await listSessionPromptHistory(sessionId)).map((entry) => entry.text),
   );
-  return normalizeChatInputHistory(storedEntries);
 }
 
-export async function saveChatInputHistoryEntry(
-  chatId: string,
+export async function saveSessionChatInputHistoryEntry(
+  sessionId: string,
   text: string,
   limit = DEFAULT_CHAT_HISTORY_LIMIT,
 ): Promise<string[]> {
-  const normalizedChatId = chatId.trim();
-  const normalizedText = text.trim();
-  if (!normalizedChatId || !normalizedText) {
+  const normalizedSessionId = normalizeSessionScopeId(sessionId);
+  if (!normalizedSessionId || !text.trim()) {
     return [];
   }
 
-  const nextEntries = [
-    normalizedText,
-    ...(await listChatInputHistory(normalizedChatId)).filter((entry) => entry !== normalizedText),
-  ].slice(0, Math.max(limit, 0));
-
-  await setStoredJson(
-    CHAT_STORAGE_SCOPE,
-    buildChatHistoryStorageKey(normalizedChatId),
-    nextEntries,
+  return normalizeSessionChatInputHistory(
+    (
+      await saveSessionPromptHistoryEntry(text, normalizedSessionId)
+    ).map((entry) => entry.text),
+    limit,
   );
-  return nextEntries;
 }

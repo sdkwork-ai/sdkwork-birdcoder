@@ -24,15 +24,6 @@ const clearQualityEvidence = {
   executionBlockingDiagnosticIds: [],
 };
 
-const clearGovernanceEvidence = {
-  archiveRelativePath: 'terminal/governance/terminal-governance-diagnostics.json',
-  entryCount: 0,
-  blockedRecords: 0,
-  riskLevels: [],
-  approvalPolicies: [],
-  latestRecordedAt: null,
-};
-
 const readyDesktopAssets = [
   {
     family: 'desktop',
@@ -61,7 +52,6 @@ const readyDesktopAssets = [
 
 assert.deepEqual(collectReleaseStopShipSignals({
   qualityEvidence: clearQualityEvidence,
-  governanceEvidence: clearGovernanceEvidence,
   assets: readyDesktopAssets,
 }), []);
 
@@ -91,7 +81,6 @@ const recoveryGapAssets = [
 
 assert.deepEqual(collectReleaseStopShipSignals({
   qualityEvidence: clearQualityEvidence,
-  governanceEvidence: clearGovernanceEvidence,
   assets: recoveryGapAssets,
 }), [
   'desktop local project recovery `windows/x64` is `not-ready`',
@@ -100,14 +89,13 @@ assert.deepEqual(collectReleaseStopShipSignals({
 assert.throws(
   () => assertClearStopShipEvidence({
     releaseControl: {
-      releaseKind: 'formal',
-      rolloutStage: 'general-availability',
-    },
-    qualityEvidence: clearQualityEvidence,
-    governanceEvidence: clearGovernanceEvidence,
-    assets: recoveryGapAssets,
-    errorPrefix: 'formal gating requires clear stop-ship evidence',
-  }),
+    releaseKind: 'formal',
+    rolloutStage: 'general-availability',
+  },
+  qualityEvidence: clearQualityEvidence,
+  assets: recoveryGapAssets,
+  errorPrefix: 'formal gating requires clear stop-ship evidence',
+}),
   /formal gating requires clear stop-ship evidence: desktop local project recovery `windows\/x64` is `not-ready`/,
 );
 
@@ -121,7 +109,6 @@ const missingSummaryAssets = [
 
 assert.deepEqual(collectReleaseStopShipSignals({
   qualityEvidence: clearQualityEvidence,
-  governanceEvidence: clearGovernanceEvidence,
   assets: missingSummaryAssets,
 }), [
   'desktop startup readiness summary missing `windows/x64`',

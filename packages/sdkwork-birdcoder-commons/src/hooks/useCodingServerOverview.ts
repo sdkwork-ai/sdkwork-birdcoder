@@ -8,7 +8,7 @@ import type {
   BirdCoderEngineDescriptor,
   BirdCoderModelCatalogEntry,
 } from '@sdkwork/birdcoder-types';
-import type { ICoreReadService } from '@sdkwork/birdcoder-infrastructure';
+import type { ICoreReadService } from '@sdkwork/birdcoder-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
 
 export interface BirdCoderCodingServerOverviewData {

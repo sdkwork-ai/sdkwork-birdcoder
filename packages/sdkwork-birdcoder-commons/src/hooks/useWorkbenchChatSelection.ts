@@ -2,17 +2,20 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-types';
 import {
+  findWorkbenchCodeEngineDefinition,
   getDefaultWorkbenchServerImplementedCodeEngineId,
-  getWorkbenchCodeEngineDefinition,
+  getWorkbenchCodeEngineLabel,
   isWorkbenchServerImplementedEngineId,
-  normalizeWorkbenchCodeEngineId,
   normalizeWorkbenchCodeModelId,
   normalizeWorkbenchServerImplementedCodeEngineId,
-  resolveWorkbenchChatSelection,
+  resolveWorkbenchPreferredNewSessionSelection,
 } from '@sdkwork/birdcoder-codeengine';
 
 import { useToast } from '../contexts/ToastProvider.ts';
 import {
+  setWorkbenchActiveChatSelection,
+  setWorkbenchActiveCodeEngine,
+  setWorkbenchActiveCodeModel,
   type WorkbenchPreferences,
 } from '../workbench/preferences.ts';
 
@@ -25,20 +28,29 @@ type UpdatePreferencesFn = (value: WorkbenchPreferencesUpdate) => void;
 type CreateCodingSessionFn = (
   projectId: string,
   title: string,
-  options?: {
-    engineId?: string;
-    modelId?: string;
+  options: {
+    engineId: string;
+    modelId: string;
   },
 ) => Promise<BirdCoderCodingSession>;
 
 interface UseWorkbenchChatSelectionOptions {
   createCodingSession: CreateCodingSessionFn;
+  currentSessionEngineId?: string | null;
+  currentSessionModelId?: string | null;
   preferences: WorkbenchPreferences;
   updatePreferences: UpdatePreferencesFn;
 }
 
+interface CreateCodingSessionWithSelectionOptions {
+  engineId?: string;
+  modelId?: string;
+}
+
 export function useWorkbenchChatSelection({
   createCodingSession,
+  currentSessionEngineId,
+  currentSessionModelId,
   preferences,
   updatePreferences,
 }: UseWorkbenchChatSelectionOptions) {
@@ -57,33 +69,28 @@ export function useWorkbenchChatSelection({
   const setSelectedEngineId = useCallback(
     (engineId: string) => {
       const fallbackEngineId = getDefaultWorkbenchServerImplementedCodeEngineId(preferences);
-      const normalizedRequestedEngineId = normalizeWorkbenchCodeEngineId(engineId);
-      if (!isWorkbenchServerImplementedEngineId(normalizedRequestedEngineId)) {
+      const resolvedRequestedEngineId =
+        findWorkbenchCodeEngineDefinition(engineId, preferences)?.id ?? null;
+      if (!resolvedRequestedEngineId || !isWorkbenchServerImplementedEngineId(engineId)) {
         addToast(
           t('settings.engines.serverUnavailable', {
-            engine: getWorkbenchCodeEngineDefinition(engineId, preferences).label,
+            engine: getWorkbenchCodeEngineLabel(engineId, preferences),
           }),
           'error',
         );
         updatePreferences((previousState) =>
-          resolveWorkbenchChatSelection(
-            {
-              codeEngineId: getDefaultWorkbenchServerImplementedCodeEngineId(previousState),
-              codeModelId: previousState.codeModelId,
-            },
+          setWorkbenchActiveCodeEngine(
             previousState,
+            getDefaultWorkbenchServerImplementedCodeEngineId(previousState),
           ),
         );
         return;
       }
 
       updatePreferences((previousState) =>
-        resolveWorkbenchChatSelection(
-          {
-            codeEngineId: normalizedRequestedEngineId || fallbackEngineId,
-            codeModelId: previousState.codeModelId,
-          },
+        setWorkbenchActiveCodeEngine(
           previousState,
+          resolvedRequestedEngineId || fallbackEngineId,
         ),
       );
     },
@@ -91,37 +98,84 @@ export function useWorkbenchChatSelection({
   );
 
   const setSelectedModelId = useCallback(
-    (modelId: string) => {
-      updatePreferences((previousState) => {
-        const resolvedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
-          previousState.codeEngineId,
-          previousState,
-        );
-        return resolveWorkbenchChatSelection(
-          {
-            codeEngineId: resolvedEngineId,
-            codeModelId: modelId,
-          },
-          previousState,
-        );
-      });
+    (modelId: string, engineId?: string) => {
+      updatePreferences((previousState) =>
+        engineId
+          ? setWorkbenchActiveChatSelection(previousState, engineId, modelId)
+          : setWorkbenchActiveCodeModel(previousState, modelId),
+      );
+    },
+    [updatePreferences],
+  );
+
+  const setSelectedChatSelection = useCallback(
+    (engineId: string, modelId: string) => {
+      updatePreferences((previousState) =>
+        setWorkbenchActiveChatSelection(previousState, engineId, modelId),
+      );
     },
     [updatePreferences],
   );
 
   const createCodingSessionWithSelection = useCallback(
-    (projectId: string, title: string) =>
-      createCodingSession(projectId, title, {
-        engineId: selectedEngineId,
-        modelId: selectedModelId,
-      }),
-    [createCodingSession, selectedEngineId, selectedModelId],
+    (
+      projectId: string,
+      title?: string,
+      options?: CreateCodingSessionWithSelectionOptions,
+    ) => {
+      const requestedEngineId = options?.engineId?.trim() || undefined;
+      const requestedModelId = options?.modelId?.trim() || undefined;
+      const normalizedCurrentSessionEngineId = currentSessionEngineId?.trim() || undefined;
+      const normalizedCurrentSessionModelId = currentSessionModelId?.trim() || undefined;
+      const preferredSelection = resolveWorkbenchPreferredNewSessionSelection(
+        {
+          requestedEngineId,
+          currentSessionEngineId: normalizedCurrentSessionEngineId,
+          currentSessionModelId: requestedModelId ?? normalizedCurrentSessionModelId,
+          preferredEngineId:
+            requestedModelId && requestedEngineId
+              ? requestedEngineId
+              : selectedEngineId,
+          preferredModelId: requestedModelId ?? selectedModelId,
+        },
+        preferences,
+      );
+      const resolvedEngineId = preferredSelection.engineId;
+      const resolvedModelId = requestedModelId
+        ? normalizeWorkbenchCodeModelId(
+            resolvedEngineId,
+            requestedModelId,
+            preferences,
+          )
+        : preferredSelection.modelId;
+      const resolvedTitle =
+        title?.trim() || `${preferredSelection.engine.label} Session`;
+
+      updatePreferences((previousState) =>
+        setWorkbenchActiveChatSelection(previousState, resolvedEngineId, resolvedModelId),
+      );
+
+      return createCodingSession(projectId, resolvedTitle, {
+        engineId: resolvedEngineId,
+        modelId: resolvedModelId,
+      });
+    },
+    [
+      createCodingSession,
+      currentSessionEngineId,
+      currentSessionModelId,
+      preferences,
+      selectedEngineId,
+      selectedModelId,
+      updatePreferences,
+    ],
   );
 
   return {
     createCodingSessionWithSelection,
     selectedEngineId,
     selectedModelId,
+    setSelectedChatSelection,
     setSelectedEngineId,
     setSelectedModelId,
   } as const;

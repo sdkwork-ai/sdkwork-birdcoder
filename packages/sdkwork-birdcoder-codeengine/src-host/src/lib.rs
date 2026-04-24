@@ -9,6 +9,8 @@ mod session_records;
 mod turns;
 
 pub use catalog::{
+    CodeEngineAccessLaneStatusRecord, CodeEngineAccessStrategyKindRecord,
+    CodeEngineBridgeProtocolRecord, CodeEngineRuntimeOwnerRecord,
     find_codeengine_descriptor, find_native_session_provider_catalog_entry,
     list_codeengine_descriptors, list_codeengine_model_catalog_entries,
     list_native_session_provider_catalog_entries, native_session_provider_catalog_entries,

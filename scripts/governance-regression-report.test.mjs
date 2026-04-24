@@ -150,7 +150,6 @@ assert.deepEqual(
   [
     'package-governance',
     'governance-baseline',
-    'terminal-governance',
     'web-bundle-budget',
     'host-runtime',
     'host-studio-preview',
@@ -166,14 +165,12 @@ assert.deepEqual(
     'studio-evidence-viewer',
     'studio-evidence-viewer-ui',
     'studio-simulator-ui',
-    'terminal-cli-registry',
     'run-config-request',
     'run-config',
-    'terminal-runtime',
-    'terminal-session',
-    'terminal-host-runtime',
     'workbench-preferences',
     'chat-runtime',
+    'prompt-service',
+    'coding-session-prompt-history-persistence',
     'local-store',
     'gemini-engine',
     'engine-official-sdk',
@@ -237,7 +234,6 @@ assert.deepEqual(
     'release-finalize-assets',
     'release-finalized-assets-smoke',
     'release-studio-evidence-archives',
-    'release-terminal-governance-evidence-archive',
     'release-notes-render',
     'release-notes-claw-invocation',
     'release-notes-docs-registry',
@@ -247,15 +243,18 @@ assert.deepEqual(
     'release-server-release-assets',
     'release-deployment-release-assets',
     'sdkwork-birdcoder-architecture',
-    'sdkwork-appbase-parity',
+    'birdcoder-identity-standard',
+    'user-center-standard',
+    'user-center-upstream-sync-payload',
+    'user-center-upstream-sync-workflow',
     'release-closure',
   ],
 );
 assert.deepEqual(executedChecks, GOVERNANCE_REGRESSION_CHECKS.map((check) => check.id));
 assert.equal(passedReport.status, 'passed');
 assert.equal(passedReport.generatedAt, '2026-04-08T15:30:00.000Z');
-assert.equal(passedReport.summary.totalChecks, 101);
-assert.equal(passedReport.summary.passedCount, 101);
+assert.equal(passedReport.summary.totalChecks, 100);
+assert.equal(passedReport.summary.passedCount, 100);
 assert.equal(passedReport.summary.blockedCount, 0);
 assert.equal(passedReport.summary.failedCount, 0);
 assert.deepEqual(passedReport.summary.blockedCheckIds, []);
@@ -269,7 +268,6 @@ assert.deepEqual(
   [
     'node scripts/package-governance-contract.test.mjs',
     'node scripts/governance-baseline-contract.test.ts',
-    'node scripts/terminal-governance-contract.test.ts',
     'pnpm run build',
     'node scripts/host-runtime-contract.test.ts',
     'node scripts/host-studio-preview-contract.test.ts',
@@ -285,14 +283,12 @@ assert.deepEqual(
     'node scripts/studio-evidence-viewer-contract.test.ts',
     'node scripts/studio-evidence-viewer-ui-contract.test.ts',
     'node scripts/studio-simulator-ui-contract.test.ts',
-    'node scripts/terminal-cli-registry-contract.test.ts',
     'node scripts/run-config-request-contract.test.ts',
     'node scripts/run-config-contract.test.ts',
-    'node scripts/terminal-runtime-contract.test.ts',
-    'node scripts/terminal-session-contract.test.ts',
-    'node scripts/terminal-host-runtime-contract.test.ts',
     'node scripts/workbench-preferences-contract.test.ts',
     'node scripts/chat-runtime-contract.test.ts',
+    'pnpm run test:prompt-service-contract',
+    'pnpm run test:coding-session-prompt-history-persistence-contract',
     'node scripts/local-store-contract.test.ts',
     'node scripts/gemini-engine-contract.test.ts',
     'pnpm run test:engine-official-sdk-contract',
@@ -356,7 +352,6 @@ assert.deepEqual(
     'node scripts/release/finalize-release-assets.test.mjs',
     'node scripts/release/smoke-finalized-release-assets.test.mjs',
     'node scripts/release/studio-evidence-archives.test.mjs',
-    'node scripts/release/terminal-governance-evidence-archive.test.mjs',
     'node scripts/release/render-release-notes.test.mjs',
     'node scripts/release/render-release-notes-claw-invocation.test.mjs',
     'node scripts/release/render-release-notes-docs-registry.test.mjs',
@@ -366,7 +361,10 @@ assert.deepEqual(
     'node scripts/release/smoke-server-release-assets.test.mjs',
     'node scripts/release/smoke-deployment-release-assets.test.mjs',
     'node scripts/sdkwork-birdcoder-architecture-contract.test.mjs',
-    'node scripts/sdkwork-appbase-parity-contract.test.mjs',
+    'node scripts/birdcoder-identity-standard-contract.test.mjs',
+    'node scripts/run-user-center-standard.mjs',
+    'node scripts/user-center-upstream-sync-payload.test.mjs',
+    'node scripts/user-center-upstream-sync-workflow.test.mjs',
     'node scripts/check-release-closure.mjs',
   ],
 );
@@ -422,7 +420,7 @@ const blockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(blockedReport.status, 'blocked');
-assert.equal(blockedReport.summary.passedCount, 100);
+assert.equal(blockedReport.summary.passedCount, 99);
 assert.equal(blockedReport.summary.blockedCount, 1);
 assert.equal(blockedReport.summary.failedCount, 0);
 assert.deepEqual(blockedReport.summary.blockedCheckIds, ['web-bundle-budget']);
@@ -481,7 +479,7 @@ const runnerBlockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(runnerBlockedReport.status, 'blocked');
-assert.equal(runnerBlockedReport.summary.passedCount, 100);
+assert.equal(runnerBlockedReport.summary.passedCount, 99);
 assert.equal(runnerBlockedReport.summary.blockedCount, 1);
 assert.equal(runnerBlockedReport.summary.failedCount, 0);
 assert.deepEqual(runnerBlockedReport.summary.blockedCheckIds, ['web-bundle-budget']);

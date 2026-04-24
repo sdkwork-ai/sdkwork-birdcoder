@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Editor, { useMonaco } from '@monaco-editor/react';
-import { Loader2, AlignLeft, WrapText, Copy, Check, Map } from 'lucide-react';
+import { AlignLeft, Check, Copy, Loader2, Map, WrapText } from 'lucide-react';
 import { globalEventBus, useToast } from '@sdkwork/birdcoder-commons';
 import { resolveMonacoOverflowWidgetsDomNode } from './monacoOverflowWidgets';
 import {
@@ -8,66 +8,92 @@ import {
   configureBirdCoderMonacoTypeScriptDefaults,
   observeBirdCoderMonacoLayout,
 } from './monacoRuntime';
+import { cn } from '@sdkwork/birdcoder-ui-shell';
 
-interface CodeEditorProps {
+export interface CodeEditorProps {
+  className?: string;
+  defaultShowMinimap?: boolean;
+  defaultWordWrap?: 'on' | 'off';
+  formatOnPaste?: boolean;
+  formatOnType?: boolean;
   language: string;
-  value: string;
-  onChange: (value: string | undefined) => void;
+  loadingLabel?: string;
+  onChange?: (value: string | undefined) => void;
   readOnly?: boolean;
+  showLanguageBadge?: boolean;
+  showToolbar?: boolean;
+  themeDefinition?: Record<string, unknown>;
+  themeId?: string;
+  value: string;
 }
 
-export function CodeEditor({ language, value, onChange, readOnly = false }: CodeEditorProps) {
+const DEFAULT_CODE_EDITOR_THEME_ID = 'birdcoder-content-editor';
+
+const DEFAULT_CODE_EDITOR_THEME_DEFINITION = {
+  base: 'vs-dark',
+  inherit: true,
+  rules: [
+    { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
+    { token: 'keyword', foreground: '569CD6' },
+    { token: 'string', foreground: 'CE9178' },
+    { token: 'number', foreground: 'B5CEA8' },
+    { token: 'type', foreground: '4EC9B0' },
+    { token: 'function', foreground: 'DCDCAA' },
+    { token: 'variable', foreground: '9CDCFE' },
+  ],
+  colors: {
+    'editor.background': '#0e0e11',
+    'editor.foreground': '#D4D4D4',
+    'editorLineNumber.foreground': '#6e7681',
+    'editorLineNumber.activeForeground': '#cccccc',
+    'editor.selectionBackground': '#264F78',
+    'editor.inactiveSelectionBackground': '#3A3D41',
+    'editorCursor.foreground': '#AEAFAD',
+    'editorWhitespace.foreground': '#404040',
+    'editorIndentGuide.background': '#404040',
+    'editorIndentGuide.activeBackground': '#707070',
+    'editorLineHighlight.background': '#ffffff0a',
+    'editorLineHighlight.border': '#28282800',
+    'scrollbarSlider.background': '#79797933',
+    'scrollbarSlider.hoverBackground': '#646464b3',
+    'scrollbarSlider.activeBackground': '#bfbfbf66',
+    'editorBracketMatch.background': '#0064001a',
+    'editorBracketMatch.border': '#888888',
+    'editorWidget.background': '#252526',
+    'editorWidget.border': '#454545',
+    'editorSuggestWidget.background': '#252526',
+    'editorSuggestWidget.border': '#454545',
+    'editorSuggestWidget.foreground': '#D4D4D4',
+    'editorSuggestWidget.highlightForeground': '#18A3FF',
+    'editorSuggestWidget.selectedBackground': '#062F4A',
+  },
+};
+
+export function CodeEditor({
+  className,
+  defaultShowMinimap = true,
+  defaultWordWrap = 'on',
+  formatOnPaste = true,
+  formatOnType = true,
+  language,
+  loadingLabel = 'Initializing Editor...',
+  onChange,
+  readOnly = false,
+  showLanguageBadge = true,
+  showToolbar = true,
+  themeDefinition = DEFAULT_CODE_EDITOR_THEME_DEFINITION,
+  themeId = DEFAULT_CODE_EDITOR_THEME_ID,
+  value,
+}: CodeEditorProps) {
   const monaco = useMonaco();
   const editorRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  const [wordWrap, setWordWrap] = useState<'on' | 'off'>('on');
-  const [showMinimap, setShowMinimap] = useState(true);
+  const overflowWidgetsDomNode = useMemo(() => resolveMonacoOverflowWidgetsDomNode(), []);
+  const [wordWrap, setWordWrap] = useState<'on' | 'off'>(defaultWordWrap);
+  const [showMinimap, setShowMinimap] = useState(defaultShowMinimap);
   const [copied, setCopied] = useState(false);
   const [mountedEditor, setMountedEditor] = useState<any | null>(null);
   const { addToast } = useToast();
-  const overflowWidgetsDomNode = useMemo(() => resolveMonacoOverflowWidgetsDomNode(), []);
-  const codeEditorThemeDefinition = useMemo(
-    () => ({
-      base: 'vs-dark',
-      inherit: true,
-      rules: [
-        { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
-        { token: 'keyword', foreground: '569CD6' },
-        { token: 'string', foreground: 'CE9178' },
-        { token: 'number', foreground: 'B5CEA8' },
-        { token: 'type', foreground: '4EC9B0' },
-        { token: 'function', foreground: 'DCDCAA' },
-        { token: 'variable', foreground: '9CDCFE' },
-      ],
-      colors: {
-        'editor.background': '#0e0e11',
-        'editor.foreground': '#D4D4D4',
-        'editorLineNumber.foreground': '#6e7681',
-        'editorLineNumber.activeForeground': '#cccccc',
-        'editor.selectionBackground': '#264F78',
-        'editor.inactiveSelectionBackground': '#3A3D41',
-        'editorCursor.foreground': '#AEAFAD',
-        'editorWhitespace.foreground': '#404040',
-        'editorIndentGuide.background': '#404040',
-        'editorIndentGuide.activeBackground': '#707070',
-        'editorLineHighlight.background': '#ffffff0a',
-        'editorLineHighlight.border': '#28282800',
-        'scrollbarSlider.background': '#79797933',
-        'scrollbarSlider.hoverBackground': '#646464b3',
-        'scrollbarSlider.activeBackground': '#bfbfbf66',
-        'editorBracketMatch.background': '#0064001a',
-        'editorBracketMatch.border': '#888888',
-        'editorWidget.background': '#252526',
-        'editorWidget.border': '#454545',
-        'editorSuggestWidget.background': '#252526',
-        'editorSuggestWidget.border': '#454545',
-        'editorSuggestWidget.foreground': '#D4D4D4',
-        'editorSuggestWidget.highlightForeground': '#18A3FF',
-        'editorSuggestWidget.selectedBackground': '#062F4A',
-      },
-    }),
-    [],
-  );
 
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
@@ -75,47 +101,52 @@ export function CodeEditor({ language, value, onChange, readOnly = false }: Code
   };
 
   const handleFormat = () => {
-    if (editorRef.current) {
-      editorRef.current.getAction('editor.action.formatDocument').run();
-      addToast('Document formatted', 'success');
+    if (!editorRef.current) {
+      return;
     }
-  };
 
-  const toggleWordWrap = () => {
-    setWordWrap(prev => {
-      const next = prev === 'on' ? 'off' : 'on';
-      addToast(`Word wrap ${next}`, 'info');
-      return next;
-    });
-  };
-
-  const toggleMinimap = () => {
-    setShowMinimap(prev => {
-      const next = !prev;
-      addToast(`Minimap ${next ? 'shown' : 'hidden'}`, 'info');
-      return next;
-    });
+    editorRef.current.getAction('editor.action.formatDocument').run();
+    addToast('Document formatted', 'success');
   };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(value);
     setCopied(true);
-    addToast('Code copied to clipboard', 'success');
-    setTimeout(() => setCopied(false), 2000);
+    addToast('Content copied to clipboard', 'success');
+    window.setTimeout(() => setCopied(false), 2_000);
   };
 
   useEffect(() => {
     const handleEditorCommand = (command: string) => {
-      if (!editorRef.current) return;
+      if (!editorRef.current) {
+        return;
+      }
+
       const editor = editorRef.current;
       switch (command) {
-        case 'undo': editor.trigger('keyboard', 'undo', null); break;
-        case 'redo': editor.trigger('keyboard', 'redo', null); break;
-        case 'cut': editor.trigger('keyboard', 'editor.action.clipboardCutAction', null); break;
-        case 'copy': editor.trigger('keyboard', 'editor.action.clipboardCopyAction', null); break;
-        case 'paste': editor.trigger('keyboard', 'editor.action.clipboardPasteAction', null); break;
-        case 'delete': editor.trigger('keyboard', 'deleteLeft', null); break;
-        case 'selectAll': editor.setSelection(editor.getModel().getFullModelRange()); break;
+        case 'undo':
+          editor.trigger('keyboard', 'undo', null);
+          break;
+        case 'redo':
+          editor.trigger('keyboard', 'redo', null);
+          break;
+        case 'cut':
+          editor.trigger('keyboard', 'editor.action.clipboardCutAction', null);
+          break;
+        case 'copy':
+          editor.trigger('keyboard', 'editor.action.clipboardCopyAction', null);
+          break;
+        case 'paste':
+          editor.trigger('keyboard', 'editor.action.clipboardPasteAction', null);
+          break;
+        case 'delete':
+          editor.trigger('keyboard', 'deleteLeft', null);
+          break;
+        case 'selectAll':
+          editor.setSelection(editor.getModel().getFullModelRange());
+          break;
+        default:
+          break;
       }
     };
 
@@ -127,15 +158,13 @@ export function CodeEditor({ language, value, onChange, readOnly = false }: Code
   }, []);
 
   useEffect(() => {
-    if (monaco) {
-      configureBirdCoderMonacoTypeScriptDefaults(monaco as never);
-      applyBirdCoderMonacoTheme(
-        monaco as never,
-        'vscode-dark-modern',
-        codeEditorThemeDefinition,
-      );
+    if (!monaco) {
+      return;
     }
-  }, [codeEditorThemeDefinition, monaco]);
+
+    configureBirdCoderMonacoTypeScriptDefaults(monaco as never);
+    applyBirdCoderMonacoTheme(monaco as never, themeId, themeDefinition);
+  }, [monaco, themeDefinition, themeId]);
 
   useEffect(() => {
     const container = editorContainerRef.current;
@@ -166,10 +195,10 @@ export function CodeEditor({ language, value, onChange, readOnly = false }: Code
   }, [mountedEditor, showMinimap, wordWrap]);
 
   const loadingComponent = (
-    <div className="flex items-center justify-center h-full w-full bg-[#0e0e11] text-gray-400">
+    <div className="flex h-full w-full items-center justify-center bg-[#0e0e11] text-gray-400">
       <div className="flex flex-col items-center gap-3">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-        <span className="text-sm font-medium">Initializing Editor...</span>
+        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+        <span className="text-sm font-medium">{loadingLabel}</span>
       </div>
     </div>
   );
@@ -177,52 +206,72 @@ export function CodeEditor({ language, value, onChange, readOnly = false }: Code
   return (
     <div
       ref={editorContainerRef}
-      className="flex-1 h-full w-full animate-in fade-in duration-500 fill-mode-both relative group"
+      className={cn(
+        'relative h-full w-full flex-1 animate-in fade-in duration-500 fill-mode-both group',
+        className,
+      )}
     >
-      {/* Floating Toolbar */}
-      <div className="absolute top-4 right-6 z-10 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-        <div className="flex items-center justify-center px-2 h-7 bg-[#18181b]/90 text-xs text-gray-400 font-mono rounded-md shadow-lg border border-white/10 backdrop-blur-sm mr-1">
-          {language}
-        </div>
-        {!readOnly && (
-          <button 
-            onClick={handleFormat}
-            className="flex items-center justify-center w-7 h-7 bg-[#18181b]/90 hover:bg-white/10 text-gray-400 hover:text-gray-200 rounded-md shadow-lg border border-white/10 backdrop-blur-sm transition-all"
-            title="Format Document (Shift+Alt+F)"
+      {showToolbar ? (
+        <div className="absolute right-6 top-4 z-10 flex items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          {showLanguageBadge ? (
+            <div className="mr-1 flex h-7 items-center justify-center rounded-md border border-white/10 bg-[#18181b]/90 px-2 font-mono text-xs text-gray-400 shadow-lg backdrop-blur-sm">
+              {language}
+            </div>
+          ) : null}
+          {!readOnly ? (
+            <button
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-[#18181b]/90 text-gray-400 shadow-lg transition-all hover:bg-white/10 hover:text-gray-200 backdrop-blur-sm"
+              onClick={handleFormat}
+              title="Format Document"
+              type="button"
+            >
+              <AlignLeft size={14} />
+            </button>
+          ) : null}
+          <button
+            className={`flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-[#18181b]/90 shadow-lg transition-all backdrop-blur-sm ${wordWrap === 'on' ? 'text-blue-400' : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'}`}
+            onClick={() => {
+              setWordWrap((previousState) => {
+                const nextState = previousState === 'on' ? 'off' : 'on';
+                addToast(`Word wrap ${nextState}`, 'info');
+                return nextState;
+              });
+            }}
+            title="Toggle Word Wrap"
+            type="button"
           >
-            <AlignLeft size={14} />
+            <WrapText size={14} />
           </button>
-        )}
-        <button 
-          onClick={toggleWordWrap}
-          className={`flex items-center justify-center w-7 h-7 bg-[#18181b]/90 hover:bg-white/10 rounded-md shadow-lg border border-white/10 backdrop-blur-sm transition-all ${wordWrap === 'on' ? 'text-blue-400' : 'text-gray-400 hover:text-gray-200'}`}
-          title="Toggle Word Wrap"
-        >
-          <WrapText size={14} />
-        </button>
-        <button 
-          onClick={toggleMinimap}
-          className={`flex items-center justify-center w-7 h-7 bg-[#18181b]/90 hover:bg-white/10 rounded-md shadow-lg border border-white/10 backdrop-blur-sm transition-all ${showMinimap ? 'text-blue-400' : 'text-gray-400 hover:text-gray-200'}`}
-          title="Toggle Minimap"
-        >
-          <Map size={14} />
-        </button>
-        <button 
-          onClick={handleCopy}
-          className="flex items-center justify-center w-7 h-7 bg-[#18181b]/90 hover:bg-white/10 text-gray-400 hover:text-gray-200 rounded-md shadow-lg border border-white/10 backdrop-blur-sm transition-all"
-          title="Copy Code"
-        >
-          {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
-        </button>
-      </div>
+          <button
+            className={`flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-[#18181b]/90 shadow-lg transition-all backdrop-blur-sm ${showMinimap ? 'text-blue-400' : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'}`}
+            onClick={() => {
+              setShowMinimap((previousState) => {
+                const nextState = !previousState;
+                addToast(`Minimap ${nextState ? 'shown' : 'hidden'}`, 'info');
+                return nextState;
+              });
+            }}
+            title="Toggle Minimap"
+            type="button"
+          >
+            <Map size={14} />
+          </button>
+          <button
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-[#18181b]/90 text-gray-400 shadow-lg transition-all hover:bg-white/10 hover:text-gray-200 backdrop-blur-sm"
+            onClick={handleCopy}
+            title="Copy Content"
+            type="button"
+          >
+            {copied ? <Check className="text-green-400" size={14} /> : <Copy size={14} />}
+          </button>
+        </div>
+      ) : null}
 
       <Editor
         height="100%"
         language={language}
-        value={value}
-        onChange={onChange}
-        theme="vscode-dark-modern"
         loading={loadingComponent}
+        onChange={onChange}
         onMount={handleEditorDidMount}
         options={{
           overflowWidgetsDomNode: overflowWidgetsDomNode,
@@ -235,14 +284,14 @@ export function CodeEditor({ language, value, onChange, readOnly = false }: Code
           lineHeight: 24,
           padding: { top: 16, bottom: 16 },
           scrollBeyondLastLine: false,
-          readOnly: readOnly,
-          wordWrap: wordWrap,
+          readOnly,
+          wordWrap,
           renderLineHighlight: 'all',
           cursorBlinking: 'smooth',
           cursorSmoothCaretAnimation: 'on',
           smoothScrolling: true,
-          formatOnPaste: true,
-          formatOnType: true,
+          formatOnPaste,
+          formatOnType,
           bracketPairColorization: { enabled: true },
           guides: { bracketPairs: true, indentation: true, highlightActiveIndentation: true },
           scrollbar: {
@@ -270,6 +319,8 @@ export function CodeEditor({ language, value, onChange, readOnly = false }: Code
             enabled: 'on',
           },
         }}
+        theme={themeId}
+        value={value}
       />
     </div>
   );

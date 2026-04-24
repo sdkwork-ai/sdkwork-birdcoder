@@ -64,8 +64,14 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /const isSelectedCodingSessionHydrating = Boolean\([\s\S]*isSelectedCodingSessionMessagesLoading[\s\S]*selectedCodingSession\?\.messages\.length === 0/s,
-  'CodePage must derive a session transcript hydration state so it can avoid showing an empty prompt while history is still loading.',
+  /const selectedCodingSessionMessages = useMemo\(\s*\(\) => selectedCodingSession\?\.messages \?\? \[\],\s*\[selectedCodingSession\?\.messages\],\s*\);/s,
+  'CodePage must normalize the selected session transcript into a dedicated derived collection before deciding whether the visible chat is still hydrating.',
+);
+
+assert.match(
+  codePageSource,
+  /const isSelectedCodingSessionHydrating = Boolean\([\s\S]*isSelectedCodingSessionMessagesLoading[\s\S]*selectedCodingSessionMessages\.length === 0/s,
+  'CodePage must derive a session transcript hydration state from the normalized visible message collection so missing local session objects still render a loading state while authority history is syncing.',
 );
 
 assert.match(
@@ -76,8 +82,14 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /const isSelectedCodingSessionHydrating = Boolean\([\s\S]*isSelectedCodingSessionMessagesLoading[\s\S]*messages\.length === 0/s,
-  'StudioPage must derive a session transcript hydration state so it can avoid showing an empty prompt while history is still loading.',
+  /const selectedSessionMessages = useMemo\(\s*\(\) => selectedSession\?\.messages \?\? EMPTY_STUDIO_CHAT_MESSAGES,\s*\[selectedSession\?\.messages\],\s*\);/s,
+  'StudioPage must normalize the selected session transcript into a dedicated derived collection before deciding whether the visible chat is still hydrating.',
+);
+
+assert.match(
+  studioPageSource,
+  /const isSelectedCodingSessionHydrating = Boolean\([\s\S]*isSelectedCodingSessionMessagesLoading[\s\S]*selectedSessionMessages\.length === 0/s,
+  'StudioPage must derive a session transcript hydration state from the normalized visible message collection so authority-backed transcript sync does not fall through to an empty chat state.',
 );
 
 console.log('selected session hydration loading contract passed.');

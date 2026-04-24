@@ -4,17 +4,20 @@ import type {
   IAdminPolicyService,
   IAuthService,
   IAuditService,
+  ICatalogService,
   ICollaborationService,
   ICoreReadService,
   ICoreWriteService,
   IDeploymentService,
   IDocumentService,
   IFileSystemService,
+  IGitService,
+  IPromptService,
   IProjectService,
   IReleaseService,
   ITeamService,
   IWorkspaceService,
-} from '@sdkwork/birdcoder-infrastructure';
+} from '@sdkwork/birdcoder-infrastructure-runtime';
 import {
   IDEContext,
   IIDEContext,
@@ -29,6 +32,7 @@ export interface IDEProviderProps {
   children: ReactNode;
   adminDeploymentService?: IAdminDeploymentService;
   adminPolicyService?: IAdminPolicyService;
+  catalogService?: ICatalogService;
   workspaceService?: IWorkspaceService;
   projectService?: IProjectService;
   collaborationService?: ICollaborationService;
@@ -40,13 +44,16 @@ export interface IDEProviderProps {
   releaseService?: IReleaseService;
   teamService?: ITeamService;
   fileSystemService?: IFileSystemService;
+  gitService?: IGitService;
   authService?: IAuthService;
+  promptService?: IPromptService;
 }
 
 export const IDEProvider: React.FC<IDEProviderProps> = ({
   children,
   adminDeploymentService,
   adminPolicyService,
+  catalogService,
   workspaceService,
   projectService,
   collaborationService,
@@ -58,7 +65,9 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
   releaseService,
   teamService,
   fileSystemService,
+  gitService,
   authService,
+  promptService,
 }) => {
   const defaultContextRef = useRef<IIDEContext | null>(null);
   defaultContextRef.current ??= createDefaultIdeContextValue();
@@ -69,6 +78,7 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
       value={{
         adminDeploymentService: adminDeploymentService ?? defaultContext.adminDeploymentService,
         adminPolicyService: adminPolicyService ?? defaultContext.adminPolicyService,
+        catalogService: catalogService ?? defaultContext.catalogService,
         workspaceService: workspaceService ?? defaultContext.workspaceService,
         projectService: projectService ?? defaultContext.projectService,
         collaborationService: collaborationService ?? defaultContext.collaborationService,
@@ -80,7 +90,9 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
         releaseService: releaseService ?? defaultContext.releaseService,
         teamService: teamService ?? defaultContext.teamService,
         fileSystemService: fileSystemService ?? defaultContext.fileSystemService,
+        gitService: gitService ?? defaultContext.gitService,
         authService: authService ?? defaultContext.authService,
+        promptService: promptService ?? defaultContext.promptService,
       }}
     >
       {children}

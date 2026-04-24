@@ -10,7 +10,7 @@ It defines how BirdCoder should integrate Codex, Claude, Gemini, and OpenCode th
 
 | Engine | Official package | Integration class | Stable primary lane | Supplemental lane |
 | --- | --- | --- | --- | --- |
-| Codex | `@openai/codex-sdk` | `official-sdk` | SDK thread API | CLI JSONL, app-server JSON-RPC |
+| Codex | `@openai/codex-sdk` | `official-sdk` | SDK native-thread API | CLI JSONL, app-server JSON-RPC |
 | Claude | `@anthropic-ai/claude-agent-sdk` | `official-sdk` | Agent SDK `query()` | Headless CLI, remote-control, preview sessions |
 | Gemini | `@google/gemini-cli-sdk` | `official-sdk` | SDK agent/session API | CLI/core runtime |
 | OpenCode | `@opencode-ai/sdk` | `official-sdk` | SDK client/server API | OpenAPI, SSE |
@@ -72,7 +72,7 @@ Provider package manifest rules:
 
 ## Provider runtime mapping
 
-- `Codex` maps `Codex().startThread().run()` and `runStreamed()` into BirdCoder one-shot and streaming completions.
+- `Codex` maps the native `Codex().startThread().run()` and `runStreamed()` lane into BirdCoder one-shot and streaming completions.
 - `Claude` maps the Agent SDK `unstable_v2_prompt()` and `query()` surfaces into BirdCoder one-shot and streaming completions.
 - When a Claude `query()` stream emits partial assistant deltas and later reports the full final assistant text in its `result` event, the bridge must emit only the non-overlapping suffix so canonical streams do not duplicate already-streamed text.
 - `Gemini` maps `GeminiCliAgent().session().sendStream()` into BirdCoder one-shot and streaming completions.
@@ -192,7 +192,7 @@ export interface EngineTurnHandle {
 
 ### Codex
 
-- Preserve thread continuity and turn boundaries
+- Preserve native-thread continuity and turn boundaries
 - Normalize `item.*` into message, tool, and artifact updates
 - Support structured output and resume semantics
 

@@ -1,12 +1,11 @@
-import React from 'react';
 import { Terminal, X } from 'lucide-react';
 import {
   BUILTIN_TERMINAL_PROFILES,
   type RunConfigurationRecord,
 } from '@sdkwork/birdcoder-commons';
-import { Button } from './ui/button';
+import { Button } from '@sdkwork/birdcoder-ui-shell';
 
-interface RunConfigurationDialogProps {
+export interface RunConfigurationDialogProps {
   open: boolean;
   title: string;
   draft: RunConfigurationRecord;
@@ -30,7 +29,7 @@ interface RunConfigurationDialogProps {
   customGroupLabel: string;
 }
 
-interface RunTaskDialogProps {
+export interface RunTaskDialogProps {
   open: boolean;
   title: string;
   configurations: ReadonlyArray<RunConfigurationRecord>;

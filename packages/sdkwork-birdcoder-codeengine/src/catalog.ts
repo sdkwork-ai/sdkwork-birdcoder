@@ -17,7 +17,7 @@ import {
   listBirdCoderCodeEngineNativeSessionProviders,
 } from './manifest.ts';
 import {
-  getBirdCoderCodeEngineAccessPlan,
+  findBirdCoderCodeEngineAccessPlan,
   resolveBirdCoderCodeEnginePrimaryAccessLane,
 } from './access.ts';
 
@@ -61,6 +61,24 @@ export function listBirdCoderStandardEngineCatalog(): ReadonlyArray<BirdCoderSta
   return BIRDCODER_STANDARD_ENGINE_CATALOG;
 }
 
+export function findBirdCoderStandardEngineCatalogEntry(
+  value: BirdCoderCodeEngineKey | null | undefined,
+): BirdCoderStandardEngineCatalogEntry | null {
+  const normalizedValue = value?.trim().toLowerCase();
+  if (!normalizedValue) {
+    return null;
+  }
+
+  return (
+    BIRDCODER_STANDARD_ENGINE_CATALOG.find(
+      (entry) =>
+        entry.id === normalizedValue ||
+        entry.aliases.includes(normalizedValue) ||
+        entry.label.toLowerCase() === normalizedValue,
+    ) ?? null
+  );
+}
+
 export function listBirdCoderStandardEngineDescriptors(): ReadonlyArray<BirdCoderEngineDescriptor> {
   return BIRDCODER_STANDARD_ENGINE_CATALOG.map((entry) => entry.descriptor);
 }
@@ -81,8 +99,7 @@ export function normalizeBirdCoderStandardEngineId(
     (entry) =>
       entry.id === normalizedValue ||
       entry.aliases.includes(normalizedValue) ||
-      entry.label.toLowerCase() === normalizedValue ||
-      entry.modelIds.some((modelId) => modelId.toLowerCase() === normalizedValue),
+      entry.label.toLowerCase() === normalizedValue,
   );
 
   return matchedEntry?.id ?? BIRDCODER_STANDARD_DEFAULT_ENGINE_ID;
@@ -98,7 +115,10 @@ export function isBirdCoderStandardEngineId(
 export function getBirdCoderStandardEngineCatalogEntry(
   value: BirdCoderCodeEngineKey | null | undefined,
 ): BirdCoderStandardEngineCatalogEntry {
-  return getBirdCoderCodeEngineManifestById(normalizeBirdCoderStandardEngineId(value));
+  return (
+    findBirdCoderStandardEngineCatalogEntry(value) ??
+    getBirdCoderCodeEngineManifestById(BIRDCODER_STANDARD_DEFAULT_ENGINE_ID)
+  );
 }
 
 export function normalizeBirdCoderCodeEngineId(
@@ -174,8 +194,8 @@ export function getBirdCoderCodeEngineCapabilities(
 
 export function resolveBirdCoderEngineAccessPlan(
   engineKey: BirdCoderCodeEngineKey | null | undefined,
-): BirdCoderEngineAccessPlan {
-  return getBirdCoderCodeEngineAccessPlan(engineKey);
+): BirdCoderEngineAccessPlan | null {
+  return findBirdCoderCodeEngineAccessPlan(engineKey);
 }
 
 export function resolveBirdCoderEnginePrimaryAccessLane(

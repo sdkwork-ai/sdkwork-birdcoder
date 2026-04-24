@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import type { BirdCoderProject } from '@sdkwork/birdcoder-types';
 
@@ -17,6 +17,8 @@ export function useStudioCodingSessionSync({
   selectedCodingSessionId,
   selectCodingSession,
 }: UseStudioCodingSessionSyncOptions) {
+  const lastNotifiedCodingSessionIdRef = useRef<string>('');
+
   useEffect(() => {
     const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
     if (!normalizedInitialCodingSessionId) {
@@ -47,9 +49,15 @@ export function useStudioCodingSessionSync({
   useEffect(() => {
     const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
     if (selectedCodingSessionId === normalizedInitialCodingSessionId) {
+      lastNotifiedCodingSessionIdRef.current = selectedCodingSessionId;
       return;
     }
 
+    if (lastNotifiedCodingSessionIdRef.current === selectedCodingSessionId) {
+      return;
+    }
+
+    lastNotifiedCodingSessionIdRef.current = selectedCodingSessionId;
     onCodingSessionChange?.(selectedCodingSessionId);
   }, [initialCodingSessionId, onCodingSessionChange, selectedCodingSessionId]);
 }

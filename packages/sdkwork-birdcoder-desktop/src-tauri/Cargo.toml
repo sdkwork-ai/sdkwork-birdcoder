@@ -8,6 +8,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 axum = "0.8"
+notify = "8"
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -25,3 +26,11 @@ tokio = { version = "1", features = ["net", "rt-multi-thread"] }
 [lib]
 name = "sdkwork_birdcoder_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }

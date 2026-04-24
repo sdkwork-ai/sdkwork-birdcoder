@@ -9,10 +9,10 @@ import {
   type BirdCoderStorageAccess,
   type BirdCoderTableRecordRepository,
   type BirdCoderTransactionalStorageProvider,
-} from '@sdkwork/birdcoder-infrastructure/storage/dataKernel';
-import { createBirdCoderPromptSkillTemplateEvidenceRepositories } from '@sdkwork/birdcoder-infrastructure/storage/promptSkillTemplateEvidenceRepository';
-import { getBirdCoderSchemaMigrationDefinition } from '@sdkwork/birdcoder-infrastructure/storage/providers';
-import { coerceBirdCoderSqlEntityRow } from '@sdkwork/birdcoder-infrastructure/storage/sqlRowCodec';
+} from '../../sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
+import { createBirdCoderPromptSkillTemplateEvidenceRepositories } from '../../sdkwork-birdcoder-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts';
+import { getBirdCoderSchemaMigrationDefinition } from '../../sdkwork-birdcoder-infrastructure/src/storage/providers.ts';
+import { coerceBirdCoderSqlEntityRow } from '../../sdkwork-birdcoder-infrastructure/src/storage/sqlRowCodec.ts';
 import {
   BIRDCODER_CODING_SESSION_ARTIFACT_STORAGE_BINDING,
   BIRDCODER_CODING_SESSION_EVENT_STORAGE_BINDING,
@@ -81,6 +81,13 @@ function normalizeRuntimeRecord(value: unknown): BirdCoderCodingSessionRuntime |
   if (!row || typeof row.coding_session_id !== 'string' || typeof row.engine_id !== 'string') {
     return null;
   }
+  const normalizedModelId =
+    typeof row.model_id === 'string' && row.model_id.trim().length > 0
+      ? row.model_id.trim()
+      : null;
+  if (!normalizedModelId) {
+    return null;
+  }
 
   return {
     id: String(row.id),
@@ -88,7 +95,7 @@ function normalizeRuntimeRecord(value: unknown): BirdCoderCodingSessionRuntime |
     hostMode: String(row.host_mode ?? 'server') as BirdCoderCodingSessionRuntime['hostMode'],
     status: String(row.status ?? 'ready') as BirdCoderCodingSessionRuntime['status'],
     engineId: String(row.engine_id),
-    modelId: typeof row.model_id === 'string' ? row.model_id : undefined,
+    modelId: normalizedModelId,
     nativeRef: {
       engineId: String(row.engine_id),
       transportKind: String(row.transport_kind ?? 'stdio'),
@@ -234,7 +241,7 @@ function runtimeRecordToRow(value: BirdCoderCodingSessionRuntime): Record<string
     is_deleted: false,
     coding_session_id: value.codingSessionId,
     engine_id: value.engineId,
-    model_id: value.modelId ?? null,
+    model_id: value.modelId,
     host_mode: value.hostMode,
     status: value.status,
     transport_kind: value.nativeRef.transportKind,
@@ -416,7 +423,7 @@ async function persistPromptSkillTemplateEvidence(
     projectId,
     codingSessionId: projection.runtime.codingSessionId,
     promptBundleId: `coding-server-${projection.runtime.engineId}-prompt-bundle`,
-    promptAssetVersionId: `coding-server-${projection.runtime.engineId}-${projection.runtime.modelId ?? 'default-model'}-prompt-asset-version`,
+    promptAssetVersionId: `coding-server-${projection.runtime.engineId}-${projection.runtime.modelId}-prompt-asset-version`,
     status,
     inputSnapshotRef: `coding-session:${projection.runtime.codingSessionId}:turn:${turnId}:input`,
     outputSnapshotRef: `coding-session:${projection.runtime.codingSessionId}:turn:${turnId}:output`,
@@ -434,7 +441,7 @@ async function persistPromptSkillTemplateEvidence(
       eventCount: projection.events.length,
       artifactCount: projection.artifacts.length,
       engineId: projection.runtime.engineId,
-      modelId: projection.runtime.modelId ?? null,
+      modelId: projection.runtime.modelId,
       runtimeStatus: projection.runtime.status,
     },
     status,

@@ -1,6 +1,8 @@
 import type {
+  BirdCoderEngineAvailabilityStatus,
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineDescriptor,
+  BirdCoderEngineOfficialIntegration,
   BirdCoderEngineTransportKind,
   BirdCoderHostMode,
   BirdCoderModelCatalogEntry,
@@ -65,7 +67,19 @@ interface BirdCoderCodeEngineManifestInput
     BirdCoderCodeEngineManifest,
     'defaultModelId' | 'modelIds' | 'descriptor' | 'serverSupportStatus' | 'terminalProfileId'
   > {
-  descriptor: Omit<BirdCoderEngineDescriptor, 'defaultModelId'>;
+  descriptor: Omit<
+    BirdCoderEngineDescriptor,
+    | 'id'
+    | 'uuid'
+    | 'tenantId'
+    | 'organizationId'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'defaultModelId'
+    | 'status'
+  > & {
+    status?: BirdCoderEngineAvailabilityStatus;
+  };
   terminalProfileId?: BirdCoderStandardEngineId;
 }
 
@@ -76,6 +90,53 @@ export const BIRDCODER_STANDARD_SUPPORTED_HOST_MODES: readonly BirdCoderHostMode
   'desktop',
   'server',
 ];
+
+const ENGINE_CATALOG_CANONICAL_TIMESTAMP = '2026-04-24T00:00:00.000Z';
+const ENGINE_CATALOG_DEFAULT_TENANT_ID = '0';
+
+function buildStableCatalogUuid(seed: string): string {
+  const hex = (
+    Array.from(new TextEncoder().encode(seed), (value) => value.toString(16).padStart(2, '0')).join('') +
+    '0123456789abcdef0123456789abcdef'
+  ).slice(0, 32);
+
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+function buildEngineDescriptorMetadata(
+  engineKey: BirdCoderStandardEngineId,
+): Pick<
+  BirdCoderEngineDescriptor,
+  'id' | 'uuid' | 'tenantId' | 'organizationId' | 'createdAt' | 'updatedAt'
+> {
+  const identitySeed = `engine-registry:${engineKey}`;
+  return {
+    id: identitySeed,
+    uuid: buildStableCatalogUuid(identitySeed),
+    tenantId: ENGINE_CATALOG_DEFAULT_TENANT_ID,
+    organizationId: undefined,
+    createdAt: ENGINE_CATALOG_CANONICAL_TIMESTAMP,
+    updatedAt: ENGINE_CATALOG_CANONICAL_TIMESTAMP,
+  };
+}
+
+function buildModelCatalogMetadata(
+  engineKey: BirdCoderStandardEngineId,
+  modelId: string,
+): Pick<
+  BirdCoderModelCatalogEntry,
+  'id' | 'uuid' | 'tenantId' | 'organizationId' | 'createdAt' | 'updatedAt'
+> {
+  const identitySeed = `model-catalog:${engineKey}:${modelId}`;
+  return {
+    id: identitySeed,
+    uuid: buildStableCatalogUuid(identitySeed),
+    tenantId: ENGINE_CATALOG_DEFAULT_TENANT_ID,
+    organizationId: undefined,
+    createdAt: ENGINE_CATALOG_CANONICAL_TIMESTAMP,
+    updatedAt: ENGINE_CATALOG_CANONICAL_TIMESTAMP,
+  };
+}
 
 export const BIRDCODER_STANDARD_DEFAULT_CAPABILITY_MATRIX: BirdCoderEngineCapabilityMatrix = {
   chat: true,
@@ -114,6 +175,7 @@ function buildModelCatalogEntry(
   providerId?: string,
 ): BirdCoderModelCatalogEntry {
   return {
+    ...buildModelCatalogMetadata(engineKey, modelId),
     engineKey,
     modelId,
     displayName,
@@ -127,28 +189,89 @@ function buildModelCatalogEntry(
   };
 }
 
+function buildOfficialIntegration(
+  input: BirdCoderEngineOfficialIntegration,
+): BirdCoderEngineOfficialIntegration {
+  return {
+    ...input,
+    officialEntry: {
+      ...input.officialEntry,
+      supplementalLanes: [...(input.officialEntry.supplementalLanes ?? [])],
+    },
+  };
+}
+
+function validateBirdCoderCodeEngineModelCatalog(
+  input: BirdCoderCodeEngineManifestInput,
+): readonly BirdCoderModelCatalogEntry[] {
+  if (input.modelCatalog.length === 0) {
+    throw new Error(
+      `BirdCoder engine manifest "${input.id}" must declare at least one model catalog entry.`,
+    );
+  }
+
+  const normalizedModelIds = new Set<string>();
+  const defaultModels: BirdCoderModelCatalogEntry[] = [];
+
+  for (const entry of input.modelCatalog) {
+    const normalizedModelId = entry.modelId.trim();
+    if (!normalizedModelId) {
+      throw new Error(
+        `BirdCoder engine manifest "${input.id}" contains a model catalog entry with an empty modelId.`,
+      );
+    }
+
+    if (entry.engineKey !== input.id) {
+      throw new Error(
+        `BirdCoder engine manifest "${input.id}" cannot include model "${entry.modelId}" owned by engine "${entry.engineKey}".`,
+      );
+    }
+
+    const normalizedModelIdKey = normalizedModelId.toLowerCase();
+    if (normalizedModelIds.has(normalizedModelIdKey)) {
+      throw new Error(
+        `BirdCoder engine manifest "${input.id}" declares duplicate modelId "${entry.modelId}".`,
+      );
+    }
+    normalizedModelIds.add(normalizedModelIdKey);
+
+    if (entry.defaultForEngine) {
+      defaultModels.push(entry);
+    }
+  }
+
+  if (defaultModels.length !== 1) {
+    throw new Error(
+      `BirdCoder engine manifest "${input.id}" must declare exactly one defaultForEngine model entry.`,
+    );
+  }
+
+  return defaultModels;
+}
+
 function createBirdCoderCodeEngineManifest(
   input: BirdCoderCodeEngineManifestInput,
 ): BirdCoderCodeEngineManifest {
-  const defaultModel =
-    input.modelCatalog.find((entry) => entry.defaultForEngine) ?? input.modelCatalog[0];
+  const [defaultModel] = validateBirdCoderCodeEngineModelCatalog(input);
 
   return {
     ...input,
     terminalProfileId: input.terminalProfileId ?? input.id,
     serverSupportStatus: resolveBirdCoderCodeEngineAccessLaneStatus(input.descriptor.accessPlan),
     descriptor: {
+      ...buildEngineDescriptorMetadata(input.id),
       ...input.descriptor,
-      defaultModelId: defaultModel?.modelId ?? input.id,
+      defaultModelId: defaultModel.modelId,
+      status: input.descriptor.status ?? 'active',
     },
-    defaultModelId: defaultModel?.modelId ?? input.id,
+    defaultModelId: defaultModel.modelId,
     modelIds: input.modelCatalog.map((entry) => entry.modelId),
   };
 }
 
 const CODEX_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = [
-  'sdk-stream',
   'cli-jsonl',
+  'sdk-stream',
 ];
 const CLAUDE_CODE_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = [
   'sdk-stream',
@@ -159,9 +282,8 @@ const GEMINI_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = [
   'openapi-http',
 ];
 const OPENCODE_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = [
-  'sdk-stream',
   'openapi-http',
-  'cli-jsonl',
+  'sdk-stream',
 ];
 
 export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
@@ -184,24 +306,75 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
       transportKinds: CODEX_TRANSPORT_KINDS,
       capabilityMatrix: buildCapabilityMatrix(),
       accessPlan: CODEX_ENGINE_ACCESS_PLAN,
+      officialIntegration: buildOfficialIntegration({
+        integrationClass: 'official-sdk',
+        runtimeMode: 'sdk',
+        officialEntry: {
+          packageName: '@openai/codex-sdk',
+          cliPackageName: '@openai/codex',
+          sdkPath: 'external/codex/sdk/typescript',
+          sourceMirrorPath: 'external/codex/sdk/typescript',
+          supplementalLanes: ['CLI JSONL'],
+        },
+        notes:
+          'BirdCoder standardizes Codex on the official TypeScript SDK contract while keeping the Rust-native CLI JSONL authority lane as the production baseline.',
+      }),
     },
     modelCatalog: [
-      buildModelCatalogEntry('codex', 'codex', 'Codex', true, CODEX_TRANSPORT_KINDS),
-      buildModelCatalogEntry('codex', 'gpt-4o', 'GPT-4o', false, CODEX_TRANSPORT_KINDS, {
-        previewArtifacts: false,
-      }),
-      buildModelCatalogEntry('codex', 'gpt-4-turbo', 'GPT-4 Turbo', false, CODEX_TRANSPORT_KINDS, {
-        previewArtifacts: false,
-      }),
+      buildModelCatalogEntry('codex', 'gpt-5.4', 'GPT-5.4', true, CODEX_TRANSPORT_KINDS),
       buildModelCatalogEntry(
         'codex',
-        'gpt-3.5-turbo',
-        'GPT-3.5 Turbo',
+        'gpt-5.3-codex',
+        'GPT-5.3 Codex',
+        false,
+        CODEX_TRANSPORT_KINDS,
+      ),
+      buildModelCatalogEntry(
+        'codex',
+        'gpt-5.2-codex',
+        'GPT-5.2 Codex',
+        false,
+        CODEX_TRANSPORT_KINDS,
+      ),
+      buildModelCatalogEntry(
+        'codex',
+        'gpt-5.1-codex-max',
+        'GPT-5.1 Codex Max',
+        false,
+        CODEX_TRANSPORT_KINDS,
+      ),
+      buildModelCatalogEntry(
+        'codex',
+        'gpt-5.1-codex',
+        'GPT-5.1 Codex',
+        false,
+        CODEX_TRANSPORT_KINDS,
+      ),
+      buildModelCatalogEntry(
+        'codex',
+        'gpt-5.1-codex-mini',
+        'GPT-5.1 Codex Mini',
         false,
         CODEX_TRANSPORT_KINDS,
         {
           planning: false,
-          previewArtifacts: false,
+        },
+      ),
+      buildModelCatalogEntry(
+        'codex',
+        'gpt-5-codex',
+        'GPT-5 Codex',
+        false,
+        CODEX_TRANSPORT_KINDS,
+      ),
+      buildModelCatalogEntry(
+        'codex',
+        'gpt-5-codex-mini',
+        'GPT-5 Codex Mini',
+        false,
+        CODEX_TRANSPORT_KINDS,
+        {
+          planning: false,
         },
       ),
     ],
@@ -249,6 +422,19 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
         remoteBridge: true,
       }),
       accessPlan: CLAUDE_CODE_ENGINE_ACCESS_PLAN,
+      officialIntegration: buildOfficialIntegration({
+        integrationClass: 'official-sdk',
+        runtimeMode: 'sdk',
+        officialEntry: {
+          packageName: '@anthropic-ai/claude-agent-sdk',
+          cliPackageName: 'claude-code',
+          sdkPath: null,
+          sourceMirrorPath: 'external/claude-code',
+          supplementalLanes: ['query stream', 'tool progress', 'preview sessions'],
+        },
+        notes:
+          'BirdCoder standardizes Claude Code on the official Agent SDK contract and routes execution through a dedicated bridge lane when Rust authority needs to delegate.',
+      }),
     },
     modelCatalog: [
       buildModelCatalogEntry(
@@ -337,6 +523,19 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
         ptyArtifacts: false,
       }),
       accessPlan: GEMINI_ENGINE_ACCESS_PLAN,
+      officialIntegration: buildOfficialIntegration({
+        integrationClass: 'official-sdk',
+        runtimeMode: 'sdk',
+        officialEntry: {
+          packageName: '@google/gemini-cli-sdk',
+          cliPackageName: '@google/gemini-cli',
+          sdkPath: 'external/gemini/packages/sdk',
+          sourceMirrorPath: 'external/gemini/packages/sdk',
+          supplementalLanes: ['CLI core runtime', 'tool and skill registry'],
+        },
+        notes:
+          'BirdCoder standardizes Gemini on the Gemini CLI SDK contract and treats the gRPC bridge as the primary authority delegation lane.',
+      }),
     },
     modelCatalog: [
       buildModelCatalogEntry('gemini', 'gemini', 'Gemini Default', true, GEMINI_TRANSPORT_KINDS),
@@ -402,6 +601,19 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
         structuredOutput: false,
       }),
       accessPlan: OPENCODE_ENGINE_ACCESS_PLAN,
+      officialIntegration: buildOfficialIntegration({
+        integrationClass: 'official-sdk',
+        runtimeMode: 'sdk',
+        officialEntry: {
+          packageName: '@opencode-ai/sdk',
+          cliPackageName: 'opencode-ai',
+          sdkPath: 'external/opencode/packages/sdk/js',
+          sourceMirrorPath: 'external/opencode/packages/sdk/js',
+          supplementalLanes: ['OpenAPI', 'SSE', 'server mode'],
+        },
+        notes:
+          'BirdCoder standardizes OpenCode on the official JavaScript SDK contract while the Rust authority owns the OpenAPI-native server lane.',
+      }),
     },
     modelCatalog: [
       buildModelCatalogEntry('opencode', 'opencode', 'OpenCode', true, OPENCODE_TRANSPORT_KINDS),
@@ -445,21 +657,44 @@ export function listBirdCoderCodeEngineManifests(): ReadonlyArray<BirdCoderCodeE
 
 export function listBirdCoderCodeEngineNativeSessionProviders(): ReadonlyArray<BirdCoderCodeEngineNativeSessionProviderEntry> {
   return BIRDCODER_STANDARD_ENGINE_MANIFESTS.filter(
-    (manifest) => manifest.nativeSession.authorityBacked,
+    (manifest) => manifest.nativeSession.authorityBacked && manifest.serverSupportStatus === 'ready',
   ).map((manifest) => ({
     engineId: manifest.id,
     displayName: manifest.label,
     nativeSessionIdPrefix: manifest.nativeSession.nativeSessionIdPrefix,
-    transportKinds: manifest.descriptor.transportKinds,
+    transportKinds:
+      manifest.descriptor.accessPlan?.lanes
+        .filter((lane) => lane.status === 'ready')
+        .map((lane) => lane.transportKind) ?? manifest.descriptor.transportKinds,
     discoveryMode: manifest.nativeSession.discoveryMode,
   }));
+}
+
+export function findBirdCoderCodeEngineManifest(
+  value: string | null | undefined,
+): BirdCoderCodeEngineManifest | null {
+  const normalizedValue = value?.trim().toLowerCase();
+  if (!normalizedValue) {
+    return null;
+  }
+
+  return (
+    BIRDCODER_STANDARD_ENGINE_MANIFESTS.find(
+      (manifest) =>
+        manifest.id === normalizedValue ||
+        manifest.aliases.some((alias) => alias.toLowerCase() === normalizedValue) ||
+        manifest.label.toLowerCase() === normalizedValue,
+    ) ?? null
+  );
 }
 
 export function getBirdCoderCodeEngineManifestById(
   engineId: BirdCoderStandardEngineId,
 ): BirdCoderCodeEngineManifest {
-  return (
-    BIRDCODER_STANDARD_ENGINE_MANIFEST_BY_ID.get(engineId) ??
-    BIRDCODER_STANDARD_ENGINE_MANIFESTS[0]
-  );
+  const manifest = BIRDCODER_STANDARD_ENGINE_MANIFEST_BY_ID.get(engineId);
+  if (!manifest) {
+    throw new Error(`Unknown BirdCoder standard engine manifest "${engineId}".`);
+  }
+
+  return manifest;
 }

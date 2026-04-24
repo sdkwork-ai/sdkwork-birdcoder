@@ -17,7 +17,7 @@ Close the server-side runtime transport binding so TypeScript-side default IDE r
 ## Checkpoints
 
 - CP17C-1 shared host-to-runtime binding logic is reusable and no longer duplicated between shell bootstrap and server runtime binding.
-- CP17C-2 `bindBirdCoderServerRuntimeTransport()` resolves `resolveServerRuntime()` and configures default IDE reads through the same host-derived HTTP transport contract.
+- CP17C-2 `await bindBirdCoderServerRuntimeTransport()` resolves `resolveServerRuntime()` and configures default IDE reads through the same host-derived HTTP transport contract.
 - CP17C-3 server transport binding remains transport-only and does not pretend to be a shell `initCore()` entrypoint.
 - CP17C-4 release-flow verification now treats server runtime transport binding as part of the mandatory host runtime baseline.
 

@@ -9,22 +9,6 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
-    },
-    "./chat": {
-      "import": "./src/chat.ts",
-      "types": "./src/chat.ts"
-    },
-    "./editors": {
-      "import": "./src/editors.ts",
-      "types": "./src/editors.ts"
-    },
-    "./run-config": {
-      "import": "./src/run-config.ts",
-      "types": "./src/run-config.ts"
-    },
-    "./shell": {
-      "import": "./src/shell.ts",
-      "types": "./src/shell.ts"
     }
   },
   "scripts": {
@@ -34,8 +18,6 @@
   },
   "dependencies": {
     "@babel/runtime": "catalog:",
-    "@radix-ui/react-compose-refs": "^1.1.2",
-    "@radix-ui/react-slot": "^1.2.4",
     "@monaco-editor/loader": "^1.7.0",
     "@monaco-editor/react": "^4.7.0",
     "@ungap/structured-clone": "catalog:",
@@ -44,8 +26,6 @@
     "character-entities-html4": "catalog:",
     "character-entities-legacy": "catalog:",
     "character-reference-invalid": "catalog:",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
     "comma-separated-tokens": "catalog:",
     "decode-named-character-reference": "catalog:",
     "dequal": "catalog:",
@@ -67,6 +47,7 @@
     "is-decimal": "catalog:",
     "is-hexadecimal": "catalog:",
     "is-plain-obj": "catalog:",
+    "jsonc-parser": "catalog:",
     "lowlight": "^1.20.0",
     "lucide-react": "^1.7.0",
     "mdast-util-from-markdown": "catalog:",
@@ -96,12 +77,13 @@
     "remark-rehype": "catalog:",
     "@sdkwork/birdcoder-codeengine": "workspace:*",
     "@sdkwork/birdcoder-commons": "workspace:*",
+    "@sdkwork/birdcoder-ui-shell": "workspace:*",
     "space-separated-tokens": "catalog:",
     "state-local": "^1.0.7",
     "stringify-entities": "catalog:",
     "style-to-js": "catalog:",
     "style-to-object": "catalog:",
-    "tailwind-merge": "^3.3.1",
+    "smol-toml": "catalog:",
     "trim-lines": "catalog:",
     "trough": "catalog:",
     "unified": "catalog:",
@@ -111,7 +93,8 @@
     "unist-util-visit": "catalog:",
     "unist-util-visit-parents": "catalog:",
     "vfile": "catalog:",
-    "vfile-message": "catalog:"
+    "vfile-message": "catalog:",
+    "yaml": "catalog:"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.2.0"

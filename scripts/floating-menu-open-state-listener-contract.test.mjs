@@ -5,7 +5,7 @@ function read(relativePath) {
   return fs.readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8');
 }
 
-const appSource = read('src/App.tsx');
+const appSource = read('packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx');
 const sidebarSource = read('packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx');
 const topBarSource = read('packages/sdkwork-birdcoder-code/src/components/TopBar.tsx');
 const universalChatSource = read('packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx');
@@ -45,8 +45,8 @@ assert.match(
 
 assert.match(
   topBarSource,
-  /if \(!showBranchMenu && !showSubmitMenu\) \{\s*return;\s*\}[\s\S]*document\.addEventListener\('mousedown', handleClickOutside\);/s,
-  'TopBar must only subscribe to outside clicks while the branch or submit menu is open.',
+  /if \(!showSubmitMenu\) \{\s*return;\s*\}[\s\S]*document\.addEventListener\('mousedown', handleClickOutside\);/s,
+  'TopBar must only subscribe to outside clicks for the submit menu while shared branch and worktree menus manage their own listener lifecycles.',
 );
 
 assert.match(

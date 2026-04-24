@@ -12,6 +12,21 @@ The release flow produces:
 - `kubernetes` Helm-compatible deployment bundles
 - `web` static web and docs archives
 
+### Identity deployment and packaging standard
+
+Release packaging follows the same identity standard as development. BirdCoder keeps one frontend-facing auth facade while release artifacts are produced for different deployment and provider bindings:
+
+| Identity lane | Standard build commands | Standard package commands | Authority |
+| --- | --- | --- | --- |
+| `desktop-local` | `pnpm tauri:build`, `pnpm desktop:build:local` | `pnpm package:desktop:local` | Embedded local sqlite user center |
+| `server-private` + `builtin-local` | `pnpm build`, `pnpm desktop:build:private`, `pnpm web:build:private`, `pnpm server:build`, `pnpm server:build:private` | `pnpm package:web:private`, `pnpm package:server:private`, `pnpm package:desktop:private` | Private BirdCoder server with builtin local authority |
+| `server-private` + `external-user-center` | `pnpm build:external`, `pnpm desktop:build:external`, `pnpm web:build:external`, `pnpm server:build:external` | `pnpm package:web:external`, `pnpm package:server:external`, `pnpm package:desktop:external` | Private BirdCoder server with external identity bridge |
+| `cloud-saas` + `sdkwork-cloud-app-api` | `pnpm build:cloud`, `pnpm desktop:build:cloud`, `pnpm web:build:cloud`, `pnpm server:build:cloud` | `pnpm package:web:cloud`, `pnpm package:server:cloud`, `pnpm package:desktop:cloud` | BirdCoder server delegates identity to `sdkwork-cloud-app-api` |
+
+The release standard is not “different API per deployment.” It is “different server binding behind the same BirdCoder facade.” Packaged desktop and web clients still consume the same canonical `/api/app/v1/auth/*`, `/api/app/v1/user/profile`, and `/api/app/v1/vip/info` routes after packaging.
+
+For remote desktop packaging lanes such as `private`, `external`, and `cloud`, `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL` must be set explicitly so packaged artifacts never fall back to localhost by accident.
+
 ## Local Verification And Packaging
 
 Run the highest-signal local gate from the workspace root when a change touches desktop, server, docker, kubernetes, or release automation behavior:
@@ -59,7 +74,7 @@ pnpm check:governance-regression
 pnpm check:live-docs-governance-baseline
 ```
 
-This emits `artifacts/governance/governance-regression-report.json` and currently aggregates 101 existing checks across governance baseline, terminal blocking, web budget, host runtime, host-studio modes, Studio execution lanes, Studio evidence stores, Studio evidence viewer contracts, Studio simulator UI, terminal CLI registry launch governance, run-configuration launch request governance, run-configuration storage and normalization governance, terminal runtime governance, terminal session governance, terminal host-runtime governance, workbench preference governance, chat runtime governance, local store governance, Gemini engine governance, the official-SDK-first engine lane (`engine-official-sdk`, runtime selection, runtime adapter, kernel, environment health, capability extension, experimental capability gating, canonical registry governance, provider SDK import and package-manifest governance, browser safety, error propagation, provider bridges, engine conformance, tool protocol, and resume or recovery), i18n governance, desktop Tauri dev governance, Vite host toolchain governance, desktop Vite host governance, UI bundle segmentation governance, web React compat mode governance, commons shell entry governance, shared SDK mode governance, shared SDK package preparation governance, shared SDK git-source governance, VitePress toolchain governance, source parse governance, Tailwind source governance, Studio chat layout governance, Studio sidebar stability governance, architecture boundary governance, BirdCoder structure governance, release flow governance, CI flow governance, quality gate matrix governance, Claw release parity governance, Claw docs IA governance, reusable Step prompt governance, skill binding governance, template instantiation governance, prompt-skill-template runtime assembly governance, prompt-skill-template evidence repository governance, prompt-skill-template evidence consumer governance, coding-server prompt-skill-template evidence consumer governance, PostgreSQL live-smoke preflight governance, live docs governance baseline, quality loop scoreboard governance, release command governance, release rollback-plan command governance, desktop/server build orchestration governance, release profile governance, release plan resolution governance, release smoke contract governance, release smoke router governance, release package/finalize governance, release studio evidence archive governance, release terminal governance evidence archive governance, release notes rendering governance, desktop/server/deployment smoke governance, BirdCoder architecture governance, appbase parity governance, and release closure. When a command-backed slice reaches the governed Vite or esbuild path and the host stops at `[vite:define] spawn EPERM`, the same report now records `blockedCheckIds`, `blockingDiagnosticIds`, and `environmentDiagnostics` such as `vite-host-build-preflight` instead of classifying that host limitation as a failed repository regression. `pnpm check:live-docs-governance-baseline` complements that machine-readable report by freezing active architecture, Step, and release docs against the same governance vocabulary.
+This emits `artifacts/governance/governance-regression-report.json` and currently aggregates 100 existing checks across package and governance baseline, web budget, host runtime and host-studio lanes, Studio execution and evidence lanes, run-configuration and workbench runtime governance, chat and local-store governance, the official-SDK-first engine lane, i18n, desktop Tauri and Vite host governance, UI dependency and bundle governance, shared SDK and source-parse governance, architecture and structure governance, release and CI flow governance, prompt and template governance, PostgreSQL live-smoke governance, release packaging and smoke governance, release notes governance, BirdCoder architecture, appbase parity, unified user-center standard governance, and release closure. When a command-backed slice reaches the governed Vite or esbuild path and the host stops at `[vite:define] spawn EPERM`, the same report now records `blockedCheckIds`, `blockingDiagnosticIds`, and `environmentDiagnostics` such as `vite-host-build-preflight` instead of classifying that host limitation as a failed repository regression. `pnpm check:live-docs-governance-baseline` complements that machine-readable report by freezing active architecture, Step, and release docs against the same governance vocabulary.
 
 When a change touches Step 12 quality tiers, run:
 
@@ -91,13 +106,21 @@ DSN-backed `pnpm release:smoke:postgresql-live` remains a separate environment g
 If a DSN is configured but the PostgreSQL backend is unreachable, the same command must return a structured `failed` report instead of crashing during provider cleanup.
 On this Windows host, that gate has now also been closed with a real `passed` report against a temporary Docker-backed `postgres:16-alpine` instance published on `127.0.0.1:55432`.
 
-When a change touches the unified appbase-aligned `auth`, `user`, or `vip` boundary, run:
+When a change touches the unified `auth`, `user`, or `vip` boundary, run:
 
 ```bash
-pnpm check:appbase-parity
+pnpm check:identity-standard
 ```
 
-This keeps release-facing verification aligned with the same `sdkwork-birdcoder-appbase` bridge contract already frozen by architecture docs, Step docs, prompt governance, and `check:release-flow`.
+This keeps release-facing verification aligned with the same `sdkwork-birdcoder-auth` and `sdkwork-birdcoder-user` split identity contract already frozen by architecture docs, Step docs, prompt governance, and `check:release-flow`.
+
+When a change touches the unified user-center bridge or the independent validation plugin boundary, run:
+
+```bash
+pnpm test:user-center-standard
+```
+
+This keeps release-facing verification aligned with the same root-owned user-center standard lane that freezes appbase parity, the independent validation plugin contract, and the Rust host handoff under one canonical command.
 
 When a change touches workspace package ownership, package naming, or root-managed dependency governance, run:
 
@@ -126,6 +149,21 @@ pnpm release:smoke:kubernetes
 pnpm release:smoke:web
 pnpm release:finalize
 pnpm release:smoke:finalized
+```
+
+When you need BirdCoder-mode packaging rather than family-only release bundles, prefer the explicit mode matrix first and then move into the release family commands:
+
+```bash
+pnpm package:desktop:local
+pnpm package:desktop:private
+pnpm package:desktop:external
+pnpm package:desktop:cloud
+pnpm package:web:private
+pnpm package:web:external
+pnpm package:web:cloud
+pnpm package:server:private
+pnpm package:server:external
+pnpm package:server:cloud
 ```
 
 Packaged families land under `artifacts/release/<family>/...` with family manifests and finalization metadata. Desktop and server bundles are split by operating system and CPU architecture. Container and kubernetes bundles are also split by accelerator profile.
@@ -192,7 +230,7 @@ Rendered release notes must also freeze a deterministic post-release operations 
 
 - Observation goal: derived from `releaseKind`
 - Observation window: `monitoringWindowMinutes` + `rolloutStage`
-- Stop-ship signals: finalized `qualityEvidence` blockers or topology drift plus `governanceEvidence.blockedRecords`
+- Stop-ship signals: finalized `qualityEvidence` blockers, topology drift, and packaged desktop startup readiness gaps
 - Rollback entry: explicit `rollbackCommand` when present, otherwise the fallback `pnpm release:rollback:plan -- --release-tag <tag> --release-assets-dir <dir>`
 - Rollback runbook: `rollbackRunbookRef`
 - Re-issue path: `pnpm release:plan` -> package/smoke -> `pnpm release:finalize`
@@ -207,7 +245,6 @@ When Studio evidence archives are exported into the release asset directory, fin
 - `buildEvidence` with `studio/build/studio-build-evidence.json`
 - `simulatorEvidence` with `studio/simulator/studio-simulator-evidence.json`
 - `testEvidence` with `studio/test/studio-test-evidence.json`
-- `governanceEvidence` with `terminal/governance/terminal-governance-diagnostics.json`
 - `qualityEvidence` with `quality/quality-gate-matrix-report.json`
 - optional runtime execution evidence with `quality/quality-gate-execution-report.json`
 
@@ -291,8 +328,6 @@ If `studio/simulator/studio-simulator-evidence.json` is present, the finalizer a
 
 If `studio/test/studio-test-evidence.json` is present, the finalizer also emits `release-manifest.json.testEvidence` with normalized test commands, project scope, and latest launch time.
 
-If `terminal/governance/terminal-governance-diagnostics.json` is present, the finalizer also emits `release-manifest.json.governanceEvidence` with normalized blocked-record counts, risk levels, approval policies, and latest recorded time.
-
 The finalizer now always emits `quality/quality-gate-matrix-report.json` and `release-manifest.json.qualityEvidence` with:
 
 - tier ids plus workflow-bound and manifest-bound tier counts
@@ -309,15 +344,13 @@ For `formal` releases and any explicit `general-availability` rollout-stage, fin
 - runtime blocked tiers
 - runtime failed tiers
 - runtime blocking diagnostics
-- governance blocked records
-
 After finalization, local verification can run:
 
 ```bash
 pnpm release:smoke:finalized
 ```
 
-This post-finalize smoke step validates that any attached `previewEvidence`, `buildEvidence`, `simulatorEvidence`, `testEvidence`, and `governanceEvidence` summaries still match their raw evidence archives.
+This post-finalize smoke step validates that any attached `previewEvidence`, `buildEvidence`, `simulatorEvidence`, and `testEvidence` summaries still match their raw evidence archives.
 It now also validates that `qualityEvidence` still matches the raw `quality/quality-gate-matrix-report.json` artifact and, when present, the archived `quality/quality-gate-execution-report.json` runtime verdict.
 When the finalized manifest declares `formal` or `general-availability` release control, this smoke step also fails if any packaged stop-ship evidence remains, so operator signoff cannot succeed against a manifest that still advertises publication blockers.
 When the release asset directory already contains `SHA256SUMS.txt`, finalized smoke now refreshes that checksum inventory after writing `finalized-release-smoke-report.json`, so post-finalize evidence replay cannot leave the packaged asset digest set stale.

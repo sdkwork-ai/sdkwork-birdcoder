@@ -35,10 +35,10 @@ const descriptorFixture: BirdCoderCodingServerDescriptor = {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/api/core/v1/routes',
-    routeCount: 57,
+    routeCount: 58,
     routesBySurface: {
       core: 19,
-      app: 31,
+      app: 32,
       admin: 7,
     },
     surfaces: [
@@ -54,7 +54,7 @@ const descriptorFixture: BirdCoderCodingServerDescriptor = {
         basePath: '/api/app/v1',
         description: 'Application-facing workspace, project, collaboration, and user-center routes.',
         name: 'app',
-        routeCount: 31,
+        routeCount: 32,
       },
       {
         authMode: 'admin',
@@ -81,12 +81,24 @@ const healthFixture: BirdCoderCoreHealthSummary = {
   status: 'healthy',
 };
 
+function buildCatalogSummaryFixture(id: string) {
+  return {
+    id,
+    uuid: `${id}-uuid`,
+    tenantId: '0',
+    organizationId: undefined,
+    createdAt: '2026-04-24T00:00:00.000Z',
+    updatedAt: '2026-04-24T00:00:00.000Z',
+  } as const;
+}
+
 const engineFixture: BirdCoderEngineDescriptor = {
+  ...buildCatalogSummaryFixture('engine-registry:codex'),
   engineKey: 'codex',
   displayName: 'Codex',
   vendor: 'OpenAI',
   installationKind: 'external-cli',
-  defaultModelId: 'codex',
+  defaultModelId: 'gpt-5.4',
   homepage: 'https://openai.com/codex',
   supportedHostModes: ['web', 'desktop', 'server'],
   transportKinds: ['cli-jsonl'],
@@ -107,6 +119,7 @@ const engineFixture: BirdCoderEngineDescriptor = {
     todoArtifacts: true,
     toolCalls: true,
   },
+  status: 'active',
 };
 
 const capabilityFixture: BirdCoderEngineCapabilityMatrix = {
@@ -114,9 +127,10 @@ const capabilityFixture: BirdCoderEngineCapabilityMatrix = {
 };
 
 const modelFixture: BirdCoderModelCatalogEntry = {
+  ...buildCatalogSummaryFixture('model-catalog:codex:gpt-5.4'),
   engineKey: 'codex',
-  modelId: 'codex',
-  displayName: 'Codex',
+  modelId: 'gpt-5.4',
+  displayName: 'GPT-5.4',
   providerId: 'openai',
   status: 'active',
   defaultForEngine: true,
@@ -133,7 +147,7 @@ const nativeSessionProviderFixture: BirdCoderNativeSessionProviderSummary = {
   displayName: 'Codex',
   nativeSessionIdPrefix: 'codex-native:',
   transportKinds: ['cli-jsonl'],
-  discoveryMode: 'explicit-only',
+  discoveryMode: 'passive-global',
 };
 
 const operationFixture: BirdCoderOperationDescriptor = {
@@ -152,7 +166,7 @@ const sessionFixture: BirdCoderCodingSessionSummary = {
   status: 'active',
   hostMode: 'desktop',
   engineId: 'codex',
-  modelId: 'codex',
+  modelId: 'gpt-5.4',
   createdAt: '2026-04-11T10:00:00.000Z',
   updatedAt: '2026-04-11T10:05:00.000Z',
   lastTurnAt: '2026-04-11T10:05:00.000Z',

@@ -11,6 +11,7 @@ import {
   BIRDCODER_PROMPT_BUNDLE_STORAGE_BINDING,
   BIRDCODER_PROMPT_EVALUATION_STORAGE_BINDING,
   BIRDCODER_PROMPT_RUN_STORAGE_BINDING,
+  BIRDCODER_SAVED_PROMPT_ENTRY_STORAGE_BINDING,
   BIRDCODER_SKILL_BINDING_STORAGE_BINDING,
   BIRDCODER_SKILL_CAPABILITY_STORAGE_BINDING,
   BIRDCODER_SKILL_INSTALLATION_STORAGE_BINDING,
@@ -94,14 +95,14 @@ export interface BirdCoderResolvedPromptLayer {
 }
 
 export interface BirdCoderPromptRuntimeAssemblyOptions {
-  engineKey?: string;
-  modelId?: string;
+  engineKey: string;
+  modelId: string;
   fragments: readonly BirdCoderPromptFragmentInput[];
 }
 
 export interface BirdCoderPromptRuntimeAssembly {
-  engineKey?: string;
-  modelId?: string;
+  engineKey: string;
+  modelId: string;
   layerIds: readonly BirdCoderPromptCompositionLayerId[];
   layers: readonly BirdCoderResolvedPromptLayer[];
   promptText: string;
@@ -295,6 +296,7 @@ export interface BirdCoderAppTemplateRuntimeInstantiation {
 }
 
 export const BIRDCODER_PROMPT_STORAGE_BINDINGS: readonly BirdCoderEntityStorageBinding[] = [
+  BIRDCODER_SAVED_PROMPT_ENTRY_STORAGE_BINDING,
   BIRDCODER_PROMPT_ASSET_STORAGE_BINDING,
   BIRDCODER_PROMPT_ASSET_VERSION_STORAGE_BINDING,
   BIRDCODER_PROMPT_BUNDLE_STORAGE_BINDING,

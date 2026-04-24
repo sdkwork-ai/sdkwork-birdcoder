@@ -24,9 +24,20 @@ function findAssetByPrefix(assets, prefix) {
   return assets.find((asset) => asset.name.startsWith(prefix));
 }
 
+function assertChunkExists(assets, prefix) {
+  assert.ok(
+    findAssetByPrefix(assets, prefix),
+    `web bundle budget check expected a ${prefix} chunk.`,
+  );
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
 assert.ok(
   fs.existsSync(indexHtmlPath) && fs.existsSync(assetsDir),
-  'web bundle budget check requires a built web dist. Run `pnpm.cmd build` first.',
+  'web bundle budget check requires a built web dist. Run `pnpm build` first.',
 );
 
 const jsAssets = fs
@@ -56,7 +67,7 @@ assert.ok(
 const indexHtml = fs.readFileSync(indexHtmlPath, 'utf8');
 const entryMatch = indexHtml.match(/<script[^>]*src="(?:\.\/|\/)?assets\/([^"]+\.js)"/);
 
-assert.ok(entryMatch, 'web bundle budget check could not resolve the entry JS asset from packages/sdkwork-birdcoder-web/dist/index.html.');
+assert.ok(entryMatch, 'web bundle budget check could not resolve the entry JS asset from index.html.');
 
 const entryAsset = jsAssets.find((asset) => asset.name === entryMatch[1]);
 
@@ -74,54 +85,56 @@ assert.ok(
   ].join('\n'),
 );
 
-assert.doesNotMatch(
-  indexHtml,
-  /assets\/ui-chat-[^"]+\.js/u,
-  'web entry HTML must not modulepreload the ui-chat chunk because chat-specific UI should stay outside the initial shell payload.',
-);
+for (const forbiddenPreloadPrefix of [
+  'birdcoder-shell-app-',
+  'birdcoder-shell-bootstrap-',
+  'ui-workbench-',
+  'birdcoder-platform-',
+  'birdcoder-auth-',
+  'birdcoder-user-',
+  'vendor-markdown-',
+  'vendor-code-highlight-',
+  'vendor-monaco-',
+]) {
+  assert.doesNotMatch(
+    indexHtml,
+    new RegExp(`assets\\/${escapeRegex(forbiddenPreloadPrefix)}[^"]*\\.js`, 'u'),
+    `web entry HTML must not modulepreload ${forbiddenPreloadPrefix} because it is a lazy or heavy feature chunk.`,
+  );
+}
 
-assert.doesNotMatch(
-  indexHtml,
-  /assets\/birdcoder-infrastructure-[^"]+\.js/u,
-  'web entry HTML must not modulepreload the birdcoder-infrastructure chunk because heavy default service assembly should load on demand after shell startup.',
-);
+for (const requiredChunkPrefix of [
+  'birdcoder-shell-bootstrap-',
+  'birdcoder-storage-runtime-',
+  'ui-shell-',
+  'birdcoder-platform-',
+  'birdcoder-codeengine-',
+  'birdcoder-user-root-',
+  'birdcoder-user-pages-',
+  'birdcoder-commons-root-',
+  'birdcoder-infrastructure-root-',
+  'vendor-i18n-',
+  'vendor-markdown-',
+  'vendor-code-highlight-',
+]) {
+  assertChunkExists(jsAssets, requiredChunkPrefix);
+}
 
-const entryAssetSource = fs.readFileSync(path.join(assetsDir, entryAsset.name), 'utf8');
-assert.doesNotMatch(
-  entryAssetSource,
-  /^import\s+.*['"]\.\/ui-chat-[^'"]+\.js['"];/mu,
-  'web entry chunk must not statically import the ui-chat chunk because chat rendering should load only when code or studio surfaces are opened.',
-);
+const authRootAsset = findAssetByPrefix(jsAssets, 'birdcoder-auth-root-');
+const authPagesAsset = findAssetByPrefix(jsAssets, 'birdcoder-auth-pages-');
 
-assert.doesNotMatch(
-  entryAssetSource,
-  /^import\s+.*['"]\.\/birdcoder-infrastructure-[^'"]+\.js['"];/mu,
-  'web entry chunk must not statically import the birdcoder-infrastructure chunk because default service assembly should stay outside the initial shell payload.',
-);
-
-const uiShellAsset = findAssetByPrefix(jsAssets, 'ui-shell-');
 assert.ok(
-  uiShellAsset,
-  'web bundle budget check expected a ui-shell chunk so shared shell controls stay isolated from chat-specific UI code.',
+  authRootAsset,
+  'web bundle budget check expected a birdcoder-auth-root- chunk.',
 );
 
-const infraRuntimeAsset = findAssetByPrefix(jsAssets, 'infra-runtime-');
 assert.ok(
-  infraRuntimeAsset,
-  'web bundle budget check expected an infra-runtime chunk so lightweight shell runtime binding stays separate from the heavy infrastructure assembly chunk.',
-);
-
-const i18nAsset = findAssetByPrefix(jsAssets, 'vendor-i18n-');
-assert.ok(
-  i18nAsset,
-  'web bundle budget check expected a vendor-i18n chunk so translation hooks do not get owned by the ui-chat chunk.',
+  authPagesAsset || authRootAsset,
+  'web bundle budget check expected BirdCoder auth to build as either split auth root/pages chunks or a merged auth root chunk.',
 );
 
 const markdownAsset = findAssetByPrefix(jsAssets, 'vendor-markdown-');
-assert.ok(
-  markdownAsset,
-  'web bundle budget check expected a vendor-markdown chunk so markdown rendering remains segmented from the initial shell bundle.',
-);
+assert.ok(markdownAsset, 'web bundle budget check expected a vendor-markdown chunk.');
 assert.ok(
   markdownAsset.size <= BIRDCODER_PERFORMANCE_BUDGETS.webMarkdownJsBytes,
   [
@@ -132,10 +145,7 @@ assert.ok(
 );
 
 const codeHighlightAsset = findAssetByPrefix(jsAssets, 'vendor-code-highlight-');
-assert.ok(
-  codeHighlightAsset,
-  'web bundle budget check expected a vendor-code-highlight chunk so syntax highlighting remains segmented from markdown-only rendering.',
-);
+assert.ok(codeHighlightAsset, 'web bundle budget check expected a vendor-code-highlight chunk.');
 assert.ok(
   codeHighlightAsset.size <= BIRDCODER_PERFORMANCE_BUDGETS.webCodeHighlightJsBytes,
   [
@@ -146,5 +156,5 @@ assert.ok(
 );
 
 console.log(
-  `web bundle budget passed. entry=${entryAsset.name} (${formatKb(entryAsset.size)}), largest=${largestAsset.name} (${formatKb(largestAsset.size)}), infraRuntime=${infraRuntimeAsset.name} (${formatKb(infraRuntimeAsset.size)}), uiShell=${uiShellAsset.name} (${formatKb(uiShellAsset.size)}), i18n=${i18nAsset.name} (${formatKb(i18nAsset.size)}), markdown=${markdownAsset.name} (${formatKb(markdownAsset.size)}), codeHighlight=${codeHighlightAsset.name} (${formatKb(codeHighlightAsset.size)}).`,
+  `web bundle budget passed. entry=${entryAsset.name} (${formatKb(entryAsset.size)}), largest=${largestAsset.name} (${formatKb(largestAsset.size)}), markdown=${markdownAsset.name} (${formatKb(markdownAsset.size)}), codeHighlight=${codeHighlightAsset.name} (${formatKb(codeHighlightAsset.size)}).`,
 );

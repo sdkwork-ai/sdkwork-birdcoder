@@ -11,10 +11,10 @@ import {
   getBirdCoderEntityDefinition,
 } from '../packages/sdkwork-birdcoder-types/src/index.ts';
 import {
-  createProviderBackedBirdCoderCoreSessionProjectionStore,
   executeBirdCoderCoreSessionRun,
   persistBirdCoderCoreSessionRunProjection,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
+import { createProviderBackedBirdCoderCoreSessionProjectionStore } from '../packages/sdkwork-birdcoder-server/src/projectionRepository.ts';
 import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
 import type { BirdCoderCodingSessionRuntime } from '../packages/sdkwork-birdcoder-types/src/index.ts';
 
@@ -174,6 +174,7 @@ await withMockCodexCliJsonl(async () => {
   const sqliteSnapshot = await sqliteReloadedStore.getSessionSnapshot('coding-session-provider-1');
 
   assert.equal(sqliteSnapshot.runtime?.id, 'runtime-provider-sqlite-1');
+  assert.equal(sqliteSnapshot.runtime?.modelId, 'codex');
   assert.equal(sqliteSnapshot.runtime?.nativeRef.transportKind, 'cli-jsonl');
   assert.equal(sqliteSnapshot.runtime?.nativeRef.nativeSessionId, 'coding-session-provider-1');
   assert.deepEqual(sqliteSnapshot.runtime?.capabilitySnapshot, sqliteProjection.runtime.capabilitySnapshot);
@@ -226,6 +227,7 @@ await withMockCodexCliJsonl(async () => {
   const postgresSnapshot = await postgresReloadedStore.getSessionSnapshot('coding-session-provider-1');
 
   assert.equal(postgresSnapshot.runtime?.id, 'runtime-provider-postgres-1');
+  assert.equal(postgresSnapshot.runtime?.modelId, 'codex');
   assert.equal(postgresSnapshot.events.length, postgresProjection.events.length);
   assert.equal(postgresSnapshot.artifacts.length, postgresProjection.artifacts.length);
   assert.deepEqual(

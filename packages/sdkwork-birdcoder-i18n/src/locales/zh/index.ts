@@ -3,7 +3,6 @@ import terminal from './terminal.ts';
 import common from './common.ts';
 import commonExtra from './common-extra.ts';
 import auth from './auth.ts';
-import thread from './thread.ts';
 import settingsExtra from './settings-extra.ts';
 import settingsEngine from './settings-engine.ts';
 import chat from './chat.ts';
@@ -17,6 +16,7 @@ import appTools from './app/tools.ts';
 import codeSidebar from './code/sidebar.ts';
 import codeTopBar from './code/topbar.ts';
 import codeActions from './code/actions.ts';
+import codeMobileProgramming from './code/mobile-programming.ts';
 import studioPreview from './studio/preview.ts';
 import studioWorkspace from './studio/workspace.ts';
 import studioActions from './studio/actions.ts';
@@ -29,7 +29,6 @@ export const zhModules = [
   common,
   commonExtra,
   auth,
-  thread,
   settingsExtra,
   settingsEngine,
   chat,
@@ -43,6 +42,7 @@ export const zhModules = [
   codeSidebar,
   codeTopBar,
   codeActions,
+  codeMobileProgramming,
   studioPreview,
   studioWorkspace,
   studioActions,

@@ -11,21 +11,25 @@
       "import": "./src/index.ts",
       "types": "./src/index.ts"
     },
-    "./shell": {
-      "import": "./src/shell.ts",
-      "types": "./src/shell.ts"
-    },
-    "./workbench": {
-      "import": "./src/workbench.ts",
-      "types": "./src/workbench.ts"
+    "./context/*": {
+      "import": "./src/context/*.ts",
+      "types": "./src/context/*.ts"
     },
     "./hooks/*": {
       "import": "./src/hooks/*.ts",
       "types": "./src/hooks/*.ts"
     },
+    "./chat/*": {
+      "import": "./src/chat/*.ts",
+      "types": "./src/chat/*.ts"
+    },
     "./contexts/*": {
       "import": "./src/contexts/*.ts",
       "types": "./src/contexts/*.ts"
+    },
+    "./theme/*": {
+      "import": "./src/theme/*.ts",
+      "types": "./src/theme/*.ts"
     },
     "./platform/fileSystem": {
       "import": "./src/platform/fileSystem.ts",
@@ -54,14 +58,18 @@
     "@sdkwork/birdcoder-codeengine": "workspace:*",
     "@sdkwork/birdcoder-chat": "workspace:*",
     "@sdkwork/birdcoder-i18n": "workspace:*",
-    "@sdkwork/birdcoder-infrastructure": "workspace:*",
+    "@sdkwork/birdcoder-infrastructure-runtime": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
+    "@sdkwork/user-center-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react",
     "@sdkwork/terminal-infrastructure": "link:../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure",
     "@sdkwork/terminal-shell": "link:../../../sdkwork-terminal/packages/sdkwork-terminal-shell",
     "lucide-react": "catalog:"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "catalog:"
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "typescript": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",

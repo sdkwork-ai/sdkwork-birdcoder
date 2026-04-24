@@ -8,6 +8,17 @@ const LOCAL_STORE_NAMESPACE = 'sdkwork-birdcoder';
 const inMemoryStorageFallback = new Map<string, string>();
 
 type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
+type TauriWindow = Window &
+  typeof globalThis & {
+    __TAURI__?: {
+      core?: {
+        invoke?: TauriInvoke;
+      };
+    };
+    __TAURI_INTERNALS__?: {
+      invoke?: TauriInvoke;
+    };
+  };
 
 export interface BirdCoderStorageAccess {
   readRawValue(scope: string, key: string): Promise<string | null>;
@@ -85,12 +96,10 @@ async function resolveTauriInvoke(): Promise<TauriInvoke | null> {
     return null;
   }
 
-  try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return invoke;
-  } catch {
-    return null;
-  }
+  const tauriWindow = window as TauriWindow;
+  const bridgedInvoke =
+    tauriWindow.__TAURI__?.core?.invoke ?? tauriWindow.__TAURI_INTERNALS__?.invoke ?? null;
+  return typeof bridgedInvoke === 'function' ? bridgedInvoke : null;
 }
 
 export async function getStoredRawValue(scope: string, key: string): Promise<string | null> {

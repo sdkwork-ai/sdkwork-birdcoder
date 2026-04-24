@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 
 const bootstrapModulePath = new URL(
-  '../packages/sdkwork-birdcoder-shell/src/application/bootstrap/bootstrapShellUserState.ts',
+  '../packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/bootstrapShellUserState.ts',
   import.meta.url,
 );
 const localStoreModulePath = new URL(
   '../packages/sdkwork-birdcoder-commons/src/storage/localStore.ts',
   import.meta.url,
 );
-const appbaseStorageModulePath = new URL(
-  '../packages/sdkwork-birdcoder-appbase/src/storage.ts',
+const userStorageModulePath = new URL(
+  '../packages/sdkwork-birdcoder-user/src/storage.ts',
   import.meta.url,
 );
 const preferencesModulePath = new URL(
@@ -27,6 +27,12 @@ const recoveryModulePath = new URL(
 
 const backingStore = new Map();
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+
+function resolveRepositoryRawStorageKey(binding) {
+  return binding.storageMode === 'table'
+    ? `${binding.storageMode}.${binding.preferredProvider}.${binding.storageKey}`
+    : binding.storageKey;
+}
 
 Object.defineProperty(globalThis, 'window', {
   configurable: true,
@@ -48,7 +54,7 @@ Object.defineProperty(globalThis, 'window', {
 try {
   const bootstrapModule = await import(`${bootstrapModulePath.href}?t=${Date.now()}`);
   const localStoreModule = await import(`${localStoreModulePath.href}?t=${Date.now()}`);
-  const appbaseStorageModule = await import(`${appbaseStorageModulePath.href}?t=${Date.now()}`);
+  const userStorageModule = await import(`${userStorageModulePath.href}?t=${Date.now()}`);
   const preferencesModule = await import(`${preferencesModulePath.href}?t=${Date.now()}`);
   const runConfigsModule = await import(`${runConfigsModulePath.href}?t=${Date.now()}`);
   const recoveryModule = await import(`${recoveryModulePath.href}?t=${Date.now()}`);
@@ -69,7 +75,12 @@ try {
     'shell bootstrap must persist a default VIP membership snapshot on first launch',
   );
   assert.notEqual(
-    await localStoreModule.getStoredRawValue('workbench', 'preferences'),
+    await localStoreModule.getStoredRawValue(
+      preferencesModule.getWorkbenchPreferencesRepository().binding.storageScope,
+      resolveRepositoryRawStorageKey(
+        preferencesModule.getWorkbenchPreferencesRepository().binding,
+      ),
+    ),
     null,
     'shell bootstrap must persist workbench preferences on first launch',
   );
@@ -79,8 +90,8 @@ try {
     'shell bootstrap must persist a workbench recovery snapshot on first launch',
   );
 
-  const bootstrappedProfile = await appbaseStorageModule.readBirdCoderUserProfile();
-  const bootstrappedMembership = await appbaseStorageModule.readBirdCoderVipMembership();
+  const bootstrappedProfile = await userStorageModule.readBirdCoderUserProfile();
+  const bootstrappedMembership = await userStorageModule.readBirdCoderVipMembership();
   const bootstrappedPreferences = await preferencesModule.readWorkbenchPreferences();
   const bootstrappedRecoverySnapshot = recoveryModule.normalizeWorkbenchRecoverySnapshot(
     await localStoreModule.getStoredJson(
@@ -96,9 +107,10 @@ try {
   assert.equal(bootstrappedRecoverySnapshot.activeTab, 'code');
   assert.equal(bootstrappedRecoverySnapshot.cleanExit, true);
 
-  await appbaseStorageModule.writeBirdCoderUserProfile({
+  await userStorageModule.writeBirdCoderUserProfile({
     bio: 'Custom profile bio',
     company: 'Acme',
+    displayName: 'Acme',
     location: 'Shenzhen',
     website: 'https://example.com',
   });
@@ -120,7 +132,7 @@ try {
 
   await bootstrapModule.bootstrapShellUserState();
 
-  const preservedProfile = await appbaseStorageModule.readBirdCoderUserProfile();
+  const preservedProfile = await userStorageModule.readBirdCoderUserProfile();
   const preservedPreferences = await preferencesModule.readWorkbenchPreferences();
   const preservedRecoverySnapshot = recoveryModule.normalizeWorkbenchRecoverySnapshot(
     await localStoreModule.getStoredJson(
@@ -155,8 +167,10 @@ try {
 
   assert.notEqual(
     await localStoreModule.getStoredRawValue(
-      'runtime.run-configurations',
-      runConfigsModule.buildRunConfigurationStorageKey('project-alpha'),
+      runConfigsModule.getRunConfigurationRepository('project-alpha').binding.storageScope,
+      resolveRepositoryRawStorageKey(
+        runConfigsModule.getRunConfigurationRepository('project-alpha').binding,
+      ),
     ),
     null,
     'project bootstrap must persist default run configurations for the active project',

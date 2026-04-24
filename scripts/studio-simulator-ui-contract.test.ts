@@ -5,6 +5,10 @@ const studioPageSource = readFileSync(
   new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
+const studioExecutionHookSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
+  'utf8',
+);
 
 assert.equal(
   studioPageSource.includes("useState<'preview' | 'simulator' | 'code'>('preview')"),
@@ -13,21 +17,27 @@ assert.equal(
 );
 
 assert.equal(
-  studioPageSource.includes('resolveHostStudioSimulatorSession('),
+  studioPageSource.includes("from './useStudioExecutionActions';"),
   true,
-  'StudioPage should resolve simulator sessions through the shared host-studio simulator contract.',
+  'StudioPage should delegate simulator execution orchestration through the shared studio execution hook.',
 );
 
 assert.equal(
-  studioPageSource.includes('resolveStudioSimulatorExecutionLaunch('),
+  studioExecutionHookSource.includes('resolveHostStudioSimulatorSession('),
   true,
-  'StudioPage should launch simulator tasks through the shared simulator execution contract.',
+  'Studio execution hook should resolve simulator sessions through the shared host-studio simulator contract.',
 );
 
 assert.equal(
-  studioPageSource.includes('saveStoredStudioSimulatorExecutionEvidence('),
+  studioExecutionHookSource.includes('resolveStudioSimulatorExecutionLaunch('),
   true,
-  'StudioPage should persist simulator execution evidence after launch.',
+  'Studio execution hook should launch simulator tasks through the shared simulator execution contract.',
+);
+
+assert.equal(
+  studioExecutionHookSource.includes('saveStoredStudioSimulatorExecutionEvidence('),
+  true,
+  'Studio execution hook should persist simulator execution evidence after launch.',
 );
 
 assert.equal(

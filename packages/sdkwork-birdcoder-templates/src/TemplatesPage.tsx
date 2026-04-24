@@ -11,6 +11,7 @@ import {
 import type { BirdCoderAppTemplateSummary } from '@sdkwork/birdcoder-types';
 import {
   importLocalFolderProject,
+  openLocalFolder,
   useIDEServices,
   useProjects,
   useToast,
@@ -38,6 +39,8 @@ const CATEGORY_TABS: Array<{ id: 'all' | TemplateCardModel['category']; label: s
 ];
 
 interface TemplatesPageProps {
+  isAuthenticated?: boolean;
+  onRequireAuth?: () => void;
   workspaceId?: string;
   onProjectCreated?: (projectId: string) => void;
 }
@@ -78,7 +81,12 @@ function toTemplateCardModel(summary: BirdCoderAppTemplateSummary): TemplateCard
   };
 }
 
-export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPageProps) {
+export function TemplatesPage({
+  isAuthenticated = false,
+  onProjectCreated,
+  onRequireAuth,
+  workspaceId,
+}: TemplatesPageProps) {
   const { createProject, updateProject } = useProjects(workspaceId);
   const { catalogService, fileSystemService, projectService } = useIDEServices();
   const { addToast } = useToast();
@@ -139,7 +147,6 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
   }, [activeCategory, searchQuery, templates]);
 
   async function selectFolderAndImportProject(template: TemplateCardModel) {
-    const { openLocalFolder } = await import('@sdkwork/birdcoder-commons/platform/fileSystem');
     const folderInfo = await openLocalFolder();
     if (!folderInfo) {
       return null;
@@ -167,6 +174,12 @@ export function TemplatesPage({ workspaceId, onProjectCreated }: TemplatesPagePr
   }
 
   async function handleCreateProjectFromTemplate(template: TemplateCardModel) {
+    if (!isAuthenticated) {
+      addToast('Sign in to create a project from a template.', 'info');
+      onRequireAuth?.();
+      return;
+    }
+
     if (!workspaceId?.trim()) {
       addToast('Select a workspace before creating a project from a template.', 'error');
       return;

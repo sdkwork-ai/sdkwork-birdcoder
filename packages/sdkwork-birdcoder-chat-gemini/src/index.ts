@@ -18,7 +18,7 @@ import {
   type ChatResponse,
   type ChatStreamChunk,
   type IChatEngine,
-} from '../../sdkwork-birdcoder-chat/src/index.ts';
+} from '@sdkwork/birdcoder-chat';
 
 const GEMINI_PACKAGE = resolvePackagePresence({
   packageName: '@google/gemini-cli-sdk',
@@ -28,7 +28,7 @@ const GEMINI_PACKAGE = resolvePackagePresence({
 const GEMINI_INTEGRATION = createStaticIntegrationDescriptor({
   engineId: 'gemini',
   runtimeMode: 'sdk',
-  transportKinds: ['sdk-stream', 'openapi-http'],
+  transportKinds: ['sdk-stream'],
   sourceMirrorPath: 'external/gemini/packages/sdk',
   officialEntry: {
     packageName: '@google/gemini-cli-sdk',
@@ -55,23 +55,13 @@ export interface GeminiChatEngineOptions {
   officialSdkBridgeLoader?: ChatEngineOfficialSdkBridgeLoader | null;
 }
 
-const GEMINI_DEFAULT_PROMPT = 'Inspect the workspace session.';
-
-function getLatestGeminiUserPrompt(messages: readonly ChatMessage[]): string {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-    if (message?.role === 'system') {
-      continue;
-    }
-
-    const content = message?.content?.trim();
-    if (content) {
-      return content;
-    }
-  }
-
-  return GEMINI_DEFAULT_PROMPT;
+function createUnavailableGeminiSdkError(): Error {
+  return new Error(
+    'Gemini CLI SDK bridge is unavailable. BirdCoder does not synthesize fallback Gemini responses.',
+  );
 }
+
+const GEMINI_DEFAULT_PROMPT = 'Inspect the workspace session.';
 
 function buildGeminiInstructions(messages: readonly ChatMessage[]): string {
   const systemMessages = messages
@@ -231,6 +221,10 @@ const DEFAULT_GEMINI_OFFICIAL_SDK_BRIDGE_LOADER = createModuleBackedOfficialSdkB
       kind: 'path',
       specifier: 'external/gemini/packages/sdk/src/index.ts',
     },
+    {
+      kind: 'path',
+      specifier: 'packages/sdkwork-birdcoder-chat-gemini/src/developmentOfficialSdkCandidate.ts',
+    },
   ],
   createBridge: createGeminiOfficialSdkBridge,
 });
@@ -260,6 +254,8 @@ export class GeminiChatEngine implements IChatEngine {
       packagePresence: GEMINI_PACKAGE,
       executable: 'gemini',
       authEnvKeys: ['GOOGLE_API_KEY', 'GEMINI_API_KEY'],
+      fallbackRuntimeMode: null,
+      fallbackAvailable: false,
     });
   }
 
@@ -269,30 +265,7 @@ export class GeminiChatEngine implements IChatEngine {
       messages,
       options,
       fallback: async () => {
-        const prompt = getLatestGeminiUserPrompt(messages);
-        return {
-          id: `gemini-chat-${Date.now()}`,
-          object: 'chat.completion',
-          created: Math.floor(Date.now() / 1000),
-          model: options?.model || 'gemini',
-          choices: [
-            {
-              index: 0,
-              message: {
-                id: `gemini-msg-${Date.now()}`,
-                role: 'assistant',
-                content: `Gemini SDK adapter assembled a local session plan for: ${prompt}`,
-                timestamp: Date.now(),
-              },
-              finish_reason: 'stop',
-            },
-          ],
-          usage: {
-            prompt_tokens: 20,
-            completion_tokens: 16,
-            total_tokens: 36,
-          },
-        };
+        throw createUnavailableGeminiSdkError();
       },
     });
   }
@@ -306,59 +279,7 @@ export class GeminiChatEngine implements IChatEngine {
       messages,
       options,
       fallback: async function* fallbackStream() {
-        const workspaceRoot = options?.context?.workspaceRoot || 'workspace';
-        const words = ['Gemini ', 'session ', 'loaded ', 'skills ', `for ${workspaceRoot}. `];
-        const id = `gemini-chat-${Date.now()}`;
-        const created = Math.floor(Date.now() / 1000);
-        const model = options?.model || 'gemini';
-
-        for (let index = 0; index < words.length; index += 1) {
-          yield {
-            id,
-            object: 'chat.completion.chunk',
-            created,
-            model,
-            choices: [
-              {
-                index: 0,
-                delta: {
-                  content: words[index],
-                  role: index === 0 ? 'assistant' : undefined,
-                },
-                finish_reason: null,
-              },
-            ],
-          };
-        }
-
-        yield {
-          id,
-          object: 'chat.completion.chunk',
-          created,
-          model,
-          choices: [
-            {
-              index: 0,
-              delta: {
-                tool_calls: [
-                  {
-                    id: `gemini-call-${Date.now()}`,
-                    type: 'function',
-                    function: {
-                      name: 'search_code',
-                      arguments: JSON.stringify({
-                        sessionId: 'gemini-session-local',
-                        query: getLatestGeminiUserPrompt(messages),
-                        skill: 'workspace-index',
-                      }),
-                    },
-                  },
-                ],
-              },
-              finish_reason: 'tool_calls',
-            },
-          ],
-        };
+        throw createUnavailableGeminiSdkError();
       },
     });
   }

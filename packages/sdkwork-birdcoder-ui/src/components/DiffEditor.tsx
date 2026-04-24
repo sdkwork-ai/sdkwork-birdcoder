@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DiffEditor as MonacoDiffEditor, useMonaco } from '@monaco-editor/react';
 import { Loader2, WrapText, Columns, LayoutTemplate } from 'lucide-react';
 import { globalEventBus, useToast } from '@sdkwork/birdcoder-commons';
@@ -9,7 +9,7 @@ import {
   observeBirdCoderMonacoLayout,
 } from './monacoRuntime';
 
-interface DiffEditorProps {
+export interface DiffEditorProps {
   language: string;
   original: string;
   modified: string;
@@ -133,7 +133,10 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
       return undefined;
     }
 
-    return observeBirdCoderMonacoLayout(container, mountedEditor);
+    const cleanupLayoutObserver = observeBirdCoderMonacoLayout(container, mountedEditor);
+    return () => {
+      cleanupLayoutObserver();
+    };
   }, [mountedEditor]);
 
   useEffect(() => {

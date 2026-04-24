@@ -22,11 +22,9 @@ function formatCodeList(values) {
 
 export function collectReleaseStopShipSignals({
   qualityEvidence = null,
-  governanceEvidence = null,
   assets = [],
 } = {}) {
   const normalizedQualityEvidence = normalizeQualityEvidenceSummary(qualityEvidence ?? {});
-  const blockedGovernanceRecords = Number(governanceEvidence?.blockedRecords ?? 0);
   const stopShipSignals = [];
 
   if (normalizedQualityEvidence.workflowBoundTiers < normalizedQualityEvidence.totalTiers) {
@@ -69,10 +67,6 @@ export function collectReleaseStopShipSignals({
     stopShipSignals.push(
       `runtime blockers ${formatCodeList(normalizedQualityEvidence.executionBlockingDiagnosticIds)}`,
     );
-  }
-
-  if (blockedGovernanceRecords > 0) {
-    stopShipSignals.push(`governance blocked records \`${blockedGovernanceRecords}\``);
   }
 
   stopShipSignals.push(...collectDesktopStartupReadinessSignals(assets));
@@ -119,7 +113,6 @@ export function requiresClearStopShipEvidence({
 export function assertClearStopShipEvidence({
   releaseControl = null,
   qualityEvidence = null,
-  governanceEvidence = null,
   assets = [],
   errorPrefix = 'Formal or general-availability release promotion requires clear stop-ship evidence',
 } = {}) {
@@ -129,7 +122,6 @@ export function assertClearStopShipEvidence({
 
   const stopShipSignals = collectReleaseStopShipSignals({
     qualityEvidence,
-    governanceEvidence,
     assets,
   });
   if (stopShipSignals.length > 0) {

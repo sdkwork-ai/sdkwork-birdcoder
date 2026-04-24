@@ -38,56 +38,50 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /isSelectedSessionExecuting:\s*isBirdCoderCodingSessionExecuting\(session\),/,
+  /const isSelectedSessionExecuting = isBirdCoderCodingSessionExecuting\(session\);/,
   'Code page must precompute the selected session execution flag for the top bar so the header does not depend on the full session object.',
 );
 
 assert.match(
+  codePageSource,
+  /isSelectedSessionExecuting,\s*selectedEngineId,\s*selectedModelId,/s,
+  'Code page must pass the preferred engine and model selection separately from scalar session metadata so the top bar can keep session truth for display and preferences truth for new-session flows.',
+);
+
+assert.match(
   topBarSource,
-  /projectId\?: string;\s*projectName\?: string;\s*projectPath\?: string;\s*selectedSessionTitle\?: string;\s*selectedSessionEngineId\?: string;\s*selectedSessionModelId\?: string;\s*isSelectedSessionExecuting: boolean;/s,
+  /projectId\?: string;[\s\S]*projectName\?: string;[\s\S]*projectPath\?: string;[\s\S]*selectedSessionTitle\?: string;[\s\S]*selectedSessionEngineId\?: string;[\s\S]*selectedSessionModelId\?: string;[\s\S]*isSelectedSessionExecuting: boolean;/,
   'Code top bar props must be scalar metadata so the header stays insulated from full project and session object churn.',
 );
 
 assert.match(
   topBarSource,
-  /const headerEngineId = selectedSessionEngineId \?\? selectedEngineId;/,
-  'Code top bar must prefer the active session engine over the global selection.',
+  /const headerEngineSummary = selectedSessionEngineId\?\.trim\(\)\s*\?\s*getWorkbenchCodeEngineSessionSummary\(/s,
+  'Code top bar must resolve its displayed engine summary from strict session-aware metadata when a session exists.',
 );
 
 assert.match(
   topBarSource,
-  /const headerModelId = selectedSessionModelId \?\? selectedModelId;/,
-  'Code top bar must prefer the active session model over the global selection.',
+  /selectedSessionModelId,\s*preferences,\s*\)\s*:\s*getWorkbenchCodeEngineSessionSummary\(selectedEngineId,\s*selectedModelId,\s*preferences\);/s,
+  'Code top bar must fall back to the preferred engine summary only when there is no selected session.',
 );
 
 assert.match(
   topBarSource,
-  /const headerEngine = getWorkbenchCodeEngineDefinition\(headerEngineId, preferences\);/,
-  'Code top bar must resolve the displayed engine from the session-aware engine id.',
+  /getWorkbenchCodeEngineSessionSummary/,
+  'Code top bar must use the strict session summary helper instead of the default-model fallback path.',
 );
 
-assert.match(
-  topBarSource,
-  /const headerModelIdNormalized = normalizeWorkbenchCodeModelId\(\s*headerEngineId,\s*headerModelId,\s*preferences,\s*\);/s,
-  'Code top bar must normalize the displayed model against the session-aware engine id.',
-);
-
-assert.match(
-  topBarSource,
-  /const headerModelLabel = getWorkbenchCodeModelLabel\(\s*headerEngineId,\s*headerModelIdNormalized,\s*preferences,\s*\);/s,
-  'Code top bar must resolve the displayed model label from the session-aware engine and normalized model id.',
-);
-
-assert.match(
-  topBarSource,
-  /const headerEngineSummary =\s*headerModelLabel\.trim\(\)\.toLowerCase\(\) === headerEngine\.label\.trim\(\)\.toLowerCase\(\)\s*\?\s*headerEngine\.label\s*:\s*`\$\{headerEngine\.label\} \/ \$\{headerModelLabel\}`;/s,
-  'Code top bar should collapse duplicate engine and model labels into a single visible summary.',
-);
-
-assert.match(
+assert.doesNotMatch(
   topBarSource,
   /<WorkbenchCodeEngineIcon engineId=\{headerEngine\.id\} \/>/,
-  'Code top bar must render the engine icon for the session-aware engine.',
+  'Code top bar should not render an engine icon once the engine is shown as a fixed single-line label.',
+);
+
+assert.match(
+  topBarSource,
+  /<span className="truncate whitespace-nowrap font-medium text-gray-200">\s*\{headerEngineSummary\}\s*<\/span>/,
+  'Code top bar should render the session-aware engine summary as a single-line truncated label.',
 );
 
 assert.doesNotMatch(

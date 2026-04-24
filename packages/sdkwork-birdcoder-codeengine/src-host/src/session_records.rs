@@ -35,8 +35,7 @@ pub struct CodeEngineSessionSummaryRecord {
     pub status: String,
     pub host_mode: String,
     pub engine_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub model_id: Option<String>,
+    pub model_id: String,
     pub updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_turn_at: Option<String>,

@@ -130,7 +130,6 @@ function buildFinalizedReleaseReadinessOverviewLines(manifest = null) {
     ? normalizeStopShipSignals(manifest.stopShipSignals)
     : collectReleaseStopShipSignals({
       qualityEvidence: manifest.qualityEvidence,
-      governanceEvidence: manifest.governanceEvidence ?? null,
       assets: manifest.assets ?? [],
     });
   const finalizedReadinessSignals = normalizeStopShipSignals([
@@ -420,7 +419,6 @@ function buildPostReleaseOperationsLines({
   }
 
   const releaseControl = manifest.releaseControl ?? {};
-  const governanceEvidence = manifest.governanceEvidence ?? null;
   const rollbackEntryCommand = String(releaseControl.rollbackCommand ?? '').trim()
     || resolveFallbackRollbackEntryCommand({
       releaseTag,
@@ -428,7 +426,6 @@ function buildPostReleaseOperationsLines({
     });
   const stopShipSignals = collectReleaseStopShipSignals({
     qualityEvidence: manifest.qualityEvidence ?? null,
-    governanceEvidence,
     assets,
   });
 
@@ -447,7 +444,7 @@ function buildPostReleaseOperationsLines({
     '',
     `- Observation goal: ${resolveObservationGoal(releaseControl.releaseKind)}`,
     `- Observation window: \`${Number(releaseControl.monitoringWindowMinutes ?? 0)}\` minutes on \`${String(releaseControl.rolloutStage ?? '').trim() || 'pending'}\``,
-    `- Stop-ship signals: ${stopShipSignals.length > 0 ? stopShipSignals.join('; ') : '`none` in finalized quality/governance evidence'}`,
+    `- Stop-ship signals: ${stopShipSignals.length > 0 ? stopShipSignals.join('; ') : '`none` in finalized quality evidence'}`,
     `- Rollback entry: \`${rollbackEntryCommand}\``,
     `- Rollback runbook: \`${String(releaseControl.rollbackRunbookRef ?? '').trim() || 'pending'}\``,
     '- Re-issue path: `pnpm release:plan` -> affected `release:package:*` / `release:smoke:*` -> `pnpm release:finalize`',
@@ -469,7 +466,6 @@ function buildManifestEvidenceSections({
 
   const assets = Array.isArray(manifest?.assets) ? manifest.assets : [];
   const releaseControl = manifest?.releaseControl ?? null;
-  const governanceEvidence = manifest?.governanceEvidence ?? null;
   const codingServerOpenApiEvidence = manifest?.codingServerOpenApiEvidence ?? null;
   const qualityEvidence = manifest?.qualityEvidence ?? null;
   const familySummaryLines = assets.length > 0
@@ -507,25 +503,12 @@ function buildManifestEvidenceSections({
       '',
     ]
     : [];
-  const governanceEvidenceSummaryLines = governanceEvidence
-    ? [
-      '## Governance evidence',
-      '',
-      `- Archive: \`${String(governanceEvidence.archiveRelativePath ?? '').trim()}\``,
-      `- Governance evidence: ${Number(governanceEvidence.blockedRecords ?? 0)} blocked/${Number(governanceEvidence.entryCount ?? 0)} total`,
-      `- Approval policies: ${Array.isArray(governanceEvidence.approvalPolicies) ? governanceEvidence.approvalPolicies.join(', ') : 'pending'}`,
-      `- Risk levels: ${Array.isArray(governanceEvidence.riskLevels) ? governanceEvidence.riskLevels.join(', ') : 'pending'}`,
-      '',
-    ]
-    : [];
-
   return [
     ...releaseControlSummaryLines,
     '## Included assets',
     '',
     ...familySummaryLines,
     '',
-    ...governanceEvidenceSummaryLines,
     ...buildCodingServerOpenApiEvidenceSummaryLines(codingServerOpenApiEvidence),
     ...buildQualityEvidenceSummaryLines(qualityEvidence),
     ...buildPostReleaseOperationsLines({
@@ -588,7 +571,6 @@ function buildRegistryPromotionMetadata(manifest = null) {
     ? normalizeStopShipSignals(manifest.stopShipSignals)
     : collectReleaseStopShipSignals({
       qualityEvidence: manifest.qualityEvidence,
-      governanceEvidence: manifest.governanceEvidence ?? null,
       assets: manifest.assets ?? [],
     });
   const promotionReadiness = manifest.promotionReadiness

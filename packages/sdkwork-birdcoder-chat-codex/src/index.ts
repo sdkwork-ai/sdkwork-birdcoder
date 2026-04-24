@@ -17,7 +17,7 @@ import {
   type ChatStreamChunk,
   type IChatEngine,
   type ToolCall,
-} from '../../sdkwork-birdcoder-chat/src/index.ts';
+} from '@sdkwork/birdcoder-chat';
 
 const CODEX_PACKAGE = resolvePackagePresence({
   packageName: '@openai/codex-sdk',
@@ -272,18 +272,21 @@ function createCodexUsage(usage: Record<string, unknown> | null | undefined): Ch
   };
 }
 
-function createCodexThread(
-  codexClient: {
-    startThread: (options?: Record<string, unknown>) => {
-      run: (input: string, options?: Record<string, unknown>) => Promise<Record<string, unknown>>;
-      runStreamed: (
-        input: string,
-        options?: Record<string, unknown>,
-      ) => Promise<{ events: AsyncIterable<Record<string, unknown>> }>;
-    };
-  },
-  options?: ChatOptions,
-) {
+type CodexOfficialSdkClient = {
+  startThread: (options?: Record<string, unknown>) => {
+    run: (input: string, options?: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    runStreamed: (
+      input: string,
+      options?: Record<string, unknown>,
+    ) => Promise<{ events: AsyncIterable<Record<string, unknown>> }>;
+  };
+};
+
+type CodexOfficialSdkClientConstructor = new (
+  options?: Record<string, unknown>,
+) => CodexOfficialSdkClient;
+
+function createCodexThread(codexClient: CodexOfficialSdkClient, options?: ChatOptions) {
   return codexClient.startThread({
     workingDirectory: options?.context?.workspaceRoot ?? resolveRuntimeWorkingDirectory(),
     skipGitRepoCheck: true,
@@ -582,22 +585,14 @@ export function createCodexOfficialSdkBridge(
   moduleNamespace: Record<string, unknown>,
 ): ChatEngineOfficialSdkBridge | null {
   const CodexClient = typeof moduleNamespace.Codex === 'function'
-    ? moduleNamespace.Codex as new (options?: Record<string, unknown>) => {
-      startThread: (options?: Record<string, unknown>) => {
-        run: (input: string, options?: Record<string, unknown>) => Promise<Record<string, unknown>>;
-        runStreamed: (
-          input: string,
-          options?: Record<string, unknown>,
-        ) => Promise<{ events: AsyncIterable<Record<string, unknown>> }>;
-      };
-    }
+    ? moduleNamespace.Codex as CodexOfficialSdkClientConstructor
     : null;
 
   if (!CodexClient) {
     return null;
   }
 
-  let codexClientFactory: (() => InstanceType<typeof CodexClient>) | null = null;
+  let codexClientFactory: (() => CodexOfficialSdkClient) | null = null;
   try {
     new CodexClient();
     codexClientFactory = () => new CodexClient();
@@ -608,8 +603,8 @@ export function createCodexOfficialSdkBridge(
   return {
     async sendMessage(messages, options) {
       const prompt = buildCodexPrompt(messages);
-      const thread = createCodexThread(codexClientFactory(), options);
-      const turn = await thread.run(prompt, {
+      const codexThread = createCodexThread(codexClientFactory(), options);
+      const turn = await codexThread.run(prompt, {
         signal: options?.signal,
       });
       const finalResponse =
@@ -631,8 +626,8 @@ export function createCodexOfficialSdkBridge(
       const created = Math.floor(Date.now() / 1000);
       const model = options?.model || 'codex';
       const prompt = buildCodexPrompt(messages);
-      const thread = createCodexThread(codexClientFactory(), options);
-      const streamedTurn = await thread.runStreamed(prompt, {
+      const codexThread = createCodexThread(codexClientFactory(), options);
+      const streamedTurn = await codexThread.runStreamed(prompt, {
         signal: options?.signal,
       });
 

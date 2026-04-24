@@ -2,7 +2,7 @@ import type {
   BirdCoderCodeEngineKey,
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineTransportKind,
-} from '../../sdkwork-birdcoder-types/src/index.ts';
+} from '@sdkwork/birdcoder-types';
 import type {
   ChatEngineCapabilityName,
   ChatEngineCapabilitySnapshot,
@@ -174,6 +174,8 @@ export interface DetectedHealthReportInput {
   authConfigurationHints?: readonly string[];
   cliAvailable?: boolean;
   authConfigured?: boolean;
+  fallbackRuntimeMode?: ChatEngineRuntimeMode | null;
+  fallbackAvailable?: boolean;
   env?: NodeJS.ProcessEnv;
 }
 
@@ -541,6 +543,21 @@ export function resolveFallbackRuntimeMode(
   return fallbackTransport ? resolveRuntimeModeFromTransport([fallbackTransport]) : null;
 }
 
+function inferFallbackAvailability(
+  fallbackRuntimeMode: ChatEngineRuntimeMode | null,
+  cliAvailable: boolean,
+): boolean {
+  switch (fallbackRuntimeMode) {
+    case 'headless':
+      return cliAvailable;
+    case 'remote-control':
+    case 'protocol-fallback':
+    case 'sdk':
+    default:
+      return false;
+  }
+}
+
 export function resolveTransportKindForRuntimeMode(
   transportKinds: readonly BirdCoderEngineTransportKind[],
   runtimeMode: ChatEngineRuntimeMode,
@@ -648,11 +665,19 @@ export function createDetectedHealthReport(
   const sdkAvailable = input.packagePresence.installed;
   const fallbackRuntimeMode = sdkAvailable
     ? null
-    : resolveFallbackRuntimeMode(input.descriptor.transportKinds);
-  const fallbackActive = !sdkAvailable && fallbackRuntimeMode !== null;
+    : input.fallbackRuntimeMode === undefined
+      ? resolveFallbackRuntimeMode(input.descriptor.transportKinds)
+      : input.fallbackRuntimeMode;
+  const fallbackAvailable = !sdkAvailable && (
+    input.fallbackAvailable ??
+    inferFallbackAvailability(fallbackRuntimeMode, cliAvailable)
+  );
+  const fallbackActive = !sdkAvailable && fallbackAvailable && fallbackRuntimeMode !== null;
   const runtimeMode = sdkAvailable
     ? input.descriptor.runtimeMode
-    : fallbackRuntimeMode ?? input.descriptor.runtimeMode;
+    : fallbackActive && fallbackRuntimeMode
+      ? fallbackRuntimeMode
+      : input.descriptor.runtimeMode;
   const diagnostics: string[] = [];
 
   if (!sdkAvailable) {
@@ -665,6 +690,8 @@ export function createDetectedHealthReport(
   }
   if (fallbackActive && fallbackRuntimeMode) {
     diagnostics.push(`Runtime fell back to the ${fallbackRuntimeMode} lane.`);
+  } else if (!sdkAvailable && fallbackRuntimeMode && !fallbackAvailable) {
+    diagnostics.push(`Configured fallback lane ${fallbackRuntimeMode} is not executable in the current runtime.`);
   }
   const authConfigurationHints = input.authConfigurationHints ?? input.authEnvKeys;
   if (!authConfigured && authConfigurationHints?.length) {
@@ -674,9 +701,10 @@ export function createDetectedHealthReport(
     diagnostics.push(`Executable ${input.executable} was not found on PATH.`);
   }
 
+  const runtimeReachable = sdkAvailable || fallbackAvailable;
   const status: ChatEngineHealthReport['status'] = sdkAvailable && authConfigured
     ? 'ready'
-    : fallbackActive || cliAvailable || authConfigured
+    : runtimeReachable
       ? 'degraded'
       : 'missing';
 

@@ -10,6 +10,7 @@ import {
   type TerminalCliProfileId,
 } from './registry.ts';
 import { getStoredJson } from '../storage/localStore.ts';
+import { globalEventBus } from '../utils/EventBus.ts';
 import type {
   BirdcoderApprovalDecision,
   BirdcoderApprovalPolicy,
@@ -37,24 +38,8 @@ export interface TerminalCommandRequest {
   timestamp: number;
 }
 
-export type TerminalHostSessionStatus = 'idle' | 'running' | 'error' | 'closed';
-export type TerminalHostOutputKind = 'stdout' | 'stderr' | 'system';
-
-export interface TerminalHostOutputLine {
-  text: string;
-  kind: TerminalHostOutputKind;
-  sequence: number;
-  timestamp: number;
-}
-
-export interface TerminalHostSessionState {
-  sessionId: string;
-  profileId: TerminalProfileId;
-  kind: TerminalExecutionPlan['kind'];
-  title: string;
-  cwd: string;
-  status: TerminalHostSessionStatus;
-  lastExitCode: number | null;
+interface TerminalEventEmitterLike {
+  emit(event: string, ...args: any[]): void;
 }
 
 export type TerminalCliProfileAvailabilityStatus = 'available' | 'missing' | 'unknown';
@@ -118,13 +103,6 @@ interface TauriTerminalCliProfileAvailabilityResponse {
   status: string;
   resolvedExecutable?: string | null;
 }
-
-type TerminalHostSessionStateInput = Omit<Partial<TerminalHostSessionState>, 'profileId' | 'kind' | 'status'> &
-  Pick<TerminalHostSessionState, 'sessionId'> & {
-    profileId?: TerminalProfileId | string;
-    kind?: TerminalExecutionPlan['kind'] | string;
-    status?: TerminalHostSessionStatus | string;
-  };
 
 const DEFAULT_TERMINAL_GOVERNANCE_SETTINGS: TerminalGovernanceSettings = {
   approvalPolicy: 'OnRequest',
@@ -306,93 +284,6 @@ export function buildTerminalCommandAuditEvent(
     artifactRefs: [`cwd:${input.cwd}`, `profile:${input.profileId}`],
     operator: `terminal:${input.profileId}`,
   };
-}
-
-export function normalizeTerminalHostSessionState(
-  value: TerminalHostSessionStateInput,
-): TerminalHostSessionState {
-  const profile = getTerminalProfile(value.profileId ?? 'powershell');
-  return {
-    sessionId: value.sessionId,
-    profileId: profile.id,
-    kind: value.kind === 'cli' ? 'cli' : profile.kind,
-    title: value.title?.trim() || profile.title,
-    cwd: value.cwd?.trim() || '',
-    status:
-      value.status === 'running' ||
-      value.status === 'error' ||
-      value.status === 'closed' ||
-      value.status === 'idle'
-        ? value.status
-        : 'idle',
-    lastExitCode: typeof value.lastExitCode === 'number' ? value.lastExitCode : null,
-  };
-}
-
-function createTerminalHostOutputLine(
-  text: string,
-  kind: TerminalHostOutputKind,
-  sequence: number,
-  timestamp: number,
-): TerminalHostOutputLine {
-  return {
-    text,
-    kind,
-    sequence,
-    timestamp,
-  };
-}
-
-export function convertExecutionResultToTerminalHostLines(
-  result: Pick<TerminalExecutionResult, 'stdout' | 'stderr' | 'exitCode'>,
-  lastSequence = 0,
-  timestamp = Date.now(),
-): TerminalHostOutputLine[] {
-  const lines: TerminalHostOutputLine[] = [];
-  let sequence = lastSequence;
-
-  const pushLines = (value: string, kind: TerminalHostOutputKind) => {
-    value
-      .split(/\r?\n/)
-      .map((line) => line.trimEnd())
-      .filter((line) => line.length > 0)
-      .forEach((line) => {
-        sequence += 1;
-        lines.push(createTerminalHostOutputLine(line, kind, sequence, timestamp));
-      });
-  };
-
-  if (result.stdout.trim()) {
-    pushLines(result.stdout, 'stdout');
-  }
-
-  if (result.stderr.trim()) {
-    pushLines(result.stderr, 'stderr');
-  }
-
-  if (!result.stdout.trim() && !result.stderr.trim() && result.exitCode !== 0) {
-    sequence += 1;
-    lines.push(
-      createTerminalHostOutputLine(
-        `Process exited with code ${result.exitCode}`,
-        'system',
-        sequence,
-        timestamp,
-      ),
-    );
-  } else if (result.exitCode !== 0) {
-    sequence += 1;
-    lines.push(
-      createTerminalHostOutputLine(
-        `Process exited with code ${result.exitCode}`,
-        'system',
-        sequence,
-        timestamp,
-      ),
-    );
-  }
-
-  return lines;
 }
 
 async function resolveTauriInvoke() {
@@ -598,4 +489,63 @@ export function buildTerminalProfileBlockedMessage(
   }
 
   return `${profile.title} is unavailable. ${launchState.reason ?? 'Install the CLI to continue.'} ${blockedAction.actionLabel ?? 'Open Settings'} to configure the environment.`;
+}
+
+export function emitOpenTerminalVisibility(
+  eventBus: TerminalEventEmitterLike = globalEventBus,
+): void {
+  eventBus.emit('openTerminal');
+}
+
+function resolveBrowserTerminalProfileId(): TerminalProfileId {
+  if (typeof navigator === 'undefined') {
+    return 'powershell';
+  }
+
+  const browserNavigator = navigator as Navigator & {
+    userAgentData?: {
+      platform?: string;
+    };
+  };
+  const platform = browserNavigator.userAgentData?.platform ?? browserNavigator.platform ?? '';
+  return platform.trim().toLowerCase().includes('win') ? 'powershell' : 'bash';
+}
+
+export function buildDefaultTerminalCommandRequest(
+  overrides: Partial<Omit<TerminalCommandRequest, 'timestamp'>> = {},
+): TerminalCommandRequest {
+  return {
+    path: overrides.path?.trim() || undefined,
+    command: overrides.command?.trim() || undefined,
+    profileId: overrides.profileId ?? resolveBrowserTerminalProfileId(),
+    timestamp: Date.now(),
+  };
+}
+
+export function emitOpenTerminalRequest(
+  request: TerminalCommandRequest,
+  eventBus: TerminalEventEmitterLike = globalEventBus,
+): void {
+  emitOpenTerminalVisibility(eventBus);
+  eventBus.emit('terminalRequest', request);
+}
+
+export function areTerminalCommandRequestsEqual(
+  left: TerminalCommandRequest | undefined,
+  right: TerminalCommandRequest | undefined,
+): boolean {
+  if (left === right) {
+    return true;
+  }
+
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return (
+    left.path === right.path &&
+    left.command === right.command &&
+    left.profileId === right.profileId &&
+    left.timestamp === right.timestamp
+  );
 }

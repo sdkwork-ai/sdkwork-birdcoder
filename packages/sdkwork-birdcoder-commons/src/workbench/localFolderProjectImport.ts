@@ -1,4 +1,5 @@
 import type { BirdCoderProject, LocalFolderMountSource } from '@sdkwork/birdcoder-types';
+import { emitProjectGitOverviewRefresh } from './projectGitOverview.ts';
 
 interface ProjectIdentifier {
   id: string;
@@ -171,6 +172,7 @@ export async function importLocalFolderProject(
       path: projectPath,
     });
   }
+  emitProjectGitOverviewRefresh(targetProjectId);
 
   return {
     projectId: targetProjectId,
@@ -194,6 +196,7 @@ export async function rebindLocalFolderProject(
   await options.updateProject(options.projectId, {
     path: projectPath,
   });
+  emitProjectGitOverviewRefresh(options.projectId);
 
   return {
     projectId: options.projectId,

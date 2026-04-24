@@ -11,7 +11,23 @@ SDKWork BirdCoder follows the Claw Studio architecture standard at the workspace
 
 ## Product boundary
 
-BirdCoder keeps its AI IDE business modules such as `code`, `studio`, `terminal`, `settings`, `skills`, and `templates`, but identity and membership now converge through `sdkwork-birdcoder-appbase`. The shell consumes one appbase-aligned bridge for `auth`, `user`, and `vip`, and that bridge must remain package-oriented: `catalog`, `registry`, appbase manifest, per-capability workspace manifest, package meta, route intent, and storage contracts stay aligned with the upstream `sdkwork-appbase` shape. Active release governance now treats that alignment as executable policy through `check:appbase-parity`, rather than a docs-only convention.
+BirdCoder keeps its AI IDE business modules such as `code`, `studio`, `terminal`, `settings`, `skills`, and `templates`, while identity and membership converge through the split `sdkwork-birdcoder-auth` and `sdkwork-birdcoder-user` packages. The shell consumes those two packages as the only identity surface, and the user package keeps the runtime user-center, validation, storage, and membership contracts aligned with the upstream `sdkwork-appbase` shape. Active release governance now treats that alignment as executable policy through `check:identity-standard`, rather than a docs-only convention.
+
+## Identity standard
+
+BirdCoder treats identity as a three-layer standard instead of a per-app customization:
+
+- Delivery mode: `web`, `desktop`, `server`, `container`, `kubernetes`
+- Identity deployment mode: `desktop-local`, `server-private`, `cloud-saas`
+- User-center provider mode: `builtin-local`, `external-user-center`, `sdkwork-cloud-app-api`
+
+The important boundary is that deployment and provider selection are allowed to change, but the frontend service contract does not. BirdCoder keeps the same facade routes across all identity modes:
+
+- `/api/app/v1/auth/*`
+- `/api/app/v1/user/profile`
+- `/api/app/v1/vip/info`
+
+That route invariance is the sample-app standard. The shell and BirdCoder service layer stay branch-free while the server binding decides whether identity is resolved locally, bridged to a third-party external user center, or delegated to `sdkwork-cloud-app-api`.
 
 ## Quality gates
 

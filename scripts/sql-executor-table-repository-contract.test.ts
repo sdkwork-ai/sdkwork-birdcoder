@@ -30,7 +30,7 @@ function runtimeToRow(value) {
     is_deleted: false,
     coding_session_id: value.codingSessionId,
     engine_id: value.engineId,
-    model_id: value.modelId ?? null,
+    model_id: value.modelId,
     host_mode: value.hostMode,
     status: value.status,
     transport_kind: value.nativeRef.transportKind,
@@ -45,6 +45,15 @@ function runtimeFromRow(row) {
   if (!row || typeof row !== 'object' || typeof row.id !== 'string') {
     return null;
   }
+  const resolvedModelId =
+    typeof row.model_id === 'string' && row.model_id.trim().length > 0
+      ? row.model_id
+      : typeof row.modelId === 'string' && row.modelId.trim().length > 0
+        ? row.modelId
+        : null;
+  if (!resolvedModelId) {
+    return null;
+  }
 
   return {
     id: row.id,
@@ -52,7 +61,7 @@ function runtimeFromRow(row) {
     hostMode: row.host_mode,
     status: row.status,
     engineId: row.engine_id,
-    modelId: row.model_id ?? undefined,
+    modelId: resolvedModelId,
     nativeRef: {
       engineId: row.engine_id,
       transportKind: row.transport_kind,

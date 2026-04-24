@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useIDEServices, useToast } from '@sdkwork/birdcoder-commons/workbench';
-import { Button } from '@sdkwork/birdcoder-ui';
-import { RunConfigurationDialog, RunTaskDialog } from '@sdkwork/birdcoder-ui/run-config';
-import type { RunConfigurationRecord } from '@sdkwork/birdcoder-commons/workbench';
+import { useIDEServices, useToast, type RunConfigurationRecord } from '@sdkwork/birdcoder-commons';
+import {
+  DeferredRunConfigurationDialog,
+  DeferredRunTaskDialog,
+} from '@sdkwork/birdcoder-ui';
+import { Button } from '@sdkwork/birdcoder-ui-shell';
 import type {
   BirdCoderDeploymentTargetSummary,
   BirdCoderProjectCollaboratorSummary,
@@ -64,6 +66,7 @@ export interface StudioAnalyzeReport {
 export interface StudioDeleteConfirmation {
   type: 'message';
   id: string;
+  ids?: string[];
   parentId?: string;
 }
 
@@ -352,7 +355,7 @@ export function StudioPageDialogs({
         </div>
       )}
 
-      <RunTaskDialog
+      <DeferredRunTaskDialog
         open={isRunTaskVisible}
         title={t('studio.runTask')}
         configurations={runConfigurations}
@@ -360,7 +363,7 @@ export function StudioPageDialogs({
         onRun={onRunTask}
       />
 
-      <RunConfigurationDialog
+      <DeferredRunConfigurationDialog
         open={isRunConfigVisible}
         title={t('studio.runConfig')}
         draft={runConfigurationDraft}

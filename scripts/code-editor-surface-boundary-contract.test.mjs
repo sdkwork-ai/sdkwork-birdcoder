@@ -64,8 +64,14 @@ const surfaceSource = readText(
 
 assert.match(
   surfaceSource,
-  /from '@sdkwork\/birdcoder-ui\/editors';/,
-  'CodeEditorSurface must own the CodeEditor and DiffEditor imports.',
+  /from '@sdkwork\/birdcoder-ui';/,
+  'CodeEditorSurface must stay on the root UI package import surface.',
+);
+
+assert.match(
+  surfaceSource,
+  /\bContentWorkbench\b[\s\S]*\bDeferredDiffEditor\b|\bDeferredDiffEditor\b[\s\S]*\bContentWorkbench\b/s,
+  'CodeEditorSurface must own the editor and diff rendering surfaces through the root UI package.',
 );
 
 assert.match(

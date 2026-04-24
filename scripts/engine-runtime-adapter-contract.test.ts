@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
 
+import { ClaudeChatEngine } from '../packages/sdkwork-birdcoder-chat-claude/src/index.ts';
+import { GeminiChatEngine } from '../packages/sdkwork-birdcoder-chat-gemini/src/index.ts';
+import { OpenCodeChatEngine } from '../packages/sdkwork-birdcoder-chat-opencode/src/index.ts';
 import type { ChatMessage } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
 import { resolveFallbackRuntimeMode } from '../packages/sdkwork-birdcoder-chat/src/index.ts';
 import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
 import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
+import { createWorkbenchCanonicalChatEngine } from '../packages/sdkwork-birdcoder-codeengine/src/runtime.ts';
 
 const EXPECTED_OFFICIAL_PACKAGES = {
   codex: '@openai/codex-sdk',
@@ -162,35 +166,315 @@ const codexFakeJsonlLines = [
   })}\n`,
 ];
 
+function createMockSdkBackedRuntime(
+  engine: ReturnType<typeof listWorkbenchCliEngines>[number],
+) {
+  const model = engine.defaultModelId;
+  const created = Math.floor(Date.now() / 1000);
+  const contentPrefix = `${engine.label} canonical runtime adapter response.`;
+  const baseEngine =
+    engine.id === 'claude-code'
+      ? new ClaudeChatEngine({
+        officialSdkBridgeLoader: {
+          load: async () => ({
+            async sendMessage() {
+              return {
+                id: `${engine.id}-runtime-adapter-response`,
+                object: 'chat.completion',
+                created,
+                model,
+                choices: [
+                  {
+                    index: 0,
+                    message: {
+                      id: `${engine.id}-runtime-adapter-message`,
+                      role: 'assistant',
+                      content: contentPrefix,
+                      timestamp: Date.now(),
+                    },
+                    finish_reason: 'stop',
+                  },
+                ],
+              };
+            },
+            async *sendMessageStream() {
+              yield {
+                id: `${engine.id}-runtime-adapter-stream`,
+                object: 'chat.completion.chunk',
+                created,
+                model,
+                choices: [
+                  {
+                    index: 0,
+                    delta: {
+                      role: 'assistant',
+                      content: `${contentPrefix} `,
+                    },
+                    finish_reason: null,
+                  },
+                ],
+              };
+
+              yield {
+                id: `${engine.id}-runtime-adapter-stream`,
+                object: 'chat.completion.chunk',
+                created,
+                model,
+                choices: [
+                  {
+                    index: 0,
+                    delta: {
+                      tool_calls: [
+                        {
+                          id: `${engine.id}-runtime-adapter-tool`,
+                          type: 'function',
+                          function: {
+                            name: 'run_command',
+                            arguments: JSON.stringify({
+                              command: 'pnpm lint',
+                              source: `${engine.id}-runtime-adapter-contract`,
+                            }),
+                          },
+                        },
+                      ],
+                    },
+                    finish_reason: 'tool_calls',
+                  },
+                ],
+              };
+
+              yield {
+                id: `${engine.id}-runtime-adapter-stream`,
+                object: 'chat.completion.chunk',
+                created,
+                model,
+                choices: [
+                  {
+                    index: 0,
+                    delta: {},
+                    finish_reason: 'stop',
+                  },
+                ],
+              };
+            },
+          }),
+        },
+      })
+      : engine.id === 'gemini'
+        ? new GeminiChatEngine({
+          officialSdkBridgeLoader: {
+            load: async () => ({
+              async sendMessage() {
+                return {
+                  id: `${engine.id}-runtime-adapter-response`,
+                  object: 'chat.completion',
+                  created,
+                  model,
+                  choices: [
+                    {
+                      index: 0,
+                      message: {
+                        id: `${engine.id}-runtime-adapter-message`,
+                        role: 'assistant',
+                        content: contentPrefix,
+                        timestamp: Date.now(),
+                      },
+                      finish_reason: 'stop',
+                    },
+                  ],
+                };
+              },
+              async *sendMessageStream() {
+                yield {
+                  id: `${engine.id}-runtime-adapter-stream`,
+                  object: 'chat.completion.chunk',
+                  created,
+                  model,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: {
+                        role: 'assistant',
+                        content: `${contentPrefix} `,
+                      },
+                      finish_reason: null,
+                    },
+                  ],
+                };
+
+                yield {
+                  id: `${engine.id}-runtime-adapter-stream`,
+                  object: 'chat.completion.chunk',
+                  created,
+                  model,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: {
+                        tool_calls: [
+                          {
+                            id: `${engine.id}-runtime-adapter-tool`,
+                            type: 'function',
+                            function: {
+                              name: 'search_code',
+                              arguments: JSON.stringify({
+                                query: 'pnpm lint',
+                                source: `${engine.id}-runtime-adapter-contract`,
+                              }),
+                            },
+                          },
+                        ],
+                      },
+                      finish_reason: 'tool_calls',
+                    },
+                  ],
+                };
+
+                yield {
+                  id: `${engine.id}-runtime-adapter-stream`,
+                  object: 'chat.completion.chunk',
+                  created,
+                  model,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: {},
+                      finish_reason: 'stop',
+                    },
+                  ],
+                };
+              },
+            }),
+          },
+        })
+        : new OpenCodeChatEngine({
+          officialSdkBridgeLoader: {
+            load: async () => ({
+              async sendMessage() {
+                return {
+                  id: 'opencode-runtime-adapter-response',
+                  object: 'chat.completion',
+                  created,
+                  model,
+                  choices: [
+                    {
+                      index: 0,
+                      message: {
+                        id: 'opencode-runtime-adapter-message',
+                        role: 'assistant',
+                        content: 'OpenCode canonical runtime adapter response.',
+                        timestamp: Date.now(),
+                      },
+                      finish_reason: 'stop',
+                    },
+                  ],
+                };
+              },
+              async *sendMessageStream() {
+                yield {
+                  id: 'opencode-runtime-adapter-stream',
+                  object: 'chat.completion.chunk',
+                  created,
+                  model,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: {
+                        role: 'assistant',
+                        content: 'OpenCode canonical runtime adapter response. ',
+                      },
+                      finish_reason: null,
+                    },
+                  ],
+                };
+
+                yield {
+                  id: 'opencode-runtime-adapter-stream',
+                  object: 'chat.completion.chunk',
+                  created,
+                  model,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: {
+                        tool_calls: [
+                          {
+                            id: 'opencode-runtime-adapter-tool',
+                            type: 'function',
+                            function: {
+                              name: 'run_command',
+                              arguments: JSON.stringify({
+                                command: 'pnpm lint',
+                                source: 'opencode-runtime-adapter-contract',
+                              }),
+                            },
+                          },
+                        ],
+                      },
+                      finish_reason: 'tool_calls',
+                    },
+                  ],
+                };
+
+                yield {
+                  id: 'opencode-runtime-adapter-stream',
+                  object: 'chat.completion.chunk',
+                  created,
+                  model,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: {},
+                      finish_reason: 'stop',
+                    },
+                  ],
+                };
+              },
+            }),
+          },
+        });
+
+  return createWorkbenchCanonicalChatEngine(
+    baseEngine,
+    {
+      defaultModelId: engine.defaultModelId,
+      descriptor: engine.descriptor,
+    },
+  );
+}
+
 for (const engine of listWorkbenchCliEngines()) {
-  const runtime = createChatEngineById(engine.id);
+  const canonicalRuntime =
+    engine.id === 'codex'
+      ? createChatEngineById(engine.id)
+      : createMockSdkBackedRuntime(engine);
 
   assert.equal(
-    typeof runtime.describeRuntime,
+    typeof canonicalRuntime.describeRuntime,
     'function',
     `${engine.id} must expose a canonical runtime descriptor`,
   );
   assert.equal(
-    typeof runtime.sendCanonicalEvents,
+    typeof canonicalRuntime.sendCanonicalEvents,
     'function',
     `${engine.id} must expose a canonical runtime event stream`,
   );
   assert.equal(
-    typeof runtime.describeIntegration,
+    typeof canonicalRuntime.describeIntegration,
     'function',
     `${engine.id} must preserve provider integration metadata through the canonical wrapper`,
   );
   assert.equal(
-    typeof runtime.getHealth,
+    typeof canonicalRuntime.getHealth,
     'function',
     `${engine.id} must preserve provider health diagnostics through the canonical wrapper`,
   );
 
-  const descriptor = runtime.describeRuntime?.({
+  const descriptor = canonicalRuntime.describeRuntime?.({
     model: engine.defaultModelId,
   });
-  const integration = runtime.describeIntegration?.();
-  const health = await runtime.getHealth?.();
+  const integration = canonicalRuntime.describeIntegration?.();
+  const health = await canonicalRuntime.getHealth?.();
 
   assert.ok(descriptor, `${engine.id} runtime descriptor must be available`);
   assert.ok(integration, `${engine.id} integration descriptor must be available`);
@@ -213,15 +497,15 @@ for (const engine of listWorkbenchCliEngines()) {
   );
   assert.equal(
     health?.runtimeMode,
-    health?.sdkAvailable
-      ? integration?.runtimeMode
-      : resolveFallbackRuntimeMode(integration?.transportKinds ?? []) ?? integration?.runtimeMode,
+    health?.fallbackActive
+      ? resolveFallbackRuntimeMode(integration?.transportKinds ?? []) ?? integration?.runtimeMode
+      : integration?.runtimeMode,
     `${engine.id} health runtime mode must stay aligned with the resolved runtime lane`,
   );
 
   const events = [];
   const collectEvents = async () => {
-    for await (const event of runtime.sendCanonicalEvents?.(messages, {
+    for await (const event of canonicalRuntime.sendCanonicalEvents?.(messages, {
       model: engine.defaultModelId,
       context: {
         workspaceRoot: 'D:/workspace',

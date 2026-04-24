@@ -9,6 +9,7 @@ if ($env:OS -ne 'Windows_NT') {
 
 $rootDir = Split-Path -Parent $PSScriptRoot
 $scriptPath = Join-Path $PSScriptRoot 'ensure-tauri-dev-binary-unlocked.ps1'
+$powerShellExecutable = Join-Path $PSHOME 'powershell.exe'
 $desktopPackageJsonPath = Join-Path $rootDir 'packages\sdkwork-birdcoder-desktop\package.json'
 $desktopPackageJson = Get-Content -LiteralPath $desktopPackageJsonPath -Raw | ConvertFrom-Json
 $scriptSource = Get-Content -LiteralPath $scriptPath -Raw
@@ -25,8 +26,8 @@ if ($scriptSource -match 'run-desktop-vite-host\.mjs') {
   throw 'unlock guard must not target the reusable desktop Vite host process.'
 }
 
-if ($desktopPackageJson.scripts.'tauri:dev' -notmatch 'ensure-tauri-dev-binary-unlocked\.ps1') {
-  throw 'desktop tauri:dev script must invoke the PowerShell unlock guard.'
+if ($desktopPackageJson.scripts.'tauri:dev:base' -notmatch 'run-tauri-dev-binary-unlock\.mjs') {
+  throw 'desktop tauri:dev:base script must invoke the tauri dev binary unlock runner.'
 }
 
 function Test-ProcessExists {
@@ -89,14 +90,14 @@ try {
   New-Item -ItemType Directory -Path $debugDir -Force | Out-Null
   Copy-Item -LiteralPath $PSHOME\powershell.exe -Destination $binaryPath -Force
 
-  & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -SrcTauriDir $srcTauriDir -BinaryName $binaryName | Out-Null
+  & $powerShellExecutable -NoProfile -ExecutionPolicy Bypass -File $scriptPath -SrcTauriDir $srcTauriDir -BinaryName $binaryName | Out-Null
 
   $child = Start-Process -FilePath $binaryPath -ArgumentList '-NoProfile', '-NonInteractive', '-Command', 'Start-Sleep -Seconds 300' -PassThru -WindowStyle Hidden
 
   try {
     Wait-ForCondition -Condition { Test-ProcessExists -ProcessId $child.Id }
 
-    & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -SrcTauriDir $srcTauriDir -BinaryName $binaryName | Out-Null
+    & $powerShellExecutable -NoProfile -ExecutionPolicy Bypass -File $scriptPath -SrcTauriDir $srcTauriDir -BinaryName $binaryName | Out-Null
 
     Wait-ForCondition -Condition { -not (Test-ProcessExists -ProcessId $child.Id) }
 

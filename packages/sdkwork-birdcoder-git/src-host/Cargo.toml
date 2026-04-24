@@ -1,0 +1,9 @@
+[package]
+name = "sdkwork-birdcoder-git"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+git2 = { version = "0.20.4", features = ["vendored-libgit2"] }
+serde = { version = "1", features = ["derive"] }
+thiserror = "2.0"

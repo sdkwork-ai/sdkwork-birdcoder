@@ -121,10 +121,6 @@ const uiRuntimeDependencies = {
   '@babel/runtime': '^7.29.2',
   '@monaco-editor/loader': '^1.7.0',
   '@monaco-editor/react': '^4.7.0',
-  '@radix-ui/react-compose-refs': '^1.1.2',
-  '@radix-ui/react-slot': '^1.2.4',
-  'class-variance-authority': '^0.7.1',
-  clsx: '^2.1.1',
   fault: '^1.0.4',
   format: '^0.2.2',
   'hast-util-parse-selector': '^4.0.0',
@@ -139,6 +135,13 @@ const uiRuntimeDependencies = {
   'react-syntax-highlighter': '^16.1.1',
   refractor: '^5.0.0',
   'state-local': '^1.0.7',
+};
+
+const uiShellRuntimeDependencies = {
+  '@radix-ui/react-slot': '^1.2.4',
+  'class-variance-authority': '^0.7.1',
+  clsx: '^2.1.1',
+  'lucide-react': '^0.546.0',
   'tailwind-merge': '^3.3.1',
 };
 
@@ -158,10 +161,17 @@ const packageDependencyExpectations = [
     dependencies: sharedI18nextWorkspaceDependencies,
   },
   {
-    packageName: '@sdkwork/birdcoder-appbase',
+    packageName: '@sdkwork/birdcoder-auth',
     dependencies: {
-      ...sharedI18nextWorkspaceDependencies,
-      'lucide-react': '^0.546.0',
+      '@babel/runtime': '^7.29.2',
+      'react-i18next': '^17.0.2',
+    },
+  },
+  {
+    packageName: '@sdkwork/birdcoder-user',
+    dependencies: {
+      '@babel/runtime': '^7.29.2',
+      'react-i18next': '^17.0.2',
     },
   },
   {
@@ -186,6 +196,10 @@ const packageDependencyExpectations = [
   {
     packageName: '@sdkwork/birdcoder-ui',
     dependencies: uiRuntimeDependencies,
+  },
+  {
+    packageName: '@sdkwork/birdcoder-ui-shell',
+    dependencies: uiShellRuntimeDependencies,
   },
   {
     packageName: '@sdkwork/birdcoder-desktop',
@@ -222,9 +236,19 @@ const runtimeResolutionChecks = [
     dependencies: ['void-elements'],
   },
   {
-    packageName: '@sdkwork/birdcoder-appbase',
-    entryPath: ['node_modules', 'html-parse-stringify', 'dist', 'html-parse-stringify.module.js'],
-    dependencies: ['void-elements'],
+    packageName: '@sdkwork/birdcoder-auth',
+    entryPath: ['src', 'pages', 'AuthPage.tsx'],
+    dependencies: ['react-i18next'],
+  },
+  {
+    packageName: '@sdkwork/birdcoder-user',
+    entryPath: ['src', 'pages', 'UserCenterPage.tsx'],
+    dependencies: ['react-i18next'],
+  },
+  {
+    packageName: '@sdkwork/birdcoder-user',
+    entryPath: ['src', 'pages', 'VipPage.tsx'],
+    dependencies: ['react-i18next'],
   },
   {
     packageName: '@sdkwork/birdcoder-shell',
@@ -391,6 +415,16 @@ const runtimeResolutionChecks = [
     packageName: '@sdkwork/birdcoder-ui',
     entryPath: ['node_modules', '@monaco-editor', 'loader', 'lib', 'es', 'loader', 'index.js'],
     dependencies: ['state-local'],
+  },
+  {
+    packageName: '@sdkwork/birdcoder-ui-shell',
+    entryPath: ['src', 'components', 'ui', 'button.tsx'],
+    dependencies: ['@radix-ui/react-slot', 'class-variance-authority'],
+  },
+  {
+    packageName: '@sdkwork/birdcoder-ui-shell',
+    entryPath: ['src', 'lib', 'utils.ts'],
+    dependencies: ['clsx', 'tailwind-merge'],
   },
 ];
 

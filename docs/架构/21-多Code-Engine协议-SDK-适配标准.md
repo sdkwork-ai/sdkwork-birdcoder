@@ -165,8 +165,8 @@ BirdCoder 允许的统一 transport kind 保持为：
 ### 9.1 Codex
 
 - 主路径：`@openai/codex-sdk`
-- 原生关键语义：`thread -> turn -> item/event`
-- 必须保留：thread 连续性、turn 边界、item 粒度、`outputSchema`、resume、approval/sandbox 语义
+- 原生关键语义：`native thread -> turn -> item/event`
+- 必须保留：native thread 连续性、turn 边界、item 粒度、`outputSchema`、resume、approval/sandbox 语义
 - BirdCoder 重点：把 `item.*` 分解映射为 message、tool、artifact，而不是压缩成单条聊天文本
 
 ### 9.2 Claude

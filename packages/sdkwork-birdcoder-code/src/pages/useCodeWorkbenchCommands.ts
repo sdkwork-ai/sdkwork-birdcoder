@@ -1,19 +1,20 @@
 import { useEffect, useRef } from 'react';
 import {
+  buildProjectCodingSessionIndex,
+  emitOpenTerminalRequest,
   globalEventBus,
   type TerminalCommandRequest,
   type ToastType,
-} from '@sdkwork/birdcoder-commons/workbench';
+} from '@sdkwork/birdcoder-commons';
 import type { FileChange, BirdCoderProject } from '@sdkwork/birdcoder-types';
 import { useTranslation } from 'react-i18next';
 
 interface UseCodeWorkbenchCommandsOptions {
+  isActive?: boolean;
   projects: BirdCoderProject[];
   selectedCodingSessionId: string | null;
-  currentProjectId: string;
   currentProjectPath?: string;
   defaultWorkingDirectory: string;
-  createCodingSession: (projectId: string, title: string) => Promise<{ id: string }>;
   selectCodingSession: (codingSessionId: string) => void;
   setViewingDiff: React.Dispatch<React.SetStateAction<FileChange | null>>;
   setIsTerminalOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -29,12 +30,11 @@ interface UseCodeWorkbenchCommandsOptions {
 }
 
 export function useCodeWorkbenchCommands({
+  isActive = true,
   projects,
   selectedCodingSessionId,
-  currentProjectId,
   currentProjectPath,
   defaultWorkingDirectory,
-  createCodingSession,
   selectCodingSession,
   setViewingDiff,
   setIsTerminalOpen,
@@ -51,25 +51,19 @@ export function useCodeWorkbenchCommands({
   const { t } = useTranslation();
   const projectsRef = useRef(projects);
   const selectedCodingSessionIdRef = useRef(selectedCodingSessionId);
-  const currentProjectIdRef = useRef(currentProjectId);
   const currentProjectPathRef = useRef(currentProjectPath);
   const defaultWorkingDirectoryRef = useRef(defaultWorkingDirectory);
-  const createCodingSessionRef = useRef(createCodingSession);
   const selectCodingSessionRef = useRef(selectCodingSession);
   const onRunWithoutDebuggingRef = useRef(onRunWithoutDebugging);
 
   useEffect(() => {
     projectsRef.current = projects;
     selectedCodingSessionIdRef.current = selectedCodingSessionId;
-    currentProjectIdRef.current = currentProjectId;
     currentProjectPathRef.current = currentProjectPath;
     defaultWorkingDirectoryRef.current = defaultWorkingDirectory;
-    createCodingSessionRef.current = createCodingSession;
     selectCodingSessionRef.current = selectCodingSession;
     onRunWithoutDebuggingRef.current = onRunWithoutDebugging;
   }, [
-    createCodingSession,
-    currentProjectId,
     currentProjectPath,
     defaultWorkingDirectory,
     onRunWithoutDebugging,
@@ -79,18 +73,16 @@ export function useCodeWorkbenchCommands({
   ]);
 
   useEffect(() => {
+    if (!isActive) {
+      return undefined;
+    }
+
     const handleCloseTerminal = () => setIsTerminalOpen(false);
 
-    const handleOpenTerminal = (path?: string, command?: string) => {
-      setIsTerminalOpen(true);
-      setTerminalRequest({ path, command, timestamp: Date.now() });
-    };
+    const handleOpenTerminal = () => setIsTerminalOpen(true);
 
     const handleToggleTerminal = () => setIsTerminalOpen((previousState) => !previousState);
     const handleToggleSidebar = () => setIsSidebarVisible((previousState) => !previousState);
-    const handleSplitTerminal = () => {
-      addToast(t('terminal.splitTerminalNotSupported'), 'info');
-    };
 
     const handleToggleDiffPanel = () => {
       setViewingDiff((previousState) => {
@@ -116,13 +108,13 @@ export function useCodeWorkbenchCommands({
         return;
       }
 
-      const allCodingSessions = projectsRef.current.flatMap((project) => project.codingSessions);
-      const currentIndex = allCodingSessions.findIndex(
-        (codingSession) => codingSession.id === activeCodingSessionId,
-      );
+      const previousCodingSessionId =
+        buildProjectCodingSessionIndex(projectsRef.current).previousCodingSessionIdById.get(
+          activeCodingSessionId,
+        ) ?? null;
 
-      if (currentIndex > 0) {
-        selectCodingSessionRef.current(allCodingSessions[currentIndex - 1].id);
+      if (previousCodingSessionId) {
+        selectCodingSessionRef.current(previousCodingSessionId);
       }
     };
 
@@ -132,13 +124,13 @@ export function useCodeWorkbenchCommands({
         return;
       }
 
-      const allCodingSessions = projectsRef.current.flatMap((project) => project.codingSessions);
-      const currentIndex = allCodingSessions.findIndex(
-        (codingSession) => codingSession.id === activeCodingSessionId,
-      );
+      const nextCodingSessionId =
+        buildProjectCodingSessionIndex(projectsRef.current).nextCodingSessionIdById.get(
+          activeCodingSessionId,
+        ) ?? null;
 
-      if (currentIndex !== -1 && currentIndex < allCodingSessions.length - 1) {
-        selectCodingSessionRef.current(allCodingSessions[currentIndex + 1].id);
+      if (nextCodingSessionId) {
+        selectCodingSessionRef.current(nextCodingSessionId);
       }
     };
 
@@ -160,8 +152,7 @@ export function useCodeWorkbenchCommands({
         return;
       }
 
-      globalEventBus.emit('openTerminal');
-      globalEventBus.emit('terminalRequest', {
+      emitOpenTerminalRequest({
         command: 'npm start',
         path:
           currentProjectPathRef.current?.trim() || defaultWorkingDirectoryRef.current,
@@ -198,31 +189,10 @@ export function useCodeWorkbenchCommands({
       }
     };
 
-    const handleCreateNewCodingSession = async () => {
-      const activeProjectId = currentProjectIdRef.current;
-      if (!activeProjectId) {
-        addToast(t('code.selectProjectFirst'), 'error');
-        return;
-      }
-
-      try {
-        const newCodingSession = await createCodingSessionRef.current(
-          activeProjectId,
-          t('app.menu.newThread'),
-        );
-        selectCodingSessionRef.current(newCodingSession.id);
-        addToast(t('code.newThreadCreated'), 'success');
-      } catch (error) {
-        console.error('Failed to create thread', error);
-        addToast(t('code.failedToCreateThread'), 'error');
-      }
-    };
-
     const unsubscribers = [
       globalEventBus.on('closeTerminal', handleCloseTerminal),
       globalEventBus.on('openTerminal', handleOpenTerminal),
       globalEventBus.on('toggleTerminal', handleToggleTerminal),
-      globalEventBus.on('splitTerminal', handleSplitTerminal),
       globalEventBus.on('toggleSidebar', handleToggleSidebar),
       globalEventBus.on('toggleDiffPanel', handleToggleDiffPanel),
       globalEventBus.on('findInFiles', handleFindInFiles),
@@ -237,7 +207,6 @@ export function useCodeWorkbenchCommands({
       globalEventBus.on('runTask', handleRunTask),
       globalEventBus.on('terminalRequest', handleTerminalRequest),
       globalEventBus.on('revealInExplorer', handleRevealInExplorer),
-      globalEventBus.on('createNewCodingSession', handleCreateNewCodingSession),
     ];
 
     return () => {
@@ -245,6 +214,7 @@ export function useCodeWorkbenchCommands({
     };
   }, [
     addToast,
+    isActive,
     t,
   ]);
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const appPath = new URL('../src/App.tsx', import.meta.url);
+const appPath = new URL('../packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx', import.meta.url);
 const appSource = fs.readFileSync(appPath, 'utf8');
 
 assert.match(

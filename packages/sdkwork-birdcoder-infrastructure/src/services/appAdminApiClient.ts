@@ -34,7 +34,7 @@ type BirdCoderFetchLike = typeof fetch;
 const DEFAULT_BIRDCODER_HTTP_API_TIMEOUT_MS = 8_000;
 
 function buildRequestId(path: string): string {
-  const normalizedPath = path.replaceAll('/', '.').replace(/^\.*/u, '');
+  const normalizedPath = path.replace(/\//gu, '.').replace(/^\.+/u, '');
   return `req.${normalizedPath}.${Date.now().toString(36)}`;
 }
 
@@ -87,14 +87,27 @@ function mapWorkspaceSummary(
     uuid: canonical.uuid,
     tenantId: canonical.tenantId,
     organizationId: canonical.organizationId,
+    dataScope: canonical.dataScope,
     code: canonical.code,
     title: canonical.title,
     name: workspace.name,
     description: workspace.description,
+    icon: canonical.icon,
+    color: canonical.color,
     ownerId,
     leaderId: canonical.leaderId ?? ownerId,
     createdByUserId: canonical.createdByUserId ?? ownerId,
     type: canonical.type,
+    startTime: canonical.startTime,
+    endTime: canonical.endTime,
+    maxMembers: canonical.maxMembers,
+    currentMembers: canonical.currentMembers,
+    memberCount: canonical.memberCount,
+    maxStorage: canonical.maxStorage,
+    usedStorage: canonical.usedStorage,
+    settings: canonical.settings,
+    isPublic: canonical.isPublic,
+    isTemplate: canonical.isTemplate,
     status: canonical.status === 'archived' ? 'archived' : 'active',
   };
 }
@@ -118,18 +131,32 @@ function mapProjectSummary(
     uuid: canonical.uuid,
     tenantId: canonical.tenantId,
     organizationId: canonical.organizationId,
+    dataScope: canonical.dataScope,
     workspaceId: project.workspaceId,
     workspaceUuid: canonical.workspaceUuid,
+    userId: canonical.userId,
+    parentId: canonical.parentId,
+    parentUuid: canonical.parentUuid,
+    parentMetadata: canonical.parentMetadata,
     code: canonical.code,
     title: canonical.title,
     name: project.name,
     description: project.description,
     rootPath: project.rootPath,
+    sitePath: canonical.sitePath,
+    domainPrefix: canonical.domainPrefix,
     ownerId,
     leaderId: canonical.leaderId ?? ownerId,
     createdByUserId,
     author: canonical.author ?? createdByUserId ?? ownerId,
+    fileId: canonical.fileId,
+    conversationId: canonical.conversationId,
     type: canonical.type,
+    coverImage: canonical.coverImage,
+    startTime: canonical.startTime,
+    endTime: canonical.endTime,
+    budgetAmount: canonical.budgetAmount,
+    isTemplate: canonical.isTemplate,
     status: project.status === 'archived' ? 'archived' : 'active',
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
@@ -139,35 +166,55 @@ function mapProjectSummary(
 function mapDocumentSummary(
   document: Awaited<ReturnType<BirdCoderAppAdminConsoleQueries['listDocuments']>>[number],
 ): BirdCoderProjectDocumentSummary {
+  const canonical = document as Partial<BirdCoderProjectDocumentSummary>;
   return {
     id: document.id,
+    uuid: canonical.uuid,
+    tenantId: canonical.tenantId,
+    organizationId: canonical.organizationId,
+    createdAt: canonical.createdAt ?? document.createdAt,
+    updatedAt: canonical.updatedAt ?? document.updatedAt,
     projectId: document.projectId,
     documentKind: document.documentKind as BirdCoderProjectDocumentSummary['documentKind'],
     title: document.title,
     slug: document.slug,
+    bodyRef: canonical.bodyRef,
     status: document.status === 'archived' ? 'archived' : document.status === 'draft' ? 'draft' : 'active',
-    updatedAt: document.updatedAt,
   };
 }
 
 function mapDeploymentSummary(
   deployment: Awaited<ReturnType<BirdCoderAppAdminConsoleQueries['listDeployments']>>[number],
 ): BirdCoderDeploymentRecordSummary {
+  const canonical = deployment as Partial<BirdCoderDeploymentRecordSummary>;
   return {
     id: deployment.id,
+    uuid: canonical.uuid,
+    tenantId: canonical.tenantId,
+    organizationId: canonical.organizationId,
+    createdAt: canonical.createdAt ?? deployment.createdAt,
+    updatedAt: canonical.updatedAt ?? deployment.updatedAt,
     projectId: deployment.projectId,
     targetId: deployment.targetId,
+    releaseRecordId: canonical.releaseRecordId ?? deployment.releaseRecordId,
     status: deployment.status as BirdCoderDeploymentRecordSummary['status'],
-    startedAt: deployment.startedAt,
-    completedAt: deployment.completedAt,
+    endpointUrl: canonical.endpointUrl ?? deployment.endpointUrl,
+    startedAt: canonical.startedAt ?? deployment.startedAt,
+    completedAt: canonical.completedAt ?? deployment.completedAt,
   };
 }
 
 function mapDeploymentTargetSummary(
   target: Awaited<ReturnType<BirdCoderAppAdminConsoleQueries['listDeploymentTargets']>>[number],
 ): BirdCoderDeploymentTargetSummary {
+  const canonical = target as Partial<BirdCoderDeploymentTargetSummary>;
   return {
     id: target.id,
+    uuid: canonical.uuid,
+    tenantId: canonical.tenantId,
+    organizationId: canonical.organizationId,
+    createdAt: canonical.createdAt ?? target.createdAt,
+    updatedAt: canonical.updatedAt ?? target.updatedAt,
     projectId: target.projectId,
     name: target.name,
     environmentKey: target.environmentKey as BirdCoderDeploymentTargetSummary['environmentKey'],
@@ -186,6 +233,8 @@ function mapTeamSummary(
     uuid: canonical.uuid,
     tenantId: canonical.tenantId,
     organizationId: canonical.organizationId,
+    createdAt: canonical.createdAt,
+    updatedAt: canonical.updatedAt,
     workspaceId: team.workspaceId,
     code: canonical.code,
     title: canonical.title,
@@ -194,6 +243,7 @@ function mapTeamSummary(
     ownerId,
     leaderId: canonical.leaderId ?? ownerId,
     createdByUserId: canonical.createdByUserId ?? ownerId,
+    metadata: canonical.metadata,
     status: team.status === 'archived' ? 'archived' : 'active',
   };
 }
@@ -204,23 +254,35 @@ function mapTeamMemberSummary(
   const canonical = member as Partial<BirdCoderTeamMemberSummary>;
   return {
     id: member.id,
+    uuid: canonical.uuid,
+    tenantId: canonical.tenantId,
+    organizationId: canonical.organizationId,
     teamId: member.teamId,
     userId: canonical.userId ?? member.userId,
     role: member.role as BirdCoderTeamMemberSummary['role'],
     status: member.status as BirdCoderTeamMemberSummary['status'],
     createdByUserId: canonical.createdByUserId,
     grantedByUserId: canonical.grantedByUserId,
+    createdAt: canonical.createdAt,
+    updatedAt: canonical.updatedAt,
   };
 }
 
 function mapReleaseSummary(
   release: Awaited<ReturnType<BirdCoderAppAdminConsoleQueries['listReleases']>>[number],
 ): BirdCoderReleaseSummary {
+  const canonical = release as Partial<BirdCoderReleaseSummary>;
   return {
     id: release.id,
+    uuid: canonical.uuid,
+    tenantId: canonical.tenantId,
+    organizationId: canonical.organizationId,
+    createdAt: canonical.createdAt ?? release.createdAt,
+    updatedAt: canonical.updatedAt ?? release.updatedAt,
     releaseVersion: release.releaseVersion,
     releaseKind: release.releaseKind,
     rolloutStage: release.rolloutStage,
+    manifest: canonical.manifest ?? release.manifest,
     status: release.status,
   };
 }
@@ -228,12 +290,17 @@ function mapReleaseSummary(
 function mapAuditSummary(
   auditEvent: Awaited<ReturnType<BirdCoderAppAdminConsoleQueries['listAuditEvents']>>[number],
 ): BirdCoderAdminAuditEventSummary {
+  const canonical = auditEvent as Partial<BirdCoderAdminAuditEventSummary>;
   return {
     id: auditEvent.id,
+    uuid: canonical.uuid,
+    tenantId: canonical.tenantId,
+    organizationId: canonical.organizationId,
+    createdAt: canonical.createdAt ?? auditEvent.createdAt,
+    updatedAt: canonical.updatedAt ?? auditEvent.updatedAt,
     scopeType: auditEvent.scopeType,
     scopeId: auditEvent.scopeId,
     eventType: auditEvent.eventType,
-    createdAt: auditEvent.createdAt,
     payload: auditEvent.payload,
   };
 }
@@ -241,8 +308,14 @@ function mapAuditSummary(
 function mapPolicySummary(
   policy: Awaited<ReturnType<BirdCoderAppAdminConsoleQueries['listPolicies']>>[number],
 ): BirdCoderAdminPolicySummary {
+  const canonical = policy as Partial<BirdCoderAdminPolicySummary>;
   return {
     id: policy.id,
+    uuid: canonical.uuid,
+    tenantId: canonical.tenantId,
+    organizationId: canonical.organizationId,
+    createdAt: canonical.createdAt ?? policy.createdAt,
+    updatedAt: canonical.updatedAt ?? policy.updatedAt,
     scopeType: policy.scopeType as BirdCoderAdminPolicySummary['scopeType'],
     scopeId: policy.scopeId,
     policyCategory: policy.policyCategory as BirdCoderAdminPolicySummary['policyCategory'],
@@ -251,7 +324,6 @@ function mapPolicySummary(
     approvalPolicy: policy.approvalPolicy as BirdCoderAdminPolicySummary['approvalPolicy'],
     rationale: policy.rationale,
     status: policy.status as BirdCoderAdminPolicySummary['status'],
-    updatedAt: policy.updatedAt,
   };
 }
 

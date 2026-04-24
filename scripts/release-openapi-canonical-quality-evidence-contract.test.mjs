@@ -137,7 +137,6 @@ function normalizeStableFinalizedSmokeReport(report = {}) {
     buildEvidence: normalizeStableOptionalSummary(report.buildEvidence ?? null),
     simulatorEvidence: normalizeStableOptionalSummary(report.simulatorEvidence ?? null),
     testEvidence: normalizeStableOptionalSummary(report.testEvidence ?? null),
-    governanceEvidence: normalizeStableOptionalSummary(report.governanceEvidence ?? null),
     qualityEvidence: normalizeStableQualitySummary(report.qualityEvidence ?? {}),
   };
 }

@@ -75,9 +75,9 @@ The Step 18 packaged release-evidence promotion is now closed; PostgreSQL live s
   - largest JS asset `vendor-markdown-DqZNkVdw.js`: `598.2 KiB`
   - allowed cap: `700.0 KiB`
 - Historical direct-runner evidence on `2026-04-13` re-verified:
-  - `artifacts/governance/governance-regression-report.json`: `101/101` passed with `failedCheckIds: []`
+  - `artifacts/governance/governance-regression-report.json`: `100/100` passed with `failedCheckIds: []`
   - `artifacts/quality/quality-gate-execution-report.json`: `status: passed` with `passedCount: 3`
 - Current host evidence on `2026-04-15` now preserves the governed Vite-host blocker explicitly instead of fabricating a repository failure:
   - direct `pnpm.cmd run build` still passes with entry `68.1 KiB`, largest JS asset `598.2 KiB`, and cap `700.0 KiB`
-  - `artifacts/governance/governance-regression-report.json`: `status: blocked`, `passedCount: 100`, `blockedCount: 1`, `failedCount: 0`, `blockedCheckIds: ["web-bundle-budget"]`, `blockingDiagnosticIds: ["vite-host-build-preflight"]`
+  - `artifacts/governance/governance-regression-report.json`: `status: blocked`, `passedCount: 97`, `blockedCount: 1`, `failedCount: 0`, `blockedCheckIds: ["web-bundle-budget"]`, `blockingDiagnosticIds: ["vite-host-build-preflight"]`
   - direct `pnpm.cmd check:quality:release` now exits non-zero earlier because `fast` fails first at `check:web-vite-build` with `[vite:define] spawn EPERM`

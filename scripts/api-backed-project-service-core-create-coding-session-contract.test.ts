@@ -109,9 +109,9 @@ try {
   });
 
   const observedRemoteCreates: Array<{
-    engineId?: string;
+    engineId: string;
     hostMode?: string;
-    modelId?: string;
+    modelId: string;
     projectId: string;
     title?: string;
     workspaceId: string;
@@ -119,6 +119,10 @@ try {
 
   const coreWriteClient: BirdCoderCoreWriteApiClient = {
     async createCodingSession(request) {
+      if (!request.engineId || !request.modelId) {
+        throw new Error('expected explicit engineId and modelId');
+      }
+
       observedRemoteCreates.push({
         workspaceId: request.workspaceId,
         projectId: request.projectId,
@@ -132,11 +136,11 @@ try {
         id: 'coding-session-server-authoritative',
         workspaceId: request.workspaceId,
         projectId: request.projectId,
-        title: request.title ?? 'New Thread',
+        title: request.title ?? 'New Session',
         status: 'active',
         hostMode: request.hostMode ?? 'server',
-        engineId: request.engineId ?? 'codex',
-        modelId: request.modelId ?? request.engineId ?? 'codex',
+        engineId: request.engineId,
+        modelId: request.modelId,
         createdAt: '2026-04-11T11:32:00.000Z',
         updatedAt: '2026-04-11T11:32:00.000Z',
         lastTurnAt: '2026-04-11T11:32:00.000Z',
@@ -171,7 +175,7 @@ try {
   const createdSession = await (services.projectService.createCodingSession as (
     projectId: string,
     title: string,
-    options?: { engineId?: string; modelId?: string },
+    options: { engineId: string; modelId: string },
   ) => Promise<Awaited<ReturnType<typeof services.projectService.createCodingSession>>> )(
     'project-core-write-contract',
     'Remote Authoritative Session',

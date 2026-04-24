@@ -117,6 +117,10 @@ try {
 
   const coreWriteClient: BirdCoderCoreWriteApiClient = {
     async createCodingSession(request) {
+      if (!request.engineId || !request.modelId) {
+        throw new Error('expected explicit engineId and modelId');
+      }
+
       return {
         id: 'coding-session-turn-contract',
         workspaceId: request.workspaceId,
@@ -124,8 +128,8 @@ try {
         title: request.title ?? 'Turn Contract Session',
         status: 'active',
         hostMode: request.hostMode ?? 'server',
-        engineId: request.engineId ?? 'codex',
-        modelId: request.modelId ?? request.engineId ?? 'codex',
+        engineId: request.engineId,
+        modelId: request.modelId,
         createdAt: '2026-04-11T12:02:00.000Z',
         updatedAt: '2026-04-11T12:02:00.000Z',
         lastTurnAt: '2026-04-11T12:02:00.000Z',
@@ -309,6 +313,10 @@ try {
   const createdSession = await services.projectService.createCodingSession(
     'project-core-turn-contract',
     'Turn Contract Session',
+    {
+      engineId: 'codex',
+      modelId: 'gpt-5-codex',
+    },
   );
   const createdMessage = await services.projectService.addCodingSessionMessage(
     'project-core-turn-contract',

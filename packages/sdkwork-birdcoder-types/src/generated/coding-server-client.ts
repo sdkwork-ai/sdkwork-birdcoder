@@ -67,12 +67,52 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "List teams",
       "surface": "admin"
     },
+  "app.checkLoginQrCodeStatus":     {
+      "method": "GET",
+      "operationId": "app.checkLoginQrCodeStatus",
+      "path": "/api/app/v1/auth/qr/status/{qrKey}",
+      "pathParamNames": [
+        "qrKey"
+      ],
+      "summary": "Check user center login QR code status",
+      "surface": "app"
+    },
+  "app.commitProjectGitChanges":     {
+      "method": "POST",
+      "operationId": "app.commitProjectGitChanges",
+      "path": "/api/app/v1/projects/{projectId}/git/commits",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Commit project Git changes",
+      "surface": "app"
+    },
   "app.createProject":     {
       "method": "POST",
       "operationId": "app.createProject",
       "path": "/api/app/v1/projects",
       "pathParamNames": [],
       "summary": "Create project",
+      "surface": "app"
+    },
+  "app.createProjectGitBranch":     {
+      "method": "POST",
+      "operationId": "app.createProjectGitBranch",
+      "path": "/api/app/v1/projects/{projectId}/git/branches",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Create project Git branch",
+      "surface": "app"
+    },
+  "app.createProjectGitWorktree":     {
+      "method": "POST",
+      "operationId": "app.createProjectGitWorktree",
+      "path": "/api/app/v1/projects/{projectId}/git/worktrees",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Create project Git worktree",
       "surface": "app"
     },
   "app.createWorkspace":     {
@@ -103,6 +143,54 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Delete workspace",
       "surface": "app"
     },
+  "app.exchangeUserCenterSession":     {
+      "method": "POST",
+      "operationId": "app.exchangeUserCenterSession",
+      "path": "/api/app/v1/auth/session/exchange",
+      "pathParamNames": [],
+      "summary": "Exchange an upstream or third-party session into the local AuthToken and AccessToken bundle.",
+      "surface": "app"
+    },
+  "app.generateLoginQrCode":     {
+      "method": "POST",
+      "operationId": "app.generateLoginQrCode",
+      "path": "/api/app/v1/auth/qr/generate",
+      "pathParamNames": [],
+      "summary": "Generate user center login QR code",
+      "surface": "app"
+    },
+  "app.getCurrentUserMembership":     {
+      "method": "GET",
+      "operationId": "app.getCurrentUserMembership",
+      "path": "/api/app/v1/vip/info",
+      "pathParamNames": [],
+      "summary": "Get the current user's VIP or membership projection.",
+      "surface": "app"
+    },
+  "app.getCurrentUserProfile":     {
+      "method": "GET",
+      "operationId": "app.getCurrentUserProfile",
+      "path": "/api/app/v1/user/profile",
+      "pathParamNames": [],
+      "summary": "Get the current user's canonical profile projection.",
+      "surface": "app"
+    },
+  "app.getCurrentUserSession":     {
+      "method": "GET",
+      "operationId": "app.getCurrentUserSession",
+      "path": "/api/app/v1/auth/session",
+      "pathParamNames": [],
+      "summary": "Get the current login session snapshot for the active principal.",
+      "surface": "app"
+    },
+  "app.getOAuthAuthorizationUrl":     {
+      "method": "POST",
+      "operationId": "app.getOAuthAuthorizationUrl",
+      "path": "/api/app/v1/auth/oauth/url",
+      "pathParamNames": [],
+      "summary": "Resolve OAuth authorization URL for social sign-in",
+      "surface": "app"
+    },
   "app.getProject":     {
       "method": "GET",
       "operationId": "app.getProject",
@@ -113,36 +201,14 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Get project",
       "surface": "app"
     },
-  "app.exchangeUserCenterSession":     {
-      "method": "POST",
-      "operationId": "app.exchangeUserCenterSession",
-      "path": "/api/app/v1/auth/session/exchange",
-      "pathParamNames": [],
-      "summary": "Exchange third-party user into a BirdCoder session",
-      "surface": "app"
-    },
-  "app.getCurrentUserMembership":     {
+  "app.getProjectGitOverview":     {
       "method": "GET",
-      "operationId": "app.getCurrentUserMembership",
-      "path": "/api/app/v1/user-center/membership",
-      "pathParamNames": [],
-      "summary": "Get current user membership",
-      "surface": "app"
-    },
-  "app.getCurrentUserProfile":     {
-      "method": "GET",
-      "operationId": "app.getCurrentUserProfile",
-      "path": "/api/app/v1/user-center/profile",
-      "pathParamNames": [],
-      "summary": "Get current user profile",
-      "surface": "app"
-    },
-  "app.getCurrentUserSession":     {
-      "method": "GET",
-      "operationId": "app.getCurrentUserSession",
-      "path": "/api/app/v1/auth/session",
-      "pathParamNames": [],
-      "summary": "Get current user center session",
+      "operationId": "app.getProjectGitOverview",
+      "path": "/api/app/v1/projects/{projectId}/git/overview",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Get project Git overview",
       "surface": "app"
     },
   "app.getUserCenterConfig":     {
@@ -150,7 +216,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "operationId": "app.getUserCenterConfig",
       "path": "/api/app/v1/auth/config",
       "pathParamNames": [],
-      "summary": "Get user center provider metadata",
+      "summary": "Get active user-center provider metadata and login capability switches.",
       "surface": "app"
     },
   "app.installSkillPackage":     {
@@ -244,7 +310,31 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "operationId": "app.login",
       "path": "/api/app/v1/auth/login",
       "pathParamNames": [],
-      "summary": "Create local user center session",
+      "summary": "Create a login session with account and password credentials.",
+      "surface": "app"
+    },
+  "app.loginWithEmailCode":     {
+      "method": "POST",
+      "operationId": "app.loginWithEmailCode",
+      "path": "/api/app/v1/auth/email/login",
+      "pathParamNames": [],
+      "summary": "Create a login session with email verification credentials.",
+      "surface": "app"
+    },
+  "app.loginWithOAuth":     {
+      "method": "POST",
+      "operationId": "app.loginWithOAuth",
+      "path": "/api/app/v1/auth/oauth/login",
+      "pathParamNames": [],
+      "summary": "Create user center session with OAuth authorization code",
+      "surface": "app"
+    },
+  "app.loginWithPhoneCode":     {
+      "method": "POST",
+      "operationId": "app.loginWithPhoneCode",
+      "path": "/api/app/v1/auth/phone/login",
+      "pathParamNames": [],
+      "summary": "Create a login session with phone verification credentials.",
       "surface": "app"
     },
   "app.logout":     {
@@ -252,7 +342,17 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "operationId": "app.logout",
       "path": "/api/app/v1/auth/logout",
       "pathParamNames": [],
-      "summary": "Revoke current user center session",
+      "summary": "Revoke the current user-center login session and its token shadows.",
+      "surface": "app"
+    },
+  "app.pruneProjectGitWorktrees":     {
+      "method": "POST",
+      "operationId": "app.pruneProjectGitWorktrees",
+      "path": "/api/app/v1/projects/{projectId}/git/worktree-prune",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Prune project Git worktrees",
       "surface": "app"
     },
   "app.publishProject":     {
@@ -265,12 +365,56 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Publish project release flow",
       "surface": "app"
     },
+  "app.pushProjectGitBranch":     {
+      "method": "POST",
+      "operationId": "app.pushProjectGitBranch",
+      "path": "/api/app/v1/projects/{projectId}/git/pushes",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Push project Git branch",
+      "surface": "app"
+    },
   "app.register":     {
       "method": "POST",
       "operationId": "app.register",
       "path": "/api/app/v1/auth/register",
       "pathParamNames": [],
-      "summary": "Register local user center user",
+      "summary": "Register a local user and return the initial account projection when enabled.",
+      "surface": "app"
+    },
+  "app.removeProjectGitWorktree":     {
+      "method": "POST",
+      "operationId": "app.removeProjectGitWorktree",
+      "path": "/api/app/v1/projects/{projectId}/git/worktree-removals",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Remove project Git worktree",
+      "surface": "app"
+    },
+  "app.requestPasswordReset":     {
+      "method": "POST",
+      "operationId": "app.requestPasswordReset",
+      "path": "/api/app/v1/auth/password/reset/request",
+      "pathParamNames": [],
+      "summary": "Request a password-reset challenge through the configured verification channel.",
+      "surface": "app"
+    },
+  "app.resetPassword":     {
+      "method": "POST",
+      "operationId": "app.resetPassword",
+      "path": "/api/app/v1/auth/password/reset",
+      "pathParamNames": [],
+      "summary": "Reset the current account password using a verified recovery challenge.",
+      "surface": "app"
+    },
+  "app.sendVerifyCode":     {
+      "method": "POST",
+      "operationId": "app.sendVerifyCode",
+      "path": "/api/app/v1/auth/verify/send",
+      "pathParamNames": [],
+      "summary": "Send a verification challenge for login, registration, or password reset.",
       "surface": "app"
     },
   "app.subscribeWorkspaceRealtime":     {
@@ -283,20 +427,30 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Subscribe to workspace realtime invalidation events",
       "surface": "app"
     },
+  "app.switchProjectGitBranch":     {
+      "method": "POST",
+      "operationId": "app.switchProjectGitBranch",
+      "path": "/api/app/v1/projects/{projectId}/git/branch-switch",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Switch project Git branch",
+      "surface": "app"
+    },
   "app.updateCurrentUserMembership":     {
       "method": "PATCH",
       "operationId": "app.updateCurrentUserMembership",
-      "path": "/api/app/v1/user-center/membership",
+      "path": "/api/app/v1/vip/info",
       "pathParamNames": [],
-      "summary": "Update current user membership",
+      "summary": "Update the current user's VIP or membership projection for local authority mode.",
       "surface": "app"
     },
   "app.updateCurrentUserProfile":     {
       "method": "PATCH",
       "operationId": "app.updateCurrentUserProfile",
-      "path": "/api/app/v1/user-center/profile",
+      "path": "/api/app/v1/user/profile",
       "pathParamNames": [],
-      "summary": "Update current user profile",
+      "summary": "Update the current user's canonical profile projection.",
       "surface": "app"
     },
   "app.updateProject":     {
@@ -347,14 +501,14 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Create coding session",
       "surface": "core"
     },
-  "core.updateCodingSession":     {
-      "method": "PATCH",
-      "operationId": "core.updateCodingSession",
-      "path": "/api/core/v1/coding-sessions/{id}",
+  "core.createCodingSessionTurn":     {
+      "method": "POST",
+      "operationId": "core.createCodingSessionTurn",
+      "path": "/api/core/v1/coding-sessions/{id}/turns",
       "pathParamNames": [
         "id"
       ],
-      "summary": "Update coding session",
+      "summary": "Create coding session turn",
       "surface": "core"
     },
   "core.deleteCodingSession":     {
@@ -386,16 +540,6 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
         "id"
       ],
       "summary": "Fork coding session",
-      "surface": "core"
-    },
-  "core.createCodingSessionTurn":     {
-      "method": "POST",
-      "operationId": "core.createCodingSessionTurn",
-      "path": "/api/core/v1/coding-sessions/{id}/turns",
-      "pathParamNames": [
-        "id"
-      ],
-      "summary": "Create coding session turn",
       "surface": "core"
     },
   "core.getCodingSession":     {
@@ -550,6 +694,16 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Submit approval decision",
       "surface": "core"
     },
+  "core.updateCodingSession":     {
+      "method": "PATCH",
+      "operationId": "core.updateCodingSession",
+      "path": "/api/core/v1/coding-sessions/{id}",
+      "pathParamNames": [
+        "id"
+      ],
+      "summary": "Update coding session",
+      "surface": "core"
+    },
 } as const;
 
 export type BirdCoderFinalizedCodingServerClientOperationId =
@@ -563,15 +717,22 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "admin.listReleases": {};
   "admin.listTeamMembers": { teamId: string };
   "admin.listTeams": {};
+  "app.checkLoginQrCodeStatus": { qrKey: string };
+  "app.commitProjectGitChanges": { projectId: string };
   "app.createProject": {};
+  "app.createProjectGitBranch": { projectId: string };
+  "app.createProjectGitWorktree": { projectId: string };
   "app.createWorkspace": {};
   "app.deleteProject": { projectId: string };
   "app.deleteWorkspace": { workspaceId: string };
-  "app.getProject": { projectId: string };
   "app.exchangeUserCenterSession": {};
+  "app.generateLoginQrCode": {};
   "app.getCurrentUserMembership": {};
   "app.getCurrentUserProfile": {};
   "app.getCurrentUserSession": {};
+  "app.getOAuthAuthorizationUrl": {};
+  "app.getProject": { projectId: string };
+  "app.getProjectGitOverview": { projectId: string };
   "app.getUserCenterConfig": {};
   "app.installSkillPackage": { packageId: string };
   "app.listAppTemplates": {};
@@ -584,10 +745,20 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "app.listWorkspaceMembers": { workspaceId: string };
   "app.listWorkspaces": {};
   "app.login": {};
+  "app.loginWithEmailCode": {};
+  "app.loginWithOAuth": {};
+  "app.loginWithPhoneCode": {};
   "app.logout": {};
+  "app.pruneProjectGitWorktrees": { projectId: string };
   "app.publishProject": { projectId: string };
+  "app.pushProjectGitBranch": { projectId: string };
   "app.register": {};
+  "app.removeProjectGitWorktree": { projectId: string };
+  "app.requestPasswordReset": {};
+  "app.resetPassword": {};
+  "app.sendVerifyCode": {};
   "app.subscribeWorkspaceRealtime": { workspaceId: string };
+  "app.switchProjectGitBranch": { projectId: string };
   "app.updateCurrentUserMembership": {};
   "app.updateCurrentUserProfile": {};
   "app.updateProject": { projectId: string };
@@ -595,11 +766,10 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "app.upsertProjectCollaborator": { projectId: string };
   "app.upsertWorkspaceMember": { workspaceId: string };
   "core.createCodingSession": {};
-  "core.forkCodingSession": { id: string };
-  "core.updateCodingSession": { id: string };
+  "core.createCodingSessionTurn": { id: string };
   "core.deleteCodingSession": { id: string };
   "core.deleteCodingSessionMessage": { id: string; messageId: string };
-  "core.createCodingSessionTurn": { id: string };
+  "core.forkCodingSession": { id: string };
   "core.getCodingSession": { id: string };
   "core.getDescriptor": {};
   "core.getEngineCapabilities": { engineKey: string };
@@ -617,6 +787,7 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "core.listNativeSessions": {};
   "core.listRoutes": {};
   "core.submitApprovalDecision": { approvalId: string };
+  "core.updateCodingSession": { id: string };
 }
 
 export type BirdCoderFinalizedCodingServerClientPathParams<

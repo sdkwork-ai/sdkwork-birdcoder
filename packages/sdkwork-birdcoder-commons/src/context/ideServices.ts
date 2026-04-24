@@ -12,11 +12,13 @@ import type {
   IDeploymentService,
   IDocumentService,
   IFileSystemService,
+  IGitService,
+  IPromptService,
   IProjectService,
   IReleaseService,
   ITeamService,
   IWorkspaceService,
-} from '@sdkwork/birdcoder-infrastructure';
+} from '@sdkwork/birdcoder-infrastructure-runtime';
 import { createLazyDefaultIdeServices } from './lazyDefaultIdeServices.ts';
 
 export interface IIDEContext {
@@ -34,7 +36,9 @@ export interface IIDEContext {
   releaseService: IReleaseService;
   teamService: ITeamService;
   fileSystemService: IFileSystemService;
+  gitService: IGitService;
   authService: IAuthService;
+  promptService: IPromptService;
 }
 
 export function createDefaultIdeContextValue(): IIDEContext {
@@ -54,7 +58,9 @@ export function createDefaultIdeContextValue(): IIDEContext {
     releaseService: defaultIdeServices.releaseService,
     teamService: defaultIdeServices.teamService,
     fileSystemService: defaultIdeServices.fileSystemService,
+    gitService: defaultIdeServices.gitService,
     authService: defaultIdeServices.authService,
+    promptService: defaultIdeServices.promptService,
   };
 }
 

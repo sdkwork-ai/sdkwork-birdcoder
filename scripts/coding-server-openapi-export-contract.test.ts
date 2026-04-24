@@ -34,10 +34,10 @@ try {
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
   assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCatalogPath, '/api/core/v1/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 57);
+  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 78);
   assert.deepEqual(writtenDocument['x-sdkwork-api-gateway']?.routesBySurface, {
-    core: 19,
-    app: 31,
+    core: 23,
+    app: 48,
     admin: 7,
   });
   assert.equal(
@@ -53,16 +53,106 @@ try {
     'core.getNativeSession',
   );
   assert.equal(
+    writtenDocument.paths['/api/core/v1/coding-sessions/{id}']?.patch?.operationId,
+    'core.updateCodingSession',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/core/v1/coding-sessions/{id}']?.delete?.operationId,
+    'core.deleteCodingSession',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/core/v1/coding-sessions/{id}/fork']?.post?.operationId,
+    'core.forkCodingSession',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/core/v1/coding-sessions/{id}/messages/{messageId}']?.delete?.operationId,
+    'core.deleteCodingSessionMessage',
+  );
+  assert.equal(
     writtenDocument.paths['/api/core/v1/coding-sessions/{id}/events']?.get?.operationId,
     'core.listCodingSessionEvents',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/core/v1/coding-sessions/{id}/fork']?.post?.responses['201']?.content[
+      'application/json'
+    ]?.schema?.['$ref'],
+    '#/components/schemas/BirdCoderCodingSessionSummaryEnvelope',
   );
   assert.equal(
     writtenDocument.paths['/api/admin/v1/releases']?.get?.operationId,
     'admin.listReleases',
   );
   assert.equal(
+    writtenDocument.paths['/api/app/v1/projects/{projectId}/git/overview']?.get?.operationId,
+    'app.getProjectGitOverview',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/projects/{projectId}/git/branches']?.post?.operationId,
+    'app.createProjectGitBranch',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/projects/{projectId}/git/branch-switch']?.post?.operationId,
+    'app.switchProjectGitBranch',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/projects/{projectId}/git/commits']?.post?.operationId,
+    'app.commitProjectGitChanges',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/projects/{projectId}/git/pushes']?.post?.operationId,
+    'app.pushProjectGitBranch',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/projects/{projectId}/git/worktrees']?.post?.operationId,
+    'app.createProjectGitWorktree',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/projects/{projectId}/git/worktree-removals']?.post?.operationId,
+    'app.removeProjectGitWorktree',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/projects/{projectId}/git/worktree-prune']?.post?.operationId,
+    'app.pruneProjectGitWorktrees',
+  );
+  assert.equal(
     writtenDocument.paths['/api/app/v1/projects/{projectId}/publish']?.post?.operationId,
     'app.publishProject',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/auth/login']?.post?.operationId,
+    'app.login',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/auth/logout']?.post?.operationId,
+    'app.logout',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/auth/register']?.post?.operationId,
+    'app.register',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/auth/email/login']?.post?.operationId,
+    'app.loginWithEmailCode',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/auth/phone/login']?.post?.operationId,
+    'app.loginWithPhoneCode',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/auth/qr/generate']?.post?.operationId,
+    'app.generateLoginQrCode',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/auth/qr/status/{qrKey}']?.get?.operationId,
+    'app.checkLoginQrCodeStatus',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/user/profile']?.get?.operationId,
+    'app.getCurrentUserProfile',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/app/v1/vip/info']?.get?.operationId,
+    'app.getCurrentUserMembership',
   );
   assert.equal(
     writtenDocument.paths['/api/app/v1/workspaces/{workspaceId}/realtime']?.get?.operationId,

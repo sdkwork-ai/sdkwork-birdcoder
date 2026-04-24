@@ -2,16 +2,26 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const resizeHandlePath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/ResizeHandle.tsx',
+  '../packages/sdkwork-birdcoder-ui-shell/src/components/ResizeHandle.tsx',
   import.meta.url,
 );
 const codePagePath = new URL(
   '../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx',
   import.meta.url,
 );
+const codePageSurfacePath = new URL(
+  '../packages/sdkwork-birdcoder-code/src/pages/CodePageSurface.tsx',
+  import.meta.url,
+);
+const codePageSurfacePropsPath = new URL(
+  '../packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts',
+  import.meta.url,
+);
 
 const resizeHandleSource = fs.readFileSync(resizeHandlePath, 'utf8');
 const codePageSource = fs.readFileSync(codePagePath, 'utf8');
+const codePageSurfaceSource = fs.readFileSync(codePageSurfacePath, 'utf8');
+const codePageSurfacePropsSource = fs.readFileSync(codePageSurfacePropsPath, 'utf8');
 
 assert.match(
   resizeHandleSource,
@@ -27,14 +37,50 @@ assert.match(
 
 assert.match(
   resizeHandleSource,
-  /onResizeRef\.current\(e\.movementX\);/,
-  'ResizeHandle horizontal dragging must route movement through the stable onResize ref.',
+  /const pendingDeltaRef = useRef\(0\);/,
+  'ResizeHandle must accumulate drag deltas in a ref so pointer bursts can be coalesced before React updates fire.',
 );
 
 assert.match(
   resizeHandleSource,
-  /onResizeRef\.current\(e\.movementY\);/,
-  'ResizeHandle vertical dragging must route movement through the stable onResize ref.',
+  /const animationFrameRef = useRef<number \| null>\(null\);/,
+  'ResizeHandle must track any scheduled animation frame so resize work can be coalesced and cancelled safely.',
+);
+
+assert.match(
+  resizeHandleSource,
+  /pendingDeltaRef\.current \+= direction === 'horizontal' \? event\.movementX : event\.movementY;/,
+  'ResizeHandle must accumulate both horizontal and vertical movement through the shared pending delta buffer.',
+);
+
+assert.match(
+  resizeHandleSource,
+  /animationFrameRef\.current = window\.requestAnimationFrame\(\(\) => \{\s*animationFrameRef\.current = null;\s*flushPendingResize\(\);\s*\}\);/s,
+  'ResizeHandle must batch resize flushes onto animation frames during drag bursts.',
+);
+
+assert.match(
+  resizeHandleSource,
+  /onResizeRef\.current\(delta\);/,
+  'ResizeHandle must still route flushed drag deltas through the stable onResize ref.',
+);
+
+assert.match(
+  resizeHandleSource,
+  /window\.cancelAnimationFrame\(animationFrameRef\.current\);/s,
+  'ResizeHandle must cancel any pending animation frame during drag completion and cleanup.',
+);
+
+assert.match(
+  resizeHandleSource,
+  /flushPendingResize\(\);\s*setIsDragging\(false\);/s,
+  'ResizeHandle must flush any remaining drag delta before ending the drag session.',
+);
+
+assert.match(
+  resizeHandleSource,
+  /if \(typeof window === 'undefined'\) \{\s*flushPendingResize\(\);\s*return;\s*\}/s,
+  'ResizeHandle must preserve a synchronous fallback when requestAnimationFrame is unavailable.',
 );
 
 assert.doesNotMatch(
@@ -57,14 +103,32 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /<ResizeHandle\s+direction="horizontal"\s+onResize=\{handleSidebarResize\}/s,
-  'CodePage must pass the stable sidebar resize callback into ResizeHandle.',
+  /<CodePageSurface[\s\S]*onSidebarResize=\{handleSidebarResize\}/s,
+  'CodePage must pass the stable sidebar resize callback into the presentational surface.',
 );
 
 assert.match(
   codePageSource,
-  /<CodeTerminalIntegrationPanel[\s\S]*onResize=\{handleTerminalResize\}/s,
-  'CodePage must pass the stable terminal resize callback into the terminal integration panel.',
+  /useCodePageSurfaceProps\(\{[\s\S]*onTerminalResize: handleTerminalResize,/s,
+  'CodePage must thread the stable terminal resize callback into the surface-props assembler.',
+);
+
+assert.match(
+  codePageSurfacePropsSource,
+  /const terminalProps = useMemo<CodeTerminalIntegrationPanelComponentProps>\(\(\) => \(\{[\s\S]*onResize: onTerminalResize,/s,
+  'useCodePageSurfaceProps must preserve the stable terminal resize callback when assembling terminal props.',
+);
+
+assert.match(
+  codePageSurfaceSource,
+  /<ResizeHandle\s+direction="horizontal"\s+onResize=\{onSidebarResize\}/s,
+  'CodePageSurface must pass the stable sidebar resize callback into ResizeHandle.',
+);
+
+assert.match(
+  codePageSurfaceSource,
+  /<CodeTerminalIntegrationPanel\s+\{\.\.\.terminalProps\}\s*\/>/s,
+  'CodePageSurface must render the terminal integration panel from the stabilized terminal props.',
 );
 
 console.log('resize handle performance contract passed.');

@@ -1,230 +1,569 @@
+import {
+  createSdkworkCanonicalRuntimeAuthAuthorityService,
+} from "../../../../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-runtime-authority.ts";
 import type {
   BirdCoderAuthenticatedUserSummary,
   BirdCoderUserCenterApiClient,
+  BirdCoderUserCenterEmailCodeLoginRequest,
+  BirdCoderUserCenterLoginQrCodeSummary,
+  BirdCoderUserCenterLoginQrStatusSummary,
+  BirdCoderUserCenterLoginRequest,
   BirdCoderUserCenterMetadataSummary,
+  BirdCoderUserCenterPasswordResetChallengeRequest,
+  BirdCoderUserCenterPasswordResetRequest,
+  BirdCoderUserCenterPhoneCodeLoginRequest,
+  BirdCoderUserCenterProfileSummary,
+  BirdCoderUserCenterRegisterRequest,
+  BirdCoderUserCenterSendVerifyCodeRequest,
   BirdCoderUserCenterSessionExchangeRequest,
   BirdCoderUserCenterSessionSummary,
   User,
-} from '@sdkwork/birdcoder-types';
-import type { IAuthService } from '../interfaces/IAuthService.ts';
+} from "@sdkwork/birdcoder-types";
+import type { IAuthService } from "../interfaces/IAuthService.ts";
+import {
+  createBirdCoderRuntimeUserCenterClient,
+  type BirdCoderRuntimeUserCenterClient,
+} from "../userCenterRuntimeBridge.ts";
 import {
   clearRuntimeServerSessionId,
   readRuntimeServerSessionId,
   writeRuntimeServerSessionId,
-} from '../runtimeServerSession.ts';
+} from "../runtimeServerSession.ts";
 import {
   isBirdCoderTransientApiError,
   retryBirdCoderTransientApiTask,
-} from '../runtimeApiRetry.ts';
+} from "../runtimeApiRetry.ts";
 
 export interface RuntimeAuthServiceOptions {
   client?: BirdCoderUserCenterApiClient;
+  runtimeClient?: BirdCoderRuntimeUserCenterClient | null;
 }
 
-const AUTH_CONFIG_CACHE_TTL_MS = 60_000;
-const CURRENT_USER_CACHE_TTL_MS = 10_000;
+type RuntimeAuthOAuthDeviceType = "android" | "desktop" | "ios" | "web";
+
+interface RuntimeAuthUser {
+  avatarUrl?: string;
+  displayName: string;
+  email: string;
+  firstName: string;
+  id?: string;
+  initials: string;
+  lastName: string;
+  username?: string;
+}
+
+interface RuntimeAuthSession {
+  accessToken: string;
+  authToken: string;
+  refreshToken?: string;
+  user?: RuntimeAuthUser;
+}
+
+interface RuntimeSyntheticAuthSessionOptions {
+  accessToken?: string;
+  authToken?: string;
+  refreshToken?: string;
+  sessionKey?: string;
+}
+
+interface RuntimeAuthLoginQrCode {
+  description?: string;
+  expireTime?: number;
+  qrContent?: string;
+  qrKey: string;
+  qrUrl?: string;
+  title?: string;
+  type?: string;
+}
+
+type RuntimeAuthLoginQrCodeStatus =
+  | "confirmed"
+  | "expired"
+  | "pending"
+  | "scanned";
+
+interface RuntimeAuthLoginQrCodeStatusResult {
+  session?: RuntimeAuthSession;
+  status: RuntimeAuthLoginQrCodeStatus;
+  user?: RuntimeAuthUser;
+}
+
+interface RuntimeAuthOAuthAuthorizationInput {
+  provider: string;
+  redirectUri: string;
+  scope?: string;
+  state?: string;
+}
+
+interface RuntimeAuthOAuthLoginInput {
+  code: string;
+  deviceId?: string;
+  deviceType?: RuntimeAuthOAuthDeviceType;
+  provider: string;
+  state?: string;
+}
+
+function normalizeRuntimeAuthText(value: unknown): string | undefined {
+  const normalizedValue = typeof value === "string" ? value.trim() : "";
+  return normalizedValue || undefined;
+}
+
+function splitRuntimeAuthDisplayName(name: string) {
+  const normalizedName = name.trim().replace(/\s+/g, " ");
+  if (!normalizedName) {
+    return {
+      firstName: "Sdkwork",
+      lastName: "User",
+    };
+  }
+
+  const [firstName, ...rest] = normalizedName.split(" ");
+  return {
+    firstName,
+    lastName: rest.join(" "),
+  };
+}
+
+function buildRuntimeAuthInitials(firstName: string, lastName: string): string {
+  const initials = [firstName, lastName]
+    .map((value) => value.trim().charAt(0))
+    .filter(Boolean)
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return initials || "SU";
+}
+
+function createRuntimeAuthUserFromCanonicalIdentity(input: {
+  avatarUrl?: string;
+  email?: string;
+  id?: string;
+  name?: string;
+  username?: string;
+}): RuntimeAuthUser {
+  const email = normalizeRuntimeAuthText(input.email) || "";
+  const username = normalizeRuntimeAuthText(input.username) || email || undefined;
+  const displayName =
+    normalizeRuntimeAuthText(input.name)
+    || email
+    || username
+    || "Sdkwork User";
+  const { firstName, lastName } = splitRuntimeAuthDisplayName(displayName);
+  const id =
+    normalizeRuntimeAuthText(input.id)
+    || username
+    || email
+    || undefined;
+
+  return {
+    ...(normalizeRuntimeAuthText(input.avatarUrl)
+      ? { avatarUrl: normalizeRuntimeAuthText(input.avatarUrl) }
+      : {}),
+    displayName,
+    email,
+    firstName,
+    ...(id ? { id } : {}),
+    initials: buildRuntimeAuthInitials(firstName, lastName),
+    lastName,
+    ...(username ? { username } : {}),
+  };
+}
+
+function createRuntimeSyntheticAuthSession(
+  user: RuntimeAuthUser,
+  options: RuntimeSyntheticAuthSessionOptions = {},
+): RuntimeAuthSession {
+  const refreshToken = normalizeRuntimeAuthText(options.refreshToken);
+  const sessionKey =
+    normalizeRuntimeAuthText(options.sessionKey)
+    || normalizeRuntimeAuthText(user.id)
+    || normalizeRuntimeAuthText(user.username)
+    || normalizeRuntimeAuthText(user.email)
+    || "sdkwork-user";
+
+  return {
+    accessToken: normalizeRuntimeAuthText(options.accessToken) || sessionKey,
+    authToken: normalizeRuntimeAuthText(options.authToken) || sessionKey,
+    ...(refreshToken ? { refreshToken } : {}),
+    user,
+  };
+}
 
 function createUnavailableError(): Error {
-  return new Error('Auth service requires a bound coding-server runtime with user-center APIs.');
+  return new Error(
+    "Auth service requires a bound coding-server runtime with user-center APIs.",
+  );
 }
 
 function isUserCenterRouteUnavailable(error: unknown): boolean {
   return (
-    error instanceof Error &&
-    (error.message.includes(' -> 404') ||
-      error.message.includes('requires a bound coding-server runtime'))
+    error instanceof Error
+    && (
+      error.message.includes(" -> 404")
+      || error.message.includes("requires a bound coding-server runtime")
+    )
   );
 }
 
 function isUserCenterSessionRejected(error: unknown): boolean {
   return (
-    error instanceof Error &&
-    (error.message.includes(' -> 401') || error.message.includes(' -> 403'))
+    error instanceof Error
+    && (error.message.includes(" -> 401") || error.message.includes(" -> 403"))
   );
 }
 
 function mapAuthenticatedUser(user: BirdCoderAuthenticatedUserSummary): User {
   return {
+    avatarUrl: user.avatarUrl,
+    email: user.email,
     id: user.id,
     name: user.name,
-    email: user.email,
-    avatarUrl: user.avatarUrl,
+  };
+}
+
+function mapProfileUser(profile: BirdCoderUserCenterProfileSummary): User {
+  return {
+    avatarUrl: profile.avatarUrl,
+    email: profile.email,
+    id: profile.userId,
+    name: profile.displayName || profile.email,
+  };
+}
+
+function mapUserToAuthSession(
+  user: User,
+  sessionKey?: string | null,
+) {
+  return createRuntimeSyntheticAuthSession(
+    createRuntimeAuthUserFromCanonicalIdentity({
+      avatarUrl: user.avatarUrl,
+      email: user.email.trim(),
+      id: user.id || user.email.trim(),
+      name: user.name?.trim() || user.email.trim(),
+      username: user.email.trim(),
+    }),
+    {
+      sessionKey:
+        sessionKey?.trim()
+        || `birdcoder:${user.id || user.email.trim()}`,
+    },
+  );
+}
+
+function mapBirdCoderQrStatus(
+  status: string | undefined,
+): RuntimeAuthLoginQrCodeStatus {
+  if (
+    status === "confirmed"
+    || status === "expired"
+    || status === "pending"
+    || status === "scanned"
+  ) {
+    return status;
+  }
+
+  return "pending";
+}
+
+function mapBirdCoderQrCode(
+  qrCode: BirdCoderUserCenterLoginQrCodeSummary,
+): RuntimeAuthLoginQrCode {
+  return {
+    ...(typeof qrCode.description === "string" ? { description: qrCode.description } : {}),
+    ...(typeof qrCode.expireTime === "number" ? { expireTime: qrCode.expireTime } : {}),
+    ...(typeof qrCode.qrContent === "string" ? { qrContent: qrCode.qrContent } : {}),
+    qrKey: qrCode.qrKey,
+    ...(typeof qrCode.qrUrl === "string" ? { qrUrl: qrCode.qrUrl } : {}),
+    ...(typeof qrCode.title === "string" ? { title: qrCode.title } : {}),
+    ...(typeof qrCode.type === "string" ? { type: qrCode.type } : {}),
+  };
+}
+
+function mapBirdCoderQrStatusResult(
+  statusResult: BirdCoderUserCenterLoginQrStatusSummary,
+): RuntimeAuthLoginQrCodeStatusResult {
+  const session = statusResult.session
+    ? (() => {
+        writeRuntimeServerSessionId(statusResult.session.sessionId);
+        return mapUserToAuthSession(
+          mapAuthenticatedUser(statusResult.session.user),
+          `birdcoder:session:${statusResult.session.sessionId}`,
+        );
+      })()
+    : undefined;
+  const resolvedUser =
+    session?.user
+    ?? (
+      statusResult.user
+        ? mapUserToAuthSession(
+            mapAuthenticatedUser(statusResult.user),
+          ).user
+        : undefined
+    );
+
+  return {
+    ...(session ? { session } : {}),
+    status: mapBirdCoderQrStatus(statusResult.status),
+    ...(resolvedUser ? { user: resolvedUser } : {}),
+  };
+}
+
+function createRuntimeAuthAuthority(
+  options: RuntimeAuthServiceOptions = {},
+): IAuthService {
+  const client = options.client;
+
+  function requireClient(): BirdCoderUserCenterApiClient {
+    if (!client) {
+      throw createUnavailableError();
+    }
+
+    return client;
+  }
+
+  function resolveRuntimeClient(): BirdCoderRuntimeUserCenterClient | null {
+    if (options.runtimeClient !== undefined) {
+      return options.runtimeClient;
+    }
+
+    return createBirdCoderRuntimeUserCenterClient();
+  }
+
+  function requireRuntimeClient(): BirdCoderRuntimeUserCenterClient {
+    const runtimeClient = resolveRuntimeClient();
+    if (!runtimeClient) {
+      throw createUnavailableError();
+    }
+
+    return runtimeClient;
+  }
+
+  return createSdkworkCanonicalRuntimeAuthAuthorityService<
+    User,
+    BirdCoderUserCenterMetadataSummary,
+    BirdCoderUserCenterSessionSummary,
+    BirdCoderUserCenterProfileSummary
+  >({
+    clearSessionToken: clearRuntimeServerSessionId,
+    createUnavailableError,
+    exchangeSession: options.runtimeClient === null
+      ? undefined
+      : async (request) => requireRuntimeClient().bootstrapSession(request),
+    execute: (task, retryOptions) =>
+      retryBirdCoderTransientApiTask(task, retryOptions),
+    getConfig: client
+      ? async () => client.getConfig()
+      : undefined,
+    getProfile: options.runtimeClient === null
+      ? undefined
+      : async () => requireRuntimeClient().getProfile(),
+    isRouteUnavailable: isUserCenterRouteUnavailable,
+    isSessionRejected: isUserCenterSessionRejected,
+    isTransientError: isBirdCoderTransientApiError,
+    login: async (request) => requireClient().login(request),
+    logout: client ? async () => client.logout() : undefined,
+    logoutSession: options.runtimeClient === null
+      ? undefined
+      : async () => requireRuntimeClient().logoutSession(),
+    mapProfileUser,
+    mapSessionUser: (session) => mapAuthenticatedUser(session.user),
+    readSessionToken: readRuntimeServerSessionId,
+    register: async (request) => requireClient().register(request),
+    requestPasswordReset: client
+      ? async (request) => client.requestPasswordReset(request)
+      : undefined,
+    resolveSessionToken: (session) => session.sessionId,
+    resetPassword: client
+      ? async (request) => client.resetPassword(request)
+      : undefined,
+    sendVerifyCode: client
+      ? async (request) => client.sendVerifyCode(request)
+      : undefined,
+    signInWithEmailCode: client
+      ? async (request) => client.loginWithEmailCode(request)
+      : undefined,
+    signInWithPhoneCode: client
+      ? async (request) => client.loginWithPhoneCode(request)
+      : undefined,
+    writeSessionToken: writeRuntimeServerSessionId,
+  }) as IAuthService;
+}
+
+export function createBirdCoderRuntimeAuthService(
+  options: RuntimeAuthServiceOptions = {},
+): IAuthService {
+  const authority = createRuntimeAuthAuthority(options) as IAuthService;
+  const client = options.client;
+
+  return {
+    ...authority,
+    checkLoginQrCodeStatus: client
+      ? async (qrKey: string) =>
+          mapBirdCoderQrStatusResult(
+            await client.checkLoginQrCodeStatus(qrKey),
+          )
+      : undefined,
+    generateLoginQrCode: client
+      ? async () =>
+          mapBirdCoderQrCode(
+            await client.generateLoginQrCode(),
+          )
+      : undefined,
+    getOAuthAuthorizationUrl: client
+      ? async (input: RuntimeAuthOAuthAuthorizationInput) =>
+          client.getOAuthAuthorizationUrl({
+            provider: input.provider,
+            redirectUri: input.redirectUri,
+            scope: input.scope,
+            state: input.state,
+          })
+      : undefined,
+    signInWithOAuth: client
+      ? async (input: RuntimeAuthOAuthLoginInput) => {
+          const session = await client.loginWithOAuth({
+            code: input.code,
+            deviceId: input.deviceId,
+            deviceType: input.deviceType,
+            provider: input.provider,
+            state: input.state,
+          });
+          writeRuntimeServerSessionId(session.sessionId);
+          return mapAuthenticatedUser(session.user);
+        }
+      : undefined,
   };
 }
 
 export class RuntimeAuthService implements IAuthService {
-  private readonly client?: BirdCoderUserCenterApiClient;
-  private authConfig: BirdCoderUserCenterMetadataSummary | null = null;
-  private authConfigExpiresAt = 0;
-  private authConfigInflight: Promise<BirdCoderUserCenterMetadataSummary | null> | null = null;
-  private currentUser: User | null = null;
-  private currentUserExpiresAt = 0;
-  private currentUserInflight: Promise<User | null> | null = null;
+  private readonly authority: IAuthService;
 
   constructor(options: RuntimeAuthServiceOptions = {}) {
-    this.client = options.client;
+    this.authority = createBirdCoderRuntimeAuthService(options);
   }
 
-  async getUserCenterConfig(): Promise<BirdCoderUserCenterMetadataSummary | null> {
-    if (!this.client) {
-      return null;
-    }
-
-    const now = Date.now();
-    if (this.authConfigInflight) {
-      return this.authConfigInflight;
-    }
-
-    if (this.authConfigExpiresAt > now) {
-      return this.authConfig;
-    }
-
-    const request = (async () => {
-      try {
-        const config = await retryBirdCoderTransientApiTask(() => this.client!.getConfig());
-        this.authConfig = config;
-        this.authConfigExpiresAt = Date.now() + AUTH_CONFIG_CACHE_TTL_MS;
-        return config;
-      } catch (error) {
-        if (isUserCenterRouteUnavailable(error)) {
-          this.authConfig = null;
-          this.authConfigExpiresAt = Date.now() + AUTH_CONFIG_CACHE_TTL_MS;
-          return null;
-        }
-
-        throw error;
-      }
-    })().finally(() => {
-      if (this.authConfigInflight === request) {
-        this.authConfigInflight = null;
-      }
-    });
-
-    this.authConfigInflight = request;
-    return request;
-  }
-
-  private requireClient(): BirdCoderUserCenterApiClient {
-    if (!this.client) {
+  exchangeUserCenterSession(
+    request: BirdCoderUserCenterSessionExchangeRequest,
+  ): Promise<User> {
+    if (!this.authority.exchangeUserCenterSession) {
       throw createUnavailableError();
     }
 
-    return this.client;
+    return this.authority.exchangeUserCenterSession(request);
   }
 
-  private async assertLocalCredentialsAvailable(): Promise<void> {
-    const config = await this.getUserCenterConfig();
-    if (config && !config.supportsLocalCredentials) {
-      throw new Error(
-        `User center provider "${config.providerKey}" requires third-party session exchange and does not accept local credentials.`,
-      );
+  checkLoginQrCodeStatus(
+    qrKey: string,
+  ): Promise<RuntimeAuthLoginQrCodeStatusResult> {
+    if (!this.authority.checkLoginQrCodeStatus) {
+      throw createUnavailableError();
     }
+
+    return this.authority.checkLoginQrCodeStatus(qrKey);
   }
 
-  private applySession(session: BirdCoderUserCenterSessionSummary): User {
-    writeRuntimeServerSessionId(session.sessionId);
-    this.currentUser = mapAuthenticatedUser(session.user);
-    this.currentUserExpiresAt = Date.now() + CURRENT_USER_CACHE_TTL_MS;
-    return this.currentUser;
+  generateLoginQrCode(): Promise<RuntimeAuthLoginQrCode> {
+    if (!this.authority.generateLoginQrCode) {
+      throw createUnavailableError();
+    }
+
+    return this.authority.generateLoginQrCode();
   }
 
-  async exchangeUserCenterSession(
-    request: BirdCoderUserCenterSessionExchangeRequest,
+  getUserCenterConfig(): Promise<BirdCoderUserCenterMetadataSummary | null> {
+    return this.authority.getUserCenterConfig?.() ?? Promise.resolve(null);
+  }
+
+  getCurrentUser(): Promise<User | null> {
+    return this.authority.getCurrentUser();
+  }
+
+  getOAuthAuthorizationUrl(
+    input: RuntimeAuthOAuthAuthorizationInput,
+  ): Promise<string> {
+    if (!this.authority.getOAuthAuthorizationUrl) {
+      throw createUnavailableError();
+    }
+
+    return this.authority.getOAuthAuthorizationUrl(input);
+  }
+
+  login(
+    request: BirdCoderUserCenterLoginRequest | string,
+    password?: string,
   ): Promise<User> {
-    const session = await this.requireClient().exchangeSession(request);
-    return this.applySession(session);
+    return this.authority.login(request, password);
   }
 
-  async login(email: string, password?: string): Promise<User> {
-    await this.assertLocalCredentialsAvailable();
-    const session = await this.requireClient().login({ email, password });
-    return this.applySession(session);
+  logout(): Promise<void> {
+    return this.authority.logout();
   }
 
-  async register(email: string, password?: string, name?: string): Promise<User> {
-    await this.assertLocalCredentialsAvailable();
-    const session = await this.requireClient().register({ email, name, password });
-    return this.applySession(session);
+  register(
+    request: BirdCoderUserCenterRegisterRequest | string,
+    password?: string,
+    name?: string,
+  ): Promise<User> {
+    return this.authority.register(request, password, name);
   }
 
-  async logout(): Promise<void> {
-    try {
-      if (this.client) {
-        try {
-          await this.client.logout();
-        } catch (error) {
-          if (!isUserCenterRouteUnavailable(error)) {
-            throw error;
-          }
-        }
-      }
-    } finally {
-      clearRuntimeServerSessionId();
-      this.currentUser = null;
-      this.currentUserExpiresAt = 0;
+  requestPasswordReset(
+    request: BirdCoderUserCenterPasswordResetChallengeRequest,
+  ): Promise<void> {
+    if (!this.authority.requestPasswordReset) {
+      throw createUnavailableError();
     }
+
+    return this.authority.requestPasswordReset(request);
   }
 
-  async getCurrentUser(): Promise<User | null> {
-    if (!this.client) {
-      this.currentUser = null;
-      this.currentUserExpiresAt = 0;
-      return null;
+  resetPassword(
+    request: BirdCoderUserCenterPasswordResetRequest,
+  ): Promise<void> {
+    if (!this.authority.resetPassword) {
+      throw createUnavailableError();
     }
 
-    if (!readRuntimeServerSessionId()) {
-      this.currentUser = null;
-      this.currentUserExpiresAt = 0;
-      return null;
+    return this.authority.resetPassword(request);
+  }
+
+  sendVerifyCode(
+    request: BirdCoderUserCenterSendVerifyCodeRequest,
+  ): Promise<void> {
+    if (!this.authority.sendVerifyCode) {
+      throw createUnavailableError();
     }
 
-    const now = Date.now();
-    if (this.currentUser && this.currentUserExpiresAt > now) {
-      return this.currentUser;
+    return this.authority.sendVerifyCode(request);
+  }
+
+  signInWithEmailCode(
+    request: BirdCoderUserCenterEmailCodeLoginRequest,
+  ): Promise<User> {
+    if (!this.authority.signInWithEmailCode) {
+      throw createUnavailableError();
     }
 
-    if (this.currentUserInflight) {
-      return this.currentUserInflight;
+    return this.authority.signInWithEmailCode(request);
+  }
+
+  signInWithOAuth(
+    input: RuntimeAuthOAuthLoginInput,
+  ): Promise<User> {
+    if (!this.authority.signInWithOAuth) {
+      throw createUnavailableError();
     }
 
-    const request = (async () => {
-      let session: BirdCoderUserCenterSessionSummary | null = null;
-      try {
-        session = await retryBirdCoderTransientApiTask(
-          () => this.client!.getCurrentSession(),
-          {
-            shouldRetry: (error) =>
-              isBirdCoderTransientApiError(error) && !isUserCenterSessionRejected(error),
-          },
-        );
-      } catch (error) {
-        if (isUserCenterRouteUnavailable(error) || isUserCenterSessionRejected(error)) {
-          clearRuntimeServerSessionId();
-          this.currentUser = null;
-          this.currentUserExpiresAt = 0;
-          return null;
-        }
+    return this.authority.signInWithOAuth(input);
+  }
 
-        if (isBirdCoderTransientApiError(error)) {
-          return this.currentUser;
-        }
-      }
+  signInWithPhoneCode(
+    request: BirdCoderUserCenterPhoneCodeLoginRequest,
+  ): Promise<User> {
+    if (!this.authority.signInWithPhoneCode) {
+      throw createUnavailableError();
+    }
 
-      if (!session) {
-        clearRuntimeServerSessionId();
-        this.currentUser = null;
-        this.currentUserExpiresAt = 0;
-        return null;
-      }
-
-      return this.applySession(session);
-    })().finally(() => {
-      if (this.currentUserInflight === request) {
-        this.currentUserInflight = null;
-      }
-    });
-
-    this.currentUserInflight = request;
-    return request;
+    return this.authority.signInWithPhoneCode(request);
   }
 }

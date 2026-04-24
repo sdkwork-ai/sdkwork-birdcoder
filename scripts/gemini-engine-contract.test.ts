@@ -18,8 +18,11 @@ assert.equal(normalizeWorkbenchCodeEngineId('gemini cli'), 'gemini');
 const geminiEngine = createChatEngineById('gemini');
 assert.equal(geminiEngine.name, 'gemini-cli-sdk-adapter');
 
-const fallbackEngine = createChatEngineById('unknown-engine');
-assert.equal(fallbackEngine.name, 'codex-official-sdk-adapter');
+assert.throws(
+  () => createChatEngineById('unknown-engine'),
+  /unknown engineId/i,
+  'Chat engine creation must reject unknown engine ids instead of silently falling back to Codex.',
+);
 
 const localFallbackGeminiEngine = new GeminiChatEngine({
   officialSdkBridgeLoader: null,
@@ -34,39 +37,27 @@ const systemOnlyMessages = [
   },
 ];
 
-const localFallbackGeminiResponse = await localFallbackGeminiEngine.sendMessage(systemOnlyMessages, {
-  model: 'gemini',
-});
-assert.equal(
-  localFallbackGeminiResponse.choices[0]?.message.content,
-  'Gemini SDK adapter assembled a local session plan for: Inspect the workspace session.',
-  'Gemini fallback response should not reuse system instructions as the user prompt.',
+await assert.rejects(
+  () =>
+    localFallbackGeminiEngine.sendMessage(systemOnlyMessages, {
+      model: 'gemini',
+    }),
+  /bridge is unavailable/i,
+  'Gemini must fail loudly when the official SDK bridge is unavailable instead of synthesizing a local fallback response.',
 );
-
-const localFallbackGeminiChunks = [];
-for await (const chunk of localFallbackGeminiEngine.sendMessageStream(systemOnlyMessages, {
-  model: 'gemini',
-  context: {
-    workspaceRoot: 'D:\\workspace',
+await assert.rejects(
+  async () => {
+    for await (const _chunk of localFallbackGeminiEngine.sendMessageStream(systemOnlyMessages, {
+      model: 'gemini',
+      context: {
+        workspaceRoot: 'D:\\workspace',
+      },
+    })) {
+      // Exhaust the stream so the bridge error propagates.
+    }
   },
-})) {
-  localFallbackGeminiChunks.push(chunk);
-}
-
-const fallbackToolCall = localFallbackGeminiChunks.find(
-  (chunk) => chunk.choices[0]?.delta.tool_calls?.length,
-)?.choices[0]?.delta.tool_calls?.[0];
-
-assert.ok(fallbackToolCall, 'Gemini fallback stream should emit a workspace search tool call.');
-assert.equal(fallbackToolCall.function.name, 'search_code');
-assert.deepEqual(
-  JSON.parse(fallbackToolCall.function.arguments),
-  {
-    sessionId: 'gemini-session-local',
-    query: 'Inspect the workspace session.',
-    skill: 'workspace-index',
-  },
-  'Gemini fallback stream should use a safe default workspace query instead of leaking placeholder text.',
+  /bridge is unavailable/i,
+  'Gemini streaming must fail loudly when the official SDK bridge is unavailable instead of synthesizing local tool calls.',
 );
 
 console.log('gemini engine contract passed.');

@@ -25,15 +25,66 @@ try {
     /sdkwork-birdcoder-desktop-cjs-default-compat/u,
     'Desktop standard Vite test server must load the desktop CommonJS default compatibility plugin through the shared desktop Vite config builder.',
   );
-  assert.deepEqual(
-    server.config.resolve.alias.slice(0, 4).map((entry) => entry.find.toString()),
-    [
-      '/^@sdkwork\\/birdcoder-([^/]+)\\/(.+)$/u',
-      '/^@sdkwork\\/birdcoder-([^/]+)$/u',
-      '/^@sdkwork\\/terminal-([^/]+)\\/(.+)$/u',
-      '/^@sdkwork\\/terminal-([^/]+)$/u',
-    ],
-    'Desktop standard Vite test server must share the same package-root and package-subpath alias ordering as the desktop host server.',
+
+  const aliasFinders = server.config.resolve.alias.map((entry) => entry.find.toString());
+  const birdcoderPackageSubpathAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/birdcoder-([^/]+)\\/(.+)$/u');
+  const birdcoderPackageRootAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/birdcoder-([^/]+)$/u');
+  const terminalDesktopAliasIndex = aliasFinders.indexOf('@sdkwork/terminal-desktop');
+  const terminalPackageSubpathAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/terminal-([^/]+)\\/(.+)$/u');
+  const terminalPackageRootAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/terminal-([^/]+)$/u');
+
+  assert.notEqual(
+    aliasFinders.indexOf('/^qrcode$/u'),
+    -1,
+    'Desktop standard Vite test server must include the shared qrcode browser compatibility alias.',
+  );
+  assert.notEqual(
+    aliasFinders.indexOf('react-router-dom'),
+    -1,
+    'Desktop standard Vite test server must include the shared react-router-dom compatibility alias.',
+  );
+  assert.notEqual(
+    aliasFinders.indexOf('react-router/dom'),
+    -1,
+    'Desktop standard Vite test server must include the shared react-router/dom compatibility alias.',
+  );
+  assert.notEqual(
+    aliasFinders.indexOf('react-router'),
+    -1,
+    'Desktop standard Vite test server must include the shared react-router compatibility alias.',
+  );
+  assert.notEqual(
+    birdcoderPackageSubpathAliasIndex,
+    -1,
+    'Desktop standard Vite test server must include the BirdCoder package-subpath alias.',
+  );
+  assert.notEqual(
+    birdcoderPackageRootAliasIndex,
+    -1,
+    'Desktop standard Vite test server must include the BirdCoder package-root alias.',
+  );
+  assert.ok(
+    birdcoderPackageSubpathAliasIndex < birdcoderPackageRootAliasIndex,
+    'Desktop standard Vite test server must keep the BirdCoder package-subpath alias ahead of the package-root alias so subpath imports are not shadowed.',
+  );
+  assert.notEqual(
+    terminalDesktopAliasIndex,
+    -1,
+    'Desktop standard Vite test server must include the terminal desktop alias.',
+  );
+  assert.notEqual(
+    terminalPackageSubpathAliasIndex,
+    -1,
+    'Desktop standard Vite test server must include the terminal package-subpath alias.',
+  );
+  assert.notEqual(
+    terminalPackageRootAliasIndex,
+    -1,
+    'Desktop standard Vite test server must include the terminal package-root alias.',
+  );
+  assert.ok(
+    terminalPackageSubpathAliasIndex < terminalPackageRootAliasIndex,
+    'Desktop standard Vite test server must keep the terminal package-subpath alias ahead of the package-root alias so subpath imports are not shadowed.',
   );
 } finally {
   await server.close();

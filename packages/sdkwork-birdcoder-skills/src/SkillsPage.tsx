@@ -42,6 +42,8 @@ type SkillTab = 'hub' | 'sdkwork' | 'installed' | 'packages';
 type SkillView = 'main' | 'package-detail' | 'skill-detail';
 
 interface SkillsPageProps {
+  isAuthenticated?: boolean;
+  onRequireAuth?: () => void;
   workspaceId?: string;
 }
 
@@ -94,7 +96,11 @@ function mapSkillPackage(summary: BirdCoderSkillPackageSummary): SkillPackage {
   };
 }
 
-export function SkillsPage({ workspaceId }: SkillsPageProps) {
+export function SkillsPage({
+  isAuthenticated = true,
+  onRequireAuth,
+  workspaceId,
+}: SkillsPageProps) {
   const { catalogService } = useIDEServices();
   const { addToast } = useToast();
   const normalizedWorkspaceId = workspaceId?.trim() ?? '';
@@ -257,6 +263,10 @@ export function SkillsPage({ workspaceId }: SkillsPageProps) {
 
   async function installPackage(skillPackage: SkillPackage) {
     if (!normalizedWorkspaceId) {
+      if (!isAuthenticated) {
+        onRequireAuth?.();
+        return;
+      }
       addToast('Select a workspace before installing a skill package.', 'error');
       return;
     }

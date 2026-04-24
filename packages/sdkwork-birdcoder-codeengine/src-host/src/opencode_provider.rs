@@ -36,7 +36,13 @@ impl CodeEngineProviderPlugin for OpencodeCodeEngineProvider {
         let session_status_map = list_opencode_session_status_map().unwrap_or_default();
         let mut summaries = sessions
             .iter()
-            .filter_map(|session| build_opencode_session_summary_record(session, &session_status_map, None))
+            .filter_map(|session| {
+                build_opencode_session_summary_record(
+                    session,
+                    &session_status_map,
+                    load_opencode_session_model_id(session),
+                )
+            })
             .collect::<Vec<_>>();
 
         summaries.sort_by(|left, right| {
@@ -87,10 +93,13 @@ impl CodeEngineProviderPlugin for OpencodeCodeEngineProvider {
             return Ok(None);
         };
         let session_status_map = list_opencode_session_status_map().unwrap_or_default();
+        let model_id = get_opencode_session_messages(lookup_id.as_str())
+            .ok()
+            .and_then(|messages| extract_opencode_session_model_id(&messages));
         Ok(build_opencode_session_summary_record(
             &session,
             &session_status_map,
-            None,
+            model_id,
         ))
     }
 
@@ -131,7 +140,7 @@ impl CodeEngineProviderPlugin for OpencodeCodeEngineProvider {
                 request.ide_context.as_ref(),
             )
             .as_str(),
-            request.model_id.as_deref(),
+            Some(request.model_id.as_str()),
         )?;
         let assistant_content = extract_opencode_prompt_content(&prompt_response).ok_or_else(|| {
             "OpenCode prompt response did not include an assistant message payload.".to_owned()
@@ -155,6 +164,7 @@ fn build_opencode_session_summary_record(
     session_status_map: &BTreeMap<String, String>,
     model_id: Option<String>,
 ) -> Option<CodeEngineSessionSummaryRecord> {
+    let model_id = model_id?;
     let raw_session_id = normalize_value_string(session.get("id"))?;
     let created_at =
         timestamp_from_value_millis(session.get("time").and_then(|time| time.get("created")))
@@ -182,6 +192,12 @@ fn build_opencode_session_summary_record(
         sort_timestamp: parse_timestamp_millis(&updated_at).unwrap_or_default(),
         transcript_updated_at: Some(updated_at),
     })
+}
+
+fn load_opencode_session_model_id(session: &Value) -> Option<String> {
+    let raw_session_id = normalize_value_string(session.get("id"))?;
+    let messages = get_opencode_session_messages(raw_session_id.as_str()).ok()?;
+    extract_opencode_session_model_id(&messages)
 }
 
 fn map_opencode_session_status(status: Option<&String>) -> String {
@@ -470,4 +486,67 @@ fn timestamp_from_millis(value: i64) -> String {
     datetime
         .format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{
+        build_opencode_session_summary_record, extract_opencode_session_model_id,
+    };
+
+    #[test]
+    fn extract_opencode_session_model_id_prefers_provider_scoped_model_id() {
+        let messages = vec![json!({
+            "info": {
+                "providerID": "openai",
+                "modelID": "gpt-5.4"
+            }
+        })];
+
+        assert_eq!(
+            extract_opencode_session_model_id(&messages).as_deref(),
+            Some("openai/gpt-5.4")
+        );
+    }
+
+    #[test]
+    fn build_opencode_session_summary_record_keeps_model_id_for_session_headers() {
+        let session = json!({
+            "id": "session-1",
+            "title": "BirdCoder OpenCode Session",
+            "directory": "D:/workspace/project",
+            "time": {
+                "created": 1_710_000_000_000_i64,
+                "updated": 1_710_000_001_000_i64
+            }
+        });
+
+        let summary = build_opencode_session_summary_record(
+            &session,
+            &Default::default(),
+            Some("openai/gpt-5.4".to_owned()),
+        )
+        .expect("build summary");
+
+        assert_eq!(summary.model_id, "openai/gpt-5.4");
+    }
+
+    #[test]
+    fn build_opencode_session_summary_record_rejects_missing_model_id() {
+        let session = json!({
+            "id": "session-1",
+            "title": "BirdCoder OpenCode Session",
+            "directory": "D:/workspace/project",
+            "time": {
+                "created": 1_710_000_000_000_i64,
+                "updated": 1_710_000_001_000_i64
+            }
+        });
+
+        let summary = build_opencode_session_summary_record(&session, &Default::default(), None);
+
+        assert!(summary.is_none());
+    }
 }

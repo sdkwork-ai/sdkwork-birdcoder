@@ -1,13 +1,15 @@
 import { createRoot } from 'react-dom/client';
-import { AppRoot, BootstrapGate } from '@sdkwork/birdcoder-shell/app';
+import { resolveBirdCoderRuntimeUserCenterProviderKind } from '@sdkwork/birdcoder-core';
+import { AppRoot } from '@sdkwork/birdcoder-shell';
 import {
+  BootstrapGate,
   bootstrapShellRuntime,
   isBirdCoderLocalRuntimeApiBaseUrl,
   normalizeBirdCoderServerBaseUrl,
   readStoredBirdCoderServerBaseUrl,
   resolveBirdCoderBootstrapServerBaseUrl,
   waitForBirdCoderApiReady,
-} from '@sdkwork/birdcoder-shell/runtime';
+} from '@sdkwork/birdcoder-shell-runtime';
 import { resolveDesktopRuntime } from './desktop/resolveDesktopRuntime';
 
 async function resolveDesktopApiBaseUrl(): Promise<string | undefined> {
@@ -38,10 +40,13 @@ async function resolveDesktopApiBaseUrl(): Promise<string | undefined> {
 async function bootstrapRuntime() {
   const resolvedApiBaseUrl = await resolveDesktopApiBaseUrl();
   await waitForBirdCoderApiReady(resolvedApiBaseUrl);
-  bootstrapShellRuntime({
+  await bootstrapShellRuntime({
     host: resolveDesktopRuntime('global', {
       apiBaseUrl: resolvedApiBaseUrl,
     }),
+    userCenter: {
+      providerKind: resolveBirdCoderRuntimeUserCenterProviderKind(),
+    },
   });
 }
 

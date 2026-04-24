@@ -10,6 +10,8 @@ function mapTeamSummaryToTeam(
     uuid: team.uuid,
     tenantId: team.tenantId,
     organizationId: team.organizationId,
+    createdAt: team.createdAt ?? new Date(0).toISOString(),
+    updatedAt: team.updatedAt ?? new Date(0).toISOString(),
     workspaceId: team.workspaceId,
     code: team.code,
     title: team.title,
@@ -18,6 +20,7 @@ function mapTeamSummaryToTeam(
     ownerId: team.ownerId,
     leaderId: team.leaderId,
     createdByUserId: team.createdByUserId,
+    metadata: team.metadata,
     status: team.status === 'archived' ? 'archived' : 'active',
   };
 }

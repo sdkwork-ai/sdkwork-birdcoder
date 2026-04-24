@@ -53,7 +53,7 @@
 ## 9. 设计
 
 - Engine 与 Model 分离
-- `coding_session` 是稳定业务容器，原生 `thread/session/code-session` 只进入 runtime 元数据
+- `coding_session` 是稳定业务容器，provider-native `thread/session/code-session` 只进入 runtime 元数据
 - Event、Artifact、Approval、Operation 用统一语义建模
 
 ## 10. 实施落地规划

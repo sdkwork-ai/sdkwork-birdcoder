@@ -18,9 +18,6 @@ import {
   summarizeStudioTestEvidenceArchive,
 } from './studio-test-evidence-archive.mjs';
 import {
-  summarizeTerminalGovernanceEvidenceArchive,
-} from './terminal-governance-evidence-archive.mjs';
-import {
   enrichQualityEvidenceSummary,
   normalizeQualityEvidenceSummary,
   readReleaseQualityEvidence,
@@ -130,17 +127,6 @@ function normalizeTestEvidenceSummary(summary = {}) {
     commands: normalizeStringArray(summary.commands ?? []),
     projectIds: normalizeStringArray(summary.projectIds ?? []),
     latestLaunchedAt: typeof summary.latestLaunchedAt === 'number' ? summary.latestLaunchedAt : null,
-  };
-}
-
-function normalizeGovernanceEvidenceSummary(summary = {}) {
-  return {
-    archiveRelativePath: String(summary.archiveRelativePath ?? '').trim(),
-    entryCount: typeof summary.entryCount === 'number' ? summary.entryCount : 0,
-    blockedRecords: typeof summary.blockedRecords === 'number' ? summary.blockedRecords : 0,
-    riskLevels: normalizeStringArray(summary.riskLevels ?? []),
-    approvalPolicies: normalizeStringArray(summary.approvalPolicies ?? []),
-    latestRecordedAt: typeof summary.latestRecordedAt === 'number' ? summary.latestRecordedAt : null,
   };
 }
 
@@ -258,21 +244,6 @@ function assertTestEvidenceSummaryMatches({
   });
 }
 
-function assertGovernanceEvidenceSummaryMatches({
-  manifest,
-  releaseAssetsDir,
-} = {}) {
-  return assertOptionalSummaryMatches({
-    manifestSummary: manifest.governanceEvidence,
-    archiveSummary: summarizeTerminalGovernanceEvidenceArchive({
-      releaseAssetsDir,
-    }),
-    normalizeSummary: normalizeGovernanceEvidenceSummary,
-    missingArchiveMessage: `Missing terminal governance evidence archive referenced by finalized manifest: ${releaseAssetsDir}`,
-    mismatchMessage: 'Finalized manifest governanceEvidence summary does not match the terminal governance evidence archive.',
-  });
-}
-
 function assertCodingServerOpenApiEvidenceSummaryMatches({
   manifest,
   releaseAssetsDir,
@@ -373,13 +344,11 @@ function assertDesktopStartupReadinessSummaryMatches({
 function assertStopShipSignalsSummaryMatches({
   manifest,
   qualityEvidence,
-  governanceEvidence,
 } = {}) {
   return assertRequiredSummaryMatches({
     manifestSummary: manifest.stopShipSignals,
     archiveSummary: collectReleaseStopShipSignals({
       qualityEvidence,
-      governanceEvidence,
       assets: manifest.assets,
     }),
     normalizeSummary: normalizeStopShipSignals,
@@ -439,10 +408,6 @@ export function smokeFinalizedReleaseAssets({
     manifest,
     releaseAssetsDir,
   });
-  const governanceEvidence = assertGovernanceEvidenceSummaryMatches({
-    manifest,
-    releaseAssetsDir,
-  });
   const desktopStartupReadiness = assertDesktopStartupReadinessSummaryMatches({
     manifest,
     releaseAssetsDir,
@@ -454,7 +419,6 @@ export function smokeFinalizedReleaseAssets({
   const stopShipSignals = assertStopShipSignalsSummaryMatches({
     manifest,
     qualityEvidence,
-    governanceEvidence,
   });
   const promotionReadiness = assertPromotionReadinessSummaryMatches({
     manifest,
@@ -463,7 +427,6 @@ export function smokeFinalizedReleaseAssets({
   assertClearStopShipEvidence({
     releaseControl: manifest.releaseControl ?? null,
     qualityEvidence,
-    governanceEvidence,
     assets: manifest.assets,
     errorPrefix: 'Formal or general-availability finalized release manifests require clear stop-ship evidence',
   });
@@ -517,13 +480,6 @@ export function smokeFinalizedReleaseAssets({
           : 'no studio test evidence archive is attached to the finalized release manifest',
       },
       {
-        id: 'governance-evidence-summary-match',
-        status: governanceEvidence ? 'passed' : 'skipped',
-        detail: governanceEvidence
-          ? 'finalized manifest governanceEvidence summary matches the terminal governance evidence archive'
-          : 'no terminal governance evidence archive is attached to the finalized release manifest',
-      },
-      {
         id: 'desktop-startup-readiness-summary-match',
         status: desktopStartupReadiness.length > 0 ? 'passed' : 'skipped',
         detail: desktopStartupReadiness.length > 0
@@ -541,7 +497,6 @@ export function smokeFinalizedReleaseAssets({
     buildEvidence: buildEvidence ?? null,
     simulatorEvidence: simulatorEvidence ?? null,
     testEvidence: testEvidence ?? null,
-    governanceEvidence: governanceEvidence ?? null,
     desktopStartupReadiness,
     qualityEvidence: qualityEvidence ?? null,
     stopShipSignals,
@@ -562,7 +517,6 @@ export function smokeFinalizedReleaseAssets({
     buildEvidence,
     simulatorEvidence,
     testEvidence,
-    governanceEvidence,
     desktopStartupReadiness,
     qualityEvidence,
     stopShipSignals,

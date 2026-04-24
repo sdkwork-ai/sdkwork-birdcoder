@@ -4,7 +4,7 @@ import {
   type RunConfigurationRecord,
   type RunConfigurationTerminalLaunchResult,
   type RunConfigurationTerminalRequest,
-} from '../../../sdkwork-birdcoder-commons/src/terminal/runConfigs.ts';
+} from '@sdkwork/birdcoder-commons';
 
 export const STUDIO_TEST_EXECUTION_ADAPTER_ID = 'studio.test.execution';
 

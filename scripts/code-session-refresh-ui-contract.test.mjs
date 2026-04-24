@@ -5,6 +5,10 @@ const sidebarSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx', import.meta.url),
   'utf8',
 );
+const projectExplorerTypesSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorer.types.ts', import.meta.url),
+  'utf8',
+);
 const enLocaleSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-i18n/src/locales/en/code/sidebar.ts', import.meta.url),
   'utf8',
@@ -15,27 +19,27 @@ const zhLocaleSource = fs.readFileSync(
 );
 
 assert.match(
-  sidebarSource,
+  projectExplorerTypesSource,
   /onRefreshProjectSessions\?: \(id: string\) => Promise<void> \| void;/,
-  'Code sidebar must accept a project refresh handler.',
+  'Code ProjectExplorer must accept a project refresh handler.',
 );
 
 assert.match(
-  sidebarSource,
+  projectExplorerTypesSource,
   /onRefreshCodingSessionMessages\?: \(id: string\) => Promise<void> \| void;/,
-  'Code sidebar must accept a session refresh handler.',
+  'Code ProjectExplorer must accept a session refresh handler.',
 );
 
 assert.match(
-  sidebarSource,
+  projectExplorerTypesSource,
   /refreshingProjectId\?: string \| null;/,
-  'Code sidebar must receive project-level loading state for refresh actions.',
+  'Code ProjectExplorer must receive project-level loading state for refresh actions.',
 );
 
 assert.match(
-  sidebarSource,
+  projectExplorerTypesSource,
   /refreshingCodingSessionId\?: string \| null;/,
-  'Code sidebar must receive session-level loading state for refresh actions.',
+  'Code ProjectExplorer must receive session-level loading state for refresh actions.',
 );
 
 assert.match(

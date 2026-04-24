@@ -9,11 +9,11 @@ import {
   listTerminalCliProfileAvailability,
   type TerminalCommandRequest,
 } from './runtime.ts';
-import type { DesktopTerminalLaunchPlan } from '@sdkwork/terminal-shell';
 import type {
   DesktopLocalProcessSessionCreateRequest,
   DesktopLocalShellSessionCreateRequest,
 } from '@sdkwork/terminal-infrastructure';
+import type { DesktopTerminalLaunchPlan } from './contracts/sdkworkTerminalShell.d.ts';
 
 export interface BirdcoderTerminalSessionMetadata {
   projectId?: string | null;
@@ -30,16 +30,6 @@ export interface BirdcoderTerminalLaunchResolution {
   blockedMessage: string | null;
   plan: DesktopTerminalLaunchPlan | null;
 }
-
-type BirdcoderDesktopLocalShellSessionCreateRequest = DesktopLocalShellSessionCreateRequest &
-  BirdcoderTerminalSessionMetadata & {
-    profileId?: string | null;
-  };
-
-type BirdcoderDesktopLocalProcessSessionCreateRequest = DesktopLocalProcessSessionCreateRequest &
-  BirdcoderTerminalSessionMetadata & {
-    profileId?: string | null;
-  };
 
 const DEFAULT_TERMINAL_COLS = 120;
 const DEFAULT_TERMINAL_ROWS = 32;
@@ -80,7 +70,7 @@ function buildLocalProcessRequest(
   workingDirectory: string,
   metadata: BirdcoderTerminalSessionMetadata,
   profileId?: string | null,
-): BirdcoderDesktopLocalProcessSessionCreateRequest {
+): DesktopLocalProcessSessionCreateRequest {
   return {
     command,
     workingDirectory,
@@ -98,7 +88,7 @@ function buildLocalShellRequest(
   workingDirectory: string,
   metadata: BirdcoderTerminalSessionMetadata,
   profileId?: string | null,
-): BirdcoderDesktopLocalShellSessionCreateRequest {
+): DesktopLocalShellSessionCreateRequest {
   return {
     profile,
     workingDirectory,
@@ -140,7 +130,7 @@ export function buildBirdcoderTerminalLaunchPlan(
           title,
         },
         profile.id,
-      ) as DesktopTerminalLaunchPlan['localProcessRequest'],
+      ),
     };
   }
 
@@ -160,7 +150,7 @@ export function buildBirdcoderTerminalLaunchPlan(
           title: profile.title,
         },
         profile.id,
-      ) as DesktopTerminalLaunchPlan['localProcessRequest'],
+      ),
     };
   }
 
@@ -177,7 +167,7 @@ export function buildBirdcoderTerminalLaunchPlan(
         title: profile.title,
       },
       profile.id,
-    ) as DesktopTerminalLaunchPlan['localShellRequest'],
+    ),
   };
 }
 

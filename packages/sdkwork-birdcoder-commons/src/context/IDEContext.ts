@@ -11,11 +11,13 @@ import type {
   IDeploymentService,
   IDocumentService,
   IFileSystemService,
+  IGitService,
+  IPromptService,
   IProjectService,
   IReleaseService,
   ITeamService,
   IWorkspaceService,
-} from '@sdkwork/birdcoder-infrastructure';
+} from '@sdkwork/birdcoder-infrastructure-runtime';
 import {
   IDEContext,
   type IIDEContext,
@@ -39,7 +41,9 @@ export interface IDEProviderProps {
   releaseService?: IReleaseService;
   teamService?: ITeamService;
   fileSystemService?: IFileSystemService;
+  gitService?: IGitService;
   authService?: IAuthService;
+  promptService?: IPromptService;
 }
 
 export const IDEProvider = ({
@@ -58,7 +62,9 @@ export const IDEProvider = ({
   releaseService,
   teamService,
   fileSystemService,
+  gitService,
   authService,
+  promptService,
 }: IDEProviderProps) => {
   const defaultContextRef = useRef<IIDEContext | null>(null);
   defaultContextRef.current ??= createDefaultIdeContextValue();
@@ -82,7 +88,9 @@ export const IDEProvider = ({
         releaseService: releaseService ?? defaultContext.releaseService,
         teamService: teamService ?? defaultContext.teamService,
         fileSystemService: fileSystemService ?? defaultContext.fileSystemService,
+        gitService: gitService ?? defaultContext.gitService,
         authService: authService ?? defaultContext.authService,
+        promptService: promptService ?? defaultContext.promptService,
       },
     },
     children,

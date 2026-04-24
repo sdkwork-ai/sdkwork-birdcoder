@@ -45,11 +45,25 @@ const entrypointContracts = [
     launchPattern: /void runWorkspacePackageScriptRunnerContractCli\(\)\.catch\(/,
   },
   {
+    scriptName: 'check:tauri-dev-binary-unlock',
+    command: 'node scripts/run-tauri-dev-binary-unlock-check.mjs',
+    filePath: path.join(rootDir, 'scripts', 'run-tauri-dev-binary-unlock-check.mjs'),
+    exportedFunctionPattern: /export function runTauriDevBinaryUnlockCheck\(/,
+    launchPattern: /process\.exit\(runTauriDevBinaryUnlockCheck\(\)\)/,
+  },
+  {
     scriptName: 'lint',
     command: 'node scripts/run-quality-fast-check.mjs',
     filePath: path.join(rootDir, 'scripts', 'run-quality-fast-check.mjs'),
     exportedFunctionPattern: /export function runQualityFastCheck\(/,
     launchPattern: /process\.exit\(runQualityFastCheck\(\)\)/,
+  },
+  {
+    scriptName: 'test:user-center-standard',
+    command: 'node scripts/run-user-center-standard.mjs',
+    filePath: path.join(rootDir, 'scripts', 'run-user-center-standard.mjs'),
+    exportedFunctionPattern: /export function createUserCenterStandardTestPlan\(/,
+    launchPattern: /process\.exit\(runUserCenterStandardTestCli\(\)\)/,
   },
   {
     scriptName: 'check:quality:standard',

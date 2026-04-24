@@ -1,4 +1,8 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import type { ProjectGitOverviewViewState } from '@sdkwork/birdcoder-commons';
+import {
+  ProjectGitHeaderControls,
+} from '@sdkwork/birdcoder-ui';
 import {
   Button,
   DEVICE_MODELS,
@@ -6,7 +10,7 @@ import {
   type MiniProgramPlatform,
   type PreviewPlatform,
   type WebDevice,
-} from '@sdkwork/birdcoder-ui';
+} from '@sdkwork/birdcoder-ui-shell';
 import {
   AppWindow,
   Check,
@@ -127,6 +131,9 @@ function StageHeaderSelect({
 
 interface StudioStageHeaderProps {
   activeTab: 'preview' | 'simulator' | 'code';
+  isProjectGitOverviewDrawerOpen: boolean;
+  projectGitOverviewState?: ProjectGitOverviewViewState;
+  projectId?: string;
   previewUrl: string;
   previewPlatform: PreviewPlatform;
   previewWebDevice: WebDevice;
@@ -149,6 +156,7 @@ interface StudioStageHeaderProps {
   onLaunchSimulator: () => void;
   onAnalyzeCode: () => void;
   onToggleTerminal: () => void;
+  onToggleProjectGitOverviewDrawer: () => void;
   onOpenShare: () => void;
   onOpenPublish: () => void;
 }
@@ -170,6 +178,9 @@ function resolveSimulatorTargetLabel(
 
 export const StudioStageHeader = memo(function StudioStageHeader({
   activeTab,
+  isProjectGitOverviewDrawerOpen,
+  projectGitOverviewState,
+  projectId,
   previewUrl,
   previewPlatform,
   previewWebDevice,
@@ -192,10 +203,12 @@ export const StudioStageHeader = memo(function StudioStageHeader({
   onLaunchSimulator,
   onAnalyzeCode,
   onToggleTerminal,
+  onToggleProjectGitOverviewDrawer,
   onOpenShare,
   onOpenPublish,
 }: StudioStageHeaderProps) {
   const { t } = useTranslation();
+  const normalizedProjectId = projectId?.trim() ?? '';
   const webDeviceOptions: StageHeaderSelectOption[] = [
     { value: 'desktop', label: t('studio.desktop'), icon: <Monitor size={14} /> },
     { value: 'tablet', label: t('studio.tablet'), icon: <Tablet size={14} /> },
@@ -225,8 +238,9 @@ export const StudioStageHeader = memo(function StudioStageHeader({
     }));
 
   return (
-    <div className="flex min-w-0 items-center justify-between px-4 py-2 border-b border-white/10 bg-[#0e0e11] shrink-0">
-      <div className="flex min-w-0 flex-1 items-center gap-4 text-sm">
+    <>
+      <div className="flex min-w-0 items-center justify-between px-4 py-2 border-b border-white/10 bg-[#0e0e11] shrink-0">
+        <div className="flex min-w-0 flex-1 items-center gap-4 text-sm">
         <div
           className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-1 rounded-full cursor-pointer transition-colors animate-in fade-in slide-in-from-top-2 fill-mode-both ${activeTab === 'preview' ? 'text-white bg-white/10' : 'text-gray-500 hover:text-gray-300'}`}
           style={{ animationDelay: '0ms' }}
@@ -441,6 +455,33 @@ export const StudioStageHeader = memo(function StudioStageHeader({
           </div>
         )}
 
+        {activeTab === 'code' && normalizedProjectId ? (
+          <>
+            <div className="flex items-center gap-2 lg:hidden">
+              <ProjectGitHeaderControls
+                isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
+                onToggleOverviewDrawer={onToggleProjectGitOverviewDrawer}
+                projectId={normalizedProjectId}
+                projectGitOverviewState={projectGitOverviewState}
+                showBranchControl={false}
+                showOverviewDrawerToggle={activeTab === 'code'}
+                showWorktreeControl={false}
+                variant="studio"
+              />
+            </div>
+            <div className="hidden max-w-[42vw] items-center gap-2 lg:flex">
+              <ProjectGitHeaderControls
+                isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
+                onToggleOverviewDrawer={onToggleProjectGitOverviewDrawer}
+                projectId={normalizedProjectId}
+                projectGitOverviewState={projectGitOverviewState}
+                showOverviewDrawerToggle={activeTab === 'code'}
+                variant="studio"
+              />
+            </div>
+          </>
+        ) : null}
+
         {activeTab === 'code' && selectedFile && !viewingDiffPath && (
           <Button
             variant="outline"
@@ -478,8 +519,9 @@ export const StudioStageHeader = memo(function StudioStageHeader({
         >
           <Upload size={14} className="mr-1" /> {t('studio.publish')}
         </Button>
+        </div>
       </div>
-    </div>
+    </>
   );
 });
 

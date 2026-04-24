@@ -1,4 +1,5 @@
 import {
+  assertWorkbenchServerImplementedEngineId,
   listBirdCoderCodeEngineDescriptors,
   listBirdCoderCodeEngineModels,
   listBirdCoderCodeEngineNativeSessionProviders,
@@ -44,6 +45,7 @@ import {
   type BirdCoderUpdateCodingSessionRequest,
 } from '@sdkwork/birdcoder-types';
 import type { IProjectService } from './interfaces/IProjectService.ts';
+import { resolveRequiredCodingSessionSelection } from './codingSessionSelection.ts';
 
 export interface CreateBirdCoderInProcessCoreApiTransportOptions {
   hostMode?: BirdCoderHostMode;
@@ -259,6 +261,7 @@ function toCodingSessionSummary(
     hostMode: session.hostMode,
     engineId: session.engineId,
     modelId: session.modelId,
+    runtimeStatus: session.runtimeStatus,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
     lastTurnAt: session.lastTurnAt,
@@ -816,13 +819,18 @@ export function createBirdCoderInProcessCoreApiTransport({
           return createListEnvelope<BirdCoderCodingSessionCheckpoint>([]) as TResponse;
         case 'core.createCodingSession': {
           const body = readRequestBody<BirdCoderCreateCodingSessionRequest>(request);
+          const selection = resolveRequiredCodingSessionSelection({
+            engineId: normalizeText(body.engineId),
+            modelId: normalizeText(body.modelId),
+          });
+          assertWorkbenchServerImplementedEngineId(selection.engineId);
           const createdSession = await projectService.createCodingSession(
             body.projectId,
-            normalizeText(body.title) ?? 'New Thread',
+            normalizeText(body.title) ?? 'New Session',
             {
-              engineId: body.engineId,
+              engineId: selection.engineId,
               hostMode: body.hostMode ?? hostMode,
-              modelId: body.modelId,
+              modelId: selection.modelId,
             },
           );
           if (createdSession.workspaceId !== body.workspaceId) {
@@ -867,18 +875,14 @@ export function createBirdCoderInProcessCoreApiTransport({
           );
           const title = normalizeText(body.title);
           const nextStatus = body.status;
-          const nextEngineId = body.engineId;
-          const nextModelId = normalizeText(body.modelId);
 
           if (title) {
             await projectService.renameCodingSession(projectId, codingSessionId, title);
           }
-          if (nextStatus || body.hostMode || nextEngineId || nextModelId) {
+          if (nextStatus || body.hostMode) {
             await projectService.updateCodingSession(projectId, codingSessionId, {
               ...(nextStatus ? { status: nextStatus } : {}),
               ...(body.hostMode ? { hostMode: body.hostMode } : {}),
-              ...(nextEngineId ? { engineId: nextEngineId } : {}),
-              ...(nextModelId ? { modelId: nextModelId } : {}),
             });
           }
           const updatedSession = await getCodingSessionById(
@@ -927,6 +931,13 @@ export function createBirdCoderInProcessCoreApiTransport({
             knownWorkspaceIds,
             codingSessionId,
           );
+          const codingSession = await getCodingSessionById(
+            projectService,
+            codingSessionProjectIndex,
+            knownWorkspaceIds,
+            codingSessionId,
+          );
+          assertWorkbenchServerImplementedEngineId(codingSession.engineId);
           const turnId = `coding-turn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
           const createdMessage = await projectService.addCodingSessionMessage(
             projectId,

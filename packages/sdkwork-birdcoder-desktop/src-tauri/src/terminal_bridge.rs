@@ -278,10 +278,12 @@ pub struct DesktopRuntimeState {
 
 impl Drop for DesktopRuntimeState {
     fn drop(&mut self) {
-        let _ = self.local_shell_event_sender.send(LocalShellSessionEvent::Exit {
-            session_id: "__shutdown__".to_string(),
-            exit_code: None,
-        });
+        let _ = self
+            .local_shell_event_sender
+            .send(LocalShellSessionEvent::Exit {
+                session_id: "__shutdown__".to_string(),
+                exit_code: None,
+            });
         if let Ok(runtime) = self.session_runtime.lock() {
             for session in runtime.list_sessions() {
                 if !matches!(session.state, SessionState::Exited | SessionState::Failed) {
@@ -305,8 +307,9 @@ impl DesktopRuntimeState {
     }
 
     fn try_new(app_handle: Option<tauri::AppHandle>) -> Result<Self, String> {
-        let runtime =
-            create_desktop_session_runtime(resolve_session_runtime_db_path(app_handle.as_ref())?.as_deref())?;
+        let runtime = create_desktop_session_runtime(
+            resolve_session_runtime_db_path(app_handle.as_ref())?.as_deref(),
+        )?;
         Ok(Self::build(app_handle, runtime))
     }
 
@@ -329,7 +332,10 @@ impl DesktopRuntimeState {
                 };
 
                 let runtime_event = match event {
-                    LocalShellSessionEvent::Output { session_id, payload } => runtime
+                    LocalShellSessionEvent::Output {
+                        session_id,
+                        payload,
+                    } => runtime
                         .record_output(&session_id, &payload, &occurred_at)
                         .ok()
                         .map(|entry| {
@@ -338,7 +344,10 @@ impl DesktopRuntimeState {
                                 build_local_shell_stream_event_snapshot(entry),
                             )
                         }),
-                    LocalShellSessionEvent::Warning { session_id, message } => runtime
+                    LocalShellSessionEvent::Warning {
+                        session_id,
+                        message,
+                    } => runtime
                         .record_replay_event(
                             &session_id,
                             ReplayEventKind::Warning,
@@ -876,7 +885,9 @@ fn resolve_session_runtime_db_path(
         .app_local_data_dir()
         .map_err(|error| format!("failed to resolve desktop app local data dir: {error}"))?;
 
-    Ok(Some(app_local_data_dir.join(DESKTOP_SESSION_RUNTIME_DB_FILE_NAME)))
+    Ok(Some(
+        app_local_data_dir.join(DESKTOP_SESSION_RUNTIME_DB_FILE_NAME),
+    ))
 }
 
 fn derive_local_process_target(program: &str) -> String {
@@ -994,7 +1005,8 @@ fn resolve_terminal_session_metadata(
             continue;
         }
 
-        let Ok(payload) = serde_json::from_str::<DesktopTerminalSessionMetadataPayload>(&entry.payload)
+        let Ok(payload) =
+            serde_json::from_str::<DesktopTerminalSessionMetadataPayload>(&entry.payload)
         else {
             continue;
         };
@@ -1103,7 +1115,9 @@ fn map_replay_entry_snapshot(entry: ReplayEntry) -> DesktopReplayEntrySnapshot {
     }
 }
 
-fn build_local_shell_stream_event_snapshot(entry: ReplayEntry) -> DesktopLocalShellStreamEventSnapshot {
+fn build_local_shell_stream_event_snapshot(
+    entry: ReplayEntry,
+) -> DesktopLocalShellStreamEventSnapshot {
     let next_cursor = entry.sequence.to_string();
     let session_id = entry.session_id.clone();
 
@@ -1153,16 +1167,18 @@ fn normalize_user_facing_path(path: &Path) -> String {
 pub mod commands {
     use super::{
         normalize_user_facing_path, resolve_working_directory_picker_starting_directory,
-        run_local_shell_exec, DesktopAttachmentDescriptorSnapshot, DesktopLocalProcessSessionCreateRequest,
-        DesktopLocalProcessSessionCreateSnapshot, DesktopLocalShellExecRequest,
-        DesktopLocalShellExecSnapshot, DesktopLocalShellSessionCreateRequest,
-        DesktopLocalShellSessionCreateSnapshot, DesktopLocalShellSessionInputBytesRequest,
-        DesktopLocalShellSessionInputRequest, DesktopLocalShellSessionInputSnapshot,
-        DesktopLocalShellSessionResizeRequest, DesktopLocalShellSessionResizeSnapshot,
-        DesktopLocalShellSessionTerminateSnapshot, DesktopRuntimeState, DesktopSessionAttachmentAcknowledgeRequest,
-        DesktopSessionAttachmentSnapshot, DesktopSessionAttachRequest, DesktopSessionDescriptorSnapshot,
-        DesktopSessionDetachRequest, DesktopSessionIndexSnapshot, DesktopSessionReplaySnapshot,
-        DesktopTerminalSessionInventorySnapshot, DesktopWorkingDirectoryPickerRequest,
+        run_local_shell_exec, DesktopAttachmentDescriptorSnapshot,
+        DesktopLocalProcessSessionCreateRequest, DesktopLocalProcessSessionCreateSnapshot,
+        DesktopLocalShellExecRequest, DesktopLocalShellExecSnapshot,
+        DesktopLocalShellSessionCreateRequest, DesktopLocalShellSessionCreateSnapshot,
+        DesktopLocalShellSessionInputBytesRequest, DesktopLocalShellSessionInputRequest,
+        DesktopLocalShellSessionInputSnapshot, DesktopLocalShellSessionResizeRequest,
+        DesktopLocalShellSessionResizeSnapshot, DesktopLocalShellSessionTerminateSnapshot,
+        DesktopRuntimeState, DesktopSessionAttachRequest,
+        DesktopSessionAttachmentAcknowledgeRequest, DesktopSessionAttachmentSnapshot,
+        DesktopSessionDescriptorSnapshot, DesktopSessionDetachRequest, DesktopSessionIndexSnapshot,
+        DesktopSessionReplaySnapshot, DesktopTerminalSessionInventorySnapshot,
+        DesktopWorkingDirectoryPickerRequest,
     };
     use std::sync::mpsc;
     use std::time::Duration;

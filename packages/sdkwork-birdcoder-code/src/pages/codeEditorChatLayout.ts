@@ -1,7 +1,7 @@
 import {
   MAX_WORKBENCH_CODE_EDITOR_CHAT_WIDTH,
   normalizeWorkbenchCodeEditorChatWidth,
-} from '@sdkwork/birdcoder-commons/workbench';
+} from '@sdkwork/birdcoder-commons';
 
 export const CODE_EDITOR_FILE_EXPLORER_WIDTH = 256;
 export const CODE_EDITOR_RESIZE_HANDLE_WIDTH = 1;

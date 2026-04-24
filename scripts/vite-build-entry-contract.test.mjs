@@ -33,6 +33,21 @@ for (const [label, htmlPath, launcherPath, bootstrapPath] of [
     `${label} index.html must bootstrap through /src/main.js so Vite build HTML transforms avoid direct TSX entry probing on Windows.`,
   );
   assert.match(
+    htmlSource,
+    /<meta[^>]*name=["']color-scheme["'][^>]*content=["']dark["']/,
+    `${label} index.html must declare a dark color-scheme so the browser does not flash the default white surface before the shell styles load.`,
+  );
+  assert.match(
+    htmlSource,
+    /background:\s*#0e0e11/i,
+    `${label} index.html must inline the shell background color so startup never paints a default white page before React hydrates.`,
+  );
+  assert.match(
+    htmlSource,
+    /data-birdcoder-boot-shell/,
+    `${label} index.html must include a boot shell placeholder so startup shows an immediate loading surface instead of an empty white screen.`,
+  );
+  assert.match(
     launcherSource,
     /import ['"]\.\/main\.tsx['"];?/,
     `${label} main.js launcher must delegate into the existing TSX bootstrap module.`,
@@ -45,7 +60,7 @@ for (const [label, htmlPath, launcherPath, bootstrapPath] of [
 }
 
 assert.doesNotMatch(
-  read('packages/sdkwork-birdcoder-appbase/src/pages/AuthPage.tsx'),
+  read('packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx'),
   /import\.meta\.env/u,
   'AuthPage must avoid import.meta.env so shared app shell transforms stay compatible with the Windows Vite build pipeline.',
 );

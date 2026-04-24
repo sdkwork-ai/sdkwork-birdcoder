@@ -5,6 +5,7 @@ import type {
   BirdCoderDeploymentTargetSummary,
   BirdCoderProjectCollaboratorSummary,
   BirdCoderProjectDocumentSummary,
+  BirdCoderProjectGitOverview,
   BirdCoderProjectPublishResult,
   BirdCoderProjectSummary,
   BirdCoderReleaseSummary,
@@ -26,6 +27,15 @@ export function createAppAdminClientContractStub(
   overrides: Partial<BirdCoderAppAdminApiClient> = {},
 ): BirdCoderAppAdminApiClient {
   const stub: BirdCoderAppAdminApiClient = {
+    async commitProjectGitChanges(): Promise<BirdCoderProjectGitOverview> {
+      throw createUnexpectedMethodError('commitProjectGitChanges');
+    },
+    async createProjectGitBranch(): Promise<BirdCoderProjectGitOverview> {
+      throw createUnexpectedMethodError('createProjectGitBranch');
+    },
+    async createProjectGitWorktree(): Promise<BirdCoderProjectGitOverview> {
+      throw createUnexpectedMethodError('createProjectGitWorktree');
+    },
     async createProject(): Promise<BirdCoderProjectSummary> {
       throw createUnexpectedMethodError('createProject');
     },
@@ -40,6 +50,9 @@ export function createAppAdminClientContractStub(
     },
     async getProject(): Promise<BirdCoderProjectSummary> {
       throw createUnexpectedMethodError('getProject');
+    },
+    async getProjectGitOverview(): Promise<BirdCoderProjectGitOverview> {
+      throw createUnexpectedMethodError('getProjectGitOverview');
     },
     async installSkillPackage(): Promise<BirdCoderSkillInstallationSummary> {
       throw createUnexpectedMethodError('installSkillPackage');
@@ -94,6 +107,18 @@ export function createAppAdminClientContractStub(
     },
     async publishProject(): Promise<BirdCoderProjectPublishResult> {
       throw createUnexpectedMethodError('publishProject');
+    },
+    async pushProjectGitBranch(): Promise<BirdCoderProjectGitOverview> {
+      throw createUnexpectedMethodError('pushProjectGitBranch');
+    },
+    async pruneProjectGitWorktrees(): Promise<BirdCoderProjectGitOverview> {
+      throw createUnexpectedMethodError('pruneProjectGitWorktrees');
+    },
+    async removeProjectGitWorktree(): Promise<BirdCoderProjectGitOverview> {
+      throw createUnexpectedMethodError('removeProjectGitWorktree');
+    },
+    async switchProjectGitBranch(): Promise<BirdCoderProjectGitOverview> {
+      throw createUnexpectedMethodError('switchProjectGitBranch');
     },
     async upsertProjectCollaborator(): Promise<BirdCoderProjectCollaboratorSummary> {
       throw createUnexpectedMethodError('upsertProjectCollaborator');

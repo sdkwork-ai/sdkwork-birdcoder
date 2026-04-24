@@ -20,6 +20,9 @@
     "lucide-react": "catalog:",
     "@sdkwork/birdcoder-codeengine": "workspace:*",
     "@sdkwork/birdcoder-commons": "workspace:*",
+    "@sdkwork/birdcoder-infrastructure-runtime": "workspace:*",
+    "@sdkwork/birdcoder-skills": "workspace:*",
+    "@sdkwork/birdcoder-ui-shell": "workspace:*",
     "@sdkwork/birdcoder-ui": "workspace:*"
   },
   "devDependencies": {

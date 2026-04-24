@@ -37,9 +37,6 @@ import {
   summarizeStudioTestEvidenceArchive,
 } from './studio-test-evidence-archive.mjs';
 import {
-  summarizeTerminalGovernanceEvidenceArchive,
-} from './terminal-governance-evidence-archive.mjs';
-import {
   createReleaseQualityEvidence,
   enrichQualityEvidenceSummary,
 } from './quality-gate-release-evidence.mjs';
@@ -390,19 +387,6 @@ export function finalizeReleaseAssets(options = {}) {
       latestLaunchedAt: testEvidence.latestLaunchedAt,
     };
   }
-  const governanceEvidence = summarizeTerminalGovernanceEvidenceArchive({
-    releaseAssetsDir,
-  });
-  if (governanceEvidence) {
-    manifest.governanceEvidence = {
-      archiveRelativePath: governanceEvidence.archiveRelativePath,
-      entryCount: governanceEvidence.entryCount,
-      blockedRecords: governanceEvidence.blockedRecords,
-      riskLevels: governanceEvidence.riskLevels,
-      approvalPolicies: governanceEvidence.approvalPolicies,
-      latestRecordedAt: governanceEvidence.latestRecordedAt,
-    };
-  }
   const codingServerOpenApiEvidence = createCodingServerOpenApiEvidence({
     releaseAssetsDir,
     assets: manifest.assets,
@@ -423,7 +407,6 @@ export function finalizeReleaseAssets(options = {}) {
   );
   manifest.stopShipSignals = collectReleaseStopShipSignals({
     qualityEvidence: manifest.qualityEvidence,
-    governanceEvidence: manifest.governanceEvidence ?? null,
     assets: manifest.assets,
   });
   manifest.promotionReadiness = buildPromotionReadinessSummary({
@@ -433,7 +416,6 @@ export function finalizeReleaseAssets(options = {}) {
   assertClearStopShipEvidence({
     releaseControl: manifest.releaseControl,
     qualityEvidence: manifest.qualityEvidence,
-    governanceEvidence: manifest.governanceEvidence ?? null,
     assets: manifest.assets,
     errorPrefix: 'Formal or general-availability release finalization requires clear stop-ship evidence',
   });

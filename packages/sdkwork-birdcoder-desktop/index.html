@@ -3,11 +3,109 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #0e0e11;
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      html,
+      body,
+      #root {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+        background: #0e0e11;
+      }
+
+      body {
+        min-height: 100vh;
+        overflow: hidden;
+      }
+
+      [data-birdcoder-boot-shell] {
+        box-sizing: border-box;
+        display: flex;
+        min-height: 100vh;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background:
+          radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 42%),
+          linear-gradient(180deg, #10131a 0%, #0e0e11 60%, #09090b 100%);
+        color: #f5f7fb;
+      }
+
+      [data-birdcoder-boot-card] {
+        width: min(100%, 420px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        padding: 24px;
+        background: rgba(17, 19, 26, 0.86);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(18px);
+      }
+
+      [data-birdcoder-boot-row] {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      [data-birdcoder-boot-spinner] {
+        width: 36px;
+        height: 36px;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.12);
+        border-top-color: rgba(255, 255, 255, 0.92);
+        animation: birdcoder-boot-spin 0.9s linear infinite;
+        flex: 0 0 auto;
+      }
+
+      [data-birdcoder-boot-title] {
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 1.4;
+      }
+
+      [data-birdcoder-boot-description] {
+        margin-top: 6px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: rgba(226, 232, 240, 0.78);
+      }
+
+      @keyframes birdcoder-boot-spin {
+        from {
+          transform: rotate(0deg);
+        }
+
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <title>SDKWork BirdCoder Desktop</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div data-birdcoder-boot-shell>
+        <div data-birdcoder-boot-card>
+          <div data-birdcoder-boot-row>
+            <div data-birdcoder-boot-spinner aria-hidden="true"></div>
+            <div>
+              <div data-birdcoder-boot-title>Starting SDKWork BirdCoder</div>
+              <div data-birdcoder-boot-description>
+                Preparing the desktop runtime, local gateway, and application shell.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

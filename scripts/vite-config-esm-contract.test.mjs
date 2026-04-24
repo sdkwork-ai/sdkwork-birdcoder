@@ -128,21 +128,44 @@ assert.equal(
   path.resolve(workspaceRootDir, 'src'),
   'Root Vite config should resolve @ to the workspace src directory.',
 );
-assert.equal(rootConfig.resolve?.alias?.[1]?.find instanceof RegExp, true);
-assert.equal(
-  rootConfig.resolve?.alias?.[1]?.find.test('sdkwork-birdcoder-chat'),
-  true,
-  'Root Vite config should still resolve bare workspace package aliases.',
+const rootAuthSurfaceAlias = findAliasEntry(
+  rootConfig.resolve?.alias,
+  (candidate) => candidate?.find === '@sdkwork/auth-pc-react',
+  'Root Vite config should expose the shared auth root alias so root-hosted Vite sessions can resolve the appbase auth UI.',
 );
 assert.equal(
-  rootConfig.resolve?.alias?.[1]?.find.test('sdkwork-birdcoder-chat/subpath'),
-  false,
-  'Root Vite config should leave workspace package subpath imports alone instead of rewriting them into /src paths.',
+  rootAuthSurfaceAlias.replacement,
+  path.resolve(
+    workspaceRootDir,
+    '../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/index.ts',
+  ),
+  'Root Vite config should resolve @sdkwork/auth-pc-react from the canonical sdkwork-appbase source tree.',
+);
+const rootBirdcoderBareAlias = findAliasEntry(
+  rootConfig.resolve?.alias,
+  (candidate) =>
+    candidate?.find instanceof RegExp
+    && candidate.find.test('@sdkwork/birdcoder-infrastructure')
+    && !candidate.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
+  'Root Vite config should expose a bare scoped BirdCoder workspace alias.',
 );
 assert.equal(
-  rootConfig.resolve?.alias?.[1]?.replacement,
+  rootBirdcoderBareAlias.replacement,
   path.resolve(workspaceRootDir, 'packages', 'sdkwork-birdcoder-$1', 'src'),
-  'Root Vite config should resolve workspace package aliases without relying on CommonJS globals.',
+  'Root Vite config should resolve bare scoped BirdCoder workspace aliases without relying on local node_modules package builds.',
+);
+assert.deepEqual(
+  rootConfig.server?.fs?.allow,
+  [
+    workspaceRootDir,
+    path.resolve(workspaceRootDir, '../sdkwork-appbase'),
+    path.resolve(workspaceRootDir, '../sdkwork-core'),
+    path.resolve(workspaceRootDir, '../sdkwork-ui'),
+    path.resolve(workspaceRootDir, '../sdkwork-terminal'),
+    path.resolve(workspaceRootDir, '../../spring-ai-plus-app-api'),
+    path.resolve(workspaceRootDir, '../../sdk'),
+  ],
+  'Root Vite config should preserve the BirdCoder, sdkwork-appbase, sdkwork-core, sdkwork-ui, sdkwork-terminal, spring-ai-plus-app-api, and sdk workspace fs allow-list under ESM-native loading.',
 );
 
 const webConfig = await loadConfigModule('packages/sdkwork-birdcoder-web/vite.config.ts');
@@ -217,9 +240,14 @@ assert.deepEqual(
   webConfig.server?.fs?.allow,
   [
     workspaceRootDir,
+    path.resolve(workspaceRootDir, '../sdkwork-appbase'),
+    path.resolve(workspaceRootDir, '../sdkwork-core'),
+    path.resolve(workspaceRootDir, '../sdkwork-ui'),
     path.resolve(workspaceRootDir, '../sdkwork-terminal'),
+    path.resolve(workspaceRootDir, '../../spring-ai-plus-app-api'),
+    path.resolve(workspaceRootDir, '../../sdk'),
   ],
-  'Web Vite config should preserve the BirdCoder and sdkwork-terminal workspace fs allow-list under ESM-native loading.',
+  'Web Vite config should preserve the BirdCoder, sdkwork-appbase, sdkwork-core, sdkwork-ui, sdkwork-terminal, spring-ai-plus-app-api, and sdk workspace fs allow-list under ESM-native loading.',
 );
 
 const desktopConfig = await loadConfigModule('packages/sdkwork-birdcoder-desktop/vite.config.ts');
@@ -242,8 +270,16 @@ assertLucideRollupWarningFilter(
 );
 assert.deepEqual(
   desktopConfig.resolve?.dedupe,
-  ['react', 'react-dom', 'react-i18next', 'scheduler', 'use-sync-external-store'],
-  'Desktop Vite config should dedupe shared runtime packages under ESM-native loading.',
+  [
+    'react',
+    'react-dom',
+    'react-i18next',
+    'react-router',
+    'react-router-dom',
+    'scheduler',
+    'use-sync-external-store',
+  ],
+  'Desktop Vite config should dedupe shared runtime packages, including shared router dependencies, under ESM-native loading.',
 );
 const desktopBirdcoderBareAlias = findAliasEntry(
   desktopConfig.resolve?.alias,
@@ -301,9 +337,14 @@ assert.deepEqual(
   desktopConfig.server?.fs?.allow,
   [
     workspaceRootDir,
+    path.resolve(workspaceRootDir, '../sdkwork-appbase'),
+    path.resolve(workspaceRootDir, '../sdkwork-core'),
+    path.resolve(workspaceRootDir, '../sdkwork-ui'),
     path.resolve(workspaceRootDir, '../sdkwork-terminal'),
+    path.resolve(workspaceRootDir, '../../spring-ai-plus-app-api'),
+    path.resolve(workspaceRootDir, '../../sdk'),
   ],
-  'Desktop Vite config should preserve the BirdCoder and sdkwork-terminal workspace fs allow-list under ESM-native loading.',
+  'Desktop Vite config should preserve the BirdCoder, sdkwork-appbase, sdkwork-core, sdkwork-ui, sdkwork-terminal, spring-ai-plus-app-api, and sdk workspace fs allow-list under ESM-native loading.',
 );
 
 console.log('vite config ESM contract passed.');

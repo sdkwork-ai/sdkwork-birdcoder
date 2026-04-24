@@ -109,6 +109,10 @@ try {
 
   const coreWriteClient: BirdCoderCoreWriteApiClient = {
     async createCodingSession(request) {
+      if (!request.engineId || !request.modelId) {
+        throw new Error('expected explicit engineId and modelId');
+      }
+
       sessionCounter += 1;
       const sessionId = `coding-session-persistence-${sessionCounter}`;
       const timestamp = createTimestamp(sessionCounter);
@@ -119,8 +123,8 @@ try {
         title: request.title ?? 'Persistent Session',
         status: 'active',
         hostMode: request.hostMode ?? 'server',
-        engineId: request.engineId ?? 'codex',
-        modelId: request.modelId ?? request.engineId ?? 'codex',
+        engineId: request.engineId,
+        modelId: request.modelId,
         createdAt: timestamp,
         updatedAt: timestamp,
         lastTurnAt: timestamp,
@@ -361,6 +365,72 @@ try {
     storedCodingSessions.map((session) => session.id),
     [createdSession.id],
     'coding session inventory must enumerate the persisted session from canonical storage.',
+  );
+  backingStore.set(
+    'sdkwork-birdcoder:coding-session:table.sqlite.coding-sessions.v1',
+    JSON.stringify([
+      ...storedCodingSessions,
+      {
+        id: 'coding-session-invalid-missing-model',
+        workspaceId: createdWorkspace.id,
+        projectId: createdProject.id,
+        title: 'Invalid Missing Model',
+        status: 'active',
+        hostMode: 'desktop',
+        engineId: 'codex',
+        createdAt: createTimestamp(999),
+        updatedAt: createTimestamp(999),
+      },
+    ]),
+  );
+  const sanitizedStoredCodingSessions = await listStoredCodingSessions({
+    projectId: createdProject.id,
+  });
+  assert.deepEqual(
+    sanitizedStoredCodingSessions.map((session) => ({
+      id: session.id,
+      modelId: session.modelId,
+    })),
+    [
+      {
+        id: createdSession.id,
+        modelId: 'codex',
+      },
+    ],
+    'coding session inventory must discard persisted session records that do not carry an explicit model id.',
+  );
+  backingStore.set(
+    'sdkwork-birdcoder:coding-session:table.sqlite.coding-sessions.v1',
+    JSON.stringify([
+      {
+        id: 'coding-session-authoritative-model-case',
+        workspaceId: createdWorkspace.id,
+        projectId: createdProject.id,
+        title: 'Authoritative Model Case',
+        status: 'active',
+        hostMode: 'desktop',
+        engineId: 'codex',
+        modelId: 'GPT-5.4',
+        createdAt: createTimestamp(1001),
+        updatedAt: createTimestamp(1001),
+      },
+    ]),
+  );
+  const preservedModelIdSessions = await listStoredCodingSessions({
+    projectId: createdProject.id,
+  });
+  assert.deepEqual(
+    preservedModelIdSessions.map((session) => ({
+      id: session.id,
+      modelId: session.modelId,
+    })),
+    [
+      {
+        id: 'coding-session-authoritative-model-case',
+        modelId: 'GPT-5.4',
+      },
+    ],
+    'coding session inventory must preserve the authoritative persisted model id instead of coercing it through the engine catalog.',
   );
 } finally {
   if (originalWindowDescriptor) {

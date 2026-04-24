@@ -88,15 +88,15 @@ export function runWorkspacePackageScriptRunnerContract() {
     );
     assert.deepEqual(
       plan.args,
-      ['../../scripts/run-vite-host.mjs', 'serve', '--host', '0.0.0.0', '--port', '3000', '--mode', 'development'],
-      'Workspace package-script runner must preserve the BirdCoder web dev arguments when it normalizes a direct node launch plan.',
+      ['../../scripts/run-birdcoder-web-command.mjs', 'dev', '--identity-mode', 'server-private'],
+      'Workspace package-script runner must preserve the BirdCoder web dev command arguments when the package script now routes development through the identity-aware web command wrapper.',
     );
   }
 
   {
     const plan = createWorkspacePackageScriptPlan({
       packageDir: 'packages/sdkwork-birdcoder-server',
-      scriptName: 'dev',
+      scriptName: 'dev:base',
       workspaceRootDir: rootDir,
       platform: 'win32',
       env: {
@@ -108,7 +108,7 @@ export function runWorkspacePackageScriptRunnerContract() {
     assert.equal(
       plan.command,
       'C:\\Windows\\System32\\cmd.exe',
-      'Workspace package-script runner must keep shell fallback for non-node package scripts such as cargo-run server entrypoints.',
+      'Workspace package-script runner must keep shell fallback for non-node base package scripts such as the cargo-run server entrypoint.',
     );
     assert.deepEqual(
       plan.args,

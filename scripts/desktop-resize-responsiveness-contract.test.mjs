@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const appPath = new URL('../src/App.tsx', import.meta.url);
+const appPath = new URL('../packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx', import.meta.url);
 const codeEditorPath = new URL(
   '../packages/sdkwork-birdcoder-ui/src/components/CodeEditor.tsx',
   import.meta.url,
@@ -55,7 +55,7 @@ const monacoRuntimePath = new URL(
   import.meta.url,
 );
 const resizeHandlePath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/ResizeHandle.tsx',
+  '../packages/sdkwork-birdcoder-ui-shell/src/components/ResizeHandle.tsx',
   import.meta.url,
 );
 
@@ -152,6 +152,23 @@ assert.match(
   /export const CodeTerminalIntegrationPanel = memo/,
   'Code terminal integration panel must be memoized so unrelated layout state changes do not rerender the terminal host.',
 );
+assert.match(
+  codeTerminalPanelSource,
+  /from ['"]@sdkwork\/birdcoder-ui-shell['"][\s\S]*ResizeHandle/u,
+  'Code terminal integration panel must import the shared resize handle directly after removing the extra terminal frame wrapper.',
+);
+
+assert.match(
+  codeTerminalPanelSource,
+  /<>\s*\{isOpen \? <ResizeHandle direction="vertical" onResize=\{onResize\} \/> : null\}\s*<div[\s\S]*<DesktopTerminalApp/s,
+  'Code terminal integration panel must inline the lightweight resize frame and render DesktopTerminalApp directly inside it.',
+);
+
+assert.doesNotMatch(
+  codeTerminalPanelSource,
+  /TerminalIntegrationFrame/u,
+  'Code terminal integration panel should not depend on a BirdCoder-owned terminal frame component.',
+);
 
 assert.match(
   studioPageSource,
@@ -181,6 +198,23 @@ assert.match(
   studioTerminalPanelSource,
   /export const StudioTerminalIntegrationPanel = memo/,
   'Studio terminal integration panel must be memoized so unrelated layout state changes do not rerender the terminal host.',
+);
+assert.match(
+  studioTerminalPanelSource,
+  /from ['"]@sdkwork\/birdcoder-ui-shell['"][\s\S]*ResizeHandle/u,
+  'Studio terminal integration panel must import the shared resize handle directly after removing the extra terminal frame wrapper.',
+);
+
+assert.match(
+  studioTerminalPanelSource,
+  /<>\s*\{isOpen \? <ResizeHandle direction="vertical" onResize=\{onResize\} \/> : null\}\s*<div[\s\S]*<DesktopTerminalApp/s,
+  'Studio terminal integration panel must inline the lightweight resize frame and render DesktopTerminalApp directly inside it.',
+);
+
+assert.doesNotMatch(
+  studioTerminalPanelSource,
+  /TerminalIntegrationFrame/u,
+  'Studio terminal integration panel should not depend on a BirdCoder-owned terminal frame component.',
 );
 
 assert.match(

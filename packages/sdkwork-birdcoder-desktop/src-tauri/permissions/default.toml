@@ -5,6 +5,7 @@ permissions = [
   "allow-desktop-runtime-config",
   "allow-local-store",
   "allow-file-system-bridge",
+  "allow-desktop-window-controls-bridge",
   "allow-sdkwork-terminal-bridge",
   "allow-terminal-detection",
 ]
@@ -23,13 +24,28 @@ permissions = [
 identifier = "allow-file-system-bridge"
 description = "Allows mounted project file-system bridge commands."
 permissions = [
+  "allow-fs-list-directory",
   "allow-fs-snapshot-folder",
   "allow-fs-read-file",
+  "allow-fs-get-file-revision",
+  "allow-fs-get-file-revisions",
+  "allow-fs-get-directory-revisions",
+  "allow-fs-watch-start",
+  "allow-fs-watch-stop",
   "allow-fs-write-file",
   "allow-fs-create-file",
   "allow-fs-create-directory",
   "allow-fs-delete-entry",
   "allow-fs-rename-entry",
+]
+
+[[set]]
+identifier = "allow-desktop-window-controls-bridge"
+description = "Allows native desktop window controls bridge commands."
+permissions = [
+  "allow-desktop-configure-window-controls-bridge",
+  "allow-desktop-window-controls-bridge-capabilities",
+  "allow-desktop-perform-window-control-action",
 ]
 
 [[set]]
@@ -89,6 +105,11 @@ description = "Enables the local_store_list command."
 commands.allow = ["local_store_list"]
 
 [[permission]]
+identifier = "allow-fs-list-directory"
+description = "Enables the fs_list_directory command."
+commands.allow = ["fs_list_directory"]
+
+[[permission]]
 identifier = "allow-fs-snapshot-folder"
 description = "Enables the fs_snapshot_folder command."
 commands.allow = ["fs_snapshot_folder"]
@@ -97,6 +118,31 @@ commands.allow = ["fs_snapshot_folder"]
 identifier = "allow-fs-read-file"
 description = "Enables the fs_read_file command."
 commands.allow = ["fs_read_file"]
+
+[[permission]]
+identifier = "allow-fs-get-file-revision"
+description = "Enables the fs_get_file_revision command."
+commands.allow = ["fs_get_file_revision"]
+
+[[permission]]
+identifier = "allow-fs-get-file-revisions"
+description = "Enables the fs_get_file_revisions command."
+commands.allow = ["fs_get_file_revisions"]
+
+[[permission]]
+identifier = "allow-fs-get-directory-revisions"
+description = "Enables the fs_get_directory_revisions command."
+commands.allow = ["fs_get_directory_revisions"]
+
+[[permission]]
+identifier = "allow-fs-watch-start"
+description = "Enables the fs_watch_start command."
+commands.allow = ["fs_watch_start"]
+
+[[permission]]
+identifier = "allow-fs-watch-stop"
+description = "Enables the fs_watch_stop command."
+commands.allow = ["fs_watch_stop"]
 
 [[permission]]
 identifier = "allow-fs-write-file"
@@ -127,6 +173,21 @@ commands.allow = ["fs_rename_entry"]
 identifier = "allow-terminal-cli-profile-detect"
 description = "Enables the terminal_cli_profile_detect command."
 commands.allow = ["terminal_cli_profile_detect"]
+
+[[permission]]
+identifier = "allow-desktop-configure-window-controls-bridge"
+description = "Enables the desktop_configure_window_controls_bridge command."
+commands.allow = ["desktop_configure_window_controls_bridge"]
+
+[[permission]]
+identifier = "allow-desktop-window-controls-bridge-capabilities"
+description = "Enables the desktop_window_controls_bridge_capabilities command."
+commands.allow = ["desktop_window_controls_bridge_capabilities"]
+
+[[permission]]
+identifier = "allow-desktop-perform-window-control-action"
+description = "Enables the desktop_perform_window_control_action command."
+commands.allow = ["desktop_perform_window_control_action"]
 
 [[permission]]
 identifier = "allow-desktop-pick-working-directory"

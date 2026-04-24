@@ -121,7 +121,7 @@ For each provider engine:
 - [ ] **Step 4: Replace arbitrary mock stream behavior with provider-shaped canonical behavior**
 
 Keep tests local and deterministic, but align each provider stream with its official primitives:
-- Codex: thread/turn/item flavor
+- Codex: native thread/turn/item flavor
 - Claude: agent/tool-progress flavor
 - Gemini: session/tool/skill flavor
 - OpenCode: session/part/artifact flavor

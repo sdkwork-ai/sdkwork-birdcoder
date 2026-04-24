@@ -14,22 +14,22 @@
 | --- | --- | --- | --- | --- | --- |
 | Shell/Host/Kernel 骨架 | `02` `03` `05` | `02` | `09` `17` | `packages/sdkwork-birdcoder-shell` `packages/sdkwork-birdcoder-host-core` `packages/sdkwork-birdcoder-core` | 入口链图、目录边界、依赖检查 |
 | 领域模型/DTO/Repository 标准 | `05` `07` `18` `19` `20` | `03` | `15` `16` `17` | `packages/sdkwork-birdcoder-types` `packages/sdkwork-birdcoder-commons` | 实体表、DTO 表、Schema 说明 |
-| Workspace/Project/Appbase 上下文 | `03` `07` `17` | `04` | `14` `17` | `packages/sdkwork-birdcoder-appbase` `packages/sdkwork-birdcoder-shell` `packages/sdkwork-birdcoder-settings` | 边界图、恢复语义、接入说明 |
-| Code Engine SPI 与统一会话内核 | `04` `05` `19` `21` | `05` | `16` `18` | `packages/sdkwork-birdcoder-commons` `packages/sdkwork-birdcoder-chat-*` | Capability Matrix、Session 标准、Adapter 契约 |
+| Workspace/Project/Appbase 上下文 | `03` `07` `17` | `04` | `14` `17` | `packages/sdkwork-birdcoder-auth` `packages/sdkwork-birdcoder-user` `packages/sdkwork-birdcoder-shell` `packages/sdkwork-birdcoder-settings` | 边界图、恢复语义、接入说明 |
+| Code Engine SPI 与统一会话内核 | `04` `05` `19` `21` | `05` | `16` `18` | `packages/sdkwork-birdcoder-commons` `packages/sdkwork-birdcoder-codeengine` | Capability Matrix、Session 标准、Adapter 契约 |
 | Code 视图/编辑器/文件系统 | `03` `06` `14` | `06` | `05` `16` | `packages/sdkwork-birdcoder-code` `packages/sdkwork-birdcoder-ui` | 文件流测试、编辑器回归、宿主一致性结果 |
 | Studio/Preview/Simulator/Build | `06` `19` | `07` | `16` `17` | `packages/sdkwork-birdcoder-studio` `packages/sdkwork-birdcoder-host-studio` `packages/sdkwork-birdcoder-templates` | 预览闭环、构建 Profile、Smoke |
-| 外部 Terminal 集成/启动映射/证据回写 | `12` `15` `16` `18` | `08` | `09` `17` `18` | `packages/sdkwork-birdcoder-terminal` `packages/sdkwork-birdcoder-desktop` `packages/sdkwork-birdcoder-shell` | 接入 contract、launch mapping、audit/evidence bridge |
+| 外部 Terminal 集成/启动映射/证据回写 | `12` `15` `16` `18` | `08` | `09` `17` `18` | `packages/sdkwork-birdcoder-commons` `packages/sdkwork-birdcoder-desktop` `packages/sdkwork-birdcoder-shell` | 接入 contract、launch mapping、audit/evidence bridge |
 | Server Runtime/OpenAPI/双模访问 | `02` `09` `20` | `09` | `17` | `packages/sdkwork-birdcoder-server` `packages/sdkwork-birdcoder-types` `packages/sdkwork-birdcoder-shell` `packages/sdkwork-birdcoder-web` `packages/sdkwork-birdcoder-desktop` | 双模拓扑、Host Identity、OpenAPI Contract、双模 Smoke |
-| Appbase Auth/User/VIP 统一接入 | `17` | `14` | `04` `17` | `packages/sdkwork-birdcoder-appbase` `packages/sdkwork-birdcoder-shell` | Bridge 清单、路由意图、Parity Contract |
+| Appbase Auth/User/VIP 统一接入 | `17` | `14` | `04` `17` | `packages/sdkwork-birdcoder-auth` `packages/sdkwork-birdcoder-user` `packages/sdkwork-birdcoder-shell` | Bridge 清单、路由意图图、Identity Contract |
 | 多数据库 Provider 与迁移 | `07` `18` | `15` | `03` `11` `12` `17` | `packages/sdkwork-birdcoder-infrastructure` `packages/sdkwork-birdcoder-types` | Provider Contract、迁移回放、authority 模式说明 |
-| 剩余 schema-only collaboration/delivery authority 实体 | `07` `18` `20` | `20` | `15` `17` | `packages/sdkwork-birdcoder-types` `packages/sdkwork-birdcoder-infrastructure` `packages/sdkwork-birdcoder-server` | `team_member` 与 `deployment_target` 已闭环；共享仓储、project-scoped admin route、Facade、消费者、Rust host 证据 |
+| 剩余 schema-only collaboration/delivery authority 实体 | `07` `18` `20` | `20` | `15` `17` | `packages/sdkwork-birdcoder-types` `packages/sdkwork-birdcoder-infrastructure` `packages/sdkwork-birdcoder-server` | `team_member` 与 `deployment_target` 闭环；共享仓储、project-scoped admin route、Facade、消费者、Rust host 证据 |
 | Prompt/SkillHub/AppTemplate/项目模板 | `13` `19` | `16` | `05` `07` `17` | `packages/sdkwork-birdcoder-types` `packages/sdkwork-birdcoder-skills` `packages/sdkwork-birdcoder-templates` `docs/prompts` | 注入顺序、绑定表、实例化验证 |
 | Rust `coding-server` / `core/app/admin` API / 控制台 | `09` `20` | `17` | `09` `14` `16` `18` | `packages/sdkwork-birdcoder-server` `packages/sdkwork-birdcoder-types` `packages/sdkwork-birdcoder-shell` `packages/sdkwork-birdcoder-web` `packages/sdkwork-birdcoder-desktop` | 路由矩阵、OpenAPI、Console Contract |
-| 多 Engine Adapter 与统一工具协议 | `05` `12` `21` | `18` | `05` `08` `17` | `packages/sdkwork-birdcoder-chat-*` `packages/sdkwork-birdcoder-server` | Conformance Matrix、Canonical Event、Approval/Tool Contract |
-| 性能/安全/观测/审计 | `08` `10` `12` | `10` | `17` `18` `12` | `scripts` `packages/sdkwork-birdcoder-server` | 基准结果、审计日志、阻断记录 |
-| Docker/K8s/多平台打包 | `09` `10` | `11` | `15` `17` `13` | `deploy` `scripts/release` `artifacts` | 产物矩阵、Smoke、校验和 |
+| 多 Engine Adapter 与统一工具协议 | `05` `12` `21` | `18` | `05` `08` `17` | `packages/sdkwork-birdcoder-codeengine` `packages/sdkwork-birdcoder-server` | Conformance Matrix、Canonical Event、Approval/Tool Contract |
+| 性能/安全/观测/审计 | `08` `10` `12` | `10` | `12` `17` `18` | `scripts` `packages/sdkwork-birdcoder-server` | 基准结果、审计日志、阻断记录 |
+| Docker/K8s/多平台打包 | `09` `10` | `11` | `13` `15` `17` | `deploy` `scripts/release` `artifacts` | 产物矩阵、Smoke、校验和 |
 | 测试矩阵与 CI 门禁 | `06` `08` `10` | `12` | `15` `17` `18` | `.github` `scripts` `packages/*` | 测试矩阵、门禁结果、失败归档 |
-| GitHub Flow/Release/回滚 | `09` `10` `11` `14` | `13` | `17` `12` | `.github` `docs/release` `scripts/release` | 发布说明、灰度记录、回滚演练 |
+| GitHub Flow/Release/回滚 | `09` `10` `11` `14` | `13` | `12` `17` | `.github` `docs/release` `scripts/release` | 发布说明、灰度记录、回滚演练 |
 
 ## 4. 架构文档反向映射
 
@@ -66,8 +66,8 @@
 
 ## 6. 执行方式
 
-| 项 | 说明 |
+| 项目 | 说明 |
 | --- | --- |
 | 使用时机 | Step 开工前、Review 前、波次验收前 |
-| 是否可并行 | 可并行查阅，结论必须统一收口 |
+| 是否可并行 | 可并行查表，结论必须统一收口 |
 | 输出要求 | 给出“能力-文档-Step-目录-证据”五元结论，再进入实现 |

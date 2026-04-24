@@ -116,5 +116,12 @@ assert.equal(
   true,
   'root lint gate should include the Step 10 governance baseline contract through the governed quality-fast runner.',
 );
+assert.equal(
+  qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
+    'node scripts/run-workspace-package-script.mjs . test:user-center-standard',
+  ),
+  true,
+  'root lint gate should include the canonical unified user-center standard through the governed quality-fast runner.',
+);
 
 console.log('governance baseline contract passed.');

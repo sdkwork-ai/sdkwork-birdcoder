@@ -12,6 +12,10 @@ const consoleQueriesModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminConsoleQueries.ts',
   import.meta.url,
 );
+const bootstrapConsoleCatalogModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/storage/bootstrapConsoleCatalog.ts',
+  import.meta.url,
+);
 const defaultServicesModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
   import.meta.url,
@@ -47,6 +51,9 @@ try {
   const { createBirdCoderAppAdminConsoleQueries } = await import(
     `${consoleQueriesModulePath.href}?t=${Date.now()}`
   );
+  const { BIRDCODER_DEFAULT_WORKSPACE_ID } = await import(
+    `${bootstrapConsoleCatalogModulePath.href}?t=${Date.now()}`
+  );
   const { createDefaultBirdCoderIdeServices } = await import(
     `${defaultServicesModulePath.href}?t=${Date.now()}`
   );
@@ -66,11 +73,13 @@ try {
   const bootstrappedWorkspaces = await queries.listWorkspaces();
   assert.deepEqual(
     bootstrappedWorkspaces.map((workspace) => workspace.id),
-    ['workspace-default'],
+    [BIRDCODER_DEFAULT_WORKSPACE_ID],
     'console queries must bootstrap a default workspace when storage is empty.',
   );
 
-  const bootstrappedProjects = await queries.listProjects({ workspaceId: 'workspace-default' });
+  const bootstrappedProjects = await queries.listProjects({
+    workspaceId: BIRDCODER_DEFAULT_WORKSPACE_ID,
+  });
   assert.deepEqual(
     bootstrappedProjects.map((project) => project.id),
     [],
@@ -81,11 +90,13 @@ try {
     storageProvider: provider,
   });
   const serviceWorkspaces = await services.workspaceService.getWorkspaces();
-  const serviceProjects = await services.projectService.getProjects('workspace-default');
+  const serviceProjects = await services.projectService.getProjects(
+    BIRDCODER_DEFAULT_WORKSPACE_ID,
+  );
 
   assert.deepEqual(
     serviceWorkspaces.map((workspace) => workspace.id),
-    ['workspace-default'],
+    [BIRDCODER_DEFAULT_WORKSPACE_ID],
     'default IDE services must surface the bootstrapped default workspace.',
   );
   assert.deepEqual(

@@ -1,12 +1,17 @@
-import { Button } from '@sdkwork/birdcoder-ui';
-import { RunConfigurationDialog, RunTaskDialog } from '@sdkwork/birdcoder-ui/run-config';
-import type { RunConfigurationRecord } from '@sdkwork/birdcoder-commons/workbench';
+import {
+  DeferredRunConfigurationDialog,
+  DeferredRunTaskDialog,
+} from '@sdkwork/birdcoder-ui';
+import { Button } from '@sdkwork/birdcoder-ui-shell';
+import type { RunConfigurationRecord } from '@sdkwork/birdcoder-commons';
 import { X } from 'lucide-react';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export interface CodeDeleteConfirmation {
-  type: 'thread' | 'project' | 'message';
+  type: 'session' | 'project' | 'message';
   id: string;
+  ids?: string[];
   parentId?: string;
 }
 
@@ -28,7 +33,7 @@ interface CodePageDialogsProps {
   onConfirmDelete: () => void;
 }
 
-export function CodePageDialogs({
+export const CodePageDialogs = memo(function CodePageDialogs({
   isRunConfigVisible,
   runConfigurationDraft,
   onRunConfigurationDraftChange,
@@ -59,7 +64,7 @@ export function CodePageDialogs({
 
   return (
     <>
-      <RunConfigurationDialog
+      <DeferredRunConfigurationDialog
         open={isRunConfigVisible}
         title={t('app.runConfiguration')}
         draft={runConfigurationDraft}
@@ -142,7 +147,7 @@ export function CodePageDialogs({
         </div>
       )}
 
-      <RunTaskDialog
+      <DeferredRunTaskDialog
         open={isRunTaskVisible}
         title={t('app.runTask')}
         configurations={runConfigurations}
@@ -180,4 +185,6 @@ export function CodePageDialogs({
       )}
     </>
   );
-}
+});
+
+CodePageDialogs.displayName = 'CodePageDialogs';

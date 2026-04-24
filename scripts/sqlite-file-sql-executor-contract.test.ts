@@ -8,10 +8,10 @@ import { createBirdCoderStorageProvider } from '../packages/sdkwork-birdcoder-in
 import { getBirdCoderSchemaMigrationDefinition } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts';
 import { createBirdCoderSqliteFileSqlExecutor } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlBackendExecutors.ts';
 import {
-  createProviderBackedBirdCoderCoreSessionProjectionStore,
   executeBirdCoderCoreSessionRun,
   persistBirdCoderCoreSessionRunProjection,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
+import { createProviderBackedBirdCoderCoreSessionProjectionStore } from '../packages/sdkwork-birdcoder-server/src/projectionRepository.ts';
 import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
 
 const tempDirectory = await fs.mkdtemp(

@@ -37,6 +37,8 @@ export type BirdCoderEntityName =
   | 'coding_session_runtime'
   | 'coding_session_turn'
   | 'coding_session_message'
+  | 'coding_session_prompt_entry'
+  | 'saved_prompt_entry'
   | 'coding_session_event'
   | 'coding_session_artifact'
   | 'coding_session_checkpoint'
@@ -70,7 +72,6 @@ export type BirdCoderEntityName =
   | 'engine_registry'
   | 'engine_binding'
   | 'run_configuration'
-  | 'terminal_session'
   | 'terminal_execution'
   | 'build_execution'
   | 'preview_session'
@@ -125,8 +126,23 @@ export interface BirdCoderEntityStorageBinding {
   storageMode: 'key-value' | 'table';
 }
 
+/**
+ * Canonical JS/TS representation for BirdCoder Long/BIGINT identifiers.
+ *
+ * Database, Rust, and Java runtimes persist these identifiers as Long/BIGINT.
+ * TypeScript transports them as decimal strings to avoid IEEE-754 precision loss.
+ */
+export type BirdCoderLongIdString = string;
+
+export type BirdCoderCanonicalEntityId = BirdCoderLongIdString;
+
+export const BIRDCODER_DATA_SCOPES = ['DEFAULT', 'PRIVATE', 'SHARED', 'PUBLIC'] as const;
+
+export type BirdCoderDataScope =
+  (typeof BIRDCODER_DATA_SCOPES)[number] | (string & {});
+
 export interface BirdCoderRecordEnvelope {
-  id: string;
+  id: BirdCoderCanonicalEntityId;
   createdAt: string;
   updatedAt: string;
   version: number;
@@ -134,8 +150,8 @@ export interface BirdCoderRecordEnvelope {
 }
 
 export interface BirdCoderScopedRecordEnvelope extends BirdCoderRecordEnvelope {
-  workspaceId: string;
-  projectId: string;
+  workspaceId: BirdCoderCanonicalEntityId;
+  projectId: BirdCoderCanonicalEntityId;
 }
 
 export interface BirdCoderRunConfigurationRecord extends BirdCoderScopedRecordEnvelope {
@@ -146,19 +162,11 @@ export interface BirdCoderRunConfigurationRecord extends BirdCoderScopedRecordEn
   customCwd: string;
   group: 'dev' | 'build' | 'test' | 'custom';
   scopeType: 'global' | 'workspace' | 'project';
-  scopeId: string;
-}
-
-export interface BirdCoderTerminalSessionRecord extends BirdCoderScopedRecordEnvelope {
-  title: string;
-  profileId: string;
-  cwd: string;
-  status: 'idle' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'closed';
-  lastExitCode: number | null;
+  scopeId: BirdCoderCanonicalEntityId;
 }
 
 export interface BirdCoderTerminalExecutionRecord extends BirdCoderScopedRecordEnvelope {
-  sessionId: string;
+  sessionId: BirdCoderCanonicalEntityId;
   command: string;
   argsJson: string;
   cwd: string;
@@ -169,7 +177,7 @@ export interface BirdCoderTerminalExecutionRecord extends BirdCoderScopedRecordE
   endedAt: string | null;
 }
 
-export interface BirdCoderRepository<TEntity, TId = string> {
+export interface BirdCoderRepository<TEntity, TId = BirdCoderCanonicalEntityId> {
   delete(id: TId): Promise<void>;
   findById(id: TId): Promise<TEntity | null>;
   save(entity: TEntity): Promise<TEntity>;
@@ -253,6 +261,12 @@ const BASE_COLUMNS: readonly BirdCoderSchemaColumnDefinition[] = [
     description: 'Stable primary identifier.',
   },
   {
+    name: 'uuid',
+    logicalType: 'text',
+    nullable: true,
+    description: 'Stable business UUID.',
+  },
+  {
     name: 'created_at',
     logicalType: 'timestamp',
     description: 'Creation timestamp.',
@@ -277,7 +291,14 @@ const BASE_COLUMNS: readonly BirdCoderSchemaColumnDefinition[] = [
 function withBaseColumns(
   columns: readonly BirdCoderSchemaColumnDefinition[],
 ): readonly BirdCoderSchemaColumnDefinition[] {
-  return [...BASE_COLUMNS, ...columns];
+  const mergedColumnsByName = new Map<string, BirdCoderSchemaColumnDefinition>();
+  for (const column of BASE_COLUMNS) {
+    mergedColumnsByName.set(column.name, column);
+  }
+  for (const column of columns) {
+    mergedColumnsByName.set(column.name, column);
+  }
+  return [...mergedColumnsByName.values()];
 }
 
 function defineEntity(
@@ -376,6 +397,13 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'VIP membership and entitlement state aligned with plus_vip_user.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
+      { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
+      {
+        name: 'organization_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Organization ownership id.',
+      },
       { name: 'user_id', logicalType: 'id', description: 'Linked plus_user id.' },
       { name: 'vip_level_id', logicalType: 'text', nullable: true, description: 'VIP level id.' },
       {
@@ -403,13 +431,18 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'workspace',
     'Top-level workspace container with plus-style canonical business fields.',
     [
-      { name: 'uuid', logicalType: 'text', nullable: true, description: 'Stable business UUID.' },
       { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
       {
         name: 'organization_id',
         logicalType: 'id',
         nullable: true,
         description: 'Organization ownership id.',
+      },
+      {
+        name: 'data_scope',
+        logicalType: 'enum',
+        nullable: true,
+        description: 'Plus-style data scope authority.',
       },
       { name: 'name', logicalType: 'text', description: 'Workspace name.' },
       { name: 'code', logicalType: 'text', nullable: true, description: 'Workspace business code.' },
@@ -418,12 +451,67 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'owner_id', logicalType: 'id', nullable: true, description: 'Canonical owner user id.' },
       { name: 'leader_id', logicalType: 'id', nullable: true, description: 'Canonical leader user id.' },
       { name: 'created_by_user_id', logicalType: 'id', nullable: true, description: 'Canonical creator user id.' },
+      { name: 'icon', logicalType: 'text', nullable: true, description: 'Workspace icon.' },
+      { name: 'color', logicalType: 'text', nullable: true, description: 'Workspace theme color.' },
       { name: 'type', logicalType: 'enum', nullable: true, description: 'Workspace type.' },
+      { name: 'status', logicalType: 'enum', description: 'Workspace lifecycle state.' },
+      {
+        name: 'start_time',
+        logicalType: 'timestamp',
+        nullable: true,
+        description: 'Workspace start time.',
+      },
+      {
+        name: 'end_time',
+        logicalType: 'timestamp',
+        nullable: true,
+        description: 'Workspace end time.',
+      },
+      {
+        name: 'max_members',
+        logicalType: 'int',
+        nullable: true,
+        description: 'Workspace maximum member count.',
+      },
+      {
+        name: 'current_members',
+        logicalType: 'int',
+        nullable: true,
+        description: 'Workspace current member count.',
+      },
+      {
+        name: 'member_count',
+        logicalType: 'int',
+        nullable: true,
+        description: 'Workspace member count projection.',
+      },
+      {
+        name: 'max_storage',
+        logicalType: 'bigint',
+        nullable: true,
+        description: 'Workspace maximum storage bytes.',
+      },
+      {
+        name: 'used_storage',
+        logicalType: 'bigint',
+        nullable: true,
+        description: 'Workspace used storage bytes.',
+      },
       {
         name: 'settings_json',
         logicalType: 'json',
         nullable: true,
         description: 'Workspace settings JSON.',
+      },
+      {
+        name: 'is_public',
+        logicalType: 'bool',
+        description: 'Workspace public visibility flag.',
+      },
+      {
+        name: 'is_template',
+        logicalType: 'bool',
+        description: 'Workspace template flag.',
       },
     ],
   ),
@@ -433,13 +521,42 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'workspace',
     'Project container within a workspace with plus-style canonical business fields.',
     [
-      { name: 'uuid', logicalType: 'text', nullable: true, description: 'Stable business UUID.' },
       { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
       {
         name: 'organization_id',
         logicalType: 'id',
         nullable: true,
         description: 'Organization ownership id.',
+      },
+      {
+        name: 'data_scope',
+        logicalType: 'enum',
+        nullable: true,
+        description: 'Plus-style data scope authority.',
+      },
+      {
+        name: 'user_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Owning plus_user id from PlusUserBaseTreeEntity.',
+      },
+      {
+        name: 'parent_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Parent project/tree node id from PlusBaseTreeEntity.',
+      },
+      {
+        name: 'parent_uuid',
+        logicalType: 'text',
+        nullable: true,
+        description: 'Parent project/tree node UUID from PlusBaseTreeEntity.',
+      },
+      {
+        name: 'parent_metadata',
+        logicalType: 'json',
+        nullable: true,
+        description: 'Parent project/tree node metadata from PlusBaseTreeEntity.',
       },
       { name: 'workspace_id', logicalType: 'id', description: 'Parent workspace.' },
       {
@@ -458,17 +575,70 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         description: 'Project description.',
       },
       {
+        name: 'site_path',
+        logicalType: 'text',
+        nullable: true,
+        description: 'Project site path for website-like project types.',
+      },
+      {
+        name: 'domain_prefix',
+        logicalType: 'text',
+        nullable: true,
+        description: 'Project domain prefix.',
+      },
+      {
         name: 'root_path',
         logicalType: 'text',
         nullable: true,
         description: 'Filesystem root path.',
       },
+      {
+        name: 'cover_image_json',
+        logicalType: 'json',
+        nullable: true,
+        description: 'Project cover image payload.',
+      },
       { name: 'owner_id', logicalType: 'id', nullable: true, description: 'Canonical owner user id.' },
       { name: 'leader_id', logicalType: 'id', nullable: true, description: 'Canonical leader user id.' },
       { name: 'created_by_user_id', logicalType: 'id', nullable: true, description: 'Canonical creator user id.' },
+      {
+        name: 'file_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Referenced file asset id.',
+      },
+      {
+        name: 'conversation_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Referenced conversation id.',
+      },
       { name: 'type', logicalType: 'enum', nullable: true, description: 'Project type.' },
       { name: 'author', logicalType: 'text', nullable: true, description: 'Project author.' },
       { name: 'status', logicalType: 'enum', description: 'Project lifecycle state.' },
+      {
+        name: 'start_time',
+        logicalType: 'timestamp',
+        nullable: true,
+        description: 'Project start time.',
+      },
+      {
+        name: 'end_time',
+        logicalType: 'timestamp',
+        nullable: true,
+        description: 'Project end time.',
+      },
+      {
+        name: 'budget_amount',
+        logicalType: 'bigint',
+        nullable: true,
+        description: 'Project budget amount in cents.',
+      },
+      {
+        name: 'is_template',
+        logicalType: 'bool',
+        description: 'Project template flag.',
+      },
     ],
     [
       {
@@ -502,12 +672,17 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
       { name: 'title', logicalType: 'text', description: 'Session title.' },
       { name: 'status', logicalType: 'enum', description: 'Session lifecycle status.' },
-      { name: 'entry_surface', logicalType: 'text', description: 'code/studio/terminal entry surface.' },
+      {
+        name: 'entry_surface',
+        logicalType: 'text',
+        nullable: true,
+        description: 'code/studio/terminal entry surface.',
+      },
+      { name: 'host_mode', logicalType: 'enum', description: 'web/desktop/server host mode.' },
       { name: 'engine_id', logicalType: 'text', description: 'Preferred engine identifier.' },
       {
         name: 'model_id',
         logicalType: 'text',
-        nullable: true,
         description: 'Preferred model identifier.',
       },
       {
@@ -516,12 +691,44 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         nullable: true,
         description: 'Last turn timestamp.',
       },
+      {
+        name: 'sort_timestamp',
+        logicalType: 'bigint',
+        nullable: true,
+        description: 'Normalized activity timestamp used for sorting session inventory.',
+      },
+      {
+        name: 'transcript_updated_at',
+        logicalType: 'timestamp',
+        nullable: true,
+        description: 'Most recent transcript mutation timestamp.',
+      },
+      {
+        name: 'pinned',
+        logicalType: 'bool',
+        description: 'Whether the session is pinned in workbench surfaces.',
+      },
+      {
+        name: 'archived',
+        logicalType: 'bool',
+        description: 'Whether the session is archived at the client workbench layer.',
+      },
+      {
+        name: 'unread',
+        logicalType: 'bool',
+        description: 'Whether the session has unread transcript updates.',
+      },
     ],
     [
       {
         name: 'idx_coding_sessions_project_updated',
         columns: ['project_id', 'updated_at'],
         description: 'Recent coding sessions by project.',
+      },
+      {
+        name: 'idx_coding_sessions_project_sort',
+        columns: ['project_id', 'sort_timestamp'],
+        description: 'Sorted coding session activity by project.',
       },
     ],
   ),
@@ -536,7 +743,6 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       {
         name: 'model_id',
         logicalType: 'text',
-        nullable: true,
         description: 'Runtime model identifier.',
       },
       { name: 'host_mode', logicalType: 'enum', description: 'web/desktop/server host mode.' },
@@ -594,16 +800,133 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'Projected UI messages for a coding session.',
     [
       { name: 'coding_session_id', logicalType: 'id', description: 'Owning coding session.' },
-      { name: 'turn_id', logicalType: 'id', description: 'Linked turn.' },
+      { name: 'turn_id', logicalType: 'id', nullable: true, description: 'Linked turn.' },
       { name: 'role', logicalType: 'enum', description: 'Projected message role.' },
       { name: 'content', logicalType: 'text', description: 'Projected message content.' },
       { name: 'metadata_json', logicalType: 'json', description: 'Message metadata.' },
+      {
+        name: 'timestamp_ms',
+        logicalType: 'bigint',
+        nullable: true,
+        description: 'Optional client timestamp in epoch milliseconds.',
+      },
+      {
+        name: 'name',
+        logicalType: 'text',
+        nullable: true,
+        description: 'Optional participant or tool call display name.',
+      },
+      {
+        name: 'tool_calls_json',
+        logicalType: 'json',
+        nullable: true,
+        description: 'Structured tool calls emitted with the message.',
+      },
+      {
+        name: 'tool_call_id',
+        logicalType: 'text',
+        nullable: true,
+        description: 'Linked tool call identifier for tool-role messages.',
+      },
+      {
+        name: 'file_changes_json',
+        logicalType: 'json',
+        nullable: true,
+        description: 'Projected file changes associated with the message.',
+      },
+      {
+        name: 'commands_json',
+        logicalType: 'json',
+        nullable: true,
+        description: 'Projected command execution records associated with the message.',
+      },
+      {
+        name: 'task_progress_json',
+        logicalType: 'json',
+        nullable: true,
+        description: 'Projected task progress snapshot associated with the message.',
+      },
     ],
     [
       {
         name: 'idx_coding_session_messages_session_created',
         columns: ['coding_session_id', 'created_at'],
         description: 'Message ordering within a coding session.',
+      },
+    ],
+  ),
+  defineEntity(
+    'coding_session_prompt_entry',
+    'coding_session_prompt_entries',
+    'coding_session',
+    'Prompt history entries scoped to a coding session composer.',
+    [
+      { name: 'coding_session_id', logicalType: 'id', description: 'Owning coding session.' },
+      { name: 'prompt_text', logicalType: 'text', description: 'Submitted prompt text.' },
+      {
+        name: 'normalized_prompt_text',
+        logicalType: 'text',
+        description: 'Normalized prompt text used for per-session deduplication.',
+      },
+      {
+        name: 'last_used_at',
+        logicalType: 'timestamp',
+        description: 'Most recent time this prompt text was submitted in the session.',
+      },
+      {
+        name: 'use_count',
+        logicalType: 'bigint',
+        description: 'Number of times the prompt text was reused in the session.',
+      },
+    ],
+    [
+      {
+        name: 'idx_coding_session_prompt_entries_session_last_used',
+        columns: ['coding_session_id', 'last_used_at'],
+        description: 'Recent prompt history ordering within a coding session.',
+      },
+      {
+        name: 'uk_coding_session_prompt_entries_session_normalized_prompt',
+        columns: ['coding_session_id', 'normalized_prompt_text'],
+        description: 'Deduplicated prompt history within a coding session.',
+        unique: true,
+      },
+    ],
+  ),
+  defineEntity(
+    'saved_prompt_entry',
+    'saved_prompt_entries',
+    'prompt',
+    'Reusable saved prompt snippets available across coding sessions in the local IDE runtime.',
+    [
+      { name: 'prompt_text', logicalType: 'text', description: 'Saved prompt text.' },
+      {
+        name: 'normalized_prompt_text',
+        logicalType: 'text',
+        description: 'Normalized prompt text used for saved prompt deduplication.',
+      },
+      {
+        name: 'last_saved_at',
+        logicalType: 'timestamp',
+        description: 'Most recent time this prompt text was explicitly saved.',
+      },
+      {
+        name: 'use_count',
+        logicalType: 'bigint',
+        description: 'Number of times the prompt text was explicitly saved.',
+      },
+    ],
+    [
+      {
+        name: 'idx_saved_prompt_entries_last_saved',
+        columns: ['last_saved_at'],
+        description: 'Recent saved prompt ordering.',
+      },
+      {
+        name: 'uk_saved_prompt_entries_normalized_prompt',
+        columns: ['normalized_prompt_text'],
+        description: 'Deduplicated saved prompts.',
+        unique: true,
       },
     ],
   ),
@@ -1089,6 +1412,13 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'workspace',
     'Shared workbench preference state.',
     [
+      { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
+      {
+        name: 'organization_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Organization ownership id.',
+      },
       { name: 'scope_type', logicalType: 'enum', description: 'global/workspace/project.' },
       { name: 'scope_id', logicalType: 'id', description: 'Scope identifier.' },
       { name: 'code_engine_id', logicalType: 'text', description: 'Selected engine.' },
@@ -1111,6 +1441,13 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'engine',
     'Available engine descriptors and capabilities.',
     [
+      { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
+      {
+        name: 'organization_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Organization ownership id.',
+      },
       { name: 'engine_id', logicalType: 'text', description: 'Engine identifier.' },
       { name: 'display_name', logicalType: 'text', description: 'Engine display name.' },
       { name: 'vendor', logicalType: 'text', description: 'Engine vendor.' },
@@ -1135,6 +1472,13 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'engine',
     'Model catalog entries grouped by engine.',
     [
+      { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
+      {
+        name: 'organization_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Organization ownership id.',
+      },
       { name: 'engine_id', logicalType: 'text', description: 'Owning engine identifier.' },
       { name: 'model_id', logicalType: 'text', description: 'Model identifier.' },
       { name: 'display_name', logicalType: 'text', description: 'Model display name.' },
@@ -1159,6 +1503,13 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'engine',
     'Per-project or per-workspace engine binding.',
     [
+      { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
+      {
+        name: 'organization_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Organization ownership id.',
+      },
       { name: 'scope_type', logicalType: 'enum', description: 'Binding scope type.' },
       { name: 'scope_id', logicalType: 'id', description: 'Binding scope identifier.' },
       { name: 'engine_id', logicalType: 'text', description: 'Bound engine identifier.' },
@@ -1180,10 +1531,22 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'runtime',
     'Unified run configuration model.',
     [
+      { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
+      {
+        name: 'organization_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Organization ownership id.',
+      },
       { name: 'workspace_id', logicalType: 'id', description: 'Owning workspace.' },
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
       { name: 'scope_type', logicalType: 'enum', description: 'Storage scope.' },
       { name: 'scope_id', logicalType: 'id', description: 'Storage scope id.' },
+      {
+        name: 'config_key',
+        logicalType: 'text',
+        description: 'Stable logical configuration key unique within a scope.',
+      },
       { name: 'name', logicalType: 'text', description: 'Configuration name.' },
       { name: 'command', logicalType: 'text', description: 'Command string.' },
       { name: 'profile_id', logicalType: 'text', description: 'Terminal profile identifier.' },
@@ -1197,6 +1560,12 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         columns: ['scope_type', 'scope_id', 'group_name'],
         description: 'Query configurations by scope/group.',
       },
+      {
+        name: 'uk_run_configurations_scope_config_key',
+        columns: ['scope_type', 'scope_id', 'config_key'],
+        description: 'Logical configuration key unique within a scope.',
+        unique: true,
+      },
     ],
   ),
   defineEntity(
@@ -1205,6 +1574,13 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     'runtime',
     'Terminal command execution records.',
     [
+      { name: 'tenant_id', logicalType: 'id', nullable: true, description: 'Tenant ownership id.' },
+      {
+        name: 'organization_id',
+        logicalType: 'id',
+        nullable: true,
+        description: 'Organization ownership id.',
+      },
       { name: 'workspace_id', logicalType: 'id', description: 'Owning workspace.' },
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
       { name: 'session_id', logicalType: 'id', description: 'Linked terminal session.' },

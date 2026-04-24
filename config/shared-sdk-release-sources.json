@@ -1,0 +1,20 @@
+{
+  "sources": {
+    "sdkwork-appbase": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-appbase.git",
+      "ref": "main"
+    },
+    "sdkwork-core": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-core.git",
+      "ref": "main"
+    },
+    "sdkwork-ui": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-ui.git",
+      "ref": "main"
+    },
+    "sdkwork-terminal": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-terminal.git",
+      "ref": "main"
+    }
+  }
+}

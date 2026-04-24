@@ -29,9 +29,33 @@ export const BIRDCODER_APPBASE_VIP_SUBSCRIPTION_STORAGE_BINDING: BirdCoderEntity
 export const BIRDCODER_WORKBENCH_PREFERENCES_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
   entityName: 'workbench_preference',
   storageScope: 'workbench',
-  storageKey: 'preferences',
+  storageKey: 'workbench-preferences.global.v1',
   preferredProvider: 'sqlite',
-  storageMode: 'key-value',
+  storageMode: 'table',
+};
+
+export const BIRDCODER_ENGINE_REGISTRY_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
+  entityName: 'engine_registry',
+  storageScope: 'engine',
+  storageKey: 'engine-registry.v1',
+  preferredProvider: 'sqlite',
+  storageMode: 'table',
+};
+
+export const BIRDCODER_MODEL_CATALOG_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
+  entityName: 'model_catalog',
+  storageScope: 'engine',
+  storageKey: 'model-catalog.v1',
+  preferredProvider: 'sqlite',
+  storageMode: 'table',
+};
+
+export const BIRDCODER_ENGINE_BINDING_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
+  entityName: 'engine_binding',
+  storageScope: 'engine',
+  storageKey: 'engine-bindings.v1',
+  preferredProvider: 'sqlite',
+  storageMode: 'table',
 };
 
 export const BIRDCODER_RUN_CONFIGURATION_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
@@ -39,15 +63,7 @@ export const BIRDCODER_RUN_CONFIGURATION_STORAGE_BINDING: BirdCoderEntityStorage
   storageScope: 'runtime.run-configurations',
   storageKey: 'run-configs.global.v1',
   preferredProvider: 'sqlite',
-  storageMode: 'key-value',
-};
-
-export const BIRDCODER_TERMINAL_SESSION_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
-  entityName: 'terminal_session',
-  storageScope: 'runtime.terminal',
-  storageKey: 'sessions.v1',
-  preferredProvider: 'sqlite',
-  storageMode: 'key-value',
+  storageMode: 'table',
 };
 
 export const BIRDCODER_TERMINAL_EXECUTION_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
@@ -118,6 +134,22 @@ export const BIRDCODER_CODING_SESSION_MESSAGE_STORAGE_BINDING: BirdCoderEntitySt
   entityName: 'coding_session_message',
   storageScope: 'coding-session',
   storageKey: 'coding-session-messages.v1',
+  preferredProvider: 'sqlite',
+  storageMode: 'table',
+};
+
+export const BIRDCODER_CODING_SESSION_PROMPT_ENTRY_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
+  entityName: 'coding_session_prompt_entry',
+  storageScope: 'coding-session',
+  storageKey: 'coding-session-prompt-entries.v1',
+  preferredProvider: 'sqlite',
+  storageMode: 'table',
+};
+
+export const BIRDCODER_SAVED_PROMPT_ENTRY_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
+  entityName: 'saved_prompt_entry',
+  storageScope: 'prompt',
+  storageKey: 'saved-prompt-entries.v1',
   preferredProvider: 'sqlite',
   storageMode: 'table',
 };

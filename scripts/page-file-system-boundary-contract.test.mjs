@@ -16,7 +16,7 @@ const infrastructureInterfaceSource = read(
   'packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IFileSystemService.ts',
 );
 const sharedHookSource = read('packages/sdkwork-birdcoder-commons/src/hooks/useFileSystem.ts');
-const appSource = read('src/App.tsx');
+const appSource = read('packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx');
 const codePageSource = read('packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx');
 const studioPageSource = read('packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx');
 
@@ -70,13 +70,13 @@ assert.doesNotMatch(
 
 assert.match(
   sharedHookSource,
-  /useEffect\(\(\) => \{[\s\S]*setIsLoading\(false\);[\s\S]*setIsLoadingContent\(false\);[\s\S]*\}, \[projectId\]\);/,
+  /useEffect\(\(\) => \{[\s\S]*setIsLoading\(false\);[\s\S]*setIsLoadingContent\(false\);[\s\S]*projectId,[\s\S]*\]\);/,
   'useFileSystem must clear stale loading indicators when switching projects without blocking paint in layout effects.',
 );
 
 assert.match(
   sharedHookSource,
-  /export function useFileSystem\(projectId: string, projectPath\?: string\)/,
+  /export function useFileSystem\(projectId: string, projectPath\?: string(?:,\s*options\?: UseFileSystemOptions)?\)/,
   'useFileSystem must accept persisted project-path metadata so local mounts can recover after restart.',
 );
 
@@ -249,8 +249,8 @@ assert.doesNotMatch(
 
 assert.match(
   sharedHookSource,
-  /resolveSelectedFileAfterMutation\(\{/,
-  'useFileSystem must resolve post-mutation file selection through the shared mutation helper.',
+  /resolveEditorOpenFileStateAfterMutation\(\{/,
+  'useFileSystem must resolve post-mutation editor file state through the shared mutation helper.',
 );
 
 assert.doesNotMatch(
@@ -361,7 +361,7 @@ for (const [label, source] of [
 ]) {
   assert.match(
     source,
-    /useFileSystem\(currentProjectId,\s*currentProject\?\.path\)/,
+    /useFileSystem\(currentProjectId,\s*currentProject\?\.path(?:,\s*\{[\s\S]*?isActive:\s*isVisible[\s\S]*?\})?\)/,
     `${label} must pass the persisted project path into useFileSystem so desktop project mounts can recover after restart.`,
   );
 

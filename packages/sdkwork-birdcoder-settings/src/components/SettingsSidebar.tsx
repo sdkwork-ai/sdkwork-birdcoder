@@ -1,8 +1,18 @@
-import React from 'react';
-import { Settings, User, Monitor, GitBranch, Terminal, Folder, Archive, ArrowLeft, Sun, LogOut, Zap } from 'lucide-react';
+import { Settings, User, Monitor, GitBranch, Terminal, Folder, Archive, ArrowLeft, Sun, LogOut, Zap, Cpu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-export type SettingsTab = 'general' | 'appearance' | 'config' | 'personalization' | 'mcp' | 'git' | 'environment' | 'worktree' | 'archived' | 'skills';
+export type SettingsTab =
+  | 'general'
+  | 'codeEngines'
+  | 'appearance'
+  | 'config'
+  | 'personalization'
+  | 'mcp'
+  | 'git'
+  | 'environment'
+  | 'worktree'
+  | 'archived'
+  | 'skills';
 
 interface SettingsSidebarProps {
   activeTab: SettingsTab;
@@ -33,6 +43,14 @@ export function SettingsSidebar({ activeTab, setActiveTab, onBack, onLogout }: S
         >
           <Settings size={16} />
           <span>{t('settings.general')}</span>
+        </div>
+        <div 
+          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'codeEngines' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
+          style={{ animationDelay: '75ms' }}
+          onClick={() => setActiveTab('codeEngines')}
+        >
+          <Cpu size={16} />
+          <span>{t('settings.sidebar.codeEngines')}</span>
         </div>
         <div 
           className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'appearance' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
@@ -96,7 +114,7 @@ export function SettingsSidebar({ activeTab, setActiveTab, onBack, onLogout }: S
           onClick={() => setActiveTab('archived')}
         >
           <Archive size={16} />
-          <span>{t('settings.sidebar.archivedThreads')}</span>
+          <span>{t('settings.sidebar.archivedSessions')}</span>
         </div>
         <div 
           className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'skills' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}

@@ -9,6 +9,8 @@ export type UpdateSetting = <K extends keyof AppSettings>(
 ) => void;
 
 export interface SettingsProps {
+  currentProjectId?: string;
+  currentProjectName?: string;
   settings: AppSettings;
   updateSetting: UpdateSetting;
   bootServerBaseUrlOverride?: string;

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-const CODE_ENGINE_TURN_CONTEXT_FILE_CONTENT_CHAR_LIMIT: usize = 12_000;
+const CODE_ENGINE_TURN_CONTEXT_FILE_CONTENT_CHAR_LIMIT: usize = 4_000;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -27,7 +27,7 @@ pub struct CodeEngineTurnCurrentFileContextRecord {
 pub struct CodeEngineTurnIdeContextRecord {
     pub workspace_id: Option<String>,
     pub project_id: Option<String>,
-    pub thread_id: Option<String>,
+    pub session_id: Option<String>,
     pub current_file: Option<CodeEngineTurnCurrentFileContextRecord>,
 }
 
@@ -35,7 +35,7 @@ pub struct CodeEngineTurnIdeContextRecord {
 #[serde(rename_all = "camelCase")]
 pub struct CodeEngineTurnRequestRecord {
     pub engine_id: String,
-    pub model_id: Option<String>,
+    pub model_id: String,
     pub native_session_id: Option<String>,
     pub request_kind: String,
     pub input_summary: String,
@@ -82,8 +82,8 @@ fn build_codeengine_turn_context_block(
     if let Some(project_id) = normalize_non_empty_string(ide_context.project_id.as_deref()) {
         metadata_lines.push(format!("- Project ID: {project_id}"));
     }
-    if let Some(thread_id) = normalize_non_empty_string(ide_context.thread_id.as_deref()) {
-        metadata_lines.push(format!("- Session ID: {thread_id}"));
+    if let Some(session_id) = normalize_non_empty_string(ide_context.session_id.as_deref()) {
+        metadata_lines.push(format!("- Session ID: {session_id}"));
     }
 
     let mut sections = Vec::new();
@@ -99,14 +99,22 @@ fn build_codeengine_turn_context_block(
         sections.push(file_lines.join("\n"));
 
         if let Some(content) = normalize_non_empty_string(current_file.content.as_deref()) {
-            let language =
-                normalize_non_empty_string(current_file.language.as_deref()).unwrap_or_else(|| {
-                    "text".to_owned()
-                });
-            sections.push(format!(
-                "Current file content:\n```{language}\n{}\n```",
-                truncate_turn_context_content(content.as_str())
-            ));
+            if should_inline_turn_context_file_content(
+                current_file.path.as_str(),
+                current_file.language.as_deref(),
+            ) {
+                let language = normalize_non_empty_string(current_file.language.as_deref())
+                    .unwrap_or_else(|| "text".to_owned());
+                sections.push(format!(
+                    "Current file content:\n```{language}\n{}\n```",
+                    truncate_turn_context_content(content.as_str())
+                ));
+            } else {
+                sections.push(
+                    "Current file content omitted for structured file formats. Inspect the file directly from the workspace if needed."
+                        .to_owned(),
+                );
+            }
         }
     }
 
@@ -131,11 +139,93 @@ fn truncate_turn_context_content(value: &str) -> String {
     truncated
 }
 
+fn should_inline_turn_context_file_content(path: &str, language: Option<&str>) -> bool {
+    let normalized_language = language
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if matches!(
+        normalized_language.as_str(),
+        "json"
+            | "jsonc"
+            | "yaml"
+            | "yml"
+            | "toml"
+            | "xml"
+            | "csv"
+            | "tsv"
+            | "ini"
+            | "properties"
+    ) {
+        return false;
+    }
+
+    let normalized_path = path.trim().to_ascii_lowercase();
+    !matches!(
+        normalized_path.as_str(),
+        _ if normalized_path.ends_with(".lock")
+            || normalized_path.ends_with("package-lock.json")
+            || normalized_path.ends_with("pnpm-lock.yaml")
+            || normalized_path.ends_with("yarn.lock")
+            || normalized_path.ends_with("cargo.lock")
+            || normalized_path.ends_with("composer.lock")
+    )
+}
+
 fn normalize_non_empty_string(value: Option<&str>) -> Option<String> {
     let trimmed = value?.trim();
     if trimmed.is_empty() {
         None
     } else {
         Some(trimmed.to_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_codeengine_turn_prompt_omits_structured_json_file_content() {
+        let prompt = build_codeengine_turn_prompt(
+            "chat",
+            "Explain the package configuration.",
+            Some(&CodeEngineTurnIdeContextRecord {
+                workspace_id: Some("100000000000000101".to_owned()),
+                project_id: Some("project-demo".to_owned()),
+                session_id: Some("coding-session-demo".to_owned()),
+                current_file: Some(CodeEngineTurnCurrentFileContextRecord {
+                    path: "/demo/package.json".to_owned(),
+                    language: Some("json".to_owned()),
+                    content: Some("{\"name\":\"demo\",\"private\":true}".to_owned()),
+                }),
+            }),
+        );
+
+        assert!(prompt.contains("Current file path: /demo/package.json"));
+        assert!(prompt.contains("Current file language: json"));
+        assert!(prompt.contains("Current file content omitted for structured file formats."));
+        assert!(!prompt.contains("```json"));
+        assert!(!prompt.contains("\"private\":true"));
+    }
+
+    #[test]
+    fn build_codeengine_turn_prompt_keeps_source_file_preview() {
+        let prompt = build_codeengine_turn_prompt(
+            "chat",
+            "Review this component.",
+            Some(&CodeEngineTurnIdeContextRecord {
+                workspace_id: Some("100000000000000101".to_owned()),
+                project_id: Some("project-demo".to_owned()),
+                session_id: Some("coding-session-demo".to_owned()),
+                current_file: Some(CodeEngineTurnCurrentFileContextRecord {
+                    path: "/demo/src/App.tsx".to_owned(),
+                    language: Some("tsx".to_owned()),
+                    content: Some("export function App() {\n  return <main>Hello</main>;\n}".to_owned()),
+                }),
+            }),
+        );
+
+        assert!(prompt.contains("Current file content:\n```tsx"));
+        assert!(prompt.contains("export function App()"));
     }
 }

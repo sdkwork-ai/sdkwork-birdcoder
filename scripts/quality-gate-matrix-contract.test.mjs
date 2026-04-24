@@ -109,6 +109,10 @@ assert.equal(
   rootPackageJson.scripts['check:desktop-startup-graph'],
   'node scripts/desktop-startup-graph-contract.test.mjs && node scripts/desktop-startup-graph-port-resilience.test.mjs',
 );
+assert.equal(
+  rootPackageJson.scripts['test:user-center-standard'],
+  'node scripts/run-user-center-standard.mjs',
+);
 assert.equal(rootPackageJson.scripts['check:quality:fast'], rootPackageJson.scripts.lint);
 assert.equal(rootPackageJson.scripts.lint, 'node scripts/run-quality-fast-check.mjs');
 assert.equal(
@@ -117,12 +121,18 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:server'],
-  'node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-server --noEmit && cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
+  'node scripts/runtime-user-center-bridge-contract.test.mjs && node scripts/birdcoder-rust-user-center-validation-contract.test.mjs && node scripts/identity-seed-parity-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-server --noEmit && cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
 );
 assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/run-quality-standard-check.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');
 assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.at(0), 'node scripts/run-workspace-package-script.mjs . typecheck');
 assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.at(-1), 'node scripts/run-workspace-package-script.mjs . check:ci-flow');
+assert.equal(
+  qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
+    'node scripts/run-workspace-package-script.mjs . test:user-center-standard',
+  ),
+  true,
+);
 assert.deepEqual(qualityStandardRunnerModule.QUALITY_STANDARD_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:desktop',
   'node scripts/run-workspace-package-script.mjs . check:server',

@@ -13,7 +13,7 @@ import {
 } from '@sdkwork/birdcoder-types';
 import {
   BIRDCODER_CODING_SESSION_STORAGE_BINDING,
-} from '@sdkwork/birdcoder-types/storageBindings';
+} from '@sdkwork/birdcoder-types';
 import {
   deserializeStoredValue,
   getStoredRawValue,
@@ -23,10 +23,6 @@ import {
   listStoredTerminalSessions,
   type TerminalSessionRecord,
 } from '../terminal/sessions.ts';
-import {
-  normalizeWorkbenchCodeEngineId,
-  normalizeWorkbenchCodeModelId,
-} from '@sdkwork/birdcoder-codeengine';
 import {
   type StoredCodingSessionInventoryRecord,
   type NativeSessionAuthorityCoreReadService,
@@ -41,6 +37,7 @@ interface StoredCodingSessionPersistedEntry {
   lastTurnAt?: unknown;
   modelId?: unknown;
   projectId?: unknown;
+  runtimeStatus?: unknown;
   status?: unknown;
   title?: unknown;
   updatedAt?: unknown;
@@ -134,9 +131,22 @@ function normalizeHostMode(value: unknown): BirdCoderHostMode {
   return typeof value === 'string' && HOST_MODE_SET.has(value) ? value as BirdCoderHostMode : 'desktop';
 }
 
+function normalizeRuntimeStatus(
+  value: unknown,
+): BirdCoderCodingSessionSummary['runtimeStatus'] {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const normalizedValue = value.trim();
+  return normalizedValue.length > 0
+    ? (normalizedValue as BirdCoderCodingSessionSummary['runtimeStatus'])
+    : undefined;
+}
+
 function normalizeStoredCodingSessionRecord(
   value: StoredCodingSessionPersistedEntry,
-): BirdCoderCodingSessionSummary {
+): BirdCoderCodingSessionSummary | null {
   const createdAtCandidate =
     typeof value.createdAt === 'string' && !Number.isNaN(Date.parse(value.createdAt))
       ? value.createdAt
@@ -147,26 +157,33 @@ function normalizeStoredCodingSessionRecord(
       : null;
   const createdAt = createdAtCandidate ?? updatedAtCandidate ?? ZERO_TIMESTAMP;
   const updatedAt = updatedAtCandidate ?? createdAt;
-  const engineId = normalizeWorkbenchCodeEngineId(
-    typeof value.engineId === 'string' ? value.engineId : null,
-  );
+  const rawEngineId =
+    typeof value.engineId === 'string' && value.engineId.trim().length > 0
+      ? value.engineId.trim()
+      : null;
+  if (!rawEngineId) {
+    return null;
+  }
+
+  const engineId = rawEngineId;
+  const rawModelId =
+    typeof value.modelId === 'string' && value.modelId.trim().length > 0
+      ? value.modelId.trim()
+      : null;
+  if (!rawModelId) {
+    return null;
+  }
 
   return {
     id: value.id as string,
     workspaceId: typeof value.workspaceId === 'string' ? value.workspaceId.trim() : '',
     projectId: typeof value.projectId === 'string' ? value.projectId.trim() : '',
-    title: typeof value.title === 'string' && value.title.trim().length > 0 ? value.title.trim() : 'New Thread',
+    title: typeof value.title === 'string' && value.title.trim().length > 0 ? value.title.trim() : 'New Session',
     status: normalizeCodingSessionStatus(value.status),
     hostMode: normalizeHostMode(value.hostMode),
     engineId,
-    modelId: normalizeWorkbenchCodeModelId(
-      engineId,
-      typeof value.modelId === 'string' ? value.modelId : null,
-      undefined,
-      {
-        allowUnknown: true,
-      },
-    ),
+    modelId: rawModelId,
+    runtimeStatus: normalizeRuntimeStatus(value.runtimeStatus),
     createdAt,
     updatedAt,
     lastTurnAt: normalizeIsoTimestamp(value.lastTurnAt, updatedAt),
@@ -186,6 +203,7 @@ function normalizeStoredCodingSessionCollection(value: unknown): BirdCoderCoding
         typeof (entry as StoredCodingSessionPersistedEntry).id === 'string',
     )
     .map(normalizeStoredCodingSessionRecord)
+    .filter((entry): entry is BirdCoderCodingSessionSummary => entry !== null)
     .sort((left, right) => resolveIsoTimestamp(right.updatedAt) - resolveIsoTimestamp(left.updatedAt));
 }
 
@@ -348,6 +366,7 @@ function toProjectBackedCodingSessionInventoryRecord(
     hostMode: codingSession.hostMode,
     engineId: codingSession.engineId,
     modelId: codingSession.modelId,
+    runtimeStatus: codingSession.runtimeStatus,
     createdAt: codingSession.createdAt,
     updatedAt: codingSession.updatedAt,
     lastTurnAt: codingSession.lastTurnAt,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { BirdCoderDeploymentRecordSummary } from '@sdkwork/birdcoder-types';
-import type { IDeploymentService } from '@sdkwork/birdcoder-infrastructure';
+import type { IDeploymentService } from '@sdkwork/birdcoder-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
 
 export async function loadDeployments(

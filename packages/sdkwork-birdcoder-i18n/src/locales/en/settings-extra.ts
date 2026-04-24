@@ -3,6 +3,7 @@ import { defineLocaleModule } from '../resource.ts';
 export default defineLocaleModule('settings/extra', {
   settings: {
     sidebar: {
+      codeEngines: 'Code Engines & Models',
       appearance: 'Appearance',
       config: 'Config',
       personalization: 'Personalization',
@@ -10,7 +11,7 @@ export default defineLocaleModule('settings/extra', {
       git: 'Git',
       environment: 'Environment',
       worktree: 'Worktree',
-      archivedThreads: 'Archived Sessions',
+      archivedSessions: 'Archived Sessions',
       skills: 'Skills',
       unavailable: '{{tab}} settings not available...',
     },

@@ -1,9 +1,13 @@
-import type { BirdCoderDefaultIdeServices } from '@sdkwork/birdcoder-infrastructure';
+import {
+  loadDefaultBirdCoderIdeService,
+  type BirdCoderDefaultIdeServiceKey,
+  type BirdCoderDefaultIdeServices,
+} from '@sdkwork/birdcoder-infrastructure';
 
-export async function loadDefaultIdeServicesFromInfrastructure(
-): Promise<BirdCoderDefaultIdeServices> {
-  const { createDefaultBirdCoderIdeServices } = await import(
-    '@sdkwork/birdcoder-infrastructure/services/defaultIdeServices'
-  );
-  return createDefaultBirdCoderIdeServices();
+export async function loadDefaultIdeServiceFromInfrastructure<
+  K extends BirdCoderDefaultIdeServiceKey,
+>(
+  serviceKey: K,
+): Promise<BirdCoderDefaultIdeServices[K]> {
+  return loadDefaultBirdCoderIdeService(serviceKey);
 }

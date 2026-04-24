@@ -13,19 +13,38 @@ const rootRequire = createRequire(path.join(rootDir, 'package.json'));
 const shellBootstrapEntryPath = path.join(
   rootDir,
   'packages',
-  'sdkwork-birdcoder-shell',
+  'sdkwork-birdcoder-shell-runtime',
   'src',
   'application',
   'bootstrap',
   'bootstrapShellRuntime.ts',
 );
-const terminalPageEntryPath = path.join(
+const pageLoadersEntryPath = path.join(
   rootDir,
   'packages',
-  'sdkwork-birdcoder-terminal',
+  'sdkwork-birdcoder-shell',
   'src',
-  'pages',
-  'TerminalPage.tsx',
+  'application',
+  'app',
+  'pageLoaders.ts',
+);
+const terminalDesktopEntryPath = path.join(
+  rootDir,
+  '..',
+  'sdkwork-terminal',
+  'apps',
+  'desktop',
+  'src',
+  'index.ts',
+);
+const terminalInfrastructureEntryPath = path.join(
+  rootDir,
+  '..',
+  'sdkwork-terminal',
+  'packages',
+  'sdkwork-terminal-infrastructure',
+  'src',
+  'index.ts',
 );
 const uiRequire = createRequire(path.join(rootDir, 'packages', 'sdkwork-birdcoder-ui', 'package.json'));
 
@@ -129,27 +148,77 @@ try {
   assert.equal(
     shellBootstrapResponse.status,
     200,
-    `Desktop shell bootstrap runtime should transform successfully with its infrastructure subpath imports. Received ${shellBootstrapResponse.status} with body:\n${shellBootstrapSource}`,
+    `Desktop shell bootstrap runtime should transform successfully from the dedicated shell-runtime package. Received ${shellBootstrapResponse.status} with body:\n${shellBootstrapSource}`,
   );
   assert.doesNotMatch(
     shellBootstrapSource,
     /Failed to resolve import/u,
-    'Desktop shell bootstrap runtime must not leak unresolved package subpath imports into the startup graph.',
+    'Desktop shell bootstrap runtime must not leak unresolved imports into the startup graph.',
   );
 
-  const { response: terminalPageResponse, source: terminalPageSource } = await readProbe(
-    `http://127.0.0.1:1532${toFsUrl(terminalPageEntryPath)}`,
+  const { response: pageLoadersResponse, source: pageLoadersSource } = await readProbe(
+    `http://127.0.0.1:1532${toFsUrl(pageLoadersEntryPath)}`,
   );
 
   assert.equal(
-    terminalPageResponse.status,
+    pageLoadersResponse.status,
     200,
-    `Desktop TerminalPage.tsx should transform successfully with commons terminal and context subpath imports. Received ${terminalPageResponse.status} with body:\n${terminalPageSource}`,
+    `Desktop pageLoaders.ts should transform successfully while resolving the sdkwork-terminal desktop entry. Received ${pageLoadersResponse.status} with body:\n${pageLoadersSource}`,
   );
   assert.doesNotMatch(
-    terminalPageSource,
+    pageLoadersSource,
     /Failed to resolve import/u,
-    'Desktop TerminalPage.tsx must not leak unresolved commons terminal or context package subpath imports into lazy module transforms.',
+    'Desktop pageLoaders.ts must not leak unresolved sdkwork-terminal imports into the startup graph.',
+  );
+
+  const { response: terminalDesktopResponse, source: terminalDesktopSource } = await readProbe(
+    `http://127.0.0.1:1532${toFsUrl(terminalDesktopEntryPath)}`,
+  );
+
+  assert.equal(
+    terminalDesktopResponse.status,
+    200,
+    `sdkwork-terminal desktop index.ts should transform successfully when consumed from BirdCoder. Received ${terminalDesktopResponse.status} with body:\n${terminalDesktopSource}`,
+  );
+  assert.doesNotMatch(
+    terminalDesktopSource,
+    /Failed to resolve import/u,
+    'sdkwork-terminal desktop index.ts must not leak unresolved imports when BirdCoder consumes the shared desktop surface directly.',
+  );
+
+  const { response: terminalInfrastructureResponse, source: terminalInfrastructureSource } = await readProbe(
+    `http://127.0.0.1:1532${toFsUrl(terminalInfrastructureEntryPath)}`,
+  );
+
+  assert.equal(
+    terminalInfrastructureResponse.status,
+    200,
+    `sdkwork-terminal infrastructure index.ts should transform successfully when consumed from BirdCoder. Received ${terminalInfrastructureResponse.status} with body:\n${terminalInfrastructureSource}`,
+  );
+  assert.match(
+    terminalInfrastructureSource,
+    /\/@id\/__x00__sdkwork-birdcoder-desktop-xterm-xterm/u,
+    'sdkwork-terminal infrastructure must resolve xterm through the desktop CommonJS compat virtual module instead of Vite prebundled deps.',
+  );
+  assert.doesNotMatch(
+    terminalInfrastructureSource,
+    /\/@fs\/.*@xterm\/xterm\/lib\/xterm\.js/u,
+    'sdkwork-terminal infrastructure must not fall back to the raw xterm UMD runtime inside BirdCoder.',
+  );
+
+  const { response: xtermCompatResponse, source: xtermCompatSource } = await readProbe(
+    'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-xterm-xterm',
+  );
+
+  assert.equal(
+    xtermCompatResponse.status,
+    200,
+    `Desktop xterm compat module should transform successfully. Received ${xtermCompatResponse.status} with body:\n${xtermCompatSource}`,
+  );
+  assert.match(
+    xtermCompatSource,
+    /export\s+default/u,
+    'Desktop xterm compat module must provide a default export while preserving named exports for terminal runtime consumers.',
   );
 
   const { response: iconResponse, source: iconSource } = await readProbe(`http://127.0.0.1:1532${toFsUrl(iconEntryPath)}`);

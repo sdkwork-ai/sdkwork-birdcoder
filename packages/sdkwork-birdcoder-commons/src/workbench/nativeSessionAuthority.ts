@@ -63,6 +63,7 @@ function toStoredNativeSessionSummary(
     modelId: summary.modelId,
     nativeCwd: summary.nativeCwd ?? null,
     projectId: summary.projectId,
+    runtimeStatus: summary.runtimeStatus,
     sortTimestamp: summary.sortTimestamp,
     status: summary.status,
     title: summary.title,

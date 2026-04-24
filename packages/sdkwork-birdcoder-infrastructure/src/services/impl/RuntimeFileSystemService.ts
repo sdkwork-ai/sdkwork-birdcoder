@@ -1,5 +1,7 @@
 import {
   searchProjectFiles,
+  type FileRevisionLookupResult,
+  type ProjectFileSystemChangeEvent,
   type IFileNode,
   type LocalFolderMountSource,
   type WorkspaceFileSearchExecutionResult,
@@ -7,9 +9,15 @@ import {
 } from '@sdkwork/birdcoder-types';
 import {
   createBirdCoderTauriFileSystemRuntime,
+  type BirdCoderTauriDirectoryListing,
+  type BirdCoderTauriFileSystemWatchEvent,
   type BirdCoderTauriFileSystemRuntime,
+  type BirdCoderTauriPathRevisionLookupResult,
 } from '../../platform/tauriFileSystemRuntime.ts';
-import type { IFileSystemService } from '../interfaces/IFileSystemService.ts';
+import type {
+  FileSystemChangeSubscriptionOptions,
+  IFileSystemService,
+} from '../interfaces/IFileSystemService.ts';
 
 interface BrowserWritableLike {
   close(): Promise<void>;
@@ -17,6 +25,8 @@ interface BrowserWritableLike {
 }
 
 interface BrowserFileLike {
+  lastModified?: number;
+  size?: number;
   text(): Promise<string>;
 }
 
@@ -57,10 +67,41 @@ interface BrowserMountState {
 
 interface TauriMountState {
   cachedTree?: IFileNode[];
+  directoryRevisions: Map<string, string>;
   rootSystemPath: string;
   rootVirtualPath: string;
   tree: IFileNode;
 }
+
+type FileSystemChangeListener = (event: ProjectFileSystemChangeEvent) => void;
+type ProjectFileTreePoller = {
+  directoryPollCursor: number;
+  intervalId: ReturnType<typeof setInterval>;
+  isRunning: boolean;
+  trackedFileKnownPaths: Set<string>;
+  trackedFilePollCursor: number;
+  trackedFileRevisionByPath: Map<string, string | null>;
+};
+type ProjectTauriFileWatcher = {
+  rootSystemPath: string;
+  stop: () => void;
+};
+type ProjectTauriFileWatcherStart = {
+  cancelled: boolean;
+  rootSystemPath: string;
+};
+type ProjectTauriWatchQueue = {
+  events: ProjectFileSystemChangeEvent[];
+  isFlushing: boolean;
+  timerId: ReturnType<typeof setTimeout> | null;
+};
+
+const FILE_TREE_POLL_INTERVAL_MS = 1500;
+const TAURI_WATCH_FLUSH_DELAY_MS = 40;
+const DIRECTORY_REFRESH_BATCH_SIZE = 4;
+const DIRECTORY_POLL_BATCH_SIZE = 4;
+const MAX_LOADED_DIRECTORY_REVISIONS_PER_POLL = 24;
+const MAX_TRACKED_FILE_REVISIONS_PER_POLL = 7;
 
 export interface RuntimeFileSystemServiceOptions {
   tauriRuntime?: BirdCoderTauriFileSystemRuntime;
@@ -103,8 +144,9 @@ async function* listBrowserDirectoryEntries(
     return;
   }
 
-  if (typeof handle[Symbol.asyncIterator] === 'function') {
-    for await (const entry of handle[Symbol.asyncIterator]()) {
+  const asyncIteratorFactory = handle[Symbol.asyncIterator];
+  if (typeof asyncIteratorFactory === 'function') {
+    for await (const entry of asyncIteratorFactory.call(handle)) {
       if (Array.isArray(entry)) {
         yield entry[1];
       } else {
@@ -157,6 +199,10 @@ function normalizeComparableLocalFolderPath(path: string): string {
   return isWindowsStylePath
     ? withoutTrailingSeparator.toLowerCase()
     : withoutTrailingSeparator;
+}
+
+function buildBrowserFileRevision(file: BrowserFileLike): string {
+  return `${file.lastModified ?? 0}:${file.size ?? 0}`;
 }
 
 function deleteStoredPathContent(
@@ -213,11 +259,321 @@ function createReadonlyMountedTree(tree: IFileNode): IFileNode[] {
   return Object.freeze([tree]) as IFileNode[];
 }
 
+function cloneDirectoryEntry(node: IFileNode): IFileNode {
+  if (node.type === 'file') {
+    return {
+      name: node.name,
+      type: node.type,
+      path: node.path,
+    };
+  }
+
+  return {
+    name: node.name,
+    type: node.type,
+    path: node.path,
+  };
+}
+
+function cloneDirectoryChildren(children: readonly IFileNode[]): IFileNode[] {
+  return sortFileNodes(children.map((child) => cloneDirectoryEntry(child)));
+}
+
+function mergeDirectoryChildren(
+  currentNode: IFileNode,
+  nextChildren: readonly IFileNode[],
+): IFileNode[] {
+  const currentChildrenByPath = new Map(
+    (currentNode.children ?? []).map((child) => [child.path, child]),
+  );
+
+  return sortFileNodes(
+    nextChildren.map((nextChild) => {
+      const currentChild = currentChildrenByPath.get(nextChild.path);
+      if (!currentChild || currentChild.type !== nextChild.type) {
+        return cloneDirectoryEntry(nextChild);
+      }
+
+      if (currentChild.type === 'directory' && currentChild.children !== undefined) {
+        return {
+          ...cloneDirectoryEntry(nextChild),
+          children: currentChild.children,
+        };
+      }
+
+      return cloneDirectoryEntry(nextChild);
+    }),
+  );
+}
+
+function findNodeByPath(node: IFileNode, targetPath: string): IFileNode | null {
+  if (node.path === targetPath) {
+    return node;
+  }
+
+  if (!node.children?.length) {
+    return null;
+  }
+
+  for (const child of node.children) {
+    const match = findNodeByPath(child, targetPath);
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
+}
+
+function createDirectoryChildrenSignature(children: readonly IFileNode[] | undefined): string {
+  return (children ?? [])
+    .map((child) => `${child.type}:${child.path}:${child.name}`)
+    .join('|');
+}
+
+function replaceDirectoryChildren(
+  node: IFileNode,
+  targetPath: string,
+  nextChildren: readonly IFileNode[],
+): IFileNode {
+  if (node.path === targetPath) {
+    return {
+      ...node,
+      children: mergeDirectoryChildren(node, nextChildren),
+    };
+  }
+
+  if (!node.children?.length) {
+    return node;
+  }
+
+  let didChange = false;
+  const children = node.children.map((child) => {
+    const nextChild = replaceDirectoryChildren(child, targetPath, nextChildren);
+    if (nextChild !== child) {
+      didChange = true;
+    }
+    return nextChild;
+  });
+
+  if (!didChange) {
+    return node;
+  }
+
+  return {
+    ...node,
+    children,
+  };
+}
+
+function collectLoadedDirectoryPaths(node: IFileNode): string[] {
+  const loadedPaths: string[] = [];
+
+  const visit = (currentNode: IFileNode) => {
+    if (currentNode.type !== 'directory' || currentNode.children === undefined) {
+      return;
+    }
+
+    loadedPaths.push(currentNode.path);
+    currentNode.children.forEach((child) => visit(child));
+  };
+
+  visit(node);
+  return loadedPaths;
+}
+
+function selectLoadedDirectoryPollPaths(
+  loadedDirectoryPaths: readonly string[],
+  maxPathsPerCycle: number,
+  cursor: number,
+): {
+  nextCursor: number;
+  paths: string[];
+} {
+  if (loadedDirectoryPaths.length === 0) {
+    return {
+      nextCursor: 0,
+      paths: [],
+    };
+  }
+
+  const normalizedMaxPathsPerCycle =
+    Number.isFinite(maxPathsPerCycle) && maxPathsPerCycle > 0
+      ? Math.floor(maxPathsPerCycle)
+      : loadedDirectoryPaths.length;
+
+  if (loadedDirectoryPaths.length <= normalizedMaxPathsPerCycle) {
+    return {
+      nextCursor: 0,
+      paths: [...loadedDirectoryPaths],
+    };
+  }
+
+  const rootPath = loadedDirectoryPaths[0]!;
+  const descendantPaths = loadedDirectoryPaths.slice(1);
+  const descendantBatchSize = Math.max(0, normalizedMaxPathsPerCycle - 1);
+  if (descendantPaths.length === 0 || descendantBatchSize === 0) {
+    return {
+      nextCursor: 0,
+      paths: [rootPath],
+    };
+  }
+
+  const normalizedCursor =
+    ((Math.trunc(cursor) % descendantPaths.length) + descendantPaths.length) %
+    descendantPaths.length;
+  const rotatedPaths = [];
+  const rotatedCount = Math.min(descendantBatchSize, descendantPaths.length);
+  for (let index = 0; index < rotatedCount; index += 1) {
+    rotatedPaths.push(descendantPaths[(normalizedCursor + index) % descendantPaths.length]!);
+  }
+
+  return {
+    nextCursor: (normalizedCursor + rotatedCount) % descendantPaths.length,
+    paths: [rootPath, ...rotatedPaths],
+  };
+}
+
+function selectTrackedFilePollPaths(
+  trackedFilePaths: readonly string[],
+  maxPathsPerCycle: number,
+  cursor: number,
+): {
+  nextCursor: number;
+  paths: string[];
+} {
+  if (trackedFilePaths.length === 0) {
+    return {
+      nextCursor: 0,
+      paths: [],
+    };
+  }
+
+  const normalizedMaxPathsPerCycle =
+    Number.isFinite(maxPathsPerCycle) && maxPathsPerCycle > 0
+      ? Math.floor(maxPathsPerCycle)
+      : trackedFilePaths.length;
+
+  if (trackedFilePaths.length <= normalizedMaxPathsPerCycle) {
+    return {
+      nextCursor: 0,
+      paths: [...trackedFilePaths],
+    };
+  }
+
+  const primaryTrackedFilePath = trackedFilePaths[0]!;
+  const secondaryTrackedFilePaths = trackedFilePaths.slice(1);
+  const secondaryBatchSize = Math.max(0, normalizedMaxPathsPerCycle - 1);
+  if (secondaryTrackedFilePaths.length === 0 || secondaryBatchSize === 0) {
+    return {
+      nextCursor: 0,
+      paths: [primaryTrackedFilePath],
+    };
+  }
+
+  const normalizedCursor =
+    ((Math.trunc(cursor) % secondaryTrackedFilePaths.length) + secondaryTrackedFilePaths.length) %
+    secondaryTrackedFilePaths.length;
+  const rotatedPaths: string[] = [];
+  const rotatedCount = Math.min(secondaryBatchSize, secondaryTrackedFilePaths.length);
+  for (let index = 0; index < rotatedCount; index += 1) {
+    rotatedPaths.push(
+      secondaryTrackedFilePaths[
+        (normalizedCursor + index) % secondaryTrackedFilePaths.length
+      ]!,
+    );
+  }
+
+  return {
+    nextCursor: (normalizedCursor + rotatedCount) % secondaryTrackedFilePaths.length,
+    paths: [primaryTrackedFilePath, ...rotatedPaths],
+  };
+}
+
+function resolveSuccessfulPathRevisionMap(
+  lookups: readonly BirdCoderTauriPathRevisionLookupResult[],
+): Map<string, string> {
+  const revisionByPath = new Map<string, string>();
+  lookups.forEach((lookup) => {
+    if (!lookup.missing && !lookup.error && lookup.revision !== null) {
+      revisionByPath.set(lookup.path, lookup.revision);
+    }
+  });
+  return revisionByPath;
+}
+
+function pruneTauriDirectoryRevisionMap(mountState: TauriMountState): void {
+  const loadedDirectoryPaths = new Set(collectLoadedDirectoryPaths(mountState.tree));
+  mountState.directoryRevisions.forEach((_, path) => {
+    if (!loadedDirectoryPaths.has(path)) {
+      mountState.directoryRevisions.delete(path);
+    }
+  });
+}
+
+function updateTauriDirectoryRevision(
+  mountState: TauriMountState,
+  directoryPath: string,
+  directoryRevision?: BirdCoderTauriPathRevisionLookupResult,
+): void {
+  if (
+    directoryRevision &&
+    !directoryRevision.missing &&
+    !directoryRevision.error &&
+    directoryRevision.revision !== null
+  ) {
+    mountState.directoryRevisions.set(directoryPath, directoryRevision.revision);
+    return;
+  }
+
+  mountState.directoryRevisions.delete(directoryPath);
+}
+
+async function runBatchedTasks<TItem, TResult>(
+  items: readonly TItem[],
+  batchSize: number,
+  worker: (item: TItem) => Promise<TResult>,
+): Promise<PromiseSettledResult<TResult>[]> {
+  const normalizedBatchSize = Math.max(1, batchSize);
+  const settledResults: PromiseSettledResult<TResult>[] = [];
+
+  for (let index = 0; index < items.length; index += normalizedBatchSize) {
+    const batchItems = items.slice(index, index + normalizedBatchSize);
+    settledResults.push(...(await Promise.allSettled(batchItems.map((item) => worker(item)))));
+  }
+
+  return settledResults;
+}
+
+function normalizeDirectoryRefreshPaths(
+  paths: readonly string[],
+  rootPath: string,
+): string[] {
+  if (paths.length === 0) {
+    return [rootPath];
+  }
+
+  const normalizedPaths = new Set<string>();
+  paths.forEach((path) => {
+    const normalizedPath = path.trim();
+    normalizedPaths.add(normalizedPath || rootPath);
+  });
+  return [...normalizedPaths];
+}
+
 export class RuntimeFileSystemService implements IFileSystemService {
   private readonly projectBrowserMounts: Record<string, BrowserMountState> = {};
   private readonly projectTauriMounts: Record<string, TauriMountState> = {};
   private readonly tauriRuntime: BirdCoderTauriFileSystemRuntime;
   private readonly projectFileContent: Record<string, Record<string, string>> = {};
+  private readonly fileChangeListeners = new Map<
+    string,
+    Map<FileSystemChangeListener, FileSystemChangeSubscriptionOptions>
+  >();
+  private readonly projectFileTreePollers = new Map<string, ProjectFileTreePoller>();
+  private readonly projectTauriFileWatchers = new Map<string, ProjectTauriFileWatcher>();
+  private readonly projectTauriFileWatcherStarts = new Map<string, ProjectTauriFileWatcherStart>();
+  private readonly projectTauriWatchQueues = new Map<string, ProjectTauriWatchQueue>();
 
   constructor(options: RuntimeFileSystemServiceOptions = {}) {
     this.tauriRuntime = options.tauriRuntime ?? createBirdCoderTauriFileSystemRuntime();
@@ -243,6 +599,94 @@ export class RuntimeFileSystemService implements IFileSystemService {
     return [];
   }
 
+  async loadDirectory(projectId: string, path: string): Promise<IFileNode[]> {
+    if (this.isBrowserMountedPath(projectId, path)) {
+      await this.loadBrowserMountedDirectory(projectId, path);
+      return this.getFiles(projectId);
+    }
+
+    if (this.isTauriMountedPath(projectId, path)) {
+      await this.loadTauriMountedDirectory(projectId, path);
+      return this.getFiles(projectId);
+    }
+
+    throw new Error(`Directory "${path}" is not available because project "${projectId}" is not mounted.`);
+  }
+
+  async refreshDirectory(projectId: string, path?: string): Promise<IFileNode[]> {
+    return this.refreshDirectories(projectId, path ? [path] : []);
+  }
+
+  async refreshDirectories(projectId: string, paths: readonly string[]): Promise<IFileNode[]> {
+    const browserMount = this.projectBrowserMounts[projectId];
+    if (browserMount) {
+      const targetPaths = normalizeDirectoryRefreshPaths(paths, browserMount.rootPath);
+      const refreshResults = await runBatchedTasks(
+        targetPaths,
+        DIRECTORY_REFRESH_BATCH_SIZE,
+        async (directoryPath) => this.refreshBrowserDirectory(projectId, directoryPath),
+      );
+      refreshResults.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(
+            `Failed to refresh browser-mounted directory "${targetPaths[index]}"`,
+            result.reason,
+          );
+        }
+      });
+      return this.getFiles(projectId);
+    }
+
+    const tauriMount = this.projectTauriMounts[projectId];
+    if (tauriMount) {
+      const targetPaths = normalizeDirectoryRefreshPaths(paths, tauriMount.rootVirtualPath);
+      const refreshResults = await runBatchedTasks(
+        targetPaths,
+        DIRECTORY_REFRESH_BATCH_SIZE,
+        async (directoryPath) => this.refreshTauriDirectory(projectId, directoryPath),
+      );
+      refreshResults.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(
+            `Failed to refresh desktop-mounted directory "${targetPaths[index]}"`,
+            result.reason,
+          );
+        }
+      });
+      return this.getFiles(projectId);
+    }
+
+    return [];
+  }
+
+  subscribeToFileChanges(
+    projectId: string,
+    listener: (event: ProjectFileSystemChangeEvent) => void,
+    options: FileSystemChangeSubscriptionOptions = {},
+  ): () => void {
+    const projectListeners =
+      this.fileChangeListeners.get(projectId) ??
+      new Map<FileSystemChangeListener, FileSystemChangeSubscriptionOptions>();
+    projectListeners.set(listener, options);
+    this.fileChangeListeners.set(projectId, projectListeners);
+    this.ensureProjectFileTreeRealtime(projectId);
+
+    return () => {
+      const currentListeners = this.fileChangeListeners.get(projectId);
+      if (!currentListeners) {
+        return;
+      }
+
+      currentListeners.delete(listener);
+      if (currentListeners.size === 0) {
+        this.fileChangeListeners.delete(projectId);
+        this.stopProjectFileTreePoller(projectId);
+        this.stopProjectTauriFileWatcher(projectId);
+        this.clearProjectTauriWatchQueue(projectId);
+      }
+    };
+  }
+
   async getFileContent(projectId: string, path: string): Promise<string> {
     if (this.isBrowserMountedPath(projectId, path)) {
       const mountedContent = await this.readBrowserMountedFileContent(projectId, path);
@@ -259,6 +703,73 @@ export class RuntimeFileSystemService implements IFileSystemService {
     }
 
     throw new Error(`File "${path}" is not available because project "${projectId}" is not mounted.`);
+  }
+
+  async getFileRevision(projectId: string, path: string): Promise<string> {
+    if (this.isBrowserMountedPath(projectId, path)) {
+      const mountedRevision = await this.readBrowserMountedFileRevision(projectId, path);
+      if (mountedRevision !== null) {
+        return mountedRevision;
+      }
+    }
+
+    if (this.isTauriMountedPath(projectId, path)) {
+      const mountedRevision = await this.readTauriMountedFileRevision(projectId, path);
+      if (mountedRevision !== null) {
+        return mountedRevision;
+      }
+    }
+
+    throw new Error(`File "${path}" is not available because project "${projectId}" is not mounted.`);
+  }
+
+  async getFileRevisions(
+    projectId: string,
+    paths: readonly string[],
+  ): Promise<ReadonlyArray<FileRevisionLookupResult>> {
+    if (paths.length === 0) {
+      return [];
+    }
+
+    if (this.projectBrowserMounts[projectId]) {
+      const lookups = await runBatchedTasks(paths, DIRECTORY_POLL_BATCH_SIZE, async (path) => {
+        const revision = await this.readBrowserMountedFileRevision(projectId, path);
+        return {
+          path,
+          revision,
+          missing: revision === null,
+        } satisfies FileRevisionLookupResult;
+      });
+
+      return lookups.map((lookup, index) => {
+        if (lookup.status === 'fulfilled') {
+          return lookup.value;
+        }
+
+        return {
+          path: paths[index]!,
+          revision: null,
+          missing: false,
+          error: lookup.reason instanceof Error ? lookup.reason.message : String(lookup.reason),
+        } satisfies FileRevisionLookupResult;
+      });
+    }
+
+    const tauriMount = this.projectTauriMounts[projectId];
+    if (tauriMount) {
+      return this.tauriRuntime.getFileRevisions(
+        tauriMount.rootSystemPath,
+        tauriMount.rootVirtualPath,
+        paths,
+      );
+    }
+
+    return paths.map((path) => ({
+      path,
+      revision: null,
+      missing: true,
+      error: `File "${path}" is not available because project "${projectId}" is not mounted.`,
+    }));
   }
 
   async saveFileContent(projectId: string, path: string, content: string): Promise<void> {
@@ -391,7 +902,20 @@ export class RuntimeFileSystemService implements IFileSystemService {
     projectId: string,
     options: WorkspaceFileSearchOptions,
   ): Promise<WorkspaceFileSearchExecutionResult> {
-    const files = await this.getFiles(projectId);
+    const browserMount = this.projectBrowserMounts[projectId];
+    const tauriMount = this.projectTauriMounts[projectId];
+    const files = browserMount
+      ? createReadonlyMountedTree(
+          await this.snapshotBrowserDirectoryRecursively(
+            browserMount.rootHandle,
+            browserMount.rootPath,
+          ),
+        )
+      : tauriMount
+        ? createReadonlyMountedTree(
+            (await this.tauriRuntime.snapshotFolder(tauriMount.rootSystemPath)).tree,
+          )
+        : await this.getFiles(projectId);
     return searchProjectFiles({
       files,
       query: options.query,
@@ -413,6 +937,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       const existingBrowserMount = this.projectBrowserMounts[projectId];
       if (existingBrowserMount?.rootHandle === folderInfo.handle) {
         delete this.projectTauriMounts[projectId];
+        this.ensureProjectFileTreeRealtime(projectId);
         return;
       }
 
@@ -422,6 +947,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       this.projectBrowserMounts[projectId] = mountState;
       delete this.projectTauriMounts[projectId];
       this.projectFileContent[projectId] = {};
+      this.ensureProjectFileTreeRealtime(projectId);
       return;
     }
 
@@ -432,6 +958,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
         normalizeComparableLocalFolderPath(folderInfo.path)
     ) {
       delete this.projectBrowserMounts[projectId];
+      this.ensureProjectFileTreeRealtime(projectId);
       return;
     }
 
@@ -439,6 +966,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
     this.projectTauriMounts[projectId] = mountState;
     delete this.projectBrowserMounts[projectId];
     this.projectFileContent[projectId] = {};
+    this.ensureProjectFileTreeRealtime(projectId);
   }
 
   private async buildBrowserMountState(
@@ -447,12 +975,18 @@ export class RuntimeFileSystemService implements IFileSystemService {
     const rootPath = `/${rootHandle.name}`;
     const directoryHandles = new Map<string, BrowserDirectoryHandleLike>();
     const fileHandles = new Map<string, BrowserFileHandleLike>();
-    const tree = await this.snapshotBrowserDirectory(
-      rootHandle,
-      rootPath,
-      directoryHandles,
-      fileHandles,
-    );
+    directoryHandles.set(rootPath, rootHandle);
+    const tree: IFileNode = {
+      name: rootHandle.name,
+      type: 'directory',
+      path: rootPath,
+      children: await this.listBrowserDirectoryChildren(
+        rootHandle,
+        rootPath,
+        directoryHandles,
+        fileHandles,
+      ),
+    };
 
     return {
       directoryHandles,
@@ -463,25 +997,50 @@ export class RuntimeFileSystemService implements IFileSystemService {
     };
   }
 
-  private async snapshotBrowserDirectory(
+  private async listBrowserDirectoryChildren(
     handle: BrowserDirectoryHandleLike,
     directoryPath: string,
     directoryHandles: Map<string, BrowserDirectoryHandleLike>,
     fileHandles: Map<string, BrowserFileHandleLike>,
-  ): Promise<IFileNode> {
-    directoryHandles.set(directoryPath, handle);
+  ): Promise<IFileNode[]> {
     const children: IFileNode[] = [];
 
     for await (const entry of listBrowserDirectoryEntries(handle)) {
       const childPath = buildChildPath(directoryPath, entry.name);
       if (isBrowserDirectoryHandle(entry)) {
-        children.push(
-          await this.snapshotBrowserDirectory(entry, childPath, directoryHandles, fileHandles),
-        );
+        directoryHandles.set(childPath, entry);
+        children.push({
+          name: entry.name,
+          type: 'directory',
+          path: childPath,
+        });
         continue;
       }
 
       fileHandles.set(childPath, entry);
+      children.push({
+        name: entry.name,
+        type: 'file',
+        path: childPath,
+      });
+    }
+
+    return sortFileNodes(children);
+  }
+
+  private async snapshotBrowserDirectoryRecursively(
+    handle: BrowserDirectoryHandleLike,
+    directoryPath: string,
+  ): Promise<IFileNode> {
+    const children: IFileNode[] = [];
+
+    for await (const entry of listBrowserDirectoryEntries(handle)) {
+      const childPath = buildChildPath(directoryPath, entry.name);
+      if (isBrowserDirectoryHandle(entry)) {
+        children.push(await this.snapshotBrowserDirectoryRecursively(entry, childPath));
+        continue;
+      }
+
       children.push({
         name: entry.name,
         type: 'file',
@@ -497,31 +1056,815 @@ export class RuntimeFileSystemService implements IFileSystemService {
     };
   }
 
-  private async refreshBrowserMount(projectId: string): Promise<void> {
+  private async loadBrowserMountedDirectory(
+    projectId: string,
+    directoryPath: string,
+  ): Promise<void> {
     const mountState = this.projectBrowserMounts[projectId];
     if (!mountState) {
       return;
     }
 
-    this.projectBrowserMounts[projectId] = await this.buildBrowserMountState(mountState.rootHandle);
+    const targetHandle = mountState.directoryHandles.get(directoryPath);
+    if (!targetHandle) {
+      return;
+    }
+
+    const children = await this.listBrowserDirectoryChildren(
+      targetHandle,
+      directoryPath,
+      mountState.directoryHandles,
+      mountState.fileHandles,
+    );
+    this.pruneRemovedBrowserMountedEntries(
+      projectId,
+      mountState,
+      directoryPath,
+      children,
+    );
+    mountState.tree = replaceDirectoryChildren(mountState.tree, directoryPath, children);
+    mountState.cachedTree = undefined;
+  }
+
+  private async refreshBrowserDirectory(projectId: string, directoryPath: string): Promise<void> {
+    await this.loadBrowserMountedDirectory(projectId, directoryPath);
   }
 
   private async buildTauriMountState(rootSystemPath: string): Promise<TauriMountState> {
-    const snapshot = await this.tauriRuntime.snapshotFolder(rootSystemPath);
-    return {
+    const listing = await this.tauriRuntime.listDirectory(rootSystemPath, null);
+    const rootRevisions = await this.tauriRuntime.getDirectoryRevisions(
       rootSystemPath,
-      rootVirtualPath: snapshot.rootVirtualPath,
-      tree: snapshot.tree,
-    };
+      listing.rootVirtualPath,
+      [listing.rootVirtualPath],
+    );
+    return this.createTauriMountStateFromListing(
+      rootSystemPath,
+      listing,
+      resolveSuccessfulPathRevisionMap(rootRevisions),
+    );
   }
 
-  private async refreshTauriMount(projectId: string): Promise<void> {
+  private createTauriMountStateFromListing(
+    rootSystemPath: string,
+    listing: BirdCoderTauriDirectoryListing,
+    directoryRevisions: Map<string, string>,
+  ): TauriMountState {
+    const mountState: TauriMountState = {
+      cachedTree: undefined,
+      directoryRevisions: new Map(directoryRevisions),
+      rootSystemPath,
+      rootVirtualPath: listing.rootVirtualPath,
+      tree: {
+        name: listing.directory.name,
+        type: listing.directory.type,
+        path: listing.directory.path,
+        children: cloneDirectoryChildren(listing.directory.children ?? []),
+      },
+    };
+
+    return mountState;
+  }
+
+  private async loadTauriMountedDirectory(
+    projectId: string,
+    directoryPath: string,
+    knownDirectoryRevision?: BirdCoderTauriPathRevisionLookupResult,
+  ): Promise<void> {
     const mountState = this.projectTauriMounts[projectId];
     if (!mountState) {
       return;
     }
 
-    this.projectTauriMounts[projectId] = await this.buildTauriMountState(mountState.rootSystemPath);
+    const listing = await this.tauriRuntime.listDirectory(
+      mountState.rootSystemPath,
+      mountState.rootVirtualPath,
+      directoryPath,
+    );
+    mountState.tree = replaceDirectoryChildren(
+      mountState.tree,
+      listing.directory.path,
+      listing.directory.children ?? [],
+    );
+    const directoryRevision =
+      knownDirectoryRevision?.path === listing.directory.path
+        ? knownDirectoryRevision
+        : (
+            await this.tauriRuntime.getDirectoryRevisions(
+              mountState.rootSystemPath,
+              mountState.rootVirtualPath,
+              [listing.directory.path],
+            )
+          )[0];
+    updateTauriDirectoryRevision(mountState, listing.directory.path, directoryRevision);
+    pruneTauriDirectoryRevisionMap(mountState);
+    mountState.cachedTree = undefined;
+  }
+
+  private async refreshTauriDirectory(projectId: string, directoryPath: string): Promise<void> {
+    const mountState = this.projectTauriMounts[projectId];
+    if (!mountState) {
+      return;
+    }
+
+    const directoryRevisions = await this.tauriRuntime.getDirectoryRevisions(
+      mountState.rootSystemPath,
+      mountState.rootVirtualPath,
+      [directoryPath],
+    );
+    const directoryRevision = directoryRevisions[0];
+    if (
+      directoryRevision &&
+      !directoryRevision.missing &&
+      !directoryRevision.error &&
+      directoryRevision.revision !== null &&
+      mountState.directoryRevisions.get(directoryPath) === directoryRevision.revision
+    ) {
+      return;
+    }
+
+    await this.loadTauriMountedDirectory(projectId, directoryPath, directoryRevision);
+  }
+
+  private ensureProjectFileTreeRealtime(projectId: string): void {
+    if (!this.fileChangeListeners.has(projectId)) {
+      this.stopProjectFileTreePoller(projectId);
+      this.stopProjectTauriFileWatcher(projectId);
+      this.clearProjectTauriWatchQueue(projectId);
+      return;
+    }
+
+    if (this.projectTauriMounts[projectId]) {
+      this.stopProjectFileTreePoller(projectId);
+      void this.ensureProjectTauriFileWatcher(projectId);
+      return;
+    }
+
+    this.stopProjectTauriFileWatcher(projectId);
+    this.clearProjectTauriWatchQueue(projectId);
+    if (this.projectBrowserMounts[projectId]) {
+      this.ensureProjectFileTreePoller(projectId);
+      return;
+    }
+
+    this.stopProjectFileTreePoller(projectId);
+  }
+
+  private async ensureProjectTauriFileWatcher(projectId: string): Promise<void> {
+    const mountState = this.projectTauriMounts[projectId];
+    if (!mountState || !this.fileChangeListeners.has(projectId)) {
+      return;
+    }
+
+    const activeWatcher = this.projectTauriFileWatchers.get(projectId);
+    if (activeWatcher) {
+      if (activeWatcher.rootSystemPath === mountState.rootSystemPath) {
+        return;
+      }
+
+      this.stopProjectTauriFileWatcher(projectId);
+    }
+
+    const startingWatcher = this.projectTauriFileWatcherStarts.get(projectId);
+    if (startingWatcher) {
+      if (startingWatcher.rootSystemPath === mountState.rootSystemPath) {
+        return;
+      }
+
+      this.stopProjectTauriFileWatcher(projectId);
+    }
+
+    const watcherStart: ProjectTauriFileWatcherStart = {
+      cancelled: false,
+      rootSystemPath: mountState.rootSystemPath,
+    };
+    this.projectTauriFileWatcherStarts.set(projectId, watcherStart);
+
+    try {
+      const dispose = await this.tauriRuntime.watchProjectTree(
+        mountState.rootSystemPath,
+        (event) => {
+          if (watcherStart.cancelled) {
+            return;
+          }
+
+          this.enqueueProjectTauriWatchEvent(projectId, event);
+        },
+      );
+
+      if (watcherStart.cancelled) {
+        await dispose();
+        return;
+      }
+
+      this.projectTauriFileWatchers.set(projectId, {
+        rootSystemPath: mountState.rootSystemPath,
+        stop: () => {
+          if (watcherStart.cancelled) {
+            return;
+          }
+
+          watcherStart.cancelled = true;
+          void dispose().catch((error) => {
+            console.error(
+              `Failed to dispose desktop-mounted file watcher for project "${projectId}"`,
+              error,
+            );
+          });
+        },
+      });
+    } catch (error) {
+      if (!watcherStart.cancelled) {
+        console.error(
+          `Failed to start desktop-mounted file watcher for project "${projectId}"`,
+          error,
+        );
+        if (
+          this.fileChangeListeners.has(projectId) &&
+          this.projectTauriMounts[projectId]?.rootSystemPath === mountState.rootSystemPath
+        ) {
+          this.ensureProjectFileTreePoller(projectId);
+        }
+      }
+    } finally {
+      const currentWatcherStart = this.projectTauriFileWatcherStarts.get(projectId);
+      if (currentWatcherStart === watcherStart) {
+        this.projectTauriFileWatcherStarts.delete(projectId);
+      }
+    }
+  }
+
+  private stopProjectTauriFileWatcher(projectId: string): void {
+    const watcher = this.projectTauriFileWatchers.get(projectId);
+    if (watcher) {
+      this.projectTauriFileWatchers.delete(projectId);
+      watcher.stop();
+    }
+
+    const watcherStart = this.projectTauriFileWatcherStarts.get(projectId);
+    if (watcherStart) {
+      watcherStart.cancelled = true;
+      this.projectTauriFileWatcherStarts.delete(projectId);
+    }
+  }
+
+  private enqueueProjectTauriWatchEvent(
+    projectId: string,
+    event: BirdCoderTauriFileSystemWatchEvent,
+  ): void {
+    const normalizedPaths = [...new Set(event.paths.map((path) => path.trim()).filter(Boolean))];
+    if (normalizedPaths.length === 0) {
+      return;
+    }
+
+    const queue = this.projectTauriWatchQueues.get(projectId) ?? {
+      events: [],
+      isFlushing: false,
+      timerId: null,
+    };
+    queue.events.push({
+      kind: event.kind,
+      paths: normalizedPaths,
+    });
+    this.projectTauriWatchQueues.set(projectId, queue);
+    this.scheduleProjectTauriWatchQueueFlush(projectId, queue);
+  }
+
+  private scheduleProjectTauriWatchQueueFlush(
+    projectId: string,
+    queue: ProjectTauriWatchQueue,
+  ): void {
+    if (queue.timerId !== null) {
+      return;
+    }
+
+    queue.timerId = setTimeout(() => {
+      queue.timerId = null;
+      void this.flushProjectTauriWatchQueue(projectId);
+    }, TAURI_WATCH_FLUSH_DELAY_MS);
+  }
+
+  private clearProjectTauriWatchQueue(projectId: string): void {
+    const queue = this.projectTauriWatchQueues.get(projectId);
+    if (!queue) {
+      return;
+    }
+
+    if (queue.timerId !== null) {
+      clearTimeout(queue.timerId);
+      queue.timerId = null;
+    }
+
+    this.projectTauriWatchQueues.delete(projectId);
+  }
+
+  private resolveTauriWatchRefreshPaths(
+    projectId: string,
+    event: ProjectFileSystemChangeEvent,
+  ): string[] {
+    const mountState = this.projectTauriMounts[projectId];
+    if (!mountState) {
+      return [];
+    }
+
+    const refreshPaths = new Set<string>();
+    event.paths.forEach((path) => {
+      const normalizedPath = path.trim() || mountState.rootVirtualPath;
+      if (normalizedPath === mountState.rootVirtualPath) {
+        refreshPaths.add(mountState.rootVirtualPath);
+        return;
+      }
+
+      if (event.kind === 'remove' || event.kind === 'rename') {
+        refreshPaths.add(getParentPath(normalizedPath));
+        return;
+      }
+
+      const currentNode = findNodeByPath(mountState.tree, normalizedPath);
+      if (currentNode?.type === 'directory') {
+        refreshPaths.add(normalizedPath);
+        return;
+      }
+
+      refreshPaths.add(getParentPath(normalizedPath));
+    });
+
+    return [...refreshPaths];
+  }
+
+  private async flushProjectTauriWatchQueue(projectId: string): Promise<void> {
+    const queue = this.projectTauriWatchQueues.get(projectId);
+    if (!queue || queue.isFlushing) {
+      return;
+    }
+
+    queue.isFlushing = true;
+    try {
+      const pendingEvents = queue.events.splice(0);
+      if (pendingEvents.length === 0) {
+        return;
+      }
+
+      const changedPaths = new Set<string>();
+      const refreshPaths = new Set<string>();
+      pendingEvents.forEach((event) => {
+        event.paths.forEach((path) => {
+          changedPaths.add(path);
+        });
+        this.resolveTauriWatchRefreshPaths(projectId, event).forEach((path) => {
+          refreshPaths.add(path);
+        });
+      });
+
+      if (refreshPaths.size > 0) {
+        await this.refreshDirectories(projectId, [...refreshPaths]);
+      }
+
+      if (changedPaths.size > 0) {
+        this.emitFileSystemChange(projectId, {
+          kind: 'other',
+          paths: [...changedPaths],
+        });
+      }
+    } finally {
+      const currentQueue = this.projectTauriWatchQueues.get(projectId);
+      if (!currentQueue) {
+        return;
+      }
+
+      currentQueue.isFlushing = false;
+      if (currentQueue.events.length === 0) {
+        if (currentQueue.timerId === null) {
+          this.projectTauriWatchQueues.delete(projectId);
+        }
+        return;
+      }
+
+      this.scheduleProjectTauriWatchQueueFlush(projectId, currentQueue);
+    }
+  }
+
+  private ensureProjectFileTreePoller(projectId: string): void {
+    if (this.projectFileTreePollers.has(projectId)) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      void this.pollProjectFileTreeChanges(projectId);
+    }, FILE_TREE_POLL_INTERVAL_MS);
+    this.projectFileTreePollers.set(projectId, {
+      directoryPollCursor: 0,
+      intervalId,
+      isRunning: false,
+      trackedFileKnownPaths: new Set(),
+      trackedFilePollCursor: 0,
+      trackedFileRevisionByPath: new Map(),
+    });
+  }
+
+  private stopProjectFileTreePoller(projectId: string): void {
+    const poller = this.projectFileTreePollers.get(projectId);
+    if (!poller) {
+      return;
+    }
+
+    clearInterval(poller.intervalId);
+    this.projectFileTreePollers.delete(projectId);
+  }
+
+  private async pollProjectFileTreeChanges(projectId: string): Promise<void> {
+    const poller = this.projectFileTreePollers.get(projectId);
+    if (!poller || poller.isRunning) {
+      return;
+    }
+
+    poller.isRunning = true;
+    try {
+      const directoryChangePaths = this.projectBrowserMounts[projectId]
+        ? await this.pollBrowserMountedDirectories(projectId)
+        : this.projectTauriMounts[projectId]
+          ? await this.pollTauriMountedDirectories(projectId)
+          : [];
+      const trackedFileChangePaths = await this.pollTrackedProjectFiles(projectId);
+      const changedPaths = [...directoryChangePaths, ...trackedFileChangePaths];
+
+      if (changedPaths.length > 0) {
+        this.emitFileSystemChange(projectId, {
+          kind: 'other',
+          paths: [...new Set(changedPaths)],
+        });
+      }
+    } finally {
+      const currentPoller = this.projectFileTreePollers.get(projectId);
+      if (currentPoller) {
+        currentPoller.isRunning = false;
+      }
+    }
+  }
+
+  private collectTrackedProjectFilePaths(projectId: string): string[] {
+    const projectListeners = this.fileChangeListeners.get(projectId);
+    if (!projectListeners || projectListeners.size === 0) {
+      return [];
+    }
+
+    const trackedFilePaths: string[] = [];
+    const seenPaths = new Set<string>();
+    projectListeners.forEach((options) => {
+      if (typeof options.getTrackedFilePaths !== 'function') {
+        return;
+      }
+
+      try {
+        const paths = options.getTrackedFilePaths();
+        paths.forEach((path) => {
+          const normalizedPath = path.trim();
+          if (!normalizedPath || seenPaths.has(normalizedPath)) {
+            return;
+          }
+
+          seenPaths.add(normalizedPath);
+          trackedFilePaths.push(normalizedPath);
+        });
+      } catch (error) {
+        console.error(`Failed to resolve tracked file paths for project "${projectId}"`, error);
+      }
+    });
+
+    return trackedFilePaths;
+  }
+
+  private pruneTrackedProjectFiles(
+    poller: ProjectFileTreePoller,
+    trackedFilePaths: readonly string[],
+  ): void {
+    const trackedFilePathSet = new Set(trackedFilePaths);
+    poller.trackedFileKnownPaths.forEach((path) => {
+      if (!trackedFilePathSet.has(path)) {
+        poller.trackedFileKnownPaths.delete(path);
+      }
+    });
+    poller.trackedFileRevisionByPath.forEach((_, path) => {
+      if (!trackedFilePathSet.has(path)) {
+        poller.trackedFileRevisionByPath.delete(path);
+      }
+    });
+    if (trackedFilePaths.length <= 1) {
+      poller.trackedFilePollCursor = 0;
+    }
+  }
+
+  private async pollTrackedProjectFiles(projectId: string): Promise<string[]> {
+    const poller = this.projectFileTreePollers.get(projectId);
+    if (!poller) {
+      return [];
+    }
+
+    const trackedFilePaths = this.collectTrackedProjectFilePaths(projectId);
+    this.pruneTrackedProjectFiles(poller, trackedFilePaths);
+    if (trackedFilePaths.length === 0) {
+      return [];
+    }
+
+    const selectedTrackedFilePollBatch = selectTrackedFilePollPaths(
+      trackedFilePaths,
+      MAX_TRACKED_FILE_REVISIONS_PER_POLL,
+      poller.trackedFilePollCursor,
+    );
+    poller.trackedFilePollCursor = selectedTrackedFilePollBatch.nextCursor;
+    if (selectedTrackedFilePollBatch.paths.length === 0) {
+      return [];
+    }
+
+    const revisionLookups = await this.getFileRevisions(projectId, selectedTrackedFilePollBatch.paths);
+    const changedPaths: string[] = [];
+    revisionLookups.forEach((lookup) => {
+      if (lookup.error) {
+        console.error(
+          `Failed to poll tracked file revision "${lookup.path}" for project "${projectId}"`,
+          lookup.error,
+        );
+        return;
+      }
+
+      const nextRevision = lookup.missing ? null : lookup.revision;
+      const hasKnownRevision = poller.trackedFileKnownPaths.has(lookup.path);
+      const previousRevision = poller.trackedFileRevisionByPath.get(lookup.path) ?? null;
+      poller.trackedFileKnownPaths.add(lookup.path);
+      poller.trackedFileRevisionByPath.set(lookup.path, nextRevision);
+      if (!hasKnownRevision) {
+        if (lookup.missing) {
+          changedPaths.push(lookup.path);
+        }
+        return;
+      }
+
+      if (previousRevision !== nextRevision) {
+        changedPaths.push(lookup.path);
+      }
+    });
+
+    return changedPaths;
+  }
+
+  private async pollBrowserMountedDirectories(projectId: string): Promise<string[]> {
+    const mountState = this.projectBrowserMounts[projectId];
+    if (!mountState) {
+      return [];
+    }
+
+    const loadedDirectoryPaths = collectLoadedDirectoryPaths(mountState.tree);
+    const poller = this.projectFileTreePollers.get(projectId);
+    const selectedDirectoryPollBatch = selectLoadedDirectoryPollPaths(
+      loadedDirectoryPaths,
+      MAX_LOADED_DIRECTORY_REVISIONS_PER_POLL,
+      poller?.directoryPollCursor ?? 0,
+    );
+    if (poller) {
+      poller.directoryPollCursor = selectedDirectoryPollBatch.nextCursor;
+    }
+    const changedPaths: string[] = [];
+    const refreshResults = await runBatchedTasks(
+      selectedDirectoryPollBatch.paths,
+      DIRECTORY_POLL_BATCH_SIZE,
+      async (directoryPath) => this.maybeRefreshBrowserMountedDirectory(projectId, directoryPath),
+    );
+    refreshResults.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        if (result.value) {
+          changedPaths.push(selectedDirectoryPollBatch.paths[index]!);
+        }
+        return;
+      }
+
+      console.error(
+        `Failed to poll browser-mounted directory "${selectedDirectoryPollBatch.paths[index]}"`,
+        result.reason,
+      );
+    });
+
+    return changedPaths;
+  }
+
+  private async pollTauriMountedDirectories(projectId: string): Promise<string[]> {
+    const mountState = this.projectTauriMounts[projectId];
+    if (!mountState) {
+      return [];
+    }
+
+    const loadedDirectoryPaths = collectLoadedDirectoryPaths(mountState.tree);
+    const poller = this.projectFileTreePollers.get(projectId);
+    const selectedDirectoryPollBatch = selectLoadedDirectoryPollPaths(
+      loadedDirectoryPaths,
+      MAX_LOADED_DIRECTORY_REVISIONS_PER_POLL,
+      poller?.directoryPollCursor ?? 0,
+    );
+    if (poller) {
+      poller.directoryPollCursor = selectedDirectoryPollBatch.nextCursor;
+    }
+    if (selectedDirectoryPollBatch.paths.length === 0) {
+      return [];
+    }
+    const revisionLookups = await this.tauriRuntime.getDirectoryRevisions(
+      mountState.rootSystemPath,
+      mountState.rootVirtualPath,
+      selectedDirectoryPollBatch.paths,
+    );
+    const changedDirectoryLookups = revisionLookups
+      .filter((lookup) => {
+        if (lookup.missing || lookup.error || lookup.revision === null) {
+          return false;
+        }
+
+        return mountState.directoryRevisions.get(lookup.path) !== lookup.revision;
+      });
+    const changedPaths: string[] = [];
+    const refreshResults = await runBatchedTasks(
+      changedDirectoryLookups,
+      DIRECTORY_POLL_BATCH_SIZE,
+      async (lookup) => this.maybeRefreshTauriMountedDirectory(projectId, lookup),
+    );
+    refreshResults.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        if (result.value) {
+          changedPaths.push(changedDirectoryLookups[index]!.path);
+        }
+        return;
+      }
+
+      console.error(
+        `Failed to poll desktop-mounted directory "${changedDirectoryLookups[index]?.path}"`,
+        result.reason,
+      );
+    });
+
+    return changedPaths;
+  }
+
+  private async maybeRefreshBrowserMountedDirectory(
+    projectId: string,
+    directoryPath: string,
+  ): Promise<boolean> {
+    const mountState = this.projectBrowserMounts[projectId];
+    if (!mountState) {
+      return false;
+    }
+
+    const currentNode = findNodeByPath(mountState.tree, directoryPath);
+    const targetHandle = mountState.directoryHandles.get(directoryPath);
+    if (!currentNode || !targetHandle) {
+      return false;
+    }
+
+    const nextChildren = await this.listBrowserDirectoryChildren(
+      targetHandle,
+      directoryPath,
+      mountState.directoryHandles,
+      mountState.fileHandles,
+    );
+    if (
+      createDirectoryChildrenSignature(currentNode.children) ===
+      createDirectoryChildrenSignature(nextChildren)
+    ) {
+      return false;
+    }
+
+    this.pruneRemovedBrowserMountedEntries(
+      projectId,
+      mountState,
+      directoryPath,
+      nextChildren,
+    );
+    mountState.tree = replaceDirectoryChildren(mountState.tree, directoryPath, nextChildren);
+    mountState.cachedTree = undefined;
+    return true;
+  }
+
+  private async maybeRefreshTauriMountedDirectory(
+    projectId: string,
+    directoryRevision: BirdCoderTauriPathRevisionLookupResult,
+  ): Promise<boolean> {
+    const tauriMount = this.projectTauriMounts[projectId];
+    if (!tauriMount) {
+      return false;
+    }
+
+    const directoryPath = directoryRevision.path;
+
+    const currentNode = findNodeByPath(tauriMount.tree, directoryPath);
+    if (!currentNode) {
+      return false;
+    }
+
+    const listing = await this.tauriRuntime.listDirectory(
+      tauriMount.rootSystemPath,
+      tauriMount.rootVirtualPath,
+      directoryPath,
+    );
+    if (
+      createDirectoryChildrenSignature(currentNode.children) ===
+      createDirectoryChildrenSignature(listing.directory.children ?? [])
+    ) {
+      updateTauriDirectoryRevision(tauriMount, directoryPath, directoryRevision);
+      return false;
+    }
+    tauriMount.tree = replaceDirectoryChildren(
+      tauriMount.tree,
+      listing.directory.path,
+      listing.directory.children ?? [],
+    );
+    updateTauriDirectoryRevision(tauriMount, listing.directory.path, directoryRevision);
+    pruneTauriDirectoryRevisionMap(tauriMount);
+    tauriMount.cachedTree = undefined;
+    return true;
+  }
+
+  private pruneRemovedBrowserMountedEntries(
+    projectId: string,
+    mountState: BrowserMountState,
+    directoryPath: string,
+    nextChildren: readonly IFileNode[],
+  ): void {
+    const currentNode = findNodeByPath(mountState.tree, directoryPath);
+    if (!currentNode?.children?.length) {
+      return;
+    }
+
+    const nextChildrenByPath = new Map(
+      nextChildren.map((child) => [child.path, child.type] as const),
+    );
+    currentNode.children.forEach((currentChild) => {
+      const nextChildType = nextChildrenByPath.get(currentChild.path);
+      if (nextChildType === currentChild.type) {
+        return;
+      }
+
+      this.removeBrowserMountedHandles(
+        mountState,
+        currentChild.path,
+        currentChild.type === 'directory',
+        nextChildType,
+      );
+      deleteStoredPathContent(
+        this.projectFileContent[projectId],
+        currentChild.path,
+        currentChild.type === 'directory',
+      );
+    });
+  }
+
+  private removeBrowserMountedHandles(
+    mountState: BrowserMountState,
+    path: string,
+    recursive: boolean,
+    replacementType?: IFileNode['type'],
+  ): void {
+    const shouldPreserveFileHandleAtPath = replacementType === 'file';
+    const shouldPreserveDirectoryHandleAtPath = replacementType === 'directory';
+    if (!shouldPreserveFileHandleAtPath) {
+      mountState.fileHandles.delete(path);
+    }
+    if (!recursive) {
+      if (!shouldPreserveDirectoryHandleAtPath) {
+        mountState.directoryHandles.delete(path);
+      }
+      return;
+    }
+
+    const descendantPrefix = `${path}/`;
+    [...mountState.fileHandles.keys()].forEach((candidatePath) => {
+      if (
+        candidatePath.startsWith(descendantPrefix) ||
+        (candidatePath === path && !shouldPreserveFileHandleAtPath)
+      ) {
+        mountState.fileHandles.delete(candidatePath);
+      }
+    });
+    [...mountState.directoryHandles.keys()].forEach((candidatePath) => {
+      if (candidatePath === mountState.rootPath) {
+        return;
+      }
+
+      if (
+        candidatePath.startsWith(descendantPrefix) ||
+        (candidatePath === path && !shouldPreserveDirectoryHandleAtPath)
+      ) {
+        mountState.directoryHandles.delete(candidatePath);
+      }
+    });
+  }
+
+  private emitFileSystemChange(
+    projectId: string,
+    event: ProjectFileSystemChangeEvent,
+  ): void {
+    const projectListeners = this.fileChangeListeners.get(projectId);
+    if (!projectListeners || projectListeners.size === 0) {
+      return;
+    }
+
+    projectListeners.forEach((_, listener) => {
+      listener(event);
+    });
   }
 
   private async readBrowserMountedFileContent(
@@ -541,6 +1884,20 @@ export class RuntimeFileSystemService implements IFileSystemService {
     return content;
   }
 
+  private async readBrowserMountedFileRevision(
+    projectId: string,
+    path: string,
+  ): Promise<string | null> {
+    const mountState = this.projectBrowserMounts[projectId];
+    const fileHandle = mountState?.fileHandles.get(path);
+    if (!fileHandle) {
+      return null;
+    }
+
+    const file = await fileHandle.getFile();
+    return buildBrowserFileRevision(file);
+  }
+
   private async readTauriMountedFileContent(projectId: string, path: string): Promise<string | null> {
     const mountState = this.projectTauriMounts[projectId];
     if (!mountState || !isPathWithinRoot(mountState.rootVirtualPath, path, false)) {
@@ -555,6 +1912,19 @@ export class RuntimeFileSystemService implements IFileSystemService {
     this.projectFileContent[projectId] ??= {};
     this.projectFileContent[projectId][path] = content;
     return content;
+  }
+
+  private async readTauriMountedFileRevision(projectId: string, path: string): Promise<string | null> {
+    const mountState = this.projectTauriMounts[projectId];
+    if (!mountState || !isPathWithinRoot(mountState.rootVirtualPath, path, false)) {
+      return null;
+    }
+
+    return this.tauriRuntime.getFileRevision(
+      mountState.rootSystemPath,
+      mountState.rootVirtualPath,
+      path,
+    );
   }
 
   private async writeBrowserMountedFile(
@@ -590,7 +1960,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
     const writable = await createdHandle.createWritable();
     await writable.write(content);
     await writable.close();
-    await this.refreshBrowserMount(projectId);
+    await this.refreshBrowserDirectory(projectId, parentPath);
     return true;
   }
 
@@ -608,7 +1978,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
     }
 
     await parentHandle.getFileHandle(fileName, { create: true });
-    await this.refreshBrowserMount(projectId);
+    await this.refreshBrowserDirectory(projectId, parentPath);
     this.projectFileContent[projectId] ??= {};
     this.projectFileContent[projectId][path] = '';
     return true;
@@ -644,7 +2014,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       mountState.rootVirtualPath,
       path,
     );
-    await this.refreshTauriMount(projectId);
+    await this.refreshTauriDirectory(projectId, getParentPath(path));
     this.projectFileContent[projectId] ??= {};
     this.projectFileContent[projectId][path] = '';
     return true;
@@ -664,7 +2034,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
     }
 
     await parentHandle.getDirectoryHandle(directoryName, { create: true });
-    await this.refreshBrowserMount(projectId);
+    await this.refreshBrowserDirectory(projectId, parentPath);
     return true;
   }
 
@@ -679,7 +2049,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       mountState.rootVirtualPath,
       path,
     );
-    await this.refreshTauriMount(projectId);
+    await this.refreshTauriDirectory(projectId, getParentPath(path));
     return true;
   }
 
@@ -701,7 +2071,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
     }
 
     await parentHandle.removeEntry(entryName, recursive ? { recursive: true } : undefined);
-    await this.refreshBrowserMount(projectId);
+    await this.refreshBrowserDirectory(projectId, parentPath);
     return true;
   }
 
@@ -721,7 +2091,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       path,
       recursive ? { recursive: true } : undefined,
     );
-    await this.refreshTauriMount(projectId);
+    await this.refreshTauriDirectory(projectId, getParentPath(path));
     return true;
   }
 
@@ -755,7 +2125,10 @@ export class RuntimeFileSystemService implements IFileSystemService {
       await writable.write(await file.text());
       await writable.close();
       await oldParent.removeEntry(oldName);
-      await this.refreshBrowserMount(projectId);
+      await this.refreshBrowserDirectory(projectId, getParentPath(oldPath));
+      if (getParentPath(newPath) !== getParentPath(oldPath)) {
+        await this.refreshBrowserDirectory(projectId, getParentPath(newPath));
+      }
       return true;
     }
 
@@ -764,7 +2137,10 @@ export class RuntimeFileSystemService implements IFileSystemService {
       const nextDirectory = await newParent.getDirectoryHandle(newName, { create: true });
       await this.copyBrowserDirectoryContents(directoryHandle, nextDirectory);
       await oldParent.removeEntry(oldName, { recursive: true });
-      await this.refreshBrowserMount(projectId);
+      await this.refreshBrowserDirectory(projectId, getParentPath(oldPath));
+      if (getParentPath(newPath) !== getParentPath(oldPath)) {
+        await this.refreshBrowserDirectory(projectId, getParentPath(newPath));
+      }
       return true;
     }
 
@@ -791,7 +2167,10 @@ export class RuntimeFileSystemService implements IFileSystemService {
       oldPath,
       newPath,
     );
-    await this.refreshTauriMount(projectId);
+    await this.refreshTauriDirectory(projectId, getParentPath(oldPath));
+    if (getParentPath(newPath) !== getParentPath(oldPath)) {
+      await this.refreshTauriDirectory(projectId, getParentPath(newPath));
+    }
     return true;
   }
 

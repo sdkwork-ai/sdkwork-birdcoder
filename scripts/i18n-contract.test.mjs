@@ -74,8 +74,8 @@ for (const locale of ['en', 'zh']) {
     `${locale} runtime resources must preserve the merged app.somethingWentWrong label.`,
   );
   assert.ok(
-    resources[locale]?.translation?.app?.menu?.newThread,
-    `${locale} runtime resources must preserve the merged app.menu.newThread label.`,
+    resources[locale]?.translation?.app?.menu?.newSession,
+    `${locale} runtime resources must preserve the merged app.menu.newSession label.`,
   );
 }
 

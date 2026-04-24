@@ -7,7 +7,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_EVIDENCE = {
   ],
   "openapi": "3.1.0",
   "releaseTag": "release-local",
-  "sha256": "2228bcb038aad22746e2cb4219cff31b481c4513e4f73436ffb248bdc31b816f",
+  "sha256": "66b50676fa3a08a5aad5309eda00748e6ddd583928efa85ffbe1035e0ce99192",
   "targetCount": 1,
   "targets": [
     "windows/x64"
@@ -77,42 +77,105 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "method": "GET",
     "operationId": "app.getUserCenterConfig",
     "path": "/api/app/v1/auth/config",
-    "summary": "Get user center provider metadata",
+    "summary": "Get active user-center provider metadata and login capability switches.",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.loginWithEmailCode",
+    "path": "/api/app/v1/auth/email/login",
+    "summary": "Create a login session with email verification credentials.",
     "surface": "app"
   },
   {
     "method": "POST",
     "operationId": "app.login",
     "path": "/api/app/v1/auth/login",
-    "summary": "Create local user center session",
+    "summary": "Create a login session with account and password credentials.",
     "surface": "app"
   },
   {
     "method": "POST",
     "operationId": "app.logout",
     "path": "/api/app/v1/auth/logout",
-    "summary": "Revoke current user center session",
+    "summary": "Revoke the current user-center login session and its token shadows.",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.loginWithOAuth",
+    "path": "/api/app/v1/auth/oauth/login",
+    "summary": "Create user center session with OAuth authorization code",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.getOAuthAuthorizationUrl",
+    "path": "/api/app/v1/auth/oauth/url",
+    "summary": "Resolve OAuth authorization URL for social sign-in",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.resetPassword",
+    "path": "/api/app/v1/auth/password/reset",
+    "summary": "Reset the current account password using a verified recovery challenge.",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.requestPasswordReset",
+    "path": "/api/app/v1/auth/password/reset/request",
+    "summary": "Request a password-reset challenge through the configured verification channel.",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.loginWithPhoneCode",
+    "path": "/api/app/v1/auth/phone/login",
+    "summary": "Create a login session with phone verification credentials.",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.generateLoginQrCode",
+    "path": "/api/app/v1/auth/qr/generate",
+    "summary": "Generate user center login QR code",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "app.checkLoginQrCodeStatus",
+    "path": "/api/app/v1/auth/qr/status/{qrKey}",
+    "summary": "Check user center login QR code status",
     "surface": "app"
   },
   {
     "method": "POST",
     "operationId": "app.register",
     "path": "/api/app/v1/auth/register",
-    "summary": "Register local user center user",
+    "summary": "Register a local user and return the initial account projection when enabled.",
     "surface": "app"
   },
   {
     "method": "GET",
     "operationId": "app.getCurrentUserSession",
     "path": "/api/app/v1/auth/session",
-    "summary": "Get current user center session",
+    "summary": "Get the current login session snapshot for the active principal.",
     "surface": "app"
   },
   {
     "method": "POST",
     "operationId": "app.exchangeUserCenterSession",
     "path": "/api/app/v1/auth/session/exchange",
-    "summary": "Exchange third-party user into a BirdCoder session",
+    "summary": "Exchange an upstream or third-party session into the local AuthToken and AccessToken bundle.",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.sendVerifyCode",
+    "path": "/api/app/v1/auth/verify/send",
+    "summary": "Send a verification challenge for login, registration, or password reset.",
     "surface": "app"
   },
   {
@@ -141,6 +204,13 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "operationId": "app.createProject",
     "path": "/api/app/v1/projects",
     "summary": "Create project",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "app.getProject",
+    "path": "/api/app/v1/projects/{projectId}",
+    "summary": "Get project",
     "surface": "app"
   },
   {
@@ -173,6 +243,62 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   },
   {
     "method": "POST",
+    "operationId": "app.switchProjectGitBranch",
+    "path": "/api/app/v1/projects/{projectId}/git/branch-switch",
+    "summary": "Switch project Git branch",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.createProjectGitBranch",
+    "path": "/api/app/v1/projects/{projectId}/git/branches",
+    "summary": "Create project Git branch",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.commitProjectGitChanges",
+    "path": "/api/app/v1/projects/{projectId}/git/commits",
+    "summary": "Commit project Git changes",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "app.getProjectGitOverview",
+    "path": "/api/app/v1/projects/{projectId}/git/overview",
+    "summary": "Get project Git overview",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.pushProjectGitBranch",
+    "path": "/api/app/v1/projects/{projectId}/git/pushes",
+    "summary": "Push project Git branch",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.pruneProjectGitWorktrees",
+    "path": "/api/app/v1/projects/{projectId}/git/worktree-prune",
+    "summary": "Prune project Git worktrees",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.removeProjectGitWorktree",
+    "path": "/api/app/v1/projects/{projectId}/git/worktree-removals",
+    "summary": "Remove project Git worktree",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "app.createProjectGitWorktree",
+    "path": "/api/app/v1/projects/{projectId}/git/worktrees",
+    "summary": "Create project Git worktree",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
     "operationId": "app.publishProject",
     "path": "/api/app/v1/projects/{projectId}/publish",
     "summary": "Publish project release flow",
@@ -201,30 +327,30 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   },
   {
     "method": "GET",
-    "operationId": "app.getCurrentUserMembership",
-    "path": "/api/app/v1/user-center/membership",
-    "summary": "Get current user membership",
-    "surface": "app"
-  },
-  {
-    "method": "PATCH",
-    "operationId": "app.updateCurrentUserMembership",
-    "path": "/api/app/v1/user-center/membership",
-    "summary": "Update current user membership",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
     "operationId": "app.getCurrentUserProfile",
-    "path": "/api/app/v1/user-center/profile",
-    "summary": "Get current user profile",
+    "path": "/api/app/v1/user/profile",
+    "summary": "Get the current user's canonical profile projection.",
     "surface": "app"
   },
   {
     "method": "PATCH",
     "operationId": "app.updateCurrentUserProfile",
-    "path": "/api/app/v1/user-center/profile",
-    "summary": "Update current user profile",
+    "path": "/api/app/v1/user/profile",
+    "summary": "Update the current user's canonical profile projection.",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "app.getCurrentUserMembership",
+    "path": "/api/app/v1/vip/info",
+    "summary": "Get the current user's VIP or membership projection.",
+    "surface": "app"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "app.updateCurrentUserMembership",
+    "path": "/api/app/v1/vip/info",
+    "summary": "Update the current user's VIP or membership projection for local authority mode.",
     "surface": "app"
   },
   {
@@ -298,6 +424,13 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "surface": "core"
   },
   {
+    "method": "GET",
+    "operationId": "core.getCodingSession",
+    "path": "/api/core/v1/coding-sessions/{id}",
+    "summary": "Get coding session",
+    "surface": "core"
+  },
+  {
     "method": "PATCH",
     "operationId": "core.updateCodingSession",
     "path": "/api/core/v1/coding-sessions/{id}",
@@ -309,27 +442,6 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "operationId": "core.deleteCodingSession",
     "path": "/api/core/v1/coding-sessions/{id}",
     "summary": "Delete coding session",
-    "surface": "core"
-  },
-  {
-    "method": "DELETE",
-    "operationId": "core.deleteCodingSessionMessage",
-    "path": "/api/core/v1/coding-sessions/{id}/messages/{messageId}",
-    "summary": "Delete coding session message",
-    "surface": "core"
-  },
-  {
-    "method": "POST",
-    "operationId": "core.forkCodingSession",
-    "path": "/api/core/v1/coding-sessions/{id}/fork",
-    "summary": "Fork coding session",
-    "surface": "core"
-  },
-  {
-    "method": "GET",
-    "operationId": "core.getCodingSession",
-    "path": "/api/core/v1/coding-sessions/{id}",
-    "summary": "Get coding session",
     "surface": "core"
   },
   {
@@ -351,6 +463,20 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "operationId": "core.listCodingSessionEvents",
     "path": "/api/core/v1/coding-sessions/{id}/events",
     "summary": "Replay or subscribe to coding session events",
+    "surface": "core"
+  },
+  {
+    "method": "POST",
+    "operationId": "core.forkCodingSession",
+    "path": "/api/core/v1/coding-sessions/{id}/fork",
+    "summary": "Fork coding session",
+    "surface": "core"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "core.deleteCodingSessionMessage",
+    "path": "/api/core/v1/coding-sessions/{id}/messages/{messageId}",
+    "summary": "Delete coding session message",
     "surface": "core"
   },
   {

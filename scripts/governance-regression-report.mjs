@@ -136,12 +136,6 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     command: 'node scripts/governance-baseline-contract.test.ts',
   },
   {
-    id: 'terminal-governance',
-    label: 'Terminal governance contract',
-    scriptPath: 'scripts/terminal-governance-contract.test.ts',
-    command: 'node scripts/terminal-governance-contract.test.ts',
-  },
-  {
     id: 'web-bundle-budget',
     label: 'Web bundle budget contract',
     scriptPath: 'scripts/web-bundle-budget.test.mjs',
@@ -233,12 +227,6 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     command: 'node scripts/studio-simulator-ui-contract.test.ts',
   },
   {
-    id: 'terminal-cli-registry',
-    label: 'Terminal CLI registry contract',
-    scriptPath: 'scripts/terminal-cli-registry-contract.test.ts',
-    command: 'node scripts/terminal-cli-registry-contract.test.ts',
-  },
-  {
     id: 'run-config-request',
     label: 'Run configuration request contract',
     scriptPath: 'scripts/run-config-request-contract.test.ts',
@@ -251,24 +239,6 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     command: 'node scripts/run-config-contract.test.ts',
   },
   {
-    id: 'terminal-runtime',
-    label: 'Terminal runtime contract',
-    scriptPath: 'scripts/terminal-runtime-contract.test.ts',
-    command: 'node scripts/terminal-runtime-contract.test.ts',
-  },
-  {
-    id: 'terminal-session',
-    label: 'Terminal session contract',
-    scriptPath: 'scripts/terminal-session-contract.test.ts',
-    command: 'node scripts/terminal-session-contract.test.ts',
-  },
-  {
-    id: 'terminal-host-runtime',
-    label: 'Terminal host runtime contract',
-    scriptPath: 'scripts/terminal-host-runtime-contract.test.ts',
-    command: 'node scripts/terminal-host-runtime-contract.test.ts',
-  },
-  {
     id: 'workbench-preferences',
     label: 'Workbench preferences contract',
     scriptPath: 'scripts/workbench-preferences-contract.test.ts',
@@ -279,6 +249,18 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     label: 'Chat runtime contract',
     scriptPath: 'scripts/chat-runtime-contract.test.ts',
     command: 'node scripts/chat-runtime-contract.test.ts',
+  },
+  {
+    id: 'prompt-service',
+    label: 'Prompt service standard contract',
+    scriptPath: 'scripts/prompt-service-contract.test.mjs',
+    command: 'pnpm run test:prompt-service-contract',
+  },
+  {
+    id: 'coding-session-prompt-history-persistence',
+    label: 'Coding session prompt history persistence contract',
+    scriptPath: 'scripts/coding-session-prompt-history-persistence-contract.test.ts',
+    command: 'pnpm run test:coding-session-prompt-history-persistence-contract',
   },
   {
     id: 'local-store',
@@ -558,12 +540,6 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     command: 'node scripts/release/studio-evidence-archives.test.mjs',
   },
   {
-    id: 'release-terminal-governance-evidence-archive',
-    label: 'Release terminal governance evidence archive contract',
-    scriptPath: 'scripts/release/terminal-governance-evidence-archive.test.mjs',
-    command: 'node scripts/release/terminal-governance-evidence-archive.test.mjs',
-  },
-  {
     id: 'release-notes-render',
     label: 'Release notes render contract',
     scriptPath: 'scripts/release/render-release-notes.test.mjs',
@@ -618,10 +594,28 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     command: 'node scripts/sdkwork-birdcoder-architecture-contract.test.mjs',
   },
   {
-    id: 'sdkwork-appbase-parity',
-    label: 'SDKWork Appbase parity contract',
-    scriptPath: 'scripts/sdkwork-appbase-parity-contract.test.mjs',
-    command: 'node scripts/sdkwork-appbase-parity-contract.test.mjs',
+    id: 'birdcoder-identity-standard',
+    label: 'BirdCoder identity standard contract',
+    scriptPath: 'scripts/birdcoder-identity-standard-contract.test.mjs',
+    command: 'node scripts/birdcoder-identity-standard-contract.test.mjs',
+  },
+  {
+    id: 'user-center-standard',
+    label: 'Unified user-center standard contract',
+    scriptPath: 'scripts/user-center-standard.test.mjs',
+    command: 'node scripts/run-user-center-standard.mjs',
+  },
+  {
+    id: 'user-center-upstream-sync-payload',
+    label: 'User-center upstream sync payload contract',
+    scriptPath: 'scripts/user-center-upstream-sync-payload.test.mjs',
+    command: 'node scripts/user-center-upstream-sync-payload.test.mjs',
+  },
+  {
+    id: 'user-center-upstream-sync-workflow',
+    label: 'User-center upstream sync workflow contract',
+    scriptPath: 'scripts/user-center-upstream-sync-workflow.test.mjs',
+    command: 'node scripts/user-center-upstream-sync-workflow.test.mjs',
   },
   {
     id: 'release-closure',

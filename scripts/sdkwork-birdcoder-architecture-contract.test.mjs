@@ -9,6 +9,7 @@ const requiredPaths = [
   '.github/workflows/ci.yml',
   '.github/workflows/release.yml',
   '.github/workflows/release-reusable.yml',
+  '.github/workflows/user-center-upstream-sync.yml',
   'deploy/docker/Dockerfile',
   'deploy/docker/docker-compose.yml',
   'deploy/kubernetes/Chart.yaml',
@@ -45,6 +46,7 @@ const requiredPaths = [
   'docs/release/releases.json',
   'docs/.vitepress/config.mts',
   'docs/.vitepress/searchIndexPolicy.ts',
+  'config/shared-sdk-release-sources.json',
   'scripts/claw-docs-ia-contract.test.mjs',
   'scripts/ci-flow-contract.test.mjs',
   'scripts/check-release-closure.mjs',
@@ -57,7 +59,13 @@ const requiredPaths = [
   'scripts/engine-experimental-capability-gating-contract.test.ts',
   'scripts/engine-canonical-registry-governance-contract.test.ts',
   'scripts/package-governance-contract.test.mjs',
-  'scripts/sdkwork-appbase-parity-contract.test.mjs',
+  'scripts/run-user-center-standard.mjs',
+  'scripts/run-user-center-standard.test.mjs',
+  'scripts/birdcoder-identity-standard-contract.test.mjs',
+  'scripts/user-center-upstream-sync-payload.mjs',
+  'scripts/user-center-upstream-sync-payload.test.mjs',
+  'scripts/user-center-upstream-sync-workflow.test.mjs',
+  'scripts/user-center-standard.test.mjs',
   'scripts/governance-regression-report.mjs',
   'scripts/governance-regression-report.test.mjs',
   'scripts/quality-gate-execution-report.mjs',
@@ -116,7 +124,9 @@ const requiredPaths = [
   'scripts/release/studio-simulator-evidence-archive.mjs',
   'scripts/release/studio-test-evidence-archive.mjs',
   'packages/sdkwork-birdcoder-shell/package.json',
-  'packages/sdkwork-birdcoder-appbase/package.json',
+  'packages/sdkwork-birdcoder-shell-runtime/package.json',
+  'packages/sdkwork-birdcoder-auth/package.json',
+  'packages/sdkwork-birdcoder-user/package.json',
   'packages/sdkwork-birdcoder-web/package.json',
   'packages/sdkwork-birdcoder-desktop/package.json',
   'packages/sdkwork-birdcoder-server/package.json',
@@ -166,7 +176,12 @@ assert.match(
 assert.ok(rootPackageJson.scripts?.['docs:build'], 'Missing docs:build script');
 assert.ok(rootPackageJson.scripts?.['check:ci-flow'], 'Missing check:ci-flow script');
 assert.ok(rootPackageJson.scripts?.['check:multi-mode'], 'Missing check:multi-mode script');
-assert.ok(rootPackageJson.scripts?.['check:appbase-parity'], 'Missing check:appbase-parity script');
+assert.ok(rootPackageJson.scripts?.['check:identity-standard'], 'Missing check:identity-standard script');
+assert.equal(
+  rootPackageJson.scripts?.['test:user-center-standard'],
+  'node scripts/run-user-center-standard.mjs',
+  'Root package must expose the canonical user-center standard runner as a first-class verification command.',
+);
 assert.equal(
   rootPackageJson.scripts?.['check:sdkwork-birdcoder-structure-contract'],
   'node scripts/check-sdkwork-birdcoder-structure-contract.test.mjs',
@@ -240,64 +255,86 @@ const shellPackageJson = JSON.parse(
 );
 
 assert.equal(
-  shellPackageJson.dependencies?.['@sdkwork/birdcoder-appbase'],
+  shellPackageJson.dependencies?.['@sdkwork/birdcoder-auth'],
   'workspace:*',
-  '@sdkwork/birdcoder-shell must depend on the unified @sdkwork/birdcoder-appbase integration package.',
+  '@sdkwork/birdcoder-shell must depend on the unified @sdkwork/birdcoder-auth integration package.',
 );
-assert.ok(
-  !('sdkwork-birdcoder-auth' in (shellPackageJson.dependencies ?? {})),
-  'sdkwork-birdcoder-shell must stop depending directly on sdkwork-birdcoder-auth.',
-);
-assert.ok(
-  !('sdkwork-birdcoder-user' in (shellPackageJson.dependencies ?? {})),
-  'sdkwork-birdcoder-shell must stop depending directly on sdkwork-birdcoder-user.',
+assert.equal(
+  shellPackageJson.dependencies?.['@sdkwork/birdcoder-user'],
+  'workspace:*',
+  '@sdkwork/birdcoder-shell must depend on the unified @sdkwork/birdcoder-user integration package.',
 );
 
-const appbasePackageJson = JSON.parse(
-  fs.readFileSync(path.join(rootDir, 'packages', 'sdkwork-birdcoder-appbase', 'package.json'), 'utf8'),
+const authPackageJson = JSON.parse(
+  fs.readFileSync(path.join(rootDir, 'packages', 'sdkwork-birdcoder-auth', 'package.json'), 'utf8'),
+);
+const userPackageJson = JSON.parse(
+  fs.readFileSync(path.join(rootDir, 'packages', 'sdkwork-birdcoder-user', 'package.json'), 'utf8'),
 );
 
 assert.equal(
-  appbasePackageJson.name,
-  '@sdkwork/birdcoder-appbase',
-  'The unified auth/user/vip bridge package must be named @sdkwork/birdcoder-appbase.',
+  authPackageJson.name,
+  '@sdkwork/birdcoder-auth',
+  'The unified auth bridge package must be named @sdkwork/birdcoder-auth.',
+);
+assert.equal(
+  userPackageJson.name,
+  '@sdkwork/birdcoder-user',
+  'The unified user bridge package must be named @sdkwork/birdcoder-user.',
 );
 
-const appbaseIndexSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-appbase', 'src', 'index.ts'),
+const authIndexSource = fs.readFileSync(
+  path.join(rootDir, 'packages', 'sdkwork-birdcoder-auth', 'src', 'index.ts'),
+  'utf8',
+);
+const userIndexSource = fs.readFileSync(
+  path.join(rootDir, 'packages', 'sdkwork-birdcoder-user', 'src', 'index.ts'),
   'utf8',
 );
 
 for (const exportTarget of [
-  './catalog',
-  './auth',
-  './user',
-  './vip',
-  './pages/AuthPage',
-  './pages/UserCenterPage',
-  './pages/VipPage',
+  './auth.ts',
+  './pages/AuthPage.tsx',
 ]) {
   assert.match(
-    appbaseIndexSource,
+    authIndexSource,
     new RegExp(`export \\* from ['"]${exportTarget.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]`),
-    `sdkwork-birdcoder-appbase/src/index.ts must export ${exportTarget}.`,
+    `sdkwork-birdcoder-auth/src/index.ts must export ${exportTarget}.`,
   );
 }
 
-const appbaseCatalogSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-appbase', 'src', 'catalog.ts'),
+for (const exportTarget of [
+  './pages/UserCenterPage.tsx',
+  './pages/VipPage.tsx',
+  './profileStorage.ts',
+  './storage.ts',
+  './user-center-runtime.ts',
+  './user-center.ts',
+  './user.ts',
+  './validation.ts',
+  './vip.ts',
+]) {
+  assert.match(
+    userIndexSource,
+    new RegExp(`export \\* from ['"]${exportTarget.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]`),
+    `sdkwork-birdcoder-user/src/index.ts must export ${exportTarget}.`,
+  );
+}
+
+const authSource = fs.readFileSync(
+  path.join(rootDir, 'packages', 'sdkwork-birdcoder-auth', 'src', 'auth.ts'),
   'utf8',
 );
-const appbaseAuthSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-appbase', 'src', 'auth.ts'),
+const userSource = fs.readFileSync(
+  path.join(rootDir, 'packages', 'sdkwork-birdcoder-user', 'src', 'user.ts'),
   'utf8',
 );
-const appbaseUserSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-appbase', 'src', 'user.ts'),
+const vipSource = fs.readFileSync(
+  path.join(rootDir, 'packages', 'sdkwork-birdcoder-user', 'src', 'vip.ts'),
   'utf8',
 );
-const appbaseVipSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-appbase', 'src', 'vip.ts'),
+const userCenterSource = fs.readFileSync(
+  path.join(rootDir, 'packages', 'sdkwork-birdcoder-user', 'src', 'user-center.ts'),
   'utf8',
 );
 
@@ -307,21 +344,9 @@ for (const sourcePackageName of [
   '@sdkwork/vip-pc-react',
 ]) {
   assert.match(
-    appbaseCatalogSource,
+    `${authSource}\n${userSource}\n${vipSource}`,
     new RegExp(sourcePackageName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-    `sdkwork-birdcoder-appbase catalog must trace the upstream ${sourcePackageName} capability.`,
-  );
-}
-
-for (const requiredCatalogSurface of [
-  'packagesByDomain',
-  'packagesByName',
-  'createBirdCoderAppbaseManifest',
-]) {
-  assert.match(
-    appbaseCatalogSource,
-    new RegExp(requiredCatalogSurface.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-    `sdkwork-birdcoder-appbase catalog must expose ${requiredCatalogSurface}.`,
+    `BirdCoder identity adapters must trace the upstream ${sourcePackageName} capability.`,
   );
 }
 
@@ -333,9 +358,9 @@ for (const requiredAuthSurface of [
   'authPackageMeta',
 ]) {
   assert.match(
-    appbaseAuthSource,
+    authSource,
     new RegExp(requiredAuthSurface.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-    `sdkwork-birdcoder-appbase auth bridge must expose ${requiredAuthSurface}.`,
+    `sdkwork-birdcoder-auth bridge must expose ${requiredAuthSurface}.`,
   );
 }
 
@@ -349,9 +374,9 @@ for (const requiredUserSurface of [
   'userPackageMeta',
 ]) {
   assert.match(
-    appbaseUserSource,
+    userSource,
     new RegExp(requiredUserSurface.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-    `sdkwork-birdcoder-appbase user bridge must expose ${requiredUserSurface}.`,
+    `sdkwork-birdcoder-user bridge must expose ${requiredUserSurface}.`,
   );
 }
 
@@ -363,9 +388,21 @@ for (const requiredVipSurface of [
   'vipPackageMeta',
 ]) {
   assert.match(
-    appbaseVipSource,
+    vipSource,
     new RegExp(requiredVipSurface.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-    `sdkwork-birdcoder-appbase vip bridge must expose ${requiredVipSurface}.`,
+    `sdkwork-birdcoder-user vip bridge must expose ${requiredVipSurface}.`,
+  );
+}
+
+for (const requiredUserCenterSurface of [
+  'createBirdCoderUserCenterPluginDefinition',
+  'createBirdCoderUserCenterServerPluginDefinition',
+  'BIRDCODER_USER_CENTER_PLUGIN_PACKAGES',
+]) {
+  assert.match(
+    userCenterSource,
+    new RegExp(requiredUserCenterSurface.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `sdkwork-birdcoder-user user-center bridge must expose ${requiredUserCenterSurface}.`,
   );
 }
 
@@ -373,6 +410,7 @@ for (const scriptName of [
   'dev',
   'build',
   'lint',
+  'test:user-center-standard',
   'check:arch',
   'check:sdkwork-birdcoder-structure',
   'check:governance-regression',

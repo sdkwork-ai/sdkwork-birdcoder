@@ -6,7 +6,7 @@ import type {
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineTransportKind,
   BirdcoderApprovalPolicy,
-} from '../../sdkwork-birdcoder-types/src/index.ts';
+} from '@sdkwork/birdcoder-types';
 
 export type Role = 'user' | 'assistant' | 'system' | 'tool';
 

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import type { BirdCoderCoreWriteApiClient } from '@sdkwork/birdcoder-types';
 
 const dataKernelModulePath = new URL(
@@ -15,6 +16,10 @@ const providersModulePath = new URL(
 );
 const consoleRepositoryModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts',
+  import.meta.url,
+);
+const codingSessionRepositoryModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/storage/codingSessionRepository.ts',
   import.meta.url,
 );
 const evidenceRepositoryModulePath = new URL(
@@ -35,6 +40,14 @@ const typesEntryModulePath = new URL(
 );
 const defaultServicesModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
+  import.meta.url,
+);
+const apiBackedProjectServiceModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts',
+  import.meta.url,
+);
+const providerBackedProjectServiceModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
   import.meta.url,
 );
 
@@ -59,6 +72,18 @@ Object.defineProperty(globalThis, 'window', {
 });
 
 try {
+  const defaultIdeServicesSource = fs.readFileSync(defaultServicesModulePath, 'utf8');
+  assert.match(
+    defaultIdeServicesSource,
+    /projectMirror:\s*runtime\.providerBackedProjectService/u,
+    'default IDE services must route authoritative project reads back through the provider-backed project mirror.',
+  );
+  assert.match(
+    defaultIdeServicesSource,
+    /writeService:\s*runtime\.providerBackedProjectService/u,
+    'default IDE services must route authoritative project writes through the provider-backed project service so evidence repositories remain canonical.',
+  );
+
   const { createBirdCoderStorageProvider } = await import(
     `${dataKernelModulePath.href}?t=${Date.now()}`
   );
@@ -70,6 +95,9 @@ try {
   );
   const { createBirdCoderConsoleRepositories } = await import(
     `${consoleRepositoryModulePath.href}?t=${Date.now()}`
+  );
+  const { createBirdCoderCodingSessionRepositories } = await import(
+    `${codingSessionRepositoryModulePath.href}?t=${Date.now()}`
   );
   const { createBirdCoderPromptSkillTemplateEvidenceRepositories } = await import(
     `${evidenceRepositoryModulePath.href}?t=${Date.now()}`
@@ -83,8 +111,11 @@ try {
   const { createBirdCoderGeneratedAppAdminApiClient } = await import(
     `${typesEntryModulePath.href}?t=${Date.now()}`
   );
-  const { createDefaultBirdCoderIdeServices } = await import(
-    `${defaultServicesModulePath.href}?t=${Date.now()}`
+  const { ApiBackedProjectService } = await import(
+    `${apiBackedProjectServiceModulePath.href}?t=${Date.now()}`
+  );
+  const { ProviderBackedProjectService } = await import(
+    `${providerBackedProjectServiceModulePath.href}?t=${Date.now()}`
   );
 
   const sqlExecutor = createBirdCoderInMemorySqlExecutor('sqlite');
@@ -95,6 +126,10 @@ try {
   await provider.runMigrations([getBirdCoderSchemaMigrationDefinition('coding-server-kernel-v2')]);
 
   const repositories = createBirdCoderConsoleRepositories({
+    providerId: provider.providerId,
+    storage: provider,
+  });
+  const codingSessionRepositories = createBirdCoderCodingSessionRepositories({
     providerId: provider.providerId,
     storage: provider,
   });
@@ -129,6 +164,10 @@ try {
 
   const coreWriteClient: BirdCoderCoreWriteApiClient = {
     async createCodingSession(request) {
+      if (!request.engineId || !request.modelId) {
+        throw new Error('expected explicit engineId and modelId');
+      }
+
       return {
         id: 'coding-session-evidence-consumer-contract',
         workspaceId: request.workspaceId,
@@ -136,8 +175,8 @@ try {
         title: request.title ?? 'Evidence Consumer Session',
         status: 'active',
         hostMode: request.hostMode ?? 'server',
-        engineId: request.engineId ?? 'codex',
-        modelId: request.modelId ?? request.engineId ?? 'codex',
+        engineId: request.engineId,
+        modelId: request.modelId,
         createdAt: '2026-04-12T11:00:05.000Z',
         updatedAt: '2026-04-12T11:00:05.000Z',
         lastTurnAt: '2026-04-12T11:00:05.000Z',
@@ -172,24 +211,44 @@ try {
     },
   };
 
-  const services = createDefaultBirdCoderIdeServices({
-    appAdminClient,
+  const providerBackedProjectService = new ProviderBackedProjectService({
+    codingSessionRepositories,
+    evidenceRepositories,
+    repository: repositories.projects,
+  });
+  const projectService = new ApiBackedProjectService({
+    client: appAdminClient,
+    codingSessionMirror: providerBackedProjectService,
     coreWriteClient,
-    storageProvider: provider,
+    identityProvider: {
+      async getCurrentUser() {
+        return {
+          id: 'user-evidence-consumer-contract',
+          email: 'evidence-consumer@example.com',
+          name: 'Evidence Consumer Contract User',
+        };
+      },
+    },
+    projectMirror: providerBackedProjectService,
+    writeService: providerBackedProjectService,
   });
 
-  const createdProject = await services.projectService.createProject(
+  const createdProject = await projectService.createProject(
     'workspace-evidence-consumer-contract',
     'Evidence Consumer Contract Project',
     {
       path: 'D:/sdkwork/contracts/evidence-consumer-project',
     },
   );
-  const createdSession = await services.projectService.createCodingSession(
+  const createdSession = await projectService.createCodingSession(
     createdProject.id,
     'Evidence Consumer Session',
+    {
+      engineId: 'codex',
+      modelId: 'gpt-5-codex',
+    },
   );
-  const createdMessage = await services.projectService.addCodingSessionMessage(
+  const createdMessage = await projectService.addCodingSessionMessage(
     createdProject.id,
     createdSession.id,
     {

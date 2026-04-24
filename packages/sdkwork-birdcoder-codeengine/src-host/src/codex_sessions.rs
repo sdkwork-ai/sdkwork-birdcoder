@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    build_native_session_id, native_session_prefix_for_engine, CodeEngineSessionCommandRecord,
-    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    build_native_session_id, find_codeengine_descriptor, native_session_prefix_for_engine,
+    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionSummaryRecord,
 };
 
@@ -1290,6 +1290,11 @@ fn build_codex_summary(
         "completed"
     };
     let transcript_updated_at = context.latest_transcript_timestamp.clone();
+    let model_id = context.model_id.clone().unwrap_or_else(|| {
+        find_codeengine_descriptor(CODEX_ENGINE_ID)
+            .map(|descriptor| descriptor.default_model_id)
+            .unwrap_or_else(|| "gpt-5-codex".to_owned())
+    });
 
     Ok(CodeEngineSessionSummaryRecord {
         created_at,
@@ -1298,10 +1303,7 @@ fn build_codex_summary(
         status: status.to_owned(),
         host_mode: "desktop".to_owned(),
         engine_id: CODEX_ENGINE_ID.to_owned(),
-        model_id: context
-            .model_id
-            .clone()
-            .or_else(|| Some(CODEX_ENGINE_ID.to_owned())),
+        model_id,
         updated_at: updated_at.clone(),
         last_turn_at,
         kind: "coding".to_owned(),
@@ -1309,6 +1311,48 @@ fn build_codex_summary(
         sort_timestamp: parse_timestamp_millis(&updated_at).unwrap_or(file_modified_at),
         transcript_updated_at,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{env, fs, path::PathBuf};
+
+    fn create_test_codex_session_file(file_name: &str) -> PathBuf {
+        let file_path = env::temp_dir().join(file_name);
+        fs::write(&file_path, b"{}\n").expect("write temp codex session file");
+        file_path
+    }
+
+    #[test]
+    fn build_codex_summary_falls_back_to_default_model_when_context_model_missing() {
+        let file_path = create_test_codex_session_file("codex-summary-missing-model.jsonl");
+        let context = SessionLineContext {
+            native_session_id: Some("019d54b7-f3da-79b1-bb78-10770953da2d".to_owned()),
+            latest_timestamp: Some("2026-04-20T10:00:00.000Z".to_owned()),
+            ..SessionLineContext::default()
+        };
+
+        let summary = build_codex_summary(&file_path, &BTreeMap::new(), &context)
+            .expect("build codex summary with default model");
+        let expected_default_model = find_codeengine_descriptor(CODEX_ENGINE_ID)
+            .expect("codex descriptor")
+            .default_model_id;
+
+        assert_eq!(summary.model_id, expected_default_model);
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn normalize_codex_prompt_content_extracts_user_request_from_contextual_prompt() {
+        let normalized = normalize_codex_prompt_content(
+            "IDE context:\n- Workspace ID: 100000000000000101\n- Project ID: project-demo\n- Session ID: coding-session-demo\n\nCurrent file path: /demo/package.json\nCurrent file language: json\n\nCurrent file content:\n```json\n{\"name\":\"demo\"}\n```\n\nUser request:\nExplain why the transcript is empty.",
+        )
+        .expect("normalize contextual codex prompt");
+
+        assert_eq!(normalized, "Explain why the transcript is empty.");
+    }
 }
 
 fn dedupe_transcript_entries(entries: &[TranscriptEntry]) -> Vec<TranscriptEntry> {
@@ -1900,6 +1944,15 @@ fn strip_codex_control_tags(value: &str) -> String {
 }
 
 fn extract_codex_request_segment(value: &str) -> &str {
+    if value.contains("IDE context:")
+        || value.contains("Current file path:")
+        || value.contains("Current file content:")
+    {
+        if let Some(start_index) = value.find("User request:") {
+            return &value[start_index + "User request:".len()..];
+        }
+    }
+
     const REQUEST_MARKERS: [&str; 3] = [
         "## My request for Codex:",
         "# My request for Codex:",

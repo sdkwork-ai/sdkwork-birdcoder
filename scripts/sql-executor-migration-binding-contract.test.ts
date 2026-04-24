@@ -19,6 +19,20 @@ const sqlExecutorModule = await import(`${sqlExecutorModulePath.href}?t=${Date.n
 
 assert.equal(typeof sqlExecutorModule.createBirdCoderRecordingSqlExecutor, 'function');
 
+const codingServerKernelMigration =
+  providersModule.getBirdCoderSchemaMigrationDefinition('coding-server-kernel-v2');
+
+assert.deepEqual(
+  codingServerKernelMigration.entityNames.includes('coding_session_prompt_entry'),
+  true,
+  'coding server kernel migration must include coding_session_prompt_entry',
+);
+assert.deepEqual(
+  codingServerKernelMigration.entityNames.includes('saved_prompt_entry'),
+  true,
+  'coding server kernel migration must include saved_prompt_entry',
+);
+
 const sqliteExecutor = sqlExecutorModule.createBirdCoderRecordingSqlExecutor('sqlite');
 const sqliteProvider = dataKernelModule.createBirdCoderStorageProvider('sqlite', {
   sqlExecutor: sqliteExecutor,
@@ -35,6 +49,18 @@ assert.equal(sqliteExecutor.history[0].intent, 'write');
 assert.equal(
   sqliteExecutor.history[0].statements.some((statement) =>
     statement.sql.includes('CREATE TABLE IF NOT EXISTS terminal_executions'),
+  ),
+  true,
+);
+assert.equal(
+  sqliteExecutor.history[0].statements.some((statement) =>
+    statement.sql.includes('CREATE TABLE IF NOT EXISTS coding_session_prompt_entries'),
+  ),
+  true,
+);
+assert.equal(
+  sqliteExecutor.history[0].statements.some((statement) =>
+    statement.sql.includes('CREATE TABLE IF NOT EXISTS saved_prompt_entries'),
   ),
   true,
 );
@@ -68,7 +94,8 @@ assert.equal(postgresExecutor.history[0].providerId, 'postgresql');
 assert.equal(
   postgresExecutor.history[0].statements.some((statement) =>
     statement.sql.includes('CREATE TABLE IF NOT EXISTS terminal_executions') ||
-    statement.sql.includes('CREATE TABLE IF NOT EXISTS coding_sessions'),
+    statement.sql.includes('CREATE TABLE IF NOT EXISTS coding_sessions') ||
+    statement.sql.includes('CREATE TABLE IF NOT EXISTS saved_prompt_entries'),
   ),
   true,
 );

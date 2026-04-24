@@ -1,36 +1,62 @@
-import { memo } from 'react';
-import { Button } from '@sdkwork/birdcoder-ui';
-import { CodeEditor, DiffEditor } from '@sdkwork/birdcoder-ui/editors';
+import { memo, useDeferredValue, useMemo } from 'react';
+import {
+  ContentWorkbench,
+  DeferredDiffEditor,
+  resolveContentPreviewDescriptor,
+} from '@sdkwork/birdcoder-ui';
+import { Button } from '@sdkwork/birdcoder-ui-shell';
 import type { FileChange } from '@sdkwork/birdcoder-types';
 import { FileCode2, FolderPlus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface CodeEditorSurfaceProps {
   fileCount: number;
+  openFiles: string[];
   selectedFile?: string | null;
   viewingDiff: FileChange | null;
   fileContent: string;
-  onClearSelectedFile: () => void;
+  onSelectFile: (path: string) => void;
+  onCloseFile: (path: string) => void;
   onAcceptDiff: () => void | Promise<void>;
   onRejectDiff: () => void;
-  onFileContentChange: (value: string) => void;
+  onFileDraftChange: (value: string) => void;
   onCreateRootFile: () => void;
   getLanguageFromPath: (path: string) => string;
 }
 
 export const CodeEditorSurface = memo(function CodeEditorSurface({
   fileCount,
+  openFiles,
   selectedFile,
   viewingDiff,
   fileContent,
-  onClearSelectedFile,
+  onSelectFile,
+  onCloseFile,
   onAcceptDiff,
   onRejectDiff,
-  onFileContentChange,
+  onFileDraftChange,
   onCreateRootFile,
   getLanguageFromPath,
 }: CodeEditorSurfaceProps) {
   const { t } = useTranslation();
+  const deferredFileContent = useDeferredValue(fileContent);
+  const selectedFileLanguage = selectedFile ? getLanguageFromPath(selectedFile) : '';
+  const previewDescriptor = useMemo(
+    () =>
+      selectedFile
+        ? resolveContentPreviewDescriptor({
+            language: selectedFileLanguage,
+            path: selectedFile,
+            value: deferredFileContent,
+          })
+        : null,
+    [deferredFileContent, selectedFile, selectedFileLanguage],
+  );
+  const defaultWorkbenchMode = useMemo(
+    () =>
+      previewDescriptor?.shouldDefaultToSplit ? 'split' : 'edit',
+    [previewDescriptor],
+  );
 
   return (
     <div className="flex-1 min-w-0 h-full overflow-hidden bg-[#0e0e11] flex flex-col border-r border-white/10 relative">
@@ -53,7 +79,7 @@ export const CodeEditorSurface = memo(function CodeEditorSurface({
               </Button>
             </div>
           </div>
-          <DiffEditor
+          <DeferredDiffEditor
             language={getLanguageFromPath(viewingDiff.path)}
             original={viewingDiff.originalContent || ''}
             modified={viewingDiff.content || ''}
@@ -63,24 +89,62 @@ export const CodeEditorSurface = memo(function CodeEditorSurface({
       ) : selectedFile ? (
         <>
           <div className="h-10 flex items-center bg-[#18181b] border-b border-white/5 shrink-0 overflow-x-auto custom-scrollbar">
-            <div className="flex items-center h-full px-4 bg-[#18181b]/50 border-r border-white/5 text-sm text-gray-300 min-w-max group cursor-pointer border-t-2 border-t-blue-500">
-              <FileCode2 size={14} className="mr-2 text-blue-400" />
-              {selectedFile.split('/').pop()}
-              <button
-                className="ml-3 p-0.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onClearSelectedFile();
-                }}
-              >
-                <X size={14} className="text-gray-400 hover:text-white" />
-              </button>
-            </div>
+            {openFiles.map((path) => {
+              const isActive = path === selectedFile;
+              return (
+                <div
+                  key={path}
+                  onClick={() => onSelectFile(path)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') {
+                      return;
+                    }
+                    event.preventDefault();
+                    onSelectFile(path);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  className={`group flex items-center h-full px-4 border-r border-white/5 text-sm min-w-max transition-colors ${
+                    isActive
+                      ? 'bg-[#18181b]/50 text-gray-100 border-t-2 border-t-blue-500'
+                      : 'bg-[#141417] text-gray-500 hover:text-gray-300 border-t-2 border-t-transparent'
+                  }`}
+                >
+                  <FileCode2 size={14} className={`mr-2 ${isActive ? 'text-blue-400' : 'text-gray-500'}`} />
+                  <span>{path.split('/').pop()}</span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className={`ml-3 rounded-md p-0.5 transition-all ${
+                      isActive ? 'opacity-100 text-gray-400 hover:bg-white/10 hover:text-white' : 'opacity-0 group-hover:opacity-100 text-gray-500 hover:bg-white/10 hover:text-white'
+                    }`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onCloseFile(path);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') {
+                        return;
+                      }
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onCloseFile(path);
+                    }}
+                  >
+                    <X size={14} />
+                  </span>
+                </div>
+              );
+            })}
           </div>
-          <CodeEditor
-            language={getLanguageFromPath(selectedFile)}
+          <ContentWorkbench
+            defaultMode={defaultWorkbenchMode}
+            language={selectedFileLanguage}
+            path={selectedFile}
+            previewDescriptor={previewDescriptor ?? undefined}
+            responsiveSplitBreakpoint={920}
             value={fileContent}
-            onChange={(value) => onFileContentChange(value || '')}
+            onChange={(value) => onFileDraftChange(value || '')}
           />
         </>
       ) : (

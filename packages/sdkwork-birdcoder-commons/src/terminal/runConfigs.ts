@@ -1,9 +1,3 @@
-import {
-  createJsonRecordRepository,
-  getStoredRawValue,
-  serializeStoredValue,
-  type BirdCoderJsonRecordRepository,
-} from '../storage/dataKernel.ts';
 import { getTerminalProfile, type TerminalProfileId } from './profiles.ts';
 import {
   listTerminalCliProfileAvailability,
@@ -14,24 +8,20 @@ import {
   type TerminalProfileBlockedAction,
   type TerminalProfileLaunchPresentation,
 } from './runtime.ts';
-import {
-  BIRDCODER_RUN_CONFIGURATION_STORAGE_BINDING,
-} from '@sdkwork/birdcoder-types/storageBindings';
-
-const RUN_CONFIGURATION_LIMIT = 20;
-
-export type RunConfigurationGroup = 'dev' | 'build' | 'test' | 'custom';
-export type RunConfigurationCwdMode = 'project' | 'workspace' | 'custom';
-
-export interface RunConfigurationRecord {
-  id: string;
-  name: string;
-  command: string;
-  profileId: TerminalProfileId;
-  group: RunConfigurationGroup;
-  cwdMode: RunConfigurationCwdMode;
-  customCwd: string;
-}
+export {
+  buildRunConfigurationStorageKey,
+  ensureStoredRunConfigurations,
+  getDefaultRunConfigurations,
+  getRunConfigurationRepository,
+  listStoredRunConfigurations,
+  normalizeRunConfigurations,
+  saveStoredRunConfigurations,
+  upsertStoredRunConfiguration,
+  type RunConfigurationCwdMode,
+  type RunConfigurationGroup,
+  type RunConfigurationRecord,
+} from './runConfigStorage.ts';
+import { type RunConfigurationRecord } from './runConfigStorage.ts';
 
 export interface RunConfigurationTerminalRequest extends TerminalCommandRequest {
   path: string;
@@ -57,134 +47,6 @@ export interface RunConfigurationTerminalLaunchResult {
   request: RunConfigurationTerminalRequest | null;
   launchPresentation: TerminalProfileLaunchPresentation;
   blockedAction: TerminalProfileBlockedAction;
-}
-
-const DEFAULT_RUN_CONFIGURATIONS: ReadonlyArray<RunConfigurationRecord> = [
-  {
-    id: 'dev',
-    name: 'Start Development Server',
-    command: 'npm run dev',
-    profileId: 'powershell',
-    group: 'dev',
-    cwdMode: 'project',
-    customCwd: '',
-  },
-  {
-    id: 'build',
-    name: 'Build Project',
-    command: 'npm run build',
-    profileId: 'powershell',
-    group: 'build',
-    cwdMode: 'project',
-    customCwd: '',
-  },
-  {
-    id: 'test',
-    name: 'Run Tests',
-    command: 'npm test',
-    profileId: 'powershell',
-    group: 'test',
-    cwdMode: 'project',
-    customCwd: '',
-  },
-] as const;
-
-const runConfigurationRepositoryCache = new Map<
-  string,
-  BirdCoderJsonRecordRepository<RunConfigurationRecord[]>
->();
-
-function normalizeRunConfigurationGroup(value: unknown): RunConfigurationGroup {
-  switch (value) {
-    case 'dev':
-    case 'build':
-    case 'test':
-    case 'custom':
-      return value;
-    default:
-      return 'custom';
-  }
-}
-
-function normalizeRunConfigurationCwdMode(value: unknown): RunConfigurationCwdMode {
-  switch (value) {
-    case 'project':
-    case 'workspace':
-    case 'custom':
-      return value;
-    default:
-      return 'project';
-  }
-}
-
-function normalizeRunConfiguration(
-  value: Partial<RunConfigurationRecord> | null | undefined,
-  index: number,
-): RunConfigurationRecord {
-  return {
-    id: value?.id?.trim() || `config-${index + 1}`,
-    name: value?.name?.trim() || 'Run Task',
-    command: value?.command?.trim() || 'echo Configure this run command first.',
-    profileId: getTerminalProfile(value?.profileId ?? 'powershell').id,
-    group: normalizeRunConfigurationGroup(value?.group),
-    cwdMode: normalizeRunConfigurationCwdMode(value?.cwdMode),
-    customCwd: value?.customCwd?.trim() || '',
-  };
-}
-
-export function buildRunConfigurationStorageKey(projectId: string | null | undefined): string {
-  const normalizedProjectId = projectId?.trim();
-  return normalizedProjectId ? `run-configs.${normalizedProjectId}.v1` : 'run-configs.global.v1';
-}
-
-function createRunConfigurationRepository(
-  projectId: string | null | undefined,
-): BirdCoderJsonRecordRepository<RunConfigurationRecord[]> {
-  return createJsonRecordRepository<RunConfigurationRecord[]>({
-    binding: {
-      ...BIRDCODER_RUN_CONFIGURATION_STORAGE_BINDING,
-      storageKey: buildRunConfigurationStorageKey(projectId),
-    },
-    fallback: getDefaultRunConfigurations(),
-    normalize(value) {
-      return normalizeRunConfigurations(value);
-    },
-  });
-}
-
-export function getRunConfigurationRepository(
-  projectId: string | null | undefined,
-): BirdCoderJsonRecordRepository<RunConfigurationRecord[]> {
-  const key = buildRunConfigurationStorageKey(projectId);
-  const cachedRepository = runConfigurationRepositoryCache.get(key);
-  if (cachedRepository) {
-    return cachedRepository;
-  }
-
-  const repository = createRunConfigurationRepository(projectId);
-  runConfigurationRepositoryCache.set(key, repository);
-  return repository;
-}
-
-export function getDefaultRunConfigurations(): RunConfigurationRecord[] {
-  return DEFAULT_RUN_CONFIGURATIONS.map((config) => ({ ...config }));
-}
-
-export function normalizeRunConfigurations(value: unknown): RunConfigurationRecord[] {
-  if (!Array.isArray(value)) {
-    return getDefaultRunConfigurations();
-  }
-
-  const normalized = value
-    .map((entry, index) =>
-      normalizeRunConfiguration(
-        typeof entry === 'object' && entry !== null ? (entry as Partial<RunConfigurationRecord>) : {},
-        index,
-      ),
-    )
-    .slice(0, RUN_CONFIGURATION_LIMIT);
-
-  return normalized.length > 0 ? normalized : getDefaultRunConfigurations();
 }
 
 export function resolveRunConfigurationDirectory(
@@ -247,50 +109,4 @@ export async function resolveRunConfigurationTerminalLaunch(
     launchPresentation,
     blockedAction,
   };
-}
-
-export async function listStoredRunConfigurations(
-  projectId: string | null | undefined,
-): Promise<RunConfigurationRecord[]> {
-  return getRunConfigurationRepository(projectId).read();
-}
-
-export async function ensureStoredRunConfigurations(
-  projectId: string | null | undefined,
-): Promise<RunConfigurationRecord[]> {
-  const repository = getRunConfigurationRepository(projectId);
-  const normalizedValue = await repository.read();
-  const currentRawValue = await getStoredRawValue(
-    repository.binding.storageScope,
-    repository.binding.storageKey,
-  );
-  const nextRawValue = serializeStoredValue(normalizedValue);
-
-  if (currentRawValue !== nextRawValue) {
-    await repository.write(normalizedValue);
-  }
-
-  return normalizedValue;
-}
-
-export async function saveStoredRunConfigurations(
-  projectId: string | null | undefined,
-  configurations: ReadonlyArray<RunConfigurationRecord>,
-): Promise<RunConfigurationRecord[]> {
-  const normalized = normalizeRunConfigurations(configurations);
-  return getRunConfigurationRepository(projectId).write(normalized);
-}
-
-export async function upsertStoredRunConfiguration(
-  projectId: string | null | undefined,
-  configuration: RunConfigurationRecord,
-): Promise<RunConfigurationRecord[]> {
-  const existing = await listStoredRunConfigurations(projectId);
-  const normalizedConfiguration = normalizeRunConfiguration(configuration, existing.length);
-  const nextConfigurations = [
-    normalizedConfiguration,
-    ...existing.filter((item) => item.id !== normalizedConfiguration.id),
-  ].slice(0, RUN_CONFIGURATION_LIMIT);
-
-  return saveStoredRunConfigurations(projectId, nextConfigurations);
 }

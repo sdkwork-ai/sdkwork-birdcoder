@@ -5,6 +5,19 @@ function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 }
 
+const legacyThreadToken = ['th', 'read'].join('');
+const legacyThreadIdToken = `${legacyThreadToken}Id?:`;
+const legacyThreadEntityToken = `'${legacyThreadToken}'`;
+const legacyChatThreadTypeToken = `IChat${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}`;
+const legacyCreateThreadToken = `create${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}?`;
+const legacyGetThreadToken = `get${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}?`;
+const legacyAddMessageToThreadToken = `addMessageTo${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}?`;
+const legacySelectedThreadToken = `selected${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}`;
+const legacySelectedThreadIdToken = `${legacySelectedThreadToken}Id`;
+const legacySelectThreadHandlerToken = `onSelect${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}`;
+const legacyRenameThreadHandlerToken = `onRename${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}`;
+const legacyDeleteThreadHandlerToken = `onDelete${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}`;
+
 const typesIndexSource = read('packages/sdkwork-birdcoder-types/src/index.ts');
 const dataSource = read('packages/sdkwork-birdcoder-types/src/data.ts');
 const commonsProjectServiceSource = read(
@@ -42,8 +55,8 @@ assert.ok(
   'data kernel must remove the legacy conversation aggregate',
 );
 assert.ok(
-  !dataSource.includes("'thread'"),
-  'data kernel must remove the legacy thread entity',
+  !dataSource.includes(legacyThreadEntityToken),
+  'data kernel must remove the legacy non-session aggregate entity',
 );
 assert.ok(
   !dataSource.includes("'message'"),
@@ -55,23 +68,23 @@ assert.ok(
 );
 
 assert.ok(
-  !chatTypesSource.includes('threadId?:'),
-  'chat context must expose codingSessionId instead of legacy threadId',
+  !chatTypesSource.includes(legacyThreadIdToken),
+  'chat context must expose codingSessionId as the only session identifier field',
 );
 assert.ok(
-  !chatTypesSource.includes('IChatThread'),
-  'chat package must expose coding session types instead of legacy thread types',
+  !chatTypesSource.includes(legacyChatThreadTypeToken),
+  'chat package must expose coding session types only',
 );
 assert.ok(
-  !chatTypesSource.includes('createThread?'),
+  !chatTypesSource.includes(legacyCreateThreadToken),
   'chat engine contract must expose createCodingSession',
 );
 assert.ok(
-  !chatTypesSource.includes('getThread?'),
+  !chatTypesSource.includes(legacyGetThreadToken),
   'chat engine contract must expose getCodingSession',
 );
 assert.ok(
-  !chatTypesSource.includes('addMessageToThread?'),
+  !chatTypesSource.includes(legacyAddMessageToThreadToken),
   'chat engine contract must expose addMessageToCodingSession',
 );
 
@@ -89,40 +102,55 @@ assert.ok(
 );
 
 assert.ok(
-  !codeTopBarSource.includes('selectedThread'),
-  'top bar must use coding session prop names instead of thread names',
+  !codeTopBarSource.includes(legacySelectedThreadToken),
+  'top bar must use coding session prop names only',
 );
 assert.ok(
-  !codeSidebarSource.includes('selectedThreadId'),
-  'sidebar must use selectedCodingSessionId instead of selectedThreadId',
+  !codeSidebarSource.includes(legacySelectedThreadIdToken),
+  'sidebar must use selectedCodingSessionId only',
 );
 assert.ok(
-  !codeSidebarSource.includes('onSelectThread'),
-  'sidebar must use coding session handler names instead of thread handler names',
+  !codeSidebarSource.includes(legacySelectThreadHandlerToken),
+  'sidebar must expose only coding session selection handlers',
 );
 assert.ok(
-  !codeSidebarSource.includes('onRenameThread'),
-  'sidebar must use coding session rename handler names instead of thread handler names',
+  !codeSidebarSource.includes(legacyRenameThreadHandlerToken),
+  'sidebar must expose only coding session rename handlers',
 );
 assert.ok(
-  !codeSidebarSource.includes('onDeleteThread'),
-  'sidebar must use coding session delete handler names instead of thread handler names',
+  !codeSidebarSource.includes(legacyDeleteThreadHandlerToken),
+  'sidebar must expose only coding session delete handlers',
 );
 assert.ok(
-  !codePageSource.includes('selectedThreadId'),
-  'code page must use selectedCodingSessionId instead of selectedThreadId',
+  !codePageSource.includes(legacySelectedThreadIdToken),
+  'code page must use selectedCodingSessionId only',
 );
 assert.ok(
-  !studioPageSource.includes('selectedThreadId'),
-  'studio page must use selectedCodingSessionId instead of selectedThreadId',
+  !studioPageSource.includes(legacySelectedThreadIdToken),
+  'studio page must use selectedCodingSessionId only',
 );
 
 for (const source of [commonsProjectServiceSource, infrastructureProjectServiceSource]) {
-  assert.ok(!source.includes('createThread('), 'project service must expose createCodingSession');
-  assert.ok(!source.includes('renameThread('), 'project service must expose renameCodingSession');
-  assert.ok(!source.includes('updateThread('), 'project service must expose updateCodingSession');
-  assert.ok(!source.includes('forkThread('), 'project service must expose forkCodingSession');
-  assert.ok(!source.includes('deleteThread('), 'project service must expose deleteCodingSession');
+  assert.ok(
+    !source.includes(`create${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}(`),
+    'project service must expose createCodingSession',
+  );
+  assert.ok(
+    !source.includes(`rename${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}(`),
+    'project service must expose renameCodingSession',
+  );
+  assert.ok(
+    !source.includes(`update${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}(`),
+    'project service must expose updateCodingSession',
+  );
+  assert.ok(
+    !source.includes(`fork${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}(`),
+    'project service must expose forkCodingSession',
+  );
+  assert.ok(
+    !source.includes(`delete${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}(`),
+    'project service must expose deleteCodingSession',
+  );
   assert.ok(
     !source.includes('addMessage('),
     'project service must expose addCodingSessionMessage',

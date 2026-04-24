@@ -5,10 +5,10 @@ import { createBirdCoderStorageProvider } from '../packages/sdkwork-birdcoder-in
 import { getBirdCoderSchemaMigrationDefinition } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts';
 import { createBirdCoderInMemorySqlExecutor } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlExecutor.ts';
 import {
-  createProviderBackedBirdCoderCoreSessionProjectionStore,
   executeBirdCoderCoreSessionRun,
   persistBirdCoderCoreSessionRunProjection,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
+import { createProviderBackedBirdCoderCoreSessionProjectionStore } from '../packages/sdkwork-birdcoder-server/src/projectionRepository.ts';
 import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
 
 const messages: ChatMessage[] = [
@@ -53,6 +53,7 @@ await persistBirdCoderCoreSessionRunProjection(projectionStore, projection);
 const snapshot = await projectionStore.getSessionSnapshot('coding-session-sql-executor');
 
 assert.equal(snapshot.runtime?.id, 'runtime-sql-executor-projection');
+assert.equal(snapshot.runtime?.modelId, 'codex');
 assert.equal(snapshot.events.length, projection.events.length);
 assert.equal(snapshot.artifacts.length, projection.artifacts.length);
 assert.deepEqual(

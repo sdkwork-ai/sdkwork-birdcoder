@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { BirdCoderProjectDocumentSummary } from '@sdkwork/birdcoder-types';
-import type { IDocumentService } from '@sdkwork/birdcoder-infrastructure';
+import type { IDocumentService } from '@sdkwork/birdcoder-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
 
 export async function loadDocuments(

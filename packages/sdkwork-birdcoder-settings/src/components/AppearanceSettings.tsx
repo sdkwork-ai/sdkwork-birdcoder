@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ChevronDown, Sun, Moon, MonitorSmartphone, X } from 'lucide-react';
-import { Button } from '@sdkwork/birdcoder-ui';
+import { Button } from '@sdkwork/birdcoder-ui-shell';
 import { useToast } from '@sdkwork/birdcoder-commons';
 import { useTranslation } from 'react-i18next';
 import { SettingsProps } from './types';

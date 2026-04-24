@@ -1,4 +1,5 @@
 use std::{
+    env,
     io::Write,
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -13,7 +14,7 @@ const CODEX_ENGINE_ID: &str = "codex";
 #[derive(Clone, Debug, Default)]
 pub struct CodexCliTurnRequest {
     pub prompt_text: String,
-    pub model_id: Option<String>,
+    pub model_id: String,
     pub native_session_id: Option<String>,
     pub working_directory: Option<PathBuf>,
     pub full_auto: bool,
@@ -57,9 +58,9 @@ pub fn execute_codex_cli_turn(
     if request.ephemeral {
         command.arg("--ephemeral");
     }
-    if let Some(model_id) = normalize_non_empty_string(request.model_id.as_deref()) {
-        command.arg("--model").arg(model_id);
-    }
+    let model_id = normalize_codex_cli_model_id(Some(request.model_id.as_str()))
+        .ok_or_else(|| "Codex CLI turn requires explicit modelId.".to_owned())?;
+    command.arg("--model").arg(model_id);
     if native_session_id.is_none() {
         if let Some(directory) = existing_directory(request.working_directory.as_deref()) {
             command.arg("--cd").arg(directory);
@@ -89,8 +90,7 @@ pub fn execute_codex_cli_turn(
         .map_err(|error| format!("wait for codex cli failed: {error}"))?;
     let stdout = String::from_utf8(output.stdout)
         .map_err(|error| format!("decode codex cli stdout failed: {error}"))?;
-    let stderr = String::from_utf8(output.stderr)
-        .map_err(|error| format!("decode codex cli stderr failed: {error}"))?;
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
 
     let mut assistant_content: Option<String> = None;
     let mut resolved_native_session_id = request.native_session_id.clone();
@@ -174,12 +174,117 @@ pub fn execute_codex_cli_turn(
 
 fn create_codex_cli_command() -> Command {
     if cfg!(windows) {
-        let mut command = Command::new("cmd");
-        command.arg("/C").arg("codex.cmd");
-        command
+        create_windows_cli_command("codex")
     } else {
         Command::new("codex")
     }
+}
+
+fn create_windows_cli_command(base_name: &str) -> Command {
+    if let Some(resolved_path) = resolve_windows_cli_path(base_name) {
+        return create_windows_command_for_resolved_path(resolved_path.as_path());
+    }
+
+    let mut command = Command::new("cmd");
+    command.arg("/C").arg(format!("{base_name}.cmd"));
+    command
+}
+
+fn create_windows_command_for_resolved_path(path: &Path) -> Command {
+    match path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("cmd") | Some("bat") => {
+            let mut command = Command::new("cmd");
+            command.arg("/C").arg(path);
+            command
+        }
+        Some("ps1") => {
+            let mut command = Command::new("powershell");
+            command
+                .arg("-NoProfile")
+                .arg("-ExecutionPolicy")
+                .arg("Bypass")
+                .arg("-File")
+                .arg(path);
+            command
+        }
+        _ => Command::new(path),
+    }
+}
+
+fn resolve_windows_cli_path(base_name: &str) -> Option<PathBuf> {
+    let candidate_names = [
+        format!("{base_name}.cmd"),
+        format!("{base_name}.bat"),
+        format!("{base_name}.ps1"),
+        format!("{base_name}.exe"),
+        base_name.to_owned(),
+    ];
+
+    for directory in collect_windows_cli_search_dirs() {
+        for candidate_name in candidate_names.iter() {
+            let candidate_path = directory.join(candidate_name);
+            if candidate_path.is_file() {
+                return Some(candidate_path);
+            }
+        }
+    }
+
+    None
+}
+
+fn collect_windows_cli_search_dirs() -> Vec<PathBuf> {
+    let mut directories = Vec::new();
+
+    if let Some(path) = env::var_os("PATH") {
+        for directory in env::split_paths(&path) {
+            push_unique_existing_directory(&mut directories, directory);
+        }
+    }
+
+    if let Some(directory) = env::var_os("NVM_SYMLINK").map(PathBuf::from) {
+        push_unique_existing_directory(&mut directories, directory);
+    }
+
+    if let Some(directory) = env::var_os("APPDATA").map(|value| PathBuf::from(value).join("npm")) {
+        push_unique_existing_directory(&mut directories, directory);
+    }
+
+    if let Some(directory) = env::var_os("LOCALAPPDATA")
+        .map(|value| PathBuf::from(value).join("Microsoft").join("WinGet").join("Links"))
+    {
+        push_unique_existing_directory(&mut directories, directory);
+    }
+
+    if let Some(directory) =
+        env::var_os("ProgramFiles").map(|value| PathBuf::from(value).join("nodejs"))
+    {
+        push_unique_existing_directory(&mut directories, directory);
+    }
+
+    if let Some(directory) =
+        env::var_os("ProgramFiles(x86)").map(|value| PathBuf::from(value).join("nodejs"))
+    {
+        push_unique_existing_directory(&mut directories, directory);
+    }
+
+    directories
+}
+
+fn push_unique_existing_directory(directories: &mut Vec<PathBuf>, directory: PathBuf) {
+    if !directory.is_dir() {
+        return;
+    }
+
+    if directories.iter().any(|existing| existing == &directory) {
+        return;
+    }
+
+    directories.push(directory);
 }
 
 fn existing_directory(path: Option<&Path>) -> Option<&Path> {
@@ -225,6 +330,15 @@ fn normalize_non_empty_string(value: Option<&str>) -> Option<String> {
         None
     } else {
         Some(trimmed.to_owned())
+    }
+}
+
+fn normalize_codex_cli_model_id(value: Option<&str>) -> Option<String> {
+    let normalized = normalize_non_empty_string(value)?;
+    if normalized.eq_ignore_ascii_case("codex") {
+        None
+    } else {
+        Some(normalized)
     }
 }
 

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Button } from '@sdkwork/birdcoder-ui';
+import { useState } from 'react';
+import { Button } from '@sdkwork/birdcoder-ui-shell';
 import { useTranslation } from 'react-i18next';
 import { SettingsProps } from './types';
 
-export function MCPSettings({ settings, updateSetting }: SettingsProps) {
+export function MCPSettings(_props: SettingsProps) {
   const { t } = useTranslation();
   const [servers, setServers] = useState([
     { id: 1, name: 'Local Python Environment', url: 'http://localhost:8000', status: 'connected' },

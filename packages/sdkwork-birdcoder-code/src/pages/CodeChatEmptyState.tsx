@@ -2,8 +2,8 @@ import { Zap } from 'lucide-react';
 
 export function CodeChatEmptyState() {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center pb-32 bg-[#0e0e11]">
-      <div className="mb-6 flex flex-col items-center max-w-md text-center">
+    <div className="flex min-h-full w-full items-center justify-center pb-32">
+      <div className="mx-auto mb-6 flex w-full max-w-2xl flex-col items-center text-center">
         <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center mb-6 border border-white/5 shadow-2xl relative animate-in fade-in zoom-in-95 duration-500">
           <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
           <Zap size={36} className="text-blue-400 relative z-10" />

@@ -3,7 +3,6 @@ import {
   type BirdCoderDatabaseProviderId,
   type BirdCoderEntityDefinition,
   type BirdCoderEntityStorageBinding,
-  type BirdCoderLogicalColumnType,
   type BirdCoderSchemaColumnDefinition,
   type BirdCoderSchemaMigrationDefinition,
 } from '@sdkwork/birdcoder-types';

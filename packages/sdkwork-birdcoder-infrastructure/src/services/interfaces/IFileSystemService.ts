@@ -1,9 +1,15 @@
 import type {
+  FileRevisionLookupResult,
   IFileNode,
   LocalFolderMountSource,
+  ProjectFileSystemChangeEvent,
   WorkspaceFileSearchExecutionResult,
   WorkspaceFileSearchOptions,
 } from '@sdkwork/birdcoder-types';
+
+export interface FileSystemChangeSubscriptionOptions {
+  getTrackedFilePaths?: () => readonly string[];
+}
 
 export interface IFileSystemService {
   /**
@@ -13,11 +19,53 @@ export interface IFileSystemService {
   getFiles(projectId: string): Promise<IFileNode[]>;
 
   /**
+   * Loads a single directory on demand and merges it into the current project tree.
+   * @param projectId The ID of the project.
+   * @param path Absolute mounted directory path.
+   */
+  loadDirectory(projectId: string, path: string): Promise<IFileNode[]>;
+
+  /**
+   * Reloads a mounted directory from the underlying file system.
+   * @param projectId The ID of the project.
+   * @param path Absolute mounted directory path. Omitting the path refreshes the mounted root.
+   */
+  refreshDirectory(projectId: string, path?: string): Promise<IFileNode[]>;
+
+  /**
+   * Reloads multiple mounted directories and returns a single updated file tree snapshot.
+   * When no paths are provided the mounted root is refreshed.
+   * @param projectId The ID of the project.
+   * @param paths Absolute mounted directory paths.
+   */
+  refreshDirectories(projectId: string, paths: readonly string[]): Promise<IFileNode[]>;
+
+  /**
    * Retrieves the content of a specific file.
    * @param projectId The ID of the project.
    * @param path The path of the file.
    */
   getFileContent(projectId: string, path: string): Promise<string>;
+
+  /**
+   * Retrieves a lightweight revision token for a specific file.
+   * The revision changes whenever the underlying file metadata changes.
+   * @param projectId The ID of the project.
+   * @param path The path of the file.
+   */
+  getFileRevision(projectId: string, path: string): Promise<string>;
+
+  /**
+   * Retrieves lightweight revision tokens for multiple files in a single call.
+   * Missing files are reported in-band so callers can reconcile open editor state
+   * without treating the whole batch as failed.
+   * @param projectId The ID of the project.
+   * @param paths Absolute mounted file paths.
+   */
+  getFileRevisions(
+    projectId: string,
+    paths: readonly string[],
+  ): Promise<ReadonlyArray<FileRevisionLookupResult>>;
 
   /**
    * Saves content to a specific file.
@@ -72,6 +120,17 @@ export interface IFileSystemService {
     projectId: string,
     options: WorkspaceFileSearchOptions,
   ): Promise<WorkspaceFileSearchExecutionResult>;
+
+  /**
+   * Subscribes to external file-system changes for a mounted project.
+   * @param projectId The ID of the project.
+   * @param listener Change listener invoked after the runtime cache is reconciled.
+   */
+  subscribeToFileChanges(
+    projectId: string,
+    listener: (event: ProjectFileSystemChangeEvent) => void,
+    options?: FileSystemChangeSubscriptionOptions,
+  ): () => void;
 
   /**
    * Mounts a local folder to the project's file system.

@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync } from 'node:sqlite';
 
 import type { BirdCoderDatabaseProviderId } from '@sdkwork/birdcoder-types';
 import type { BirdCoderSqlPlan, BirdCoderSqlRow } from './sqlPlans.ts';
@@ -34,6 +35,69 @@ export interface CreateBirdCoderPostgresqlClientSqlExecutorOptions {
   openConnection: () => Promise<BirdCoderPostgresqlSqlConnection>;
 }
 
+interface NodeSqliteModule {
+  DatabaseSync: new (databaseFile: string) => DatabaseSync;
+}
+
+const SQLITE_EXPERIMENTAL_WARNING_MESSAGE =
+  'SQLite is an experimental feature and might change at any time';
+
+const nodeRequire = createRequire(import.meta.url);
+
+let cachedNodeSqliteModule: NodeSqliteModule | null = null;
+
+function isSqliteExperimentalWarning(
+  warning: unknown,
+  rest: readonly unknown[],
+) {
+  const warningMessage =
+    typeof warning === 'string'
+      ? warning
+      : warning instanceof Error
+        ? warning.message
+        : '';
+  const warningType =
+    typeof warning === 'string'
+      ? (typeof rest[0] === 'string' ? rest[0] : '')
+      : warning instanceof Error
+        ? warning.name
+        : '';
+
+  return (
+    warningType === 'ExperimentalWarning' &&
+    warningMessage === SQLITE_EXPERIMENTAL_WARNING_MESSAGE
+  );
+}
+
+function loadNodeSqliteModule(): NodeSqliteModule {
+  if (cachedNodeSqliteModule) {
+    return cachedNodeSqliteModule;
+  }
+
+  const originalEmitWarning = process.emitWarning;
+
+  // BirdCoder intentionally uses Node's sqlite backend; keep this one experimental marker
+  // from polluting test and runtime output while preserving all other process warnings.
+  process.emitWarning = ((warning: unknown, ...rest: unknown[]) => {
+    if (isSqliteExperimentalWarning(warning, rest)) {
+      return;
+    }
+
+    Reflect.apply(
+      originalEmitWarning as unknown as (...args: unknown[]) => void,
+      process,
+      [warning, ...rest],
+    );
+  }) as typeof process.emitWarning;
+
+  try {
+    cachedNodeSqliteModule = nodeRequire('node:sqlite') as NodeSqliteModule;
+    return cachedNodeSqliteModule;
+  } finally {
+    process.emitWarning = originalEmitWarning;
+  }
+}
+
 function cloneSqlRows(rows: readonly BirdCoderSqlRow[] | undefined): readonly BirdCoderSqlRow[] {
   if (!rows) {
     return [];
@@ -64,6 +128,7 @@ function openSqliteDatabase({
 }: CreateBirdCoderSqliteFileSqlExecutorOptions): DatabaseSync {
   mkdirSync(path.dirname(databaseFile), { recursive: true });
 
+  const { DatabaseSync } = loadNodeSqliteModule();
   const database = new DatabaseSync(databaseFile);
   database.exec(`PRAGMA busy_timeout = ${Math.max(busyTimeoutMs, 0)};`);
   database.exec('PRAGMA foreign_keys = ON;');

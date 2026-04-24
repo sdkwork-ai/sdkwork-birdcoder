@@ -44,6 +44,7 @@ assert.deepEqual(BIRDCODER_SKILL_BINDING_SCOPE_TYPES, [
 assert.deepEqual(
   BIRDCODER_PROMPT_STORAGE_BINDINGS.map((binding) => binding.entityName),
   [
+    'saved_prompt_entry',
     'prompt_asset',
     'prompt_asset_version',
     'prompt_bundle',

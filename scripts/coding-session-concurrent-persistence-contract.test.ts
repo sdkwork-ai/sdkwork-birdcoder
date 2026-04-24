@@ -99,6 +99,10 @@ try {
 
   const coreWriteClient: BirdCoderCoreWriteApiClient = {
     async createCodingSession(request) {
+      if (!request.engineId || !request.modelId) {
+        throw new Error('expected explicit engineId and modelId');
+      }
+
       sessionCounter += 1;
       const sessionId = `coding-session-concurrent-${sessionCounter}`;
       const timestamp = createTimestamp(sessionCounter);
@@ -109,8 +113,8 @@ try {
         title: request.title ?? `Concurrent Session ${sessionCounter}`,
         status: 'active',
         hostMode: request.hostMode ?? 'server',
-        engineId: request.engineId ?? 'codex',
-        modelId: request.modelId ?? request.engineId ?? 'codex',
+        engineId: request.engineId,
+        modelId: request.modelId,
         createdAt: timestamp,
         updatedAt: timestamp,
         lastTurnAt: timestamp,
@@ -224,10 +228,18 @@ try {
   const sessionA = await serviceA.projectService.createCodingSession(
     createdProject.id,
     'Concurrent Session A',
+    {
+      engineId: 'codex',
+      modelId: 'gpt-5-codex',
+    },
   );
   const sessionB = await serviceB.projectService.createCodingSession(
     createdProject.id,
     'Concurrent Session B',
+    {
+      engineId: 'claude-code',
+      modelId: 'claude-sonnet-4.5',
+    },
   );
 
   const reloadedServices = createDefaultBirdCoderIdeServices({

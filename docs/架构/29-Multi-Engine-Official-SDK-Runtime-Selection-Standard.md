@@ -4,12 +4,14 @@
 
 This addendum turns the existing multi-engine SDK architecture from a metadata-only standard into an execution-time standard.
 
-BirdCoder must not only declare `official-sdk` in descriptors. It must also route real engine execution through the official SDK path when that path is available.
+BirdCoder must not only declare `official-sdk` in descriptors. It must also route real engine execution through the official SDK path when that path is available, and that runtime-selection authority must converge inside `sdkwork-birdcoder-codeengine`.
 
 ## Scope
 
 This standard applies to:
 
+- `packages/sdkwork-birdcoder-codeengine/src/*`
+- `packages/sdkwork-birdcoder-codeengine/src-host/src/*`
 - `packages/sdkwork-birdcoder-chat/src/providerAdapter.ts`
 - `packages/sdkwork-birdcoder-chat-codex`
 - `packages/sdkwork-birdcoder-chat-claude`
@@ -21,9 +23,10 @@ This standard applies to:
 
 - Provider adapters must expose one canonical BirdCoder interface and one provider-specific official SDK bridge.
 - The canonical adapter surface must remain stable even if the provider SDK runtime is absent.
-- Runtime selection must happen inside the adapter layer, not in product packages and not in the workbench shell.
+- Runtime selection must happen inside `sdkwork-birdcoder-codeengine`, not in product packages and not in the workbench shell.
 - Product packages must never import provider SDKs directly.
 - Provider adapter packages must declare their own official SDK as an optional peer dependency governed from the root catalog.
+- `sdkwork-birdcoder-chat*` packages are lower-level provider bridge implementations; `sdkwork-birdcoder-codeengine` is the primary multi-engine runtime entry.
 
 ## Shared abstraction
 
@@ -65,7 +68,7 @@ Additional rules:
 
 - Primary lane: `@openai/codex-sdk`
 - Runtime mapping: `Codex().startThread().run()` and `runStreamed()`
-- Native semantics preserved through raw lane: thread, turn, item
+- Native semantics preserved through raw lane: native thread, turn, item
 
 ### Claude
 

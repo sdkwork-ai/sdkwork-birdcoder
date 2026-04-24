@@ -7,7 +7,7 @@ import type {
   BirdCoderCodingSessionSummary,
   BirdCoderSubmitApprovalDecisionRequest,
 } from '@sdkwork/birdcoder-types';
-import type { ICoreReadService, ICoreWriteService } from '@sdkwork/birdcoder-infrastructure';
+import type { ICoreReadService, ICoreWriteService } from '@sdkwork/birdcoder-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
 
 export interface BirdCoderCodingSessionProjection {

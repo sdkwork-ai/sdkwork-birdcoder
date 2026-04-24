@@ -28,8 +28,8 @@
 | A 总控车道 | `00-05`、`09`、`17`、`13`、共享契约、最终集成 | `packages/sdkwork-birdcoder-core` `packages/sdkwork-birdcoder-server` `.github` `docs/release` |
 | B Code 车道 | `06` | `packages/sdkwork-birdcoder-code` `packages/sdkwork-birdcoder-ui` |
 | C Studio 车道 | `07` | `packages/sdkwork-birdcoder-studio` `packages/sdkwork-birdcoder-host-studio` `packages/sdkwork-birdcoder-templates` |
-| D External 集成车道 | `08` | `packages/sdkwork-birdcoder-terminal` `packages/sdkwork-birdcoder-desktop` `packages/sdkwork-birdcoder-shell` |
-| E 架构补强车道 | `14` `15` `16` `18` | `packages/sdkwork-birdcoder-appbase` `packages/sdkwork-birdcoder-types` `packages/sdkwork-birdcoder-infrastructure` `docs/prompts` |
+| D External 集成车道 | `08` | `packages/sdkwork-birdcoder-commons` `packages/sdkwork-birdcoder-desktop` `packages/sdkwork-birdcoder-shell` |
+| E 架构补强车道 | `14` `15` `16` `18` | `packages/sdkwork-birdcoder-auth` `packages/sdkwork-birdcoder-user` `packages/sdkwork-birdcoder-types` `packages/sdkwork-birdcoder-infrastructure` `packages/sdkwork-birdcoder-codeengine` `docs/prompts` |
 | F 治理交付车道 | `10` `11` `12` | `deploy` `scripts` `artifacts` `.github/workflows` |
 
 说明：
@@ -40,7 +40,7 @@
 ## 5. 最快并行路径
 
 1. A 串行完成 `00-05`；B/C/D/E/F 只做审计、草案、测试脚手架。
-2. `05` 通过后，B/C/E 并行推进 `06/07/14/15/16/18`；D 只维护外部 Terminal 版本矩阵与 contract 草案；A 只维护共享契约与集成门禁。
+2. `05` 通过后，B/C/E 并行推进 `06/07/14/15/16/18`；D 只维护外部 Terminal 启动映射、证据回写与 contract 草案；A 只维护共享契约与集成门禁。
 3. `06/07` 与 `14/15/16/18` 达到准入后，A 串行推进 `09`。
 4. `09` 完成后，A 推进 `17`；F 并行准备 `10/11/12` 的脚本、基准、门禁。
 5. 仅当 `09`、`17`、`18` 全部稳定且外部 Terminal 版本冻结后，D 才能启动 Step `08` 集成实施。

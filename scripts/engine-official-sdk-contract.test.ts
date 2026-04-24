@@ -101,15 +101,25 @@ for (const engine of listWorkbenchCliEngines()) {
       `${engine.id} should not mark fallback active when the SDK is installed`,
     );
   } else {
-    assert.equal(
-      health.fallbackActive,
-      true,
-      `${engine.id} must surface fallback activation when the SDK is unavailable`,
-    );
+    if (engine.id === 'codex') {
+      assert.equal(
+        health.fallbackActive,
+        health.cliAvailable,
+        'codex should only activate fallback when the real CLI lane is executable',
+      );
+    } else {
+      assert.equal(
+        health.fallbackActive,
+        false,
+        `${engine.id} must not advertise a synthetic fallback lane when the SDK is unavailable`,
+      );
+    }
     assert.equal(
       health.runtimeMode,
-      resolveFallbackRuntimeMode(integration?.transportKinds ?? []) ?? integration?.runtimeMode,
-      `${engine.id} must report the resolved fallback lane when the SDK is unavailable`,
+      health.fallbackActive
+        ? resolveFallbackRuntimeMode(integration?.transportKinds ?? []) ?? integration?.runtimeMode
+        : integration?.runtimeMode,
+      `${engine.id} health runtime must reflect the actual executable lane instead of a declared-only fallback`,
     );
   }
   assert.ok(

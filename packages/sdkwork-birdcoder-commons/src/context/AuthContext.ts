@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode, useCallback } from 'react';
+import {
+  syncBirdCoderRuntimeUserCenterBindingFromMetadata,
+} from '@sdkwork/birdcoder-infrastructure-runtime';
 import type {
   BirdCoderUserCenterMetadataSummary,
   BirdCoderUserCenterSessionExchangeRequest,
@@ -14,6 +17,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password?: string) => Promise<User>;
   logout: () => Promise<void>;
+  refreshCurrentUser: () => Promise<User | null>;
   register: (email: string, password?: string, name?: string) => Promise<User>;
   user: User | null;
 }
@@ -26,6 +30,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const refreshCurrentUser = useCallback(async () => {
+    const currentUser = await authService.getCurrentUser();
+    setUser(currentUser);
+    return currentUser;
+  }, [authService]);
+
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
@@ -37,6 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
+        syncBirdCoderRuntimeUserCenterBindingFromMetadata(config);
         setAuthConfig(config);
       } catch (error) {
         if (!isMounted) {
@@ -145,6 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         register,
         logout,
+        refreshCurrentUser,
       },
     },
     children,

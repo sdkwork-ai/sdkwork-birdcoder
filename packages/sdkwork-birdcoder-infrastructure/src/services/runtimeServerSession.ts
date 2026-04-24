@@ -1,63 +1,110 @@
-const RUNTIME_SERVER_SESSION_STORAGE_KEY = 'birdcoder.server.user-center.session.v1';
-const RUNTIME_SERVER_SESSION_HEADER_NAME = 'x-birdcoder-session-id';
+import {
+  BIRDCODER_USER_CENTER_STORAGE_PLAN,
+} from "@sdkwork/birdcoder-core";
+import {
+  createUserCenterStandardTokenHeaders,
+  createUserCenterRuntimeSessionBinding,
+  type UserCenterTokenBundle,
+} from "@sdkwork/user-center-core-pc-react";
 
-let runtimeServerSessionIdMemory: string | null = null;
+const runtimeServerSessionBinding = createUserCenterRuntimeSessionBinding({
+  storagePlan: BIRDCODER_USER_CENTER_STORAGE_PLAN,
+});
+const runtimeServerTokenHeaders = createUserCenterStandardTokenHeaders(
+  BIRDCODER_USER_CENTER_STORAGE_PLAN,
+);
+const RUNTIME_SERVER_DEFAULT_TOKEN_TYPE = "Bearer";
 
-function getLocalStorage(): Storage | null {
-  if (typeof globalThis === 'undefined' || !('localStorage' in globalThis)) {
-    return null;
-  }
-
-  try {
-    return globalThis.localStorage;
-  } catch {
-    return null;
-  }
+function normalizeOptionalTokenValue(value: unknown): string | undefined {
+  const normalizedValue = typeof value === "string" ? value.trim() : "";
+  return normalizedValue || undefined;
 }
 
-function normalizeSessionId(value: string | null | undefined): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  const normalizedValue = value.trim();
-  return normalizedValue.length > 0 ? normalizedValue : null;
+function createRuntimeServerSyntheticTokenBundle(
+  sessionId: string,
+): UserCenterTokenBundle {
+  return {
+    accessToken: sessionId,
+    authToken: sessionId,
+    sessionToken: sessionId,
+    tokenType: RUNTIME_SERVER_DEFAULT_TOKEN_TYPE,
+  };
 }
 
 export function getRuntimeServerSessionHeaderName(): string {
-  return RUNTIME_SERVER_SESSION_HEADER_NAME;
+  return runtimeServerSessionBinding.getSessionHeaderName();
 }
 
 export function readRuntimeServerSessionId(): string | null {
-  const storage = getLocalStorage();
-  const storedValue = storage?.getItem(RUNTIME_SERVER_SESSION_STORAGE_KEY);
-  const normalizedStoredValue = normalizeSessionId(storedValue);
-  if (normalizedStoredValue) {
-    runtimeServerSessionIdMemory = normalizedStoredValue;
-    return normalizedStoredValue;
-  }
+  return runtimeServerSessionBinding.readSessionToken();
+}
 
-  return runtimeServerSessionIdMemory;
+export function readRuntimeServerTokenBundle(): UserCenterTokenBundle {
+  return runtimeServerSessionBinding.readTokenBundle();
 }
 
 export function writeRuntimeServerSessionId(sessionId: string): string {
-  const normalizedSessionId = normalizeSessionId(sessionId);
-  if (!normalizedSessionId) {
-    throw new Error('Runtime server session id must not be empty.');
-  }
-
-  runtimeServerSessionIdMemory = normalizedSessionId;
-  getLocalStorage()?.setItem(RUNTIME_SERVER_SESSION_STORAGE_KEY, normalizedSessionId);
+  const normalizedSessionId = runtimeServerSessionBinding.writeSessionToken(sessionId);
+  runtimeServerSessionBinding.writeTokenBundle(
+    createRuntimeServerSyntheticTokenBundle(normalizedSessionId),
+  );
   return normalizedSessionId;
 }
 
+export function writeRuntimeServerTokenBundle(
+  bundle: UserCenterTokenBundle,
+): UserCenterTokenBundle {
+  const sessionToken =
+    normalizeOptionalTokenValue(bundle.sessionToken)
+    ?? normalizeOptionalTokenValue(bundle.authToken)
+    ?? normalizeOptionalTokenValue(bundle.accessToken);
+  const authToken = normalizeOptionalTokenValue(bundle.authToken) ?? sessionToken;
+  const accessToken = normalizeOptionalTokenValue(bundle.accessToken) ?? sessionToken;
+  const refreshToken = normalizeOptionalTokenValue(bundle.refreshToken);
+  const tokenType =
+    normalizeOptionalTokenValue(bundle.tokenType)
+    ?? (authToken || accessToken || sessionToken
+      ? RUNTIME_SERVER_DEFAULT_TOKEN_TYPE
+      : undefined);
+
+  return runtimeServerSessionBinding.writeTokenBundle({
+    ...(accessToken ? { accessToken } : {}),
+    ...(authToken ? { authToken } : {}),
+    ...(refreshToken ? { refreshToken } : {}),
+    ...(sessionToken ? { sessionToken } : {}),
+    ...(tokenType ? { tokenType } : {}),
+  });
+}
+
 export function clearRuntimeServerSessionId(): void {
-  runtimeServerSessionIdMemory = null;
-  getLocalStorage()?.removeItem(RUNTIME_SERVER_SESSION_STORAGE_KEY);
+  runtimeServerSessionBinding.clearTokenBundle();
 }
 
 export function resolveRuntimeServerSessionHeaders(): Record<string, string | undefined> {
+  const tokenBundle = runtimeServerSessionBinding.readTokenBundle();
+  const sessionToken =
+    normalizeOptionalTokenValue(tokenBundle.sessionToken)
+    ?? runtimeServerSessionBinding.resolveProtectedToken();
+  const authToken =
+    normalizeOptionalTokenValue(tokenBundle.authToken)
+    ?? normalizeOptionalTokenValue(tokenBundle.accessToken)
+    ?? sessionToken
+    ?? undefined;
+  const accessToken =
+    normalizeOptionalTokenValue(tokenBundle.accessToken)
+    ?? normalizeOptionalTokenValue(tokenBundle.authToken)
+    ?? sessionToken
+    ?? undefined;
+  const refreshToken = normalizeOptionalTokenValue(tokenBundle.refreshToken);
+  const tokenType =
+    normalizeOptionalTokenValue(tokenBundle.tokenType)
+    ?? RUNTIME_SERVER_DEFAULT_TOKEN_TYPE;
+
   return {
-    [RUNTIME_SERVER_SESSION_HEADER_NAME]: readRuntimeServerSessionId() ?? undefined,
+    [runtimeServerSessionBinding.getSessionHeaderName()]: sessionToken,
+    [runtimeServerTokenHeaders.accessTokenHeaderName]: accessToken,
+    [runtimeServerTokenHeaders.authorizationHeaderName]:
+      authToken ? `${tokenType} ${authToken}` : undefined,
+    [runtimeServerTokenHeaders.refreshTokenHeaderName]: refreshToken,
   };
 }

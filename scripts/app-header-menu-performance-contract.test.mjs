@@ -1,14 +1,24 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const appPath = new URL('../src/App.tsx', import.meta.url);
+const appPath = new URL('../packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx', import.meta.url);
 const topMenuPath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/TopMenu.tsx',
+  '../packages/sdkwork-birdcoder-ui-shell/src/components/TopMenu.tsx',
+  import.meta.url,
+);
+const appWorkspaceMenuPath = new URL(
+  '../packages/sdkwork-birdcoder-shell/src/application/app/AppWorkspaceMenu.tsx',
+  import.meta.url,
+);
+const headerLoadingPath = new URL(
+  '../packages/sdkwork-birdcoder-shell/src/application/app/HeaderLoadingStatus.tsx',
   import.meta.url,
 );
 
 const appSource = fs.readFileSync(appPath, 'utf8');
 const topMenuSource = fs.readFileSync(topMenuPath, 'utf8');
+const appWorkspaceMenuSource = fs.readFileSync(appWorkspaceMenuPath, 'utf8');
+const headerLoadingSource = fs.readFileSync(headerLoadingPath, 'utf8');
 
 assert.match(
   appSource,
@@ -38,6 +48,30 @@ assert.doesNotMatch(
   appSource,
   /resolveLatestCodingSessionIdForProject/,
   'App header project selection must not fall back to per-click array scans for latest coding session lookup.',
+);
+
+assert.match(
+  appWorkspaceMenuSource,
+  /import \{ HeaderLoadingStatus \} from '\.\/HeaderLoadingStatus\.tsx';/,
+  'App header loading must be isolated into a dedicated workspace-menu child component so recovery timers do not rerender the entire shell.',
+);
+
+assert.match(
+  appSource,
+  /import \{ AppWorkspaceMenu \} from '\.\/AppWorkspaceMenu\.tsx';/,
+  'BirdcoderApp must delegate workspace header rendering into AppWorkspaceMenu so the shell header stays modular and easier to contain.',
+);
+
+assert.doesNotMatch(
+  appSource,
+  /const \[projectMountRecoveryTick,\s*setProjectMountRecoveryTick\]/,
+  'AppContent must not keep a recovery tick state at the top level because it forces whole-shell rerenders during project mount recovery.',
+);
+
+assert.match(
+  headerLoadingSource,
+  /React\.memo\(function HeaderLoadingStatus\(/,
+  'Header loading status must be memoized so recovery progress updates stay scoped to the header loading subtree.',
 );
 
 assert.match(

@@ -11,6 +11,24 @@ import {
   instantiateBirdCoderAppTemplateRuntime,
 } from '../packages/sdkwork-birdcoder-core/src/index.ts';
 
+assert.throws(
+  () =>
+    assembleBirdCoderPromptRuntime({
+      fragments: [],
+    } as unknown as Parameters<typeof assembleBirdCoderPromptRuntime>[0]),
+  /engine key/i,
+  'prompt runtime assembly must reject missing engine keys.',
+);
+assert.throws(
+  () =>
+    assembleBirdCoderPromptRuntime({
+      engineKey: 'codex',
+      fragments: [],
+    } as unknown as Parameters<typeof assembleBirdCoderPromptRuntime>[0]),
+  /model id/i,
+  'prompt runtime assembly must reject missing model ids.',
+);
+
 const promptRuntime = assembleBirdCoderPromptRuntime({
   engineKey: 'codex',
   modelId: 'gpt-5.4',
@@ -117,11 +135,11 @@ const skillRuntime = assembleBirdCoderSkillRuntime({
       bindingId: 'binding-workspace-typescript',
       installationId: 'install-typescript',
       scopeType: 'workspace',
-      scopeId: 'workspace-default',
+      scopeId: '100000000000000101',
       enabled: true,
       capabilityIds: ['lint'],
       config: {
-        formatter: 'workspace-default',
+        formatter: '100000000000000101',
       },
     },
     {
@@ -214,7 +232,7 @@ const templateRuntime = instantiateBirdCoderAppTemplateRuntime({
   },
   request: {
     instantiationId: 'instantiation-1',
-    workspaceId: 'workspace-default',
+    workspaceId: '100000000000000101',
     projectId: 'project-birdcoder',
     projectName: 'BirdCoder Agent Tooling',
     projectSlug: 'birdcoder-agent-tooling',

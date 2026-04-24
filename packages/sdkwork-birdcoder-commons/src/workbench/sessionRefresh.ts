@@ -1,4 +1,5 @@
 import {
+  areBirdCoderChatMessagesEquivalent,
   buildBirdCoderSessionSynchronizationVersion,
   formatBirdCoderSessionActivityDisplayTime,
   type BirdCoderChatMessage,
@@ -10,13 +11,12 @@ import {
   type BirdCoderNativeSessionDetail,
   type BirdCoderCodingSessionSummary,
   isBirdCoderCodingSessionExecuting,
+  mergeBirdCoderProjectionMessages,
   resolveBirdCoderCodingSessionRuntimeStatus,
 } from '@sdkwork/birdcoder-types';
-import { mergeBirdCoderProjectionMessages } from '@sdkwork/birdcoder-infrastructure';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
   isAuthorityBackedNativeSessionId,
-  readAuthorityBackedNativeSessionRecord,
   type NativeSessionAuthorityCoreReadService,
 } from './nativeSessionAuthority.ts';
 
@@ -105,23 +105,6 @@ function normalizeComparableTimestamp(value: string | null | undefined): string 
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function areRefreshMessageBoundariesEqual(
-  left: BirdCoderChatMessage,
-  right: BirdCoderChatMessage,
-): boolean {
-  return (
-    left.id === right.id &&
-    left.codingSessionId === right.codingSessionId &&
-    left.turnId === right.turnId &&
-    left.role === right.role &&
-    left.content === right.content &&
-    left.createdAt === right.createdAt &&
-    left.timestamp === right.timestamp &&
-    left.name === right.name &&
-    left.tool_call_id === right.tool_call_id
-  );
-}
-
 function areRefreshMessagesEquivalent(
   left: readonly BirdCoderChatMessage[],
   right: readonly BirdCoderChatMessage[],
@@ -138,9 +121,8 @@ function areRefreshMessagesEquivalent(
     return true;
   }
 
-  return (
-    areRefreshMessageBoundariesEqual(left[0], right[0]) &&
-    areRefreshMessageBoundariesEqual(left[left.length - 1], right[right.length - 1])
+  return left.every((message, index) =>
+    areBirdCoderChatMessagesEquivalent(message, right[index]!),
   );
 }
 
@@ -206,15 +188,17 @@ function canReuseLocalCodingSessionMessages(
     return false;
   }
 
-  if (
-    isBirdCoderCodingSessionExecuting({
-      runtimeStatus: summary.runtimeStatus ?? codingSession.runtimeStatus,
-    })
-  ) {
+  if (!doesSummaryMatchLocalTranscript(codingSession, summary)) {
     return false;
   }
 
-  return doesSummaryMatchLocalTranscript(codingSession, summary);
+  const localRuntimeStatus = codingSession.runtimeStatus ?? null;
+  const summaryRuntimeStatus = summary.runtimeStatus ?? localRuntimeStatus;
+  if (!isBirdCoderCodingSessionExecuting({ runtimeStatus: summaryRuntimeStatus })) {
+    return true;
+  }
+
+  return summaryRuntimeStatus === localRuntimeStatus;
 }
 
 async function persistRefreshedCodingSessionIfNeeded(
@@ -257,7 +241,7 @@ function buildRefreshedCodingSession(
     status: summary.status,
     hostMode: summary.hostMode,
     engineId: summary.engineId,
-    modelId: summary.modelId ?? existingSession.modelId,
+    modelId: summary.modelId,
     createdAt: summary.createdAt,
     updatedAt: summary.updatedAt,
     lastTurnAt: summary.lastTurnAt,
@@ -511,63 +495,6 @@ export async function refreshCodingSessionMessages(
 
     requireProjectServiceUpsert(options.projectService);
 
-    if (
-      isAuthorityBackedNativeSessionId(
-        normalizedCodingSessionId,
-        resolvedLocation.codingSession.engineId,
-      )
-    ) {
-      const nativeSessionRecord = await readAuthorityBackedNativeSessionRecord(
-        normalizedCodingSessionId,
-        {
-          coreReadService: options.coreReadService,
-          engineId: resolvedLocation.codingSession.engineId,
-          projectId: resolvedLocation.project.id,
-          workspaceId: resolvedLocation.project.workspaceId,
-        },
-      );
-      if (!nativeSessionRecord) {
-        return {
-          codingSessionId: normalizedCodingSessionId,
-          messageCount: resolvedLocation.codingSession.messages.length,
-          projectId: resolvedLocation.project.id,
-          source: 'native-engine',
-          status: 'failed',
-        } satisfies RefreshCodingSessionMessagesResult;
-      }
-
-    const refreshedSession = buildRefreshedCodingSession(
-      resolvedLocation.codingSession,
-      {
-          ...nativeSessionRecord.summary,
-          workspaceId: resolvedLocation.project.workspaceId,
-          projectId: resolvedLocation.project.id,
-        },
-        nativeSessionRecord.messages,
-      );
-
-      await persistRefreshedCodingSessionIfNeeded(
-        options.projectService,
-        resolvedLocation.project.id,
-        resolvedLocation.codingSession,
-        refreshedSession,
-      );
-
-      return {
-        codingSessionId: normalizedCodingSessionId,
-        codingSession: refreshedSession,
-        messageCount: refreshedSession.messages.length,
-        projectId: resolvedLocation.project.id,
-        source: 'native-engine',
-        status: 'refreshed',
-        synchronizationVersion: buildBirdCoderSessionSynchronizationVersion(
-          refreshedSession,
-          refreshedSession.messages.length,
-        ),
-        workspaceId: resolvedLocation.project.workspaceId,
-      } satisfies RefreshCodingSessionMessagesResult;
-    }
-
     if (!options.coreReadService) {
       return {
         codingSessionId: normalizedCodingSessionId,
@@ -578,10 +505,16 @@ export async function refreshCodingSessionMessages(
       } satisfies RefreshCodingSessionMessagesResult;
     }
 
+    const coreReadService = options.coreReadService;
     const summary =
       resolvedLocation.summary ??
-      (await options.coreReadService.getCodingSession(normalizedCodingSessionId));
+      (await coreReadService.getCodingSession(normalizedCodingSessionId));
+    const shouldForceAuthoritativeTranscriptRefresh = isAuthorityBackedNativeSessionId(
+      normalizedCodingSessionId,
+      resolvedLocation.codingSession.engineId,
+    );
     const refreshedSession =
+      !shouldForceAuthoritativeTranscriptRefresh &&
       canReuseLocalCodingSessionMessages(resolvedLocation.codingSession, summary)
         ? buildRefreshedCodingSession(
             resolvedLocation.codingSession,
@@ -590,7 +523,7 @@ export async function refreshCodingSessionMessages(
             summary.runtimeStatus ?? resolvedLocation.codingSession.runtimeStatus,
           )
         : await (async () => {
-            const events = await options.coreReadService.listCodingSessionEvents(
+            const events = await coreReadService.listCodingSessionEvents(
               normalizedCodingSessionId,
             );
             const resolvedRuntimeStatus = resolveBirdCoderCodingSessionRuntimeStatus(
@@ -622,7 +555,12 @@ export async function refreshCodingSessionMessages(
       codingSession: refreshedSession,
       messageCount: refreshedSession.messages.length,
       projectId: resolvedLocation.project.id,
-      source: 'core',
+      source: isAuthorityBackedNativeSessionId(
+        normalizedCodingSessionId,
+        resolvedLocation.codingSession.engineId,
+      )
+        ? 'native-engine'
+        : 'core',
       status: 'refreshed',
       synchronizationVersion: buildBirdCoderSessionSynchronizationVersion(
         refreshedSession,

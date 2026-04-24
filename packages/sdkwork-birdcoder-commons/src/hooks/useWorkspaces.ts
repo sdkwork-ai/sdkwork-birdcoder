@@ -263,6 +263,7 @@ export function useWorkspaces() {
   );
 
   return {
+    hasFetched: storeSnapshot.hasFetched,
     workspaces: storeSnapshot.workspaces,
     isLoading: storeSnapshot.isLoading,
     createWorkspace,

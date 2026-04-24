@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "lucide-react": "catalog:",
+    "@sdkwork/user-center-core-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react",
     "@sdkwork/birdcoder-types": "workspace:*"
   },
   "devDependencies": {

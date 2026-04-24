@@ -19,6 +19,10 @@
       "import": "./src/services/defaultIdeServices.ts",
       "types": "./src/services/defaultIdeServices.ts"
     },
+    "./services/defaultIdeServicesRuntime": {
+      "import": "./src/services/defaultIdeServicesRuntime.ts",
+      "types": "./src/services/defaultIdeServicesRuntime.ts"
+    },
     "./services/workspaceRealtimeClient": {
       "import": "./src/services/workspaceRealtimeClient.ts",
       "types": "./src/services/workspaceRealtimeClient.ts"
@@ -39,6 +43,10 @@
       "import": "./src/storage/appConsoleRepository.ts",
       "types": "./src/storage/appConsoleRepository.ts"
     },
+    "./storage/codingSessionPromptEntryRepository": {
+      "import": "./src/storage/codingSessionPromptEntryRepository.ts",
+      "types": "./src/storage/codingSessionPromptEntryRepository.ts"
+    },
     "./storage/promptSkillTemplateEvidenceRepository": {
       "import": "./src/storage/promptSkillTemplateEvidenceRepository.ts",
       "types": "./src/storage/promptSkillTemplateEvidenceRepository.ts"
@@ -53,8 +61,12 @@
     }
   },
   "dependencies": {
+    "@sdkwork/auth-runtime-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-runtime-pc-react",
     "@sdkwork/birdcoder-codeengine": "workspace:*",
+    "@sdkwork/birdcoder-core": "workspace:*",
     "@sdkwork/birdcoder-host-core": "workspace:*",
+    "@sdkwork/user-center-core-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react",
+    "@sdkwork/user-center-validation-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-validation-pc-react",
     "@tauri-apps/api": "catalog:",
     "@tauri-apps/plugin-dialog": "catalog:",
     "@sdkwork/birdcoder-types": "workspace:*"
