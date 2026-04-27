@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 
-import type { ChatMessage } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
+import { ClaudeChatEngine } from '../packages/sdkwork-birdcoder-chat-claude/src/index.ts';
+import { GeminiChatEngine } from '../packages/sdkwork-birdcoder-chat-gemini/src/index.ts';
+import { OpenCodeChatEngine } from '../packages/sdkwork-birdcoder-chat-opencode/src/index.ts';
+import type { ChatEngineOfficialSdkBridgeLoader } from '../packages/sdkwork-birdcoder-chat/src/index.ts';
+import type {
+  ChatMessage,
+  IChatEngine,
+} from '../packages/sdkwork-birdcoder-chat/src/types.ts';
 import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
 import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
 import { withMockCodexCliJsonl } from './test-support/mockCodexCli.ts';
@@ -14,8 +21,111 @@ const messages: ChatMessage[] = [
   },
 ];
 
+function createMockBridgeLoader(
+  engineId: string,
+  modelId: string,
+): ChatEngineOfficialSdkBridgeLoader {
+  const created = Math.floor(Date.now() / 1000);
+  return {
+    load: async () => ({
+      async sendMessage() {
+        return {
+          id: `${engineId}-conformance-response`,
+          object: 'chat.completion',
+          created,
+          model: modelId,
+          choices: [
+            {
+              index: 0,
+              message: {
+                id: `${engineId}-conformance-message`,
+                role: 'assistant',
+                content: `${engineId} conformance response.`,
+                timestamp: Date.now(),
+              },
+              finish_reason: 'stop',
+            },
+          ],
+        };
+      },
+      async *sendMessageStream() {
+        yield {
+          id: `${engineId}-conformance-stream`,
+          object: 'chat.completion.chunk',
+          created,
+          model: modelId,
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: 'assistant',
+                content: `${engineId} conformance stream. `,
+              },
+              finish_reason: null,
+            },
+          ],
+        };
+        yield {
+          id: `${engineId}-conformance-stream`,
+          object: 'chat.completion.chunk',
+          created,
+          model: modelId,
+          choices: [
+            {
+              index: 0,
+              delta: {
+                tool_calls: [
+                  {
+                    id: `${engineId}-conformance-tool`,
+                    type: 'function',
+                    function: {
+                      name: 'run_command',
+                      arguments: JSON.stringify({ command: 'pnpm lint' }),
+                    },
+                  },
+                ],
+              },
+              finish_reason: 'tool_calls',
+            },
+          ],
+        };
+        yield {
+          id: `${engineId}-conformance-stream`,
+          object: 'chat.completion.chunk',
+          created,
+          model: modelId,
+          choices: [
+            {
+              index: 0,
+              delta: {},
+              finish_reason: 'stop',
+            },
+          ],
+        };
+      },
+    }),
+  };
+}
+
+function createConformanceRuntime(
+  engineId: string,
+  modelId: string,
+): IChatEngine {
+  const officialSdkBridgeLoader = createMockBridgeLoader(engineId, modelId);
+  switch (engineId) {
+    case 'claude-code':
+      return new ClaudeChatEngine({ officialSdkBridgeLoader });
+    case 'gemini':
+      return new GeminiChatEngine({ officialSdkBridgeLoader });
+    case 'opencode':
+      return new OpenCodeChatEngine({ officialSdkBridgeLoader });
+    default:
+      return createChatEngineById(engineId);
+  }
+}
+
 for (const engine of listWorkbenchCliEngines()) {
-  const runtime = createChatEngineById(engine.id);
+  const runtime = createConformanceRuntime(engine.id, engine.defaultModelId);
 
   assert.equal(typeof runtime.sendMessage, 'function');
   assert.equal(typeof runtime.sendMessageStream, 'function');

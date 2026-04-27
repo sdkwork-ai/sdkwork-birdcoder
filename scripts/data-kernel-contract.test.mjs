@@ -1,18 +1,45 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
 const dataModulePath = new URL(
   '../packages/sdkwork-birdcoder-types/src/data.ts',
   import.meta.url,
 );
+const serverHostSourcePath = new URL(
+  '../packages/sdkwork-birdcoder-server/src-host/src/lib.rs',
+  import.meta.url,
+);
+const desktopHostSourcePath = new URL(
+  '../packages/sdkwork-birdcoder-desktop/src-tauri/src/lib.rs',
+  import.meta.url,
+);
 
 const dataModule = await import(`${dataModulePath.href}?t=${Date.now()}`);
+const serverHostSource = await readFile(serverHostSourcePath, 'utf8');
+const desktopHostSource = await readFile(desktopHostSourcePath, 'utf8');
 
 assert.deepEqual(dataModule.BIRDCODER_DATABASE_PROVIDER_IDS, ['sqlite', 'postgresql']);
 assert.equal(dataModule.BIRDCODER_SCHEMA_MIGRATION_HISTORY_TABLE, 'schema_migration_history');
 
 const requiredEntityNames = [
+  'tenant',
   'user_account',
   'user_profile',
-  'vip_subscription',
+  'account',
+  'account_history',
+  'account_exchange_config',
+  'ledger_bridge',
+  'vip_user',
+  'vip_level',
+  'vip_benefit',
+  'vip_level_benefit',
+  'vip_pack_group',
+  'vip_pack',
+  'vip_recharge_method',
+  'vip_recharge_pack',
+  'vip_recharge',
+  'vip_point_change',
+  'vip_benefit_usage',
   'workspace',
   'project',
   'file_asset',
@@ -50,10 +77,26 @@ for (const entityName of requiredEntityNames) {
   assert.ok(definition, `Missing entity definition for ${entityName}`);
 
   const columnNames = definition.columns.map((column) => column.name);
-  for (const requiredColumnName of ['id', 'created_at', 'updated_at', 'version', 'is_deleted']) {
+  for (const requiredColumnName of ['id', 'created_at', 'updated_at', 'is_deleted']) {
     assert.ok(
       columnNames.includes(requiredColumnName),
       `Entity ${entityName} is missing shared column ${requiredColumnName}`,
+    );
+  }
+  assert.ok(
+    columnNames.includes('version') || columnNames.includes('v'),
+    `Entity ${entityName} is missing shared optimistic-lock column version/v`,
+  );
+
+  for (const scopedColumnName of ['tenant_id', 'organization_id', 'data_scope']) {
+    const column = definition.columns.find((candidate) => candidate.name === scopedColumnName);
+    if (!column) {
+      continue;
+    }
+    assert.notEqual(
+      column.nullable,
+      true,
+      `Entity ${entityName}.${scopedColumnName} must follow PlusTenantSupportEntity non-null scope semantics.`,
     );
   }
 }
@@ -67,6 +110,10 @@ assert.ok(
 
 const codingSession = dataModule.getBirdCoderEntityDefinition('coding_session');
 assert.equal(codingSession.tableName, 'coding_sessions');
+assert.ok(
+  codingSession.columns.some((column) => column.name === 'native_session_id' && column.nullable === true),
+  'coding_session must denormalize native_session_id so local session mirrors can preserve provider-native resume ids.',
+);
 assert.ok(
   codingSession.indexes.some((index) => index.name === 'idx_coding_sessions_project_updated'),
   'coding_session should define a project/updated index',
@@ -90,5 +137,36 @@ assert.ok(
 );
 
 assert.equal(dataModule.BIRDCODER_CODING_SESSION_STORAGE_BINDING.storageMode, 'table');
+
+for (const [label, source] of [
+  ['server host sqlite schema', serverHostSource],
+  ['desktop host sqlite schema', desktopHostSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /\btenant_id\s+TEXT\s+NULL\b/,
+    `${label} must store tenant_id as a non-null Long-compatible column.`,
+  );
+  assert.doesNotMatch(
+    source,
+    /\borganization_id\s+TEXT\s+NULL\b/,
+    `${label} must store organization_id as a non-null Long-compatible column.`,
+  );
+  assert.doesNotMatch(
+    source,
+    /\bdata_scope\s+TEXT\s+NULL\b/,
+    `${label} must store data_scope as a non-null PlusDataScope column.`,
+  );
+  assert.doesNotMatch(
+    source,
+    /\bdata_scope\s+TEXT\s+NOT\s+NULL\b/,
+    `${label} must not store PlusDataScope as a text enum; Java PlusDataScopeConverter stores integer values.`,
+  );
+  assert.match(
+    source,
+    /\bdata_scope\s+INTEGER\s+NOT\s+NULL\s+DEFAULT\s+1\b/,
+    `${label} must store PlusDataScope.PRIVATE as integer value 1 by default.`,
+  );
+}
 
 console.log('data kernel contract passed.');

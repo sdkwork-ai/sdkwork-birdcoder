@@ -160,6 +160,21 @@ try {
     true,
     'session prompt history must persist through the canonical coding session prompt entry binding.',
   );
+  const canonicalPromptHistorySnapshot = backingStore.get(repositoryStorageKey);
+  backingStore.set(
+    repositoryStorageKey,
+    '[{"id":"unsafe-use-count","codingSessionId":"session-unsafe","promptText":"unsafe use count","normalizedPromptText":"unsafe use count","lastUsedAt":"2026-04-23T00:00:00.000Z","useCount":"101777208078558059","createdAt":"2026-04-23T00:00:00.000Z","updatedAt":"2026-04-23T00:00:00.000Z"}]',
+  );
+  await assert.rejects(
+    () => repository.listBySessionId('session-unsafe'),
+    /safe integer/u,
+    'session prompt history useCount must reject unsafe numeric strings instead of rounding them through Number(value).',
+  );
+  if (canonicalPromptHistorySnapshot === undefined) {
+    backingStore.delete(repositoryStorageKey);
+  } else {
+    backingStore.set(repositoryStorageKey, canonicalPromptHistorySnapshot);
+  }
 
   await deleteSessionPromptHistoryEntry('build api', 'session-a');
   assert.deepEqual(

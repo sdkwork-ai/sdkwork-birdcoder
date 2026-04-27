@@ -277,7 +277,9 @@ fn opencode_request_json(
     };
     let request = query
         .iter()
-        .fold(request, |request, (key, value)| request.query(key, value.as_str()))
+        .fold(request, |request, (key, value)| {
+            request.query(key, value.as_str())
+        })
         .set("Accept", "application/json");
     let request = if let Some(authorization) = build_opencode_authorization_header() {
         request.set("Authorization", authorization.as_str())
@@ -297,15 +299,17 @@ fn opencode_request_json(
 
     match response {
         Ok(response) => {
-            let body = response
-                .into_string()
-                .map_err(|error| format!("read OpenCode response body for {path} failed: {error}"))?;
+            let body = response.into_string().map_err(|error| {
+                format!("read OpenCode response body for {path} failed: {error}")
+            })?;
             if body.trim().is_empty() {
                 Ok(Some(Value::Null))
             } else {
                 serde_json::from_str::<Value>(&body)
                     .map(Some)
-                    .map_err(|error| format!("parse OpenCode response body for {path} failed: {error}"))
+                    .map_err(|error| {
+                        format!("parse OpenCode response body for {path} failed: {error}")
+                    })
             }
         }
         Err(ureq::Error::Status(404, response)) if allow_not_found => {
@@ -394,5 +398,35 @@ fn normalize_value_string(value: Option<&Value>) -> Option<String> {
         Some(Value::Number(value)) => Some(value.to_string()),
         Some(Value::Bool(value)) => Some(value.to_string()),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::build_opencode_model_payload;
+
+    #[test]
+    fn build_opencode_model_payload_omits_birdcoder_engine_sentinels() {
+        assert!(build_opencode_model_payload(Some("opencode")).is_none());
+        assert!(build_opencode_model_payload(Some(" open-code ")).is_none());
+        assert!(build_opencode_model_payload(Some("open code")).is_none());
+    }
+
+    #[test]
+    fn build_opencode_model_payload_preserves_provider_scoped_model_ids() {
+        assert_eq!(
+            build_opencode_model_payload(Some(" openai/gpt-5.4 ")),
+            Some(json!({
+                "providerID": "openai",
+                "modelID": "gpt-5.4",
+            })),
+        );
+    }
+
+    #[test]
+    fn build_opencode_model_payload_rejects_bare_model_ids() {
+        assert!(build_opencode_model_payload(Some("gpt-5.4")).is_none());
     }
 }

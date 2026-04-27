@@ -12,8 +12,48 @@ const modulePath = path.join(
   'context',
   'lazyDefaultIdeServices.ts',
 );
+const infrastructureLazyServicesPath = path.join(
+  process.cwd(),
+  'packages',
+  'sdkwork-birdcoder-infrastructure',
+  'src',
+  'services',
+  'lazyDefaultIdeServices.ts',
+);
 
 const source = fs.readFileSync(modulePath, 'utf8');
+const infrastructureLazyServicesSource = fs.readFileSync(infrastructureLazyServicesPath, 'utf8');
+
+assert.doesNotMatch(
+  infrastructureLazyServicesSource,
+  /await\s+import\(['"]\.\/impl\//,
+  '@sdkwork/birdcoder-infrastructure lazyDefaultIdeServices must not dynamically import platform service implementations after platform runtime chunk consolidation.',
+);
+
+for (const serviceImport of [
+  './impl/ApiBackedAdminDeploymentService.ts',
+  './impl/ApiBackedAdminPolicyService.ts',
+  './impl/ApiBackedAuditService.ts',
+  './impl/ApiBackedCatalogService.ts',
+  './impl/ApiBackedCollaborationService.ts',
+  './impl/ApiBackedCoreReadService.ts',
+  './impl/ApiBackedCoreWriteService.ts',
+  './impl/ApiBackedDeploymentService.ts',
+  './impl/ApiBackedDocumentService.ts',
+  './impl/ApiBackedGitService.ts',
+  './impl/ApiBackedProjectService.ts',
+  './impl/ApiBackedReleaseService.ts',
+  './impl/ApiBackedTeamService.ts',
+  './impl/ApiBackedWorkspaceService.ts',
+  './impl/RuntimeFileSystemService.ts',
+]) {
+  assert.match(
+    infrastructureLazyServicesSource,
+    new RegExp(`from ['"]${serviceImport.replaceAll('.', '\\.')}['"];`),
+    `@sdkwork/birdcoder-infrastructure lazyDefaultIdeServices must statically import ${serviceImport}.`,
+  );
+}
+
 const transpiled = ts.transpileModule(source, {
   compilerOptions: {
     module: ts.ModuleKind.CommonJS,

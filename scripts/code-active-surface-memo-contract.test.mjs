@@ -9,6 +9,13 @@ const codePageSurfaceSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/pages/CodePageSurface.tsx', import.meta.url),
   'utf8',
 );
+const codePageSurfacePropsHookSource = fs.readFileSync(
+  new URL(
+    '../packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
 const workspacePanelSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/pages/CodeEditorWorkspacePanel.tsx', import.meta.url),
   'utf8',
@@ -20,8 +27,20 @@ const workspacePanelEqualitySource = fs.readFileSync(
 
 assert.match(
   codePageSource,
-  /const mainChatProps = useMemo\(\(\) => \(\{/,
-  'CodePage must memoize the main chat prop bag so unrelated workbench state updates do not force the active AI panel to rebuild its full chat surface.',
+  /const \{\s*dialogProps,\s*gitOverviewDrawerProps,\s*mainChatProps,/s,
+  'CodePage must keep active surface render-input assembly delegated to the canonical surface props hook instead of rebuilding prop bags inline.',
+);
+
+assert.match(
+  codePageSource,
+  /useCodePageSurfaceProps\(\{/,
+  'CodePage must source its surface render inputs from useCodePageSurfaceProps.',
+);
+
+assert.match(
+  codePageSurfacePropsHookSource,
+  /const mainChatProps = useMemo<UniversalChatComponentProps>\(\(\) => \(\{/,
+  'useCodePageSurfaceProps must memoize the main chat prop bag so unrelated workbench state updates do not force the active AI panel to rebuild its full chat surface.',
 );
 
 assert.match(

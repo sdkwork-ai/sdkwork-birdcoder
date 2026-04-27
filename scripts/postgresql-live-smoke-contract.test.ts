@@ -9,6 +9,7 @@ import {
   runBirdCoderPostgresqlLiveSmoke,
   type BirdCoderPostgresqlOpenConnectionFactory,
 } from './postgresql-live-smoke.ts';
+import { parseBirdCoderApiJson } from '../packages/sdkwork-birdcoder-types/src/index.ts';
 
 const rootDir = process.cwd();
 const postgresqlLiveSmokeRunnerSource = fs.readFileSync(
@@ -123,7 +124,8 @@ type ReleaseRow = {
   rollout_stage: string;
   status: string;
   updated_at: string;
-  version: number;
+  uuid: string | null;
+  version: string;
 };
 
 const queryHistory: string[] = [];
@@ -175,15 +177,19 @@ const openConnectionFactory: BirdCoderPostgresqlOpenConnectionFactory = async ()
       if (sql.startsWith('INSERT INTO release_records')) {
         const row: ReleaseRow = {
           id: String(params[0]),
-          created_at: String(params[1]),
-          updated_at: String(params[2]),
-          version: Number(params[3]),
-          is_deleted: Boolean(params[4]),
-          release_version: String(params[5]),
-          release_kind: String(params[6]),
-          rollout_stage: String(params[7]),
-          manifest_json: (params[8] as Record<string, unknown>) ?? {},
-          status: String(params[9]),
+          uuid: params[1] === null || params[1] === undefined ? null : String(params[1]),
+          created_at: String(params[2]),
+          updated_at: String(params[3]),
+          version: String(params[4]),
+          is_deleted: Boolean(params[5]),
+          release_version: String(params[6]),
+          release_kind: String(params[7]),
+          rollout_stage: String(params[8]),
+          manifest_json:
+            typeof params[9] === 'string'
+              ? parseBirdCoderApiJson<Record<string, unknown>>(params[9])
+              : (params[9] as Record<string, unknown>) ?? {},
+          status: String(params[10]),
         };
 
         if (transactional) {

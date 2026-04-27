@@ -59,6 +59,7 @@ const simulatorSession = resolveHostStudioSimulatorSession({
 const firstEvidence = buildStudioSimulatorExecutionEvidence(
   simulatorSession,
   {
+    surface: 'embedded',
     path: '/workspace/demo-project',
     command: 'pnpm simulate:wechat',
     profileId: 'powershell',
@@ -80,6 +81,7 @@ assert.deepEqual(
 const updatedEvidence = buildStudioSimulatorExecutionEvidence(
   simulatorSession,
   {
+    surface: 'embedded',
     path: '/workspace/demo-project',
     command: 'pnpm simulate:wechat --open',
     profileId: 'powershell',

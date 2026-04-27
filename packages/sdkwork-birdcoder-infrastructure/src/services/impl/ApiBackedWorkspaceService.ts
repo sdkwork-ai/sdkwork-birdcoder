@@ -23,6 +23,42 @@ interface WorkspaceCacheEntry<T> {
 
 const WORKSPACE_LIST_CACHE_TTL_MS = 10_000;
 
+function resolveLocalWorkspaceUserScope(workspace: IWorkspace): string | undefined {
+  const userScopeCandidates = [
+    workspace.ownerId,
+    workspace.leaderId,
+    workspace.createdByUserId,
+  ];
+
+  for (const candidate of userScopeCandidates) {
+    const normalizedCandidate = candidate?.trim();
+    if (normalizedCandidate) {
+      return normalizedCandidate;
+    }
+  }
+
+  return undefined;
+}
+
+function isLocalWorkspaceVisibleForUser(
+  workspace: IWorkspace,
+  userId?: string,
+): boolean {
+  const normalizedUserId = userId?.trim();
+  if (!normalizedUserId) {
+    return true;
+  }
+
+  return resolveLocalWorkspaceUserScope(workspace) === normalizedUserId;
+}
+
+function filterLocalWorkspacesForUser(
+  workspaces: readonly IWorkspace[],
+  userId?: string,
+): IWorkspace[] {
+  return workspaces.filter((workspace) => isLocalWorkspaceVisibleForUser(workspace, userId));
+}
+
 function mapWorkspaceSummaryToWorkspace(
   workspace: Awaited<ReturnType<BirdCoderAppAdminApiClient['listWorkspaces']>>[number],
 ): IWorkspace {
@@ -127,48 +163,8 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
     return request;
   }
 
-  private commitReadCache(
-    userScope: string,
-    nextEntry: WorkspaceCacheEntry<IWorkspace[]> | null,
-  ): void {
-    if (nextEntry) {
-      this.readCacheByUserScope.set(userScope, nextEntry);
-      return;
-    }
-
-    this.readCacheByUserScope.delete(userScope);
-  }
-
-  private upsertCachedWorkspace(userScope: string, workspace: IWorkspace): void {
-    const cachedWorkspaces = this.readCacheByUserScope.get(userScope)?.value;
-    if (!cachedWorkspaces) {
-      return;
-    }
-
-    const nextWorkspaces = [
-      ...cachedWorkspaces.filter((candidateWorkspace) => candidateWorkspace.id !== workspace.id),
-      workspace,
-    ].sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
-    this.commitReadCache(userScope, {
-      expiresAt: Date.now() + WORKSPACE_LIST_CACHE_TTL_MS,
-      inflight: null,
-      value: nextWorkspaces,
-    });
-  }
-
-  private removeCachedWorkspace(workspaceId: string): void {
-    for (const [userScope, entry] of this.readCacheByUserScope.entries()) {
-      const cachedWorkspaces = entry.value;
-      if (!cachedWorkspaces) {
-        continue;
-      }
-
-      this.commitReadCache(userScope, {
-        expiresAt: Date.now() + WORKSPACE_LIST_CACHE_TTL_MS,
-        inflight: null,
-        value: cachedWorkspaces.filter((workspace) => workspace.id !== workspaceId),
-      });
-    }
+  private invalidateReadCache(): void {
+    this.readCacheByUserScope.clear();
   }
 
   async getWorkspaces(): Promise<IWorkspace[]> {
@@ -179,6 +175,10 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
       WORKSPACE_LIST_CACHE_TTL_MS,
       async () => {
         const localWorkspaces = await this.writeService.getWorkspaces();
+        const userScopedLocalWorkspaces = filterLocalWorkspacesForUser(
+          localWorkspaces,
+          userId,
+        );
 
         try {
           const workspaces = await retryBirdCoderTransientApiTask(() =>
@@ -195,12 +195,12 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
             (left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id),
           );
         } catch (error) {
-          if (localWorkspaces.length > 0 && isBirdCoderTransientApiError(error)) {
+          if (userScopedLocalWorkspaces.length > 0 && isBirdCoderTransientApiError(error)) {
             console.warn(
               'Falling back to locally mirrored workspaces because the remote workspace API is temporarily unavailable.',
               error,
             );
-            return localWorkspaces.sort(
+            return userScopedLocalWorkspaces.sort(
               (left, right) =>
                 left.name.localeCompare(right.name) || left.id.localeCompare(right.id),
             );
@@ -232,25 +232,24 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
     const workspace =
       (await this.workspaceMirror?.syncWorkspaceSummary(normalizedSummary)) ??
       mapWorkspaceSummaryToWorkspace(normalizedSummary);
-    this.upsertCachedWorkspace(currentUserScope, workspace);
+    this.invalidateReadCache();
     return workspace;
   }
 
   async updateWorkspace(id: string, name: string): Promise<IWorkspace> {
-    const currentUserScope = await this.resolveCurrentUserScope();
     const summary = await this.client.updateWorkspace(id, {
       name,
     });
     const workspace =
       (await this.workspaceMirror?.syncWorkspaceSummary(summary)) ??
       mapWorkspaceSummaryToWorkspace(summary);
-    this.upsertCachedWorkspace(currentUserScope, workspace);
+    this.invalidateReadCache();
     return workspace;
   }
 
   async deleteWorkspace(id: string): Promise<void> {
     await this.client.deleteWorkspace(id);
     await this.writeService.deleteWorkspace(id);
-    this.removeCachedWorkspace(id);
+    this.invalidateReadCache();
   }
 }

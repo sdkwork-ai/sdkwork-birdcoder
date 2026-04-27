@@ -2,6 +2,7 @@ import type {
   BirdCoderWorkspaceRealtimeEvent,
   BirdCoderWorkspaceRealtimeMessage,
 } from '@sdkwork/birdcoder-types';
+import { parseBirdCoderApiJson } from './apiJson.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { readRuntimeServerSessionId } from './runtimeServerSession.ts';
 
@@ -109,7 +110,7 @@ export function subscribeBirdCoderWorkspaceRealtime(
   });
   socket.addEventListener('message', (event) => {
     try {
-      const parsedMessage = JSON.parse(String(event.data)) as unknown;
+      const parsedMessage = parseBirdCoderApiJson(String(event.data)) as unknown;
       if (!isRealtimeMessage(parsedMessage)) {
         return;
       }

@@ -66,6 +66,22 @@ assert.deepEqual(
 
 assert.deepEqual(
   parseStructuredDataPreviewValue({
+    path: '/workspace/session.json',
+    language: 'json',
+    value: '{"sessionId":101777208078558017,"artifactIds":[101777208078558019]}',
+  }),
+  {
+    format: 'json',
+    value: {
+      sessionId: '101777208078558017',
+      artifactIds: ['101777208078558019'],
+    },
+  },
+  'JSON structured preview must preserve unquoted Long identifiers as strings.',
+);
+
+assert.deepEqual(
+  parseStructuredDataPreviewValue({
     path: '/workspace/value.json',
     language: 'json',
     value: 'null',

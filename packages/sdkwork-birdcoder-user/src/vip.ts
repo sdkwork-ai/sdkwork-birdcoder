@@ -1,6 +1,6 @@
 export type { BirdCoderVipMembershipSnapshot } from './profileStorage.ts';
 import type { BirdCoderVipMembershipSnapshot } from './profileStorage.ts';
-import { BIRDCODER_APPBASE_VIP_SUBSCRIPTION_STORAGE_BINDING } from '@sdkwork/birdcoder-types';
+import { BIRDCODER_APPBASE_VIP_USER_STORAGE_BINDING } from '@sdkwork/birdcoder-types';
 import { BIRDCODER_USER_CENTER_ROUTES } from '@sdkwork/birdcoder-core';
 
 type BirdCoderVipManifestHost = 'browser' | 'tauri' | 'server';
@@ -60,9 +60,9 @@ export interface BirdCoderVipPlan {
 
 export const BIRDCODER_USER_VIP_SOURCE_PACKAGE = '@sdkwork/vip-pc-react';
 export const BIRDCODER_USER_VIP_STORAGE_SCOPE =
-  BIRDCODER_APPBASE_VIP_SUBSCRIPTION_STORAGE_BINDING.storageScope;
+  BIRDCODER_APPBASE_VIP_USER_STORAGE_BINDING.storageScope;
 export const BIRDCODER_USER_VIP_MEMBERSHIP_KEY =
-  BIRDCODER_APPBASE_VIP_SUBSCRIPTION_STORAGE_BINDING.storageKey;
+  BIRDCODER_APPBASE_VIP_USER_STORAGE_BINDING.storageKey;
 
 export const BIRDCODER_USER_VIP_PLANS: BirdCoderVipPlan[] = [
   {

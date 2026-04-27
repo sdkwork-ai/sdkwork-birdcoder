@@ -17,6 +17,7 @@ export * from './services/defaultIdeServicesRuntime.ts';
 export * from './services/defaultIdeServicesShared.ts';
 export * from './services/lazyDefaultIdeServices.ts';
 export * from './services/codingSessionMessageProjection.ts';
+export * from './services/projectContentConfigData.ts';
 export * from './services/workspaceRealtimeClient.ts';
 export * from './services/interfaces/IAuditService.ts';
 export * from './services/interfaces/IAdminDeploymentService.ts';

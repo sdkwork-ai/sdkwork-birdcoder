@@ -55,6 +55,7 @@ assert.deepEqual(launch.request, {
   runConfigurationId: 'preview-dev',
   session: previewSession,
   terminalRequest: {
+    surface: 'embedded',
     path: '/workspace/demo-project',
     command: 'pnpm dev --host 127.0.0.1 --port 4173',
     profileId: 'powershell',
@@ -92,6 +93,7 @@ assert.deepEqual(
   buildStudioPreviewExecutionEvidence(
     previewSession,
     {
+      surface: 'embedded',
       path: '/workspace/demo-project',
       command: 'pnpm dev --host 127.0.0.1 --port 4173',
       profileId: 'powershell',

@@ -25,6 +25,13 @@ const codeCommandsHookSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/pages/useCodeWorkbenchCommands.ts', import.meta.url),
   'utf8',
 );
+const codeLocalFolderProjectImportHookSource = fs.readFileSync(
+  new URL(
+    '../packages/sdkwork-birdcoder-code/src/pages/useCodeLocalFolderProjectImport.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
 const studioBindingsHookSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioWorkbenchEventBindings.ts', import.meta.url),
   'utf8',
@@ -36,7 +43,19 @@ const codingSessionActionsHookSource = fs.readFileSync(
 
 assert.match(
   codePageSource,
-  /useProjects\(workspaceId,\s*\{\s*isActive:\s*isVisible,\s*\}\)/s,
+  /useCodeEffectiveWorkspaceId\(\{[\s\S]*isVisible,[\s\S]*workspaceId,[\s\S]*\}\)/s,
+  'CodePage must derive its effective workspace through the dedicated hook so workspace fallback remains consistently gated.',
+);
+
+assert.match(
+  codeLocalFolderProjectImportHookSource,
+  /useWorkspaces\(\{\s*isActive:\s*isVisible\s*\}\)/s,
+  'useCodeEffectiveWorkspaceId must gate workspace-store subscriptions behind page visibility before deriving the effective workspace.',
+);
+
+assert.match(
+  codePageSource,
+  /useProjects\((?:workspaceId|effectiveWorkspaceId),\s*\{\s*isActive:\s*isVisible,\s*\}\)/s,
   'CodePage must gate project-store subscriptions behind page visibility so the hidden code workbench stops replaying project inventory updates.',
 );
 
@@ -54,7 +73,7 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /useCodingSessionActions\(\s*currentProjectId,\s*createCodingSessionWithSelection,\s*selectSession,\s*\{\s*isActive:\s*isVisible,\s*\},?\s*\)/s,
+  /useCodingSessionActions\(\s*currentProjectId,\s*createCodingSessionWithSelection,\s*selectSession,\s*\{[\s\S]*isActive:\s*isVisible,[\s\S]*\},?\s*\)/s,
   'CodePage must gate coding-session command listeners behind page visibility.',
 );
 
@@ -96,7 +115,7 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /useCodingSessionActions\(\s*currentProjectId,\s*createCodingSessionWithSelection,\s*\(codingSessionId\) => \{[\s\S]*\},\s*\{\s*isActive:\s*isVisible,\s*\},?\s*\)/s,
+  /useCodingSessionActions\(\s*currentProjectId,\s*createCodingSessionWithSelection,\s*\(codingSessionId\) => \{[\s\S]*\},\s*\{[\s\S]*isActive:\s*isVisible,[\s\S]*\},?\s*\)/s,
   'StudioPage must gate coding-session command listeners behind page visibility.',
 );
 
@@ -198,7 +217,7 @@ assert.match(
 
 assert.match(
   codingSessionActionsHookSource,
-  /options\?: \{\s*isActive\?: boolean;\s*\}/s,
+  /options\?: \{[\s\S]*isActive\?: boolean;[\s\S]*\}/s,
   'useCodingSessionActions must accept an activity flag.',
 );
 

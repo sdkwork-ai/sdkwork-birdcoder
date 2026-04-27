@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { ClaudeChatEngine } from '../packages/sdkwork-birdcoder-chat-claude/src/index.ts';
 import { GeminiChatEngine } from '../packages/sdkwork-birdcoder-chat-gemini/src/index.ts';
 import { OpenCodeChatEngine } from '../packages/sdkwork-birdcoder-chat-opencode/src/index.ts';
-import type { ChatMessage } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
+import type { ChatMessage, IChatEngine } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
 import { resolveFallbackRuntimeMode } from '../packages/sdkwork-birdcoder-chat/src/index.ts';
 import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
 import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
@@ -15,6 +15,7 @@ const EXPECTED_OFFICIAL_PACKAGES = {
   gemini: '@google/gemini-cli-sdk',
   opencode: '@opencode-ai/sdk',
 } as const;
+const UNSAFE_CODEX_CLI_TOOL_ID = '101777208078558035';
 
 const messages: ChatMessage[] = [
   {
@@ -150,17 +151,7 @@ const codexFakeJsonlLines = [
       text: 'Codex canonical runtime adapter response.',
     },
   })}\n`,
-  `${JSON.stringify({
-    type: 'item.completed',
-    item: {
-      id: 'codex-runtime-adapter-command',
-      type: 'command_execution',
-      command: 'pnpm lint',
-      aggregated_output: 'ok',
-      exit_code: 0,
-      status: 'completed',
-    },
-  })}\n`,
+  `{"type":"item.completed","item":{"id":${UNSAFE_CODEX_CLI_TOOL_ID},"type":"command_execution","command":"pnpm lint","aggregated_output":"ok","exit_code":0,"status":"completed"}}\n`,
   `${JSON.stringify({
     type: 'turn.completed',
   })}\n`,
@@ -545,9 +536,11 @@ for (const engine of listWorkbenchCliEngines()) {
     `${engine.id} must normalize stream completion into message.completed`,
   );
   assert.equal(
-    events.some((event) => event.kind === 'tool.call.requested'),
+    events.some(
+      (event) => event.kind === 'tool.call.requested' || event.kind === 'tool.call.completed',
+    ),
     true,
-    `${engine.id} must normalize tool requests`,
+    `${engine.id} must normalize tool requests or native completed tool snapshots`,
   );
   assert.equal(
     events.some((event) => event.kind === 'artifact.upserted'),
@@ -565,13 +558,28 @@ for (const engine of listWorkbenchCliEngines()) {
     `${engine.id} must close the canonical turn stream`,
   );
 
-  const toolRequestedEvent = events.find((event) => event.kind === 'tool.call.requested');
+  const toolRequestedEvent = events.find(
+    (event) => event.kind === 'tool.call.requested' || event.kind === 'tool.call.completed',
+  );
+  if (engine.id === 'codex') {
+    assert.equal(
+      toolRequestedEvent?.payload.toolCallId,
+      UNSAFE_CODEX_CLI_TOOL_ID,
+      'Codex CLI JSONL parsing must preserve unquoted Long item ids as canonical string toolCallIds',
+    );
+  }
   assert.doesNotThrow(
     () => JSON.parse(String(toolRequestedEvent?.payload.toolArguments ?? '{}')),
-    `${engine.id} tool.call.requested payload must keep JSON-safe tool arguments`,
+    `${engine.id} canonical tool payloads must keep JSON-safe tool arguments`,
   );
 
-  if (engine.id !== 'gemini') {
+  const hasApprovalWorthyRequest = events.some((event) => {
+    if (event.kind !== 'tool.call.requested') {
+      return false;
+    }
+    return event.payload.requiresApproval === true;
+  });
+  if (hasApprovalWorthyRequest) {
     assert.equal(
       events.some((event) => event.kind === 'approval.required'),
       true,
@@ -579,5 +587,699 @@ for (const engine of listWorkbenchCliEngines()) {
     );
   }
 }
+
+const chunkedToolCallRuntime = createWorkbenchCanonicalChatEngine(
+  {
+    name: 'Chunked Tool Runtime',
+    version: 'test',
+    async sendMessage() {
+      throw new Error('chunked tool runtime contract should use streaming');
+    },
+    async *sendMessageStream() {
+      yield {
+        id: 'chunked-tool-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              role: 'assistant',
+              tool_calls: [
+                {
+                  id: 'tool-edit-file',
+                  index: 0,
+                  type: 'function',
+                  function: {
+                    name: 'edit_file',
+                    arguments: '{"path":"src/App.tsx","content":"',
+                  },
+                } as never,
+              ],
+            },
+            finish_reason: null,
+          },
+        ],
+      };
+      yield {
+        id: 'chunked-tool-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  function: {
+                    arguments: 'export default 1;"}',
+                  },
+                } as never,
+              ],
+            },
+            finish_reason: 'tool_calls',
+          },
+        ],
+      };
+    },
+  } satisfies IChatEngine,
+  {
+    defaultModelId: 'test-model',
+    descriptor: listWorkbenchCliEngines()[0].descriptor,
+  },
+);
+
+const chunkedToolCallEvents = [];
+for await (const event of chunkedToolCallRuntime.sendCanonicalEvents?.(messages, {
+  model: 'test-model',
+}) ?? []) {
+  chunkedToolCallEvents.push(event);
+}
+const chunkedToolRequestedEvents = chunkedToolCallEvents.filter(
+  (event) => event.kind === 'tool.call.requested',
+);
+assert.equal(
+  chunkedToolRequestedEvents.length,
+  1,
+  'canonical runtime adapter must merge chunked tool_call deltas into one tool.call.requested event',
+);
+assert.deepEqual(
+  JSON.parse(String(chunkedToolRequestedEvents[0]?.payload.toolArguments ?? '{}')),
+  {
+    path: 'src/App.tsx',
+    content: 'export default 1;',
+  },
+  'canonical runtime adapter must expose complete merged tool arguments for chunked tool_call streams',
+);
+const chunkedArtifactEvent = chunkedToolCallEvents.find(
+  (event) => event.kind === 'artifact.upserted',
+);
+assert.equal(
+  chunkedArtifactEvent?.payload.toolArguments,
+  chunkedToolRequestedEvents[0]?.payload.toolArguments,
+  'artifact.upserted payloads must carry merged toolArguments so transcript projection can derive fileChanges without engine-specific lookups',
+);
+
+const fullSnapshotToolRuntime = createWorkbenchCanonicalChatEngine(
+  {
+    name: 'Full Snapshot Tool Runtime',
+    version: 'test',
+    async sendMessage() {
+      throw new Error('full snapshot tool runtime contract should use streaming');
+    },
+    async *sendMessageStream() {
+      yield {
+        id: 'full-snapshot-tool-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  id: 'tool-run-command',
+                  type: 'function',
+                  function: {
+                    name: 'run_command',
+                    arguments: JSON.stringify({
+                      command: 'pnpm test',
+                      status: 'running',
+                    }),
+                  },
+                },
+              ],
+            },
+            finish_reason: null,
+          },
+        ],
+      };
+      yield {
+        id: 'full-snapshot-tool-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  id: 'tool-run-command',
+                  type: 'function',
+                  function: {
+                    name: 'run_command',
+                    arguments: JSON.stringify({
+                      command: 'pnpm test',
+                      status: 'completed',
+                      output: 'ok',
+                    }),
+                  },
+                },
+              ],
+            },
+            finish_reason: 'tool_calls',
+          },
+        ],
+      };
+    },
+  } satisfies IChatEngine,
+  {
+    defaultModelId: 'test-model',
+    descriptor: listWorkbenchCliEngines()[0].descriptor,
+  },
+);
+
+const fullSnapshotToolEvents = [];
+for await (const event of fullSnapshotToolRuntime.sendCanonicalEvents?.(messages, {
+  model: 'test-model',
+}) ?? []) {
+  fullSnapshotToolEvents.push(event);
+}
+const fullSnapshotToolProjectedEvent = fullSnapshotToolEvents.find(
+  (event) => event.kind === 'tool.call.requested' || event.kind === 'tool.call.completed',
+);
+assert.deepEqual(
+  JSON.parse(String(fullSnapshotToolProjectedEvent?.payload.toolArguments ?? '{}')),
+  {
+    command: 'pnpm test',
+    status: 'completed',
+    output: 'ok',
+  },
+  'canonical runtime adapter must replace repeated complete tool-call snapshots instead of concatenating them as OpenAI-style argument deltas',
+);
+
+const toolLifecycleSnapshotRuntime = createWorkbenchCanonicalChatEngine(
+  {
+    name: 'Tool Lifecycle Snapshot Runtime',
+    version: 'test',
+    async sendMessage() {
+      throw new Error('tool lifecycle snapshot runtime contract should use streaming');
+    },
+    async *sendMessageStream() {
+      yield {
+        id: 'tool-lifecycle-snapshot-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  id: 'tool-lifecycle-command',
+                  type: 'function',
+                  function: {
+                    name: 'run_command',
+                    arguments: JSON.stringify({
+                      command: 'pnpm test',
+                    }),
+                  },
+                },
+              ],
+            },
+            finish_reason: 'tool_calls',
+          },
+        ],
+      };
+      yield {
+        id: 'tool-lifecycle-snapshot-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  id: 'tool-lifecycle-command',
+                  type: 'function',
+                  function: {
+                    name: 'run_command',
+                    arguments: JSON.stringify({
+                      command: 'pnpm test',
+                      status: 'completed',
+                      exitCode: 0,
+                      output: 'ok',
+                    }),
+                  },
+                },
+              ],
+            },
+            finish_reason: 'tool_calls',
+          },
+        ],
+      };
+    },
+  } satisfies IChatEngine,
+  {
+    defaultModelId: 'test-model',
+    descriptor: listWorkbenchCliEngines()[0].descriptor,
+  },
+);
+
+const toolLifecycleSnapshotEvents = [];
+for await (const event of toolLifecycleSnapshotRuntime.sendCanonicalEvents?.(messages, {
+  model: 'test-model',
+}) ?? []) {
+  toolLifecycleSnapshotEvents.push(event);
+}
+assert.deepEqual(
+  toolLifecycleSnapshotEvents
+    .filter((event) => event.payload.toolCallId === 'tool-lifecycle-command')
+    .map((event) => event.kind),
+  [
+    'tool.call.requested',
+    'artifact.upserted',
+    'approval.required',
+    'tool.call.completed',
+    'artifact.upserted',
+  ],
+  'canonical runtime adapter must preserve tool lifecycle snapshots as requested/completed events instead of replaying completed tool responses as fresh requests',
+);
+assert.equal(
+  toolLifecycleSnapshotEvents.filter((event) => event.kind === 'approval.required').length,
+  1,
+  'canonical runtime adapter must not ask for approval again when a later snapshot reports the already-requested tool result',
+);
+
+const completedOnlyToolRuntime = createWorkbenchCanonicalChatEngine(
+  {
+    name: 'Completed Only Tool Runtime',
+    version: 'test',
+    async sendMessage() {
+      throw new Error('completed only tool runtime contract should use streaming');
+    },
+    async *sendMessageStream() {
+      yield {
+        id: 'completed-only-tool-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  id: 'tool-completed-only-command',
+                  type: 'function',
+                  function: {
+                    name: 'run_command',
+                    arguments: JSON.stringify({
+                      command: 'pnpm lint',
+                      status: 'completed',
+                      exitCode: 0,
+                      output: 'ok',
+                    }),
+                  },
+                },
+              ],
+            },
+            finish_reason: 'tool_calls',
+          },
+        ],
+      };
+    },
+  } satisfies IChatEngine,
+  {
+    defaultModelId: 'test-model',
+    descriptor: listWorkbenchCliEngines()[0].descriptor,
+  },
+);
+
+const completedOnlyToolEvents = [];
+for await (const event of completedOnlyToolRuntime.sendCanonicalEvents?.(messages, {
+  model: 'test-model',
+}) ?? []) {
+  completedOnlyToolEvents.push(event);
+}
+assert.deepEqual(
+  completedOnlyToolEvents
+    .filter((event) => event.payload.toolCallId === 'tool-completed-only-command')
+    .map((event) => event.kind),
+  [
+    'tool.call.completed',
+    'artifact.upserted',
+  ],
+  'canonical runtime adapter must treat first-seen completed native tool snapshots as completed history, not as fresh approval requests',
+);
+assert.equal(
+  completedOnlyToolEvents.some((event) => event.kind === 'approval.required'),
+  false,
+  'completed native tool snapshots must not ask for approval after the engine has already finished the command',
+);
+assert.equal(
+  completedOnlyToolEvents.find((event) => event.kind === 'tool.call.completed')?.payload
+    .requiresApproval,
+  false,
+  'completed native tool snapshots must expose requiresApproval=false because no BirdCoder approval is pending',
+);
+
+const runningOnlyToolRuntime = createWorkbenchCanonicalChatEngine(
+  {
+    name: 'Running Only Tool Runtime',
+    version: 'test',
+    async sendMessage() {
+      throw new Error('running only tool runtime contract should use streaming');
+    },
+    async *sendMessageStream() {
+      yield {
+        id: 'running-only-tool-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  id: 'tool-running-only-command',
+                  type: 'function',
+                  function: {
+                    name: 'run_command',
+                    arguments: JSON.stringify({
+                      command: 'pnpm test',
+                      status: 'running',
+                    }),
+                  },
+                },
+              ],
+            },
+            finish_reason: 'tool_calls',
+          },
+        ],
+      };
+    },
+  } satisfies IChatEngine,
+  {
+    defaultModelId: 'test-model',
+    descriptor: listWorkbenchCliEngines()[0].descriptor,
+  },
+);
+
+const runningOnlyToolEvents = [];
+for await (const event of runningOnlyToolRuntime.sendCanonicalEvents?.(messages, {
+  model: 'test-model',
+}) ?? []) {
+  runningOnlyToolEvents.push(event);
+}
+assert.deepEqual(
+  runningOnlyToolEvents
+    .filter((event) => event.payload.toolCallId === 'tool-running-only-command')
+    .map((event) => event.kind),
+  [
+    'tool.call.progress',
+    'artifact.upserted',
+  ],
+  'canonical runtime adapter must treat first-seen running native tool snapshots as progress, not as fresh approval requests',
+);
+assert.equal(
+  runningOnlyToolEvents.some((event) => event.kind === 'approval.required'),
+  false,
+  'running native tool snapshots must not ask for BirdCoder approval after the engine has started the command',
+);
+
+const userQuestionRuntime = createWorkbenchCanonicalChatEngine(
+  {
+    name: 'User Question Runtime',
+    version: 'test',
+    async sendMessage() {
+      throw new Error('user question runtime contract should use streaming');
+    },
+    async *sendMessageStream() {
+      yield {
+        id: 'user-question-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  id: 'tool-user-question',
+                  type: 'function',
+                  function: {
+                    name: 'question',
+                    arguments: JSON.stringify({
+                      status: 'awaiting_user',
+                      questions: [
+                        {
+                          question: 'Which tests should I run?',
+                          options: [
+                            {
+                              label: 'Unit',
+                              description: 'Run unit tests only',
+                            },
+                          ],
+                        },
+                      ],
+                    }),
+                  },
+                },
+              ],
+            },
+            finish_reason: 'tool_calls',
+          },
+        ],
+      };
+    },
+  } satisfies IChatEngine,
+  {
+    defaultModelId: 'test-model',
+    descriptor: listWorkbenchCliEngines()[0].descriptor,
+  },
+);
+
+const userQuestionEvents = [];
+for await (const event of userQuestionRuntime.sendCanonicalEvents?.(messages, {
+  model: 'test-model',
+}) ?? []) {
+  userQuestionEvents.push(event);
+}
+assert.deepEqual(
+  userQuestionEvents
+    .filter((event) => event.payload.toolCallId === 'tool-user-question')
+    .map((event) => event.kind),
+  [
+    'tool.call.requested',
+    'artifact.upserted',
+  ],
+  'canonical runtime adapter must not turn cross-engine user_question prompts into approval.required events',
+);
+assert.equal(
+  userQuestionEvents.some((event) => event.kind === 'approval.required'),
+  false,
+  'user_question prompts wait for a user answer, not a code-execution approval gate',
+);
+assert.equal(
+  userQuestionEvents.find((event) => event.kind === 'tool.call.requested')?.runtimeStatus,
+  'awaiting_user',
+  'canonical runtime adapter must expose user_question prompts with the distinct awaiting_user runtime status',
+);
+assert.equal(
+  userQuestionEvents.find((event) => event.kind === 'tool.call.requested')?.payload.toolName,
+  'user_question',
+  'canonical runtime adapter must normalize question aliases before publishing tool.call events',
+);
+
+const approvalAliasRuntime = createWorkbenchCanonicalChatEngine(
+  {
+    name: 'Approval Alias Runtime',
+    version: 'test',
+    async sendMessage() {
+      throw new Error('approval alias runtime contract should use streaming');
+    },
+    async *sendMessageStream() {
+      yield {
+        id: 'approval-alias-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  id: 'tool-approval-alias',
+                  type: 'function',
+                  function: {
+                    name: 'approval_request',
+                    arguments: JSON.stringify({
+                      status: 'awaiting_approval',
+                      tool: 'edit_file',
+                      permission: 'write',
+                    }),
+                  },
+                },
+              ],
+            },
+            finish_reason: 'tool_calls',
+          },
+        ],
+      };
+    },
+  } satisfies IChatEngine,
+  {
+    defaultModelId: 'test-model',
+    descriptor: listWorkbenchCliEngines()[0].descriptor,
+  },
+);
+
+const approvalAliasEvents = [];
+for await (const event of approvalAliasRuntime.sendCanonicalEvents?.(messages, {
+  model: 'test-model',
+}) ?? []) {
+  approvalAliasEvents.push(event);
+}
+assert.equal(
+  approvalAliasEvents.find((event) => event.kind === 'tool.call.requested')?.payload.toolName,
+  'permission_request',
+  'canonical runtime adapter must normalize approval_request aliases before publishing tool.call events',
+);
+assert.equal(
+  approvalAliasEvents.find((event) => event.kind === 'approval.required')?.payload.toolName,
+  'permission_request',
+  'canonical runtime adapter must normalize approval_request aliases before publishing approval.required events',
+);
+
+const dialectAliasRuntime = createWorkbenchCanonicalChatEngine(
+  {
+    name: 'Dialect Alias Runtime',
+    version: 'test',
+    async sendMessage() {
+      throw new Error('dialect alias runtime contract should use streaming');
+    },
+    async *sendMessageStream() {
+      yield {
+        id: 'dialect-alias-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  id: 'tool-bash-alias',
+                  type: 'function',
+                  function: {
+                    name: 'bash',
+                    arguments: JSON.stringify({
+                      command: 'pnpm lint',
+                    }),
+                  },
+                },
+                {
+                  id: 'tool-create-file-alias',
+                  type: 'function',
+                  function: {
+                    name: 'create_file',
+                    arguments: JSON.stringify({
+                      path: 'src/App.tsx',
+                      content: 'export default null;',
+                    }),
+                  },
+                },
+                {
+                  id: 'tool-todowrite-alias',
+                  type: 'function',
+                  function: {
+                    name: 'todoWrite',
+                    arguments: JSON.stringify({
+                      todos: [
+                        {
+                          content: 'Run regression contracts',
+                          status: 'pending',
+                        },
+                      ],
+                    }),
+                  },
+                },
+              ],
+            },
+            finish_reason: 'tool_calls',
+          },
+        ],
+      };
+    },
+  } satisfies IChatEngine,
+  {
+    defaultModelId: 'test-model',
+    descriptor: listWorkbenchCliEngines()[0].descriptor,
+  },
+);
+
+const dialectAliasEvents = [];
+for await (const event of dialectAliasRuntime.sendCanonicalEvents?.(messages, {
+  model: 'test-model',
+}) ?? []) {
+  dialectAliasEvents.push(event);
+}
+
+function findDialectAliasEvent(
+  kind: 'artifact.upserted' | 'tool.call.requested',
+  toolCallId: string,
+) {
+  return dialectAliasEvents.find(
+    (event) => event.kind === kind && event.payload.toolCallId === toolCallId,
+  );
+}
+
+assert.equal(
+  findDialectAliasEvent('artifact.upserted', 'tool-bash-alias')?.artifact?.kind,
+  'command-log',
+  'canonical runtime adapter must classify bash/shell aliases as command artifacts via the shared dialect standard',
+);
+assert.equal(
+  findDialectAliasEvent('tool.call.requested', 'tool-bash-alias')?.payload.riskLevel,
+  'P2',
+  'canonical runtime adapter must classify bash/shell aliases as side-effecting command risk',
+);
+assert.equal(
+  findDialectAliasEvent('tool.call.requested', 'tool-bash-alias')?.payload.toolName,
+  'run_command',
+  'canonical runtime adapter must publish the shared run_command tool name instead of leaking provider command aliases',
+);
+assert.equal(
+  findDialectAliasEvent('artifact.upserted', 'tool-bash-alias')?.artifact?.metadata?.toolName,
+  'run_command',
+  'canonical runtime artifacts must store the shared run_command tool name for command aliases',
+);
+assert.equal(
+  findDialectAliasEvent('artifact.upserted', 'tool-create-file-alias')?.artifact?.kind,
+  'patch',
+  'canonical runtime adapter must classify create_file/multi_edit aliases as patch artifacts via the shared dialect standard',
+);
+assert.equal(
+  findDialectAliasEvent('tool.call.requested', 'tool-create-file-alias')?.payload.riskLevel,
+  'P2',
+  'canonical runtime adapter must classify create_file/multi_edit aliases as side-effecting file-change risk',
+);
+assert.equal(
+  findDialectAliasEvent('artifact.upserted', 'tool-todowrite-alias')?.artifact?.kind,
+  'todo-list',
+  'canonical runtime adapter must classify todoWrite/write_todo aliases as todo-list artifacts via the shared dialect standard',
+);
+assert.equal(
+  findDialectAliasEvent('tool.call.requested', 'tool-todowrite-alias')?.payload.riskLevel,
+  'P1',
+  'canonical runtime adapter must classify todoWrite/write_todo aliases as low-risk task updates',
+);
+assert.equal(
+  findDialectAliasEvent('tool.call.requested', 'tool-todowrite-alias')?.payload.toolName,
+  'write_todo',
+  'canonical runtime adapter must publish the shared write_todo tool name instead of leaking task aliases',
+);
 
 console.log('engine runtime adapter contract passed.');

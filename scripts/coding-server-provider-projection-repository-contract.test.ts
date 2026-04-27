@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 
 import type { ChatMessage } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
 import {
+  buildProviderScopedStorageKey,
   createBirdCoderStorageProvider,
   createBirdCoderTableRecordRepository,
+  serializeStoredValue,
 } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
 import { getBirdCoderSchemaMigrationDefinition } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts';
 import {
@@ -34,6 +36,14 @@ const fakeCodexJsonlLines = [
       id: 'coding-server-provider-message',
       type: 'agent_message',
       text: 'Codex provider projection response.',
+    },
+  })}\n`,
+  `${JSON.stringify({
+    type: 'item.updated',
+    item: {
+      id: 'coding-server-provider-command',
+      type: 'command_execution',
+      command: 'pnpm lint',
     },
   })}\n`,
   `${JSON.stringify({
@@ -192,6 +202,36 @@ await withMockCodexCliJsonl(async () => {
   assert.deepEqual(
     sqliteSnapshot.operations.map((operation) => operation.operationId),
     ['turn-provider-sqlite-1:operation'],
+  );
+
+  const unsafeArtifactRefId = '101777208078558001';
+  const longArtifactRefStore = createProviderBackedBirdCoderCoreSessionProjectionStore(
+    'coding-session-long-artifact-ref',
+    createBirdCoderStorageProvider('sqlite'),
+  );
+  await longArtifactRefStore.provider.setRawValue(
+    longArtifactRefStore.bindings.operations.storageScope,
+    buildProviderScopedStorageKey(
+      longArtifactRefStore.providerId,
+      longArtifactRefStore.bindings.operations,
+    ),
+    serializeStoredValue([
+      {
+        id: 'turn-long-artifact-ref:operation',
+        status: 'succeeded',
+        artifact_refs_json: `[${unsafeArtifactRefId}]`,
+        stream_url: '/api/core/v1/coding-sessions/coding-session-long-artifact-ref/events',
+        stream_kind: 'sse',
+      },
+    ]),
+  );
+  const longArtifactRefSnapshot = await longArtifactRefStore.getSessionSnapshot(
+    'coding-session-long-artifact-ref',
+  );
+  assert.deepEqual(
+    longArtifactRefSnapshot.operations[0]?.artifactRefs,
+    [unsafeArtifactRefId],
+    'projection repository must preserve unsafe integer artifact refs as canonical strings.',
   );
 
   const postgresStore = createProviderBackedBirdCoderCoreSessionProjectionStore(

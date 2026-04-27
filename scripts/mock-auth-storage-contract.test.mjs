@@ -45,13 +45,13 @@ assert.match(
 );
 assert.match(
   authContextSource,
-  /authService\.login\(email,\s*password\)/u,
-  'auth context login must delegate to the runtime auth service.',
+  /runAuthenticatedUserMutation\(\(\) => authService\.login\(request,\s*password\)\)/u,
+  'auth context login must delegate to the runtime auth service through the canonical auth mutation boundary.',
 );
 assert.match(
   authContextSource,
-  /authService\.register\(email,\s*password,\s*name\)/u,
-  'auth context registration must delegate to the runtime auth service.',
+  /runAuthenticatedUserMutation\(\(\) => authService\.register\(request,\s*password,\s*name\)\)/u,
+  'auth context registration must delegate to the runtime auth service through the canonical auth mutation boundary.',
 );
 assert.match(
   authContextSource,
@@ -66,22 +66,22 @@ assert.match(
 );
 assert.match(
   runtimeAuthServiceSource,
-  /runtimeClient\.loginSession\(/u,
-  'runtime auth service login must delegate to the canonical user-center runtime client.',
+  /login:\s*async\s*\(request\)\s*=>\s*requireClient\(\)\.login\(request\)/u,
+  'runtime auth service login must delegate to the generated user-center API client instead of embedding local credential handling.',
 );
 assert.match(
   runtimeAuthServiceSource,
-  /runtimeClient\.bootstrapSession\(/u,
+  /requireRuntimeClient\(\)\.bootstrapSession\(request\)/u,
   'runtime auth service external session exchange must delegate to the canonical user-center runtime client.',
 );
 assert.match(
   runtimeAuthServiceSource,
-  /runtimeClient\.getProfile\(/u,
+  /requireRuntimeClient\(\)\.getProfile\(\)/u,
   'runtime auth service must hydrate identity through the canonical user-center runtime client profile endpoint.',
 );
 assert.match(
   runtimeAuthServiceSource,
-  /runtimeClient\.logoutSession\(/u,
+  /requireRuntimeClient\(\)\.logoutSession\(\)/u,
   'runtime auth service logout must delegate to the canonical user-center runtime client.',
 );
 assert.doesNotMatch(

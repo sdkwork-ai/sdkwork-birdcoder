@@ -12,6 +12,10 @@ import {
 
 const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), `birdcoder-app-admin-${process.pid}-`));
 const databaseFile = path.join(tempDirectory, 'authority.sqlite3');
+const SQLITE_WORKSPACE_ID = '100000000000000101';
+const SQLITE_PROJECT_ID = '100000000000000201';
+const SQLITE_PROJECT_CONTENT_ID = '100000000000000202';
+const SQLITE_TEAM_ID = '100000000000000301';
 
 let provider:
   | ReturnType<typeof createBirdCoderStorageProvider>
@@ -37,6 +41,7 @@ try {
 
   await Promise.all([
     repositories.projects.clear(),
+    repositories.projectContents.clear(),
     repositories.deployments.clear(),
     repositories.policies.clear(),
     repositories.teams.clear(),
@@ -51,18 +56,35 @@ try {
   });
 
   await stagedRepositories.projects.save({
-    id: 'project-sqlite-repository',
-    workspaceId: 'workspace-sqlite',
+    id: SQLITE_PROJECT_ID,
+    workspaceId: SQLITE_WORKSPACE_ID,
     name: 'SQLite Repository Project',
     description: 'Representative app project persisted through the shared SQL executor.',
-    rootPath: 'D:/workspace/sqlite-repository-project',
+    parentMetadata: {
+      ownerId: 101777208078558041n,
+    },
+    coverImage: {
+      fileId: 101777208078558043n,
+      url: 'https://sqlite-repository.sdkwork.dev/cover.png',
+    },
     status: 'active',
     createdAt: '2026-04-10T16:00:00.000Z',
     updatedAt: '2026-04-10T16:00:00.000Z',
   });
+  await stagedRepositories.projectContents.save({
+    id: SQLITE_PROJECT_CONTENT_ID,
+    projectId: SQLITE_PROJECT_ID,
+    projectUuid: `project-${SQLITE_PROJECT_ID}`,
+    configData: JSON.stringify({
+      rootPath: 'D:/workspace/sqlite-repository-project',
+    }),
+    contentVersion: '1.0',
+    createdAt: '2026-04-10T16:00:00.250Z',
+    updatedAt: '2026-04-10T16:00:00.250Z',
+  });
   await stagedRepositories.teams.save({
-    id: 'team-sqlite-repository',
-    workspaceId: 'workspace-sqlite',
+    id: SQLITE_TEAM_ID,
+    workspaceId: SQLITE_WORKSPACE_ID,
     name: 'SQLite Repository Team',
     description: 'Representative team row persisted through the shared SQL executor.',
     status: 'active',
@@ -72,7 +94,7 @@ try {
   await stagedRepositories.policies.save({
     id: 'policy-sqlite-repository',
     scopeType: 'workspace',
-    scopeId: 'workspace-sqlite',
+    scopeId: SQLITE_WORKSPACE_ID,
     policyCategory: 'terminal',
     targetType: 'engine',
     targetId: 'codex',
@@ -84,7 +106,7 @@ try {
   });
   await stagedRepositories.deployments.save({
     id: 'deployment-sqlite-repository',
-    projectId: 'project-sqlite-repository',
+    projectId: SQLITE_PROJECT_ID,
     targetId: 'target-sqlite-repository',
     releaseRecordId: 'release-sqlite-repository',
     endpointUrl: 'https://sqlite-repository.sdkwork.dev',
@@ -110,7 +132,7 @@ try {
   await stagedRepositories.audits.save({
     id: 'audit-sqlite-repository',
     scopeType: 'workspace',
-    scopeId: 'workspace-sqlite',
+    scopeId: SQLITE_WORKSPACE_ID,
     eventType: 'release.promoted',
     payload: {
       actor: 'release-bot',
@@ -121,6 +143,7 @@ try {
   });
 
   assert.equal(await repositories.projects.count(), 0);
+  assert.equal(await repositories.projectContents.count(), 0);
   assert.equal(await repositories.deployments.count(), 0);
   assert.equal(await repositories.policies.count(), 0);
   assert.equal(await repositories.teams.count(), 0);
@@ -130,14 +153,50 @@ try {
   await unitOfWork.commit();
 
   assert.equal(await repositories.projects.count(), 1);
+  assert.equal(await repositories.projectContents.count(), 1);
   assert.equal(await repositories.deployments.count(), 1);
   assert.equal(await repositories.policies.count(), 1);
   assert.equal(await repositories.teams.count(), 1);
   assert.equal(await repositories.releases.count(), 1);
   assert.equal(await repositories.audits.count(), 1);
-  assert.equal(
-    (await repositories.projects.findById('project-sqlite-repository'))?.workspaceId,
-    'workspace-sqlite',
+  const savedProject = await repositories.projects.findById(SQLITE_PROJECT_ID);
+  assert.equal(savedProject?.workspaceId, SQLITE_WORKSPACE_ID);
+  assert.deepEqual(
+    savedProject?.parentMetadata,
+    {
+      ownerId: '101777208078558041',
+    },
+    'SQLite app/admin project parent metadata must preserve nested Long ids as strings through SQL JSON storage.',
+  );
+  assert.deepEqual(
+    savedProject?.coverImage,
+    {
+      fileId: '101777208078558043',
+      url: 'https://sqlite-repository.sdkwork.dev/cover.png',
+    },
+    'SQLite app/admin project cover image metadata must preserve nested Long ids as strings through SQL JSON storage.',
+  );
+  await assert.rejects(
+    () =>
+      repositories.projects.save({
+        id: 'project-unsafe-budget',
+        workspaceId: SQLITE_WORKSPACE_ID,
+        name: 'Unsafe Budget Project',
+        budgetAmount: Number('101777208078558105') as unknown as string,
+        status: 'active',
+        createdAt: '2026-04-10T16:00:00.500Z',
+        updatedAt: '2026-04-10T16:00:00.500Z',
+      }),
+    /unsafe JavaScript number/u,
+    'repository Long/BIGINT fields must reject unsafe JavaScript numbers instead of clearing the value before SQL planning.',
+  );
+  assert.deepEqual(
+    JSON.parse(
+      (await repositories.projectContents.findById(SQLITE_PROJECT_CONTENT_ID))?.configData ?? '{}',
+    ),
+    {
+      rootPath: 'D:/workspace/sqlite-repository-project',
+    },
   );
   assert.equal(
     (await repositories.deployments.findById('deployment-sqlite-repository'))?.targetId,
@@ -148,7 +207,7 @@ try {
     'Restricted',
   );
   assert.equal(
-    (await repositories.teams.findById('team-sqlite-repository'))?.name,
+    (await repositories.teams.findById(SQLITE_TEAM_ID))?.name,
     'SQLite Repository Team',
   );
   assert.deepEqual(
@@ -178,7 +237,11 @@ try {
     storage: reloadedProvider,
   });
 
-  assert.equal((await reloadedRepositories.projects.list())[0]?.id, 'project-sqlite-repository');
+  assert.equal((await reloadedRepositories.projects.list())[0]?.id, SQLITE_PROJECT_ID);
+  assert.equal(
+    (await reloadedRepositories.projectContents.list())[0]?.projectId,
+    SQLITE_PROJECT_ID,
+  );
   assert.equal(
     (await reloadedRepositories.deployments.list())[0]?.id,
     'deployment-sqlite-repository',
@@ -187,7 +250,7 @@ try {
     (await reloadedRepositories.policies.list())[0]?.id,
     'policy-sqlite-repository',
   );
-  assert.equal((await reloadedRepositories.teams.list())[0]?.id, 'team-sqlite-repository');
+  assert.equal((await reloadedRepositories.teams.list())[0]?.id, SQLITE_TEAM_ID);
   assert.equal((await reloadedRepositories.releases.list())[0]?.id, 'release-sqlite-repository');
   assert.equal((await reloadedRepositories.audits.list())[0]?.id, 'audit-sqlite-repository');
 

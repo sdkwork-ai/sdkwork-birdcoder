@@ -1,6 +1,7 @@
 export const APP_NAME = 'SDKWork BirdCoder';
 export const APP_VERSION = '1.0.0';
 
+export { parseBirdCoderApiJson } from '@sdkwork/birdcoder-types';
 export * from './hooks/useDebounce.ts';
 export * from './hooks/useWorkspaces.ts';
 export * from './hooks/useProjects.ts';
@@ -65,6 +66,7 @@ export * from './workbench/fileChangeRestore.ts';
 export * from './workbench/fileSearch.ts';
 export * from './workbench/importedProjectHydration.ts';
 export * from './workbench/localFolderProjectImport.ts';
+export * from './workbench/localFolderProjectWorkspace.ts';
 export * from './workbench/projectMountRecovery.ts';
 export * from './workbench/gitBranches.ts';
 export * from './workbench/fileSelectionMutation.ts';

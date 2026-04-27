@@ -1,3 +1,7 @@
+import {
+  parseBirdCoderApiJson,
+  stringifyBirdCoderApiJson,
+} from '@sdkwork/birdcoder-types';
 import type {
   BirdCoderCodeEngineKey,
   BirdCoderEngineCapabilityMatrix,
@@ -112,6 +116,7 @@ export interface TextChatResponseInput {
   messageId?: string;
   role?: Role;
   finishReason?: ChatResponse['choices'][number]['finish_reason'];
+  toolCalls?: ToolCall[];
   usage?: ChatResponse['usage'];
 }
 
@@ -274,9 +279,104 @@ export function buildMessageTranscriptPrompt(
   messages: readonly ChatMessage[],
 ): string {
   return messages
-    .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
+    .map(formatTranscriptMessage)
     .join('\n\n')
     .trim();
+}
+
+function formatTranscriptMessage(message: ChatMessage): string {
+  const lines = [`${message.role.toUpperCase()}: ${message.content}`];
+  const toolCallsJson = stringifyTranscriptPayload(message.tool_calls);
+  if (toolCallsJson) {
+    lines.push(`TOOL_CALLS: ${toolCallsJson}`);
+  }
+  if (message.tool_call_id?.trim()) {
+    lines.push(`TOOL_CALL_ID: ${message.tool_call_id.trim()}`);
+  }
+  const attachmentsJson = stringifyTranscriptPayload(message.attachments);
+  if (attachmentsJson) {
+    lines.push(`ATTACHMENTS: ${attachmentsJson}`);
+  }
+
+  return lines.join('\n');
+}
+
+function stringifyTranscriptPayload(value: unknown): string | null {
+  if (Array.isArray(value) && value.length === 0) {
+    return null;
+  }
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  try {
+    const serializedValue = stringifyBirdCoderApiJson(value);
+    return serializedValue && serializedValue !== 'null' ? serializedValue : null;
+  } catch {
+    return null;
+  }
+}
+
+export function stringifyProviderToolArgumentPayload(value: unknown): string {
+  return stringifyBirdCoderApiJson(value);
+}
+
+function isProviderToolArgumentRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function normalizeProviderToolArgumentRecord(value: unknown): Record<string, unknown> {
+  if (typeof value === 'string') {
+    const normalizedValue = value.trim();
+    if (!normalizedValue) {
+      return {};
+    }
+
+    try {
+      const parsedValue = parseBirdCoderApiJson(normalizedValue) as unknown;
+      return isProviderToolArgumentRecord(parsedValue)
+        ? { ...parsedValue }
+        : { input: parsedValue };
+    } catch {
+      return {
+        input: value,
+      };
+    }
+  }
+
+  if (isProviderToolArgumentRecord(value)) {
+    return {
+      ...value,
+    };
+  }
+
+  return value === undefined || value === null ? {} : { input: value };
+}
+
+export function resolveCumulativeTextDelta(
+  previousText: string,
+  nextText: string,
+): string {
+  if (!nextText) {
+    return '';
+  }
+
+  if (!previousText) {
+    return nextText;
+  }
+
+  if (nextText.startsWith(previousText)) {
+    return nextText.slice(previousText.length);
+  }
+
+  const overlapLimit = Math.min(previousText.length, nextText.length);
+  for (let overlapLength = overlapLimit; overlapLength > 0; overlapLength -= 1) {
+    if (previousText.slice(-overlapLength) === nextText.slice(0, overlapLength)) {
+      return nextText.slice(overlapLength);
+    }
+  }
+
+  return nextText;
 }
 
 export function createTextChatResponse(
@@ -296,9 +396,12 @@ export function createTextChatResponse(
           id: input.messageId ?? `${input.id}-message`,
           role: input.role ?? 'assistant',
           content: input.content,
+          ...(input.toolCalls && input.toolCalls.length > 0 ? { tool_calls: input.toolCalls } : {}),
           timestamp: Date.now(),
         },
-        finish_reason: input.finishReason ?? 'stop',
+        finish_reason:
+          input.finishReason ??
+          (input.toolCalls && input.toolCalls.length > 0 ? 'tool_calls' : 'stop'),
       },
     ],
     usage: input.usage,
@@ -354,14 +457,37 @@ export async function* streamResponseAsChunks(
     return;
   }
 
-  yield createTextStreamChunk({
-    id: response.id,
-    model: response.model,
-    content: choice.message.content,
-    role: choice.message.role,
-    created: response.created,
-    finishReason: choice.finish_reason,
-  });
+  if (choice.message.content) {
+    yield createTextStreamChunk({
+      id: response.id,
+      model: response.model,
+      content: choice.message.content,
+      role: choice.message.role,
+      created: response.created,
+      finishReason: (choice.message.tool_calls?.length ?? 0) > 0 ? null : choice.finish_reason,
+    });
+  }
+
+  for (const toolCall of choice.message.tool_calls ?? []) {
+    yield createToolCallStreamChunk({
+      id: response.id,
+      model: response.model,
+      created: response.created,
+      toolCall,
+      finishReason: 'tool_calls',
+    });
+  }
+
+  if (!choice.message.content && (choice.message.tool_calls?.length ?? 0) === 0) {
+    yield createTextStreamChunk({
+      id: response.id,
+      model: response.model,
+      content: '',
+      role: choice.message.role,
+      created: response.created,
+      finishReason: choice.finish_reason,
+    });
+  }
 }
 
 export function createModuleBackedOfficialSdkBridgeLoader<

@@ -70,21 +70,34 @@ export const CODEX_ENGINE_ACCESS_PLAN = createAccessPlan({
 });
 
 export const CLAUDE_CODE_ENGINE_ACCESS_PLAN = createAccessPlan({
-  primaryLaneId: 'claude-code-grpc-agent-sdk',
-  fallbackLaneIds: ['claude-code-remote-control-http'],
+  primaryLaneId: 'claude-code-stdio-agent-sdk',
+  fallbackLaneIds: ['claude-code-cli-print', 'claude-code-remote-control-http'],
   lanes: [
     {
-      laneId: 'claude-code-grpc-agent-sdk',
-      label: 'gRPC Agent SDK bridge',
-      strategyKind: 'grpc-bridge',
+      laneId: 'claude-code-stdio-agent-sdk',
+      label: 'stdio Agent SDK bridge',
+      strategyKind: 'cli-spawn',
       runtimeOwner: 'typescript-bridge',
-      bridgeProtocol: 'grpc',
+      bridgeProtocol: 'stdio',
       transportKind: 'sdk-stream',
-      status: 'planned',
+      status: 'ready',
       enabledByDefault: true,
       hostModes: STANDARD_HOST_MODES,
       description:
-        'Primary standardized lane routes Rust server requests into a dedicated TypeScript bridge that wraps the upstream Claude Code SDK and normalizes IDE events.',
+        'Primary standardized lane routes Rust server requests into the bundled TypeScript bridge that wraps the upstream Claude Code Agent SDK and records native session transcripts.',
+    },
+    {
+      laneId: 'claude-code-cli-print',
+      label: 'Claude CLI print bridge',
+      strategyKind: 'cli-spawn',
+      runtimeOwner: 'typescript-bridge',
+      bridgeProtocol: 'stdio',
+      transportKind: 'cli-jsonl',
+      status: 'ready',
+      enabledByDefault: true,
+      hostModes: STANDARD_HOST_MODES,
+      description:
+        'Ready fallback lane where the same TypeScript bridge invokes the real Claude Code CLI in non-interactive print mode when the Agent SDK package is not installed.',
     },
     {
       laneId: 'claude-code-remote-control-http',
@@ -103,21 +116,21 @@ export const CLAUDE_CODE_ENGINE_ACCESS_PLAN = createAccessPlan({
 });
 
 export const GEMINI_ENGINE_ACCESS_PLAN = createAccessPlan({
-  primaryLaneId: 'gemini-grpc-sdk-stream',
+  primaryLaneId: 'gemini-stdio-sdk-stream',
   fallbackLaneIds: ['gemini-openapi-proxy'],
   lanes: [
     {
-      laneId: 'gemini-grpc-sdk-stream',
-      label: 'gRPC SDK bridge',
-      strategyKind: 'grpc-bridge',
+      laneId: 'gemini-stdio-sdk-stream',
+      label: 'stdio SDK bridge',
+      strategyKind: 'cli-spawn',
       runtimeOwner: 'typescript-bridge',
-      bridgeProtocol: 'grpc',
+      bridgeProtocol: 'stdio',
       transportKind: 'sdk-stream',
-      status: 'planned',
+      status: 'ready',
       enabledByDefault: true,
       hostModes: STANDARD_HOST_MODES,
       description:
-        'Primary standardized lane uses a TypeScript SDK bridge behind Rust so Gemini runtime differences stay isolated outside the product surface.',
+        'Primary standardized lane uses the bundled TypeScript SDK bridge behind Rust so Gemini runtime differences stay isolated outside the product surface while native transcripts stay queryable.',
     },
     {
       laneId: 'gemini-openapi-proxy',

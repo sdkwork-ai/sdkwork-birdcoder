@@ -105,6 +105,7 @@ export const RELEASE_FLOW_CHECK_COMMANDS = [
   'node --experimental-strip-types scripts/engine-resume-recovery-contract.test.ts',
   'node --experimental-strip-types scripts/coding-server-engine-truth-contract.test.ts',
   'node --experimental-strip-types scripts/rust-host-engine-truth-contract.test.ts',
+  'node --experimental-strip-types scripts/codeengine-native-provider-completeness-contract.test.ts',
   'node --experimental-strip-types scripts/generate-rust-host-engine-catalog.ts',
   'cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml core_engine_catalog_routes_match_generated_shared_engine_catalog',
   'node scripts/release/package-release-assets.test.mjs',

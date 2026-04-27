@@ -122,6 +122,16 @@ assert.equal(
   'sdkwork-birdcoder-user must consume the canonical VIP package directly.',
 );
 assert.equal(
+  userPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure-runtime'],
+  'workspace:*',
+  'sdkwork-birdcoder-user must consume the runtime infrastructure facade instead of the full infrastructure package.',
+);
+assert.equal(
+  userPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure'],
+  undefined,
+  'sdkwork-birdcoder-user must not depend on the full infrastructure package for runtime user-center adapters.',
+);
+assert.equal(
   infrastructurePackageJson.dependencies?.['@sdkwork/user-center-core-pc-react'],
   'link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react',
   'sdkwork-birdcoder-infrastructure must consume the canonical user-center core package directly.',
@@ -208,7 +218,7 @@ assert.match(
 
 assertRootImportOnly(
   userCenterRuntimeSource,
-  '@sdkwork/birdcoder-infrastructure',
+  '@sdkwork/birdcoder-infrastructure-runtime',
   'BirdCoder user-center runtime adapter',
 );
 assertRootImportOnly(

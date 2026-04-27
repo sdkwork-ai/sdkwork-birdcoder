@@ -112,6 +112,7 @@
       ],
       "transportKinds": [
         "sdk-stream",
+        "cli-jsonl",
         "remote-control-http"
       ],
       "capabilityMatrix": {
@@ -132,26 +133,43 @@
         "mcp": true
       },
       "accessPlan": {
-        "primaryLaneId": "claude-code-grpc-agent-sdk",
+        "primaryLaneId": "claude-code-stdio-agent-sdk",
         "fallbackLaneIds": [
+          "claude-code-cli-print",
           "claude-code-remote-control-http"
         ],
         "lanes": [
           {
-            "laneId": "claude-code-grpc-agent-sdk",
-            "label": "gRPC Agent SDK bridge",
-            "strategyKind": "grpc-bridge",
+            "laneId": "claude-code-stdio-agent-sdk",
+            "label": "stdio Agent SDK bridge",
+            "strategyKind": "cli-spawn",
             "runtimeOwner": "typescript-bridge",
-            "bridgeProtocol": "grpc",
+            "bridgeProtocol": "stdio",
             "transportKind": "sdk-stream",
-            "status": "planned",
+            "status": "ready",
             "enabledByDefault": true,
             "hostModes": [
               "web",
               "desktop",
               "server"
             ],
-            "description": "Primary standardized lane routes Rust server requests into a dedicated TypeScript bridge that wraps the upstream Claude Code SDK and normalizes IDE events."
+            "description": "Primary standardized lane routes Rust server requests into the bundled TypeScript bridge that wraps the upstream Claude Code Agent SDK and records native session transcripts."
+          },
+          {
+            "laneId": "claude-code-cli-print",
+            "label": "Claude CLI print bridge",
+            "strategyKind": "cli-spawn",
+            "runtimeOwner": "typescript-bridge",
+            "bridgeProtocol": "stdio",
+            "transportKind": "cli-jsonl",
+            "status": "ready",
+            "enabledByDefault": true,
+            "hostModes": [
+              "web",
+              "desktop",
+              "server"
+            ],
+            "description": "Ready fallback lane where the same TypeScript bridge invokes the real Claude Code CLI in non-interactive print mode when the Agent SDK package is not installed."
           },
           {
             "laneId": "claude-code-remote-control-http",
@@ -185,7 +203,7 @@
             "preview sessions"
           ]
         },
-        "notes": "BirdCoder standardizes Claude Code on the official Agent SDK contract and routes execution through a dedicated bridge lane when Rust authority needs to delegate."
+        "notes": "BirdCoder standardizes Claude Code on the official Agent SDK contract, with a real Claude CLI print fallback inside the bundled TypeScript stdio bridge when Rust authority delegates SDK execution."
       },
       "defaultModelId": "claude-code",
       "status": "active"
@@ -228,26 +246,26 @@
         "mcp": true
       },
       "accessPlan": {
-        "primaryLaneId": "gemini-grpc-sdk-stream",
+        "primaryLaneId": "gemini-stdio-sdk-stream",
         "fallbackLaneIds": [
           "gemini-openapi-proxy"
         ],
         "lanes": [
           {
-            "laneId": "gemini-grpc-sdk-stream",
-            "label": "gRPC SDK bridge",
-            "strategyKind": "grpc-bridge",
+            "laneId": "gemini-stdio-sdk-stream",
+            "label": "stdio SDK bridge",
+            "strategyKind": "cli-spawn",
             "runtimeOwner": "typescript-bridge",
-            "bridgeProtocol": "grpc",
+            "bridgeProtocol": "stdio",
             "transportKind": "sdk-stream",
-            "status": "planned",
+            "status": "ready",
             "enabledByDefault": true,
             "hostModes": [
               "web",
               "desktop",
               "server"
             ],
-            "description": "Primary standardized lane uses a TypeScript SDK bridge behind Rust so Gemini runtime differences stay isolated outside the product surface."
+            "description": "Primary standardized lane uses the bundled TypeScript SDK bridge behind Rust so Gemini runtime differences stay isolated outside the product surface while native transcripts stay queryable."
           },
           {
             "laneId": "gemini-openapi-proxy",
@@ -280,7 +298,7 @@
             "tool and skill registry"
           ]
         },
-        "notes": "BirdCoder standardizes Gemini on the Gemini CLI SDK contract and treats the gRPC bridge as the primary authority delegation lane."
+        "notes": "BirdCoder standardizes Gemini on the Gemini CLI SDK contract and treats the bundled TypeScript stdio bridge as the primary authority delegation lane."
       },
       "defaultModelId": "gemini",
       "status": "active"
@@ -518,6 +536,7 @@
       "defaultForEngine": true,
       "transportKinds": [
         "sdk-stream",
+        "cli-jsonl",
         "remote-control-http"
       ],
       "capabilityMatrix": {
@@ -537,6 +556,7 @@
       "defaultForEngine": false,
       "transportKinds": [
         "sdk-stream",
+        "cli-jsonl",
         "remote-control-http"
       ],
       "capabilityMatrix": {
@@ -556,6 +576,7 @@
       "defaultForEngine": false,
       "transportKinds": [
         "sdk-stream",
+        "cli-jsonl",
         "remote-control-http"
       ],
       "capabilityMatrix": {
@@ -575,6 +596,7 @@
       "defaultForEngine": false,
       "transportKinds": [
         "sdk-stream",
+        "cli-jsonl",
         "remote-control-http"
       ],
       "capabilityMatrix": {
@@ -660,6 +682,25 @@
       "nativeSessionIdPrefix": "codex-native:",
       "transportKinds": [
         "cli-jsonl"
+      ],
+      "discoveryMode": "passive-global"
+    },
+    {
+      "engineId": "claude-code",
+      "displayName": "Claude Code",
+      "nativeSessionIdPrefix": "claude-code-native:",
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "discoveryMode": "passive-global"
+    },
+    {
+      "engineId": "gemini",
+      "displayName": "Gemini",
+      "nativeSessionIdPrefix": "gemini-native:",
+      "transportKinds": [
+        "sdk-stream"
       ],
       "discoveryMode": "passive-global"
     },

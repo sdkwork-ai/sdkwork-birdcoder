@@ -57,6 +57,7 @@ function parseArgs(argv = []) {
   }
 
   const {
+    demoLogin,
     identityMode,
     userCenterProvider,
   } = parseBirdcoderIdentityCliOptions(tokens, {
@@ -65,15 +66,17 @@ function parseArgs(argv = []) {
 
   return {
     action,
+    demoLogin,
     identityMode,
     userCenterProvider,
   };
 }
 
 function runBirdcoderDesktopCommand() {
-  const { action, identityMode, userCenterProvider } = parseArgs(process.argv.slice(2));
+  const { action, demoLogin, identityMode, userCenterProvider } = parseArgs(process.argv.slice(2));
   const actionConfig = DESKTOP_ACTIONS[action];
   const commandEnv = resolveBirdcoderCommandEnv({
+    demoLogin,
     env: process.env,
     userCenterProvider,
   });

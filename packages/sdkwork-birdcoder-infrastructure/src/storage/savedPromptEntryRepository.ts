@@ -12,6 +12,7 @@ import {
 } from './dataKernel.ts';
 import {
   buildBirdCoderPromptEntryIdentityParts,
+  normalizeBirdCoderPromptEntryUseCount,
   normalizeBirdCoderPromptEntryText,
   resolveBirdCoderMonotonicPromptTimestamp,
 } from './promptEntryText.ts';
@@ -31,16 +32,6 @@ function normalizeTimestamp(value: unknown, fallback: string): string {
   }
 
   return Number.isNaN(Date.parse(value)) ? fallback : value;
-}
-
-function normalizeUseCount(value: unknown): number {
-  const normalizedValue =
-    typeof value === 'number' && Number.isFinite(value)
-      ? Math.trunc(value)
-      : typeof value === 'string'
-        ? Math.trunc(Number(value))
-        : 0;
-  return normalizedValue > 0 ? normalizedValue : 1;
 }
 
 function resolveSortTimestamp(value: string): number {
@@ -96,7 +87,7 @@ function normalizeSavedPromptEntryStorageRecord(
       promptText: normalizedPromptText,
       normalizedPromptText: normalizedLookupText,
       lastSavedAt: normalizeTimestamp(value.lastSavedAt, updatedAtCandidate),
-      useCount: normalizeUseCount(value.useCount),
+      useCount: normalizeBirdCoderPromptEntryUseCount(value.useCount),
       createdAt: createdAtCandidate,
       updatedAt: updatedAtCandidate,
     };
@@ -127,7 +118,7 @@ function normalizeSavedPromptEntryStorageRecord(
     promptText: normalizedPromptText,
     normalizedPromptText: normalizedLookupText,
     lastSavedAt: normalizeTimestamp(row.last_saved_at, updatedAtCandidate),
-    useCount: normalizeUseCount(row.use_count),
+    useCount: normalizeBirdCoderPromptEntryUseCount(row.use_count),
     createdAt: createdAtCandidate,
     updatedAt: updatedAtCandidate,
   };

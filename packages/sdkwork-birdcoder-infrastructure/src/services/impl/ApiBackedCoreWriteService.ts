@@ -42,4 +42,11 @@ export class ApiBackedCoreWriteService implements ICoreWriteService {
   ) {
     return this.client.submitApprovalDecision(approvalId, request);
   }
+
+  async submitUserQuestionAnswer(
+    questionId: Parameters<BirdCoderCoreWriteApiClient['submitUserQuestionAnswer']>[0],
+    request: Parameters<BirdCoderCoreWriteApiClient['submitUserQuestionAnswer']>[1],
+  ) {
+    return this.client.submitUserQuestionAnswer(questionId, request);
+  }
 }

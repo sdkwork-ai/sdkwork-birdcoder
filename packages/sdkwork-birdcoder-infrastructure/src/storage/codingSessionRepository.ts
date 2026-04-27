@@ -11,9 +11,12 @@ import {
   BIRDCODER_CODING_SESSION_STATUSES,
   BIRDCODER_CODING_SESSION_MESSAGE_ROLES,
   BIRDCODER_HOST_MODES,
+  compareBirdCoderSessionSortTimestamp,
   getBirdCoderEntityDefinition,
-  resolveBirdCoderSessionSortTimestamp,
+  resolveBirdCoderSessionSortTimestampString,
+  stringifyBirdCoderLongInteger,
 } from '@sdkwork/birdcoder-types';
+import { normalizeBirdCoderCodeEngineNativeSessionId } from '@sdkwork/birdcoder-codeengine';
 import {
   createBirdCoderTableRecordRepository,
   type BirdCoderStorageAccess,
@@ -30,6 +33,15 @@ const ZERO_TIMESTAMP = new Date(0).toISOString();
 const CODING_SESSION_STATUS_SET = new Set<string>(BIRDCODER_CODING_SESSION_STATUSES);
 const CODING_SESSION_MESSAGE_ROLE_SET = new Set<string>(BIRDCODER_CODING_SESSION_MESSAGE_ROLES);
 const HOST_MODE_SET = new Set<string>(BIRDCODER_HOST_MODES);
+
+function normalizeCodingSessionNativeSessionId(
+  value: unknown,
+  engineId: string | null | undefined,
+): string | undefined {
+  return typeof value === 'string'
+    ? normalizeBirdCoderCodeEngineNativeSessionId(value, engineId) ?? undefined
+    : undefined;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -75,14 +87,13 @@ function sortByUpdatedAtDescending<
     createdAt: string;
     id: string;
     lastTurnAt?: string;
-    sortTimestamp?: number;
+    sortTimestamp?: string;
     transcriptUpdatedAt?: string | null;
     updatedAt: string;
   },
 >(left: TRecord, right: TRecord): number {
   return (
-    resolveBirdCoderSessionSortTimestamp(right) -
-      resolveBirdCoderSessionSortTimestamp(left) ||
+    compareBirdCoderSessionSortTimestamp(right, left) ||
     resolveSortTimestamp(right.updatedAt) - resolveSortTimestamp(left.updatedAt) ||
     left.id.localeCompare(right.id)
   );
@@ -100,6 +111,13 @@ function sortByCreatedAtAscending<
   );
 }
 
+function normalizeOptionalLongIntegerString(value: unknown): string | undefined {
+  if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'bigint') {
+    return undefined;
+  }
+  return stringifyBirdCoderLongInteger(value);
+}
+
 export interface BirdCoderPersistedCodingSessionRecord {
   archived: boolean;
   createdAt: string;
@@ -108,9 +126,10 @@ export interface BirdCoderPersistedCodingSessionRecord {
   id: string;
   lastTurnAt?: string;
   modelId: string;
+  nativeSessionId?: string;
   pinned: boolean;
   projectId: string;
-  sortTimestamp?: number;
+  sortTimestamp?: string;
   status: BirdCoderCodingSession['status'];
   title: string;
   transcriptUpdatedAt?: string | null;
@@ -132,6 +151,54 @@ export interface CreateBirdCoderCodingSessionRepositoriesOptions {
   storage: BirdCoderStorageAccess;
 }
 
+const BIRDCODER_PERSISTED_MESSAGE_ID_METADATA_KEY =
+  '__sdkworkBirdCoderTranscriptMessageId';
+
+function buildCodingSessionMessageStorageId(
+  value: Pick<BirdCoderChatMessage, 'codingSessionId' | 'id'>,
+): string {
+  return JSON.stringify([value.codingSessionId.trim(), value.id.trim()]);
+}
+
+function readCodingSessionMessageMetadata(
+  value: unknown,
+): Record<string, unknown> | undefined {
+  return isRecord(value) ? value : undefined;
+}
+
+function readOriginalCodingSessionMessageIdFromMetadata(
+  metadata: Record<string, unknown> | undefined,
+): string | undefined {
+  const originalMessageId = metadata?.[BIRDCODER_PERSISTED_MESSAGE_ID_METADATA_KEY];
+  return typeof originalMessageId === 'string' && originalMessageId.trim().length > 0
+    ? originalMessageId
+    : undefined;
+}
+
+function omitCodingSessionMessageStorageMetadata(
+  metadata: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!metadata || !(BIRDCODER_PERSISTED_MESSAGE_ID_METADATA_KEY in metadata)) {
+    return metadata;
+  }
+
+  const {
+    [BIRDCODER_PERSISTED_MESSAGE_ID_METADATA_KEY]: _originalMessageId,
+    ...publicMetadata
+  } = metadata;
+  void _originalMessageId;
+  return Object.keys(publicMetadata).length > 0 ? publicMetadata : undefined;
+}
+
+function buildCodingSessionMessageStorageMetadata(
+  value: BirdCoderPersistedCodingSessionMessageRecord,
+): Record<string, unknown> | null {
+  return {
+    ...(isRecord(value.metadata) ? value.metadata : {}),
+    [BIRDCODER_PERSISTED_MESSAGE_ID_METADATA_KEY]: value.id,
+  };
+}
+
 function normalizeCodingSessionStorageRecord(
   value: unknown,
 ): BirdCoderPersistedCodingSessionRecord | null {
@@ -149,15 +216,13 @@ function normalizeCodingSessionStorageRecord(
       !Number.isNaN(Date.parse(value.transcriptUpdatedAt))
         ? value.transcriptUpdatedAt
         : null;
-    const sortTimestampCandidate =
-      typeof value.sortTimestamp === 'number' && Number.isFinite(value.sortTimestamp)
-        ? value.sortTimestamp
-        : resolveBirdCoderSessionSortTimestamp({
-            createdAt: createdAtCandidate,
-            updatedAt: updatedAtCandidate,
-            lastTurnAt: lastTurnAtCandidate,
-            transcriptUpdatedAt: transcriptUpdatedAtCandidate,
-          });
+    const sortTimestampCandidate = resolveBirdCoderSessionSortTimestampString({
+      createdAt: createdAtCandidate,
+      updatedAt: updatedAtCandidate,
+      lastTurnAt: lastTurnAtCandidate,
+      sortTimestamp: normalizeOptionalLongIntegerString(value.sortTimestamp),
+      transcriptUpdatedAt: transcriptUpdatedAtCandidate,
+    });
     const normalizedEngineId =
       typeof value.engineId === 'string' && value.engineId.trim().length > 0
         ? (value.engineId.trim() as BirdCoderCodingSession['engineId'])
@@ -185,6 +250,10 @@ function normalizeCodingSessionStorageRecord(
       hostMode: normalizeHostMode(value.hostMode),
       engineId: normalizedEngineId,
       modelId: normalizedModelId,
+      nativeSessionId: normalizeCodingSessionNativeSessionId(
+        value.nativeSessionId,
+        normalizedEngineId,
+      ),
       createdAt: createdAtCandidate,
       updatedAt: updatedAtCandidate,
       lastTurnAt: lastTurnAtCandidate,
@@ -210,15 +279,13 @@ function normalizeCodingSessionStorageRecord(
     !Number.isNaN(Date.parse(row.transcript_updated_at))
       ? row.transcript_updated_at
       : null;
-  const rowSortTimestampCandidate =
-    typeof row.sort_timestamp === 'number' && Number.isFinite(row.sort_timestamp)
-      ? row.sort_timestamp
-      : resolveBirdCoderSessionSortTimestamp({
-          createdAt: createdAtCandidate,
-          updatedAt: updatedAtCandidate,
-          lastTurnAt: lastTurnAtCandidate,
-          transcriptUpdatedAt: transcriptUpdatedAtCandidate,
-        });
+  const rowSortTimestampCandidate = resolveBirdCoderSessionSortTimestampString({
+    createdAt: createdAtCandidate,
+    updatedAt: updatedAtCandidate,
+    lastTurnAt: lastTurnAtCandidate,
+    sortTimestamp: normalizeOptionalLongIntegerString(row.sort_timestamp),
+    transcriptUpdatedAt: transcriptUpdatedAtCandidate,
+  });
   const normalizedEngineId =
     typeof row.engine_id === 'string' && row.engine_id.trim().length > 0
       ? (row.engine_id.trim() as BirdCoderCodingSession['engineId'])
@@ -243,6 +310,10 @@ function normalizeCodingSessionStorageRecord(
     hostMode: normalizeHostMode(row.host_mode),
     engineId: normalizedEngineId,
     modelId: normalizedModelId,
+    nativeSessionId: normalizeCodingSessionNativeSessionId(
+      row.native_session_id,
+      normalizedEngineId,
+    ),
     createdAt: createdAtCandidate,
     updatedAt: updatedAtCandidate,
     lastTurnAt: lastTurnAtCandidate,
@@ -263,13 +334,14 @@ function normalizeCodingSessionMessageStorageRecord(
     typeof value.id === 'string' &&
     typeof value.codingSessionId === 'string'
   ) {
+    const metadata = readCodingSessionMessageMetadata(value.metadata);
     return {
       id: value.id,
       codingSessionId: value.codingSessionId,
       turnId: typeof value.turnId === 'string' ? value.turnId : undefined,
       role: normalizeCodingSessionMessageRole(value.role),
       content: typeof value.content === 'string' ? value.content : '',
-      metadata: isRecord(value.metadata) ? value.metadata : undefined,
+      metadata: omitCodingSessionMessageStorageMetadata(metadata),
       createdAt: normalizeTimestamp(value.createdAt, ZERO_TIMESTAMP),
       timestamp: typeof value.timestamp === 'number' ? value.timestamp : undefined,
       name: typeof value.name === 'string' ? value.name : undefined,
@@ -291,13 +363,15 @@ function normalizeCodingSessionMessageStorageRecord(
     return null;
   }
 
+  const metadata = readCodingSessionMessageMetadata(row.metadata_json);
+  const originalMessageId = readOriginalCodingSessionMessageIdFromMetadata(metadata);
   return {
-    id: String(row.id),
+    id: originalMessageId ?? String(row.id),
     codingSessionId: String(row.coding_session_id),
     turnId: typeof row.turn_id === 'string' ? row.turn_id : undefined,
     role: normalizeCodingSessionMessageRole(row.role),
     content: typeof row.content === 'string' ? row.content : '',
-    metadata: isRecord(row.metadata_json) ? row.metadata_json : undefined,
+    metadata: omitCodingSessionMessageStorageMetadata(metadata),
     createdAt: normalizeTimestamp(row.created_at, ZERO_TIMESTAMP),
     timestamp: typeof row.timestamp_ms === 'number' && Number.isFinite(row.timestamp_ms)
       ? row.timestamp_ms
@@ -330,6 +404,7 @@ function toCodingSessionStorageRow(
     host_mode: value.hostMode,
     engine_id: value.engineId,
     model_id: value.modelId,
+    native_session_id: value.nativeSessionId ?? null,
     last_turn_at: value.lastTurnAt ?? null,
     sort_timestamp: value.sortTimestamp ?? null,
     transcript_updated_at: value.transcriptUpdatedAt ?? null,
@@ -345,12 +420,12 @@ function toCodingSessionMessageStorageRow(
   value: BirdCoderPersistedCodingSessionMessageRecord,
 ): BirdCoderSqlRow {
   return {
-    id: value.id,
+    id: buildCodingSessionMessageStorageId(value),
     coding_session_id: value.codingSessionId,
     turn_id: value.turnId ?? null,
     role: value.role,
     content: value.content,
-    metadata_json: value.metadata ?? null,
+    metadata_json: buildCodingSessionMessageStorageMetadata(value),
     timestamp_ms: value.timestamp ?? null,
     name: value.name ?? null,
     tool_calls_json: value.tool_calls ?? null,
@@ -417,7 +492,7 @@ export function createBirdCoderCodingSessionRepositories({
       providerId,
       storage,
       identify(value) {
-        return value.id;
+        return buildCodingSessionMessageStorageId(value);
       },
       normalize: normalizeCodingSessionMessageStorageRecord,
       sort: sortByCreatedAtAscending,

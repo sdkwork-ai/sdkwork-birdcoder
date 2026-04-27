@@ -18,7 +18,8 @@ const WORKBENCH_RECOVERY_TABS = new Set<AppTab>([
 ]);
 
 export interface WorkbenchRecoverySnapshot {
-  version: 1;
+  version: 2;
+  userScope: string;
   sessionId: string;
   activeTab: AppTab;
   activeWorkspaceId: string;
@@ -76,9 +77,11 @@ export interface ResolveWorkbenchRecoveryPersistenceSelectionOptions {
 }
 
 const ZERO_TIMESTAMP = new Date(0).toISOString();
+const ANONYMOUS_WORKBENCH_RECOVERY_USER_SCOPE = 'anonymous';
 
 export const DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT: WorkbenchRecoverySnapshot = {
-  version: 1,
+  version: 2,
+  userScope: ANONYMOUS_WORKBENCH_RECOVERY_USER_SCOPE,
   sessionId: '',
   activeTab: 'code',
   activeWorkspaceId: '',
@@ -90,6 +93,10 @@ export const DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT: WorkbenchRecoverySnapshot = {
 
 function normalizeIdentifier(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+export function normalizeWorkbenchRecoveryUserScope(value: unknown): string {
+  return normalizeIdentifier(value) || ANONYMOUS_WORKBENCH_RECOVERY_USER_SCOPE;
 }
 
 function normalizeActiveTab(value: unknown): AppTab {
@@ -134,7 +141,8 @@ export function normalizeWorkbenchRecoverySnapshot(value: unknown): WorkbenchRec
 
   const snapshot = value as Partial<WorkbenchRecoverySnapshot>;
   return {
-    version: 1,
+    version: 2,
+    userScope: normalizeWorkbenchRecoveryUserScope(snapshot.userScope),
     sessionId: normalizeIdentifier(snapshot.sessionId),
     activeTab: normalizeActiveTab(snapshot.activeTab),
     activeWorkspaceId: normalizeIdentifier(snapshot.activeWorkspaceId),
@@ -153,6 +161,22 @@ export function buildWorkbenchRecoverySnapshot(
     ...value,
     updatedAt: value.updatedAt ?? new Date().toISOString(),
   });
+}
+
+export function resolveWorkbenchRecoverySnapshotForUser(
+  recoverySnapshot: WorkbenchRecoverySnapshot,
+  userScope: string | null | undefined,
+): WorkbenchRecoverySnapshot {
+  const normalizedUserScope = normalizeWorkbenchRecoveryUserScope(userScope);
+  const normalizedRecoverySnapshot = normalizeWorkbenchRecoverySnapshot(recoverySnapshot);
+  if (normalizedRecoverySnapshot.userScope === normalizedUserScope) {
+    return normalizedRecoverySnapshot;
+  }
+
+  return {
+    ...DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
+    userScope: normalizedUserScope,
+  };
 }
 
 export function resolveStartupWorkspaceId(
@@ -272,6 +296,7 @@ export function recoverySnapshotsEqual(
   right: WorkbenchRecoverySnapshot,
 ): boolean {
   return (
+    left.userScope === right.userScope &&
     left.sessionId === right.sessionId &&
     left.activeTab === right.activeTab &&
     left.activeWorkspaceId === right.activeWorkspaceId &&

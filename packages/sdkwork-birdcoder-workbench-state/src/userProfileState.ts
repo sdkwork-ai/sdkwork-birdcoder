@@ -1,7 +1,9 @@
 import { createJsonRecordRepository } from '@sdkwork/birdcoder-workbench-storage';
 import {
   BIRDCODER_APPBASE_USER_PROFILE_STORAGE_BINDING,
-  BIRDCODER_APPBASE_VIP_SUBSCRIPTION_STORAGE_BINDING,
+  BIRDCODER_APPBASE_VIP_USER_STORAGE_BINDING,
+  stringifyBirdCoderLongInteger,
+  type BirdCoderLongIntegerString,
 } from '@sdkwork/birdcoder-types';
 
 export interface BirdCoderUserProfileSnapshot {
@@ -13,11 +15,13 @@ export interface BirdCoderUserProfileSnapshot {
 }
 
 export interface BirdCoderVipMembershipSnapshot {
-  creditsPerMonth: number;
-  planId: 'free' | 'pro' | 'team';
-  planTitle: string;
-  renewAt: string;
-  seats: number;
+  vipLevelId?: string;
+  pointBalance: BirdCoderLongIntegerString;
+  totalRechargedPoints: BirdCoderLongIntegerString;
+  validFrom?: string;
+  validTo?: string;
+  lastActiveTime?: string;
+  remark?: string;
   status: 'inactive' | 'trialing' | 'active';
 }
 
@@ -30,11 +34,8 @@ export const DEFAULT_BIRDCODER_USER_PROFILE: BirdCoderUserProfileSnapshot = {
 };
 
 export const DEFAULT_BIRDCODER_VIP_MEMBERSHIP: BirdCoderVipMembershipSnapshot = {
-  creditsPerMonth: 0,
-  planId: 'free',
-  planTitle: 'Free',
-  renewAt: 'Not scheduled',
-  seats: 1,
+  pointBalance: '0',
+  totalRechargedPoints: '0',
   status: 'inactive',
 };
 
@@ -56,6 +57,32 @@ function normalizeBirdCoderUserProfile(
   };
 }
 
+function normalizeBirdCoderLongIntegerString(
+  value: unknown,
+  fallback: BirdCoderLongIntegerString,
+): BirdCoderLongIntegerString {
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+
+  if (typeof value === 'string' && value.trim().length === 0) {
+    return fallback;
+  }
+
+  if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'bigint') {
+    throw new Error('BirdCoder VIP Long value must be an exact decimal string.');
+  }
+
+  try {
+    return stringifyBirdCoderLongInteger(value);
+  } catch (error) {
+    throw new Error(
+      `BirdCoder VIP Long value is invalid: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
+}
+
 function normalizeBirdCoderVipMembership(
   value: unknown,
   fallback: BirdCoderVipMembershipSnapshot,
@@ -66,17 +93,21 @@ function normalizeBirdCoderVipMembership(
 
   const candidate = value as Partial<BirdCoderVipMembershipSnapshot>;
   return {
-    creditsPerMonth:
-      typeof candidate.creditsPerMonth === 'number'
-        ? candidate.creditsPerMonth
-        : fallback.creditsPerMonth,
-    planId:
-      candidate.planId === 'free' || candidate.planId === 'pro' || candidate.planId === 'team'
-        ? candidate.planId
-        : fallback.planId,
-    planTitle: candidate.planTitle?.trim() || fallback.planTitle,
-    renewAt: candidate.renewAt?.trim() || fallback.renewAt,
-    seats: typeof candidate.seats === 'number' ? candidate.seats : fallback.seats,
+    ...(candidate.vipLevelId?.trim() ? { vipLevelId: candidate.vipLevelId.trim() } : {}),
+    pointBalance: normalizeBirdCoderLongIntegerString(
+      candidate.pointBalance,
+      fallback.pointBalance,
+    ),
+    totalRechargedPoints: normalizeBirdCoderLongIntegerString(
+      candidate.totalRechargedPoints,
+      fallback.totalRechargedPoints,
+    ),
+    ...(candidate.validFrom?.trim() ? { validFrom: candidate.validFrom.trim() } : {}),
+    ...(candidate.validTo?.trim() ? { validTo: candidate.validTo.trim() } : {}),
+    ...(candidate.lastActiveTime?.trim()
+      ? { lastActiveTime: candidate.lastActiveTime.trim() }
+      : {}),
+    ...(candidate.remark?.trim() ? { remark: candidate.remark.trim() } : {}),
     status:
       candidate.status === 'inactive' ||
       candidate.status === 'trialing' ||
@@ -93,7 +124,7 @@ const birdCoderUserProfileRepository = createJsonRecordRepository<BirdCoderUserP
 });
 
 const birdCoderVipMembershipRepository = createJsonRecordRepository<BirdCoderVipMembershipSnapshot>({
-  binding: BIRDCODER_APPBASE_VIP_SUBSCRIPTION_STORAGE_BINDING,
+  binding: BIRDCODER_APPBASE_VIP_USER_STORAGE_BINDING,
   fallback: DEFAULT_BIRDCODER_VIP_MEMBERSHIP,
   normalize: normalizeBirdCoderVipMembership,
 });

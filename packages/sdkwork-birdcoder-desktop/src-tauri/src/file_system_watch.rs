@@ -182,4 +182,3 @@ pub fn fs_watch_stop(
 
     Ok(())
 }
-

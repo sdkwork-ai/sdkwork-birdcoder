@@ -2,14 +2,18 @@ import type {
   BirdCoderProject,
   BirdCoderWorkspaceRealtimeEvent,
 } from '@sdkwork/birdcoder-types';
+import { normalizeBirdCoderCodeEngineNativeSessionId } from '@sdkwork/birdcoder-codeengine';
 import {
-  BIRDCODER_CODING_SESSION_RUNTIME_STATUSES,
   BIRDCODER_CODING_SESSION_STATUSES,
   BIRDCODER_HOST_MODES,
+  compareBirdCoderLongIntegers,
   compareBirdCoderProjectsByActivity,
+  compareBirdCoderSessionSortTimestamp,
   formatBirdCoderSessionActivityDisplayTime,
   isBirdCoderCodingSessionExecuting,
-  resolveBirdCoderSessionSortTimestamp,
+  normalizeBirdCoderCodeEngineRuntimeStatus,
+  resolveBirdCoderSessionSortTimestampString,
+  stringifyBirdCoderLongInteger,
 } from '@sdkwork/birdcoder-types';
 
 function resolveTimestamp(value: string | null | undefined): number {
@@ -104,11 +108,11 @@ function normalizeRealtimeHostMode(
 function normalizeRealtimeCodingSessionRuntimeStatus(
   value: string | undefined,
 ): BirdCoderProject['codingSessions'][number]['runtimeStatus'] | null {
-  if (!value || !BIRDCODER_CODING_SESSION_RUNTIME_STATUSES.includes(value as never)) {
-    return null;
-  }
+  return normalizeBirdCoderCodeEngineRuntimeStatus(value) ?? null;
+}
 
-  return value as BirdCoderProject['codingSessions'][number]['runtimeStatus'];
+function normalizeRealtimeNativeSessionId(value: string | undefined): string | undefined {
+  return normalizeBirdCoderCodeEngineNativeSessionId(value) ?? undefined;
 }
 
 function resolveRealtimeCodingSessionRuntimeStatus(
@@ -131,6 +135,26 @@ function shouldPreferLocalCodingSessionMetadata(
   );
 }
 
+function isRealtimeCodingSessionTranscriptActivityEvent(
+  event: BirdCoderWorkspaceRealtimeEvent,
+): boolean {
+  return (
+    event.eventKind === 'coding-session.turn.created' ||
+    typeof event.turnId === 'string' &&
+      event.turnId.trim().length > 0
+  );
+}
+
+function shouldPreserveExistingCodingSessionMetadata(
+  codingSession: BirdCoderProject['codingSessions'][number],
+  event: BirdCoderWorkspaceRealtimeEvent,
+): boolean {
+  return (
+    isRealtimeCodingSessionTranscriptActivityEvent(event) ||
+    shouldPreferLocalCodingSessionMetadata(codingSession, event)
+  );
+}
+
 function shouldPreferLocalCodingSessionRuntimeStatus(
   codingSession: BirdCoderProject['codingSessions'][number],
   event: BirdCoderWorkspaceRealtimeEvent,
@@ -146,12 +170,30 @@ function shouldPreferLocalCodingSessionRuntimeStatus(
     return false;
   }
 
+  if (
+    localActivityTimestamp === realtimeActivityTimestamp &&
+    isBirdCoderCodingSessionExecuting(codingSession) &&
+    isTerminalCodingSessionRuntimeStatus(realtimeRuntimeStatus)
+  ) {
+    return false;
+  }
+
   return (
     localActivityTimestamp >= realtimeActivityTimestamp &&
     isBirdCoderCodingSessionExecuting(codingSession) &&
     !isBirdCoderCodingSessionExecuting({
       runtimeStatus: realtimeRuntimeStatus,
     })
+  );
+}
+
+function isTerminalCodingSessionRuntimeStatus(
+  runtimeStatus: BirdCoderProject['codingSessions'][number]['runtimeStatus'],
+): boolean {
+  return (
+    runtimeStatus === 'completed' ||
+    runtimeStatus === 'failed' ||
+    runtimeStatus === 'terminated'
   );
 }
 
@@ -166,6 +208,7 @@ function buildRealtimeProjectSeed(
   }
 
   const timestamp = resolveRealtimeEventTimestamp(event);
+  const sortTimestamp = stringifyBirdCoderLongInteger(resolveTimestamp(timestamp));
   return {
     id: normalizedProjectId,
     workspaceId: normalizedWorkspaceId,
@@ -220,6 +263,7 @@ function buildRealtimeCodingSessionSeed(
   );
   const normalizedEngineId = event.codingSessionEngineId?.trim();
   const normalizedModelId = event.codingSessionModelId?.trim();
+  const normalizedNativeSessionId = normalizeRealtimeNativeSessionId(event.nativeSessionId);
 
   if (
     !normalizedCodingSessionId ||
@@ -235,6 +279,7 @@ function buildRealtimeCodingSessionSeed(
   }
 
   const timestamp = resolveRealtimeEventTimestamp(event);
+  const sortTimestamp = stringifyBirdCoderLongInteger(resolveTimestamp(timestamp));
   return {
     id: normalizedCodingSessionId,
     workspaceId: normalizedWorkspaceId,
@@ -244,17 +289,18 @@ function buildRealtimeCodingSessionSeed(
     hostMode: normalizedHostMode,
     engineId: normalizedEngineId,
     modelId: normalizedModelId,
+    nativeSessionId: normalizedNativeSessionId,
     createdAt: timestamp,
     updatedAt: timestamp,
     lastTurnAt: timestamp,
-    sortTimestamp: resolveTimestamp(timestamp),
+    sortTimestamp,
     transcriptUpdatedAt: timestamp,
     runtimeStatus: resolveRealtimeCodingSessionRuntimeStatus(event),
     displayTime: formatBirdCoderSessionActivityDisplayTime({
       createdAt: timestamp,
       updatedAt: timestamp,
       lastTurnAt: timestamp,
-      sortTimestamp: resolveTimestamp(timestamp),
+      sortTimestamp,
       transcriptUpdatedAt: timestamp,
     }),
     pinned: false,
@@ -309,8 +355,7 @@ function compareProjectCodingSessions(
   right: BirdCoderProject['codingSessions'][number],
 ): number {
   return (
-    resolveBirdCoderSessionSortTimestamp(right) -
-      resolveBirdCoderSessionSortTimestamp(left) ||
+    compareBirdCoderSessionSortTimestamp(right, left) ||
     left.id.localeCompare(right.id)
   );
 }
@@ -353,16 +398,19 @@ function updateCodingSessionTimestamp(
   const nextProjectUpdatedAt =
     resolveLatestTimestamp(project.updatedAt, event.projectUpdatedAt, nextActivityAt) ??
     project.updatedAt;
-  const preferLocalMetadata = shouldPreferLocalCodingSessionMetadata(codingSession, event);
-  const nextStatus = preferLocalMetadata
+  const preserveExistingMetadata = shouldPreserveExistingCodingSessionMetadata(
+    codingSession,
+    event,
+  );
+  const nextStatus = preserveExistingMetadata
     ? codingSession.status
     : normalizeRealtimeCodingSessionStatus(event.codingSessionStatus?.trim()) ??
       codingSession.status;
-  const nextHostMode = preferLocalMetadata
+  const nextHostMode = preserveExistingMetadata
     ? codingSession.hostMode
     : normalizeRealtimeHostMode(event.codingSessionHostMode?.trim()) ??
       codingSession.hostMode;
-  const nextTitle = preferLocalMetadata
+  const nextTitle = preserveExistingMetadata
     ? codingSession.title
     : event.codingSessionTitle?.trim() || codingSession.title;
   const nextRuntimeStatus = shouldPreferLocalCodingSessionRuntimeStatus(
@@ -371,12 +419,15 @@ function updateCodingSessionTimestamp(
   )
     ? codingSession.runtimeStatus
     : resolveRealtimeCodingSessionRuntimeStatus(event, codingSession.runtimeStatus);
+  const nextNativeSessionId =
+    normalizeRealtimeNativeSessionId(event.nativeSessionId) ?? codingSession.nativeSessionId;
   if (
     nextActivityAt === codingSession.lastTurnAt &&
     nextUpdatedAt === codingSession.updatedAt &&
     nextProjectUpdatedAt === project.updatedAt &&
     (codingSession.transcriptUpdatedAt ?? undefined) === nextActivityAt &&
     nextRuntimeStatus === codingSession.runtimeStatus &&
+    nextNativeSessionId === codingSession.nativeSessionId &&
     nextStatus === codingSession.status &&
     nextHostMode === codingSession.hostMode &&
     nextTitle === codingSession.title
@@ -390,6 +441,7 @@ function updateCodingSessionTimestamp(
     lastTurnAt: nextActivityAt,
     transcriptUpdatedAt: nextActivityAt,
     runtimeStatus: nextRuntimeStatus,
+    nativeSessionId: nextNativeSessionId,
   };
   const nextCodingSessionWithMetadata = {
     ...nextCodingSession,
@@ -397,10 +449,17 @@ function updateCodingSessionTimestamp(
     status: nextStatus,
     hostMode: nextHostMode,
   };
+  const nextSortTimestamp = resolveBirdCoderSessionSortTimestampString({
+    ...nextCodingSessionWithMetadata,
+    sortTimestamp: undefined,
+  });
   const nextCodingSessionWithDerivedState = {
     ...nextCodingSessionWithMetadata,
-    displayTime: formatBirdCoderSessionActivityDisplayTime(nextCodingSessionWithMetadata),
-    sortTimestamp: resolveBirdCoderSessionSortTimestamp(nextCodingSessionWithMetadata),
+    displayTime: formatBirdCoderSessionActivityDisplayTime({
+      ...nextCodingSessionWithMetadata,
+      sortTimestamp: nextSortTimestamp,
+    }),
+    sortTimestamp: nextSortTimestamp,
   };
 
   const nextProject = sortProjectCodingSessions({
@@ -498,7 +557,17 @@ export function applyWorkspaceRealtimeEventToProjects(
 
       const project = projects.find((candidateProject) => candidateProject.id === normalizedProjectId);
       if (!project) {
-        return null;
+        const seedProject = buildRealtimeProjectSeed(event);
+        const seedCodingSession = buildRealtimeCodingSessionSeed(event);
+        return seedProject && seedCodingSession
+          ? sortProjectsByActivity([
+              ...projects,
+              {
+                ...seedProject,
+                codingSessions: [seedCodingSession],
+              },
+            ])
+          : null;
       }
 
        const normalizedCodingSessionId = event.codingSessionId?.trim();
@@ -580,13 +649,21 @@ export function isWorkspaceRealtimeEventSatisfiedByProjects(
     case 'coding-session.turn.created': {
       const project = findProject(projects, event.projectId);
       if (!project) {
-        return true;
+        return false;
       }
 
       const codingSession = project.codingSessions.find(
         (candidateCodingSession) => candidateCodingSession.id === event.codingSessionId,
       );
       if (!codingSession) {
+        return false;
+      }
+
+      const requiredNativeSessionId = normalizeRealtimeNativeSessionId(event.nativeSessionId);
+      if (
+        requiredNativeSessionId &&
+        codingSession.nativeSessionId !== requiredNativeSessionId
+      ) {
         return false;
       }
 
@@ -603,8 +680,11 @@ export function isWorkspaceRealtimeEventSatisfiedByProjects(
       }
 
       const hasSatisfiedTimestamp =
-        resolveBirdCoderSessionSortTimestamp(codingSession) >=
-        resolveTimestamp(event.codingSessionUpdatedAt);
+        compareBirdCoderLongIntegers(
+          codingSession.sortTimestamp ??
+            resolveBirdCoderSessionSortTimestampString(codingSession),
+          stringifyBirdCoderLongInteger(resolveTimestamp(event.codingSessionUpdatedAt)),
+        ) >= 0;
       if (!hasSatisfiedTimestamp) {
         return false;
       }

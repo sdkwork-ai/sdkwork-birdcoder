@@ -56,27 +56,302 @@ const USER_CENTER_SQLITE_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS plus_tenant (
     id INTEGER PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
-    code TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
     name TEXT NOT NULL,
-    description TEXT NULL,
+    code TEXT NOT NULL UNIQUE,
+    type TEXT NOT NULL DEFAULT 'PLATFORM',
+    biz_type TEXT NULL,
+    biz_id INTEGER NULL,
+    jwt_secret_key TEXT NOT NULL DEFAULT 'birdcoder-local-tenant-secret',
+    token_expiration_ms INTEGER NULL,
+    refresh_token_expiration_ms INTEGER NULL,
     status TEXT NOT NULL,
+    description TEXT NULL,
+    admin_user_id INTEGER NULL,
+    install_app_list TEXT NULL,
+    expire_time TEXT NULL,
+    metadata TEXT NULL,
+    contact_person TEXT NULL,
+    contact_phone TEXT NULL,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_organization (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    parent_id INTEGER NULL,
+    parent_uuid TEXT NULL,
+    parent_metadata TEXT NULL,
+    name TEXT NOT NULL,
+    jwt_secret_key TEXT NOT NULL UNIQUE,
+    token_expiration_ms INTEGER NULL,
+    refresh_token_expiration_ms INTEGER NULL,
+    code TEXT NOT NULL UNIQUE,
+    install_app_list TEXT NULL,
+    status INTEGER NOT NULL DEFAULT 1,
+    metadata TEXT NULL,
+    description TEXT NULL,
+    contact_person TEXT NULL,
+    contact_phone TEXT NULL,
+    contact_email TEXT NULL,
+    address TEXT NULL,
+    website TEXT NULL,
+    logo_url TEXT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE INDEX IF NOT EXISTS idx_plus_organization_status
+ON plus_organization(status, is_deleted);
+
+CREATE INDEX IF NOT EXISTS idx_plus_organization_parent_id
+ON plus_organization(parent_id, is_deleted);
+
+CREATE TABLE IF NOT EXISTS plus_organization_member (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    owner INTEGER NOT NULL,
+    owner_id INTEGER NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    joined_at TEXT NULL,
+    left_at TEXT NULL,
+    remark TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_org_member_user_id
+ON plus_organization_member(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_org_member_owner_id
+ON plus_organization_member(owner_id);
+
+CREATE INDEX IF NOT EXISTS idx_org_member_user_owner
+ON plus_organization_member(user_id, owner_id);
+
+CREATE TABLE IF NOT EXISTS plus_member_relations (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    parent_id INTEGER NULL,
+    parent_uuid TEXT NULL,
+    parent_metadata TEXT NULL,
+    member_id INTEGER NOT NULL,
+    owner INTEGER NOT NULL,
+    owner_id INTEGER NOT NULL,
+    relation_type INTEGER NOT NULL,
+    target_id INTEGER NOT NULL,
+    is_primary INTEGER NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    effective_at TEXT NULL,
+    expired_at TEXT NULL,
+    sort_order INTEGER NULL,
+    remark TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_member_rel_member_id
+ON plus_member_relations(member_id);
+
+CREATE INDEX IF NOT EXISTS idx_member_rel_target_id
+ON plus_member_relations(target_id);
+
+CREATE INDEX IF NOT EXISTS idx_member_rel_relation_type
+ON plus_member_relations(relation_type);
+
+CREATE INDEX IF NOT EXISTS idx_member_rel_owner_id
+ON plus_member_relations(owner_id);
+
+CREATE INDEX IF NOT EXISTS idx_member_rel_member_owner
+ON plus_member_relations(member_id, owner_id);
+
+CREATE TABLE IF NOT EXISTS plus_department (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    parent_id INTEGER NULL,
+    parent_uuid TEXT NULL,
+    parent_metadata TEXT NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    owner INTEGER NOT NULL,
+    owner_id INTEGER NOT NULL,
+    code TEXT NULL,
+    sort_order INTEGER NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    tree_path TEXT NULL,
+    level INTEGER NULL,
+    manager_id INTEGER NULL,
+    phone TEXT NULL,
+    email TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_dept_org_id
+ON plus_department(owner_id);
+
+CREATE INDEX IF NOT EXISTS idx_dept_code
+ON plus_department(code);
+
+CREATE INDEX IF NOT EXISTS idx_dept_parent_id
+ON plus_department(parent_id);
+
+CREATE INDEX IF NOT EXISTS idx_dept_is_active
+ON plus_department(is_active);
+
+CREATE INDEX IF NOT EXISTS idx_dept_org_parent
+ON plus_department(owner_id, parent_id);
+
+CREATE INDEX IF NOT EXISTS idx_dept_level
+ON plus_department(level);
+
+CREATE TABLE IF NOT EXISTS plus_position (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    parent_id INTEGER NULL,
+    parent_uuid TEXT NULL,
+    parent_metadata TEXT NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    owner INTEGER NOT NULL,
+    owner_id INTEGER NOT NULL,
+    code TEXT NULL,
+    level INTEGER NOT NULL,
+    sort_order INTEGER NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    tree_path TEXT NULL,
+    category TEXT NULL,
+    required_experience_years INTEGER NULL,
+    required_education TEXT NULL,
+    max_member_count INTEGER NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_position_org_id
+ON plus_position(owner_id);
+
+CREATE INDEX IF NOT EXISTS idx_position_code
+ON plus_position(code);
+
+CREATE INDEX IF NOT EXISTS idx_position_level
+ON plus_position(level);
+
+CREATE INDEX IF NOT EXISTS idx_position_parent_id
+ON plus_position(parent_id);
+
+CREATE INDEX IF NOT EXISTS idx_position_is_active
+ON plus_position(is_active);
+
+CREATE TABLE IF NOT EXISTS plus_role (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    status INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_permission (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL UNIQUE,
+    description TEXT NULL,
+    status INTEGER NOT NULL,
+    sort_order INTEGER NULL,
+    resource_url TEXT NULL,
+    http_method TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_role_permission (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    role_id INTEGER NOT NULL,
+    role_uuid TEXT NOT NULL,
+    permission_id INTEGER NOT NULL,
+    permission_uuid TEXT NOT NULL,
+    status INTEGER NOT NULL DEFAULT 1,
+    description TEXT NULL,
+    operator_id INTEGER NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_role_permission1
+ON plus_role_permission(role_id, permission_id);
+
+CREATE TABLE IF NOT EXISTS plus_user_role (
+    id INTEGER NULL,
+    uuid TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    role_id INTEGER NOT NULL,
+    operator_id INTEGER NULL,
+    PRIMARY KEY (user_id, role_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_role1
+ON plus_user_role(user_id, role_id);
+
 CREATE TABLE IF NOT EXISTS plus_user (
     id INTEGER PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
-    tenant_id INTEGER NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
     username TEXT NOT NULL UNIQUE,
     nickname TEXT NOT NULL,
     password TEXT NOT NULL,
     salt TEXT NULL,
     platform TEXT NOT NULL,
     type TEXT NOT NULL,
+    gender TEXT NULL,
+    face_image TEXT NULL,
+    face_video TEXT NULL,
     scene TEXT NULL,
     email TEXT NULL UNIQUE,
     phone TEXT NULL,
@@ -86,6 +361,10 @@ CREATE TABLE IF NOT EXISTS plus_user (
     district_code TEXT NULL,
     address TEXT NULL,
     bio TEXT NULL,
+    birth_date TEXT NULL,
+    oauth_user_info TEXT NULL,
+    metadata TEXT NULL,
+    social_info_list TEXT NULL,
     avatar_url TEXT NULL,
     provider_key TEXT NOT NULL,
     external_subject TEXT NULL,
@@ -100,35 +379,3233 @@ CREATE TABLE IF NOT EXISTS plus_user (
 CREATE TABLE IF NOT EXISTS plus_oauth_account (
     id INTEGER PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
-    tenant_id INTEGER NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
     user_id INTEGER NOT NULL,
     oauth_provider TEXT NOT NULL,
     open_id TEXT NOT NULL,
     union_id TEXT NULL,
     app_id TEXT NULL,
+    channel_account_id INTEGER NULL,
+    access_token_expires_at TEXT NULL,
+    oauth_user_info TEXT NULL,
     oauth_user_info_json TEXT NULL,
     status TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    UNIQUE (oauth_provider, open_id)
+    UNIQUE (oauth_provider, open_id),
+    UNIQUE (oauth_provider, union_id)
 );
+
+CREATE TABLE IF NOT EXISTS plus_user_address (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    country_code TEXT NULL,
+    province_code TEXT NULL,
+    city_code TEXT NULL,
+    district_code TEXT NULL,
+    address_detail TEXT NOT NULL,
+    postal_code TEXT NULL,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    tag TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_card (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    card_organization_id INTEGER NULL,
+    card_type INTEGER NULL,
+    code_type INTEGER NULL,
+    title TEXT NULL,
+    brand_name TEXT NULL,
+    logo_url TEXT NULL,
+    notice TEXT NULL,
+    description TEXT NULL,
+    color TEXT NULL,
+    quantity INTEGER NULL,
+    get_limit INTEGER NULL,
+    can_share INTEGER NULL,
+    can_give_friend INTEGER NULL,
+    start_time TEXT NULL,
+    end_time TEXT NULL,
+    status INTEGER NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_user_card (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    card_id INTEGER NULL,
+    card_code TEXT NULL,
+    acquire_time TEXT NULL,
+    activate_time TEXT NULL,
+    cancel_time TEXT NULL,
+    points INTEGER NULL,
+    balance INTEGER NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_user_card_user_card
+ON plus_user_card(user_id, card_id);
+
+CREATE TABLE IF NOT EXISTS plus_member_card (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    card_id INTEGER NULL,
+    supply_bonus INTEGER NULL,
+    supply_balance INTEGER NULL,
+    bonus_name TEXT NULL,
+    balance_name TEXT NULL,
+    prerogative TEXT NULL,
+    auto_activate INTEGER NULL,
+    wx_activate INTEGER NULL,
+    cost_money_unit INTEGER NULL,
+    increase_bonus INTEGER NULL,
+    init_increase_bonus INTEGER NULL,
+    max_increase_bonus INTEGER NULL,
+    cost_bonus_unit INTEGER NULL,
+    reduce_money INTEGER NULL,
+    least_money_to_use_bonus INTEGER NULL,
+    max_reduce_bonus INTEGER NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_member_level (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    card_id INTEGER NULL,
+    level_name TEXT NULL,
+    required_points INTEGER NULL,
+    description TEXT NULL,
+    status INTEGER NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_card_template (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    name TEXT NULL,
+    template_code TEXT NULL UNIQUE,
+    card_type INTEGER NOT NULL,
+    code_type INTEGER NULL,
+    title TEXT NULL,
+    description TEXT NULL,
+    brand_name TEXT NULL,
+    logo_url TEXT NULL,
+    notice TEXT NULL,
+    color TEXT NULL,
+    quantity INTEGER NULL,
+    get_limit INTEGER NULL,
+    can_share INTEGER NULL,
+    can_give_friend INTEGER NULL,
+    minimum_balance NUMERIC NULL,
+    initial_balance NUMERIC NULL,
+    discount_rate NUMERIC NULL,
+    validity_type INTEGER NOT NULL,
+    start_time TEXT NULL,
+    end_time TEXT NULL,
+    validity_days INTEGER NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NULL
+);
+
+CREATE TABLE IF NOT EXISTS plus_coupon (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    name TEXT NOT NULL,
+    redeem_code TEXT NULL UNIQUE,
+    point_cost INTEGER NULL,
+    type INTEGER NOT NULL,
+    description TEXT NULL,
+    amount INTEGER NULL,
+    discount REAL NULL,
+    min_consume INTEGER NULL,
+    start_time TEXT NULL,
+    end_time TEXT NULL,
+    total INTEGER NULL,
+    get_limit INTEGER NULL,
+    received_count INTEGER NULL,
+    used_count INTEGER NULL,
+    status INTEGER NOT NULL,
+    stackable INTEGER NOT NULL,
+    scope_type INTEGER NOT NULL,
+    scope_value TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_coupon_template (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    name TEXT NOT NULL,
+    template_code TEXT NULL UNIQUE,
+    type INTEGER NOT NULL,
+    description TEXT NULL,
+    amount INTEGER NULL,
+    discount REAL NULL,
+    min_consume INTEGER NULL,
+    start_time TEXT NULL,
+    end_time TEXT NULL,
+    total INTEGER NULL,
+    get_limit INTEGER NULL,
+    received_count INTEGER NULL,
+    used_count INTEGER NULL,
+    status INTEGER NULL,
+    validity_type INTEGER NULL,
+    validity_days INTEGER NULL,
+    can_share INTEGER NULL,
+    stackable INTEGER NULL,
+    scope_type INTEGER NULL,
+    scope_value TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_user_coupon (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    coupon_id INTEGER NOT NULL,
+    coupon_code TEXT NOT NULL,
+    acquire_at TEXT NOT NULL,
+    acquire_request_no TEXT NULL,
+    acquire_type INTEGER NOT NULL,
+    point_cost INTEGER NULL,
+    points_refunded INTEGER NOT NULL,
+    points_refund_at TEXT NULL,
+    use_at TEXT NULL,
+    expire_at TEXT NULL,
+    status INTEGER NOT NULL,
+    order_id INTEGER NULL,
+    can_shared INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (coupon_code),
+    UNIQUE (user_id, acquire_request_no)
+);
+
+CREATE TABLE IF NOT EXISTS plus_product (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    code TEXT NULL UNIQUE,
+    subtitle TEXT NULL,
+    resources TEXT NULL,
+    price NUMERIC NOT NULL,
+    original_price NUMERIC NULL,
+    stock INTEGER NOT NULL,
+    sales_count INTEGER NULL,
+    status INTEGER NOT NULL,
+    on_sale_at TEXT NULL,
+    description TEXT NULL,
+    tags TEXT NULL,
+    category_id INTEGER NOT NULL,
+    base_attributes TEXT NOT NULL,
+    spec_attributes TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_sku (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    product_id INTEGER NOT NULL,
+    sku_code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    title TEXT NULL,
+    price NUMERIC NOT NULL,
+    original_price NUMERIC NULL,
+    stock INTEGER NOT NULL,
+    sales INTEGER NULL,
+    status INTEGER NOT NULL,
+    image TEXT NULL,
+    specs TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_sku_product
+ON plus_sku(product_id);
+
+CREATE INDEX IF NOT EXISTS idx_sku_code
+ON plus_sku(sku_code);
+
+CREATE TABLE IF NOT EXISTS plus_currency (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    symbol TEXT NULL,
+    currency_type INTEGER NOT NULL,
+    precision_digits INTEGER NULL,
+    is_active INTEGER NULL,
+    description TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (name)
+);
+
+CREATE TABLE IF NOT EXISTS plus_exchange_rate (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    base_currency_id INTEGER NOT NULL,
+    target_currency_id INTEGER NOT NULL,
+    base_currency_code TEXT NULL,
+    target_currency_code TEXT NULL,
+    rate NUMERIC NOT NULL,
+    effective_date TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (base_currency_id, target_currency_id, effective_date)
+);
+
+CREATE TABLE IF NOT EXISTS plus_agent_skill_package (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    package_key TEXT NOT NULL,
+    name TEXT NOT NULL,
+    summary TEXT NULL,
+    description TEXT NULL,
+    icon TEXT NULL,
+    cover_image TEXT NULL,
+    category_id INTEGER NULL,
+    enabled INTEGER NOT NULL,
+    featured INTEGER NOT NULL,
+    sort_weight INTEGER NOT NULL,
+    tags TEXT NULL,
+    latest_published_at TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (tenant_id, organization_id, package_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_agent_skill_package_user
+ON plus_agent_skill_package(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_agent_skill_package_category
+ON plus_agent_skill_package(category_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_agent_skill_package_market
+ON plus_agent_skill_package(enabled, featured, sort_weight);
+
+CREATE TABLE IF NOT EXISTS plus_agent_skill (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    skill_key TEXT NOT NULL,
+    name TEXT NOT NULL,
+    summary TEXT NULL,
+    description TEXT NULL,
+    icon TEXT NULL,
+    cover_image TEXT NULL,
+    category_id INTEGER NULL,
+    package_id INTEGER NULL,
+    provider TEXT NULL,
+    version TEXT NULL,
+    version_name TEXT NULL,
+    runtime TEXT NULL,
+    entrypoint TEXT NULL,
+    manifest_url TEXT NULL,
+    repository_url TEXT NULL,
+    homepage_url TEXT NULL,
+    documentation_url TEXT NULL,
+    license_name TEXT NULL,
+    source_type TEXT NOT NULL,
+    market_status TEXT NOT NULL,
+    visibility TEXT NOT NULL,
+    review_status TEXT NOT NULL,
+    review_comment TEXT NULL,
+    reviewed_by INTEGER NULL,
+    reviewed_at TEXT NULL,
+    builtin INTEGER NOT NULL,
+    is_builtin INTEGER NOT NULL,
+    enabled INTEGER NOT NULL,
+    featured INTEGER NOT NULL,
+    recommend_weight INTEGER NOT NULL,
+    price NUMERIC NULL,
+    currency TEXT NULL,
+    install_count INTEGER NOT NULL,
+    rating_avg NUMERIC NULL,
+    rating_count INTEGER NOT NULL,
+    tags TEXT NULL,
+    capabilities TEXT NULL,
+    config_schema TEXT NULL,
+    default_config TEXT NULL,
+    latest_published_at TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (tenant_id, organization_id, skill_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_agent_skill_user
+ON plus_agent_skill(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_agent_skill_category
+ON plus_agent_skill(category_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_agent_skill_package
+ON plus_agent_skill(package_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_agent_skill_market
+ON plus_agent_skill(enabled, market_status, visibility, review_status);
+
+CREATE INDEX IF NOT EXISTS idx_plus_agent_skill_featured
+ON plus_agent_skill(featured, recommend_weight);
+
+CREATE TABLE IF NOT EXISTS plus_user_agent_skill (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    skill_id INTEGER NOT NULL,
+    enabled INTEGER NOT NULL,
+    config TEXT NULL,
+    installed_at TEXT NULL,
+    last_enabled_at TEXT NULL,
+    last_used_at TEXT NULL,
+    used_count INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (tenant_id, organization_id, user_id, skill_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_user_agent_skill_user
+ON plus_user_agent_skill(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_user_agent_skill_skill
+ON plus_user_agent_skill(skill_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_user_agent_skill_enabled
+ON plus_user_agent_skill(enabled);
+
+CREATE TABLE IF NOT EXISTS plus_agent_plugin (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 0,
+    name TEXT NOT NULL,
+    code TEXT NULL,
+    description TEXT NULL,
+    version TEXT NULL,
+    type TEXT NULL,
+    config TEXT NULL,
+    is_enabled INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_agent_plugin_code
+ON plus_agent_plugin(code);
+
+CREATE INDEX IF NOT EXISTS idx_plus_agent_plugin_type
+ON plus_agent_plugin(type);
+
+CREATE INDEX IF NOT EXISTS idx_plus_agent_plugin_enabled
+ON plus_agent_plugin(is_enabled);
+
+CREATE TABLE IF NOT EXISTS plus_datasource (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    channel TEXT NOT NULL,
+    channel_id TEXT NOT NULL,
+    type INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    description TEXT NULL,
+    connection_config TEXT NOT NULL,
+    url TEXT NULL,
+    owner TEXT NULL,
+    last_connected_at TEXT NULL,
+    connection_timeout INTEGER NULL,
+    tags TEXT NULL,
+    db_version TEXT NULL,
+    security_level INTEGER NULL,
+    access_count INTEGER NOT NULL DEFAULT 0,
+    icon TEXT NULL,
+    color TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_datasource_name
+ON plus_datasource(name);
+
+CREATE INDEX IF NOT EXISTS idx_plus_datasource_type
+ON plus_datasource(type);
+
+CREATE INDEX IF NOT EXISTS idx_plus_datasource_status
+ON plus_datasource(status);
+
+CREATE INDEX IF NOT EXISTS idx_plus_datasource_project_id
+ON plus_datasource(project_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_datasource_user_id
+ON plus_datasource(user_id);
+
+
+CREATE TABLE IF NOT EXISTS plus_schema (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 0,
+    datasource_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    status INTEGER NOT NULL DEFAULT 1,
+    table_count INTEGER NOT NULL DEFAULT 0,
+    last_sync_time TEXT NULL,
+    is_default INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_schema_name
+ON plus_schema(name);
+
+CREATE INDEX IF NOT EXISTS idx_plus_schema_datasource_id
+ON plus_schema(datasource_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_schema_datasource_name
+ON plus_schema(datasource_id, name);
+
+CREATE TABLE IF NOT EXISTS plus_table (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 0,
+    schema_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    type TEXT NULL,
+    column_count INTEGER NOT NULL DEFAULT 0,
+    row_count INTEGER NOT NULL DEFAULT 0,
+    last_sync_time TEXT NULL,
+    primary_keys TEXT NULL,
+    engine TEXT NULL,
+    create_sql TEXT NULL,
+    comment TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_table_name
+ON plus_table(name);
+
+CREATE INDEX IF NOT EXISTS idx_plus_table_schema_id
+ON plus_table(schema_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_table_schema_name
+ON plus_table(schema_id, name);
+
+CREATE TABLE IF NOT EXISTS plus_column (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 0,
+    table_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    data_type TEXT NULL,
+    column_type TEXT NULL,
+    ordinal_position INTEGER NULL,
+    is_nullable INTEGER NOT NULL DEFAULT 1,
+    is_primary_key INTEGER NOT NULL DEFAULT 0,
+    is_auto_increment INTEGER NOT NULL DEFAULT 0,
+    default_value TEXT NULL,
+    comment TEXT NULL,
+    character_set TEXT NULL,
+    collation_rule TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_column_name
+ON plus_column(name);
+
+CREATE INDEX IF NOT EXISTS idx_plus_column_table_id
+ON plus_column(table_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_column_ordinal_position
+ON plus_column(ordinal_position);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_column_table_name
+ON plus_column(table_id, name);
+
+CREATE TABLE IF NOT EXISTS plus_ai_generation (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
+    title TEXT NULL,
+    request_id TEXT NOT NULL UNIQUE,
+    idempotency_key TEXT NULL,
+    type TEXT NOT NULL,
+    model TEXT NOT NULL,
+    channel TEXT NOT NULL,
+    input_params TEXT NULL,
+    output_result TEXT NULL,
+    status INTEGER NOT NULL,
+    progress INTEGER NOT NULL DEFAULT 0,
+    channel_task_id TEXT NULL,
+    channel_task_status TEXT NULL,
+    channel_task_info TEXT NULL,
+    cost NUMERIC NULL,
+    error_code TEXT NULL,
+    error_message TEXT NULL,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    max_retry INTEGER NOT NULL DEFAULT 3,
+    started_at TEXT NULL,
+    completed_at TEXT NULL,
+    conversation_id INTEGER NULL,
+    message_id INTEGER NULL,
+    parent_id INTEGER NULL,
+    batch_id TEXT NULL,
+    callback_url TEXT NULL,
+    biz_scene TEXT NULL,
+    biz_id INTEGER NULL,
+    is_public INTEGER NOT NULL DEFAULT 0,
+    view_count INTEGER NOT NULL DEFAULT 0,
+    like_count INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_ai_generation_user_type_idempotency
+ON plus_ai_generation(user_id, type, idempotency_key);
+
+CREATE INDEX IF NOT EXISTS idx_plus_ai_generation_user_status
+ON plus_ai_generation(user_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_plus_ai_generation_type_status
+ON plus_ai_generation(type, status);
+
+CREATE INDEX IF NOT EXISTS idx_plus_ai_generation_channel_task
+ON plus_ai_generation(channel_task_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_ai_generation_conversation
+ON plus_ai_generation(conversation_id);
+
+CREATE TABLE IF NOT EXISTS plus_ai_generation_content (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
+    channel TEXT NOT NULL,
+    type TEXT NOT NULL,
+    generation_id INTEGER NOT NULL DEFAULT 0,
+    tags TEXT NULL,
+    title TEXT NULL,
+    description TEXT NULL,
+    content_type INTEGER NOT NULL,
+    content_id INTEGER NULL,
+    metadata TEXT NULL,
+    input_params TEXT NULL,
+    output TEXT NULL,
+    content_format TEXT NULL,
+    original_prompt TEXT NULL,
+    optimized_prompt TEXT NULL,
+    negative_prompt TEXT NULL,
+    seed INTEGER NULL,
+    steps INTEGER NULL,
+    cfg_scale NUMERIC NULL,
+    sampler TEXT NULL,
+    width INTEGER NULL,
+    height INTEGER NULL,
+    duration NUMERIC NULL,
+    file_size INTEGER NULL,
+    file_url TEXT NULL,
+    file_urls TEXT NULL,
+    thumbnail_url TEXT NULL,
+    preview_url TEXT NULL,
+    style TEXT NULL,
+    language TEXT NULL,
+    voice_id TEXT NULL,
+    is_hd INTEGER NOT NULL DEFAULT 0,
+    variant_index INTEGER NULL,
+    extra_params TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_ai_generation_content_generation
+ON plus_ai_generation_content(generation_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_ai_generation_content_content_type
+ON plus_ai_generation_content(content_type);
+
+CREATE INDEX IF NOT EXISTS idx_plus_ai_generation_content_content_id
+ON plus_ai_generation_content(content_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_ai_generation_content_created_at
+ON plus_ai_generation_content(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_ai_generation_style (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    type INTEGER NOT NULL,
+    config_params TEXT NULL,
+    tags TEXT NULL,
+    cover_image TEXT NULL,
+    assets TEXT NULL,
+    preview_image TEXT NULL,
+    is_public INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    usage_count INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_ai_generation_style_user_id
+ON plus_ai_generation_style(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_ai_generation_style_name
+ON plus_ai_generation_style(name);
+
+CREATE INDEX IF NOT EXISTS idx_plus_ai_generation_style_type
+ON plus_ai_generation_style(type);
+
+CREATE INDEX IF NOT EXISTS idx_plus_ai_generation_style_status
+ON plus_ai_generation_style(status);
+
+CREATE TABLE IF NOT EXISTS plus_channel (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    name TEXT NOT NULL,
+    channel INTEGER NOT NULL,
+    types TEXT NULL,
+    support_resources TEXT NULL,
+    status INTEGER NOT NULL,
+    description TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_channel_channel
+ON plus_channel(channel);
+
+CREATE INDEX IF NOT EXISTS idx_plus_channel_status
+ON plus_channel(status);
+
+CREATE TABLE IF NOT EXISTS plus_channel_account (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    name TEXT NOT NULL,
+    account_key TEXT NOT NULL,
+    channel INTEGER NOT NULL,
+    types TEXT NULL,
+    support_resources TEXT NULL,
+    configs TEXT NULL,
+    proxy_account_configs TEXT NULL,
+    status INTEGER NOT NULL,
+    description TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_channel_account_key
+ON plus_channel_account(account_key);
+
+CREATE INDEX IF NOT EXISTS idx_plus_channel_account_channel
+ON plus_channel_account(channel);
+
+CREATE INDEX IF NOT EXISTS idx_plus_channel_account_status
+ON plus_channel_account(status);
+
+CREATE TABLE IF NOT EXISTS plus_channel_proxy (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    name TEXT NOT NULL,
+    channel INTEGER NOT NULL,
+    proxy INTEGER NOT NULL,
+    default_model TEXT NULL,
+    status INTEGER NOT NULL,
+    description TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_channel_proxy_channel
+ON plus_channel_proxy(channel);
+
+CREATE INDEX IF NOT EXISTS idx_plus_channel_proxy_status
+ON plus_channel_proxy(status);
+
+CREATE TABLE IF NOT EXISTS plus_channel_resource (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    resource INTEGER NOT NULL,
+    channel INTEGER NOT NULL,
+    channel_account_id INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_channel_resource_account
+ON plus_channel_resource(channel_account_id);
+
+CREATE TABLE IF NOT EXISTS plus_api_key (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    name TEXT NOT NULL,
+    key_value TEXT NOT NULL,
+    key_type INTEGER NOT NULL,
+    owner INTEGER NULL,
+    status INTEGER NOT NULL,
+    expire_time TEXT NULL,
+    description TEXT NULL,
+    last_used_time TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_api_key_key_value
+ON plus_api_key(key_value);
+
+CREATE INDEX IF NOT EXISTS idx_plus_api_key_user
+ON plus_api_key(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_api_key_status
+ON plus_api_key(status);
+
+CREATE TABLE IF NOT EXISTS plus_app (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    name TEXT NOT NULL,
+    icon TEXT NULL,
+    resource_list TEXT NULL,
+    project_id INTEGER NULL,
+    description TEXT NULL,
+    version TEXT NULL,
+    icon_url TEXT NULL,
+    access_url TEXT NULL,
+    config TEXT NULL,
+    status INTEGER NULL,
+    app_type INTEGER NULL,
+    platforms TEXT NULL,
+    install_platforms TEXT NULL,
+    install_skill TEXT NULL,
+    install_config TEXT NULL,
+    release_notes TEXT NULL,
+    package_name TEXT NULL,
+    bundle_id TEXT NULL,
+    store_url TEXT NULL,
+    download_url TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_user_id
+ON plus_app(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_app_project_id
+ON plus_app(project_id);
+
+CREATE INDEX IF NOT EXISTS idx_app_status
+ON plus_app(status);
+
+CREATE TABLE IF NOT EXISTS plus_ai_model_availability (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    object_id TEXT NOT NULL,
+    model_id INTEGER NULL,
+    channel TEXT NULL,
+    model_key TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    environment TEXT NOT NULL,
+    region_code TEXT NOT NULL,
+    access_tier TEXT NOT NULL,
+    available INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    effective_from TEXT NULL,
+    effective_to TEXT NULL,
+    reason TEXT NULL,
+    metadata TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_model_availability_scope
+ON plus_ai_model_availability(tenant_id, organization_id, channel, model_key, platform, environment, region_code, access_tier);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_availability_model
+ON plus_ai_model_availability(model_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_availability_channel_key
+ON plus_ai_model_availability(channel, model_key);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_availability_platform_env
+ON plus_ai_model_availability(platform, environment);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_availability_region
+ON plus_ai_model_availability(region_code);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_availability_status
+ON plus_ai_model_availability(status, available);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_availability_time
+ON plus_ai_model_availability(effective_from, effective_to);
+
+CREATE TABLE IF NOT EXISTS plus_ai_model_compliance_profile (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    object_id TEXT NOT NULL,
+    model_id INTEGER NULL,
+    channel TEXT NULL,
+    model_key TEXT NOT NULL,
+    standard_code TEXT NOT NULL,
+    standard_name TEXT NULL,
+    level TEXT NOT NULL,
+    status TEXT NOT NULL,
+    verified_by TEXT NULL,
+    auditor TEXT NULL,
+    certificate_no TEXT NULL,
+    certificate_url TEXT NULL,
+    valid_from TEXT NULL,
+    valid_to TEXT NULL,
+    data_residency_regions TEXT NULL,
+    controls TEXT NULL,
+    notes TEXT NULL,
+    metadata TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_model_compliance_standard
+ON plus_ai_model_compliance_profile(tenant_id, organization_id, channel, model_key, standard_code);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_compliance_model
+ON plus_ai_model_compliance_profile(model_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_compliance_channel_key
+ON plus_ai_model_compliance_profile(channel, model_key);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_compliance_standard
+ON plus_ai_model_compliance_profile(standard_code);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_compliance_level
+ON plus_ai_model_compliance_profile(level);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_compliance_status
+ON plus_ai_model_compliance_profile(status);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_compliance_valid
+ON plus_ai_model_compliance_profile(valid_from, valid_to);
+
+CREATE TABLE IF NOT EXISTS plus_ai_model_info (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    object_id TEXT NOT NULL,
+    channel INTEGER NULL,
+    vendor INTEGER NULL,
+    model TEXT NOT NULL,
+    model_id TEXT NOT NULL,
+    model_key TEXT NOT NULL,
+    vendor_model TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    version TEXT NULL,
+    family TEXT NULL,
+    open_source INTEGER NULL,
+    api_endpoint TEXT NULL,
+    model_type INTEGER NULL,
+    pricing_type TEXT NULL,
+    lifecycle_stage TEXT NULL,
+    release_date TEXT NULL,
+    deprecated_at TEXT NULL,
+    context_tokens INTEGER NULL,
+    max_input_tokens INTEGER NULL,
+    max_output_tokens INTEGER NULL,
+    support_reasoning INTEGER NULL,
+    support_multimodal INTEGER NULL,
+    support_function_call INTEGER NULL,
+    support_structured_output INTEGER NULL,
+    support_realtime INTEGER NULL,
+    support_fine_tuning INTEGER NULL,
+    popularity_score INTEGER NULL,
+    scenes TEXT NULL,
+    tags TEXT NULL,
+    owned_by TEXT NULL,
+    function_info TEXT NULL,
+    limit_info TEXT NULL,
+    price_info TEXT NULL,
+    metadata TEXT NULL,
+    product_support_info TEXT NULL,
+    supported_voices TEXT NULL,
+    default_temperature REAL NULL,
+    default_top_p REAL NULL,
+    default_frequency_penalty REAL NULL,
+    default_presence_penalty REAL NULL,
+    status INTEGER NULL,
+    usage_count INTEGER NULL,
+    total_tokens INTEGER NULL,
+    avg_response_time INTEGER NULL,
+    config_params TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_model_channel_key
+ON plus_ai_model_info(channel, model_key);
+
+CREATE INDEX IF NOT EXISTS idx_model_channel
+ON plus_ai_model_info(channel);
+
+CREATE INDEX IF NOT EXISTS idx_model_type
+ON plus_ai_model_info(model_type);
+
+CREATE INDEX IF NOT EXISTS idx_model_status
+ON plus_ai_model_info(status);
+
+CREATE INDEX IF NOT EXISTS idx_model_family
+ON plus_ai_model_info(family);
+
+CREATE INDEX IF NOT EXISTS idx_model_vendor
+ON plus_ai_model_info(vendor);
+
+CREATE INDEX IF NOT EXISTS idx_model_model_id
+ON plus_ai_model_info(model_id);
+
+CREATE INDEX IF NOT EXISTS idx_model_model_key
+ON plus_ai_model_info(model_key);
+
+CREATE INDEX IF NOT EXISTS idx_model_pricing_type
+ON plus_ai_model_info(pricing_type);
+
+CREATE INDEX IF NOT EXISTS idx_model_lifecycle_stage
+ON plus_ai_model_info(lifecycle_stage);
+
+CREATE INDEX IF NOT EXISTS idx_model_release_date
+ON plus_ai_model_info(release_date);
+
+CREATE INDEX IF NOT EXISTS idx_model_context_tokens
+ON plus_ai_model_info(context_tokens);
+
+CREATE INDEX IF NOT EXISTS idx_model_support_reasoning
+ON plus_ai_model_info(support_reasoning);
+
+CREATE INDEX IF NOT EXISTS idx_model_support_multimodal
+ON plus_ai_model_info(support_multimodal);
+
+CREATE INDEX IF NOT EXISTS idx_model_popularity_score
+ON plus_ai_model_info(popularity_score);
+
+CREATE TABLE IF NOT EXISTS plus_ai_model_price (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    object_id TEXT NOT NULL,
+    model_id INTEGER NULL,
+    channel TEXT NULL,
+    model_key TEXT NULL,
+    model TEXT NOT NULL,
+    product_code TEXT NULL,
+    feature_code TEXT NULL,
+    billing_type TEXT NULL,
+    price_item_type TEXT NULL,
+    tier_name TEXT NULL,
+    rule_priority INTEGER NULL,
+    unit TEXT NOT NULL,
+    unit_size REAL NULL,
+    price REAL NULL,
+    input_price REAL NULL,
+    batch_input_price REAL NULL,
+    cached_input_price REAL NULL,
+    batch_cached_input_price REAL NULL,
+    output_price REAL NULL,
+    batch_output_price REAL NULL,
+    currency TEXT NOT NULL,
+    min_usage REAL NULL,
+    max_usage REAL NULL,
+    effective_from TEXT NULL,
+    effective_to TEXT NULL,
+    is_default INTEGER NULL,
+    status TEXT NULL,
+    metadata TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_price_model_id
+ON plus_ai_model_price(model_id);
+
+CREATE INDEX IF NOT EXISTS idx_model_price_channel_model_key
+ON plus_ai_model_price(channel, model_key);
+
+CREATE INDEX IF NOT EXISTS idx_model_price_product
+ON plus_ai_model_price(product_code);
+
+CREATE INDEX IF NOT EXISTS idx_model_price_feature
+ON plus_ai_model_price(feature_code);
+
+CREATE INDEX IF NOT EXISTS idx_model_price_effective_time
+ON plus_ai_model_price(effective_from, effective_to);
+
+CREATE INDEX IF NOT EXISTS idx_model_price_status
+ON plus_ai_model_price(status);
+
+CREATE INDEX IF NOT EXISTS idx_model_price_lookup
+ON plus_ai_model_price(channel, model_key, product_code, feature_code, status, effective_from, effective_to, is_default);
+
+CREATE TABLE IF NOT EXISTS plus_ai_model_price_metric (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    object_id TEXT NOT NULL,
+    price_rule_id INTEGER NOT NULL,
+    model_id INTEGER NULL,
+    channel TEXT NULL,
+    model_key TEXT NULL,
+    product_code TEXT NULL,
+    feature_code TEXT NULL,
+    metric_type TEXT NOT NULL,
+    billing_type TEXT NOT NULL,
+    unit TEXT NOT NULL,
+    unit_size REAL NULL,
+    price REAL NULL,
+    currency TEXT NOT NULL,
+    min_usage REAL NULL,
+    max_usage REAL NULL,
+    tier_no INTEGER NOT NULL,
+    tier_name TEXT NULL,
+    effective_from TEXT NULL,
+    effective_to TEXT NULL,
+    status INTEGER NOT NULL,
+    metadata TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_model_price_metric
+ON plus_ai_model_price_metric(tenant_id, organization_id, price_rule_id, metric_type, tier_no);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_price_metric_price_rule
+ON plus_ai_model_price_metric(price_rule_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_price_metric_model
+ON plus_ai_model_price_metric(model_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_price_metric_channel_key
+ON plus_ai_model_price_metric(channel, model_key);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_price_metric_product_feature
+ON plus_ai_model_price_metric(product_code, feature_code);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_price_metric_effective
+ON plus_ai_model_price_metric(effective_from, effective_to);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_price_metric_status
+ON plus_ai_model_price_metric(status);
+
+CREATE TABLE IF NOT EXISTS plus_ai_model_taxonomy (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    object_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    parent_id INTEGER NULL,
+    path TEXT NULL,
+    level_no INTEGER NULL,
+    icon TEXT NULL,
+    color TEXT NULL,
+    sort_weight INTEGER NULL,
+    visible INTEGER NULL,
+    is_builtin INTEGER NULL,
+    status INTEGER NOT NULL,
+    metadata TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_model_taxonomy_code
+ON plus_ai_model_taxonomy(tenant_id, organization_id, type, code);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_taxonomy_type
+ON plus_ai_model_taxonomy(type);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_taxonomy_parent
+ON plus_ai_model_taxonomy(parent_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_taxonomy_status
+ON plus_ai_model_taxonomy(status);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_taxonomy_sort
+ON plus_ai_model_taxonomy(sort_weight);
+
+CREATE TABLE IF NOT EXISTS plus_ai_model_taxonomy_rel (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    object_id TEXT NOT NULL,
+    model_id INTEGER NOT NULL,
+    channel TEXT NULL,
+    model_key TEXT NULL,
+    taxonomy_id INTEGER NOT NULL,
+    taxonomy_type TEXT NOT NULL,
+    taxonomy_code TEXT NULL,
+    relation_weight INTEGER NULL,
+    is_primary_tag INTEGER NULL,
+    metadata TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_model_taxonomy_rel
+ON plus_ai_model_taxonomy_rel(tenant_id, organization_id, model_id, taxonomy_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_taxonomy_rel_model
+ON plus_ai_model_taxonomy_rel(model_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_taxonomy_rel_taxonomy
+ON plus_ai_model_taxonomy_rel(taxonomy_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_taxonomy_rel_type
+ON plus_ai_model_taxonomy_rel(taxonomy_type);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_taxonomy_rel_channel_key
+ON plus_ai_model_taxonomy_rel(channel, model_key);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_taxonomy_rel_code
+ON plus_ai_model_taxonomy_rel(taxonomy_code);
+
+CREATE TABLE IF NOT EXISTS plus_ai_tenant_model_policy (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    object_id TEXT NOT NULL,
+    policy_code TEXT NOT NULL,
+    subject_type TEXT NOT NULL,
+    subject_id INTEGER NULL,
+    channel TEXT NULL,
+    model_id INTEGER NULL,
+    model_key TEXT NULL,
+    feature_code TEXT NULL,
+    decision TEXT NOT NULL,
+    enabled INTEGER NOT NULL,
+    priority INTEGER NOT NULL,
+    qps_limit INTEGER NULL,
+    concurrency_limit INTEGER NULL,
+    daily_token_quota INTEGER NULL,
+    monthly_token_quota INTEGER NULL,
+    daily_request_quota INTEGER NULL,
+    monthly_request_quota INTEGER NULL,
+    effective_from TEXT NULL,
+    effective_to TEXT NULL,
+    reason TEXT NULL,
+    status INTEGER NOT NULL,
+    metadata TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_tenant_model_policy_code
+ON plus_ai_tenant_model_policy(tenant_id, organization_id, policy_code);
+
+CREATE INDEX IF NOT EXISTS idx_ai_tenant_model_policy_subject
+ON plus_ai_tenant_model_policy(subject_type, subject_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_tenant_model_policy_model
+ON plus_ai_tenant_model_policy(channel, model_key);
+
+CREATE INDEX IF NOT EXISTS idx_ai_tenant_model_policy_feature
+ON plus_ai_tenant_model_policy(feature_code);
+
+CREATE INDEX IF NOT EXISTS idx_ai_tenant_model_policy_effective
+ON plus_ai_tenant_model_policy(effective_from, effective_to);
+
+CREATE INDEX IF NOT EXISTS idx_ai_tenant_model_policy_priority
+ON plus_ai_tenant_model_policy(enabled, priority);
+
+CREATE INDEX IF NOT EXISTS idx_ai_tenant_model_policy_status
+ON plus_ai_tenant_model_policy(status);
+
+CREATE TABLE IF NOT EXISTS plus_ai_agent_tool_relation (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    agent_id INTEGER NOT NULL,
+    tool_id INTEGER NOT NULL,
+    sort_order INTEGER NULL,
+    enabled INTEGER NOT NULL,
+    actions TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_agent_tool
+ON plus_ai_agent_tool_relation(agent_id, tool_id);
+
+CREATE TABLE IF NOT EXISTS plus_ai_agent (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    name TEXT NOT NULL,
+    face_image TEXT NULL,
+    face_video TEXT NULL,
+    owner INTEGER NULL,
+    owner_id INTEGER NOT NULL,
+    channel TEXT NULL,
+    channel_id TEXT NULL,
+    icon TEXT NULL,
+    description TEXT NULL,
+    tags TEXT NULL,
+    type INTEGER NOT NULL,
+    biz_type INTEGER NULL,
+    biz_scope INTEGER NULL,
+    status INTEGER NOT NULL,
+    base_config TEXT NULL,
+    knowledge_config TEXT NULL,
+    memory_config TEXT NULL,
+    speech_config TEXT NULL,
+    tool_config TEXT NULL,
+    scene TEXT NULL,
+    chat_options TEXT NULL,
+    members TEXT NULL,
+    cate_id INTEGER NULL,
+    prompt_id INTEGER NULL
+);
+
+CREATE INDEX IF NOT EXISTS uk_ai_agent_user_id_name
+ON plus_ai_agent(tenant_id, organization_id, user_id, name);
+
+CREATE TABLE IF NOT EXISTS plus_ai_prompt (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    type TEXT NOT NULL,
+    biz_type TEXT NOT NULL,
+    description TEXT NULL,
+    cate_id INTEGER NULL,
+    enabled INTEGER NOT NULL,
+    sort INTEGER NULL,
+    parameters TEXT NULL,
+    creator TEXT NULL,
+    model TEXT NULL,
+    tags TEXT NULL,
+    usage_count INTEGER NULL,
+    avg_response_time INTEGER NULL,
+    version TEXT NULL,
+    is_public INTEGER NULL,
+    is_favorite INTEGER NULL,
+    favorite_count INTEGER NULL,
+    last_used_at TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_cate_id
+ON plus_ai_prompt(cate_id);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_type
+ON plus_ai_prompt(type);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_biz_type
+ON plus_ai_prompt(biz_type);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_enabled
+ON plus_ai_prompt(enabled);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_model
+ON plus_ai_prompt(model);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_created_at
+ON plus_ai_prompt(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_ai_prompt_history (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    prompt_id INTEGER NULL,
+    prompt_title TEXT NULL,
+    prompt_content TEXT NULL,
+    used_content TEXT NULL,
+    response_content TEXT NULL,
+    model TEXT NULL,
+    duration INTEGER NULL,
+    input_tokens INTEGER NULL,
+    output_tokens INTEGER NULL,
+    success INTEGER NOT NULL,
+    error_message TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_history_user_id
+ON plus_ai_prompt_history(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_history_prompt_id
+ON plus_ai_prompt_history(prompt_id);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_history_created_at
+ON plus_ai_prompt_history(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_ai_tool (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    name TEXT NOT NULL,
+    owner INTEGER NULL,
+    owner_id INTEGER NOT NULL,
+    tags TEXT NULL,
+    export_mcp INTEGER NOT NULL,
+    description TEXT NULL,
+    type INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    enabled INTEGER NOT NULL,
+    tool_definition TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS plus_api_security_policy (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    policy_code TEXT NOT NULL,
+    api_type TEXT NOT NULL,
+    path_pattern TEXT NOT NULL,
+    http_method TEXT NOT NULL,
+    match_mode TEXT NOT NULL,
+    auth_mode TEXT NOT NULL,
+    allow_anonymous INTEGER NOT NULL,
+    required_roles TEXT NULL,
+    required_permissions TEXT NULL,
+    priority INTEGER NOT NULL,
+    enabled INTEGER NOT NULL,
+    description TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_api_security_policy_policy_code
+ON plus_api_security_policy(policy_code);
+
+CREATE TABLE IF NOT EXISTS plus_category (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    parent_id INTEGER NULL,
+    parent_uuid TEXT NULL,
+    parent_metadata TEXT NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    shop_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    group_name TEXT NULL,
+    code TEXT NULL,
+    tags TEXT NULL,
+    icon TEXT NULL,
+    sort_weight INTEGER NULL,
+    path TEXT NULL,
+    visible INTEGER NOT NULL,
+    status INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_category_shop_id
+ON plus_category(shop_id);
+
+CREATE INDEX IF NOT EXISTS idx_category_type_shop
+ON plus_category(type, shop_id);
+
+CREATE TABLE IF NOT EXISTS plus_attribute (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL,
+    description TEXT NULL,
+    type INTEGER NOT NULL,
+    content_type INTEGER NOT NULL,
+    content_id INTEGER NOT NULL,
+    category_id INTEGER NOT NULL,
+    attribute_value TEXT NULL,
+    sort_weight INTEGER NULL,
+    required INTEGER NOT NULL,
+    status INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_attribute_scope_code
+ON plus_attribute(content_type, content_id, code);
+
+CREATE INDEX IF NOT EXISTS idx_plus_attribute_category_status
+ON plus_attribute(category_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_plus_attribute_content_scope
+ON plus_attribute(content_type, content_id, status);
+
+CREATE TABLE IF NOT EXISTS plus_tags (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    name TEXT NULL,
+    type INTEGER NULL,
+    description TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS plus_memory (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    name TEXT NULL,
+    agent_id INTEGER NULL,
+    conversation_id INTEGER NULL,
+    profile TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS plus_memory_item (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    agent_id INTEGER NULL,
+    conversation_id INTEGER NULL,
+    name TEXT NULL,
+    type INTEGER NULL,
+    content TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS plus_notification (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    role INTEGER NOT NULL,
+    sender_id INTEGER NULL,
+    sender TEXT NULL,
+    receiver_id INTEGER NULL,
+    receiver TEXT NULL,
+    group_id INTEGER NULL,
+    title TEXT NULL,
+    content TEXT NULL,
+    type INTEGER NOT NULL,
+    channel_type INTEGER NOT NULL,
+    template_id TEXT NULL,
+    template_params TEXT NULL,
+    redirect_url TEXT NULL,
+    mini_program_path TEXT NULL,
+    status INTEGER NOT NULL,
+    sent_at TEXT NULL,
+    read_at TEXT NULL,
+    extra_data TEXT NULL,
+    retry_count INTEGER NULL,
+    max_retry_count INTEGER NULL,
+    error_message TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_receiver
+ON plus_notification(receiver_id);
+
+CREATE INDEX IF NOT EXISTS idx_notification_sender
+ON plus_notification(sender_id);
+
+CREATE INDEX IF NOT EXISTS idx_notification_group
+ON plus_notification(group_id);
+
+CREATE INDEX IF NOT EXISTS idx_notification_status
+ON plus_notification(status);
+
+CREATE INDEX IF NOT EXISTS idx_notification_type
+ON plus_notification(type);
+
+CREATE INDEX IF NOT EXISTS idx_notification_channel
+ON plus_notification(channel_type);
+
+CREATE INDEX IF NOT EXISTS idx_notification_tenant
+ON plus_notification(tenant_id);
+
+CREATE INDEX IF NOT EXISTS idx_notification_org
+ON plus_notification(organization_id);
+
+CREATE INDEX IF NOT EXISTS idx_notification_created
+ON plus_notification(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_notification_content (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    notification_id INTEGER NOT NULL,
+    notification_uuid TEXT NOT NULL,
+    role INTEGER NOT NULL,
+    message_type INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    channel_type INTEGER NOT NULL,
+    body TEXT NOT NULL,
+    sender_id INTEGER NULL,
+    receiver_id INTEGER NULL,
+    group_id INTEGER NULL,
+    metadata TEXT NULL,
+    summary TEXT NULL,
+    priority INTEGER NOT NULL,
+    expire_at TEXT NULL,
+    is_muted INTEGER NOT NULL,
+    read_at TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_content_notification
+ON plus_notification_content(notification_id);
+
+CREATE INDEX IF NOT EXISTS idx_notification_content_message_type
+ON plus_notification_content(message_type);
+
+CREATE INDEX IF NOT EXISTS idx_notification_content_status
+ON plus_notification_content(status);
+
+CREATE INDEX IF NOT EXISTS idx_notification_content_receiver
+ON plus_notification_content(receiver_id);
+
+CREATE INDEX IF NOT EXISTS idx_notification_content_group
+ON plus_notification_content(group_id);
+
+CREATE INDEX IF NOT EXISTS idx_notification_content_notification_type
+ON plus_notification_content(type);
+
+CREATE INDEX IF NOT EXISTS idx_notification_content_tenant
+ON plus_notification_content(tenant_id);
+
+CREATE INDEX IF NOT EXISTS idx_notification_content_org
+ON plus_notification_content(organization_id);
+
+CREATE TABLE IF NOT EXISTS plus_push_device_endpoint (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    endpoint_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    workspace_id INTEGER NULL,
+    installation_id TEXT NOT NULL,
+    device_type TEXT NULL,
+    platform TEXT NULL,
+    vendor TEXT NULL,
+    device_token TEXT NULL,
+    permission_state TEXT NULL,
+    status TEXT NOT NULL,
+    device_name TEXT NULL,
+    app_version TEXT NULL,
+    os_version TEXT NULL,
+    locale TEXT NULL,
+    metadata TEXT NULL,
+    active INTEGER NOT NULL,
+    registered_at TEXT NULL,
+    last_active_at TEXT NULL,
+    disabled_at TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_push_device_endpoint_endpoint_id
+ON plus_push_device_endpoint(endpoint_id);
+
+CREATE INDEX IF NOT EXISTS idx_push_endpoint_user
+ON plus_push_device_endpoint(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_push_endpoint_endpoint
+ON plus_push_device_endpoint(endpoint_id);
+
+CREATE INDEX IF NOT EXISTS idx_push_endpoint_installation
+ON plus_push_device_endpoint(installation_id);
+
+CREATE INDEX IF NOT EXISTS idx_push_endpoint_token
+ON plus_push_device_endpoint(device_token);
+
+CREATE INDEX IF NOT EXISTS idx_push_endpoint_status
+ON plus_push_device_endpoint(status);
+
+CREATE INDEX IF NOT EXISTS idx_push_endpoint_user_installation
+ON plus_push_device_endpoint(user_id, installation_id);
+
+CREATE TABLE IF NOT EXISTS plus_push_topic_subscription (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    endpoint_id TEXT NULL,
+    topic TEXT NOT NULL,
+    status TEXT NOT NULL,
+    metadata TEXT NULL,
+    subscribed_at TEXT NULL,
+    unsubscribed_at TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_push_topic_subscription_user_topic_endpoint
+ON plus_push_topic_subscription(user_id, topic, endpoint_id);
+
+CREATE INDEX IF NOT EXISTS idx_push_topic_user
+ON plus_push_topic_subscription(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_push_topic_endpoint
+ON plus_push_topic_subscription(endpoint_id);
+
+CREATE INDEX IF NOT EXISTS idx_push_topic_topic
+ON plus_push_topic_subscription(topic);
+
+CREATE INDEX IF NOT EXISTS idx_push_topic_status
+ON plus_push_topic_subscription(status);
+
+CREATE TABLE IF NOT EXISTS plus_conversation (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    title TEXT NULL,
+    type INTEGER NULL,
+    channel_id TEXT NULL,
+    description TEXT NULL,
+    knowledge_config TEXT NULL,
+    memory_config TEXT NULL,
+    status INTEGER NOT NULL,
+    agent_id INTEGER NULL,
+    agent_type INTEGER NULL,
+    agent_biz_type INTEGER NULL,
+    scene TEXT NULL,
+    summary TEXT NULL,
+    last_message_id INTEGER NULL,
+    message_count INTEGER NOT NULL,
+    unread_count INTEGER NOT NULL,
+    tags TEXT NULL,
+    content_type INTEGER NULL,
+    content_id INTEGER NULL,
+    system_context TEXT NULL,
+    user_context TEXT NULL,
+    last_interaction_time TEXT NULL,
+    model_id INTEGER NULL,
+    model TEXT NULL,
+    knowledge_base_id INTEGER NULL,
+    data_source_id INTEGER NULL,
+    chat_options TEXT NULL,
+    pinned INTEGER NULL,
+    sort_order INTEGER NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_conversation_user_id
+ON plus_conversation(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_conversation_agent_id
+ON plus_conversation(agent_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_conversation_status
+ON plus_conversation(status);
+
+CREATE INDEX IF NOT EXISTS idx_plus_conversation_channel_id
+ON plus_conversation(channel_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_conversation_user_sort
+ON plus_conversation(user_id, pinned, sort_order, updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_plus_conversation_agent_user_updated_at
+ON plus_conversation(agent_id, user_id, updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_plus_conversation_last_interaction_time
+ON plus_conversation(last_interaction_time);
+
+CREATE TABLE IF NOT EXISTS plus_chat_message (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    role INTEGER NOT NULL,
+    sender_id INTEGER NULL,
+    sender TEXT NULL,
+    receiver_id INTEGER NULL,
+    receiver TEXT NULL,
+    group_id INTEGER NULL,
+    type INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    conversation_type INTEGER NULL,
+    conversation_id INTEGER NOT NULL,
+    conversation_uuid TEXT NOT NULL,
+    channel_id TEXT NULL,
+    agent_id INTEGER NULL,
+    knowledge_base_id INTEGER NULL,
+    datasource_id INTEGER NULL,
+    agent_type INTEGER NULL,
+    agent_biz_type INTEGER NULL,
+    user_id INTEGER NULL,
+    channel_msg_id TEXT NOT NULL,
+    channel_client_msg_id TEXT NOT NULL,
+    channel_msg_seq INTEGER NULL,
+    parent_message_id INTEGER NULL,
+    token_count INTEGER NULL,
+    send_at TEXT NULL,
+    receive_at TEXT NULL,
+    read_at TEXT NULL,
+    processing_time INTEGER NULL,
+    is_error INTEGER NULL,
+    error_code TEXT NULL,
+    error_message TEXT NULL,
+    model_id INTEGER NULL,
+    model TEXT NULL,
+    temperature REAL NULL,
+    used_rag INTEGER NULL,
+    chat_options TEXT NULL,
+    feedback_metadata TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_chat_message_user_id
+ON plus_chat_message(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_chat_message_conversation_id
+ON plus_chat_message(conversation_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_chat_message_status
+ON plus_chat_message(status);
+
+CREATE INDEX IF NOT EXISTS idx_plus_chat_message_sender_id
+ON plus_chat_message(sender_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_chat_message_receiver_id
+ON plus_chat_message(receiver_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_chat_message_group_id
+ON plus_chat_message(group_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_chat_message_parent_message_id
+ON plus_chat_message(parent_message_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_chat_message_channel_msg_id
+ON plus_chat_message(channel_msg_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_chat_message_created_at
+ON plus_chat_message(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_chat_message_content (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    message_id INTEGER NOT NULL,
+    channel_msg_id TEXT NOT NULL,
+    role INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    conversation_id INTEGER NOT NULL,
+    conversation_uuid TEXT NOT NULL,
+    agent_id INTEGER NULL,
+    agent_type INTEGER NOT NULL,
+    agent_biz_type INTEGER NULL,
+    content TEXT NOT NULL,
+    metadata TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_chat_message_content_message_id
+ON plus_chat_message_content(message_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_chat_message_content_channel_msg_id
+ON plus_chat_message_content(channel_msg_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_chat_message_content_conversation_id
+ON plus_chat_message_content(conversation_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_chat_message_content_status
+ON plus_chat_message_content(status);
+
+CREATE TABLE IF NOT EXISTS plus_detail (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    content_type INTEGER NOT NULL,
+    content_id INTEGER NOT NULL,
+    content TEXT NULL,
+    metadata TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS plus_collection (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    parent_id INTEGER NULL,
+    parent_uuid TEXT NULL,
+    parent_metadata TEXT NULL,
+    user_id INTEGER NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    type INTEGER NOT NULL,
+    content_id INTEGER NULL,
+    cover_image TEXT NULL,
+    is_public INTEGER NULL,
+    is_pinned INTEGER NULL,
+    sort INTEGER NULL,
+    item_count INTEGER NULL,
+    view_count INTEGER NULL,
+    favorite_count INTEGER NULL,
+    last_updated_at TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_collection_parent
+ON plus_collection(parent_id);
+
+CREATE INDEX IF NOT EXISTS idx_collection_type
+ON plus_collection(type);
+
+CREATE INDEX IF NOT EXISTS idx_collection_user
+ON plus_collection(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_collection_content
+ON plus_collection(content_id);
+
+CREATE INDEX IF NOT EXISTS idx_collection_created
+ON plus_collection(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_collection_item (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    collection_id INTEGER NOT NULL,
+    collection_uuid TEXT NULL,
+    type INTEGER NOT NULL,
+    content_type INTEGER NOT NULL,
+    content_id INTEGER NOT NULL,
+    content_uuid TEXT NULL,
+    title TEXT NULL,
+    description TEXT NULL,
+    cover_image TEXT NULL,
+    position INTEGER NOT NULL,
+    is_pinned INTEGER NOT NULL,
+    tags TEXT NULL,
+    extra_data TEXT NULL,
+    source TEXT NULL,
+    remark TEXT NULL,
+    added_at TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_coll_item_collection
+ON plus_collection_item(collection_id);
+
+CREATE INDEX IF NOT EXISTS idx_coll_item_content_type
+ON plus_collection_item(content_type);
+
+CREATE INDEX IF NOT EXISTS idx_coll_item_content_id
+ON plus_collection_item(content_id);
+
+CREATE INDEX IF NOT EXISTS idx_coll_item_position
+ON plus_collection_item(position);
+
+CREATE INDEX IF NOT EXISTS idx_coll_item_created
+ON plus_collection_item(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_favorite (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    title TEXT NULL,
+    image TEXT NULL,
+    content_type INTEGER NOT NULL,
+    content_id INTEGER NOT NULL,
+    folder_id INTEGER NULL,
+    remark TEXT NULL,
+    tags TEXT NULL,
+    sort_weight INTEGER NULL,
+    is_private INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    view_count INTEGER NULL,
+    last_viewed_at TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_favorite_user_content
+ON plus_favorite(user_id, content_type, content_id);
+
+CREATE INDEX IF NOT EXISTS idx_favorite_user_id
+ON plus_favorite(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_favorite_content
+ON plus_favorite(content_type, content_id);
+
+CREATE INDEX IF NOT EXISTS idx_favorite_folder_id
+ON plus_favorite(folder_id);
+
+CREATE INDEX IF NOT EXISTS idx_favorite_created_at
+ON plus_favorite(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_favorite_folder (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    parent_id INTEGER NULL,
+    item_count INTEGER NULL,
+    sort_order INTEGER NULL,
+    status INTEGER NOT NULL,
+    is_private INTEGER NOT NULL,
+    is_default INTEGER NOT NULL,
+    is_deleted INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_folder_user
+ON plus_favorite_folder(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_folder_parent
+ON plus_favorite_folder(parent_id);
+
+CREATE TABLE IF NOT EXISTS plus_share (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    title TEXT NULL,
+    description TEXT NULL,
+    type TEXT NOT NULL,
+    contents TEXT NULL,
+    content_type TEXT NULL,
+    status TEXT NOT NULL,
+    share_url TEXT NULL,
+    content_ids TEXT NULL,
+    password TEXT NULL,
+    expire_at TEXT NULL,
+    click_count INTEGER NULL,
+    tags TEXT NULL,
+    share_code TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_share_share_code
+ON plus_share(share_code);
+
+CREATE TABLE IF NOT EXISTS plus_share_visit_record (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    share_id INTEGER NOT NULL,
+    ip_address TEXT NULL,
+    user_agent TEXT NULL,
+    accessed_at TEXT NOT NULL,
+    success INTEGER NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_share_id
+ON plus_share_visit_record(share_id);
+
+CREATE INDEX IF NOT EXISTS idx_ip_address
+ON plus_share_visit_record(ip_address);
+
+CREATE INDEX IF NOT EXISTS idx_created_at
+ON plus_share_visit_record(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_invitation_code (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    code TEXT NOT NULL,
+    creator_user_id INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    expire_time TEXT NULL,
+    usage_limit INTEGER NULL,
+    used_count INTEGER NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_invitation_code_code
+ON plus_invitation_code(code);
+
+CREATE TABLE IF NOT EXISTS plus_invitation_relation (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    inviter_user_id INTEGER NOT NULL,
+    invitee_user_id INTEGER NOT NULL,
+    invite_code TEXT NOT NULL,
+    used_time TEXT NOT NULL,
+    relation_level INTEGER NOT NULL,
+    reward_status INTEGER NOT NULL,
+    reward_amount NUMERIC NULL,
+    reward_type INTEGER NULL
+);
+
+CREATE TABLE IF NOT EXISTS plus_sns_follow_relation (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    follower_id INTEGER NOT NULL,
+    following_id INTEGER NOT NULL,
+    relation_type INTEGER NOT NULL,
+    owner INTEGER NOT NULL,
+    owner_id INTEGER NOT NULL,
+    is_mutual INTEGER NOT NULL,
+    is_blocked INTEGER NOT NULL,
+    is_special INTEGER NOT NULL,
+    group_name TEXT NULL,
+    remark TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS UK_sns_follow_relation
+ON plus_sns_follow_relation(follower_id, following_id);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_rel_follower_id
+ON plus_sns_follow_relation(follower_id);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_rel_following_id
+ON plus_sns_follow_relation(following_id);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_rel_relation_type
+ON plus_sns_follow_relation(relation_type);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_rel_owner_id
+ON plus_sns_follow_relation(owner_id);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_rel_is_mutual
+ON plus_sns_follow_relation(is_mutual);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_rel_is_blocked
+ON plus_sns_follow_relation(is_blocked);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_rel_is_special
+ON plus_sns_follow_relation(is_special);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_rel_created_at
+ON plus_sns_follow_relation(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_sns_follow_statistics (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    owner_id INTEGER NOT NULL,
+    following_count INTEGER NOT NULL,
+    follower_count INTEGER NOT NULL,
+    mutual_count INTEGER NOT NULL,
+    special_count INTEGER NOT NULL,
+    blocked_count INTEGER NOT NULL,
+    total_interaction_count INTEGER NOT NULL,
+    last_updated_at INTEGER NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS UK_sns_follow_statistics
+ON plus_sns_follow_statistics(user_id, owner_id);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_stat_user_id
+ON plus_sns_follow_statistics(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_stat_owner_id
+ON plus_sns_follow_statistics(owner_id);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_stat_following_count
+ON plus_sns_follow_statistics(following_count);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_stat_follower_count
+ON plus_sns_follow_statistics(follower_count);
+
+CREATE INDEX IF NOT EXISTS idx_sns_follow_stat_mutual_count
+ON plus_sns_follow_statistics(mutual_count);
+
+CREATE TABLE IF NOT EXISTS plus_comments (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    parent_id INTEGER NULL,
+    parent_uuid TEXT NULL,
+    parent_metadata TEXT NULL,
+    user_id INTEGER NULL,
+    content TEXT NOT NULL,
+    content_type INTEGER NOT NULL,
+    content_id INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    likes INTEGER NULL,
+    reply_count INTEGER NULL,
+    is_top INTEGER NULL,
+    ip_address TEXT NULL,
+    device_info TEXT NULL,
+    author TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_comment_content_id_type
+ON plus_comments(content_id, content_type);
+
+CREATE INDEX IF NOT EXISTS idx_comment_user_id
+ON plus_comments(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_comment_status
+ON plus_comments(status);
+
+CREATE INDEX IF NOT EXISTS idx_comment_parent_id
+ON plus_comments(parent_id);
+
+CREATE TABLE IF NOT EXISTS plus_content_vote (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    content_type INTEGER NOT NULL,
+    content_id INTEGER NOT NULL,
+    rating INTEGER NOT NULL,
+    metadata TEXT NULL,
+    source TEXT NULL,
+    client_ip TEXT NULL,
+    device_info TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vote_user_content
+ON plus_content_vote(user_id, content_type, content_id);
+
+CREATE INDEX IF NOT EXISTS idx_vote_content
+ON plus_content_vote(content_type, content_id);
+
+CREATE INDEX IF NOT EXISTS idx_vote_rating
+ON plus_content_vote(rating);
+
+CREATE INDEX IF NOT EXISTS idx_vote_created_at
+ON plus_content_vote(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_visit_history (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    content_type INTEGER NOT NULL,
+    content_id INTEGER NOT NULL,
+    visit_count INTEGER NULL,
+    last_visited_at TEXT NOT NULL,
+    duration INTEGER NULL,
+    source TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_visit_user_content
+ON plus_visit_history(user_id, content_type, content_id);
+
+CREATE INDEX IF NOT EXISTS idx_visit_user_id
+ON plus_visit_history(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_visit_content_type
+ON plus_visit_history(content_type);
+
+CREATE INDEX IF NOT EXISTS idx_visit_created_at
+ON plus_visit_history(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_feeds (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    title TEXT NOT NULL,
+    summary TEXT NULL,
+    category_id INTEGER NOT NULL,
+    content_type INTEGER NOT NULL,
+    content_id INTEGER NOT NULL,
+    cover_images TEXT NULL,
+    resource_list TEXT NULL,
+    author TEXT NULL,
+    source TEXT NULL,
+    source_url TEXT NULL,
+    publish_time TEXT NULL,
+    tags TEXT NULL,
+    status INTEGER NOT NULL,
+    view_count INTEGER NULL,
+    like_count INTEGER NULL,
+    comment_count INTEGER NULL,
+    share_count INTEGER NULL,
+    favorite_count INTEGER NULL,
+    is_top INTEGER NULL,
+    is_hot INTEGER NULL,
+    is_recommended INTEGER NULL,
+    sort_order INTEGER NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_feeds_status
+ON plus_feeds(status);
+
+CREATE INDEX IF NOT EXISTS idx_feeds_user_id
+ON plus_feeds(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_feeds_category_id
+ON plus_feeds(category_id);
+
+CREATE INDEX IF NOT EXISTS idx_feeds_content_type
+ON plus_feeds(content_type);
+
+CREATE INDEX IF NOT EXISTS idx_feeds_publish_time
+ON plus_feeds(publish_time);
+
+CREATE INDEX IF NOT EXISTS idx_feeds_status_publish_time
+ON plus_feeds(status, publish_time);
+
+CREATE TABLE IF NOT EXISTS plus_short_url (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    original_url TEXT NOT NULL,
+    short_code TEXT NOT NULL,
+    expires_at TEXT NULL,
+    click_count INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    created_by INTEGER NULL,
+    description TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_short_url_short_code
+ON plus_short_url(short_code);
+
+CREATE TABLE IF NOT EXISTS plus_feedback (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    title TEXT NOT NULL,
+    feedback_content TEXT NOT NULL,
+    feedback_type INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    priority INTEGER NULL,
+    biz_id INTEGER NULL,
+    biz_type TEXT NULL,
+    rating INTEGER NULL,
+    contact_info TEXT NULL,
+    attachments TEXT NULL,
+    images TEXT NULL,
+    reply_content TEXT NULL,
+    reply_time TEXT NULL,
+    reply_user_id INTEGER NULL,
+    resolved_at TEXT NULL,
+    closed_at TEXT NULL,
+    closed_by INTEGER NULL,
+    close_reason TEXT NULL,
+    follow_up_count INTEGER NULL,
+    last_follow_up_time TEXT NULL,
+    assigned_to INTEGER NULL,
+    assigned_at TEXT NULL,
+    tags TEXT NULL,
+    source TEXT NULL,
+    device_info TEXT NULL,
+    app_version TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_user_id
+ON plus_feedback(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_status
+ON plus_feedback(status);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_type
+ON plus_feedback(feedback_type);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_created_at
+ON plus_feedback(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_status_created
+ON plus_feedback(status, created_at);
+
+CREATE TABLE IF NOT EXISTS plus_email_message (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    folder TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    external_message_id TEXT NOT NULL,
+    from_address TEXT NULL,
+    to_addresses TEXT NULL,
+    cc_addresses TEXT NULL,
+    bcc_addresses TEXT NULL,
+    subject TEXT NULL,
+    content TEXT NULL,
+    content_type TEXT NULL,
+    is_read INTEGER NOT NULL,
+    sent_at TEXT NULL,
+    received_at TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_email_message_user_external
+ON plus_email_message(user_id, external_message_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_email_message_user_created
+ON plus_email_message(user_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_plus_email_message_user_folder
+ON plus_email_message(user_id, folder);
+
+CREATE INDEX IF NOT EXISTS idx_plus_email_message_user_read
+ON plus_email_message(user_id, is_read);
+
+CREATE TABLE IF NOT EXISTS plus_events (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    name TEXT NOT NULL,
+    event_type TEXT NULL,
+    source TEXT NULL,
+    target TEXT NULL,
+    payload TEXT NULL,
+    occurred_at TEXT NULL,
+    is_processed INTEGER NOT NULL,
+    processed_at TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS plus_disk (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    name TEXT NOT NULL,
+    type INTEGER NOT NULL,
+    owner INTEGER NOT NULL,
+    owner_id INTEGER NOT NULL,
+    knowledge_base_id INTEGER NULL,
+    disk_size INTEGER NOT NULL,
+    used_size INTEGER NOT NULL,
+    description TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_disk_name
+ON plus_disk(name);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_plus_disk_owner_id2
+ON plus_disk(owner, owner_id, type);
+
+CREATE INDEX IF NOT EXISTS idx_plus_disk_name
+ON plus_disk(name);
+
+CREATE INDEX IF NOT EXISTS idx_plus_disk_owner_id
+ON plus_disk(owner_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_disk_knowledge_base_id
+ON plus_disk(knowledge_base_id);
+
+CREATE TABLE IF NOT EXISTS plus_disk_member (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    disk_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    permission TEXT NOT NULL,
+    remark TEXT NULL,
+    is_owner INTEGER NOT NULL,
+    knowledge_base_id INTEGER NULL,
+    pinned_at TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_disk_member_disk_user
+ON plus_disk_member(disk_id, user_id);
+
+CREATE INDEX IF NOT EXISTS idx_disk_member_disk_id
+ON plus_disk_member(disk_id);
+
+CREATE INDEX IF NOT EXISTS idx_disk_member_user_id
+ON plus_disk_member(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_disk_member_pinned_at
+ON plus_disk_member(pinned_at);
+
+CREATE INDEX IF NOT EXISTS idx_disk_member_knowledge_base_id
+ON plus_disk_member(knowledge_base_id);
+
+CREATE TABLE IF NOT EXISTS plus_file (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    name TEXT NOT NULL,
+    type INTEGER NOT NULL,
+    disk_id INTEGER NOT NULL,
+    size INTEGER NULL,
+    content_type INTEGER NULL,
+    content_id INTEGER NULL,
+    extension TEXT NULL,
+    etag TEXT NULL,
+    biz_type INTEGER NULL,
+    biz_id INTEGER NULL,
+    asset_type TEXT NULL,
+    workspace_id INTEGER NULL,
+    workspace_uuid TEXT NULL,
+    project_uuid TEXT NULL,
+    project_type INTEGER NULL,
+    project_id INTEGER NULL,
+    channel TEXT NOT NULL,
+    generation_type INTEGER NOT NULL,
+    generation_id INTEGER NULL,
+    prompt_uuid TEXT NULL,
+    owner TEXT NULL,
+    owner_id INTEGER NULL,
+    author TEXT NULL,
+    channel_config_id INTEGER NULL,
+    bucket TEXT NOT NULL,
+    path TEXT NULL,
+    relative_path TEXT NULL,
+    object_key TEXT NULL,
+    storage_class INTEGER NULL,
+    version TEXT NULL,
+    resource TEXT NULL,
+    last_modified TEXT NULL,
+    upload_time TEXT NULL,
+    last_access_time TEXT NULL,
+    is_upload_temp INTEGER NOT NULL,
+    expire_at TEXT NULL,
+    description TEXT NULL,
+    tags TEXT NULL,
+    file_category INTEGER NULL,
+    access_scope INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    upload_status INTEGER NOT NULL,
+    parent_id INTEGER NULL,
+    parent_metadata TEXT NULL,
+    parent_uuid TEXT NULL,
+    metadata TEXT NULL,
+    permission TEXT NOT NULL,
+    reference_file_id INTEGER NULL,
+    mime_type TEXT NULL,
+    cover_image TEXT NULL,
+    password TEXT NULL,
+    remark TEXT NULL,
+    sort_order INTEGER NULL,
+    pinned_at TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_file_disk_parent_path
+ON plus_file(disk_id, parent_id, path);
+
+CREATE INDEX IF NOT EXISTS idx_file_name
+ON plus_file(name);
+
+CREATE INDEX IF NOT EXISTS idx_file_object_key
+ON plus_file(object_key);
+
+CREATE INDEX IF NOT EXISTS idx_file_project_uuid
+ON plus_file(project_uuid);
+
+CREATE INDEX IF NOT EXISTS idx_file_access_scope
+ON plus_file(access_scope);
+
+CREATE INDEX IF NOT EXISTS idx_file_prompt_uuid
+ON plus_file(prompt_uuid);
+
+CREATE INDEX IF NOT EXISTS idx_file_user_id
+ON plus_file(user_id);
+
+CREATE TABLE IF NOT EXISTS plus_file_content (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    file_id INTEGER NOT NULL,
+    file_uuid TEXT NOT NULL,
+    file_version TEXT NOT NULL,
+    prompt TEXT NULL,
+    thinking_content TEXT NULL,
+    encoding TEXT NULL,
+    content TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_file_content_file_id
+ON plus_file_content(file_id, file_version);
+
+CREATE INDEX IF NOT EXISTS idx_plus_file_content_file_uuid
+ON plus_file_content(file_uuid, file_version);
+
+CREATE TABLE IF NOT EXISTS plus_file_part (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    file_id INTEGER NOT NULL,
+    chunk_index INTEGER NOT NULL,
+    chunk_size INTEGER NOT NULL,
+    total_size INTEGER NOT NULL,
+    checksum TEXT NULL,
+    status INTEGER NOT NULL,
+    storage_path TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS plus_oss_bucket (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    name TEXT NOT NULL,
+    region TEXT NULL,
+    channel INTEGER NULL,
+    channel_config_id INTEGER NULL,
+    description TEXT NULL,
+    status TEXT NULL,
+    creation_date TEXT NULL,
+    arn TEXT NULL,
+    endpoint TEXT NULL,
+    storage_class TEXT NULL,
+    versioning_enabled INTEGER NULL,
+    encryption_enabled INTEGER NULL,
+    encryption_type TEXT NULL,
+    acl TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_oss_bucket_name
+ON plus_oss_bucket(name);
+
+CREATE INDEX IF NOT EXISTS idx_oss_bucket_user_id
+ON plus_oss_bucket(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_oss_bucket_region
+ON plus_oss_bucket(region);
+
+CREATE TABLE IF NOT EXISTS plus_order (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    subject TEXT NOT NULL,
+    order_type INTEGER NOT NULL,
+    owner INTEGER NULL,
+    owner_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    order_sn TEXT NOT NULL UNIQUE,
+    transaction_id TEXT NULL,
+    out_trade_no TEXT NOT NULL UNIQUE,
+    total_amount NUMERIC NOT NULL,
+    paid_amount NUMERIC NOT NULL,
+    paid_points_amount INTEGER NULL,
+    status INTEGER NOT NULL,
+    pay_success_time TEXT NULL,
+    expire_time TEXT NULL,
+    task_code TEXT NULL,
+    dispatch_mode INTEGER NULL,
+    dispatch_status INTEGER NULL,
+    worker_user_id INTEGER NULL,
+    dispatcher_user_id INTEGER NULL,
+    accepted_time TEXT NULL,
+    service_start_time TEXT NULL,
+    dispatch_expire_time TEXT NULL,
+    task_payload TEXT NULL,
+    content_type INTEGER NULL,
+    content_id INTEGER NULL,
+    category_id INTEGER NOT NULL,
+    pay_objects TEXT NULL,
+    deliver_info TEXT NULL,
+    coupon_info TEXT NULL,
+    buyer_info TEXT NULL,
+    seller_info TEXT NULL,
+    complete_time TEXT NULL,
+    cancel_time TEXT NULL,
+    remark TEXT NULL,
+    product_amount NUMERIC NULL,
+    shipping_amount NUMERIC NULL,
+    discount_amount NUMERIC NULL,
+    tax_amount NUMERIC NULL,
+    refunded_amount NUMERIC NULL,
+    currency TEXT NULL,
+    client_info TEXT NULL,
+    payment_method TEXT NULL,
+    source_channel TEXT NULL,
+    merchant_remark TEXT NULL,
+    payment_expire_time TEXT NULL,
+    refund_status INTEGER NULL,
+    product_image TEXT NULL,
+    payment_provider INTEGER NULL,
+    payment_product_type TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_order_item (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    order_id INTEGER NOT NULL,
+    category_id INTEGER NOT NULL,
+    product_type TEXT NOT NULL,
+    product_id INTEGER NOT NULL,
+    sku_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL,
+    unit_price NUMERIC NOT NULL,
+    total_amount NUMERIC NOT NULL,
+    expire_time TEXT NULL,
+    content_type INTEGER NULL,
+    content_id INTEGER NULL,
+    product_name TEXT NULL,
+    sku_spec TEXT NULL,
+    buyer_info TEXT NULL,
+    seller_info TEXT NULL,
+    discount_amount NUMERIC NULL,
+    paid_amount NUMERIC NULL,
+    refunded_amount NUMERIC NULL,
+    currency TEXT NULL,
+    product_image TEXT NULL,
+    refund_status INTEGER NULL,
+    review_status INTEGER NULL,
+    payment_provider INTEGER NULL,
+    payment_product_type TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_payment (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    subject TEXT NULL,
+    purpose TEXT NOT NULL,
+    order_id INTEGER NOT NULL,
+    transaction_id TEXT NULL,
+    out_trade_no TEXT NOT NULL UNIQUE,
+    channel INTEGER NOT NULL,
+    provider INTEGER NOT NULL,
+    product_type TEXT NULL,
+    status INTEGER NOT NULL,
+    amount NUMERIC NOT NULL,
+    expire_time TEXT NULL,
+    success_time TEXT NULL,
+    remark TEXT NULL,
+    content_type INTEGER NULL,
+    content_id INTEGER NULL,
+    pay_objects TEXT NULL,
+    metadata TEXT NULL,
+    client_info TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_refund (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    order_id INTEGER NOT NULL,
+    payment_id INTEGER NOT NULL,
+    out_refund_no TEXT NOT NULL UNIQUE,
+    out_trade_no TEXT NULL,
+    refund_id TEXT NULL,
+    amount NUMERIC NOT NULL,
+    channel INTEGER NULL,
+    provider INTEGER NULL,
+    product_type TEXT NULL,
+    type TEXT NOT NULL,
+    status INTEGER NOT NULL,
+    apply_time TEXT NOT NULL,
+    complete_time TEXT NULL,
+    remark TEXT NULL,
+    content_type INTEGER NULL,
+    content_id INTEGER NULL,
+    operator_id INTEGER NULL,
+    metadata TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_shopping_cart (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    owner INTEGER NOT NULL,
+    owner_id INTEGER NOT NULL,
+    name TEXT NULL,
+    description TEXT NULL,
+    group_list TEXT NULL,
+    status INTEGER NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_shopping_cart_item (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    cart_id INTEGER NOT NULL,
+    cart_group_uuid TEXT NOT NULL,
+    product_id INTEGER NOT NULL,
+    sku_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL,
+    price NUMERIC NOT NULL,
+    is_selected INTEGER NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (cart_id, sku_id)
+);
+
+CREATE TABLE IF NOT EXISTS plus_payment_webhook_event (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    provider INTEGER NOT NULL,
+    event_id TEXT NOT NULL,
+    nonce TEXT NOT NULL,
+    signature TEXT NULL,
+    request_timestamp INTEGER NULL,
+    out_trade_no TEXT NULL,
+    transaction_id TEXT NULL,
+    payload_digest TEXT NULL,
+    status TEXT NOT NULL,
+    processed_at TEXT NULL,
+    message TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (provider, event_id),
+    UNIQUE (provider, nonce)
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_webhook_out_trade_no
+ON plus_payment_webhook_event(out_trade_no);
+
+CREATE INDEX IF NOT EXISTS idx_payment_webhook_created_at
+ON plus_payment_webhook_event(created_at);
+
+CREATE TABLE IF NOT EXISTS plus_order_dispatch_rule (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    task_code TEXT NOT NULL UNIQUE,
+    task_name TEXT NOT NULL,
+    enabled INTEGER NOT NULL,
+    allow_grab INTEGER NOT NULL,
+    allow_assign INTEGER NOT NULL,
+    default_task_concurrent_limit INTEGER NOT NULL,
+    metadata TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_dispatch_rule_task_code
+ON plus_order_dispatch_rule(task_code);
+
+CREATE INDEX IF NOT EXISTS idx_order_dispatch_rule_enabled
+ON plus_order_dispatch_rule(enabled);
+
+CREATE TABLE IF NOT EXISTS plus_order_worker_dispatch_profile (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL UNIQUE,
+    rating_level TEXT NULL,
+    enabled INTEGER NOT NULL,
+    global_max_in_progress INTEGER NOT NULL,
+    metadata TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_worker_dispatch_profile_user_id
+ON plus_order_worker_dispatch_profile(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_order_worker_dispatch_profile_enabled
+ON plus_order_worker_dispatch_profile(enabled);
+
+CREATE INDEX IF NOT EXISTS idx_order_worker_dispatch_profile_rating_level
+ON plus_order_worker_dispatch_profile(rating_level);
 
 CREATE TABLE IF NOT EXISTS plus_vip_user (
     id INTEGER PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
-    tenant_id INTEGER NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
     user_id INTEGER NOT NULL UNIQUE,
-    vip_level_id TEXT NULL,
-    vip_level_name TEXT NULL,
+    vip_level_id INTEGER NULL,
     status TEXT NOT NULL,
     point_balance INTEGER NOT NULL DEFAULT 0,
     total_recharged_points INTEGER NOT NULL DEFAULT 0,
-    monthly_credits INTEGER NOT NULL DEFAULT 0,
-    seat_limit INTEGER NOT NULL DEFAULT 1,
     valid_from TEXT NULL,
     valid_to TEXT NULL,
     last_active_time TEXT NULL,
@@ -139,11 +3616,329 @@ CREATE TABLE IF NOT EXISTS plus_vip_user (
     is_deleted INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS plus_account (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    account_type TEXT NOT NULL,
+    owner TEXT NULL,
+    owner_id INTEGER NOT NULL,
+    available_balance NUMERIC NOT NULL DEFAULT 0,
+    frozen_balance NUMERIC NOT NULL DEFAULT 0,
+    available_points INTEGER NOT NULL DEFAULT 0,
+    frozen_points INTEGER NOT NULL DEFAULT 0,
+    token_balance INTEGER NOT NULL DEFAULT 0,
+    frozen_token INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (tenant_id, organization_id, user_id, account_type)
+);
+
+CREATE TABLE IF NOT EXISTS plus_account_history (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    account_type TEXT NOT NULL,
+    asset_type TEXT NOT NULL,
+    account_id INTEGER NOT NULL,
+    transaction_id TEXT NOT NULL,
+    transaction_type TEXT NOT NULL,
+    amount NUMERIC NULL,
+    balance_before NUMERIC NULL,
+    balance_after NUMERIC NULL,
+    related_account_id INTEGER NULL,
+    points_change INTEGER NULL,
+    points_before INTEGER NULL,
+    points_after INTEGER NULL,
+    token_change INTEGER NULL,
+    token_before INTEGER NULL,
+    token_after INTEGER NULL,
+    source_type TEXT NULL,
+    source_id TEXT NULL,
+    expired_at TEXT NULL,
+    status TEXT NOT NULL,
+    usage_result TEXT NOT NULL,
+    remarks TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_account_history_account_id
+ON plus_account_history(account_id);
+
+CREATE INDEX IF NOT EXISTS idx_account_history_transaction_id
+ON plus_account_history(transaction_id);
+
+CREATE INDEX IF NOT EXISTS idx_account_history_source_id
+ON plus_account_history(source_id);
+
+CREATE TABLE IF NOT EXISTS plus_account_exchange_config (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    config_key TEXT NOT NULL,
+    config_value NUMERIC NOT NULL,
+    remarks TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (tenant_id, organization_id, config_key)
+);
+
+CREATE TABLE IF NOT EXISTS plus_ledger_bridge (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    bridge_type TEXT NOT NULL,
+    source_ledger TEXT NOT NULL,
+    target_ledger TEXT NOT NULL,
+    bridge_amount NUMERIC NOT NULL,
+    source_business_type TEXT NOT NULL,
+    source_business_id TEXT NOT NULL,
+    source_record_key TEXT NULL,
+    target_record_key TEXT NULL,
+    compensation_record_key TEXT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    failure_reason TEXT NULL,
+    remark TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_vip_level (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    name TEXT NOT NULL,
+    level_value INTEGER NOT NULL,
+    required_points INTEGER NOT NULL DEFAULT 0,
+    description TEXT NULL,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_vip_benefit (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    benefit_key TEXT NOT NULL,
+    type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_vip_level_benefit (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    vip_level_id INTEGER NOT NULL,
+    benefit_id INTEGER NOT NULL,
+    daily_limit INTEGER NULL,
+    monthly_limit INTEGER NULL,
+    total_limit INTEGER NULL,
+    status TEXT NOT NULL,
+    metadata TEXT NULL,
+    remark TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_vip_pack_group (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    app_id INTEGER NULL,
+    scope_type TEXT NOT NULL,
+    scope_id INTEGER NOT NULL,
+    group_key TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    sort_weight INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL,
+    remark TEXT NULL,
+    packs TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_vip_pack (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    app_id INTEGER NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    group_id INTEGER NULL,
+    vip_level_id INTEGER NULL,
+    price NUMERIC NOT NULL DEFAULT 0,
+    point_amount INTEGER NOT NULL DEFAULT 0,
+    vip_duration_days INTEGER NOT NULL DEFAULT 0,
+    billing_cycle TEXT NULL,
+    status TEXT NOT NULL,
+    sort_weight INTEGER NOT NULL DEFAULT 0,
+    valid_from TEXT NULL,
+    valid_to TEXT NULL,
+    remark TEXT NULL,
+    recharge_pack_id INTEGER NULL,
+    point_reward_config TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_vip_recharge_method (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    method_key TEXT NOT NULL,
+    status TEXT NOT NULL,
+    sort_weight INTEGER NOT NULL DEFAULT 0,
+    remark TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_vip_recharge_pack (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    app_id INTEGER NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    price NUMERIC NOT NULL DEFAULT 0,
+    point_amount INTEGER NOT NULL DEFAULT 0,
+    vip_duration_days INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL,
+    sort_weight INTEGER NOT NULL DEFAULT 0,
+    valid_from TEXT NULL,
+    valid_to TEXT NULL,
+    remark TEXT NULL,
+    recharge_type TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_vip_recharge (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    vip_level_id INTEGER NULL,
+    amount NUMERIC NOT NULL DEFAULT 0,
+    point_amount INTEGER NOT NULL DEFAULT 0,
+    recharge_type TEXT NOT NULL,
+    recharge_time TEXT NOT NULL,
+    transaction_no TEXT NOT NULL,
+    status TEXT NOT NULL,
+    remark TEXT NULL,
+    recharge_method_id INTEGER NULL,
+    recharge_pack_id INTEGER NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_vip_point_change (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    change_type TEXT NOT NULL,
+    change_amount INTEGER NOT NULL,
+    before_balance INTEGER NOT NULL,
+    after_balance INTEGER NOT NULL,
+    source_id INTEGER NULL,
+    source_type TEXT NULL,
+    remark TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS plus_vip_benefit_usage (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    benefit_type TEXT NOT NULL,
+    usage_time TEXT NOT NULL,
+    usage_count INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL,
+    source_id INTEGER NULL,
+    source_type TEXT NULL,
+    remark TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS plus_user_auth_session (
     id INTEGER PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
-    tenant_id INTEGER NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     user_id INTEGER NOT NULL,
     provider_key TEXT NOT NULL,
     provider_mode TEXT NOT NULL,
@@ -163,8 +3958,8 @@ CREATE TABLE IF NOT EXISTS plus_user_auth_session (
 CREATE TABLE IF NOT EXISTS plus_user_verify_code (
     id INTEGER PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
-    tenant_id INTEGER NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     provider_key TEXT NOT NULL,
     verify_type TEXT NOT NULL,
     scene TEXT NOT NULL,
@@ -186,8 +3981,8 @@ ON plus_user_verify_code(target, verify_type, scene, status, is_deleted);
 CREATE TABLE IF NOT EXISTS plus_user_login_qr (
     id INTEGER PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
-    tenant_id INTEGER NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     provider_key TEXT NOT NULL,
     qr_key TEXT NOT NULL UNIQUE,
     status TEXT NOT NULL,
@@ -219,6 +4014,7 @@ const DEFAULT_EXTERNAL_APP_API_TIMEOUT_MS: u64 = 8_000;
 const DEFAULT_EXTERNAL_APP_API_OAUTH_PROVIDERS: &[&str] = &["wechat", "douyin", "github"];
 const DEFAULT_LOCAL_OAUTH_PROVIDERS: &[&str] = &["wechat", "douyin", "github"];
 const DEFAULT_LOCAL_TENANT_ID: &str = "0";
+const DEFAULT_LOCAL_ORGANIZATION_ID: &str = "0";
 const DEFAULT_LOCAL_TENANT_CODE: &str = "birdcoder-local";
 const DEFAULT_LOGIN_QR_TTL_SECONDS: u64 = 300;
 const DEFAULT_LOCAL_OAUTH_CODE_TTL_SECONDS: u64 = 300;
@@ -358,18 +4154,20 @@ struct UserProfileRecord {
 }
 
 #[derive(Clone)]
-struct VipSubscriptionRecord {
-    credits_per_month: i64,
+struct VipUserRecord {
     created_at: String,
+    last_active_time: Option<String>,
     organization_id: Option<String>,
-    user_id: String,
-    plan_id: String,
-    plan_title: String,
-    renew_at: Option<String>,
-    seats: i64,
+    point_balance: i64,
+    remark: Option<String>,
     status: String,
     tenant_id: Option<String>,
+    total_recharged_points: i64,
     updated_at: String,
+    user_id: String,
+    valid_from: Option<String>,
+    valid_to: Option<String>,
+    vip_level_id: Option<String>,
     uuid: String,
 }
 
@@ -507,12 +4305,14 @@ pub struct UpdateUserCenterProfileRequest {
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateUserCenterVipMembershipRequest {
-    pub credits_per_month: Option<i64>,
-    pub plan_id: Option<String>,
-    pub plan_title: Option<String>,
-    pub renew_at: Option<String>,
-    pub seats: Option<i64>,
+    pub vip_level_id: Option<String>,
+    pub point_balance: Option<String>,
+    pub total_recharged_points: Option<String>,
     pub status: Option<String>,
+    pub valid_from: Option<String>,
+    pub valid_to: Option<String>,
+    pub last_active_time: Option<String>,
+    pub remark: Option<String>,
 }
 
 #[derive(Clone, Serialize)]
@@ -620,13 +4420,15 @@ pub struct UserCenterVipMembershipPayload {
     pub organization_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,
-    pub credits_per_month: i64,
     pub user_id: String,
-    pub plan_id: String,
-    pub plan_title: String,
-    pub renew_at: Option<String>,
-    pub seats: i64,
+    pub vip_level_id: Option<String>,
+    pub point_balance: String,
+    pub total_recharged_points: String,
     pub status: String,
+    pub valid_from: Option<String>,
+    pub valid_to: Option<String>,
+    pub last_active_time: Option<String>,
+    pub remark: Option<String>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -679,7 +4481,6 @@ struct UpstreamAppApiUserProfilePayload {
 struct UpstreamAppApiVipInfoPayload {
     expire_time: Option<String>,
     vip_level: Option<i64>,
-    vip_level_name: Option<String>,
     vip_points: Option<i64>,
     vip_status: Option<String>,
 }
@@ -1235,17 +5036,150 @@ impl UserCenterState {
 
 fn ensure_default_local_tenant(connection: &mut Connection) -> Result<(), String> {
     let now = crate::current_storage_timestamp();
+    let default_tenant_name = "BirdCoder Local Tenant";
+    let default_tenant_description =
+        "Default local tenant aligned with spring-ai-plus style multi-tenant storage.";
+    let default_tenant_type = "PLATFORM";
+    let default_tenant_secret_key = "birdcoder-local-tenant-secret";
+    let default_token_expiration_ms: i64 = 7 * 24 * 60 * 60 * 1000;
+    let default_refresh_token_expiration_ms: i64 = 30 * 24 * 60 * 60 * 1000;
+    let canonical_default_id_exists: i64 = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM plus_tenant WHERE CAST(id AS TEXT) = ?1)",
+            params![DEFAULT_LOCAL_TENANT_ID],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("probe canonical default plus_tenant failed: {error}"))?;
+    if canonical_default_id_exists > 0 {
+        let transaction = connection.transaction().map_err(|error| {
+            format!("open default plus_tenant canonicalization failed: {error}")
+        })?;
+        transaction
+            .execute(
+                r#"
+                UPDATE plus_tenant
+                SET
+                    code = ?1 || '-superseded-' || rowid,
+                    status = 'inactive',
+                    updated_at = ?2,
+                    is_deleted = 1
+                WHERE code = ?1 COLLATE NOCASE
+                    AND CAST(id AS TEXT) <> ?3
+                "#,
+                params![DEFAULT_LOCAL_TENANT_CODE, &now, DEFAULT_LOCAL_TENANT_ID],
+            )
+            .map_err(|error| {
+                format!("release duplicate default plus_tenant code failed: {error}")
+            })?;
+        let updated_canonical_default = transaction
+            .execute(
+                r#"
+                UPDATE plus_tenant
+                SET
+                    code = ?1,
+                    name = ?2,
+                    description = ?3,
+                    type = ?4,
+                    jwt_secret_key = CASE
+                        WHEN jwt_secret_key IS NULL OR jwt_secret_key = '' THEN ?5
+                        ELSE jwt_secret_key
+                    END,
+                    token_expiration_ms = COALESCE(token_expiration_ms, ?6),
+                    refresh_token_expiration_ms = COALESCE(refresh_token_expiration_ms, ?7),
+                    status = 'active',
+                    updated_at = ?8,
+                    is_deleted = 0
+                WHERE CAST(id AS TEXT) = ?9
+                "#,
+                params![
+                    DEFAULT_LOCAL_TENANT_CODE,
+                    default_tenant_name,
+                    default_tenant_description,
+                    default_tenant_type,
+                    default_tenant_secret_key,
+                    default_token_expiration_ms,
+                    default_refresh_token_expiration_ms,
+                    &now,
+                    DEFAULT_LOCAL_TENANT_ID,
+                ],
+            )
+            .map_err(|error| format!("canonicalize default plus_tenant failed: {error}"))?;
+        transaction.commit().map_err(|error| {
+            format!("commit default plus_tenant canonicalization failed: {error}")
+        })?;
+        if updated_canonical_default > 0 {
+            return Ok(());
+        }
+    }
+
+    let updated_existing_default_code = connection
+        .execute(
+            r#"
+            UPDATE plus_tenant
+            SET
+                code = ?1,
+                name = ?2,
+                description = ?3,
+                type = ?4,
+                jwt_secret_key = CASE
+                    WHEN jwt_secret_key IS NULL OR jwt_secret_key = '' THEN ?5
+                    ELSE jwt_secret_key
+                END,
+                token_expiration_ms = COALESCE(token_expiration_ms, ?6),
+                refresh_token_expiration_ms = COALESCE(refresh_token_expiration_ms, ?7),
+                status = 'active',
+                updated_at = ?8,
+                is_deleted = 0
+            WHERE rowid = (
+                SELECT rowid
+                FROM plus_tenant
+                WHERE code = ?1 COLLATE NOCASE
+                ORDER BY
+                    CASE WHEN code = ?1 THEN 0 ELSE 1 END,
+                    CASE WHEN is_deleted = 0 THEN 0 ELSE 1 END,
+                    updated_at DESC,
+                    rowid ASC
+                LIMIT 1
+            )
+            "#,
+            params![
+                DEFAULT_LOCAL_TENANT_CODE,
+                default_tenant_name,
+                default_tenant_description,
+                default_tenant_type,
+                default_tenant_secret_key,
+                default_token_expiration_ms,
+                default_refresh_token_expiration_ms,
+                &now,
+            ],
+        )
+        .map_err(|error| format!("ensure default plus_tenant failed: {error}"))?;
+    if updated_existing_default_code > 0 {
+        return Ok(());
+    }
+
     connection
         .execute(
             r#"
             INSERT INTO plus_tenant (
-                id, uuid, code, name, description, status, created_at, updated_at, version, is_deleted
+                id, uuid, created_at, updated_at, version, name, code, type, biz_type, biz_id,
+                jwt_secret_key, token_expiration_ms, refresh_token_expiration_ms, status,
+                description, admin_user_id, install_app_list, expire_time, metadata,
+                contact_person, contact_phone, is_deleted
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, 'active', ?6, ?7, 0, 0)
+            VALUES (
+                ?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, NULL, NULL,
+                ?8, ?9, ?10, 'active', ?11, NULL, NULL, NULL, NULL,
+                NULL, NULL, 0
+            )
             ON CONFLICT(id) DO UPDATE SET
-                uuid = excluded.uuid,
+                uuid = COALESCE(NULLIF(plus_tenant.uuid, ''), excluded.uuid),
                 code = excluded.code,
                 name = excluded.name,
+                type = excluded.type,
+                jwt_secret_key = COALESCE(NULLIF(plus_tenant.jwt_secret_key, ''), excluded.jwt_secret_key),
+                token_expiration_ms = COALESCE(plus_tenant.token_expiration_ms, excluded.token_expiration_ms),
+                refresh_token_expiration_ms = COALESCE(plus_tenant.refresh_token_expiration_ms, excluded.refresh_token_expiration_ms),
                 description = excluded.description,
                 status = 'active',
                 updated_at = excluded.updated_at,
@@ -1254,11 +5188,15 @@ fn ensure_default_local_tenant(connection: &mut Connection) -> Result<(), String
             params![
                 DEFAULT_LOCAL_TENANT_ID,
                 stable_entity_uuid("plus_tenant", DEFAULT_LOCAL_TENANT_ID),
+                &now,
+                &now,
+                default_tenant_name,
                 DEFAULT_LOCAL_TENANT_CODE,
-                "BirdCoder Local Tenant",
-                "Default local tenant aligned with spring-ai-plus style multi-tenant storage.",
-                &now,
-                &now,
+                default_tenant_type,
+                default_tenant_secret_key,
+                default_token_expiration_ms,
+                default_refresh_token_expiration_ms,
+                default_tenant_description,
             ],
         )
         .map_err(|error| format!("ensure default plus_tenant failed: {error}"))?;
@@ -1295,9 +5233,10 @@ fn backfill_global_business_columns(
                     .map_err(|error| format!("read {table_name} uuid failed: {error}"))?,
                 sqlite_row_optional_string_value(row, 2, &format!("{table_name}.tenant_id"))
                     .map_err(|error| format!("read {table_name} tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read {table_name} organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 3, &format!("{table_name}.organization_id"))
+                    .map_err(|error| {
+                        format!("read {table_name} organization_id failed: {error}")
+                    })?,
             ));
         }
         records
@@ -1315,7 +5254,7 @@ fn backfill_global_business_columns(
             .unwrap_or_else(|| stable_entity_uuid(table_name, &id));
         let resolved_tenant_id = normalize_optional_text(tenant_id.as_deref())
             .unwrap_or_else(|| DEFAULT_LOCAL_TENANT_ID.to_owned());
-        let resolved_organization_id = normalize_optional_text(organization_id.as_deref());
+        let resolved_organization_id = resolve_local_organization_id(organization_id.as_deref());
         connection
             .execute(
                 &update_statement,
@@ -1378,14 +5317,20 @@ fn backfill_user_owned_business_columns(
                     .map_err(|error| format!("read {table_name} uuid failed: {error}"))?,
                 sqlite_row_optional_string_value(row, 2, &format!("{table_name}.tenant_id"))
                     .map_err(|error| format!("read {table_name} tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read {table_name} organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 3, &format!("{table_name}.organization_id"))
+                    .map_err(|error| {
+                        format!("read {table_name} organization_id failed: {error}")
+                    })?,
                 sqlite_row_optional_string_value(row, 4, &format!("{table_name}.parent_tenant_id"))
                     .map_err(|error| {
-                    format!("read {table_name} parent tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(5).map_err(|error| {
+                        format!("read {table_name} parent tenant_id failed: {error}")
+                    })?,
+                sqlite_row_optional_string_value(
+                    row,
+                    5,
+                    &format!("{table_name}.parent_organization_id"),
+                )
+                .map_err(|error| {
                     format!("read {table_name} parent organization_id failed: {error}")
                 })?,
             ));
@@ -1407,7 +5352,8 @@ fn backfill_user_owned_business_columns(
             .or_else(|| normalize_optional_text(parent_tenant_id.as_deref()))
             .unwrap_or_else(|| DEFAULT_LOCAL_TENANT_ID.to_owned());
         let resolved_organization_id = normalize_optional_text(organization_id.as_deref())
-            .or_else(|| normalize_optional_text(parent_organization_id.as_deref()));
+            .or_else(|| normalize_optional_text(parent_organization_id.as_deref()))
+            .unwrap_or_else(|| DEFAULT_LOCAL_ORGANIZATION_ID.to_owned());
         connection
             .execute(
                 &update_statement,
@@ -1460,16 +5406,23 @@ fn backfill_login_qr_business_columns(connection: &mut Connection) -> Result<(),
                     .map_err(|error| format!("read plus_user_login_qr id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read plus_user_login_qr uuid failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 2, "plus_user_login_qr.tenant_id").map_err(|error| {
-                    format!("read plus_user_login_qr tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read plus_user_login_qr organization_id failed: {error}")
-                })?,
-                sqlite_row_optional_string_value(row, 4, "plus_user_login_qr.parent_tenant_id").map_err(|error| {
-                    format!("read plus_user_login_qr parent tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(5).map_err(|error| {
+                sqlite_row_optional_string_value(row, 2, "plus_user_login_qr.tenant_id").map_err(
+                    |error| format!("read plus_user_login_qr tenant_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 3, "plus_user_login_qr.organization_id")
+                    .map_err(|error| {
+                        format!("read plus_user_login_qr organization_id failed: {error}")
+                    })?,
+                sqlite_row_optional_string_value(row, 4, "plus_user_login_qr.parent_tenant_id")
+                    .map_err(|error| {
+                        format!("read plus_user_login_qr parent tenant_id failed: {error}")
+                    })?,
+                sqlite_row_optional_string_value(
+                    row,
+                    5,
+                    "plus_user_login_qr.parent_organization_id",
+                )
+                .map_err(|error| {
                     format!("read plus_user_login_qr parent organization_id failed: {error}")
                 })?,
             ));
@@ -1484,7 +5437,8 @@ fn backfill_login_qr_business_columns(connection: &mut Connection) -> Result<(),
             .or_else(|| normalize_optional_text(user_tenant_id.as_deref()))
             .unwrap_or_else(|| DEFAULT_LOCAL_TENANT_ID.to_owned());
         let resolved_organization_id = normalize_optional_text(organization_id.as_deref())
-            .or_else(|| normalize_optional_text(user_organization_id.as_deref()));
+            .or_else(|| normalize_optional_text(user_organization_id.as_deref()))
+            .unwrap_or_else(|| DEFAULT_LOCAL_ORGANIZATION_ID.to_owned());
         connection
             .execute(
                 r#"
@@ -1507,7 +5461,7 @@ fn backfill_login_qr_business_columns(connection: &mut Connection) -> Result<(),
     Ok(())
 }
 
-const USER_CENTER_INTEGER_IDENTIFIER_TABLE_RULES: [(&str, &[(&str, bool)]); 7] = [
+const USER_CENTER_INTEGER_IDENTIFIER_TABLE_RULES: &[(&str, &[(&str, bool)])] = &[
     ("plus_tenant", &[("id", false)]),
     ("plus_user", &[("id", false), ("tenant_id", true)]),
     (
@@ -1522,7 +5476,10 @@ const USER_CENTER_INTEGER_IDENTIFIER_TABLE_RULES: [(&str, &[(&str, bool)]); 7] =
         "plus_user_auth_session",
         &[("id", false), ("tenant_id", true), ("user_id", false)],
     ),
-    ("plus_user_verify_code", &[("id", false), ("tenant_id", true)]),
+    (
+        "plus_user_verify_code",
+        &[("id", false), ("tenant_id", true)],
+    ),
     (
         "plus_user_login_qr",
         &[
@@ -1530,6 +5487,1024 @@ const USER_CENTER_INTEGER_IDENTIFIER_TABLE_RULES: [(&str, &[(&str, bool)]); 7] =
             ("tenant_id", true),
             ("session_id", true),
             ("user_id", true),
+        ],
+    ),
+    (
+        "plus_organization",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("parent_id", true),
+        ],
+    ),
+    (
+        "plus_organization_member",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
+            ("owner_id", false),
+        ],
+    ),
+    (
+        "plus_member_relations",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("parent_id", true),
+            ("member_id", false),
+            ("owner_id", false),
+            ("target_id", false),
+        ],
+    ),
+    (
+        "plus_department",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("parent_id", true),
+            ("owner_id", false),
+            ("manager_id", true),
+        ],
+    ),
+    (
+        "plus_position",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("parent_id", true),
+            ("owner_id", false),
+        ],
+    ),
+    (
+        "plus_role",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+        ],
+    ),
+    (
+        "plus_permission",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+        ],
+    ),
+    (
+        "plus_role_permission",
+        &[
+            ("id", false),
+            ("role_id", false),
+            ("permission_id", false),
+            ("operator_id", true),
+        ],
+    ),
+    (
+        "plus_user_role",
+        &[
+            ("id", true),
+            ("user_id", false),
+            ("role_id", false),
+            ("operator_id", true),
+        ],
+    ),
+    (
+        "plus_card",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("card_organization_id", true),
+        ],
+    ),
+    (
+        "plus_user_card",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("card_id", true),
+        ],
+    ),
+    (
+        "plus_member_card",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("card_id", true),
+        ],
+    ),
+    (
+        "plus_member_level",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("card_id", true),
+            ("required_points", true),
+        ],
+    ),
+    (
+        "plus_card_template",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+        ],
+    ),
+    (
+        "plus_coupon",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("point_cost", true),
+        ],
+    ),
+    (
+        "plus_coupon_template",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+        ],
+    ),
+    (
+        "plus_user_coupon",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
+            ("coupon_id", false),
+            ("point_cost", true),
+            ("order_id", true),
+        ],
+    ),
+    (
+        "plus_product",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
+            ("category_id", false),
+        ],
+    ),
+    (
+        "plus_sku",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("product_id", false),
+        ],
+    ),
+    (
+        "plus_currency",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+        ],
+    ),
+    (
+        "plus_exchange_rate",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("base_currency_id", false),
+            ("target_currency_id", false),
+        ],
+    ),
+    (
+        "plus_agent_skill_package",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
+            ("category_id", true),
+        ],
+    ),
+    (
+        "plus_agent_skill",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
+            ("category_id", true),
+            ("package_id", true),
+            ("reviewed_by", true),
+        ],
+    ),
+    (
+        "plus_user_agent_skill",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
+            ("skill_id", false),
+        ],
+    ),
+    (
+        "plus_agent_plugin",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+        ],
+    ),
+    (
+        "plus_datasource",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("project_id", false),
+        ],
+    ),
+    (
+        "plus_schema",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("datasource_id", false),
+        ],
+    ),
+    (
+        "plus_table",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("schema_id", false),
+        ],
+    ),
+    (
+        "plus_column",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("table_id", false),
+        ],
+    ),
+    (
+        "plus_ai_generation",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("conversation_id", true),
+            ("message_id", true),
+            ("parent_id", true),
+            ("biz_id", true),
+        ],
+    ),
+    (
+        "plus_ai_generation_content",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("generation_id", false),
+            ("content_id", true),
+            ("seed", true),
+            ("file_size", true),
+        ],
+    ),
+    (
+        "plus_ai_generation_style",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+        ],
+    ),
+    (
+        "plus_channel",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+        ],
+    ),
+    (
+        "plus_channel_account",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+        ],
+    ),
+    (
+        "plus_channel_proxy",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+        ],
+    ),
+    (
+        "plus_channel_resource",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("channel_account_id", false),
+        ],
+    ),
+    (
+        "plus_api_key",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+        ],
+    ),
+    (
+        "plus_app",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("project_id", true),
+        ],
+    ),
+    (
+        "plus_ai_model_availability",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("model_id", true),
+        ],
+    ),
+    (
+        "plus_ai_model_compliance_profile",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("model_id", true),
+        ],
+    ),
+    (
+        "plus_ai_model_info",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+        ],
+    ),
+    (
+        "plus_ai_model_price",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("model_id", true),
+        ],
+    ),
+    (
+        "plus_ai_model_price_metric",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("price_rule_id", false),
+            ("model_id", true),
+        ],
+    ),
+    (
+        "plus_ai_model_taxonomy",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("parent_id", true),
+        ],
+    ),
+    (
+        "plus_ai_model_taxonomy_rel",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("model_id", false),
+            ("taxonomy_id", false),
+        ],
+    ),
+    (
+        "plus_ai_tenant_model_policy",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("subject_id", true),
+            ("model_id", true),
+        ],
+    ),
+    (
+        "plus_ai_agent_tool_relation",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("agent_id", false),
+            ("tool_id", false),
+        ],
+    ),
+    (
+        "plus_ai_agent",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("owner_id", false),
+            ("biz_type", true),
+            ("cate_id", true),
+            ("prompt_id", true),
+        ],
+    ),
+    (
+        "plus_ai_prompt",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("cate_id", true),
+            ("usage_count", true),
+            ("avg_response_time", true),
+        ],
+    ),
+    (
+        "plus_ai_prompt_history",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("prompt_id", true),
+            ("duration", true),
+        ],
+    ),
+    (
+        "plus_ai_tool",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("owner_id", false),
+        ],
+    ),
+    (
+        "plus_api_security_policy",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+        ],
+    ),
+    (
+        "plus_category",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("parent_id", true),
+            ("shop_id", false),
+        ],
+    ),
+    (
+        "plus_attribute",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("content_id", false),
+            ("category_id", false),
+        ],
+    ),
+    (
+        "plus_tags",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+        ],
+    ),
+    (
+        "plus_memory",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("agent_id", true),
+            ("conversation_id", true),
+        ],
+    ),
+    (
+        "plus_memory_item",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("agent_id", true),
+            ("conversation_id", true),
+        ],
+    ),
+    (
+        "plus_notification",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("sender_id", true),
+            ("receiver_id", true),
+            ("group_id", true),
+        ],
+    ),
+    (
+        "plus_notification_content",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("notification_id", false),
+            ("sender_id", true),
+            ("receiver_id", true),
+            ("group_id", true),
+        ],
+    ),
+    (
+        "plus_push_device_endpoint",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
+            ("workspace_id", true),
+        ],
+    ),
+    (
+        "plus_push_topic_subscription",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
+        ],
+    ),
+    (
+        "plus_conversation",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("agent_id", true),
+            ("agent_biz_type", true),
+            ("last_message_id", true),
+            ("content_id", true),
+            ("model_id", true),
+            ("knowledge_base_id", true),
+            ("data_source_id", true),
+        ],
+    ),
+    (
+        "plus_chat_message",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("sender_id", true),
+            ("receiver_id", true),
+            ("group_id", true),
+            ("conversation_id", false),
+            ("agent_id", true),
+            ("knowledge_base_id", true),
+            ("datasource_id", true),
+            ("agent_biz_type", true),
+            ("user_id", true),
+            ("channel_msg_seq", true),
+            ("parent_message_id", true),
+            ("processing_time", true),
+            ("model_id", true),
+        ],
+    ),
+    (
+        "plus_chat_message_content",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("message_id", false),
+            ("conversation_id", false),
+            ("agent_id", true),
+            ("agent_biz_type", true),
+        ],
+    ),
+    (
+        "plus_detail",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("content_id", false),
+        ],
+    ),
+    (
+        "plus_collection",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("parent_id", true),
+            ("user_id", true),
+            ("content_id", true),
+        ],
+    ),
+    (
+        "plus_collection_item",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("collection_id", false),
+            ("content_id", false),
+        ],
+    ),
+    (
+        "plus_favorite",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("content_id", false),
+            ("folder_id", true),
+        ],
+    ),
+    (
+        "plus_favorite_folder",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
+            ("parent_id", true),
+        ],
+    ),
+    (
+        "plus_share",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+        ],
+    ),
+    (
+        "plus_share_visit_record",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("share_id", false),
+        ],
+    ),
+    (
+        "plus_invitation_code",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("creator_user_id", false),
+        ],
+    ),
+    (
+        "plus_invitation_relation",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("inviter_user_id", false),
+            ("invitee_user_id", false),
+        ],
+    ),
+    (
+        "plus_sns_follow_relation",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("follower_id", false),
+            ("following_id", false),
+            ("owner_id", false),
+        ],
+    ),
+    (
+        "plus_sns_follow_statistics",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
+            ("owner_id", false),
+            ("following_count", false),
+            ("follower_count", false),
+            ("mutual_count", false),
+            ("special_count", false),
+            ("blocked_count", false),
+            ("total_interaction_count", false),
+            ("last_updated_at", true),
+        ],
+    ),
+    (
+        "plus_comments",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("parent_id", true),
+            ("user_id", true),
+            ("content_id", false),
+        ],
+    ),
+    (
+        "plus_content_vote",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("content_id", false),
+        ],
+    ),
+    (
+        "plus_visit_history",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("content_id", false),
+        ],
+    ),
+    (
+        "plus_feeds",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("category_id", false),
+            ("content_id", false),
+            ("view_count", true),
+            ("like_count", true),
+            ("comment_count", true),
+            ("share_count", true),
+            ("favorite_count", true),
+        ],
+    ),
+    (
+        "plus_short_url",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("created_by", true),
+        ],
+    ),
+    (
+        "plus_feedback",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("biz_id", true),
+            ("reply_user_id", true),
+            ("closed_by", true),
+            ("assigned_to", true),
+        ],
+    ),
+    (
+        "plus_email_message",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
+        ],
+    ),
+    (
+        "plus_events",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+        ],
+    ),
+    (
+        "plus_disk",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("owner_id", false),
+            ("knowledge_base_id", true),
+            ("disk_size", false),
+            ("used_size", false),
+        ],
+    ),
+    (
+        "plus_disk_member",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("disk_id", false),
+            ("user_id", false),
+            ("knowledge_base_id", true),
+        ],
+    ),
+    (
+        "plus_file",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("disk_id", false),
+            ("size", true),
+            ("content_id", true),
+            ("biz_id", true),
+            ("workspace_id", true),
+            ("project_id", true),
+            ("generation_id", true),
+            ("owner_id", true),
+            ("channel_config_id", true),
+            ("parent_id", true),
+            ("reference_file_id", true),
+        ],
+    ),
+    (
+        "plus_file_content",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("file_id", false),
+        ],
+    ),
+    (
+        "plus_file_part",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("file_id", false),
+            ("chunk_size", false),
+            ("total_size", false),
+        ],
+    ),
+    (
+        "plus_oss_bucket",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", true),
+            ("channel_config_id", true),
+        ],
+    ),
+    (
+        "plus_order",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("owner_id", false),
+            ("user_id", false),
+            ("worker_user_id", true),
+            ("dispatcher_user_id", true),
+            ("content_id", true),
+            ("category_id", false),
+        ],
+    ),
+    (
+        "plus_order_item",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("order_id", false),
+            ("category_id", false),
+            ("product_id", false),
+            ("sku_id", false),
+            ("content_id", true),
+        ],
+    ),
+    (
+        "plus_payment",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("order_id", false),
+            ("content_id", true),
+        ],
+    ),
+    (
+        "plus_refund",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("order_id", false),
+            ("payment_id", false),
+            ("content_id", true),
+            ("operator_id", true),
+        ],
+    ),
+    (
+        "plus_shopping_cart",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
+            ("owner_id", false),
+        ],
+    ),
+    (
+        "plus_shopping_cart_item",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("cart_id", false),
+            ("product_id", false),
+            ("sku_id", false),
+        ],
+    ),
+    (
+        "plus_payment_webhook_event",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("request_timestamp", true),
+        ],
+    ),
+    (
+        "plus_order_dispatch_rule",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+        ],
+    ),
+    (
+        "plus_order_worker_dispatch_profile",
+        &[
+            ("id", false),
+            ("tenant_id", true),
+            ("organization_id", true),
+            ("user_id", false),
         ],
     ),
 ];
@@ -1552,8 +6527,8 @@ fn load_sqlite_table_column_types(
         .map_err(|error| format!("query sqlite table info for {table_name} failed: {error}"))?;
     let mut columns = BTreeMap::new();
     for row in rows {
-        let (column_name, column_type) =
-            row.map_err(|error| format!("read sqlite table info for {table_name} failed: {error}"))?;
+        let (column_name, column_type) = row
+            .map_err(|error| format!("read sqlite table info for {table_name} failed: {error}"))?;
         columns.insert(column_name, column_type);
     }
     Ok(columns)
@@ -1591,7 +6566,8 @@ fn sqlite_user_center_identifier_columns_are_decimal_compatible(
     required_columns: &[(&str, bool)],
 ) -> Result<bool, String> {
     for (column_name, allow_nullish) in required_columns {
-        let query = format!("SELECT {column_name} FROM {table_name} WHERE {column_name} IS NOT NULL");
+        let query =
+            format!("SELECT {column_name} FROM {table_name} WHERE {column_name} IS NOT NULL");
         let mut statement = connection.prepare(&query).map_err(|error| {
             format!("prepare identifier compatibility probe for {table_name}.{column_name} failed: {error}")
         })?;
@@ -1600,7 +6576,9 @@ fn sqlite_user_center_identifier_columns_are_decimal_compatible(
         })?;
 
         while let Some(row) = rows.next().map_err(|error| {
-            format!("read identifier compatibility row for {table_name}.{column_name} failed: {error}")
+            format!(
+                "read identifier compatibility row for {table_name}.{column_name} failed: {error}"
+            )
         })? {
             let Some(raw_value) = sqlite_value_ref_to_string(row.get_ref(0).map_err(|error| {
                 format!("read identifier compatibility value for {table_name}.{column_name} failed: {error}")
@@ -1627,16 +6605,23 @@ fn upgrade_sqlite_user_center_integer_identifier_table(
     recreate_schema_sql: &str,
     insert_select_sql: String,
 ) -> Result<bool, String> {
-    if !sqlite_user_center_table_requires_integer_identifier_upgrade(connection, table_name, required_columns)?
-    {
+    if !sqlite_user_center_table_requires_integer_identifier_upgrade(
+        connection,
+        table_name,
+        required_columns,
+    )? {
         return Ok(false);
     }
 
-    if !sqlite_user_center_identifier_columns_are_decimal_compatible(connection, table_name, required_columns)?
-    {
-        return Err(format!(
-            "sqlite user center table {table_name} contains non-decimal identifiers and cannot be upgraded to INTEGER storage."
-        ));
+    if !sqlite_user_center_identifier_columns_are_decimal_compatible(
+        connection,
+        table_name,
+        required_columns,
+    )? {
+        eprintln!(
+            "sqlite user center integer identifier upgrade skipped for table {table_name}: existing rows contain non-decimal identifiers."
+        );
+        return Ok(false);
     }
 
     let legacy_table_name = format!("{table_name}__legacy_integer_identifiers");
@@ -1652,16 +6637,20 @@ fn upgrade_sqlite_user_center_integer_identifier_table(
         .map_err(|error| format!("rename legacy {table_name} table failed: {error}"))?;
     transaction
         .execute_batch(recreate_schema_sql)
-        .map_err(|error| format!("recreate {table_name} schema during integer identifier upgrade failed: {error}"))?;
+        .map_err(|error| {
+            format!(
+                "recreate {table_name} schema during integer identifier upgrade failed: {error}"
+            )
+        })?;
     transaction
         .execute(&insert_select_sql, [])
         .map_err(|error| format!("copy upgraded {table_name} rows failed: {error}"))?;
     transaction
         .execute(&format!("DROP TABLE {legacy_table_name}"), [])
         .map_err(|error| format!("drop legacy {table_name} table failed: {error}"))?;
-    transaction
-        .commit()
-        .map_err(|error| format!("commit integer identifier upgrade for {table_name} failed: {error}"))?;
+    transaction.commit().map_err(|error| {
+        format!("commit integer identifier upgrade for {table_name} failed: {error}")
+    })?;
 
     Ok(true)
 }
@@ -1673,11 +6662,10 @@ fn ensure_sqlite_user_center_integer_identifier_upgrade(
     let plus_user_legacy_table = "plus_user__legacy_integer_identifiers";
     let plus_oauth_account_legacy_table = "plus_oauth_account__legacy_integer_identifiers";
     let plus_vip_user_legacy_table = "plus_vip_user__legacy_integer_identifiers";
-    let plus_user_auth_session_legacy_table =
-        "plus_user_auth_session__legacy_integer_identifiers";
-    let plus_user_verify_code_legacy_table =
-        "plus_user_verify_code__legacy_integer_identifiers";
+    let plus_user_auth_session_legacy_table = "plus_user_auth_session__legacy_integer_identifiers";
+    let plus_user_verify_code_legacy_table = "plus_user_verify_code__legacy_integer_identifiers";
     let plus_user_login_qr_legacy_table = "plus_user_login_qr__legacy_integer_identifiers";
+    let plus_organization_legacy_table = "plus_organization__legacy_integer_identifiers";
 
     let _ = upgrade_sqlite_user_center_integer_identifier_table(
         connection,
@@ -1687,10 +6675,16 @@ fn ensure_sqlite_user_center_integer_identifier_upgrade(
         format!(
             r#"
             INSERT INTO plus_tenant (
-                id, uuid, code, name, description, status, created_at, updated_at, version, is_deleted
+                id, uuid, created_at, updated_at, version, name, code, type, biz_type, biz_id,
+                jwt_secret_key, token_expiration_ms, refresh_token_expiration_ms, status,
+                description, admin_user_id, install_app_list, expire_time, metadata,
+                contact_person, contact_phone, is_deleted
             )
             SELECT
-                CAST(id AS INTEGER), uuid, code, name, description, status, created_at, updated_at, version, is_deleted
+                CAST(id AS INTEGER), uuid, created_at, updated_at, version, name, code, type, biz_type,
+                biz_id, jwt_secret_key, token_expiration_ms, refresh_token_expiration_ms, status,
+                description, admin_user_id, install_app_list, expire_time, metadata,
+                contact_person, contact_phone, is_deleted
             FROM {plus_tenant_legacy_table}
             "#
         ),
@@ -1711,10 +6705,14 @@ fn ensure_sqlite_user_center_integer_identifier_upgrade(
                 CAST(id AS INTEGER),
                 uuid,
                 CASE
-                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN NULL
+                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN 0
                     ELSE CAST(tenant_id AS INTEGER)
                 END,
-                organization_id, username, nickname, password, salt, platform, type, scene, email, phone,
+                CASE
+                    WHEN organization_id IS NULL OR TRIM(CAST(organization_id AS TEXT)) = '' THEN 0
+                    ELSE CAST(organization_id AS INTEGER)
+                END,
+                username, nickname, password, salt, platform, type, scene, email, phone,
                 country_code, province_code, city_code, district_code, address, bio, avatar_url, provider_key,
                 external_subject, metadata_json, status, created_at, updated_at, version, is_deleted
             FROM {plus_user_legacy_table}
@@ -1736,10 +6734,13 @@ fn ensure_sqlite_user_center_integer_identifier_upgrade(
                 CAST(id AS INTEGER),
                 uuid,
                 CASE
-                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN NULL
+                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN 0
                     ELSE CAST(tenant_id AS INTEGER)
                 END,
-                organization_id,
+                CASE
+                    WHEN organization_id IS NULL OR TRIM(CAST(organization_id AS TEXT)) = '' THEN 0
+                    ELSE CAST(organization_id AS INTEGER)
+                END,
                 CAST(user_id AS INTEGER),
                 oauth_provider, open_id, union_id, app_id, oauth_user_info_json, status,
                 created_at, updated_at, version, is_deleted
@@ -1755,21 +6756,24 @@ fn ensure_sqlite_user_center_integer_identifier_upgrade(
         format!(
             r#"
             INSERT INTO plus_vip_user (
-                id, uuid, tenant_id, organization_id, user_id, vip_level_id, vip_level_name, status,
-                point_balance, total_recharged_points, monthly_credits, seat_limit, valid_from, valid_to,
+                id, uuid, tenant_id, organization_id, user_id, vip_level_id, status,
+                point_balance, total_recharged_points, valid_from, valid_to,
                 last_active_time, remark, created_at, updated_at, version, is_deleted
             )
             SELECT
                 CAST(id AS INTEGER),
                 uuid,
                 CASE
-                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN NULL
+                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN 0
                     ELSE CAST(tenant_id AS INTEGER)
                 END,
-                organization_id,
+                CASE
+                    WHEN organization_id IS NULL OR TRIM(CAST(organization_id AS TEXT)) = '' THEN 0
+                    ELSE CAST(organization_id AS INTEGER)
+                END,
                 CAST(user_id AS INTEGER),
-                vip_level_id, vip_level_name, status, point_balance, total_recharged_points, monthly_credits,
-                seat_limit, valid_from, valid_to, last_active_time, remark, created_at, updated_at, version, is_deleted
+                vip_level_id, status, point_balance, total_recharged_points,
+                valid_from, valid_to, last_active_time, remark, created_at, updated_at, version, is_deleted
             FROM {plus_vip_user_legacy_table}
             "#
         ),
@@ -1790,10 +6794,13 @@ fn ensure_sqlite_user_center_integer_identifier_upgrade(
                 CAST(id AS INTEGER),
                 uuid,
                 CASE
-                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN NULL
+                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN 0
                     ELSE CAST(tenant_id AS INTEGER)
                 END,
-                organization_id,
+                CASE
+                    WHEN organization_id IS NULL OR TRIM(CAST(organization_id AS TEXT)) = '' THEN 0
+                    ELSE CAST(organization_id AS INTEGER)
+                END,
                 CAST(user_id AS INTEGER),
                 provider_key, provider_mode, upstream_auth_token, upstream_access_token, upstream_refresh_token,
                 upstream_token_type, upstream_user_id, upstream_payload_json, status,
@@ -1817,10 +6824,14 @@ fn ensure_sqlite_user_center_integer_identifier_upgrade(
                 CAST(id AS INTEGER),
                 uuid,
                 CASE
-                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN NULL
+                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN 0
                     ELSE CAST(tenant_id AS INTEGER)
                 END,
-                organization_id, provider_key, verify_type, scene, target, code, status, expires_at,
+                CASE
+                    WHEN organization_id IS NULL OR TRIM(CAST(organization_id AS TEXT)) = '' THEN 0
+                    ELSE CAST(organization_id AS INTEGER)
+                END,
+                provider_key, verify_type, scene, target, code, status, expires_at,
                 consumed_at, metadata_json, created_at, updated_at, version, is_deleted
             FROM {plus_user_verify_code_legacy_table}
             "#
@@ -1841,10 +6852,14 @@ fn ensure_sqlite_user_center_integer_identifier_upgrade(
                 CAST(id AS INTEGER),
                 uuid,
                 CASE
-                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN NULL
+                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN 0
                     ELSE CAST(tenant_id AS INTEGER)
                 END,
-                organization_id, provider_key, qr_key, status,
+                CASE
+                    WHEN organization_id IS NULL OR TRIM(CAST(organization_id AS TEXT)) = '' THEN 0
+                    ELSE CAST(organization_id AS INTEGER)
+                END,
+                provider_key, qr_key, status,
                 CASE
                     WHEN session_id IS NULL OR TRIM(CAST(session_id AS TEXT)) = '' THEN NULL
                     ELSE CAST(session_id AS INTEGER)
@@ -1858,24 +6873,132 @@ fn ensure_sqlite_user_center_integer_identifier_upgrade(
             "#
         ),
     )?;
+    let _ = upgrade_sqlite_user_center_integer_identifier_table(
+        connection,
+        "plus_organization",
+        USER_CENTER_INTEGER_IDENTIFIER_TABLE_RULES[7].1,
+        USER_CENTER_SQLITE_SCHEMA,
+        format!(
+            r#"
+            INSERT INTO plus_organization (
+                id, uuid, tenant_id, organization_id, data_scope, parent_id, parent_uuid,
+                parent_metadata, name, jwt_secret_key, token_expiration_ms,
+                refresh_token_expiration_ms, code, install_app_list, status, metadata,
+                description, contact_person, contact_phone, contact_email, address, website,
+                logo_url, created_at, updated_at, version, is_deleted
+            )
+            SELECT
+                CAST(id AS INTEGER),
+                uuid,
+                CASE
+                    WHEN tenant_id IS NULL OR TRIM(CAST(tenant_id AS TEXT)) = '' THEN 0
+                    ELSE CAST(tenant_id AS INTEGER)
+                END,
+                CASE
+                    WHEN organization_id IS NULL OR TRIM(CAST(organization_id AS TEXT)) = '' THEN 0
+                    ELSE CAST(organization_id AS INTEGER)
+                END,
+                CASE
+                    WHEN data_scope IS NULL OR TRIM(CAST(data_scope AS TEXT)) = '' THEN 1
+                    ELSE CAST(data_scope AS INTEGER)
+                END,
+                CASE
+                    WHEN parent_id IS NULL OR TRIM(CAST(parent_id AS TEXT)) = '' THEN NULL
+                    ELSE CAST(parent_id AS INTEGER)
+                END,
+                parent_uuid, parent_metadata, name, jwt_secret_key, token_expiration_ms,
+                refresh_token_expiration_ms, code, install_app_list,
+                CASE
+                    WHEN status IS NULL OR TRIM(CAST(status AS TEXT)) = '' THEN 1
+                    WHEN LOWER(TRIM(CAST(status AS TEXT))) = 'active' THEN 1
+                    WHEN LOWER(TRIM(CAST(status AS TEXT))) = 'inactive' THEN 2
+                    WHEN LOWER(TRIM(CAST(status AS TEXT))) = 'disabled' THEN 3
+                    WHEN LOWER(TRIM(CAST(status AS TEXT))) = 'deleted' THEN 4
+                    ELSE CAST(status AS INTEGER)
+                END,
+                metadata, description, contact_person, contact_phone, contact_email,
+                address, website, logo_url, created_at, updated_at, version, is_deleted
+            FROM {plus_organization_legacy_table}
+            "#
+        ),
+    )?;
 
     Ok(())
 }
 
-pub fn ensure_sqlite_user_center_schema(connection: &mut Connection) -> Result<(), String> {
-    connection
-        .execute_batch(USER_CENTER_SQLITE_SCHEMA)
-        .map_err(|error| format!("create sqlite user center schema failed: {error}"))?;
-    ensure_sqlite_user_center_integer_identifier_upgrade(connection)?;
-
+fn ensure_sqlite_user_center_business_columns(connection: &Connection) -> Result<(), String> {
+    if crate::sqlite_table_exists(connection, "plus_tenant")? {
+        crate::ensure_sqlite_table_columns(
+            connection,
+            "plus_tenant",
+            &[
+                ("type", "type TEXT NOT NULL DEFAULT 'PLATFORM'"),
+                ("biz_type", "biz_type TEXT NULL"),
+                ("biz_id", "biz_id INTEGER NULL"),
+                (
+                    "jwt_secret_key",
+                    "jwt_secret_key TEXT NOT NULL DEFAULT 'birdcoder-local-tenant-secret'",
+                ),
+                ("token_expiration_ms", "token_expiration_ms INTEGER NULL"),
+                (
+                    "refresh_token_expiration_ms",
+                    "refresh_token_expiration_ms INTEGER NULL",
+                ),
+                ("admin_user_id", "admin_user_id INTEGER NULL"),
+                ("install_app_list", "install_app_list TEXT NULL"),
+                ("expire_time", "expire_time TEXT NULL"),
+                ("metadata", "metadata TEXT NULL"),
+                ("contact_person", "contact_person TEXT NULL"),
+                ("contact_phone", "contact_phone TEXT NULL"),
+            ],
+        )?;
+    }
+    if crate::sqlite_table_exists(connection, "plus_organization")? {
+        crate::ensure_sqlite_table_columns(
+            connection,
+            "plus_organization",
+            &[
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
+                ("data_scope", "data_scope INTEGER NOT NULL DEFAULT 1"),
+                ("parent_id", "parent_id INTEGER NULL"),
+                ("parent_uuid", "parent_uuid TEXT NULL"),
+                ("parent_metadata", "parent_metadata TEXT NULL"),
+                ("name", "name TEXT NOT NULL DEFAULT ''"),
+                ("jwt_secret_key", "jwt_secret_key TEXT NOT NULL DEFAULT ''"),
+                ("token_expiration_ms", "token_expiration_ms INTEGER NULL"),
+                (
+                    "refresh_token_expiration_ms",
+                    "refresh_token_expiration_ms INTEGER NULL",
+                ),
+                ("code", "code TEXT NOT NULL DEFAULT ''"),
+                ("install_app_list", "install_app_list TEXT NULL"),
+                ("status", "status INTEGER NOT NULL DEFAULT 1"),
+                ("metadata", "metadata TEXT NULL"),
+                ("description", "description TEXT NULL"),
+                ("contact_person", "contact_person TEXT NULL"),
+                ("contact_phone", "contact_phone TEXT NULL"),
+                ("contact_email", "contact_email TEXT NULL"),
+                ("address", "address TEXT NULL"),
+                ("website", "website TEXT NULL"),
+                ("logo_url", "logo_url TEXT NULL"),
+            ],
+        )?;
+    }
     if crate::sqlite_table_exists(connection, "plus_user")? {
         crate::ensure_sqlite_table_columns(
             connection,
             "plus_user",
             &[
                 ("uuid", "uuid TEXT NOT NULL DEFAULT ''"),
-                ("tenant_id", "tenant_id INTEGER NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -1885,8 +7008,11 @@ pub fn ensure_sqlite_user_center_schema(connection: &mut Connection) -> Result<(
             "plus_oauth_account",
             &[
                 ("uuid", "uuid TEXT NOT NULL DEFAULT ''"),
-                ("tenant_id", "tenant_id INTEGER NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -1896,8 +7022,11 @@ pub fn ensure_sqlite_user_center_schema(connection: &mut Connection) -> Result<(
             "plus_vip_user",
             &[
                 ("uuid", "uuid TEXT NOT NULL DEFAULT ''"),
-                ("tenant_id", "tenant_id INTEGER NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -1907,8 +7036,11 @@ pub fn ensure_sqlite_user_center_schema(connection: &mut Connection) -> Result<(
             "plus_user_auth_session",
             &[
                 ("uuid", "uuid TEXT NOT NULL DEFAULT ''"),
-                ("tenant_id", "tenant_id INTEGER NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -1918,8 +7050,11 @@ pub fn ensure_sqlite_user_center_schema(connection: &mut Connection) -> Result<(
             "plus_user_verify_code",
             &[
                 ("uuid", "uuid TEXT NOT NULL DEFAULT ''"),
-                ("tenant_id", "tenant_id INTEGER NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -1929,11 +7064,25 @@ pub fn ensure_sqlite_user_center_schema(connection: &mut Connection) -> Result<(
             "plus_user_login_qr",
             &[
                 ("uuid", "uuid TEXT NOT NULL DEFAULT ''"),
-                ("tenant_id", "tenant_id INTEGER NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
+
+    Ok(())
+}
+
+pub fn ensure_sqlite_user_center_schema(connection: &mut Connection) -> Result<(), String> {
+    connection
+        .execute_batch(USER_CENTER_SQLITE_SCHEMA)
+        .map_err(|error| format!("create sqlite user center schema failed: {error}"))?;
+    ensure_sqlite_user_center_business_columns(connection)?;
+    ensure_sqlite_user_center_integer_identifier_upgrade(connection)?;
+    ensure_sqlite_user_center_business_columns(connection)?;
 
     ensure_default_local_tenant(connection)?;
     backfill_plus_user_business_columns(connection)?;
@@ -2182,6 +7331,32 @@ fn normalize_optional_text(value: Option<&str>) -> Option<String> {
         .filter(|entry| !entry.is_empty())
 }
 
+fn long_integer_json_string(value: i64) -> String {
+    value.to_string()
+}
+
+fn parse_optional_long_integer_decimal_string(
+    value: Option<&str>,
+    field_name: &str,
+) -> Result<Option<i64>, String> {
+    let Some(normalized) = normalize_optional_text(value) else {
+        return Ok(None);
+    };
+    let digits = normalized.strip_prefix('-').unwrap_or(normalized.as_str());
+    if digits.is_empty() || !digits.chars().all(|entry| entry.is_ascii_digit()) {
+        return Err(format!(
+            "{field_name} must be a Java Long/BIGINT decimal string."
+        ));
+    }
+    normalized.parse::<i64>().map(Some).map_err(|_| {
+        format!("{field_name} must be within the signed 64-bit Java Long/BIGINT range.")
+    })
+}
+
+fn resolve_local_organization_id(value: Option<&str>) -> String {
+    normalize_optional_text(value).unwrap_or_else(|| DEFAULT_LOCAL_ORGANIZATION_ID.to_owned())
+}
+
 fn sqlite_value_ref_to_string(value: ValueRef<'_>) -> Option<String> {
     match value {
         ValueRef::Null => None,
@@ -2232,7 +7407,9 @@ fn sqlite_row_optional_string_value(
                 data_type,
                 Box::new(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
-                    format!("sqlite column {column_name} could not be normalized as optional string"),
+                    format!(
+                        "sqlite column {column_name} could not be normalized as optional string"
+                    ),
                 )),
             )
         }),
@@ -2990,7 +8167,11 @@ fn load_user_by_id(connection: &Connection, user_id: &str) -> Result<Option<User
                     id: sqlite_row_required_string_value(row, 0, "plus_user.id")?,
                     uuid: row.get(1)?,
                     tenant_id: sqlite_row_optional_string_value(row, 2, "plus_user.tenant_id")?,
-                    organization_id: row.get(3)?,
+                    organization_id: sqlite_row_optional_string_value(
+                        row,
+                        3,
+                        "plus_user.organization_id",
+                    )?,
                     created_at: row.get(4)?,
                     updated_at: row.get(5)?,
                     email: row.get(6)?,
@@ -3037,7 +8218,11 @@ fn load_user_by_email(connection: &Connection, email: &str) -> Result<Option<Use
                     id: sqlite_row_required_string_value(row, 0, "plus_user.id")?,
                     uuid: row.get(1)?,
                     tenant_id: sqlite_row_optional_string_value(row, 2, "plus_user.tenant_id")?,
-                    organization_id: row.get(3)?,
+                    organization_id: sqlite_row_optional_string_value(
+                        row,
+                        3,
+                        "plus_user.organization_id",
+                    )?,
                     created_at: row.get(4)?,
                     updated_at: row.get(5)?,
                     email: row.get(6)?,
@@ -3084,7 +8269,11 @@ fn load_user_by_phone(connection: &Connection, phone: &str) -> Result<Option<Use
                     id: sqlite_row_required_string_value(row, 0, "plus_user.id")?,
                     uuid: row.get(1)?,
                     tenant_id: sqlite_row_optional_string_value(row, 2, "plus_user.tenant_id")?,
-                    organization_id: row.get(3)?,
+                    organization_id: sqlite_row_optional_string_value(
+                        row,
+                        3,
+                        "plus_user.organization_id",
+                    )?,
                     created_at: row.get(4)?,
                     updated_at: row.get(5)?,
                     email: row.get(6)?,
@@ -3139,7 +8328,11 @@ fn load_user_by_oauth_account(
                     id: sqlite_row_required_string_value(row, 0, "plus_user.id")?,
                     uuid: row.get(1)?,
                     tenant_id: sqlite_row_optional_string_value(row, 2, "plus_user.tenant_id")?,
-                    organization_id: row.get(3)?,
+                    organization_id: sqlite_row_optional_string_value(
+                        row,
+                        3,
+                        "plus_user.organization_id",
+                    )?,
                     created_at: row.get(4)?,
                     updated_at: row.get(5)?,
                     email: row.get(6)?,
@@ -3270,10 +8463,10 @@ fn load_profile_record(
         .transpose()
 }
 
-fn load_vip_subscription_record(
+fn load_vip_user_record(
     connection: &Connection,
     user_id: &str,
-) -> Result<Option<VipSubscriptionRecord>, String> {
+) -> Result<Option<VipUserRecord>, String> {
     connection
         .query_row(
             r#"
@@ -3285,39 +8478,47 @@ fn load_vip_subscription_record(
                 updated_at,
                 user_id,
                 vip_level_id,
-                vip_level_name,
                 status,
-                monthly_credits,
-                seat_limit,
-                valid_to
+                point_balance,
+                total_recharged_points,
+                valid_from,
+                valid_to,
+                last_active_time,
+                remark
             FROM plus_vip_user
             WHERE user_id = ?1 AND is_deleted = 0
             LIMIT 1
             "#,
             params![user_id],
             |row| {
-                Ok(VipSubscriptionRecord {
+                Ok(VipUserRecord {
                     uuid: row.get(0)?,
                     tenant_id: sqlite_row_optional_string_value(row, 1, "plus_vip_user.tenant_id")?,
-                    organization_id: row.get(2)?,
+                    organization_id: sqlite_row_optional_string_value(
+                        row,
+                        2,
+                        "plus_vip_user.organization_id",
+                    )?,
                     created_at: row.get(3)?,
                     updated_at: row.get(4)?,
                     user_id: sqlite_row_required_string_value(row, 5, "plus_vip_user.user_id")?,
-                    plan_id: row
-                        .get::<_, Option<String>>(6)?
-                        .unwrap_or_else(|| "free".to_owned()),
-                    plan_title: row
-                        .get::<_, Option<String>>(7)?
-                        .unwrap_or_else(|| "Free".to_owned()),
-                    status: row.get(8)?,
-                    credits_per_month: row.get::<_, Option<i64>>(9)?.unwrap_or(0),
-                    seats: row.get::<_, Option<i64>>(10)?.unwrap_or(1),
-                    renew_at: row.get(11)?,
+                    vip_level_id: sqlite_row_optional_string_value(
+                        row,
+                        6,
+                        "plus_vip_user.vip_level_id",
+                    )?,
+                    status: row.get(7)?,
+                    point_balance: row.get::<_, Option<i64>>(8)?.unwrap_or(0),
+                    total_recharged_points: row.get::<_, Option<i64>>(9)?.unwrap_or(0),
+                    valid_from: row.get(10)?,
+                    valid_to: row.get(11)?,
+                    last_active_time: row.get(12)?,
+                    remark: row.get(13)?,
                 })
             },
         )
         .optional()
-        .map_err(|error| format!("load vip subscription {user_id} failed: {error}"))
+        .map_err(|error| format!("load plus_vip_user {user_id} failed: {error}"))
 }
 
 fn upsert_user_shadow(
@@ -3396,7 +8597,8 @@ fn upsert_user_shadow_with_phone(
         .unwrap_or_else(|| DEFAULT_LOCAL_TENANT_ID.to_owned());
     let resolved_organization_id = existing_user
         .as_ref()
-        .and_then(|user| user.organization_id.clone());
+        .and_then(|user| user.organization_id.clone())
+        .unwrap_or_else(|| DEFAULT_LOCAL_ORGANIZATION_ID.to_owned());
 
     connection
         .execute(
@@ -3408,12 +8610,13 @@ fn upsert_user_shadow_with_phone(
                 metadata_json, status, created_at, updated_at, version, is_deleted
             )
             VALUES (
-                ?1, ?2, ?3, NULL, ?4, ?5, '', NULL, 'default', 'default', 'birdcoder',
-                ?6, ?7, NULL, NULL, NULL, NULL, NULL, NULL, ?8, ?9, ?10, ?11, 'active',
-                ?12, ?13, 0, 0
+                ?1, ?2, ?3, ?4, ?5, ?6, '', NULL, 'default', 'default', 'birdcoder',
+                ?7, ?8, NULL, NULL, NULL, NULL, NULL, NULL, ?9, ?10, ?11, ?12, 'active',
+                ?13, ?14, 0, 0
             )
             ON CONFLICT(id) DO UPDATE SET
-                tenant_id = COALESCE(plus_user.tenant_id, excluded.tenant_id),
+                tenant_id = excluded.tenant_id,
+                organization_id = excluded.organization_id,
                 updated_at = excluded.updated_at,
                 is_deleted = 0,
                 username = excluded.username,
@@ -3429,7 +8632,8 @@ fn upsert_user_shadow_with_phone(
             params![
                 &resolved_user_id,
                 stable_entity_uuid("plus_user", &resolved_user_id),
-                DEFAULT_LOCAL_TENANT_ID,
+                &resolved_tenant_id,
+                &resolved_organization_id,
                 &resolved_username,
                 &resolved_display_name,
                 &normalized_email,
@@ -3535,8 +8739,10 @@ fn upsert_oauth_account_record(
                     "plus_oauth_account",
                     format!("{normalized_provider}:{normalized_open_id}").as_str(),
                 ),
-                user.tenant_id.clone().unwrap_or_else(|| DEFAULT_LOCAL_TENANT_ID.to_owned()),
-                &user.organization_id,
+                user.tenant_id
+                    .clone()
+                    .unwrap_or_else(|| DEFAULT_LOCAL_TENANT_ID.to_owned()),
+                resolve_local_organization_id(user.organization_id.as_deref()),
                 user_id,
                 &normalized_provider,
                 &normalized_open_id,
@@ -3561,7 +8767,9 @@ fn ensure_default_profile_and_membership(
     user_id: &str,
 ) -> Result<(), String> {
     upsert_profile_shadow(connection, user_id, None, None, None, None)?;
-    upsert_vip_subscription_shadow(connection, user_id, None, None, None, None, None, None)?;
+    upsert_vip_user_shadow(
+        connection, user_id, None, None, None, None, None, None, None, None,
+    )?;
     Ok(())
 }
 
@@ -3631,7 +8839,7 @@ fn create_persisted_session(
                 user.tenant_id
                     .clone()
                     .unwrap_or_else(|| DEFAULT_LOCAL_TENANT_ID.to_owned()),
-                &user.organization_id,
+                resolve_local_organization_id(user.organization_id.as_deref()),
                 &user.id,
                 provider_key,
                 provider_mode,
@@ -3829,7 +9037,7 @@ fn create_verify_code_record(
                 &id,
                 stable_entity_uuid("plus_user_verify_code", &id),
                 DEFAULT_LOCAL_TENANT_ID,
-                Option::<&str>::None,
+                DEFAULT_LOCAL_ORGANIZATION_ID,
                 provider_key,
                 verify_type,
                 scene,
@@ -4165,35 +9373,54 @@ fn upsert_profile_shadow(
         .ok_or_else(|| format!("profile shadow {user_id} was not found after upsert"))
 }
 
-fn upsert_vip_subscription_shadow(
+fn upsert_vip_user_shadow(
     connection: &mut Connection,
     user_id: &str,
-    plan_id: Option<&str>,
-    plan_title: Option<&str>,
+    vip_level_id: Option<&str>,
     status: Option<&str>,
-    credits_per_month: Option<i64>,
-    seats: Option<i64>,
-    renew_at: Option<&str>,
-) -> Result<VipSubscriptionRecord, String> {
+    point_balance: Option<i64>,
+    total_recharged_points: Option<i64>,
+    valid_from: Option<&str>,
+    valid_to: Option<&str>,
+    last_active_time: Option<&str>,
+    remark: Option<&str>,
+) -> Result<VipUserRecord, String> {
     let now = crate::current_storage_timestamp();
-    let existing = load_vip_subscription_record(connection, user_id)?;
-    let resolved_plan_id = normalize_optional_text(plan_id)
-        .or_else(|| existing.as_ref().map(|record| record.plan_id.clone()))
-        .unwrap_or_else(|| "free".to_owned());
-    let resolved_plan_title = normalize_optional_text(plan_title)
-        .or_else(|| existing.as_ref().map(|record| record.plan_title.clone()))
-        .unwrap_or_else(|| "Free".to_owned());
+    let existing = load_vip_user_record(connection, user_id)?;
+    let resolved_vip_level_id = normalize_optional_text(vip_level_id).or_else(|| {
+        existing
+            .as_ref()
+            .and_then(|record| record.vip_level_id.clone())
+    });
     let resolved_status = normalize_optional_text(status)
         .or_else(|| existing.as_ref().map(|record| record.status.clone()))
         .unwrap_or_else(|| "inactive".to_owned());
-    let resolved_credits_per_month = credits_per_month
-        .or_else(|| existing.as_ref().map(|record| record.credits_per_month))
+    let resolved_point_balance = point_balance
+        .or_else(|| existing.as_ref().map(|record| record.point_balance))
         .unwrap_or(0);
-    let resolved_seats = seats
-        .or_else(|| existing.as_ref().map(|record| record.seats))
-        .unwrap_or(1);
-    let resolved_renew_at =
-        normalize_optional_text(renew_at).or_else(|| existing.and_then(|record| record.renew_at));
+    let resolved_total_recharged_points = total_recharged_points
+        .or_else(|| {
+            existing
+                .as_ref()
+                .map(|record| record.total_recharged_points)
+        })
+        .unwrap_or(0);
+    let resolved_valid_from = normalize_optional_text(valid_from).or_else(|| {
+        existing
+            .as_ref()
+            .and_then(|record| record.valid_from.clone())
+    });
+    let resolved_valid_to = normalize_optional_text(valid_to)
+        .or_else(|| existing.as_ref().and_then(|record| record.valid_to.clone()));
+    let resolved_last_active_time = normalize_optional_text(last_active_time)
+        .or_else(|| {
+            existing
+                .as_ref()
+                .and_then(|record| record.last_active_time.clone())
+        })
+        .or_else(|| Some(now.clone()));
+    let resolved_remark = normalize_optional_text(remark)
+        .or_else(|| existing.as_ref().and_then(|record| record.remark.clone()));
     let membership_scope_user = load_user_by_id(connection, user_id)?
         .ok_or_else(|| format!("user {user_id} was not found for vip membership upsert"))?;
 
@@ -4201,12 +9428,12 @@ fn upsert_vip_subscription_shadow(
         .execute(
             r#"
             INSERT INTO plus_vip_user (
-                id, uuid, tenant_id, organization_id, user_id, vip_level_id, vip_level_name, status, point_balance,
-                total_recharged_points, monthly_credits, seat_limit, valid_from, valid_to,
+                id, uuid, tenant_id, organization_id, user_id, vip_level_id, status, point_balance,
+                total_recharged_points, valid_from, valid_to,
                 last_active_time, remark, created_at, updated_at, version, is_deleted
             )
             VALUES (
-                ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0, ?9, ?10, NULL, ?11, ?12, NULL, ?13, ?14, 0, 0
+                ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, 0, 0
             )
             ON CONFLICT(user_id) DO UPDATE SET
                 tenant_id = excluded.tenant_id,
@@ -4214,12 +9441,13 @@ fn upsert_vip_subscription_shadow(
                 updated_at = excluded.updated_at,
                 is_deleted = 0,
                 vip_level_id = excluded.vip_level_id,
-                vip_level_name = excluded.vip_level_name,
                 status = excluded.status,
-                monthly_credits = excluded.monthly_credits,
-                seat_limit = excluded.seat_limit,
+                point_balance = excluded.point_balance,
+                total_recharged_points = excluded.total_recharged_points,
+                valid_from = excluded.valid_from,
                 valid_to = excluded.valid_to,
-                last_active_time = excluded.last_active_time
+                last_active_time = excluded.last_active_time,
+                remark = excluded.remark
             "#,
             params![
                 crate::create_identifier("vip-user"),
@@ -4228,22 +9456,23 @@ fn upsert_vip_subscription_shadow(
                     .tenant_id
                     .clone()
                     .unwrap_or_else(|| DEFAULT_LOCAL_TENANT_ID.to_owned()),
-                &membership_scope_user.organization_id,
+                resolve_local_organization_id(membership_scope_user.organization_id.as_deref()),
                 user_id,
-                &resolved_plan_id,
-                &resolved_plan_title,
+                &resolved_vip_level_id,
                 &resolved_status,
-                resolved_credits_per_month,
-                resolved_seats,
-                &resolved_renew_at,
-                &now,
+                resolved_point_balance,
+                resolved_total_recharged_points,
+                &resolved_valid_from,
+                &resolved_valid_to,
+                &resolved_last_active_time,
+                &resolved_remark,
                 &now,
                 &now,
             ],
         )
         .map_err(|error| format!("upsert vip membership shadow {user_id} failed: {error}"))?;
 
-    load_vip_subscription_record(connection, user_id)?
+    load_vip_user_record(connection, user_id)?
         .ok_or_else(|| format!("vip membership shadow {user_id} was not found after upsert"))
 }
 
@@ -4367,7 +9596,7 @@ fn create_login_qr_record(
                 &qr_key,
                 stable_entity_uuid("plus_user_login_qr", &qr_key),
                 DEFAULT_LOCAL_TENANT_ID,
-                Option::<&str>::None,
+                DEFAULT_LOCAL_ORGANIZATION_ID,
                 provider_key,
                 &qr_key,
                 &expires_at,
@@ -4620,21 +9849,23 @@ fn build_profile_payload(
 
 fn build_vip_membership_payload(
     user: &UserCenterUserPayload,
-    membership: Option<VipSubscriptionRecord>,
+    membership: Option<VipUserRecord>,
 ) -> UserCenterVipMembershipPayload {
-    let resolved = membership.unwrap_or(VipSubscriptionRecord {
+    let resolved = membership.unwrap_or(VipUserRecord {
         uuid: user.uuid.clone(),
         tenant_id: user.tenant_id.clone(),
         organization_id: user.organization_id.clone(),
         created_at: user.created_at.clone(),
         updated_at: user.updated_at.clone(),
         user_id: user.id.clone(),
-        plan_id: "free".to_owned(),
-        plan_title: "Free".to_owned(),
         status: "inactive".to_owned(),
-        credits_per_month: 0,
-        seats: 1,
-        renew_at: None,
+        vip_level_id: None,
+        point_balance: 0,
+        total_recharged_points: 0,
+        valid_from: None,
+        valid_to: None,
+        last_active_time: None,
+        remark: None,
     });
 
     UserCenterVipMembershipPayload {
@@ -4643,13 +9874,15 @@ fn build_vip_membership_payload(
         organization_id: resolved.organization_id,
         created_at: resolved.created_at,
         updated_at: resolved.updated_at,
-        credits_per_month: resolved.credits_per_month,
         user_id: resolved.user_id,
-        plan_id: resolved.plan_id,
-        plan_title: resolved.plan_title,
-        renew_at: resolved.renew_at,
-        seats: resolved.seats,
+        vip_level_id: resolved.vip_level_id,
+        point_balance: long_integer_json_string(resolved.point_balance),
+        total_recharged_points: long_integer_json_string(resolved.total_recharged_points),
         status: resolved.status,
+        valid_from: resolved.valid_from,
+        valid_to: resolved.valid_to,
+        last_active_time: resolved.last_active_time,
+        remark: resolved.remark,
     }
 }
 
@@ -4737,20 +9970,30 @@ fn upsert_vip_membership_record(
     session: &UserCenterSessionPayload,
     request: &UpdateUserCenterVipMembershipRequest,
 ) -> Result<UserCenterVipMembershipPayload, String> {
-    upsert_vip_subscription_shadow(
+    let requested_point_balance = parse_optional_long_integer_decimal_string(
+        request.point_balance.as_deref(),
+        "pointBalance",
+    )?;
+    let requested_total_recharged_points = parse_optional_long_integer_decimal_string(
+        request.total_recharged_points.as_deref(),
+        "totalRechargedPoints",
+    )?;
+    upsert_vip_user_shadow(
         connection,
         &session.user.id,
-        request.plan_id.as_deref(),
-        request.plan_title.as_deref(),
+        request.vip_level_id.as_deref(),
         request.status.as_deref(),
-        request.credits_per_month,
-        request.seats,
-        request.renew_at.as_deref(),
+        requested_point_balance,
+        requested_total_recharged_points,
+        request.valid_from.as_deref(),
+        request.valid_to.as_deref(),
+        request.last_active_time.as_deref(),
+        request.remark.as_deref(),
     )?;
 
     Ok(build_vip_membership_payload(
         &session.user,
-        load_vip_subscription_record(connection, &session.user.id)?,
+        load_vip_user_record(connection, &session.user.id)?,
     ))
 }
 
@@ -5253,7 +10496,7 @@ impl UserCenterProvider for LocalUserCenterProvider {
     ) -> Result<UserCenterVipMembershipPayload, String> {
         Ok(build_vip_membership_payload(
             &session.user,
-            load_vip_subscription_record(connection, &session.user.id)?,
+            load_vip_user_record(connection, &session.user.id)?,
         ))
     }
 
@@ -5534,7 +10777,7 @@ impl HeaderExternalUserCenterProvider {
             UserCenterUserPayload {
                 uuid: stable_entity_uuid("plus_user", &user_id),
                 tenant_id: Some(DEFAULT_LOCAL_TENANT_ID.to_owned()),
-                organization_id: None,
+                organization_id: Some(DEFAULT_LOCAL_ORGANIZATION_ID.to_owned()),
                 created_at: user_timestamp.clone(),
                 updated_at: user_timestamp,
                 avatar_url,
@@ -5659,7 +10902,7 @@ impl UserCenterProvider for HeaderExternalUserCenterProvider {
     ) -> Result<UserCenterVipMembershipPayload, String> {
         Ok(build_vip_membership_payload(
             &session.user,
-            load_vip_subscription_record(connection, &session.user.id)?,
+            load_vip_user_record(connection, &session.user.id)?,
         ))
     }
 
@@ -6522,25 +11765,22 @@ impl UserCenterProvider for SdkworkCloudAppApiExternalUserCenterProvider {
                     "inactive".to_owned()
                 }
             });
-        let membership = upsert_vip_subscription_shadow(
+        let vip_level_id = if vip_level > 0 {
+            Some(vip_level.to_string())
+        } else {
+            None
+        };
+        let membership = upsert_vip_user_shadow(
             connection,
             &session_record.user_id,
-            Some(
-                if vip_level > 0 {
-                    format!("vip-level-{vip_level}")
-                } else {
-                    "free".to_owned()
-                }
-                .as_str(),
-            ),
-            vip_payload
-                .vip_level_name
-                .as_deref()
-                .or(Some(if vip_level > 0 { "VIP" } else { "Free" })),
+            vip_level_id.as_deref(),
             Some(normalized_status.as_str()),
             Some(vip_payload.vip_points.unwrap_or(0)),
-            Some(1),
+            Some(vip_payload.vip_points.unwrap_or(0)),
+            None,
             vip_payload.expire_time.as_deref(),
+            None,
+            None,
         )?;
         Ok(build_vip_membership_payload(
             &session.user,
@@ -6899,5 +12139,355 @@ mod tests {
         assert_eq!(first, second);
         assert_eq!(parsed.get_version_num(), 5);
         assert_eq!(parsed.to_string(), first);
+    }
+
+    #[test]
+    fn ensure_sqlite_user_center_schema_tolerates_non_decimal_legacy_tenant_ids() {
+        let mut connection = Connection::open_in_memory().expect("open sqlite memory database");
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE plus_tenant (
+                    id TEXT PRIMARY KEY,
+                    uuid TEXT NOT NULL UNIQUE,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    name TEXT NOT NULL,
+                    code TEXT NOT NULL UNIQUE,
+                    type TEXT NOT NULL DEFAULT 'PLATFORM',
+                    biz_type TEXT NULL,
+                    biz_id INTEGER NULL,
+                    jwt_secret_key TEXT NOT NULL DEFAULT 'birdcoder-local-tenant-secret',
+                    token_expiration_ms INTEGER NULL,
+                    refresh_token_expiration_ms INTEGER NULL,
+                    status TEXT NOT NULL,
+                    description TEXT NULL,
+                    admin_user_id INTEGER NULL,
+                    install_app_list TEXT NULL,
+                    expire_time TEXT NULL,
+                    metadata TEXT NULL,
+                    contact_person TEXT NULL,
+                    contact_phone TEXT NULL,
+                    is_deleted INTEGER NOT NULL DEFAULT 0
+                );
+
+                INSERT INTO plus_tenant (
+                    id, uuid, created_at, updated_at, version, name, code, type, biz_type, biz_id,
+                    jwt_secret_key, token_expiration_ms, refresh_token_expiration_ms, status,
+                    description, admin_user_id, install_app_list, expire_time, metadata,
+                    contact_person, contact_phone, is_deleted
+                ) VALUES (
+                    'tenant-local',
+                    '34ce68f3-7a2c-5bdb-b2f5-d9d845e8a671',
+                    '2026-04-24T00:00:00Z',
+                    '2026-04-24T00:00:00Z',
+                    0,
+                    'Default Tenant',
+                    'birdcoder-local',
+                    'PLATFORM',
+                    NULL,
+                    NULL,
+                    'birdcoder-local-tenant-secret',
+                    604800000,
+                    2592000000,
+                    'active',
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    0
+                );
+                "#,
+            )
+            .expect("create legacy non-decimal plus_tenant");
+
+        ensure_sqlite_user_center_schema(&mut connection)
+            .expect("non-decimal legacy tenant ids should not block startup");
+
+        let tenant_id: String = connection
+            .query_row(
+                "SELECT id FROM plus_tenant WHERE code = ?1",
+                params![DEFAULT_LOCAL_TENANT_CODE],
+                |row| row.get(0),
+            )
+            .expect("read legacy tenant id");
+        assert_eq!(tenant_id, "tenant-local");
+    }
+
+    #[test]
+    fn ensure_sqlite_user_center_schema_adopts_case_variant_legacy_local_tenant_code() {
+        let mut connection = Connection::open_in_memory().expect("open sqlite memory database");
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE plus_tenant (
+                    id TEXT PRIMARY KEY,
+                    uuid TEXT NOT NULL UNIQUE,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    name TEXT NOT NULL,
+                    code TEXT NOT NULL,
+                    type TEXT NOT NULL DEFAULT 'PLATFORM',
+                    biz_type TEXT NULL,
+                    biz_id INTEGER NULL,
+                    jwt_secret_key TEXT NOT NULL DEFAULT 'birdcoder-local-tenant-secret',
+                    token_expiration_ms INTEGER NULL,
+                    refresh_token_expiration_ms INTEGER NULL,
+                    status TEXT NOT NULL,
+                    description TEXT NULL,
+                    admin_user_id INTEGER NULL,
+                    install_app_list TEXT NULL,
+                    expire_time TEXT NULL,
+                    metadata TEXT NULL,
+                    contact_person TEXT NULL,
+                    contact_phone TEXT NULL,
+                    is_deleted INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE UNIQUE INDEX idx_plus_tenant_code_legacy_nocase
+                    ON plus_tenant(code COLLATE NOCASE);
+
+                INSERT INTO plus_tenant (
+                    id, uuid, created_at, updated_at, version, name, code, type, biz_type, biz_id,
+                    jwt_secret_key, token_expiration_ms, refresh_token_expiration_ms, status,
+                    description, admin_user_id, install_app_list, expire_time, metadata,
+                    contact_person, contact_phone, is_deleted
+                ) VALUES (
+                    'tenant-local',
+                    '34ce68f3-7a2c-5bdb-b2f5-d9d845e8a671',
+                    '2026-04-24T00:00:00Z',
+                    '2026-04-24T00:00:00Z',
+                    0,
+                    'Default Tenant',
+                    'BirdCoder-Local',
+                    'PLATFORM',
+                    NULL,
+                    NULL,
+                    'birdcoder-local-tenant-secret',
+                    604800000,
+                    2592000000,
+                    'active',
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    0
+                );
+                "#,
+            )
+            .expect("create legacy case-variant plus_tenant");
+
+        ensure_sqlite_user_center_schema(&mut connection)
+            .expect("case-variant legacy tenant code should not block startup");
+
+        let tenant: (String, String) = connection
+            .query_row(
+                "SELECT id, code FROM plus_tenant WHERE code = ?1 COLLATE NOCASE",
+                params![DEFAULT_LOCAL_TENANT_CODE],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("read canonicalized legacy tenant");
+        assert_eq!(
+            tenant,
+            (
+                "tenant-local".to_owned(),
+                DEFAULT_LOCAL_TENANT_CODE.to_owned()
+            )
+        );
+
+        let tenant_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM plus_tenant WHERE code = ?1 COLLATE NOCASE",
+                params![DEFAULT_LOCAL_TENANT_CODE],
+                |row| row.get(0),
+            )
+            .expect("count canonical local tenants");
+        assert_eq!(tenant_count, 1);
+    }
+
+    #[test]
+    fn ensure_sqlite_user_center_schema_canonicalizes_default_tenant_id_when_code_is_duplicated() {
+        let mut connection = Connection::open_in_memory().expect("open sqlite memory database");
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE plus_tenant (
+                    id INTEGER PRIMARY KEY,
+                    uuid TEXT NOT NULL UNIQUE,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    name TEXT NOT NULL,
+                    code TEXT NOT NULL UNIQUE,
+                    type TEXT NOT NULL DEFAULT 'PLATFORM',
+                    biz_type TEXT NULL,
+                    biz_id INTEGER NULL,
+                    jwt_secret_key TEXT NOT NULL DEFAULT 'birdcoder-local-tenant-secret',
+                    token_expiration_ms INTEGER NULL,
+                    refresh_token_expiration_ms INTEGER NULL,
+                    status TEXT NOT NULL,
+                    description TEXT NULL,
+                    admin_user_id INTEGER NULL,
+                    install_app_list TEXT NULL,
+                    expire_time TEXT NULL,
+                    metadata TEXT NULL,
+                    contact_person TEXT NULL,
+                    contact_phone TEXT NULL,
+                    is_deleted INTEGER NOT NULL DEFAULT 0
+                );
+
+                INSERT INTO plus_tenant (
+                    id, uuid, created_at, updated_at, version, name, code, type, biz_type, biz_id,
+                    jwt_secret_key, token_expiration_ms, refresh_token_expiration_ms, status,
+                    description, admin_user_id, install_app_list, expire_time, metadata,
+                    contact_person, contact_phone, is_deleted
+                ) VALUES
+                (
+                    0,
+                    '34ce68f3-7a2c-5bdb-b2f5-d9d845e8a670',
+                    '2026-04-24T00:00:00Z',
+                    '2026-04-24T00:00:00Z',
+                    0,
+                    'Legacy Local Tenant',
+                    'legacy-local',
+                    'PLATFORM',
+                    NULL,
+                    NULL,
+                    'birdcoder-local-tenant-secret',
+                    604800000,
+                    2592000000,
+                    'active',
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    0
+                ),
+                (
+                    42,
+                    '34ce68f3-7a2c-5bdb-b2f5-d9d845e8a672',
+                    '2026-04-24T00:00:00Z',
+                    '2026-04-24T00:00:00Z',
+                    0,
+                    'Duplicate Default Code Tenant',
+                    'birdcoder-local',
+                    'PLATFORM',
+                    NULL,
+                    NULL,
+                    'birdcoder-local-tenant-secret',
+                    604800000,
+                    2592000000,
+                    'active',
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    0
+                );
+                "#,
+            )
+            .expect("create duplicated default tenant fixture");
+
+        ensure_sqlite_user_center_schema(&mut connection)
+            .expect("duplicated default tenant code should not block startup");
+
+        let canonical_tenant: (String, String) = connection
+            .query_row(
+                "SELECT CAST(id AS TEXT), code FROM plus_tenant WHERE id = ?1",
+                params![DEFAULT_LOCAL_TENANT_ID],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("read canonical default tenant");
+        assert_eq!(
+            canonical_tenant,
+            (
+                DEFAULT_LOCAL_TENANT_ID.to_owned(),
+                DEFAULT_LOCAL_TENANT_CODE.to_owned()
+            )
+        );
+
+        let default_code_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM plus_tenant WHERE code = ?1 COLLATE NOCASE",
+                params![DEFAULT_LOCAL_TENANT_CODE],
+                |row| row.get(0),
+            )
+            .expect("count canonical default-code tenants");
+        assert_eq!(default_code_count, 1);
+    }
+
+    #[test]
+    fn ensure_sqlite_user_center_schema_upgrades_legacy_oauth_accounts_missing_tenant_id() {
+        let mut connection = Connection::open_in_memory().expect("open sqlite memory database");
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE legacy_plus_oauth_account (
+                    id TEXT PRIMARY KEY,
+                    uuid TEXT NOT NULL UNIQUE,
+                    organization_id INTEGER NOT NULL DEFAULT 0,
+                    user_id TEXT NOT NULL,
+                    oauth_provider TEXT NOT NULL,
+                    open_id TEXT NOT NULL,
+                    union_id TEXT NULL,
+                    app_id TEXT NULL,
+                    oauth_user_info_json TEXT NULL,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    UNIQUE (oauth_provider, open_id)
+                );
+
+                INSERT INTO legacy_plus_oauth_account (
+                    id, uuid, organization_id, user_id, oauth_provider, open_id, union_id, app_id,
+                    oauth_user_info_json, status, created_at, updated_at, version, is_deleted
+                ) VALUES (
+                    '1001',
+                    '61a99802-c855-5f88-b8a9-bac807a5ee16',
+                    0,
+                    '1002',
+                    'github',
+                    'legacy-open-id',
+                    NULL,
+                    NULL,
+                    NULL,
+                    'active',
+                    '2026-04-24T00:00:00Z',
+                    '2026-04-24T00:00:00Z',
+                    0,
+                    0
+                );
+
+                ALTER TABLE legacy_plus_oauth_account RENAME TO plus_oauth_account;
+                "#,
+            )
+            .expect("create legacy plus_oauth_account without tenant_id");
+
+        ensure_sqlite_user_center_schema(&mut connection)
+            .expect("legacy oauth accounts without tenant_id should not block startup");
+
+        let migrated: (i64, Option<i64>, i64) = connection
+            .query_row(
+                "SELECT id, tenant_id, user_id FROM plus_oauth_account WHERE open_id = 'legacy-open-id'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("read migrated oauth account");
+        assert_eq!(migrated, (1001, Some(0), 1002));
     }
 }

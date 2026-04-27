@@ -358,6 +358,13 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
       ) ?? null,
     [currentProject, selectedCodingSessionId],
   );
+  const currentProjectWorkspaceId = currentProject?.workspaceId?.trim() ?? '';
+  const transcriptSessionScopeKey =
+    currentProjectWorkspaceId && currentProjectId && selectedCodingSessionId
+      ? `${currentProjectWorkspaceId}\u0001${currentProjectId}\u0001${selectedCodingSessionId}`
+      : currentProjectId && selectedCodingSessionId
+        ? `${currentProjectId}\u0001${selectedCodingSessionId}`
+      : selectedCodingSessionId || undefined;
   const currentCodingSessionTitle = currentCodingSession?.title;
   const headerEngineSummary = currentCodingSession?.engineId?.trim()
     ? getWorkbenchCodeEngineSessionSummary(
@@ -823,6 +830,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
         <div className="flex-1 min-h-0">
           <UniversalChat
             sessionId={selectedCodingSessionId || undefined}
+            sessionScopeKey={transcriptSessionScopeKey}
             messages={messages}
             onSendMessage={onSendMessage}
             isBusy={isBusy}

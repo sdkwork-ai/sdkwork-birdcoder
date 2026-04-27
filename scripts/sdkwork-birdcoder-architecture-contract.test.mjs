@@ -294,7 +294,7 @@ const userIndexSource = fs.readFileSync(
 
 for (const exportTarget of [
   './auth.ts',
-  './pages/AuthPage.tsx',
+  './pageLoaders.ts',
 ]) {
   assert.match(
     authIndexSource,
@@ -302,10 +302,14 @@ for (const exportTarget of [
     `sdkwork-birdcoder-auth/src/index.ts must export ${exportTarget}.`,
   );
 }
+assert.doesNotMatch(
+  authIndexSource,
+  /export\s+\*\s+from ['"]\.\/pages\/AuthPage\.tsx['"]/u,
+  'sdkwork-birdcoder-auth/src/index.ts must not statically export AuthPage because the shell loads it through pageLoaders to preserve the lazy auth boundary.',
+);
 
 for (const exportTarget of [
-  './pages/UserCenterPage.tsx',
-  './pages/VipPage.tsx',
+  './pageLoaders.ts',
   './profileStorage.ts',
   './storage.ts',
   './user-center-runtime.ts',
@@ -318,6 +322,16 @@ for (const exportTarget of [
     userIndexSource,
     new RegExp(`export \\* from ['"]${exportTarget.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]`),
     `sdkwork-birdcoder-user/src/index.ts must export ${exportTarget}.`,
+  );
+}
+for (const lazyPageTarget of [
+  './pages/UserCenterPage.tsx',
+  './pages/VipPage.tsx',
+]) {
+  assert.doesNotMatch(
+    userIndexSource,
+    new RegExp(`export \\* from ['"]${lazyPageTarget.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]`, 'u'),
+    `sdkwork-birdcoder-user/src/index.ts must not statically export ${lazyPageTarget} because user-center pages load through pageLoaders to preserve lazy page boundaries.`,
   );
 }
 

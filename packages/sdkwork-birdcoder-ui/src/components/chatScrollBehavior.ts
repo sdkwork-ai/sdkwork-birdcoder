@@ -5,6 +5,7 @@ export interface TranscriptScrollMetrics {
 }
 
 export const CHAT_TRANSCRIPT_STICKY_SCROLL_THRESHOLD_PX = 48;
+export const CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS = 180;
 
 export function measureTranscriptDistanceFromBottom({
   clientHeight,
@@ -19,6 +20,35 @@ export function isTranscriptNearBottom(
   thresholdPx: number = CHAT_TRANSCRIPT_STICKY_SCROLL_THRESHOLD_PX,
 ): boolean {
   return measureTranscriptDistanceFromBottom(metrics) <= Math.max(0, thresholdPx);
+}
+
+export function computeTranscriptBottomScrollTop({
+  clientHeight,
+  scrollHeight,
+}: TranscriptScrollMetrics): number {
+  return Math.max(0, scrollHeight - clientHeight);
+}
+
+export function shouldDeferTranscriptAutoScrollForUserIntent({
+  isUserInteracting,
+  lastUserScrollAt,
+  now,
+  settleMs = CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS,
+}: {
+  isUserInteracting: boolean;
+  lastUserScrollAt: number;
+  now: number;
+  settleMs?: number;
+}): boolean {
+  if (isUserInteracting) {
+    return true;
+  }
+
+  if (lastUserScrollAt <= 0) {
+    return false;
+  }
+
+  return Math.max(0, now - lastUserScrollAt) < Math.max(0, settleMs);
 }
 
 export function computeTranscriptRepairScrollTop(

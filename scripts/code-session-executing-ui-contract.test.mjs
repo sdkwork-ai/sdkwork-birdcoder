@@ -35,8 +35,40 @@ assert.ok(
 );
 
 assert.ok(
+  enLocaleSource.includes("awaitingApprovalSession: 'Needs approval'"),
+  'English Code locale must define a distinct approval-waiting session label.',
+);
+
+assert.ok(
+  enLocaleSource.includes("awaitingUserSession: 'Needs reply'"),
+  'English Code locale must define a distinct user-question waiting session label.',
+);
+
+assert.ok(
   zhLocaleSource.includes('executingSession:'),
   'Chinese Code locale must define the session executing label.',
+);
+
+assert.ok(
+  zhLocaleSource.includes('awaitingApprovalSession:'),
+  'Chinese Code locale must define a distinct approval-waiting session label.',
+);
+
+assert.ok(
+  zhLocaleSource.includes('awaitingUserSession:'),
+  'Chinese Code locale must define a distinct user-question waiting session label.',
+);
+
+assert.match(
+  projectExplorerSessionRowSource,
+  /session\.runtimeStatus === 'awaiting_approval'\s*\?\s*awaitingApprovalSessionLabel/s,
+  'Code ProjectExplorer session rows must show an explicit approval-waiting label.',
+);
+
+assert.match(
+  projectExplorerSessionRowSource,
+  /session\.runtimeStatus === 'awaiting_user'\s*\?\s*awaitingUserSessionLabel/s,
+  'Code ProjectExplorer session rows must show an explicit user-reply waiting label.',
 );
 
 assert.doesNotMatch(

@@ -65,6 +65,10 @@ assert.equal(
 );
 assert.equal(documentSeed.paths['/api/core/v1/coding-sessions/{id}/events']?.get?.operationId, 'core.listCodingSessionEvents');
 assert.equal(documentSeed.paths['/api/core/v1/operations/{operationId}']?.get?.operationId, 'core.getOperation');
+assert.equal(
+  documentSeed.paths['/api/core/v1/questions/{questionId}/answer']?.post?.operationId,
+  'core.submitUserQuestionAnswer',
+);
 assert.equal(documentSeed.paths['/api/app/v1/auth/config']?.get?.operationId, 'app.getUserCenterConfig');
 assert.equal(documentSeed.paths['/api/app/v1/auth/session']?.get?.operationId, 'app.getCurrentUserSession');
 assert.equal(documentSeed.paths['/api/app/v1/auth/login']?.post?.operationId, 'app.login');
@@ -157,6 +161,25 @@ assert.ok(
   codingSessionSummaryRequired.includes('modelId'),
   'coding session summary schema must require modelId so server contracts match immutable session engine/model selection.',
 );
+const initialCodingSessionSummaryProperties =
+  (documentSeed.components.schemas?.BirdCoderCodingSessionSummary?.properties ?? {}) as Record<
+    string,
+    { type?: string }
+  >;
+assert.ok(
+  initialCodingSessionSummaryProperties.nativeSessionId,
+  'coding session summary schema must expose nativeSessionId so terminal resume can use the provider-native session id instead of the BirdCoder session id.',
+);
+assert.equal(
+  initialCodingSessionSummaryProperties.nativeSessionId.type,
+  'string',
+  'BirdCoderCodingSessionSummary.nativeSessionId must be a string when present.',
+);
+assert.equal(
+  codingSessionSummaryRequired.includes('nativeSessionId'),
+  false,
+  'nativeSessionId is optional because newly-created sessions may not have a provider session until the first engine turn completes.',
+);
 assert.ok(documentSeed.components.schemas?.BirdCoderCreateCodingSessionRequest);
 const createCodingSessionRequestRequired = Array.isArray(
   documentSeed.components.schemas?.BirdCoderCreateCodingSessionRequest?.required,
@@ -174,6 +197,99 @@ assert.ok(documentSeed.components.schemas?.BirdCoderDeleteCodingSessionMessageRe
 assert.ok(documentSeed.components.schemas?.BirdCoderCreateCodingSessionTurnRequest);
 assert.ok(documentSeed.components.schemas?.BirdCoderWorkspaceSummary);
 assert.ok(documentSeed.components.schemas?.BirdCoderProjectSummary);
+const workspaceSummaryProperties = documentSeed.components.schemas.BirdCoderWorkspaceSummary
+  .properties as Record<string, { type?: string }>;
+const createWorkspaceRequestProperties = documentSeed.components.schemas.BirdCoderCreateWorkspaceRequest
+  .properties as Record<string, { type?: string }>;
+const updateWorkspaceRequestProperties = documentSeed.components.schemas.BirdCoderUpdateWorkspaceRequest
+  .properties as Record<string, { type?: string }>;
+const projectSummaryProperties = documentSeed.components.schemas.BirdCoderProjectSummary
+  .properties as Record<string, { type?: string }>;
+const codingSessionSummaryProperties = documentSeed.components.schemas.BirdCoderCodingSessionSummary
+  .properties as Record<string, { type?: string }>;
+const codingSessionEventProperties = documentSeed.components.schemas.BirdCoderCodingSessionEvent
+  .properties as Record<string, { type?: string }>;
+const nativeSessionSummaryProperties = documentSeed.components.schemas.BirdCoderNativeSessionSummary
+  .properties as Record<string, { type?: string }>;
+const createProjectRequestProperties = documentSeed.components.schemas.BirdCoderCreateProjectRequest
+  .properties as Record<string, { type?: string }>;
+const updateProjectRequestProperties = documentSeed.components.schemas.BirdCoderUpdateProjectRequest
+  .properties as Record<string, { type?: string }>;
+const skillCatalogEntryProperties = documentSeed.components.schemas.BirdCoderSkillCatalogEntrySummary
+  .properties as Record<string, { type?: string }>;
+const skillPackageProperties = documentSeed.components.schemas.BirdCoderSkillPackageSummary
+  .properties as Record<string, { type?: string }>;
+const userCenterMembershipProperties = documentSeed.components.schemas.BirdCoderUserCenterMembershipSummary
+  .properties as Record<string, { type?: string }>;
+const updateUserCenterMembershipRequestProperties = documentSeed.components.schemas
+  .BirdCoderUpdateCurrentUserMembershipRequest.properties as Record<string, { type?: string }>;
+for (const [schemaName, properties] of [
+  ['BirdCoderWorkspaceSummary', workspaceSummaryProperties],
+  ['BirdCoderCreateWorkspaceRequest', createWorkspaceRequestProperties],
+  ['BirdCoderUpdateWorkspaceRequest', updateWorkspaceRequestProperties],
+] as const) {
+  assert.equal(
+    properties.maxStorage?.type,
+    'string',
+    `${schemaName}.maxStorage must be a string because it maps to a Java Long/BIGINT field.`,
+  );
+  assert.equal(
+    properties.usedStorage?.type,
+    'string',
+    `${schemaName}.usedStorage must be a string because it maps to a Java Long/BIGINT field.`,
+  );
+}
+for (const [schemaName, properties] of [
+  ['BirdCoderProjectSummary', projectSummaryProperties],
+  ['BirdCoderCreateProjectRequest', createProjectRequestProperties],
+  ['BirdCoderUpdateProjectRequest', updateProjectRequestProperties],
+] as const) {
+  assert.equal(
+    properties.budgetAmount?.type,
+    'string',
+    `${schemaName}.budgetAmount must be a string because it maps to a Java Long/BIGINT field.`,
+  );
+}
+assert.equal(
+  codingSessionSummaryProperties.sortTimestamp?.type,
+  'string',
+  'BirdCoderCodingSessionSummary.sortTimestamp must be a string because coding_session.sort_timestamp is a BIGINT field.',
+);
+assert.equal(
+  nativeSessionSummaryProperties.sortTimestamp?.type,
+  'string',
+  'BirdCoderNativeSessionSummary.sortTimestamp must be a string because native session records store epoch millis in an i64/BIGINT field.',
+);
+assert.equal(
+  codingSessionEventProperties.sequence?.type,
+  'string',
+  'BirdCoderCodingSessionEvent.sequence must be a string because coding_session_events.sequence_no is a BIGINT field.',
+);
+for (const [schemaName, properties] of [
+  ['BirdCoderSkillCatalogEntrySummary', skillCatalogEntryProperties],
+  ['BirdCoderSkillPackageSummary', skillPackageProperties],
+] as const) {
+  assert.equal(
+    properties.installCount?.type,
+    'string',
+    `${schemaName}.installCount must be a string because it maps to a Java Long/BIGINT field.`,
+  );
+}
+for (const [schemaName, properties] of [
+  ['BirdCoderUserCenterMembershipSummary', userCenterMembershipProperties],
+  ['BirdCoderUpdateCurrentUserMembershipRequest', updateUserCenterMembershipRequestProperties],
+] as const) {
+  assert.equal(
+    properties.pointBalance?.type,
+    'string',
+    `${schemaName}.pointBalance must be a string because it maps to a Java Long/BIGINT field.`,
+  );
+  assert.equal(
+    properties.totalRechargedPoints?.type,
+    'string',
+    `${schemaName}.totalRechargedPoints must be a string because it maps to a Java Long/BIGINT field.`,
+  );
+}
 assert.ok(documentSeed.components.schemas?.BirdCoderProjectGitOverview);
 assert.ok(documentSeed.components.schemas?.BirdCoderCreateProjectGitBranchRequest);
 assert.ok(documentSeed.components.schemas?.BirdCoderSwitchProjectGitBranchRequest);
@@ -251,6 +367,12 @@ assert.equal(
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCreateCodingSessionTurnRequest',
+);
+assert.equal(
+  documentSeed.paths['/api/core/v1/questions/{questionId}/answer']?.post?.requestBody?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderSubmitUserQuestionAnswerRequest',
 );
 assert.equal(
   documentSeed.paths['/api/core/v1/coding-sessions']?.get?.responses['200']?.content[

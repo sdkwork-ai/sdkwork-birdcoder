@@ -61,6 +61,7 @@ try {
   await Promise.all([
     repositories.workspaces.clear(),
     repositories.projects.clear(),
+    repositories.projectContents.clear(),
     repositories.documents.clear(),
     repositories.deployments.clear(),
     repositories.targets.clear(),
@@ -83,10 +84,20 @@ try {
     workspaceId: 'workspace-console-contract',
     name: 'Console Contract Project',
     description: 'Project listed through the representative console query service.',
-    rootPath: 'D:/workspace/console-contract-project',
     status: 'active',
     createdAt: '2026-04-10T18:00:01.000Z',
     updatedAt: '2026-04-10T18:00:01.000Z',
+  });
+  await repositories.projectContents.save({
+    id: 'project-content-console-contract',
+    projectId: 'project-console-contract',
+    projectUuid: 'project-project-console-contract',
+    configData: JSON.stringify({
+      rootPath: 'D:/workspace/console-contract-project',
+    }),
+    contentVersion: '1.0',
+    createdAt: '2026-04-10T18:00:01.250Z',
+    updatedAt: '2026-04-10T18:00:01.250Z',
   });
   await repositories.documents.save({
     id: 'doc-console-contract',

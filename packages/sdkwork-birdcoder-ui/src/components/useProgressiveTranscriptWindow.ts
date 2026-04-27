@@ -40,31 +40,41 @@ export function useProgressiveTranscriptWindow(
   messages: readonly BirdCoderChatMessage[],
   messagesEndRef: RefObject<HTMLDivElement | null>,
   isActive = true,
+  transcriptScopeKey = '',
 ) {
   const firstMessageId = messages[0]?.id ?? '';
-  const previousTranscriptFirstMessageIdRef = useRef(firstMessageId);
+  const normalizedTranscriptScopeKey = transcriptScopeKey.trim();
+  const transcriptIdentity = `${normalizedTranscriptScopeKey}\u0001${firstMessageId}`;
+  const previousTranscriptIdentityRef = useRef(transcriptIdentity);
   const pendingPrependedScrollMetricsRef = useRef<TranscriptScrollMetrics | null>(null);
+  const isTranscriptPointerDragActiveRef = useRef(false);
+  const pendingTopLoadAfterPointerReleaseRef = useRef(false);
   const [visibleTranscriptStartIndex, setVisibleTranscriptStartIndex] = useState(() =>
     resolveInitialVisibleTranscriptStartIndex(messages.length),
   );
   const [isLoadingEarlierMessages, setIsLoadingEarlierMessages] = useState(false);
+  const didTranscriptChangeBeforeEffect =
+    previousTranscriptIdentityRef.current !== transcriptIdentity;
+  const effectiveVisibleTranscriptStartIndex = didTranscriptChangeBeforeEffect
+    ? resolveInitialVisibleTranscriptStartIndex(messages.length)
+    : visibleTranscriptStartIndex;
 
   const renderedMessages = useMemo(() => {
-    if (visibleTranscriptStartIndex === 0) {
+    if (effectiveVisibleTranscriptStartIndex === 0) {
       return messages;
     }
 
-    return messages.slice(visibleTranscriptStartIndex);
-  }, [messages, visibleTranscriptStartIndex]);
+    return messages.slice(effectiveVisibleTranscriptStartIndex);
+  }, [effectiveVisibleTranscriptStartIndex, messages]);
 
   useEffect(() => {
     if (!isActive) {
       return;
     }
 
-    const didTranscriptChange = previousTranscriptFirstMessageIdRef.current !== firstMessageId;
+    const didTranscriptChange = previousTranscriptIdentityRef.current !== transcriptIdentity;
     if (didTranscriptChange) {
-      previousTranscriptFirstMessageIdRef.current = firstMessageId;
+      previousTranscriptIdentityRef.current = transcriptIdentity;
       pendingPrependedScrollMetricsRef.current = null;
       setIsLoadingEarlierMessages(false);
       setVisibleTranscriptStartIndex(Math.max(0, messages.length - INITIAL_TRANSCRIPT_RENDER_COUNT));
@@ -84,7 +94,7 @@ export function useProgressiveTranscriptWindow(
       setIsLoadingEarlierMessages(false);
       setVisibleTranscriptStartIndex(maxVisibleTranscriptStartIndex);
     }
-  }, [firstMessageId, isActive, messages.length, visibleTranscriptStartIndex]);
+  }, [isActive, messages.length, transcriptIdentity, visibleTranscriptStartIndex]);
 
   useEffect(() => {
     if (!isActive || visibleTranscriptStartIndex === 0 || typeof window === 'undefined') {
@@ -96,7 +106,7 @@ export function useProgressiveTranscriptWindow(
       return;
     }
 
-    const handleTranscriptScroll = () => {
+    const requestEarlierTranscriptPage = () => {
       if (pendingPrependedScrollMetricsRef.current || isLoadingEarlierMessages) {
         return;
       }
@@ -116,11 +126,55 @@ export function useProgressiveTranscriptWindow(
         resolveEarlierTranscriptStartIndex(previousVisibleTranscriptStartIndex),
       );
     };
+    const handleTranscriptScroll = () => {
+      if (pendingPrependedScrollMetricsRef.current || isLoadingEarlierMessages) {
+        return;
+      }
+
+      if (isTranscriptPointerDragActiveRef.current) {
+        pendingTopLoadAfterPointerReleaseRef.current = shouldLoadEarlierTranscriptPage(
+          readTranscriptScrollMetrics(messagesEndRef),
+          visibleTranscriptStartIndex,
+        );
+        return;
+      }
+
+      requestEarlierTranscriptPage();
+    };
+    const handleTranscriptPointerDown = (event: PointerEvent) => {
+      if (event.pointerType === 'mouse' && event.button !== 0) {
+        return;
+      }
+
+      isTranscriptPointerDragActiveRef.current = true;
+      pendingTopLoadAfterPointerReleaseRef.current = false;
+    };
+    const handleTranscriptPointerRelease = () => {
+      if (!isTranscriptPointerDragActiveRef.current) {
+        return;
+      }
+
+      isTranscriptPointerDragActiveRef.current = false;
+      if (!pendingTopLoadAfterPointerReleaseRef.current) {
+        return;
+      }
+
+      pendingTopLoadAfterPointerReleaseRef.current = false;
+      requestEarlierTranscriptPage();
+    };
 
     scrollContainer.addEventListener('scroll', handleTranscriptScroll, { passive: true });
+    scrollContainer.addEventListener('pointerdown', handleTranscriptPointerDown, { passive: true });
+    window.addEventListener('pointerup', handleTranscriptPointerRelease, true);
+    window.addEventListener('pointercancel', handleTranscriptPointerRelease, true);
 
     return () => {
+      isTranscriptPointerDragActiveRef.current = false;
+      pendingTopLoadAfterPointerReleaseRef.current = false;
       scrollContainer.removeEventListener('scroll', handleTranscriptScroll);
+      scrollContainer.removeEventListener('pointerdown', handleTranscriptPointerDown);
+      window.removeEventListener('pointerup', handleTranscriptPointerRelease, true);
+      window.removeEventListener('pointercancel', handleTranscriptPointerRelease, true);
     };
   }, [isActive, isLoadingEarlierMessages, messagesEndRef, visibleTranscriptStartIndex]);
 
@@ -162,9 +216,9 @@ export function useProgressiveTranscriptWindow(
   ]);
 
   return {
-    hasEarlierMessages: visibleTranscriptStartIndex > 0,
+    hasEarlierMessages: effectiveVisibleTranscriptStartIndex > 0,
     isLoadingEarlierMessages,
     renderedMessages,
-    visibleTranscriptStartIndex,
+    visibleTranscriptStartIndex: effectiveVisibleTranscriptStartIndex,
   };
 }

@@ -173,7 +173,7 @@ await withMockChildProcessModule(
       assert.equal(
         invocation.args[resumeIndex + 1],
         'native-session-1',
-        'BirdCoder must strip the synthetic `codex-native:` prefix before invoking Codex CLI.',
+        'BirdCoder must pass the raw provider-native Codex session id to the Codex CLI resume command.',
       );
       assert.equal(
         invocation.args[resumeIndex + 2],
@@ -196,7 +196,8 @@ await withMockChildProcessModule(
       model: 'codex',
       context: {
         workspaceRoot: process.cwd(),
-        sessionId: 'codex-native:native-session-1',
+        sessionId: 'birdcoder-session-1',
+        nativeSessionId: 'native-session-1',
       },
     });
 

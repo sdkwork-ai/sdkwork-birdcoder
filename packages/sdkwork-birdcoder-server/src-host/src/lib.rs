@@ -26,7 +26,9 @@ use rusqlite::{params, types::ValueRef, Connection, OptionalExtension};
 use sdkwork_birdcoder_codeengine::{
     find_codeengine_descriptor, find_native_session_provider_catalog_entry,
     list_codeengine_descriptors, list_codeengine_model_catalog_entries,
-    list_native_session_provider_catalog_entries,
+    list_native_session_provider_catalog_entries, map_codeengine_tool_kind,
+    resolve_codeengine_approval_id, resolve_codeengine_tool_call_id,
+    resolve_codeengine_user_question_id,
     CodeEngineAccessLaneStatusRecord as EngineAccessLaneStatusPayload,
     CodeEngineCapabilityMatrixRecord as EngineCapabilityMatrixPayload,
     CodeEngineDescriptorRecord as EngineDescriptorPayload,
@@ -47,7 +49,7 @@ use sdkwork_user_center_native::{
     USER_CENTER_AUTH_SESSION_PATH, USER_CENTER_AUTH_VERIFY_SEND_PATH,
     USER_CENTER_USER_PROFILE_PATH, USER_CENTER_VIP_INFO_PATH,
 };
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::json;
 use tokio::sync::broadcast;
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -62,6 +64,11 @@ use user_center::{
     UserCenterSendVerifyCodeRequest, UserCenterSessionExchangeRequest, UserCenterSessionPayload,
     UserCenterState, UserCenterVipMembershipPayload, BIRDCODER_AUTHORIZATION_SCHEME,
     BIRDCODER_SESSION_HEADER_NAME,
+};
+use user_center_validation::{
+    USER_CENTER_APP_ID_HEADER_NAME, USER_CENTER_HANDSHAKE_MODE_HEADER_NAME,
+    USER_CENTER_PROVIDER_KEY_HEADER_NAME, USER_CENTER_SECRET_ID_HEADER_NAME,
+    USER_CENTER_SIGNATURE_HEADER_NAME, USER_CENTER_SIGNED_AT_HEADER_NAME,
 };
 use uuid::Uuid;
 
@@ -101,8 +108,8 @@ const PROVIDER_CODING_SESSION_EVENTS_TABLE: &str = "coding_session_events";
 const PROVIDER_CODING_SESSION_ARTIFACTS_TABLE: &str = "coding_session_artifacts";
 const PROVIDER_CODING_SESSION_CHECKPOINTS_TABLE: &str = "coding_session_checkpoints";
 const PROVIDER_CODING_SESSION_OPERATIONS_TABLE: &str = "coding_session_operations";
-const PROVIDER_WORKSPACES_TABLE: &str = "workspaces";
-const PROVIDER_PROJECTS_TABLE: &str = "projects";
+const PROVIDER_WORKSPACES_TABLE: &str = "plus_workspace";
+const PROVIDER_PROJECTS_TABLE: &str = "plus_project";
 const PROVIDER_SKILL_PACKAGES_TABLE: &str = "skill_packages";
 const PROVIDER_SKILL_VERSIONS_TABLE: &str = "skill_versions";
 const PROVIDER_SKILL_CAPABILITIES_TABLE: &str = "skill_capabilities";
@@ -133,7 +140,9 @@ const BOOTSTRAP_TEAM_MEMBER_ID: &str = "100000000000000302";
 const BOOTSTRAP_WORKSPACE_MEMBER_ID: &str = "100000000000000303";
 const BOOTSTRAP_PROJECT_COLLABORATOR_ID: &str = "100000000000000304";
 const SQLITE_AUTHORITY_DEFAULT_TENANT_ID: &str = "0";
+const SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID: &str = "0";
 const DEFAULT_PRIVATE_DATA_SCOPE: &str = "PRIVATE";
+const SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE: i64 = 1;
 const DEFAULT_TREE_ROOT_ID: &str = "0";
 const DEFAULT_TREE_ROOT_UUID: &str = "0";
 const TAURI_LOCALHOST_ORIGIN: &str = "tauri://localhost";
@@ -281,12 +290,12 @@ ON saved_prompt_entries(last_saved_at);
 CREATE UNIQUE INDEX IF NOT EXISTS uk_saved_prompt_entries_normalized_prompt
 ON saved_prompt_entries(normalized_prompt_text);
 
-CREATE TABLE IF NOT EXISTS workspaces (
+CREATE TABLE IF NOT EXISTS plus_workspace (
     id INTEGER PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
-    data_scope TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -295,9 +304,9 @@ CREATE TABLE IF NOT EXISTS workspaces (
     code TEXT NULL,
     title TEXT NULL,
     description TEXT NULL,
-    owner_id TEXT NULL,
-    leader_id TEXT NULL,
-    created_by_user_id TEXT NULL,
+    owner_id INTEGER NOT NULL,
+    leader_id INTEGER NULL,
+    created_by_user_id INTEGER NULL,
     icon TEXT NULL,
     color TEXT NULL,
     type TEXT NULL,
@@ -314,49 +323,78 @@ CREATE TABLE IF NOT EXISTS workspaces (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS projects (
+CREATE TABLE IF NOT EXISTS plus_project (
     id INTEGER PRIMARY KEY,
-    uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
-    data_scope TEXT NULL,
-    user_id TEXT NULL,
-    parent_id TEXT NULL,
-    parent_uuid TEXT NULL,
-    parent_metadata TEXT NULL,
+    uuid TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    version INTEGER NOT NULL DEFAULT 0,
-    is_deleted INTEGER NOT NULL DEFAULT 0,
-    workspace_id INTEGER NOT NULL,
-    workspace_uuid TEXT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    parent_id INTEGER NULL,
+    parent_uuid TEXT NULL,
+    parent_metadata TEXT NULL,
+    user_id INTEGER NULL,
     name TEXT NOT NULL,
-    code TEXT NULL,
-    title TEXT NULL,
-    description TEXT NULL,
-    root_path TEXT NULL,
+    title TEXT NOT NULL,
+    cover_image TEXT NULL,
     author TEXT NULL,
-    file_id TEXT NULL,
-    type TEXT NULL,
+    file_id INTEGER NULL,
+    code TEXT NOT NULL,
+    type INTEGER NOT NULL,
     site_path TEXT NULL,
     domain_prefix TEXT NULL,
-    conversation_id TEXT NULL,
-    owner_id TEXT NULL,
-    leader_id TEXT NULL,
-    created_by_user_id TEXT NULL,
+    description TEXT NULL,
+    status INTEGER NOT NULL,
+    conversation_id INTEGER NULL,
+    workspace_id INTEGER NULL,
+    workspace_uuid TEXT NULL,
+    leader_id INTEGER NULL,
     start_time TEXT NULL,
     end_time TEXT NULL,
     budget_amount INTEGER NULL,
-    cover_image_json TEXT NULL,
-    is_template INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL
+    is_deleted INTEGER NOT NULL,
+    is_template INTEGER NOT NULL
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_project_name
+ON plus_project(name);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_project_code
+ON plus_project(code);
+
+CREATE TABLE IF NOT EXISTS plus_project_content (
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    v INTEGER NOT NULL DEFAULT 0,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    data_scope INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NULL,
+    parent_id INTEGER NULL,
+    project_id INTEGER NOT NULL,
+    project_uuid TEXT NOT NULL,
+    config_data TEXT NULL,
+    content_data TEXT NULL,
+    metadata TEXT NULL,
+    content_version TEXT NOT NULL,
+    content_hash TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plus_project_content_project_id
+ON plus_project_content(project_id);
+
+CREATE INDEX IF NOT EXISTS idx_plus_project_content_project_uuid
+ON plus_project_content(project_uuid);
 
 CREATE TABLE IF NOT EXISTS skill_packages (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -370,8 +408,8 @@ CREATE TABLE IF NOT EXISTS skill_packages (
 CREATE TABLE IF NOT EXISTS skill_versions (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -385,8 +423,8 @@ CREATE TABLE IF NOT EXISTS skill_versions (
 CREATE TABLE IF NOT EXISTS skill_capabilities (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -400,8 +438,8 @@ CREATE TABLE IF NOT EXISTS skill_capabilities (
 CREATE TABLE IF NOT EXISTS skill_installations (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -416,8 +454,8 @@ CREATE TABLE IF NOT EXISTS skill_installations (
 CREATE TABLE IF NOT EXISTS app_templates (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -431,8 +469,8 @@ CREATE TABLE IF NOT EXISTS app_templates (
 CREATE TABLE IF NOT EXISTS app_template_versions (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -446,8 +484,8 @@ CREATE TABLE IF NOT EXISTS app_template_versions (
 CREATE TABLE IF NOT EXISTS app_template_target_profiles (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -462,8 +500,8 @@ CREATE TABLE IF NOT EXISTS app_template_target_profiles (
 CREATE TABLE IF NOT EXISTS app_template_presets (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -477,8 +515,8 @@ CREATE TABLE IF NOT EXISTS app_template_presets (
 CREATE TABLE IF NOT EXISTS app_template_instantiations (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -493,8 +531,8 @@ CREATE TABLE IF NOT EXISTS app_template_instantiations (
 CREATE TABLE IF NOT EXISTS project_documents (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -510,8 +548,8 @@ CREATE TABLE IF NOT EXISTS project_documents (
 CREATE TABLE IF NOT EXISTS deployment_targets (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -526,8 +564,8 @@ CREATE TABLE IF NOT EXISTS deployment_targets (
 CREATE TABLE IF NOT EXISTS deployment_records (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -544,8 +582,8 @@ CREATE TABLE IF NOT EXISTS deployment_records (
 CREATE TABLE IF NOT EXISTS teams (
     id INTEGER PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -555,9 +593,9 @@ CREATE TABLE IF NOT EXISTS teams (
     code TEXT NULL,
     title TEXT NULL,
     description TEXT NULL,
-    owner_id TEXT NULL,
-    leader_id TEXT NULL,
-    created_by_user_id TEXT NULL,
+    owner_id INTEGER NOT NULL,
+    leader_id INTEGER NULL,
+    created_by_user_id INTEGER NULL,
     metadata_json TEXT NULL,
     status TEXT NOT NULL
 );
@@ -565,62 +603,62 @@ CREATE TABLE IF NOT EXISTS teams (
 CREATE TABLE IF NOT EXISTS team_members (
     id INTEGER PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
     team_id INTEGER NOT NULL,
-    user_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
     role TEXT NOT NULL,
-    created_by_user_id TEXT NULL,
-    granted_by_user_id TEXT NULL,
+    created_by_user_id INTEGER NULL,
+    granted_by_user_id INTEGER NULL,
     status TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS workspace_members (
     id INTEGER PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
     workspace_id INTEGER NOT NULL,
-    user_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
     team_id INTEGER NULL,
     role TEXT NOT NULL,
-    created_by_user_id TEXT NULL,
-    granted_by_user_id TEXT NULL,
+    created_by_user_id INTEGER NULL,
+    granted_by_user_id INTEGER NULL,
     status TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS project_collaborators (
     id INTEGER PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
     project_id INTEGER NOT NULL,
     workspace_id INTEGER NOT NULL,
-    user_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
     team_id INTEGER NULL,
     role TEXT NOT NULL,
-    created_by_user_id TEXT NULL,
-    granted_by_user_id TEXT NULL,
+    created_by_user_id INTEGER NULL,
+    granted_by_user_id INTEGER NULL,
     status TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS release_records (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -635,8 +673,8 @@ CREATE TABLE IF NOT EXISTS release_records (
 CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -650,8 +688,8 @@ CREATE TABLE IF NOT EXISTS audit_events (
 CREATE TABLE IF NOT EXISTS governance_policies (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
-    tenant_id TEXT NULL,
-    organization_id TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -815,9 +853,9 @@ struct WorkspacePayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     member_count: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    max_storage: Option<i64>,
+    max_storage: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    used_storage: Option<i64>,
+    used_storage: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     settings: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -884,7 +922,7 @@ struct ProjectPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     end_time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    budget_amount: Option<i64>,
+    budget_amount: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     cover_image: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -913,7 +951,7 @@ struct SkillCatalogEntryPayload {
     version_id: String,
     version_label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    install_count: Option<usize>,
+    install_count: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     long_description: Option<String>,
     tags: Vec<String>,
@@ -953,7 +991,7 @@ struct SkillPackagePayload {
     version_id: String,
     version_label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    install_count: Option<usize>,
+    install_count: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     long_description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1058,8 +1096,8 @@ struct CreateWorkspaceRequest {
     max_members: Option<i64>,
     current_members: Option<i64>,
     member_count: Option<i64>,
-    max_storage: Option<i64>,
-    used_storage: Option<i64>,
+    max_storage: Option<String>,
+    used_storage: Option<String>,
     settings: Option<serde_json::Value>,
     is_public: Option<bool>,
     is_template: Option<bool>,
@@ -1084,8 +1122,8 @@ struct UpdateWorkspaceRequest {
     max_members: Option<i64>,
     current_members: Option<i64>,
     member_count: Option<i64>,
-    max_storage: Option<i64>,
-    used_storage: Option<i64>,
+    max_storage: Option<String>,
+    used_storage: Option<String>,
     settings: Option<serde_json::Value>,
     is_public: Option<bool>,
     is_template: Option<bool>,
@@ -1121,7 +1159,7 @@ struct CreateProjectRequest {
     conversation_id: Option<String>,
     start_time: Option<String>,
     end_time: Option<String>,
-    budget_amount: Option<i64>,
+    budget_amount: Option<String>,
     cover_image: Option<serde_json::Value>,
     is_template: Option<bool>,
     app_template_version_id: Option<String>,
@@ -1160,7 +1198,7 @@ struct UpdateProjectRequest {
     conversation_id: Option<String>,
     start_time: Option<String>,
     end_time: Option<String>,
-    budget_amount: Option<i64>,
+    budget_amount: Option<String>,
     cover_image: Option<serde_json::Value>,
     is_template: Option<bool>,
     status: Option<String>,
@@ -1546,6 +1584,7 @@ struct CodingSessionRuntimeRow {
     host_mode: String,
     engine_id: String,
     model_id: String,
+    status: String,
     native_session_id: Option<String>,
     created_at: String,
     updated_at: String,
@@ -1629,12 +1668,18 @@ struct CodingSessionPayload {
     host_mode: String,
     engine_id: String,
     model_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    native_session_id: Option<String>,
     created_at: String,
     updated_at: String,
     last_turn_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     runtime_status: Option<String>,
-    #[serde(default)]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_i64_from_decimal_string_or_number",
+        serialize_with = "serialize_i64_as_decimal_string"
+    )]
     sort_timestamp: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     transcript_updated_at: Option<String>,
@@ -1766,6 +1811,20 @@ struct SubmitApprovalDecisionInput {
     reason: Option<String>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SubmitUserQuestionAnswerRequest {
+    answer: String,
+    option_id: Option<String>,
+    option_label: Option<String>,
+}
+
+struct SubmitUserQuestionAnswerInput {
+    answer: String,
+    option_id: Option<String>,
+    option_label: Option<String>,
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CodingSessionTurnPayload {
@@ -1787,9 +1846,78 @@ struct CodingSessionEventPayload {
     turn_id: Option<String>,
     runtime_id: Option<String>,
     kind: String,
+    #[serde(
+        deserialize_with = "deserialize_usize_from_decimal_string_or_number",
+        serialize_with = "serialize_usize_as_decimal_string"
+    )]
     sequence: usize,
     payload: BTreeMap<String, String>,
     created_at: String,
+}
+
+fn serialize_i64_as_decimal_string<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&value.to_string())
+}
+
+fn serialize_usize_as_decimal_string<S>(value: &usize, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&value.to_string())
+}
+
+fn parse_i64_decimal_string<E>(value: &str) -> Result<i64, E>
+where
+    E: serde::de::Error,
+{
+    value
+        .trim()
+        .parse::<i64>()
+        .map_err(|_| E::custom("expected an i64 decimal string"))
+}
+
+fn parse_usize_decimal_string<E>(value: &str) -> Result<usize, E>
+where
+    E: serde::de::Error,
+{
+    value
+        .trim()
+        .parse::<usize>()
+        .map_err(|_| E::custom("expected a usize decimal string"))
+}
+
+fn deserialize_i64_from_decimal_string_or_number<'de, D>(deserializer: D) -> Result<i64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::String(value) => parse_i64_decimal_string::<D::Error>(&value),
+        serde_json::Value::Number(value) => value
+            .as_i64()
+            .ok_or_else(|| serde::de::Error::custom("expected an i64 JSON number")),
+        _ => Err(serde::de::Error::custom("expected an i64 decimal string")),
+    }
+}
+
+fn deserialize_usize_from_decimal_string_or_number<'de, D>(
+    deserializer: D,
+) -> Result<usize, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::String(value) => parse_usize_decimal_string::<D::Error>(&value),
+        serde_json::Value::Number(value) => value
+            .as_u64()
+            .and_then(|value| usize::try_from(value).ok())
+            .ok_or_else(|| serde::de::Error::custom("expected a usize JSON number")),
+        _ => Err(serde::de::Error::custom("expected a usize decimal string")),
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -1831,6 +1959,20 @@ struct ApprovalDecisionPayload {
     decided_at: String,
     runtime_status: String,
     operation_status: String,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UserQuestionAnswerPayload {
+    question_id: String,
+    coding_session_id: String,
+    answer: String,
+    answered_at: String,
+    option_id: Option<String>,
+    option_label: Option<String>,
+    runtime_id: Option<String>,
+    runtime_status: String,
+    turn_id: Option<String>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -2791,7 +2933,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
                 "description": package.description,
                 "icon": package.icon,
                 "author": package.author,
-                "installCount": package.install_count,
+                "installCount": package.install_count.to_string(),
                 "longDescription": package.long_description,
             })
             .to_string();
@@ -2803,7 +2945,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
                     "description": skill.description,
                     "icon": skill.icon,
                     "author": skill.author,
-                    "installCount": skill.install_count,
+                    "installCount": skill.install_count.to_string(),
                     "longDescription": skill.long_description,
                     "tags": skill.tags,
                     "license": skill.license,
@@ -2825,7 +2967,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
                         package.package_id,
                         &package_uuid,
                         SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                        Option::<&str>::None,
+                        SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                         &now,
                         &now,
                         package.slug,
@@ -2848,7 +2990,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
                         package.version_id,
                         &version_uuid,
                         SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                        Option::<&str>::None,
+                        SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                         &now,
                         &now,
                         package.package_id,
@@ -2879,7 +3021,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
                             format!("skill-capability-{}", skill.id),
                             &capability_uuid,
                             SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                            Option::<&str>::None,
+                            SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                             &now,
                             &now,
                             package.version_id,
@@ -2935,7 +3077,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
                         template.template_id,
                         &template_uuid,
                         SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                        Option::<&str>::None,
+                        SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                         &now,
                         &now,
                         template.slug,
@@ -2958,7 +3100,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
                         template.version_id,
                         &version_uuid,
                         SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                        Option::<&str>::None,
+                        SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                         &now,
                         &now,
                         template.template_id,
@@ -2981,7 +3123,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
                         template.preset_id,
                         &preset_uuid,
                         SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                        Option::<&str>::None,
+                        SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                         &now,
                         &now,
                         template.version_id,
@@ -3006,7 +3148,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
                             format!("{profile_id}-{}", template.template_id),
                             &profile_uuid,
                             SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                            Option::<&str>::None,
+                            SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                             &now,
                             &now,
                             template.version_id,
@@ -3161,6 +3303,59 @@ fn normalize_optional_string(value: Option<String>) -> Option<String> {
     value.and_then(normalize_required_string)
 }
 
+fn long_integer_json_string(value: i64) -> String {
+    value.to_string()
+}
+
+fn optional_long_integer_json_string(value: Option<i64>) -> Option<String> {
+    value.map(long_integer_json_string)
+}
+
+fn optional_usize_long_integer_json_string(value: Option<usize>) -> Option<String> {
+    value.map(|entry| entry.to_string())
+}
+
+fn parse_long_integer_decimal_string(value: &str, field_name: &str) -> Result<i64, String> {
+    let normalized = value.trim();
+    let digits = normalized.strip_prefix('-').unwrap_or(normalized);
+    if normalized.is_empty()
+        || digits.is_empty()
+        || !digits.chars().all(|entry| entry.is_ascii_digit())
+    {
+        return Err(format!(
+            "{field_name} must be a Java Long/BIGINT decimal string."
+        ));
+    }
+    normalized.parse::<i64>().map_err(|_| {
+        format!("{field_name} must be within the signed 64-bit Java Long/BIGINT range.")
+    })
+}
+
+fn parse_optional_long_integer_decimal_string(
+    value: Option<String>,
+    field_name: &str,
+) -> Result<Option<i64>, String> {
+    let Some(normalized) = normalize_optional_string(value) else {
+        return Ok(None);
+    };
+    parse_long_integer_decimal_string(normalized.as_str(), field_name).map(Some)
+}
+
+fn parse_optional_long_integer_request_value(
+    value: Option<String>,
+    field_name: &str,
+    problem_id: &'static str,
+) -> Result<Option<i64>, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)> {
+    parse_optional_long_integer_decimal_string(value, field_name).map_err(|message| {
+        problem_response(
+            problem_id,
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            message,
+        )
+    })
+}
+
 fn normalize_optional_json_object_value(
     value: Option<serde_json::Value>,
     field_name: &str,
@@ -3193,6 +3388,20 @@ fn parse_optional_json_value(
         Some(raw) => parse_json_value(&raw, context).map(Some),
         None => Ok(None),
     }
+}
+
+fn parse_project_root_path_from_config_data(raw: Option<String>) -> Result<Option<String>, String> {
+    let Some(config_data) = parse_optional_json_value(raw, "project content config_data")? else {
+        return Ok(None);
+    };
+    let Some(config) = config_data.as_object() else {
+        return Ok(None);
+    };
+    Ok(config
+        .get("rootPath")
+        .or_else(|| config.get("root_path"))
+        .and_then(|value| value.as_str())
+        .and_then(|value| normalize_optional_string(Some(value.to_owned()))))
 }
 
 fn decode_optional_sqlite_bool(value: Option<i64>) -> Option<bool> {
@@ -3251,25 +3460,127 @@ fn sanitize_business_code_segment(value: &str) -> String {
     normalized.trim_matches('-').to_owned()
 }
 
+fn take_first_chars(value: &str, max_length: usize) -> String {
+    value.chars().take(max_length).collect()
+}
+
+fn take_last_chars(value: &str, max_length: usize) -> String {
+    let character_count = value.chars().count();
+    value
+        .chars()
+        .skip(character_count.saturating_sub(max_length))
+        .collect()
+}
+
+fn join_business_code_parts(parts: &[&str]) -> String {
+    parts
+        .iter()
+        .filter(|part| !part.is_empty())
+        .copied()
+        .collect::<Vec<_>>()
+        .join("-")
+}
+
+fn build_business_code_with_required_suffix(
+    prefix: &str,
+    primary_segment: &str,
+    fallback_segment: &str,
+    max_length: usize,
+) -> String {
+    let suffix_segment = if fallback_segment.len() > max_length {
+        take_last_chars(fallback_segment, max_length)
+    } else {
+        fallback_segment.to_owned()
+    };
+
+    if primary_segment.is_empty() {
+        let composed = join_business_code_parts(&[prefix, suffix_segment.as_str()]);
+        if composed.len() <= max_length {
+            return composed;
+        }
+
+        let max_prefix_length = max_length.saturating_sub(suffix_segment.len() + 1);
+        if !prefix.is_empty() && max_prefix_length > 0 {
+            let prefix_head = take_first_chars(prefix, max_prefix_length)
+                .trim_end_matches('-')
+                .to_owned();
+            return join_business_code_parts(&[prefix_head.as_str(), suffix_segment.as_str()]);
+        }
+        return take_last_chars(suffix_segment.as_str(), max_length);
+    }
+
+    let separator_count = if prefix.is_empty() { 1 } else { 2 };
+    let fixed_length = prefix.len() + separator_count + suffix_segment.len();
+    if fixed_length >= max_length {
+        let composed = join_business_code_parts(&[prefix, suffix_segment.as_str()]);
+        if composed.len() <= max_length {
+            return composed;
+        }
+        return take_last_chars(suffix_segment.as_str(), max_length);
+    }
+
+    let max_primary_length = max_length - fixed_length;
+    let primary_head = take_first_chars(primary_segment, max_primary_length)
+        .trim_end_matches('-')
+        .to_owned();
+    join_business_code_parts(&[prefix, primary_head.as_str(), suffix_segment.as_str()])
+}
+
 fn build_business_code(prefix: &str, primary_value: &str, fallback_id: &str) -> String {
+    const MAX_BUSINESS_CODE_LENGTH: usize = 64;
     let primary_segment = sanitize_business_code_segment(primary_value);
     let fallback_segment = sanitize_business_code_segment(fallback_id);
-    let seed = if primary_segment.is_empty() {
-        fallback_segment
-    } else {
-        primary_segment
-    };
     let normalized_prefix = sanitize_business_code_segment(prefix);
-    let composed = if seed.is_empty() {
-        normalized_prefix
+    if !fallback_segment.is_empty() {
+        return build_business_code_with_required_suffix(
+            normalized_prefix.as_str(),
+            primary_segment.as_str(),
+            fallback_segment.as_str(),
+            MAX_BUSINESS_CODE_LENGTH,
+        );
+    }
+
+    if primary_segment.is_empty() {
+        return take_first_chars(normalized_prefix.as_str(), MAX_BUSINESS_CODE_LENGTH);
+    }
+
+    let seed = if primary_segment.is_empty() {
+        normalized_prefix.as_str()
     } else {
-        format!("{normalized_prefix}-{seed}")
+        primary_segment.as_str()
     };
-    composed.chars().take(64).collect()
+    take_first_chars(
+        join_business_code_parts(&[normalized_prefix.as_str(), seed]).as_str(),
+        MAX_BUSINESS_CODE_LENGTH,
+    )
 }
 
 fn build_workspace_business_code(workspace_id: &str, name: &str) -> String {
     build_business_code("WKSP", name, workspace_id)
+}
+
+fn build_project_business_name(project_id: &str, name: &str) -> String {
+    const MAX_PROJECT_NAME_LENGTH: usize = 255;
+    let normalized_name = name.trim();
+    let normalized_project_id = project_id.trim();
+    if normalized_project_id.is_empty() {
+        return take_first_chars(normalized_name, MAX_PROJECT_NAME_LENGTH);
+    }
+
+    let suffix = format!(" [{normalized_project_id}]");
+    if suffix.len() >= MAX_PROJECT_NAME_LENGTH {
+        return take_last_chars(normalized_project_id, MAX_PROJECT_NAME_LENGTH);
+    }
+
+    let max_name_length = MAX_PROJECT_NAME_LENGTH - suffix.len();
+    let name_head = take_first_chars(normalized_name, max_name_length)
+        .trim_end()
+        .to_owned();
+    if name_head.is_empty() {
+        format!("PROJ{suffix}")
+    } else {
+        format!("{name_head}{suffix}")
+    }
 }
 
 fn build_project_business_code(project_id: &str, name: &str, root_path: Option<&str>) -> String {
@@ -3280,20 +3591,104 @@ fn build_project_business_code(project_id: &str, name: &str, root_path: Option<&
     build_business_code("PROJ", primary_value, project_id)
 }
 
+fn build_project_config_data(root_path: Option<&str>) -> Option<String> {
+    root_path
+        .and_then(|value| normalize_optional_string(Some(value.to_owned())))
+        .map(|value| json!({ "rootPath": value }).to_string())
+}
+
 fn build_team_business_code(team_id: &str, name: &str) -> String {
     build_business_code("TEAM", name, team_id)
 }
 
 fn normalize_data_scope(value: Option<String>) -> Result<Option<String>, &'static str> {
-    let normalized_value = normalize_optional_string(value).map(|scope| scope.to_ascii_uppercase());
-    if normalized_value
-        .as_deref()
-        .is_some_and(|scope| !matches!(scope, "DEFAULT" | "PRIVATE" | "SHARED" | "PUBLIC"))
-    {
-        return Err("dataScope must be DEFAULT, PRIVATE, SHARED, or PUBLIC.");
-    }
+    let Some(scope) = normalize_optional_string(value) else {
+        return Ok(None);
+    };
+    let normalized_scope = match scope.to_ascii_uppercase().as_str() {
+        "0" | "DEFAULT" => "DEFAULT",
+        "1" | "PRIVATE" => "PRIVATE",
+        "2" | "SHARED" => "SHARED",
+        "3" | "PUBLIC" => "PUBLIC",
+        _ => return Err("dataScope must be DEFAULT, PRIVATE, SHARED, PUBLIC, or 0-3."),
+    };
 
-    Ok(normalized_value)
+    Ok(Some(normalized_scope.to_owned()))
+}
+
+fn data_scope_storage_value(value: &str) -> i64 {
+    match value.to_ascii_uppercase().as_str() {
+        "0" | "DEFAULT" => 0,
+        "2" | "SHARED" => 2,
+        "3" | "PUBLIC" => 3,
+        _ => SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
+    }
+}
+
+fn data_scope_name_from_storage_value(value: i64) -> Option<&'static str> {
+    match value {
+        0 => Some("DEFAULT"),
+        1 => Some("PRIVATE"),
+        2 => Some("SHARED"),
+        3 => Some("PUBLIC"),
+        _ => None,
+    }
+}
+
+fn project_type_storage_value(value: Option<&str>) -> i64 {
+    match value.map(str::trim).filter(|value| !value.is_empty()) {
+        Some("0" | "NONE") => 0,
+        Some("2" | "PPT") => 2,
+        Some("3" | "APP_HTML") => 3,
+        Some("4" | "APP_VUE") => 4,
+        Some("5" | "APP_FLUTTER") => 5,
+        Some("6" | "APP_UNIAPP") => 6,
+        Some("7" | "APP_REACT" | "APP") => 7,
+        Some("8" | "APP_UNITY") => 8,
+        Some("30" | "VIDEO") => 30,
+        Some("40" | "POSTER") => 40,
+        Some(value) => value.parse::<i64>().unwrap_or(1),
+        None => 1,
+    }
+}
+
+fn project_type_name_from_storage_value(value: i64) -> Option<&'static str> {
+    match value {
+        0 => Some("NONE"),
+        1 => Some("SDK"),
+        2 => Some("PPT"),
+        3 => Some("APP_HTML"),
+        4 => Some("APP_VUE"),
+        5 => Some("APP_FLUTTER"),
+        6 => Some("APP_UNIAPP"),
+        7 => Some("APP_REACT"),
+        8 => Some("APP_UNITY"),
+        30 => Some("VIDEO"),
+        40 => Some("POSTER"),
+        _ => None,
+    }
+}
+
+fn project_status_storage_value(value: Option<&str>) -> i64 {
+    match value.map(str::trim).filter(|value| !value.is_empty()) {
+        Some("2" | "IN_PROGRESS" | "active" | "ACTIVE") => 2,
+        Some("3" | "SUSPENDED" | "PAUSED" | "paused") => 3,
+        Some("4" | "COMPLETED") => 4,
+        Some("5" | "CANCELED" | "CANCELLED" | "archived" | "ARCHIVED") => 5,
+        Some(value) => value.parse::<i64>().unwrap_or(1),
+        None => 1,
+    }
+}
+
+fn project_status_name_from_storage_value(value: i64) -> Option<&'static str> {
+    match value {
+        1 => Some("PLANNING"),
+        2 => Some("IN_PROGRESS"),
+        3 => Some("SUSPENDED"),
+        4 => Some("COMPLETED"),
+        5 => Some("CANCELED"),
+        _ => None,
+    }
 }
 
 fn normalize_workspace_status(value: Option<String>) -> Result<Option<String>, &'static str> {
@@ -3666,6 +4061,20 @@ impl TryFrom<SubmitApprovalDecisionRequest> for SubmitApprovalDecisionInput {
     }
 }
 
+impl TryFrom<SubmitUserQuestionAnswerRequest> for SubmitUserQuestionAnswerInput {
+    type Error = &'static str;
+
+    fn try_from(value: SubmitUserQuestionAnswerRequest) -> Result<Self, Self::Error> {
+        let answer = normalize_required_string(value.answer).ok_or("answer is required.")?;
+
+        Ok(Self {
+            answer,
+            option_id: normalize_optional_string(value.option_id),
+            option_label: normalize_optional_string(value.option_label),
+        })
+    }
+}
+
 fn deserialize_projection_operations<'de, D>(
     deserializer: D,
 ) -> Result<Vec<OperationPayload>, D::Error>
@@ -3782,11 +4191,20 @@ fn ensure_sqlite_table_column_is_not_null(
     ))
 }
 
-const SQLITE_INTEGER_IDENTIFIER_TABLE_RULES: [(&str, &[(&str, bool)]); 6] = [
+const SQLITE_INTEGER_IDENTIFIER_TABLE_RULES: &[(&str, &[(&str, bool)])] = &[
     (PROVIDER_WORKSPACES_TABLE, &[("id", false)]),
-    (PROVIDER_PROJECTS_TABLE, &[("id", false), ("workspace_id", false)]),
-    (PROVIDER_TEAMS_TABLE, &[("id", false), ("workspace_id", false)]),
-    (PROVIDER_TEAM_MEMBERS_TABLE, &[("id", false), ("team_id", false)]),
+    (
+        PROVIDER_PROJECTS_TABLE,
+        &[("id", false), ("workspace_id", true)],
+    ),
+    (
+        PROVIDER_TEAMS_TABLE,
+        &[("id", false), ("workspace_id", false)],
+    ),
+    (
+        PROVIDER_TEAM_MEMBERS_TABLE,
+        &[("id", false), ("team_id", false)],
+    ),
     (
         "workspace_members",
         &[("id", false), ("workspace_id", false), ("team_id", true)],
@@ -3820,8 +4238,8 @@ fn load_sqlite_table_column_types(
         .map_err(|error| format!("query sqlite table info for {table_name} failed: {error}"))?;
     let mut columns = BTreeMap::new();
     for row in rows {
-        let (column_name, column_type) =
-            row.map_err(|error| format!("read sqlite table info for {table_name} failed: {error}"))?;
+        let (column_name, column_type) = row
+            .map_err(|error| format!("read sqlite table info for {table_name} failed: {error}"))?;
         columns.insert(column_name, column_type);
     }
     Ok(columns)
@@ -3859,7 +4277,8 @@ fn sqlite_table_identifier_columns_are_decimal_compatible(
     required_columns: &[(&str, bool)],
 ) -> Result<bool, String> {
     for (column_name, allow_nullish) in required_columns {
-        let query = format!("SELECT {column_name} FROM {table_name} WHERE {column_name} IS NOT NULL");
+        let query =
+            format!("SELECT {column_name} FROM {table_name} WHERE {column_name} IS NOT NULL");
         let mut statement = connection.prepare(&query).map_err(|error| {
             format!("prepare identifier compatibility probe for {table_name}.{column_name} failed: {error}")
         })?;
@@ -3868,7 +4287,9 @@ fn sqlite_table_identifier_columns_are_decimal_compatible(
         })?;
 
         while let Some(row) = rows.next().map_err(|error| {
-            format!("read identifier compatibility row for {table_name}.{column_name} failed: {error}")
+            format!(
+                "read identifier compatibility row for {table_name}.{column_name} failed: {error}"
+            )
         })? {
             let Some(raw_value) = sqlite_value_ref_to_string(row.get_ref(0).map_err(|error| {
                 format!("read identifier compatibility value for {table_name}.{column_name} failed: {error}")
@@ -3894,12 +4315,16 @@ fn upgrade_sqlite_provider_authority_integer_identifier_table(
     required_columns: &[(&str, bool)],
     insert_select_sql: String,
 ) -> Result<bool, String> {
-    if !sqlite_table_requires_integer_identifier_upgrade(connection, table_name, required_columns)? {
+    if !sqlite_table_requires_integer_identifier_upgrade(connection, table_name, required_columns)?
+    {
         return Ok(false);
     }
 
-    if !sqlite_table_identifier_columns_are_decimal_compatible(connection, table_name, required_columns)?
-    {
+    if !sqlite_table_identifier_columns_are_decimal_compatible(
+        connection,
+        table_name,
+        required_columns,
+    )? {
         eprintln!(
             "sqlite authority integer identifier upgrade skipped for table {table_name}: existing rows contain non-decimal identifiers."
         );
@@ -3907,9 +4332,9 @@ fn upgrade_sqlite_provider_authority_integer_identifier_table(
     }
 
     let legacy_table_name = format!("{table_name}__legacy_integer_identifiers");
-    let transaction = connection
-        .transaction()
-        .map_err(|error| format!("open integer identifier upgrade transaction for {table_name} failed: {error}"))?;
+    let transaction = connection.transaction().map_err(|error| {
+        format!("open integer identifier upgrade transaction for {table_name} failed: {error}")
+    })?;
 
     transaction
         .execute(
@@ -3919,16 +4344,20 @@ fn upgrade_sqlite_provider_authority_integer_identifier_table(
         .map_err(|error| format!("rename legacy {table_name} table failed: {error}"))?;
     transaction
         .execute_batch(SQLITE_PROVIDER_AUTHORITY_SCHEMA)
-        .map_err(|error| format!("recreate {table_name} schema during integer identifier upgrade failed: {error}"))?;
+        .map_err(|error| {
+            format!(
+                "recreate {table_name} schema during integer identifier upgrade failed: {error}"
+            )
+        })?;
     transaction
         .execute(&insert_select_sql, [])
         .map_err(|error| format!("copy upgraded {table_name} rows failed: {error}"))?;
     transaction
         .execute(&format!("DROP TABLE {legacy_table_name}"), [])
         .map_err(|error| format!("drop legacy {table_name} table failed: {error}"))?;
-    transaction
-        .commit()
-        .map_err(|error| format!("commit integer identifier upgrade for {table_name} failed: {error}"))?;
+    transaction.commit().map_err(|error| {
+        format!("commit integer identifier upgrade for {table_name} failed: {error}")
+    })?;
 
     Ok(true)
 }
@@ -3936,14 +4365,29 @@ fn upgrade_sqlite_provider_authority_integer_identifier_table(
 fn ensure_sqlite_provider_authority_integer_identifier_upgrade(
     connection: &mut Connection,
 ) -> Result<(), String> {
-    let workspaces_legacy_table = format!("{PROVIDER_WORKSPACES_TABLE}__legacy_integer_identifiers");
+    let workspaces_legacy_table =
+        format!("{PROVIDER_WORKSPACES_TABLE}__legacy_integer_identifiers");
     let projects_legacy_table = format!("{PROVIDER_PROJECTS_TABLE}__legacy_integer_identifiers");
     let teams_legacy_table = format!("{PROVIDER_TEAMS_TABLE}__legacy_integer_identifiers");
     let team_members_legacy_table =
         format!("{PROVIDER_TEAM_MEMBERS_TABLE}__legacy_integer_identifiers");
     let workspace_members_legacy_table = "workspace_members__legacy_integer_identifiers";
-    let project_collaborators_legacy_table =
-        "project_collaborators__legacy_integer_identifiers";
+    let project_collaborators_legacy_table = "project_collaborators__legacy_integer_identifiers";
+    let project_version_expr = if sqlite_column_exists(connection, PROVIDER_PROJECTS_TABLE, "v")? {
+        "v"
+    } else if sqlite_column_exists(connection, PROVIDER_PROJECTS_TABLE, "version")? {
+        "version"
+    } else {
+        "0"
+    };
+    let project_cover_image_expr =
+        if sqlite_column_exists(connection, PROVIDER_PROJECTS_TABLE, "cover_image")? {
+            "cover_image"
+        } else if sqlite_column_exists(connection, PROVIDER_PROJECTS_TABLE, "cover_image_json")? {
+            "cover_image_json"
+        } else {
+            "NULL"
+        };
 
     let _ = upgrade_sqlite_provider_authority_integer_identifier_table(
         connection,
@@ -3951,7 +4395,7 @@ fn ensure_sqlite_provider_authority_integer_identifier_upgrade(
         SQLITE_INTEGER_IDENTIFIER_TABLE_RULES[0].1,
         format!(
             r#"
-            INSERT INTO workspaces (
+            INSERT INTO plus_workspace AS workspaces (
                 id, uuid, tenant_id, organization_id, data_scope, created_at, updated_at, version,
                 is_deleted, name, code, title, description, owner_id, leader_id,
                 created_by_user_id, icon, color, type, start_time, end_time, max_members,
@@ -3974,21 +4418,46 @@ fn ensure_sqlite_provider_authority_integer_identifier_upgrade(
         SQLITE_INTEGER_IDENTIFIER_TABLE_RULES[1].1,
         format!(
             r#"
-            INSERT INTO projects (
-                id, uuid, tenant_id, organization_id, data_scope, user_id, parent_id,
-                parent_uuid, parent_metadata, created_at, updated_at, version, is_deleted,
-                workspace_id, workspace_uuid, name, code, title, description, root_path, author,
-                file_id, type, site_path, domain_prefix, conversation_id, owner_id, leader_id,
-                created_by_user_id, start_time, end_time, budget_amount, cover_image_json,
-                is_template, status
+            INSERT INTO plus_project AS projects (
+                id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
+                parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
+                author, file_id, code, type, site_path, domain_prefix, description, status,
+                conversation_id, workspace_id, workspace_uuid, leader_id, start_time, end_time,
+                budget_amount, is_deleted, is_template
             )
             SELECT
-                CAST(id AS INTEGER), uuid, tenant_id, organization_id, data_scope, user_id,
-                parent_id, parent_uuid, parent_metadata, created_at, updated_at, version,
-                is_deleted, CAST(workspace_id AS INTEGER), workspace_uuid, name, code, title,
-                description, root_path, author, file_id, type, site_path, domain_prefix,
-                conversation_id, owner_id, leader_id, created_by_user_id, start_time, end_time,
-                budget_amount, cover_image_json, is_template, status
+                CAST(id AS INTEGER),
+                COALESCE(NULLIF(TRIM(uuid), ''), 'project-' || CAST(id AS TEXT)),
+                created_at,
+                updated_at,
+                {project_version_expr},
+                tenant_id,
+                organization_id,
+                data_scope,
+                parent_id,
+                parent_uuid,
+                parent_metadata,
+                user_id,
+                name,
+                COALESCE(NULLIF(TRIM(title), ''), name),
+                {project_cover_image_expr},
+                author,
+                file_id,
+                COALESCE(NULLIF(TRIM(code), ''), 'PROJECT-' || CAST(id AS TEXT)),
+                1,
+                site_path,
+                domain_prefix,
+                description,
+                1,
+                conversation_id,
+                CAST(workspace_id AS INTEGER),
+                workspace_uuid,
+                leader_id,
+                start_time,
+                end_time,
+                budget_amount,
+                is_deleted,
+                is_template
             FROM {projects_legacy_table}
             "#
         ),
@@ -4533,7 +5002,7 @@ fn backfill_workspace_business_columns(
                     title,
                     type,
                     settings_json
-                FROM workspaces
+                FROM plus_workspace AS workspaces
                 WHERE is_deleted = 0
                 "#,
             )
@@ -4551,15 +5020,15 @@ fn backfill_workspace_business_columns(
                     .map_err(|error| format!("read workspace canonical id failed: {error}"))?,
                 row.get::<_, String>(1)
                     .map_err(|error| format!("read workspace canonical name failed: {error}"))?,
-                row.get::<_, Option<String>>(2).map_err(|error| {
-                    format!("read workspace canonical owner_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read workspace canonical leader_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(4).map_err(|error| {
-                    format!("read workspace canonical created_by_user_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 2, "workspaces.owner_id").map_err(
+                    |error| format!("read workspace canonical owner_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 3, "workspaces.leader_id").map_err(
+                    |error| format!("read workspace canonical leader_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 4, "workspaces.created_by_user_id").map_err(
+                    |error| format!("read workspace canonical created_by_user_id failed: {error}"),
+                )?,
                 row.get::<_, Option<String>>(5)
                     .map_err(|error| format!("read workspace canonical uuid failed: {error}"))?,
                 row.get::<_, Option<String>>(6)
@@ -4613,7 +5082,7 @@ fn backfill_workspace_business_columns(
         connection
             .execute(
                 r#"
-                UPDATE workspaces
+                UPDATE plus_workspace AS workspaces
                 SET
                     uuid = ?2,
                     tenant_id = COALESCE(NULLIF(TRIM(tenant_id), ''), ?3),
@@ -4655,7 +5124,7 @@ fn backfill_workspace_business_columns(
                     &workspace_id,
                     &resolved_uuid,
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    DEFAULT_PRIVATE_DATA_SCOPE,
+                    SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
                     &resolved_code,
                     &resolved_title,
                     &resolved_owner_id,
@@ -4686,17 +5155,15 @@ fn backfill_project_business_columns(
                     id,
                     workspace_id,
                     name,
-                    root_path,
-                    owner_id,
+                    user_id,
                     leader_id,
-                    created_by_user_id,
                     uuid,
                     code,
                     title,
                     type,
                     workspace_uuid,
                     author
-                FROM projects
+                FROM plus_project AS projects
                 WHERE is_deleted = 0
                 "#,
             )
@@ -4712,32 +5179,27 @@ fn backfill_project_business_columns(
             records.push((
                 sqlite_row_required_string_value(row, 0, "projects.id")
                     .map_err(|error| format!("read project canonical id failed: {error}"))?,
-                sqlite_row_required_string_value(row, 1, "projects.workspace_id").map_err(|error| {
-                    format!("read project canonical workspace_id failed: {error}")
-                })?,
+                sqlite_row_required_string_value(row, 1, "projects.workspace_id").map_err(
+                    |error| format!("read project canonical workspace_id failed: {error}"),
+                )?,
                 row.get::<_, String>(2)
                     .map_err(|error| format!("read project canonical name failed: {error}"))?,
-                row.get::<_, Option<String>>(3)
-                    .map_err(|error| format!("read project canonical root_path failed: {error}"))?,
-                row.get::<_, Option<String>>(4)
-                    .map_err(|error| format!("read project canonical owner_id failed: {error}"))?,
-                row.get::<_, Option<String>>(5)
+                sqlite_row_optional_string_value(row, 3, "projects.user_id")
+                    .map_err(|error| format!("read project canonical user_id failed: {error}"))?,
+                sqlite_row_optional_string_value(row, 4, "projects.leader_id")
                     .map_err(|error| format!("read project canonical leader_id failed: {error}"))?,
-                row.get::<_, Option<String>>(6).map_err(|error| {
-                    format!("read project canonical created_by_user_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(7)
+                row.get::<_, Option<String>>(5)
                     .map_err(|error| format!("read project canonical uuid failed: {error}"))?,
-                row.get::<_, Option<String>>(8)
+                row.get::<_, Option<String>>(6)
                     .map_err(|error| format!("read project canonical code failed: {error}"))?,
-                row.get::<_, Option<String>>(9)
+                row.get::<_, Option<String>>(7)
                     .map_err(|error| format!("read project canonical title failed: {error}"))?,
-                row.get::<_, Option<String>>(10)
+                sqlite_row_optional_string_value(row, 8, "projects.type")
                     .map_err(|error| format!("read project canonical type failed: {error}"))?,
-                row.get::<_, Option<String>>(11).map_err(|error| {
+                row.get::<_, Option<String>>(9).map_err(|error| {
                     format!("read project canonical workspace_uuid failed: {error}")
                 })?,
-                row.get::<_, Option<String>>(12)
+                row.get::<_, Option<String>>(10)
                     .map_err(|error| format!("read project canonical author failed: {error}"))?,
             ));
         }
@@ -4748,10 +5210,8 @@ fn backfill_project_business_columns(
         project_id,
         workspace_id,
         project_name,
-        root_path,
-        owner_id,
+        user_id,
         leader_id,
-        created_by_user_id,
         uuid,
         code,
         title,
@@ -4760,34 +5220,28 @@ fn backfill_project_business_columns(
         author,
     ) in project_rows
     {
-        let (resolved_owner_id, resolved_leader_id, resolved_created_by_user_id) =
-            resolve_effective_user_authority(
-                owner_id.as_deref(),
-                leader_id.as_deref(),
-                created_by_user_id.as_deref(),
-                None,
-                None,
-                None,
-            );
+        let resolved_user_id = normalize_optional_string(user_id)
+            .or_else(|| normalize_optional_string(author.clone()))
+            .unwrap_or_else(|| BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_owned());
+        let resolved_leader_id =
+            normalize_optional_string(leader_id).unwrap_or_else(|| resolved_user_id.clone());
         let resolved_uuid =
             normalize_optional_string(uuid).unwrap_or_else(|| Uuid::new_v4().to_string());
-        let resolved_code = normalize_optional_string(code).unwrap_or_else(|| {
-            build_project_business_code(&project_id, &project_name, root_path.as_deref())
-        });
+        let resolved_code = normalize_optional_string(code)
+            .unwrap_or_else(|| build_project_business_code(&project_id, &project_name, None));
         let resolved_title =
             normalize_optional_string(title).unwrap_or_else(|| project_name.clone());
-        let resolved_type =
-            normalize_optional_string(project_type).unwrap_or_else(|| "CODE".to_owned());
+        let resolved_type = project_type_storage_value(project_type.as_deref());
         let resolved_workspace_uuid = normalize_optional_string(workspace_uuid)
             .or_else(|| workspace_uuid_map.get(&workspace_id).cloned())
             .unwrap_or_else(|| Uuid::new_v4().to_string());
-        let resolved_author = normalize_optional_string(author)
-            .unwrap_or_else(|| resolved_created_by_user_id.clone());
+        let resolved_author =
+            normalize_optional_string(author).unwrap_or_else(|| resolved_user_id.clone());
 
         connection
             .execute(
                 r#"
-                UPDATE projects
+                UPDATE plus_project AS projects
                 SET
                     uuid = ?2,
                     tenant_id = COALESCE(NULLIF(TRIM(tenant_id), ''), ?3),
@@ -4799,9 +5253,7 @@ fn backfill_project_business_columns(
                     workspace_uuid = ?9,
                     code = ?10,
                     title = ?11,
-                    owner_id = ?12,
-                    leader_id = ?13,
-                    created_by_user_id = ?14,
+                    leader_id = ?12,
                     site_path = CASE
                         WHEN site_path IS NOT NULL AND TRIM(site_path) = '' THEN NULL
                         ELSE site_path
@@ -4818,7 +5270,7 @@ fn backfill_project_business_columns(
                         WHEN conversation_id IS NOT NULL AND TRIM(conversation_id) = '' THEN NULL
                         ELSE conversation_id
                     END,
-                    type = ?15,
+                    type = ?13,
                     start_time = CASE
                         WHEN start_time IS NOT NULL AND TRIM(start_time) = '' THEN NULL
                         ELSE start_time
@@ -4828,29 +5280,27 @@ fn backfill_project_business_columns(
                         ELSE end_time
                     END,
                     budget_amount = budget_amount,
-                    cover_image_json = CASE
-                        WHEN cover_image_json IS NOT NULL AND TRIM(cover_image_json) = '' THEN NULL
-                        ELSE cover_image_json
+                    cover_image = CASE
+                        WHEN cover_image IS NOT NULL AND TRIM(cover_image) = '' THEN NULL
+                        ELSE cover_image
                     END,
                     is_template = COALESCE(is_template, 0),
-                    author = ?16
+                    author = ?14
                 WHERE id = ?1
                 "#,
                 params![
                     &project_id,
                     &resolved_uuid,
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    DEFAULT_PRIVATE_DATA_SCOPE,
-                    &resolved_created_by_user_id,
+                    SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
+                    &resolved_user_id,
                     DEFAULT_TREE_ROOT_ID,
                     DEFAULT_TREE_ROOT_UUID,
                     "{}",
                     &resolved_workspace_uuid,
                     &resolved_code,
                     &resolved_title,
-                    &resolved_owner_id,
                     &resolved_leader_id,
-                    &resolved_created_by_user_id,
                     &resolved_type,
                     &resolved_author,
                 ],
@@ -4876,21 +5326,21 @@ fn resolve_scope_business_columns(
     connection: &Connection,
     scope_type: &str,
     scope_id: &str,
-) -> Result<(String, Option<String>), String> {
+) -> Result<(String, String), String> {
     let resolved = match scope_type {
         "workspace" => connection
             .query_row(
                 r#"
                 SELECT tenant_id, organization_id
-                FROM workspaces
+                FROM plus_workspace AS workspaces
                 WHERE id = ?1 AND is_deleted = 0
                 LIMIT 1
                 "#,
                 params![scope_id],
                 |row| {
                     Ok((
-                        row.get::<_, Option<String>>(0)?,
-                        row.get::<_, Option<String>>(1)?,
+                        sqlite_row_optional_string_value(row, 0, "workspaces.tenant_id")?,
+                        sqlite_row_optional_string_value(row, 1, "workspaces.organization_id")?,
                     ))
                 },
             )
@@ -4900,15 +5350,15 @@ fn resolve_scope_business_columns(
             .query_row(
                 r#"
                 SELECT tenant_id, organization_id
-                FROM projects
+                FROM plus_project AS projects
                 WHERE id = ?1 AND is_deleted = 0
                 LIMIT 1
                 "#,
                 params![scope_id],
                 |row| {
                     Ok((
-                        row.get::<_, Option<String>>(0)?,
-                        row.get::<_, Option<String>>(1)?,
+                        sqlite_row_optional_string_value(row, 0, "projects.tenant_id")?,
+                        sqlite_row_optional_string_value(row, 1, "projects.organization_id")?,
                     ))
                 },
             )
@@ -4925,8 +5375,8 @@ fn resolve_scope_business_columns(
                 params![scope_id],
                 |row| {
                     Ok((
-                        row.get::<_, Option<String>>(0)?,
-                        row.get::<_, Option<String>>(1)?,
+                        sqlite_row_optional_string_value(row, 0, "teams.tenant_id")?,
+                        sqlite_row_optional_string_value(row, 1, "teams.organization_id")?,
                     ))
                 },
             )
@@ -4943,8 +5393,12 @@ fn resolve_scope_business_columns(
                 params![scope_id],
                 |row| {
                     Ok((
-                        row.get::<_, Option<String>>(0)?,
-                        row.get::<_, Option<String>>(1)?,
+                        sqlite_row_optional_string_value(row, 0, "release_records.tenant_id")?,
+                        sqlite_row_optional_string_value(
+                            row,
+                            1,
+                            "release_records.organization_id",
+                        )?,
                     ))
                 },
             )
@@ -4956,7 +5410,7 @@ fn resolve_scope_business_columns(
     let (resolved_tenant_id, resolved_organization_id) = resolved.unwrap_or((None, None));
     let tenant_id = normalize_optional_string(resolved_tenant_id)
         .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-    let organization_id = normalize_optional_string(resolved_organization_id);
+    let organization_id = normalize_organization_id_or_default(resolved_organization_id);
     Ok((tenant_id, organization_id))
 }
 
@@ -4976,7 +5430,7 @@ fn backfill_project_document_business_columns(connection: &mut Connection) -> Re
                     projects.tenant_id,
                     projects.organization_id
                 FROM project_documents
-                LEFT JOIN projects
+                LEFT JOIN plus_project AS projects
                     ON projects.id = project_documents.project_id
                    AND projects.is_deleted = 0
                 WHERE project_documents.is_deleted = 0
@@ -4997,11 +5451,12 @@ fn backfill_project_document_business_columns(connection: &mut Connection) -> Re
                     .map_err(|error| format!("read project_documents id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read project_documents uuid failed: {error}"))?,
-                row.get::<_, Option<String>>(2)
+                sqlite_row_optional_string_value(row, 2, "project_documents.tenant_id")
                     .map_err(|error| format!("read project_documents tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read project_documents organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 3, "project_documents.organization_id")
+                    .map_err(|error| {
+                        format!("read project_documents organization_id failed: {error}")
+                    })?,
                 row.get::<_, String>(4).map_err(|error| {
                     format!("read project_documents project_id failed: {error}")
                 })?,
@@ -5009,11 +5464,11 @@ fn backfill_project_document_business_columns(connection: &mut Connection) -> Re
                     .map_err(|error| format!("read project_documents slug failed: {error}"))?,
                 row.get::<_, Option<String>>(6)
                     .map_err(|error| format!("read project_documents body_ref failed: {error}"))?,
-                row.get::<_, Option<String>>(7)
+                sqlite_row_optional_string_value(row, 7, "projects.tenant_id")
                     .map_err(|error| format!("read parent project tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(8).map_err(|error| {
-                    format!("read parent project organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 8, "projects.organization_id").map_err(
+                    |error| format!("read parent project organization_id failed: {error}"),
+                )?,
             ));
         }
         records
@@ -5036,8 +5491,9 @@ fn backfill_project_document_business_columns(connection: &mut Connection) -> Re
         let resolved_tenant_id = normalize_optional_string(tenant_id)
             .or(project_tenant_id)
             .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-        let resolved_organization_id =
-            normalize_optional_string(organization_id).or(project_organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(
+            normalize_optional_string(organization_id).or(project_organization_id),
+        );
         let resolved_body_ref = normalize_optional_string(body_ref)
             .unwrap_or_else(|| build_project_document_body_ref(&id, &project_id, &slug));
         connection
@@ -5076,7 +5532,7 @@ fn backfill_deployment_target_business_columns(connection: &mut Connection) -> R
                     projects.tenant_id,
                     projects.organization_id
                 FROM deployment_targets
-                LEFT JOIN projects
+                LEFT JOIN plus_project AS projects
                     ON projects.id = deployment_targets.project_id
                    AND projects.is_deleted = 0
                 WHERE deployment_targets.is_deleted = 0
@@ -5097,17 +5553,18 @@ fn backfill_deployment_target_business_columns(connection: &mut Connection) -> R
                     .map_err(|error| format!("read deployment_targets id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read deployment_targets uuid failed: {error}"))?,
-                row.get::<_, Option<String>>(2).map_err(|error| {
-                    format!("read deployment_targets tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read deployment_targets organization_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(4)
+                sqlite_row_optional_string_value(row, 2, "deployment_targets.tenant_id").map_err(
+                    |error| format!("read deployment_targets tenant_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 3, "deployment_targets.organization_id")
+                    .map_err(|error| {
+                        format!("read deployment_targets organization_id failed: {error}")
+                    })?,
+                sqlite_row_optional_string_value(row, 4, "projects.tenant_id")
                     .map_err(|error| format!("read parent project tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(5).map_err(|error| {
-                    format!("read parent project organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 5, "projects.organization_id").map_err(
+                    |error| format!("read parent project organization_id failed: {error}"),
+                )?,
             ));
         }
         records
@@ -5119,8 +5576,9 @@ fn backfill_deployment_target_business_columns(connection: &mut Connection) -> R
         let resolved_tenant_id = normalize_optional_string(tenant_id)
             .or(project_tenant_id)
             .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-        let resolved_organization_id =
-            normalize_optional_string(organization_id).or(project_organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(
+            normalize_optional_string(organization_id).or(project_organization_id),
+        );
         connection
             .execute(
                 r#"
@@ -5156,7 +5614,7 @@ fn backfill_deployment_record_business_columns(connection: &mut Connection) -> R
                     projects.tenant_id,
                     projects.organization_id
                 FROM deployment_records
-                LEFT JOIN projects
+                LEFT JOIN plus_project AS projects
                     ON projects.id = deployment_records.project_id
                    AND projects.is_deleted = 0
                 WHERE deployment_records.is_deleted = 0
@@ -5177,17 +5635,18 @@ fn backfill_deployment_record_business_columns(connection: &mut Connection) -> R
                     .map_err(|error| format!("read deployment_records id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read deployment_records uuid failed: {error}"))?,
-                row.get::<_, Option<String>>(2).map_err(|error| {
-                    format!("read deployment_records tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read deployment_records organization_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(4)
+                sqlite_row_optional_string_value(row, 2, "deployment_records.tenant_id").map_err(
+                    |error| format!("read deployment_records tenant_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 3, "deployment_records.organization_id")
+                    .map_err(|error| {
+                        format!("read deployment_records organization_id failed: {error}")
+                    })?,
+                sqlite_row_optional_string_value(row, 4, "projects.tenant_id")
                     .map_err(|error| format!("read parent project tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(5).map_err(|error| {
-                    format!("read parent project organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 5, "projects.organization_id").map_err(
+                    |error| format!("read parent project organization_id failed: {error}"),
+                )?,
             ));
         }
         records
@@ -5199,8 +5658,9 @@ fn backfill_deployment_record_business_columns(connection: &mut Connection) -> R
         let resolved_tenant_id = normalize_optional_string(tenant_id)
             .or(project_tenant_id)
             .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-        let resolved_organization_id =
-            normalize_optional_string(organization_id).or(project_organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(
+            normalize_optional_string(organization_id).or(project_organization_id),
+        );
         connection
             .execute(
                 r#"
@@ -5248,11 +5708,12 @@ fn backfill_release_record_business_columns(connection: &mut Connection) -> Resu
                     .map_err(|error| format!("read release_records id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read release_records uuid failed: {error}"))?,
-                row.get::<_, Option<String>>(2)
+                sqlite_row_optional_string_value(row, 2, "release_records.tenant_id")
                     .map_err(|error| format!("read release_records tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read release_records organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 3, "release_records.organization_id")
+                    .map_err(|error| {
+                        format!("read release_records organization_id failed: {error}")
+                    })?,
             ));
         }
         records
@@ -5263,7 +5724,7 @@ fn backfill_release_record_business_columns(connection: &mut Connection) -> Resu
             normalize_optional_string(uuid).unwrap_or_else(|| Uuid::new_v4().to_string());
         let resolved_tenant_id = normalize_optional_string(tenant_id)
             .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-        let resolved_organization_id = normalize_optional_string(organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(organization_id);
         connection
             .execute(
                 r#"
@@ -5310,11 +5771,11 @@ fn backfill_audit_event_business_columns(connection: &mut Connection) -> Result<
                     .map_err(|error| format!("read audit_events id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read audit_events uuid failed: {error}"))?,
-                row.get::<_, Option<String>>(2)
+                sqlite_row_optional_string_value(row, 2, "audit_events.tenant_id")
                     .map_err(|error| format!("read audit_events tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read audit_events organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 3, "audit_events.organization_id").map_err(
+                    |error| format!("read audit_events organization_id failed: {error}"),
+                )?,
                 row.get::<_, String>(4)
                     .map_err(|error| format!("read audit_events scope_type failed: {error}"))?,
                 row.get::<_, String>(5)
@@ -5330,8 +5791,9 @@ fn backfill_audit_event_business_columns(connection: &mut Connection) -> Result<
         let (scope_tenant_id, scope_organization_id) =
             resolve_scope_business_columns(connection, &scope_type, &scope_id)?;
         let resolved_tenant_id = normalize_optional_string(tenant_id).unwrap_or(scope_tenant_id);
-        let resolved_organization_id =
-            normalize_optional_string(organization_id).or(scope_organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(
+            normalize_optional_string(organization_id).or(Some(scope_organization_id)),
+        );
         connection
             .execute(
                 r#"
@@ -5379,12 +5841,13 @@ fn backfill_governance_policy_business_columns(connection: &mut Connection) -> R
                     .map_err(|error| format!("read governance_policies id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read governance_policies uuid failed: {error}"))?,
-                row.get::<_, Option<String>>(2).map_err(|error| {
-                    format!("read governance_policies tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read governance_policies organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 2, "governance_policies.tenant_id").map_err(
+                    |error| format!("read governance_policies tenant_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 3, "governance_policies.organization_id")
+                    .map_err(|error| {
+                        format!("read governance_policies organization_id failed: {error}")
+                    })?,
                 row.get::<_, String>(4).map_err(|error| {
                     format!("read governance_policies scope_type failed: {error}")
                 })?,
@@ -5402,8 +5865,9 @@ fn backfill_governance_policy_business_columns(connection: &mut Connection) -> R
         let (scope_tenant_id, scope_organization_id) =
             resolve_scope_business_columns(connection, &scope_type, &scope_id)?;
         let resolved_tenant_id = normalize_optional_string(tenant_id).unwrap_or(scope_tenant_id);
-        let resolved_organization_id =
-            normalize_optional_string(organization_id).or(scope_organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(
+            normalize_optional_string(organization_id).or(Some(scope_organization_id)),
+        );
         connection
             .execute(
                 r#"
@@ -5495,7 +5959,11 @@ fn resolve_projection_transcript_updated_at(
 ) -> Option<String> {
     events
         .iter()
-        .filter(|event| event.kind == "message.completed" || event.kind == "message.deleted")
+        .filter(|event| {
+            event.kind == "message.completed"
+                || event.kind == "message.delta"
+                || event.kind == "message.deleted"
+        })
         .filter_map(|event| {
             parse_storage_timestamp_millis(event.created_at.as_str())
                 .map(|timestamp| (timestamp, event.created_at.clone()))
@@ -5567,6 +6035,11 @@ fn normalize_decimal_string_identifier(value: Option<&str>) -> Option<String> {
         .map(|candidate| candidate.to_string())
 }
 
+fn normalize_organization_id_or_default(value: Option<String>) -> String {
+    normalize_optional_string(value)
+        .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID.to_owned())
+}
+
 fn sqlite_row_required_string_value(
     row: &rusqlite::Row<'_>,
     index: usize,
@@ -5601,10 +6074,157 @@ fn sqlite_row_optional_string_value(
                 data_type,
                 Box::new(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
-                    format!("sqlite column {column_name} could not be normalized as optional string"),
+                    format!(
+                        "sqlite column {column_name} could not be normalized as optional string"
+                    ),
                 )),
             )
         }),
+    }
+}
+
+fn sqlite_row_optional_data_scope_value(
+    row: &rusqlite::Row<'_>,
+    index: usize,
+    column_name: &str,
+) -> rusqlite::Result<Option<String>> {
+    let value = row.get_ref(index)?;
+    let data_type = value.data_type();
+    let normalized_value = match value {
+        ValueRef::Null => return Ok(None),
+        ValueRef::Integer(value) => data_scope_name_from_storage_value(value).map(str::to_owned),
+        ValueRef::Real(value) if value.fract() == 0.0 => {
+            data_scope_name_from_storage_value(value as i64).map(str::to_owned)
+        }
+        ValueRef::Text(text) => normalize_data_scope(Some(
+            String::from_utf8_lossy(text).into_owned(),
+        ))
+        .map_err(|message| {
+            rusqlite::Error::FromSqlConversionFailure(
+                index,
+                data_type,
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    message,
+                )),
+            )
+        })?,
+        ValueRef::Blob(_) | ValueRef::Real(_) => None,
+    };
+
+    normalized_value
+        .ok_or_else(|| {
+            rusqlite::Error::FromSqlConversionFailure(
+                index,
+                data_type,
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("sqlite column {column_name} could not be normalized as PlusDataScope"),
+                )),
+            )
+        })
+        .map(Some)
+}
+
+fn sqlite_row_optional_project_type_value(
+    row: &rusqlite::Row<'_>,
+    index: usize,
+    column_name: &str,
+) -> rusqlite::Result<Option<String>> {
+    let value = row.get_ref(index)?;
+    let data_type = value.data_type();
+    match value {
+        ValueRef::Null => Ok(None),
+        ValueRef::Integer(value) => {
+            Ok(project_type_name_from_storage_value(value).map(str::to_owned))
+        }
+        ValueRef::Real(value) if value.fract() == 0.0 => {
+            Ok(project_type_name_from_storage_value(value as i64).map(str::to_owned))
+        }
+        ValueRef::Text(text) => {
+            let raw = String::from_utf8_lossy(text).into_owned();
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                Ok(None)
+            } else {
+                Ok(trimmed
+                    .parse::<i64>()
+                    .ok()
+                    .and_then(project_type_name_from_storage_value)
+                    .map(str::to_owned)
+                    .or_else(|| Some(raw)))
+            }
+        }
+        ValueRef::Blob(_) | ValueRef::Real(_) => Err(rusqlite::Error::FromSqlConversionFailure(
+            index,
+            data_type,
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("sqlite column {column_name} could not be normalized as project type"),
+            )),
+        )),
+    }
+}
+
+fn sqlite_row_required_project_status_value(
+    row: &rusqlite::Row<'_>,
+    index: usize,
+    column_name: &str,
+) -> rusqlite::Result<String> {
+    let value = row.get_ref(index)?;
+    let data_type = value.data_type();
+    match value {
+        ValueRef::Integer(value) => project_status_name_from_storage_value(value)
+            .map(str::to_owned)
+            .ok_or_else(|| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    index,
+                    data_type,
+                    Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!("sqlite column {column_name} has unsupported project status"),
+                    )),
+                )
+            }),
+        ValueRef::Real(value) if value.fract() == 0.0 => {
+            project_status_name_from_storage_value(value as i64)
+                .map(str::to_owned)
+                .ok_or_else(|| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        index,
+                        data_type,
+                        Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!("sqlite column {column_name} has unsupported project status"),
+                        )),
+                    )
+                })
+        }
+        ValueRef::Text(text) => {
+            let raw = String::from_utf8_lossy(text).into_owned();
+            let trimmed = raw.trim();
+            if let Ok(value) = trimmed.parse::<i64>() {
+                Ok(project_status_name_from_storage_value(value)
+                    .unwrap_or("PLANNING")
+                    .to_owned())
+            } else if trimmed.is_empty() {
+                Ok("PLANNING".to_owned())
+            } else {
+                Ok(raw)
+            }
+        }
+        ValueRef::Null | ValueRef::Blob(_) | ValueRef::Real(_) => {
+            Err(rusqlite::Error::FromSqlConversionFailure(
+                index,
+                data_type,
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "sqlite column {column_name} could not be normalized as project status"
+                    ),
+                )),
+            ))
+        }
     }
 }
 
@@ -5772,18 +6392,18 @@ fn backfill_team_business_columns(connection: &mut Connection) -> Result<(), Str
                     .map_err(|error| format!("read team canonical workspace_id failed: {error}"))?,
                 row.get::<_, String>(2)
                     .map_err(|error| format!("read team canonical name failed: {error}"))?,
-                row.get::<_, Option<String>>(3)
+                sqlite_row_optional_string_value(row, 3, "teams.tenant_id")
                     .map_err(|error| format!("read team canonical tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(4).map_err(|error| {
-                    format!("read team canonical organization_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(5)
+                sqlite_row_optional_string_value(row, 4, "teams.organization_id").map_err(
+                    |error| format!("read team canonical organization_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 5, "teams.owner_id")
                     .map_err(|error| format!("read team canonical owner_id failed: {error}"))?,
-                row.get::<_, Option<String>>(6)
+                sqlite_row_optional_string_value(row, 6, "teams.leader_id")
                     .map_err(|error| format!("read team canonical leader_id failed: {error}"))?,
-                row.get::<_, Option<String>>(7).map_err(|error| {
-                    format!("read team canonical created_by_user_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 7, "teams.created_by_user_id").map_err(
+                    |error| format!("read team canonical created_by_user_id failed: {error}"),
+                )?,
                 row.get::<_, Option<String>>(8)
                     .map_err(|error| format!("read team canonical uuid failed: {error}"))?,
                 row.get::<_, Option<String>>(9)
@@ -5817,15 +6437,15 @@ fn backfill_team_business_columns(connection: &mut Connection) -> Result<(), Str
             .query_row(
                 r#"
                 SELECT tenant_id, organization_id
-                FROM workspaces
+                FROM plus_workspace AS workspaces
                 WHERE id = ?1 AND is_deleted = 0
                 LIMIT 1
                 "#,
                 params![&workspace_id],
                 |row| {
                     Ok((
-                        row.get::<_, Option<String>>(0)?,
-                        row.get::<_, Option<String>>(1)?,
+                        sqlite_row_optional_string_value(row, 0, "workspaces.tenant_id")?,
+                        sqlite_row_optional_string_value(row, 1, "workspaces.organization_id")?,
                     ))
                 },
             )
@@ -5846,8 +6466,9 @@ fn backfill_team_business_columns(connection: &mut Connection) -> Result<(), Str
         let resolved_tenant_id = normalize_optional_string(tenant_id)
             .or(workspace_scope.0)
             .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-        let resolved_organization_id =
-            normalize_optional_string(organization_id).or(workspace_scope.1);
+        let resolved_organization_id = normalize_organization_id_or_default(
+            normalize_optional_string(organization_id).or(workspace_scope.1),
+        );
         let resolved_code = normalize_optional_string(code)
             .unwrap_or_else(|| build_team_business_code(&team_id, &team_name));
         let resolved_title = normalize_optional_string(title).unwrap_or_else(|| team_name.clone());
@@ -5918,23 +6539,22 @@ fn backfill_team_member_business_columns(connection: &mut Connection) -> Result<
             .map_err(|error| format!("read team_members canonical migration row failed: {error}"))?
         {
             records.push((
-                sqlite_row_required_string_value(row, 0, "team_members.id").map_err(|error| {
-                    format!("read team_members canonical id failed: {error}")
-                })?,
+                sqlite_row_required_string_value(row, 0, "team_members.id")
+                    .map_err(|error| format!("read team_members canonical id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read team_members canonical uuid failed: {error}"))?,
-                row.get::<_, Option<String>>(2).map_err(|error| {
-                    format!("read team_members canonical tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read team_members canonical organization_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(4).map_err(|error| {
+                sqlite_row_optional_string_value(row, 2, "team_members.tenant_id").map_err(
+                    |error| format!("read team_members canonical tenant_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 3, "team_members.organization_id").map_err(
+                    |error| format!("read team_members canonical organization_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 4, "teams.tenant_id").map_err(|error| {
                     format!("read team_members parent tenant_id failed: {error}")
                 })?,
-                row.get::<_, Option<String>>(5).map_err(|error| {
-                    format!("read team_members parent organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 5, "teams.organization_id").map_err(
+                    |error| format!("read team_members parent organization_id failed: {error}"),
+                )?,
             ));
         }
         records
@@ -5946,8 +6566,9 @@ fn backfill_team_member_business_columns(connection: &mut Connection) -> Result<
         let resolved_tenant_id = normalize_optional_string(tenant_id)
             .or(parent_tenant_id)
             .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-        let resolved_organization_id =
-            normalize_optional_string(organization_id).or(parent_organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(
+            normalize_optional_string(organization_id).or(parent_organization_id),
+        );
         connection
             .execute(
                 r#"
@@ -5983,7 +6604,7 @@ fn backfill_workspace_member_business_columns(connection: &mut Connection) -> Re
                     workspaces.tenant_id,
                     workspaces.organization_id
                 FROM workspace_members
-                LEFT JOIN workspaces
+                LEFT JOIN plus_workspace AS workspaces
                     ON workspaces.id = workspace_members.workspace_id
                    AND workspaces.is_deleted = 0
                 WHERE workspace_members.is_deleted = 0
@@ -6000,24 +6621,27 @@ fn backfill_workspace_member_business_columns(connection: &mut Connection) -> Re
             format!("read workspace_members canonical migration row failed: {error}")
         })? {
             records.push((
-                sqlite_row_required_string_value(row, 0, "workspace_members.id").map_err(|error| {
-                    format!("read workspace_members canonical id failed: {error}")
-                })?,
+                sqlite_row_required_string_value(row, 0, "workspace_members.id").map_err(
+                    |error| format!("read workspace_members canonical id failed: {error}"),
+                )?,
                 row.get::<_, Option<String>>(1).map_err(|error| {
                     format!("read workspace_members canonical uuid failed: {error}")
                 })?,
-                row.get::<_, Option<String>>(2).map_err(|error| {
-                    format!("read workspace_members canonical tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read workspace_members canonical organization_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(4).map_err(|error| {
-                    format!("read workspace_members parent tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(5).map_err(|error| {
-                    format!("read workspace_members parent organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 2, "workspace_members.tenant_id").map_err(
+                    |error| format!("read workspace_members canonical tenant_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 3, "workspace_members.organization_id")
+                    .map_err(|error| {
+                        format!("read workspace_members canonical organization_id failed: {error}")
+                    })?,
+                sqlite_row_optional_string_value(row, 4, "workspaces.tenant_id").map_err(
+                    |error| format!("read workspace_members parent tenant_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 5, "workspaces.organization_id").map_err(
+                    |error| {
+                        format!("read workspace_members parent organization_id failed: {error}")
+                    },
+                )?,
             ));
         }
         records
@@ -6029,8 +6653,9 @@ fn backfill_workspace_member_business_columns(connection: &mut Connection) -> Re
         let resolved_tenant_id = normalize_optional_string(tenant_id)
             .or(parent_tenant_id)
             .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-        let resolved_organization_id =
-            normalize_optional_string(organization_id).or(parent_organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(
+            normalize_optional_string(organization_id).or(parent_organization_id),
+        );
         connection
             .execute(
                 r#"
@@ -6068,7 +6693,7 @@ fn backfill_project_collaborator_business_columns(
                     projects.tenant_id,
                     projects.organization_id
                 FROM project_collaborators
-                LEFT JOIN projects
+                LEFT JOIN plus_project AS projects
                     ON projects.id = project_collaborators.project_id
                    AND projects.is_deleted = 0
                 WHERE project_collaborators.is_deleted = 0
@@ -6085,24 +6710,28 @@ fn backfill_project_collaborator_business_columns(
             format!("read project_collaborators canonical migration row failed: {error}")
         })? {
             records.push((
-                sqlite_row_required_string_value(row, 0, "project_collaborators.id").map_err(|error| {
-                    format!("read project_collaborators canonical id failed: {error}")
-                })?,
+                sqlite_row_required_string_value(row, 0, "project_collaborators.id").map_err(
+                    |error| format!("read project_collaborators canonical id failed: {error}"),
+                )?,
                 row.get::<_, Option<String>>(1).map_err(|error| {
                     format!("read project_collaborators canonical uuid failed: {error}")
                 })?,
-                row.get::<_, Option<String>>(2).map_err(|error| {
-                    format!("read project_collaborators canonical tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
+                sqlite_row_optional_string_value(row, 2, "project_collaborators.tenant_id")
+                    .map_err(|error| {
+                        format!("read project_collaborators canonical tenant_id failed: {error}")
+                    })?,
+                sqlite_row_optional_string_value(row, 3, "project_collaborators.organization_id")
+                    .map_err(|error| {
                     format!("read project_collaborators canonical organization_id failed: {error}")
                 })?,
-                row.get::<_, Option<String>>(4).map_err(|error| {
-                    format!("read project_collaborators parent tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(5).map_err(|error| {
-                    format!("read project_collaborators parent organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 4, "projects.tenant_id").map_err(
+                    |error| format!("read project_collaborators parent tenant_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 5, "projects.organization_id").map_err(
+                    |error| {
+                        format!("read project_collaborators parent organization_id failed: {error}")
+                    },
+                )?,
             ));
         }
         records
@@ -6114,8 +6743,9 @@ fn backfill_project_collaborator_business_columns(
         let resolved_tenant_id = normalize_optional_string(tenant_id)
             .or(parent_tenant_id)
             .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-        let resolved_organization_id =
-            normalize_optional_string(organization_id).or(parent_organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(
+            normalize_optional_string(organization_id).or(parent_organization_id),
+        );
         connection
             .execute(
                 r#"
@@ -6166,11 +6796,12 @@ fn backfill_catalog_root_business_columns(
                     .map_err(|error| format!("read {table_name} id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read {table_name} uuid failed: {error}"))?,
-                row.get::<_, Option<String>>(2)
+                sqlite_row_optional_string_value(row, 2, &format!("{table_name}.tenant_id"))
                     .map_err(|error| format!("read {table_name} tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read {table_name} organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 3, &format!("{table_name}.organization_id"))
+                    .map_err(|error| {
+                        format!("read {table_name} organization_id failed: {error}")
+                    })?,
             ));
         }
         records
@@ -6189,7 +6820,7 @@ fn backfill_catalog_root_business_columns(
             normalize_optional_string(uuid).unwrap_or_else(|| Uuid::new_v4().to_string());
         let resolved_tenant_id = normalize_optional_string(tenant_id)
             .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-        let resolved_organization_id = normalize_optional_string(organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(organization_id);
         connection
             .execute(
                 &update_statement,
@@ -6247,15 +6878,22 @@ fn backfill_catalog_child_business_columns(
                     .map_err(|error| format!("read {table_name} id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read {table_name} uuid failed: {error}"))?,
-                row.get::<_, Option<String>>(2)
+                sqlite_row_optional_string_value(row, 2, &format!("{table_name}.tenant_id"))
                     .map_err(|error| format!("read {table_name} tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read {table_name} organization_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(4).map_err(|error| {
-                    format!("read {table_name} parent tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(5).map_err(|error| {
+                sqlite_row_optional_string_value(row, 3, &format!("{table_name}.organization_id"))
+                    .map_err(|error| {
+                        format!("read {table_name} organization_id failed: {error}")
+                    })?,
+                sqlite_row_optional_string_value(row, 4, &format!("{parent_table_name}.tenant_id"))
+                    .map_err(|error| {
+                        format!("read {table_name} parent tenant_id failed: {error}")
+                    })?,
+                sqlite_row_optional_string_value(
+                    row,
+                    5,
+                    &format!("{parent_table_name}.organization_id"),
+                )
+                .map_err(|error| {
                     format!("read {table_name} parent organization_id failed: {error}")
                 })?,
             ));
@@ -6277,8 +6915,9 @@ fn backfill_catalog_child_business_columns(
         let resolved_tenant_id = normalize_optional_string(tenant_id)
             .or(parent_tenant_id)
             .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-        let resolved_organization_id =
-            normalize_optional_string(organization_id).or(parent_organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(
+            normalize_optional_string(organization_id).or(parent_organization_id),
+        );
         connection
             .execute(
                 &update_statement,
@@ -6327,11 +6966,12 @@ fn backfill_catalog_scope_business_columns(
                     .map_err(|error| format!("read {table_name} id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read {table_name} uuid failed: {error}"))?,
-                row.get::<_, Option<String>>(2)
+                sqlite_row_optional_string_value(row, 2, &format!("{table_name}.tenant_id"))
                     .map_err(|error| format!("read {table_name} tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read {table_name} organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 3, &format!("{table_name}.organization_id"))
+                    .map_err(|error| {
+                        format!("read {table_name} organization_id failed: {error}")
+                    })?,
                 row.get::<_, String>(4)
                     .map_err(|error| format!("read {table_name} scope_type failed: {error}"))?,
                 row.get::<_, String>(5)
@@ -6355,8 +6995,9 @@ fn backfill_catalog_scope_business_columns(
         let (scope_tenant_id, scope_organization_id) =
             resolve_scope_business_columns(connection, &scope_type, &scope_id)?;
         let resolved_tenant_id = normalize_optional_string(tenant_id).unwrap_or(scope_tenant_id);
-        let resolved_organization_id =
-            normalize_optional_string(organization_id).or(scope_organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(
+            normalize_optional_string(organization_id).or(Some(scope_organization_id)),
+        );
         connection
             .execute(
                 &update_statement,
@@ -6391,7 +7032,7 @@ fn backfill_catalog_project_business_columns(
                 projects.tenant_id,
                 projects.organization_id
             FROM {table_name} child
-            LEFT JOIN projects
+            LEFT JOIN plus_project AS projects
                 ON projects.id = child.{project_id_column}
                AND projects.is_deleted = 0
             WHERE child.is_deleted = 0
@@ -6413,17 +7054,18 @@ fn backfill_catalog_project_business_columns(
                     .map_err(|error| format!("read {table_name} id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read {table_name} uuid failed: {error}"))?,
-                row.get::<_, Option<String>>(2)
+                sqlite_row_optional_string_value(row, 2, &format!("{table_name}.tenant_id"))
                     .map_err(|error| format!("read {table_name} tenant_id failed: {error}"))?,
-                row.get::<_, Option<String>>(3).map_err(|error| {
-                    format!("read {table_name} organization_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(4).map_err(|error| {
-                    format!("read {table_name} project tenant_id failed: {error}")
-                })?,
-                row.get::<_, Option<String>>(5).map_err(|error| {
-                    format!("read {table_name} project organization_id failed: {error}")
-                })?,
+                sqlite_row_optional_string_value(row, 3, &format!("{table_name}.organization_id"))
+                    .map_err(|error| {
+                        format!("read {table_name} organization_id failed: {error}")
+                    })?,
+                sqlite_row_optional_string_value(row, 4, "projects.tenant_id").map_err(
+                    |error| format!("read {table_name} project tenant_id failed: {error}"),
+                )?,
+                sqlite_row_optional_string_value(row, 5, "projects.organization_id").map_err(
+                    |error| format!("read {table_name} project organization_id failed: {error}"),
+                )?,
             ));
         }
         records
@@ -6443,8 +7085,9 @@ fn backfill_catalog_project_business_columns(
         let resolved_tenant_id = normalize_optional_string(tenant_id)
             .or(project_tenant_id)
             .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-        let resolved_organization_id =
-            normalize_optional_string(organization_id).or(project_organization_id);
+        let resolved_organization_id = normalize_organization_id_or_default(
+            normalize_optional_string(organization_id).or(project_organization_id),
+        );
         connection
             .execute(
                 &update_statement,
@@ -6499,14 +7142,17 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_WORKSPACES_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
-                ("data_scope", "data_scope TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
+                ("data_scope", "data_scope INTEGER NOT NULL DEFAULT 1"),
                 ("code", "code TEXT NULL"),
                 ("title", "title TEXT NULL"),
-                ("owner_id", "owner_id TEXT NULL"),
-                ("leader_id", "leader_id TEXT NULL"),
-                ("created_by_user_id", "created_by_user_id TEXT NULL"),
+                ("owner_id", "owner_id INTEGER NULL"),
+                ("leader_id", "leader_id INTEGER NULL"),
+                ("created_by_user_id", "created_by_user_id INTEGER NULL"),
                 ("icon", "icon TEXT NULL"),
                 ("color", "color TEXT NULL"),
                 ("type", "type TEXT NULL"),
@@ -6529,29 +7175,31 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_PROJECTS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
-                ("data_scope", "data_scope TEXT NULL"),
-                ("user_id", "user_id TEXT NULL"),
-                ("parent_id", "parent_id TEXT NULL"),
+                ("v", "v INTEGER NOT NULL DEFAULT 0"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
+                ("data_scope", "data_scope INTEGER NOT NULL DEFAULT 1"),
+                ("user_id", "user_id INTEGER NULL"),
+                ("parent_id", "parent_id INTEGER NULL"),
                 ("parent_uuid", "parent_uuid TEXT NULL"),
                 ("parent_metadata", "parent_metadata TEXT NULL"),
                 ("workspace_uuid", "workspace_uuid TEXT NULL"),
                 ("code", "code TEXT NULL"),
                 ("title", "title TEXT NULL"),
+                ("cover_image", "cover_image TEXT NULL"),
                 ("author", "author TEXT NULL"),
-                ("file_id", "file_id TEXT NULL"),
-                ("type", "type TEXT NULL"),
+                ("file_id", "file_id INTEGER NULL"),
+                ("type", "type INTEGER NOT NULL DEFAULT 1"),
                 ("site_path", "site_path TEXT NULL"),
                 ("domain_prefix", "domain_prefix TEXT NULL"),
-                ("conversation_id", "conversation_id TEXT NULL"),
-                ("owner_id", "owner_id TEXT NULL"),
-                ("leader_id", "leader_id TEXT NULL"),
-                ("created_by_user_id", "created_by_user_id TEXT NULL"),
+                ("conversation_id", "conversation_id INTEGER NULL"),
+                ("leader_id", "leader_id INTEGER NULL"),
                 ("start_time", "start_time TEXT NULL"),
                 ("end_time", "end_time TEXT NULL"),
                 ("budget_amount", "budget_amount INTEGER NULL"),
-                ("cover_image_json", "cover_image_json TEXT NULL"),
                 ("is_template", "is_template INTEGER NOT NULL DEFAULT 0"),
             ],
         )?;
@@ -6562,8 +7210,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_SKILL_PACKAGES_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6573,8 +7224,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_SKILL_VERSIONS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6584,8 +7238,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_SKILL_CAPABILITIES_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6595,8 +7252,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_SKILL_INSTALLATIONS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6606,8 +7266,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_APP_TEMPLATES_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6617,8 +7280,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_APP_TEMPLATE_VERSIONS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6628,8 +7294,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_APP_TEMPLATE_TARGET_PROFILES_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6639,8 +7308,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_APP_TEMPLATE_PRESETS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6650,8 +7322,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_APP_TEMPLATE_INSTANTIATIONS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6661,8 +7336,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_PROJECT_DOCUMENTS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
                 ("body_ref", "body_ref TEXT NULL"),
             ],
         )?;
@@ -6673,8 +7351,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_DEPLOYMENT_TARGETS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6684,8 +7365,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_DEPLOYMENT_RECORDS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6695,14 +7379,17 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_TEAMS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
                 ("code", "code TEXT NULL"),
                 ("title", "title TEXT NULL"),
-                ("owner_id", "owner_id TEXT NULL"),
-                ("leader_id", "leader_id TEXT NULL"),
+                ("owner_id", "owner_id INTEGER NULL"),
+                ("leader_id", "leader_id INTEGER NULL"),
                 ("metadata_json", "metadata_json TEXT NULL"),
-                ("created_by_user_id", "created_by_user_id TEXT NULL"),
+                ("created_by_user_id", "created_by_user_id INTEGER NULL"),
             ],
         )?;
     }
@@ -6712,8 +7399,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_RELEASE_RECORDS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6723,8 +7413,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_AUDIT_EVENTS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6734,8 +7427,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_GOVERNANCE_POLICIES_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
             ],
         )?;
     }
@@ -6745,11 +7441,14 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             PROVIDER_TEAM_MEMBERS_TABLE,
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
-                ("user_id", "user_id TEXT NULL"),
-                ("created_by_user_id", "created_by_user_id TEXT NULL"),
-                ("granted_by_user_id", "granted_by_user_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
+                ("user_id", "user_id INTEGER NULL"),
+                ("created_by_user_id", "created_by_user_id INTEGER NULL"),
+                ("granted_by_user_id", "granted_by_user_id INTEGER NULL"),
             ],
         )?;
     }
@@ -6759,11 +7458,14 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             "workspace_members",
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
-                ("user_id", "user_id TEXT NULL"),
-                ("created_by_user_id", "created_by_user_id TEXT NULL"),
-                ("granted_by_user_id", "granted_by_user_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
+                ("user_id", "user_id INTEGER NULL"),
+                ("created_by_user_id", "created_by_user_id INTEGER NULL"),
+                ("granted_by_user_id", "granted_by_user_id INTEGER NULL"),
             ],
         )?;
     }
@@ -6773,11 +7475,14 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             "project_collaborators",
             &[
                 ("uuid", "uuid TEXT NULL"),
-                ("tenant_id", "tenant_id TEXT NULL"),
-                ("organization_id", "organization_id TEXT NULL"),
-                ("user_id", "user_id TEXT NULL"),
-                ("created_by_user_id", "created_by_user_id TEXT NULL"),
-                ("granted_by_user_id", "granted_by_user_id TEXT NULL"),
+                ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
+                (
+                    "organization_id",
+                    "organization_id INTEGER NOT NULL DEFAULT 0",
+                ),
+                ("user_id", "user_id INTEGER NULL"),
+                ("created_by_user_id", "created_by_user_id INTEGER NULL"),
+                ("granted_by_user_id", "granted_by_user_id INTEGER NULL"),
             ],
         )?;
     }
@@ -7029,7 +7734,7 @@ fn load_provider_runtime_rows(
     let mut statement = connection
         .prepare(
             r#"
-            SELECT id, coding_session_id, host_mode, engine_id, model_id, native_session_id, created_at, updated_at
+            SELECT id, coding_session_id, host_mode, engine_id, model_id, status, native_session_id, created_at, updated_at
             FROM coding_session_runtimes
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
@@ -7038,15 +7743,16 @@ fn load_provider_runtime_rows(
         .map_err(|error| format!("prepare coding_session_runtimes query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
-            let created_at: String = row.get(6)?;
-            let updated_at: String = row.get(7)?;
+            let created_at: String = row.get(7)?;
+            let updated_at: String = row.get(8)?;
             Ok(CodingSessionRuntimeRow {
                 id: row.get(0)?,
                 coding_session_id: row.get(1)?,
                 host_mode: row.get(2)?,
                 engine_id: row.get(3)?,
                 model_id: row.get::<_, String>(4)?,
-                native_session_id: row.get(5)?,
+                status: row.get(5)?,
+                native_session_id: row.get(6)?,
                 created_at: normalize_storage_timestamp_value(created_at.as_str())
                     .unwrap_or(created_at),
                 updated_at: normalize_storage_timestamp_value(updated_at.as_str())
@@ -7276,9 +7982,10 @@ fn load_provider_workspace_payloads(
     connection: &Connection,
 ) -> Result<Vec<WorkspacePayload>, String> {
     fn read_workspace_payload(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspacePayload> {
-        let owner_id: Option<String> = row.get(8)?;
-        let leader_id: Option<String> = row.get(9)?;
-        let created_by_user_id: Option<String> = row.get(10)?;
+        let owner_id = sqlite_row_optional_string_value(row, 8, "workspaces.owner_id")?;
+        let leader_id = sqlite_row_optional_string_value(row, 9, "workspaces.leader_id")?;
+        let created_by_user_id =
+            sqlite_row_optional_string_value(row, 10, "workspaces.created_by_user_id")?;
         let settings_json: Option<String> = row.get(22)?;
         let (owner_id, leader_id, created_by_user_id) = resolve_effective_user_authority(
             owner_id.as_deref(),
@@ -7299,9 +8006,13 @@ fn load_provider_workspace_payloads(
         Ok(WorkspacePayload {
             id: sqlite_row_required_string_value(row, 0, "workspaces.id")?,
             uuid: row.get(1)?,
-            tenant_id: row.get(2)?,
-            organization_id: row.get(3)?,
-            data_scope: row.get(25)?,
+            tenant_id: sqlite_row_optional_string_value(row, 2, "workspaces.tenant_id")?,
+            organization_id: sqlite_row_optional_string_value(
+                row,
+                3,
+                "workspaces.organization_id",
+            )?,
+            data_scope: sqlite_row_optional_data_scope_value(row, 25, "workspaces.data_scope")?,
             name: row.get(4)?,
             code: row.get(5)?,
             title: row.get(6)?,
@@ -7319,8 +8030,8 @@ fn load_provider_workspace_payloads(
             member_count: row
                 .get::<_, Option<i64>>(19)?
                 .map(|value| value.max(0) as usize),
-            max_storage: row.get(20)?,
-            used_storage: row.get(21)?,
+            max_storage: optional_long_integer_json_string(row.get(20)?),
+            used_storage: optional_long_integer_json_string(row.get(21)?),
             settings,
             is_public: decode_optional_sqlite_bool(row.get(23)?),
             is_template: decode_optional_sqlite_bool(row.get(24)?),
@@ -7360,7 +8071,7 @@ fn load_provider_workspace_payloads(
                 is_template
                 ,
                 data_scope
-            FROM workspaces
+            FROM plus_workspace AS workspaces
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
             "#,
@@ -7379,34 +8090,39 @@ fn load_provider_workspace_payloads(
 
 fn load_provider_project_payloads(connection: &Connection) -> Result<Vec<ProjectPayload>, String> {
     fn read_project_payload(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectPayload> {
-        let owner_id: Option<String> = row.get(13)?;
-        let leader_id: Option<String> = row.get(14)?;
-        let created_by_user_id: Option<String> = row.get(15)?;
-        let cover_image_json: Option<String> = row.get(23)?;
-        let created_at: Option<String> = row.get(26)?;
-        let updated_at: Option<String> = row.get(27)?;
-        let parent_metadata_json: Option<String> = row.get(32)?;
-        let (owner_id, leader_id, created_by_user_id) = resolve_effective_user_authority(
-            owner_id.as_deref(),
-            leader_id.as_deref(),
-            created_by_user_id.as_deref(),
-            None,
-            None,
-            None,
-        );
-        let cover_image = parse_optional_json_value(cover_image_json, "project cover_image_json")
-            .map_err(|error| {
+        let config_data: Option<String> = row.get(10)?;
+        let root_path = parse_project_root_path_from_config_data(config_data).map_err(|error| {
             rusqlite::Error::FromSqlConversionFailure(
-                23,
+                10,
                 rusqlite::types::Type::Text,
                 Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, error)),
             )
         })?;
+        let leader_id = sqlite_row_optional_string_value(row, 13, "projects.leader_id")?;
+        let author: Option<String> = row.get(14)?;
+        let cover_image_json: Option<String> = row.get(21)?;
+        let created_at: Option<String> = row.get(24)?;
+        let updated_at: Option<String> = row.get(25)?;
+        let user_id = sqlite_row_optional_string_value(row, 27, "projects.user_id")?;
+        let parent_metadata_json: Option<String> = row.get(30)?;
+        let effective_user_id = user_id
+            .clone()
+            .or_else(|| author.clone())
+            .unwrap_or_else(|| BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_owned());
+        let effective_leader_id = leader_id.unwrap_or_else(|| effective_user_id.clone());
+        let cover_image = parse_optional_json_value(cover_image_json, "project cover_image")
+            .map_err(|error| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    21,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, error)),
+                )
+            })?;
         let parent_metadata =
             parse_optional_json_value(parent_metadata_json, "project parent_metadata").map_err(
                 |error| {
                     rusqlite::Error::FromSqlConversionFailure(
-                        32,
+                        30,
                         rusqlite::types::Type::Text,
                         Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, error)),
                     )
@@ -7416,38 +8132,36 @@ fn load_provider_project_payloads(connection: &Connection) -> Result<Vec<Project
             created_at: normalize_optional_storage_timestamp_value(created_at),
             id: sqlite_row_required_string_value(row, 0, "projects.id")?,
             uuid: row.get(1)?,
-            tenant_id: row.get(2)?,
-            organization_id: row.get(3)?,
-            data_scope: row.get(28)?,
+            tenant_id: sqlite_row_optional_string_value(row, 2, "projects.tenant_id")?,
+            organization_id: sqlite_row_optional_string_value(row, 3, "projects.organization_id")?,
+            data_scope: sqlite_row_optional_data_scope_value(row, 26, "projects.data_scope")?,
             workspace_id: sqlite_row_required_string_value(row, 4, "projects.workspace_id")?,
             workspace_uuid: row.get(5)?,
-            user_id: row.get(29)?,
-            parent_id: row.get(30)?,
-            parent_uuid: row.get(31)?,
+            user_id: Some(effective_user_id.clone()),
+            parent_id: sqlite_row_optional_string_value(row, 28, "projects.parent_id")?,
+            parent_uuid: row.get(29)?,
             parent_metadata,
             code: row.get(6)?,
             title: row.get(7)?,
             name: row.get(8)?,
             description: row.get(9)?,
-            root_path: row.get(10)?,
+            root_path,
             site_path: row.get(11)?,
             domain_prefix: row.get(12)?,
-            owner_id: Some(owner_id.clone()),
-            leader_id: Some(leader_id),
-            created_by_user_id: Some(created_by_user_id.clone()),
-            author: row
-                .get::<_, Option<String>>(16)?
-                .or(Some(created_by_user_id)),
-            file_id: row.get(17)?,
-            conversation_id: row.get(18)?,
-            entity_type: row.get(19)?,
-            start_time: row.get(20)?,
-            end_time: row.get(21)?,
-            budget_amount: row.get(22)?,
+            owner_id: Some(effective_user_id.clone()),
+            leader_id: Some(effective_leader_id),
+            created_by_user_id: Some(effective_user_id.clone()),
+            author: author.or(Some(effective_user_id)),
+            file_id: sqlite_row_optional_string_value(row, 15, "projects.file_id")?,
+            conversation_id: sqlite_row_optional_string_value(row, 16, "projects.conversation_id")?,
+            entity_type: sqlite_row_optional_project_type_value(row, 17, "projects.type")?,
+            start_time: row.get(18)?,
+            end_time: row.get(19)?,
+            budget_amount: optional_long_integer_json_string(row.get(20)?),
             cover_image,
-            is_template: decode_optional_sqlite_bool(row.get(24)?),
+            is_template: decode_optional_sqlite_bool(row.get(22)?),
             collaborator_count: None,
-            status: row.get(25)?,
+            status: sqlite_row_required_project_status_value(row, 23, "projects.status")?,
             updated_at: normalize_optional_storage_timestamp_value(updated_at),
             viewer_role: None,
         })
@@ -7457,42 +8171,42 @@ fn load_provider_project_payloads(connection: &Connection) -> Result<Vec<Project
         .prepare(
             r#"
             SELECT
-                id,
-                uuid,
-                tenant_id,
-                organization_id,
-                workspace_id,
-                workspace_uuid,
-                code,
-                title,
-                name,
-                description,
-                root_path,
-                site_path,
-                domain_prefix,
-                owner_id,
-                leader_id,
-                created_by_user_id,
-                author,
-                file_id,
-                conversation_id,
-                type,
-                start_time,
-                end_time,
-                budget_amount,
-                cover_image_json,
-                is_template,
-                status,
-                created_at,
-                updated_at,
-                data_scope,
-                user_id,
-                parent_id,
-                parent_uuid,
-                parent_metadata
-            FROM projects
-            WHERE is_deleted = 0
-            ORDER BY updated_at DESC, id ASC
+                projects.id,
+                projects.uuid,
+                projects.tenant_id,
+                projects.organization_id,
+                projects.workspace_id,
+                projects.workspace_uuid,
+                projects.code,
+                projects.title,
+                projects.name,
+                projects.description,
+                project_contents.config_data,
+                projects.site_path,
+                projects.domain_prefix,
+                projects.leader_id,
+                projects.author,
+                projects.file_id,
+                projects.conversation_id,
+                projects.type,
+                projects.start_time,
+                projects.end_time,
+                projects.budget_amount,
+                projects.cover_image,
+                projects.is_template,
+                projects.status,
+                projects.created_at,
+                projects.updated_at,
+                projects.data_scope,
+                projects.user_id,
+                projects.parent_id,
+                projects.parent_uuid,
+                projects.parent_metadata
+            FROM plus_project AS projects
+            LEFT JOIN plus_project_content AS project_contents
+              ON project_contents.project_id = projects.id
+            WHERE projects.is_deleted = 0
+            ORDER BY projects.updated_at DESC, projects.id ASC
             "#,
         )
         .map_err(|error| format!("prepare projects query failed: {error}"))?;
@@ -7512,9 +8226,10 @@ fn load_provider_workspace_payload_by_id(
     workspace_id: &str,
 ) -> Result<Option<WorkspacePayload>, String> {
     fn read_workspace_payload(row: &rusqlite::Row<'_>) -> rusqlite::Result<WorkspacePayload> {
-        let owner_id: Option<String> = row.get(8)?;
-        let leader_id: Option<String> = row.get(9)?;
-        let created_by_user_id: Option<String> = row.get(10)?;
+        let owner_id = sqlite_row_optional_string_value(row, 8, "workspaces.owner_id")?;
+        let leader_id = sqlite_row_optional_string_value(row, 9, "workspaces.leader_id")?;
+        let created_by_user_id =
+            sqlite_row_optional_string_value(row, 10, "workspaces.created_by_user_id")?;
         let settings_json: Option<String> = row.get(22)?;
         let (owner_id, leader_id, created_by_user_id) = resolve_effective_user_authority(
             owner_id.as_deref(),
@@ -7535,9 +8250,13 @@ fn load_provider_workspace_payload_by_id(
         Ok(WorkspacePayload {
             id: sqlite_row_required_string_value(row, 0, "workspaces.id")?,
             uuid: row.get(1)?,
-            tenant_id: row.get(2)?,
-            organization_id: row.get(3)?,
-            data_scope: row.get(25)?,
+            tenant_id: sqlite_row_optional_string_value(row, 2, "workspaces.tenant_id")?,
+            organization_id: sqlite_row_optional_string_value(
+                row,
+                3,
+                "workspaces.organization_id",
+            )?,
+            data_scope: sqlite_row_optional_data_scope_value(row, 25, "workspaces.data_scope")?,
             name: row.get(4)?,
             code: row.get(5)?,
             title: row.get(6)?,
@@ -7555,8 +8274,8 @@ fn load_provider_workspace_payload_by_id(
             member_count: row
                 .get::<_, Option<i64>>(19)?
                 .map(|value| value.max(0) as usize),
-            max_storage: row.get(20)?,
-            used_storage: row.get(21)?,
+            max_storage: optional_long_integer_json_string(row.get(20)?),
+            used_storage: optional_long_integer_json_string(row.get(21)?),
             settings,
             is_public: decode_optional_sqlite_bool(row.get(23)?),
             is_template: decode_optional_sqlite_bool(row.get(24)?),
@@ -7596,7 +8315,7 @@ fn load_provider_workspace_payload_by_id(
                 is_template
                 ,
                 data_scope
-            FROM workspaces
+            FROM plus_workspace AS workspaces
             WHERE is_deleted = 0 AND id = ?1
             LIMIT 1
             "#,
@@ -7617,133 +8336,9 @@ fn load_provider_project_payload_by_id(
     connection: &Connection,
     project_id: &str,
 ) -> Result<Option<ProjectPayload>, String> {
-    fn read_project_payload(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectPayload> {
-        let owner_id: Option<String> = row.get(13)?;
-        let leader_id: Option<String> = row.get(14)?;
-        let created_by_user_id: Option<String> = row.get(15)?;
-        let cover_image_json: Option<String> = row.get(23)?;
-        let created_at: Option<String> = row.get(26)?;
-        let updated_at: Option<String> = row.get(27)?;
-        let parent_metadata_json: Option<String> = row.get(32)?;
-        let (owner_id, leader_id, created_by_user_id) = resolve_effective_user_authority(
-            owner_id.as_deref(),
-            leader_id.as_deref(),
-            created_by_user_id.as_deref(),
-            None,
-            None,
-            None,
-        );
-        let cover_image = parse_optional_json_value(cover_image_json, "project cover_image_json")
-            .map_err(|error| {
-            rusqlite::Error::FromSqlConversionFailure(
-                23,
-                rusqlite::types::Type::Text,
-                Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, error)),
-            )
-        })?;
-        let parent_metadata =
-            parse_optional_json_value(parent_metadata_json, "project parent_metadata").map_err(
-                |error| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        32,
-                        rusqlite::types::Type::Text,
-                        Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, error)),
-                    )
-                },
-            )?;
-        Ok(ProjectPayload {
-            created_at: normalize_optional_storage_timestamp_value(created_at),
-            id: sqlite_row_required_string_value(row, 0, "projects.id")?,
-            uuid: row.get(1)?,
-            tenant_id: row.get(2)?,
-            organization_id: row.get(3)?,
-            data_scope: row.get(28)?,
-            workspace_id: sqlite_row_required_string_value(row, 4, "projects.workspace_id")?,
-            workspace_uuid: row.get(5)?,
-            user_id: row.get(29)?,
-            parent_id: row.get(30)?,
-            parent_uuid: row.get(31)?,
-            parent_metadata,
-            code: row.get(6)?,
-            title: row.get(7)?,
-            name: row.get(8)?,
-            description: row.get(9)?,
-            root_path: row.get(10)?,
-            site_path: row.get(11)?,
-            domain_prefix: row.get(12)?,
-            owner_id: Some(owner_id.clone()),
-            leader_id: Some(leader_id),
-            created_by_user_id: Some(created_by_user_id.clone()),
-            author: row
-                .get::<_, Option<String>>(16)?
-                .or(Some(created_by_user_id)),
-            file_id: row.get(17)?,
-            conversation_id: row.get(18)?,
-            entity_type: row.get(19)?,
-            start_time: row.get(20)?,
-            end_time: row.get(21)?,
-            budget_amount: row.get(22)?,
-            cover_image,
-            is_template: decode_optional_sqlite_bool(row.get(24)?),
-            collaborator_count: None,
-            status: row.get(25)?,
-            updated_at: normalize_optional_storage_timestamp_value(updated_at),
-            viewer_role: None,
-        })
-    }
-
-    let mut statement = connection
-        .prepare(
-            r#"
-            SELECT
-                id,
-                uuid,
-                tenant_id,
-                organization_id,
-                workspace_id,
-                workspace_uuid,
-                code,
-                title,
-                name,
-                description,
-                root_path,
-                site_path,
-                domain_prefix,
-                owner_id,
-                leader_id,
-                created_by_user_id,
-                author,
-                file_id,
-                conversation_id,
-                type,
-                start_time,
-                end_time,
-                budget_amount,
-                cover_image_json,
-                is_template,
-                status,
-                created_at,
-                updated_at,
-                data_scope,
-                user_id,
-                parent_id,
-                parent_uuid,
-                parent_metadata
-            FROM projects
-            WHERE is_deleted = 0 AND id = ?1
-            LIMIT 1
-            "#,
-        )
-        .map_err(|error| format!("prepare project by id query failed: {error}"))?;
-    let mut rows = statement
-        .query(params![project_id])
-        .map_err(|error| format!("query project by id failed: {error}"))?;
-
-    rows.next()
-        .map_err(|error| format!("read project by id row failed: {error}"))?
-        .map(read_project_payload)
-        .transpose()
-        .map_err(|error: rusqlite::Error| format!("map project by id row failed: {error}"))
+    Ok(load_provider_project_payloads(connection)?
+        .into_iter()
+        .find(|project| project.id == project_id))
 }
 
 fn load_provider_skill_package_payloads(
@@ -7840,8 +8435,8 @@ fn load_provider_skill_package_payloads(
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, Option<String>>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, Option<String>>(3)?,
+                sqlite_row_optional_string_value(row, 2, "skill_packages.tenant_id")?,
+                sqlite_row_optional_string_value(row, 3, "skill_packages.organization_id")?,
                 row.get::<_, String>(4)?,
                 row.get::<_, String>(5)?,
                 row.get::<_, String>(6)?,
@@ -7908,7 +8503,10 @@ fn load_provider_skill_package_payloads(
                             author: manifest_string(entry, "author"),
                             version_id: version_id.clone(),
                             version_label: version_label.clone(),
-                            install_count: manifest_usize(entry, "installCount"),
+                            install_count: optional_usize_long_integer_json_string(manifest_usize(
+                                entry,
+                                "installCount",
+                            )),
                             long_description: manifest_string(entry, "longDescription"),
                             tags: manifest_string_array(entry, "tags"),
                             license: manifest_string(entry, "license"),
@@ -7940,7 +8538,10 @@ fn load_provider_skill_package_payloads(
             author: manifest_string(&package_manifest, "author"),
             version_id,
             version_label,
-            install_count: manifest_usize(&package_manifest, "installCount"),
+            install_count: optional_usize_long_integer_json_string(manifest_usize(
+                &package_manifest,
+                "installCount",
+            )),
             long_description: manifest_string(&package_manifest, "longDescription"),
             source_uri: Some(source_uri),
             installed,
@@ -8035,8 +8636,8 @@ fn load_provider_app_template_payloads(
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, Option<String>>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, Option<String>>(3)?,
+                sqlite_row_optional_string_value(row, 2, "app_templates.tenant_id")?,
+                sqlite_row_optional_string_value(row, 3, "app_templates.organization_id")?,
                 row.get::<_, String>(4)?,
                 row.get::<_, String>(5)?,
                 row.get::<_, String>(6)?,
@@ -8201,15 +8802,15 @@ fn upsert_project_template_instantiation(
         .query_row(
             r#"
             SELECT tenant_id, organization_id
-            FROM projects
+            FROM plus_project AS projects
             WHERE id = ?1 AND is_deleted = 0
             LIMIT 1
             "#,
             params![project_id],
             |row| {
                 Ok((
-                    row.get::<_, Option<String>>(0)?,
-                    row.get::<_, Option<String>>(1)?,
+                    sqlite_row_optional_string_value(row, 0, "projects.tenant_id")?,
+                    sqlite_row_optional_string_value(row, 1, "projects.organization_id")?,
                 ))
             },
         )
@@ -8295,8 +8896,12 @@ fn load_provider_document_payloads(
             Ok(DocumentPayload {
                 id: row.get(0)?,
                 uuid: row.get(1)?,
-                tenant_id: row.get(2)?,
-                organization_id: row.get(3)?,
+                tenant_id: sqlite_row_optional_string_value(row, 2, "project_documents.tenant_id")?,
+                organization_id: sqlite_row_optional_string_value(
+                    row,
+                    3,
+                    "project_documents.organization_id",
+                )?,
                 created_at: Some(row.get(4)?),
                 updated_at: Some(row.get(5)?),
                 project_id: row.get(6)?,
@@ -8347,8 +8952,16 @@ fn load_provider_deployment_payloads(
             Ok(DeploymentPayload {
                 id: row.get(0)?,
                 uuid: row.get(1)?,
-                tenant_id: row.get(2)?,
-                organization_id: row.get(3)?,
+                tenant_id: sqlite_row_optional_string_value(
+                    row,
+                    2,
+                    "deployment_records.tenant_id",
+                )?,
+                organization_id: sqlite_row_optional_string_value(
+                    row,
+                    3,
+                    "deployment_records.organization_id",
+                )?,
                 created_at: Some(row.get(4)?),
                 updated_at: Some(row.get(5)?),
                 project_id: row.get(6)?,
@@ -8398,8 +9011,16 @@ fn load_provider_deployment_target_payloads(
             Ok(DeploymentTargetPayload {
                 id: row.get(0)?,
                 uuid: row.get(1)?,
-                tenant_id: row.get(2)?,
-                organization_id: row.get(3)?,
+                tenant_id: sqlite_row_optional_string_value(
+                    row,
+                    2,
+                    "deployment_targets.tenant_id",
+                )?,
+                organization_id: sqlite_row_optional_string_value(
+                    row,
+                    3,
+                    "deployment_targets.organization_id",
+                )?,
                 created_at: Some(row.get(4)?),
                 updated_at: Some(row.get(5)?),
                 project_id: row.get(6)?,
@@ -8420,9 +9041,10 @@ fn load_provider_deployment_target_payloads(
 
 fn load_provider_team_payloads(connection: &Connection) -> Result<Vec<TeamPayload>, String> {
     fn read_team_payload(row: &rusqlite::Row<'_>) -> rusqlite::Result<TeamPayload> {
-        let owner_id: Option<String> = row.get(11)?;
-        let leader_id: Option<String> = row.get(12)?;
-        let created_by_user_id: Option<String> = row.get(13)?;
+        let owner_id = sqlite_row_optional_string_value(row, 11, "teams.owner_id")?;
+        let leader_id = sqlite_row_optional_string_value(row, 12, "teams.leader_id")?;
+        let created_by_user_id =
+            sqlite_row_optional_string_value(row, 13, "teams.created_by_user_id")?;
         let metadata_json: Option<String> = row.get(14)?;
         let metadata =
             parse_optional_json_value(metadata_json, "team metadata_json").map_err(|error| {
@@ -8443,8 +9065,8 @@ fn load_provider_team_payloads(connection: &Connection) -> Result<Vec<TeamPayloa
         Ok(TeamPayload {
             id: sqlite_row_required_string_value(row, 0, "teams.id")?,
             uuid: row.get(1)?,
-            tenant_id: row.get(2)?,
-            organization_id: row.get(3)?,
+            tenant_id: sqlite_row_optional_string_value(row, 2, "teams.tenant_id")?,
+            organization_id: sqlite_row_optional_string_value(row, 3, "teams.organization_id")?,
             created_at: Some(row.get(4)?),
             updated_at: Some(row.get(5)?),
             workspace_id: sqlite_row_required_string_value(row, 6, "teams.workspace_id")?,
@@ -8524,9 +9146,11 @@ fn load_provider_team_member_payloads(
         .map_err(|error| format!("prepare team_members query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
-            let user_id: Option<String> = row.get(5)?;
-            let created_by_user_id: Option<String> = row.get(7)?;
-            let granted_by_user_id: Option<String> = row.get(8)?;
+            let user_id = sqlite_row_optional_string_value(row, 5, "team_members.user_id")?;
+            let created_by_user_id =
+                sqlite_row_optional_string_value(row, 7, "team_members.created_by_user_id")?;
+            let granted_by_user_id =
+                sqlite_row_optional_string_value(row, 8, "team_members.granted_by_user_id")?;
             let (user_id, created_by_user_id, granted_by_user_id) =
                 resolve_effective_user_authority(
                     user_id.as_deref(),
@@ -8539,8 +9163,12 @@ fn load_provider_team_member_payloads(
             Ok(TeamMemberPayload {
                 id: sqlite_row_required_string_value(row, 0, "team_members.id")?,
                 uuid: row.get(1)?,
-                tenant_id: row.get(2)?,
-                organization_id: row.get(3)?,
+                tenant_id: sqlite_row_optional_string_value(row, 2, "team_members.tenant_id")?,
+                organization_id: sqlite_row_optional_string_value(
+                    row,
+                    3,
+                    "team_members.organization_id",
+                )?,
                 team_id: sqlite_row_required_string_value(row, 4, "team_members.team_id")?,
                 user_id,
                 role: row.get(6)?,
@@ -8597,21 +9225,33 @@ fn load_provider_workspace_member_payloads(
             Ok(WorkspaceMemberPayload {
                 id: sqlite_row_required_string_value(row, 0, "workspace_members.id")?,
                 uuid: row.get(1)?,
-                tenant_id: row.get(2)?,
-                organization_id: row.get(3)?,
+                tenant_id: sqlite_row_optional_string_value(row, 2, "workspace_members.tenant_id")?,
+                organization_id: sqlite_row_optional_string_value(
+                    row,
+                    3,
+                    "workspace_members.organization_id",
+                )?,
                 workspace_id: sqlite_row_required_string_value(
                     row,
                     4,
                     "workspace_members.workspace_id",
                 )?,
-                user_id: row.get(5)?,
+                user_id: sqlite_row_required_string_value(row, 5, "workspace_members.user_id")?,
                 user_email: row.get(6)?,
                 user_display_name: row.get(7)?,
                 user_avatar_url: row.get(8)?,
                 team_id: sqlite_row_optional_string_value(row, 9, "workspace_members.team_id")?,
                 role: row.get(10)?,
-                created_by_user_id: row.get(11)?,
-                granted_by_user_id: row.get(12)?,
+                created_by_user_id: sqlite_row_optional_string_value(
+                    row,
+                    11,
+                    "workspace_members.created_by_user_id",
+                )?,
+                granted_by_user_id: sqlite_row_optional_string_value(
+                    row,
+                    12,
+                    "workspace_members.granted_by_user_id",
+                )?,
                 status: row.get(13)?,
                 created_at: Some(row.get(14)?),
                 updated_at: Some(row.get(15)?),
@@ -8664,8 +9304,16 @@ fn load_provider_project_collaborator_payloads(
             Ok(ProjectCollaboratorPayload {
                 id: sqlite_row_required_string_value(row, 0, "project_collaborators.id")?,
                 uuid: row.get(1)?,
-                tenant_id: row.get(2)?,
-                organization_id: row.get(3)?,
+                tenant_id: sqlite_row_optional_string_value(
+                    row,
+                    2,
+                    "project_collaborators.tenant_id",
+                )?,
+                organization_id: sqlite_row_optional_string_value(
+                    row,
+                    3,
+                    "project_collaborators.organization_id",
+                )?,
                 project_id: sqlite_row_required_string_value(
                     row,
                     4,
@@ -8676,7 +9324,7 @@ fn load_provider_project_collaborator_payloads(
                     5,
                     "project_collaborators.workspace_id",
                 )?,
-                user_id: row.get(6)?,
+                user_id: sqlite_row_required_string_value(row, 6, "project_collaborators.user_id")?,
                 user_email: row.get(7)?,
                 user_display_name: row.get(8)?,
                 user_avatar_url: row.get(9)?,
@@ -8686,8 +9334,16 @@ fn load_provider_project_collaborator_payloads(
                     "project_collaborators.team_id",
                 )?,
                 role: row.get(11)?,
-                created_by_user_id: row.get(12)?,
-                granted_by_user_id: row.get(13)?,
+                created_by_user_id: sqlite_row_optional_string_value(
+                    row,
+                    12,
+                    "project_collaborators.created_by_user_id",
+                )?,
+                granted_by_user_id: sqlite_row_optional_string_value(
+                    row,
+                    13,
+                    "project_collaborators.granted_by_user_id",
+                )?,
                 status: row.get(14)?,
                 created_at: Some(row.get(15)?),
                 updated_at: Some(row.get(16)?),
@@ -8907,8 +9563,12 @@ fn load_provider_release_payloads(connection: &Connection) -> Result<Vec<Release
             Ok(ReleasePayload {
                 id: row.get(0)?,
                 uuid: row.get(1)?,
-                tenant_id: row.get(2)?,
-                organization_id: row.get(3)?,
+                tenant_id: sqlite_row_optional_string_value(row, 2, "release_records.tenant_id")?,
+                organization_id: sqlite_row_optional_string_value(
+                    row,
+                    3,
+                    "release_records.organization_id",
+                )?,
                 created_at: Some(row.get(4)?),
                 updated_at: Some(row.get(5)?),
                 release_version: row.get(6)?,
@@ -8962,8 +9622,12 @@ fn load_provider_audit_payloads(connection: &Connection) -> Result<Vec<AuditPayl
             Ok(AuditPayload {
                 id: row.get(0)?,
                 uuid: row.get(1)?,
-                tenant_id: row.get(2)?,
-                organization_id: row.get(3)?,
+                tenant_id: sqlite_row_optional_string_value(row, 2, "audit_events.tenant_id")?,
+                organization_id: sqlite_row_optional_string_value(
+                    row,
+                    3,
+                    "audit_events.organization_id",
+                )?,
                 created_at: Some(row.get(4)?),
                 updated_at: Some(row.get(5)?),
                 scope_type: row.get(6)?,
@@ -9012,8 +9676,16 @@ fn load_provider_policy_payloads(connection: &Connection) -> Result<Vec<PolicyPa
             Ok(PolicyPayload {
                 id: row.get(0)?,
                 uuid: row.get(1)?,
-                tenant_id: row.get(2)?,
-                organization_id: row.get(3)?,
+                tenant_id: sqlite_row_optional_string_value(
+                    row,
+                    2,
+                    "governance_policies.tenant_id",
+                )?,
+                organization_id: sqlite_row_optional_string_value(
+                    row,
+                    3,
+                    "governance_policies.organization_id",
+                )?,
                 created_at: Some(row.get(4)?),
                 updated_at: Some(row.get(5)?),
                 scope_type: row.get(6)?,
@@ -9253,6 +9925,7 @@ fn build_succeeded_coding_session_turn_events(
     turn_id: &str,
     operation_id: &str,
     assistant_content: &str,
+    commands: Option<&[native_sessions::NativeSessionCommandPayload]>,
     base_sequence: usize,
     completed_at: &str,
     native_session_id: Option<&str>,
@@ -9262,6 +9935,11 @@ fn build_succeeded_coding_session_turn_events(
     assistant_message_payload.insert("content".to_owned(), assistant_content.to_owned());
     assistant_message_payload.insert("operationId".to_owned(), operation_id.to_owned());
     assistant_message_payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
+    if let Some(commands) = commands {
+        if let Ok(serialized_commands) = serde_json::to_string(commands) {
+            assistant_message_payload.insert("commandsJson".to_owned(), serialized_commands);
+        }
+    }
     attach_native_session_id(&mut assistant_message_payload, native_session_id);
 
     let mut operation_payload = BTreeMap::new();
@@ -9312,6 +9990,36 @@ fn build_succeeded_coding_session_turn_events(
             created_at: completed_at.to_owned(),
         },
     ]
+}
+
+fn build_streaming_coding_session_message_delta_event(
+    coding_session_id: &str,
+    runtime_id: &str,
+    turn_id: &str,
+    operation_id: &str,
+    role: &str,
+    content_delta: &str,
+    sequence: usize,
+    created_at: &str,
+    native_session_id: Option<&str>,
+) -> CodingSessionEventPayload {
+    let mut payload = BTreeMap::new();
+    payload.insert("role".to_owned(), role.to_owned());
+    payload.insert("contentDelta".to_owned(), content_delta.to_owned());
+    payload.insert("operationId".to_owned(), operation_id.to_owned());
+    payload.insert("runtimeStatus".to_owned(), "streaming".to_owned());
+    attach_native_session_id(&mut payload, native_session_id);
+
+    CodingSessionEventPayload {
+        id: build_projection_turn_event_id(runtime_id, turn_id, sequence),
+        coding_session_id: coding_session_id.to_owned(),
+        turn_id: Some(turn_id.to_owned()),
+        runtime_id: Some(runtime_id.to_owned()),
+        kind: "message.delta".to_owned(),
+        sequence,
+        payload,
+        created_at: created_at.to_owned(),
+    }
 }
 
 fn build_failed_coding_session_turn_events(
@@ -9397,6 +10105,7 @@ fn build_forked_coding_session_payload(
         host_mode: source_session.host_mode.clone(),
         engine_id: source_session.engine_id.clone(),
         model_id: source_session.model_id.clone(),
+        native_session_id: None,
         created_at: timestamp.clone(),
         updated_at: timestamp.clone(),
         last_turn_at: Some(timestamp),
@@ -9574,6 +10283,162 @@ struct ApprovalContext {
     operation_id: Option<String>,
 }
 
+#[derive(Clone)]
+struct UserQuestionContext {
+    coding_session_id: String,
+    runtime_id: Option<String>,
+    turn_id: Option<String>,
+    tool_call_id: Option<String>,
+}
+
+fn event_tool_arguments_value(event: &CodingSessionEventPayload) -> Option<serde_json::Value> {
+    ["toolArguments", "arguments", "input"]
+        .iter()
+        .find_map(|field_name| {
+            event.payload.get(*field_name).and_then(|value| {
+                serde_json::from_str::<serde_json::Value>(value)
+                    .ok()
+                    .filter(serde_json::Value::is_object)
+            })
+        })
+}
+
+fn event_user_question_id(event: &CodingSessionEventPayload) -> Option<String> {
+    if event.kind != "tool.call.requested" && event.kind != "tool.call.progress" {
+        return None;
+    }
+
+    let args = event_tool_arguments_value(event);
+    let tool_name = event
+        .payload
+        .get("toolName")
+        .or_else(|| event.payload.get("name"))
+        .map(String::as_str)
+        .or_else(|| {
+            args.as_ref()
+                .and_then(|value| value.get("toolName").or_else(|| value.get("name")))
+                .and_then(serde_json::Value::as_str)
+        })
+        .unwrap_or_default();
+    if map_codeengine_tool_kind(tool_name) != "user_question" {
+        return None;
+    }
+
+    let tool_call_id = resolve_codeengine_tool_call_id(Some(&event.payload), args.as_ref(), None);
+    resolve_codeengine_user_question_id(
+        Some(&event.payload),
+        args.as_ref(),
+        None,
+        tool_call_id.as_deref(),
+    )
+}
+
+fn find_user_question_context(
+    snapshot: &ProjectionSnapshot,
+    question_id: &str,
+) -> Option<UserQuestionContext> {
+    snapshot.events.iter().rev().find_map(|event| {
+        let resolved_question_id = event_user_question_id(event)?;
+        if resolved_question_id != question_id {
+            return None;
+        }
+        let args = event_tool_arguments_value(event);
+
+        Some(UserQuestionContext {
+            coding_session_id: event.coding_session_id.clone(),
+            runtime_id: event.runtime_id.clone(),
+            turn_id: event.turn_id.clone(),
+            tool_call_id: resolve_codeengine_tool_call_id(
+                Some(&event.payload),
+                args.as_ref(),
+                None,
+            ),
+        })
+    })
+}
+
+fn build_user_question_answer_event(
+    snapshot: &ProjectionSnapshot,
+    context: &UserQuestionContext,
+    question_id: &str,
+    answered_at: &str,
+    input: &SubmitUserQuestionAnswerInput,
+) -> CodingSessionEventPayload {
+    let mut payload = BTreeMap::new();
+    payload.insert("questionId".to_owned(), question_id.to_owned());
+    payload.insert("answer".to_owned(), input.answer.clone());
+    payload.insert("runtimeStatus".to_owned(), "awaiting_tool".to_owned());
+
+    if let Some(option_id) = input.option_id.as_ref() {
+        payload.insert("optionId".to_owned(), option_id.clone());
+    }
+    if let Some(option_label) = input.option_label.as_ref() {
+        payload.insert("optionLabel".to_owned(), option_label.clone());
+    }
+    if let Some(runtime_id) = context.runtime_id.as_ref() {
+        payload.insert("runtimeId".to_owned(), runtime_id.clone());
+    }
+    if let Some(turn_id) = context.turn_id.as_ref() {
+        payload.insert("turnId".to_owned(), turn_id.clone());
+    }
+    if let Some(tool_call_id) = context.tool_call_id.as_ref() {
+        payload.insert("toolCallId".to_owned(), tool_call_id.clone());
+    }
+
+    CodingSessionEventPayload {
+        id: format!(
+            "{}:{}:question-answer:{}",
+            context.runtime_id.as_deref().unwrap_or("runtime"),
+            context.turn_id.as_deref().unwrap_or(question_id),
+            next_event_sequence(snapshot)
+        ),
+        coding_session_id: context.coding_session_id.clone(),
+        turn_id: context.turn_id.clone(),
+        runtime_id: context.runtime_id.clone(),
+        kind: "operation.updated".to_owned(),
+        sequence: next_event_sequence(snapshot),
+        payload,
+        created_at: answered_at.to_owned(),
+    }
+}
+
+fn apply_user_question_answer_to_snapshot(
+    snapshot: &mut ProjectionSnapshot,
+    context: &UserQuestionContext,
+    question_id: &str,
+    input: &SubmitUserQuestionAnswerInput,
+    answered_at: &str,
+) -> UserQuestionAnswerPayload {
+    let event =
+        build_user_question_answer_event(snapshot, context, question_id, answered_at, input);
+
+    if let Some(turn_id) = context.turn_id.as_deref() {
+        if let Some(turn) = snapshot.turns.iter_mut().find(|turn| turn.id == turn_id) {
+            turn.status = "running".to_owned();
+            turn.completed_at = None;
+        }
+    }
+
+    if let Some(session) = snapshot.session.as_mut() {
+        session.runtime_status = Some("awaiting_tool".to_owned());
+        session.updated_at = answered_at.to_owned();
+    }
+
+    snapshot.events.push(event);
+
+    UserQuestionAnswerPayload {
+        question_id: question_id.to_owned(),
+        coding_session_id: context.coding_session_id.clone(),
+        answer: input.answer.clone(),
+        answered_at: answered_at.to_owned(),
+        option_id: input.option_id.clone(),
+        option_label: input.option_label.clone(),
+        runtime_id: context.runtime_id.clone(),
+        runtime_status: "awaiting_tool".to_owned(),
+        turn_id: context.turn_id.clone(),
+    }
+}
+
 fn approval_runtime_status(decision: &str) -> &'static str {
     match decision {
         "approved" => "awaiting_tool",
@@ -9611,7 +10476,9 @@ fn find_approval_context(
                 return None;
             }
 
-            if checkpoint.state.get("approvalId").map(String::as_str) != Some(approval_id) {
+            if resolve_codeengine_approval_id(None, None, Some(&checkpoint.state)).as_deref()
+                != Some(approval_id)
+            {
                 return None;
             }
 
@@ -9621,8 +10488,11 @@ fn find_approval_context(
                 .cloned()
                 .or_else(|| checkpoint.runtime_id.clone());
             let approval_event = snapshot.events.iter().rev().find(|event| {
+                let event_args = event_tool_arguments_value(event);
+                let event_approval_id =
+                    resolve_codeengine_approval_id(Some(&event.payload), event_args.as_ref(), None);
                 event.kind == "approval.required"
-                    && (event.payload.get("approvalId").map(String::as_str) == Some(approval_id)
+                    && (event_approval_id.as_deref() == Some(approval_id)
                         || (runtime_id.is_some()
                             && event.runtime_id.as_deref() == runtime_id.as_deref()))
             });
@@ -9878,14 +10748,27 @@ fn persist_created_coding_session_to_provider(
     host_mode: &str,
 ) -> Result<(), String> {
     let runtime_id = create_identifier("coding-runtime");
-    let runtime_profile =
-        resolve_authoritative_engine_runtime_profile(session.engine_id.as_str(), host_mode)?;
-    let capability_snapshot_json = runtime_profile.capability_snapshot_json;
-    let transport_kind = runtime_profile.transport_kind;
-    let metadata_json = serde_json::json!({
+    let (transport_kind, capability_snapshot_json, initialization_error) =
+        match resolve_authoritative_engine_runtime_profile(session.engine_id.as_str(), host_mode) {
+            Ok(runtime_profile) => (
+                runtime_profile.transport_kind,
+                runtime_profile.capability_snapshot_json,
+                None,
+            ),
+            Err(error) => (
+                "unavailable".to_owned(),
+                serde_json::json!({}).to_string(),
+                Some(error),
+            ),
+        };
+    let mut metadata = serde_json::json!({
         "createdBy": "core.createCodingSession",
-    })
-    .to_string();
+        "initializationStatus": "pending",
+    });
+    if let Some(error) = initialization_error {
+        metadata["lastInitializationError"] = serde_json::Value::String(error);
+    }
+    let metadata_json = metadata.to_string();
     let transaction = connection
         .transaction()
         .map_err(|error| format!("open create coding_session transaction failed: {error}"))?;
@@ -9934,7 +10817,7 @@ fn persist_created_coding_session_to_provider(
                 session.engine_id,
                 session.model_id,
                 host_mode,
-                "ready",
+                "initializing",
                 transport_kind,
                 Option::<String>::None,
                 Option::<String>::None,
@@ -9954,6 +10837,98 @@ fn persist_created_coding_session_to_provider(
         .map_err(|error| format!("commit create coding_session transaction failed: {error}"))?;
 
     Ok(())
+}
+
+fn should_retry_coding_session_runtime_initialization(status: Option<&str>) -> bool {
+    matches!(status, Some("initializing") | Some("failed"))
+}
+
+fn persist_coding_session_runtime_initialization_result_to_provider(
+    connection: &mut Connection,
+    coding_session_id: &str,
+    runtime_status: &str,
+    runtime_profile: Option<&AuthoritativeEngineRuntimeProfile>,
+    initialization_error: Option<&str>,
+) -> Result<bool, String> {
+    let Some(runtime_row) =
+        load_provider_runtime_row_for_session(connection, coding_session_id, None)?
+    else {
+        return Err(format!(
+            "coding_session runtime for {coding_session_id} was not found while initializing"
+        ));
+    };
+    if !should_retry_coding_session_runtime_initialization(Some(runtime_row.status.as_str())) {
+        return Ok(false);
+    }
+
+    let updated_at = current_storage_timestamp();
+    let metadata_json = match initialization_error {
+        Some(error) => serde_json::json!({
+            "createdBy": "core.createCodingSession",
+            "initializedBy": "core.createCodingSession.backgroundInitialization",
+            "initializationStatus": "failed",
+            "lastInitializationError": error,
+        }),
+        None => serde_json::json!({
+            "createdBy": "core.createCodingSession",
+            "initializedBy": "core.createCodingSession.backgroundInitialization",
+            "initializationStatus": runtime_status,
+        }),
+    }
+    .to_string();
+    let transaction = connection.transaction().map_err(|error| {
+        format!("open initialize coding_session runtime transaction failed: {error}")
+    })?;
+
+    transaction
+        .execute(
+            r#"
+            UPDATE coding_sessions
+            SET updated_at = ?2
+            WHERE id = ?1 AND is_deleted = 0
+            "#,
+            params![coding_session_id, updated_at],
+        )
+        .map_err(|error| {
+            format!("update coding_session {coding_session_id} for runtime initialization failed: {error}")
+        })?;
+
+    let updated_runtimes = transaction
+        .execute(
+            r#"
+            UPDATE coding_session_runtimes
+            SET
+                updated_at = ?2,
+                status = ?3,
+                transport_kind = COALESCE(?4, transport_kind),
+                capability_snapshot_json = COALESCE(?5, capability_snapshot_json),
+                metadata_json = ?6
+            WHERE id = ?1 AND coding_session_id = ?7 AND is_deleted = 0
+            "#,
+            params![
+                runtime_row.id,
+                updated_at,
+                runtime_status,
+                runtime_profile.map(|profile| profile.transport_kind.as_str()),
+                runtime_profile.map(|profile| profile.capability_snapshot_json.as_str()),
+                metadata_json,
+                coding_session_id,
+            ],
+        )
+        .map_err(|error| {
+            format!("update coding_session runtime for {coding_session_id} failed: {error}")
+        })?;
+    if updated_runtimes == 0 {
+        return Err(format!(
+            "coding_session runtime for {coding_session_id} was not found while finalizing initialization"
+        ));
+    }
+
+    transaction.commit().map_err(|error| {
+        format!("commit initialize coding_session runtime transaction failed: {error}")
+    })?;
+
+    Ok(true)
 }
 
 fn persist_forked_coding_session_to_provider(
@@ -10464,6 +11439,109 @@ fn persist_initialized_coding_session_turn_to_provider(
     Ok(())
 }
 
+fn persist_streaming_coding_session_message_delta_to_provider(
+    connection: &mut Connection,
+    event: &CodingSessionEventPayload,
+    native_session_id: Option<&str>,
+) -> Result<(), String> {
+    let runtime_id = event
+        .runtime_id
+        .clone()
+        .ok_or("coding session delta runtimeId is required.")?;
+    let turn_id = event
+        .turn_id
+        .clone()
+        .ok_or("coding session delta turnId is required.")?;
+    let payload_json = serde_json::to_string(&event.payload).map_err(|error| {
+        format!(
+            "serialize streaming event {} payload failed: {error}",
+            event.id
+        )
+    })?;
+    let transaction = connection.transaction().map_err(|error| {
+        format!("open streaming coding_session event transaction failed: {error}")
+    })?;
+
+    let updated_sessions = transaction
+        .execute(
+            r#"
+            UPDATE coding_sessions
+            SET updated_at = ?2, last_turn_at = ?2
+            WHERE id = ?1 AND is_deleted = 0
+            "#,
+            params![event.coding_session_id.as_str(), event.created_at.as_str()],
+        )
+        .map_err(|error| {
+            format!(
+                "update coding_session {} for streaming turn {} failed: {error}",
+                event.coding_session_id, turn_id
+            )
+        })?;
+    if updated_sessions == 0 {
+        return Err(format!(
+            "coding_session {} was not found while appending streaming turn {}",
+            event.coding_session_id, turn_id
+        ));
+    }
+
+    transaction
+        .execute(
+            r#"
+            UPDATE coding_session_runtimes
+            SET updated_at = ?2, status = ?3, native_session_id = COALESCE(?5, native_session_id)
+            WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
+            "#,
+            params![
+                runtime_id.as_str(),
+                event.created_at.as_str(),
+                "streaming",
+                event.coding_session_id.as_str(),
+                native_session_id,
+            ],
+        )
+        .map_err(|error| {
+            format!(
+                "update coding_session runtime for streaming turn {} failed: {error}",
+                turn_id
+            )
+        })?;
+
+    transaction
+        .execute(
+            r#"
+            INSERT INTO coding_session_events (
+                id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+            "#,
+            params![
+                event.id.as_str(),
+                event.created_at.as_str(),
+                event.created_at.as_str(),
+                0_i64,
+                0_i64,
+                event.coding_session_id.as_str(),
+                event.turn_id.as_deref(),
+                event.runtime_id.as_deref(),
+                event.kind.as_str(),
+                event.sequence as i64,
+                payload_json,
+            ],
+        )
+        .map_err(|error| {
+            format!(
+                "insert streaming coding_session event {} failed: {error}",
+                event.id
+            )
+        })?;
+
+    transaction.commit().map_err(|error| {
+        format!("commit streaming coding_session event transaction failed: {error}")
+    })?;
+
+    Ok(())
+}
+
 fn persist_finalized_coding_session_turn_to_provider(
     connection: &mut Connection,
     turn: &CodingSessionTurnPayload,
@@ -10853,6 +11931,128 @@ fn persist_approval_decision_to_provider(
     })
 }
 
+fn persist_user_question_answer_to_provider(
+    connection: &mut Connection,
+    state: &ProjectionReadState,
+    coding_session_id: &str,
+    context: &UserQuestionContext,
+    question_id: &str,
+    input: &SubmitUserQuestionAnswerInput,
+    answered_at: &str,
+) -> Result<UserQuestionAnswerPayload, String> {
+    let snapshot = state
+        .session_snapshot(coding_session_id)
+        .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
+    let event =
+        build_user_question_answer_event(snapshot, context, question_id, answered_at, input);
+    let event_payload_json = serde_json::to_string(&event.payload).map_err(|error| {
+        format!(
+            "serialize user question answer event {} payload failed: {error}",
+            event.id
+        )
+    })?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| format!("open user question answer transaction failed: {error}"))?;
+
+    let updated_sessions = transaction
+        .execute(
+            r#"
+            UPDATE coding_sessions
+            SET updated_at = ?2
+            WHERE id = ?1 AND is_deleted = 0
+            "#,
+            params![coding_session_id, answered_at],
+        )
+        .map_err(|error| format!("update coding_session {coding_session_id} failed: {error}"))?;
+    if updated_sessions == 0 {
+        return Err(format!(
+            "coding_session {coding_session_id} was not found while answering question {question_id}"
+        ));
+    }
+
+    if let Some(runtime_id) = context.runtime_id.as_ref() {
+        transaction
+            .execute(
+                r#"
+                UPDATE coding_session_runtimes
+                SET updated_at = ?2, status = ?3
+                WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
+                "#,
+                params![runtime_id, answered_at, "awaiting_tool", coding_session_id],
+            )
+            .map_err(|error| {
+                format!(
+                    "update user question runtime {} for session {} failed: {error}",
+                    runtime_id, coding_session_id
+                )
+            })?;
+    }
+
+    if let Some(turn_id) = context.turn_id.as_ref() {
+        transaction
+            .execute(
+                r#"
+                UPDATE coding_session_turns
+                SET updated_at = ?2, status = ?3, completed_at = NULL
+                WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
+                "#,
+                params![turn_id, answered_at, "running", coding_session_id],
+            )
+            .map_err(|error| {
+                format!(
+                    "update user question turn {} for session {} failed: {error}",
+                    turn_id, coding_session_id
+                )
+            })?;
+    }
+
+    transaction
+        .execute(
+            r#"
+            INSERT INTO coding_session_events (
+                id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+            "#,
+            params![
+                event.id,
+                event.created_at,
+                event.created_at,
+                0_i64,
+                0_i64,
+                coding_session_id,
+                event.turn_id,
+                event.runtime_id,
+                event.kind,
+                event.sequence as i64,
+                event_payload_json,
+            ],
+        )
+        .map_err(|error| {
+            format!(
+                "insert user question answer event {} failed: {error}",
+                event.id
+            )
+        })?;
+
+    transaction
+        .commit()
+        .map_err(|error| format!("commit user question answer transaction failed: {error}"))?;
+
+    Ok(UserQuestionAnswerPayload {
+        question_id: question_id.to_owned(),
+        coding_session_id: coding_session_id.to_owned(),
+        answer: input.answer.clone(),
+        answered_at: answered_at.to_owned(),
+        option_id: input.option_id.clone(),
+        option_label: input.option_label.clone(),
+        runtime_id: context.runtime_id.clone(),
+        runtime_status: "awaiting_tool".to_owned(),
+        turn_id: context.turn_id.clone(),
+    })
+}
+
 fn ensure_sqlite_provider_authority(
     connection: &mut Connection,
     path: &FsPath,
@@ -10993,7 +12193,7 @@ fn ensure_sqlite_bootstrap_user_context(
 ) -> Result<(), String> {
     let workspace_count: i64 = connection
         .query_row(
-            "SELECT COUNT(*) FROM workspaces WHERE is_deleted = 0",
+            "SELECT COUNT(*) FROM plus_workspace AS workspaces WHERE is_deleted = 0",
             [],
             |row| row.get(0),
         )
@@ -11004,7 +12204,7 @@ fn ensure_sqlite_bootstrap_user_context(
             .query_row(
                 r#"
                 SELECT id
-                FROM workspaces
+                FROM plus_workspace AS workspaces
                 WHERE is_deleted = 0
                 ORDER BY updated_at DESC, id ASC
                 LIMIT 1
@@ -11067,7 +12267,7 @@ fn ensure_sqlite_bootstrap_user_context(
 
     let bootstrap_project_count: i64 = transaction
         .query_row(
-            "SELECT COUNT(*) FROM projects WHERE is_deleted = 0",
+            "SELECT COUNT(*) FROM plus_project AS projects WHERE is_deleted = 0",
             [],
             |row| row.get(0),
         )
@@ -11098,7 +12298,7 @@ fn upsert_bootstrap_workspace(
     transaction
         .execute(
             r#"
-            INSERT INTO workspaces (
+            INSERT INTO plus_workspace AS workspaces (
                 id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                 data_scope, name, code, title, description, owner_id, leader_id, created_by_user_id, icon, color,
                 type, start_time, end_time, max_members, current_members, member_count, max_storage,
@@ -11139,10 +12339,10 @@ fn upsert_bootstrap_workspace(
                 BOOTSTRAP_WORKSPACE_ID,
                 &bootstrap_workspace_uuid,
                 SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                None::<String>,
+                SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                 bootstrap_timestamp,
                 bootstrap_timestamp,
-                DEFAULT_PRIVATE_DATA_SCOPE,
+                SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
                 BOOTSTRAP_WORKSPACE_NAME,
                 &bootstrap_workspace_code,
                 BOOTSTRAP_WORKSPACE_NAME,
@@ -11178,18 +12378,29 @@ fn archive_legacy_bootstrap_project(
     transaction
         .execute(
             r#"
-            UPDATE projects
+            UPDATE plus_project AS projects
             SET updated_at = ?2,
                 is_deleted = 1,
-                status = 'archived'
+                status = ?4
             WHERE id = ?1
               AND name = ?3
-              AND (root_path IS NULL OR TRIM(root_path) = '')
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM plus_project_content AS project_contents
+                  WHERE project_contents.project_id = projects.id
+                    AND project_contents.config_data IS NOT NULL
+                    AND TRIM(project_contents.config_data) <> ''
+                    AND (
+                        project_contents.config_data LIKE '%"rootPath"%'
+                        OR project_contents.config_data LIKE '%"root_path"%'
+                    )
+              )
             "#,
             params![
                 BOOTSTRAP_PROJECT_ID,
                 bootstrap_timestamp,
                 BOOTSTRAP_PROJECT_NAME,
+                project_status_storage_value(Some("archived")),
             ],
         )
         .map_err(|error| format!("archive legacy bootstrap project failed: {error}"))?;
@@ -11250,7 +12461,7 @@ fn upsert_bootstrap_team(
                 BOOTSTRAP_TEAM_ID,
                 &bootstrap_team_uuid,
                 SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                None::<String>,
+                SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                 bootstrap_timestamp,
                 bootstrap_timestamp,
                 preferred_workspace_id,
@@ -11275,44 +12486,92 @@ fn upsert_bootstrap_team_member(
     bootstrap_timestamp: &str,
 ) -> Result<(), String> {
     let team_member_uuid = Uuid::new_v4().to_string();
-    transaction
-        .execute(
-            r#"
-            INSERT INTO team_members (
-                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                team_id, user_id, role, created_by_user_id, granted_by_user_id, status
+    if sqlite_column_exists(transaction, PROVIDER_TEAM_MEMBERS_TABLE, "identity_id")? {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO team_members (
+                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                    team_id, identity_id, user_id, role, created_by_identity_id, granted_by_identity_id,
+                    created_by_user_id, granted_by_user_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+                ON CONFLICT(id)
+                DO UPDATE SET
+                    uuid = COALESCE(team_members.uuid, excluded.uuid),
+                    tenant_id = COALESCE(team_members.tenant_id, excluded.tenant_id),
+                    organization_id = COALESCE(team_members.organization_id, excluded.organization_id),
+                    updated_at = excluded.updated_at,
+                    is_deleted = 0,
+                    team_id = excluded.team_id,
+                    identity_id = excluded.identity_id,
+                    user_id = excluded.user_id,
+                    role = excluded.role,
+                    created_by_identity_id = excluded.created_by_identity_id,
+                    granted_by_identity_id = excluded.granted_by_identity_id,
+                    created_by_user_id = excluded.created_by_user_id,
+                    granted_by_user_id = excluded.granted_by_user_id,
+                    status = excluded.status
+                "#,
+                params![
+                    BOOTSTRAP_TEAM_MEMBER_ID,
+                    &team_member_uuid,
+                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                    bootstrap_timestamp,
+                    bootstrap_timestamp,
+                    BOOTSTRAP_TEAM_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "owner",
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "active",
+                ],
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12)
-            ON CONFLICT(id)
-            DO UPDATE SET
-                uuid = COALESCE(team_members.uuid, excluded.uuid),
-                tenant_id = COALESCE(team_members.tenant_id, excluded.tenant_id),
-                organization_id = COALESCE(team_members.organization_id, excluded.organization_id),
-                updated_at = excluded.updated_at,
-                is_deleted = 0,
-                team_id = excluded.team_id,
-                user_id = excluded.user_id,
-                role = excluded.role,
-                created_by_user_id = excluded.created_by_user_id,
-                granted_by_user_id = excluded.granted_by_user_id,
-                status = excluded.status
-            "#,
-            params![
-                BOOTSTRAP_TEAM_MEMBER_ID,
-                &team_member_uuid,
-                SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                None::<String>,
-                bootstrap_timestamp,
-                bootstrap_timestamp,
-                BOOTSTRAP_TEAM_ID,
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                "owner",
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                "active",
-            ],
-        )
-        .map_err(|error| format!("upsert bootstrap team member failed: {error}"))?;
+            .map_err(|error| format!("upsert bootstrap team member failed: {error}"))?;
+    } else {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO team_members (
+                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                    team_id, user_id, role, created_by_user_id, granted_by_user_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12)
+                ON CONFLICT(id)
+                DO UPDATE SET
+                    uuid = COALESCE(team_members.uuid, excluded.uuid),
+                    tenant_id = COALESCE(team_members.tenant_id, excluded.tenant_id),
+                    organization_id = COALESCE(team_members.organization_id, excluded.organization_id),
+                    updated_at = excluded.updated_at,
+                    is_deleted = 0,
+                    team_id = excluded.team_id,
+                    user_id = excluded.user_id,
+                    role = excluded.role,
+                    created_by_user_id = excluded.created_by_user_id,
+                    granted_by_user_id = excluded.granted_by_user_id,
+                    status = excluded.status
+                "#,
+                params![
+                    BOOTSTRAP_TEAM_MEMBER_ID,
+                    &team_member_uuid,
+                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                    bootstrap_timestamp,
+                    bootstrap_timestamp,
+                    BOOTSTRAP_TEAM_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "owner",
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "active",
+                ],
+            )
+            .map_err(|error| format!("upsert bootstrap team member failed: {error}"))?;
+    }
 
     Ok(())
 }
@@ -11323,46 +12582,96 @@ fn upsert_bootstrap_workspace_member(
     bootstrap_timestamp: &str,
 ) -> Result<(), String> {
     let workspace_member_uuid = Uuid::new_v4().to_string();
-    transaction
-        .execute(
-            r#"
-            INSERT INTO workspace_members (
-                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
+    if sqlite_column_exists(transaction, "workspace_members", "identity_id")? {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO workspace_members (
+                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                    workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
+                    granted_by_identity_id, created_by_user_id, granted_by_user_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+                ON CONFLICT(id)
+                DO UPDATE SET
+                    uuid = COALESCE(workspace_members.uuid, excluded.uuid),
+                    tenant_id = COALESCE(workspace_members.tenant_id, excluded.tenant_id),
+                    organization_id = COALESCE(workspace_members.organization_id, excluded.organization_id),
+                    updated_at = excluded.updated_at,
+                    is_deleted = 0,
+                    workspace_id = excluded.workspace_id,
+                    identity_id = excluded.identity_id,
+                    user_id = excluded.user_id,
+                    team_id = excluded.team_id,
+                    role = excluded.role,
+                    created_by_identity_id = excluded.created_by_identity_id,
+                    granted_by_identity_id = excluded.granted_by_identity_id,
+                    created_by_user_id = excluded.created_by_user_id,
+                    granted_by_user_id = excluded.granted_by_user_id,
+                    status = excluded.status
+                "#,
+                params![
+                    BOOTSTRAP_WORKSPACE_MEMBER_ID,
+                    &workspace_member_uuid,
+                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                    bootstrap_timestamp,
+                    bootstrap_timestamp,
+                    preferred_workspace_id,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_TEAM_ID,
+                    "owner",
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "active",
+                ],
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-            ON CONFLICT(id)
-            DO UPDATE SET
-                uuid = COALESCE(workspace_members.uuid, excluded.uuid),
-                tenant_id = COALESCE(workspace_members.tenant_id, excluded.tenant_id),
-                organization_id = COALESCE(workspace_members.organization_id, excluded.organization_id),
-                updated_at = excluded.updated_at,
-                is_deleted = 0,
-                workspace_id = excluded.workspace_id,
-                user_id = excluded.user_id,
-                team_id = excluded.team_id,
-                role = excluded.role,
-                created_by_user_id = excluded.created_by_user_id,
-                granted_by_user_id = excluded.granted_by_user_id,
-                status = excluded.status
-            "#,
-            params![
-                BOOTSTRAP_WORKSPACE_MEMBER_ID,
-                &workspace_member_uuid,
-                SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                None::<String>,
-                bootstrap_timestamp,
-                bootstrap_timestamp,
-                preferred_workspace_id,
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                BOOTSTRAP_TEAM_ID,
-                "owner",
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                "active",
-            ],
-        )
-        .map_err(|error| format!("upsert bootstrap workspace member failed: {error}"))?;
+            .map_err(|error| format!("upsert bootstrap workspace member failed: {error}"))?;
+    } else {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO workspace_members (
+                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                    workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                ON CONFLICT(id)
+                DO UPDATE SET
+                    uuid = COALESCE(workspace_members.uuid, excluded.uuid),
+                    tenant_id = COALESCE(workspace_members.tenant_id, excluded.tenant_id),
+                    organization_id = COALESCE(workspace_members.organization_id, excluded.organization_id),
+                    updated_at = excluded.updated_at,
+                    is_deleted = 0,
+                    workspace_id = excluded.workspace_id,
+                    user_id = excluded.user_id,
+                    team_id = excluded.team_id,
+                    role = excluded.role,
+                    created_by_user_id = excluded.created_by_user_id,
+                    granted_by_user_id = excluded.granted_by_user_id,
+                    status = excluded.status
+                "#,
+                params![
+                    BOOTSTRAP_WORKSPACE_MEMBER_ID,
+                    &workspace_member_uuid,
+                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                    bootstrap_timestamp,
+                    bootstrap_timestamp,
+                    preferred_workspace_id,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_TEAM_ID,
+                    "owner",
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "active",
+                ],
+            )
+            .map_err(|error| format!("upsert bootstrap workspace member failed: {error}"))?;
+    }
 
     Ok(())
 }
@@ -11381,7 +12690,7 @@ fn upsert_bootstrap_project(
         .query_row(
             r#"
             SELECT uuid, tenant_id, organization_id, data_scope, owner_id, leader_id, created_by_user_id
-            FROM workspaces
+            FROM plus_workspace AS workspaces
             WHERE id = ?1 AND is_deleted = 0
             LIMIT 1
             "#,
@@ -11389,12 +12698,12 @@ fn upsert_bootstrap_project(
             |row| {
                 Ok((
                     row.get::<_, Option<String>>(0)?,
-                    row.get::<_, Option<String>>(1)?,
-                    row.get::<_, Option<String>>(2)?,
-                    row.get::<_, Option<String>>(3)?,
-                    row.get::<_, Option<String>>(4)?,
-                    row.get::<_, Option<String>>(5)?,
-                    row.get::<_, Option<String>>(6)?,
+                    sqlite_row_optional_string_value(row, 1, "workspaces.tenant_id")?,
+                    sqlite_row_optional_string_value(row, 2, "workspaces.organization_id")?,
+                    sqlite_row_optional_data_scope_value(row, 3, "workspaces.data_scope")?,
+                    sqlite_row_optional_string_value(row, 4, "workspaces.owner_id")?,
+                    sqlite_row_optional_string_value(row, 5, "workspaces.leader_id")?,
+                    sqlite_row_optional_string_value(row, 6, "workspaces.created_by_user_id")?,
                 ))
             },
         )
@@ -11411,20 +12720,22 @@ fn upsert_bootstrap_project(
         workspace_created_by_user_id,
     ) = workspace_context.unwrap_or((None, None, None, None, None, None, None));
     let tenant_id = tenant_id.unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
+    let organization_id = normalize_organization_id_or_default(organization_id);
     let owner_id = workspace_owner_id
         .or(workspace_created_by_user_id.clone())
         .unwrap_or_else(|| BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_owned());
     let leader_id = workspace_leader_id.unwrap_or_else(|| owner_id.clone());
     let created_by_user_id = workspace_created_by_user_id
         .unwrap_or_else(|| BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_owned());
-    let data_scope =
-        workspace_data_scope.unwrap_or_else(|| DEFAULT_PRIVATE_DATA_SCOPE.to_owned());
+    let data_scope = workspace_data_scope.unwrap_or_else(|| DEFAULT_PRIVATE_DATA_SCOPE.to_owned());
+    let data_scope_storage_code = data_scope_storage_value(&data_scope);
     let project_uuid = Uuid::new_v4().to_string();
     let project_code = build_project_business_code(
         BOOTSTRAP_PROJECT_ID,
         BOOTSTRAP_PROJECT_NAME,
         Some(project_root_path.as_str()),
     );
+    let project_config_data = build_project_config_data(Some(project_root_path.as_str()));
     let project_owner_team_id = transaction
         .query_row(
             r#"
@@ -11445,15 +12756,14 @@ fn upsert_bootstrap_project(
     transaction
         .execute(
             r#"
-            INSERT INTO projects (
-                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                data_scope, user_id, parent_id, parent_uuid, parent_metadata,
-                workspace_id, workspace_uuid, name, code, title, description, root_path, site_path,
-                domain_prefix, owner_id, leader_id, created_by_user_id, author, file_id,
-                conversation_id, type, start_time, end_time, budget_amount, cover_image_json,
-                is_template, status
+            INSERT INTO plus_project AS projects (
+                id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
+                parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
+                author, file_id, code, type, site_path, domain_prefix, description, status,
+                conversation_id, workspace_id, workspace_uuid, leader_id, start_time, end_time,
+                budget_amount, is_deleted, is_template
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33)
+            VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, 0, ?30)
             ON CONFLICT(id)
             DO UPDATE SET
                 uuid = COALESCE(projects.uuid, excluded.uuid),
@@ -11472,19 +12782,16 @@ fn upsert_bootstrap_project(
                 code = excluded.code,
                 title = excluded.title,
                 description = excluded.description,
-                root_path = excluded.root_path,
+                cover_image = COALESCE(projects.cover_image, excluded.cover_image),
                 site_path = COALESCE(projects.site_path, excluded.site_path),
                 domain_prefix = COALESCE(projects.domain_prefix, excluded.domain_prefix),
-                owner_id = excluded.owner_id,
                 leader_id = excluded.leader_id,
-                created_by_user_id = excluded.created_by_user_id,
                 file_id = COALESCE(projects.file_id, excluded.file_id),
                 conversation_id = COALESCE(projects.conversation_id, excluded.conversation_id),
                 type = COALESCE(projects.type, excluded.type),
                 start_time = COALESCE(projects.start_time, excluded.start_time),
                 end_time = COALESCE(projects.end_time, excluded.end_time),
                 budget_amount = COALESCE(projects.budget_amount, excluded.budget_amount),
-                cover_image_json = COALESCE(projects.cover_image_json, excluded.cover_image_json),
                 is_template = COALESCE(projects.is_template, excluded.is_template),
                 author = COALESCE(projects.author, excluded.author),
                 status = excluded.status
@@ -11492,83 +12799,169 @@ fn upsert_bootstrap_project(
             params![
                 BOOTSTRAP_PROJECT_ID,
                 &project_uuid,
+                bootstrap_timestamp,
+                bootstrap_timestamp,
                 &tenant_id,
                 &organization_id,
-                bootstrap_timestamp,
-                bootstrap_timestamp,
-                &data_scope,
-                &created_by_user_id,
+                data_scope_storage_code,
                 DEFAULT_TREE_ROOT_ID,
                 DEFAULT_TREE_ROOT_UUID,
                 "{}",
+                &created_by_user_id,
+                BOOTSTRAP_PROJECT_NAME,
+                BOOTSTRAP_PROJECT_NAME,
+                None::<String>,
+                &created_by_user_id,
+                None::<String>,
+                &project_code,
+                project_type_storage_value(Some("SDK")),
+                None::<String>,
+                None::<String>,
+                BOOTSTRAP_PROJECT_DESCRIPTION,
+                project_status_storage_value(Some("active")),
+                None::<String>,
                 preferred_workspace_id,
                 &workspace_uuid,
-                BOOTSTRAP_PROJECT_NAME,
-                &project_code,
-                BOOTSTRAP_PROJECT_NAME,
-                BOOTSTRAP_PROJECT_DESCRIPTION,
-                &project_root_path,
-                None::<String>,
-                None::<String>,
-                &owner_id,
                 &leader_id,
-                &created_by_user_id,
-                &created_by_user_id,
-                None::<String>,
-                None::<String>,
-                "CODE",
                 None::<String>,
                 None::<String>,
                 None::<i64>,
-                None::<String>,
                 0_i64,
-                "active",
             ],
         )
         .map_err(|error| format!("upsert bootstrap project failed: {error}"))?;
     transaction
         .execute(
             r#"
-            INSERT INTO project_collaborators (
-                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
-                status
+            INSERT INTO plus_project_content (
+                id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
+                user_id, parent_id, project_id, project_uuid, config_data, content_data,
+                metadata, content_version, content_hash
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+            VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, NULL, NULL, '1.0', NULL)
             ON CONFLICT(id)
             DO UPDATE SET
-                uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
-                tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
-                organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
                 updated_at = excluded.updated_at,
-                is_deleted = 0,
-                project_id = excluded.project_id,
-                workspace_id = excluded.workspace_id,
+                tenant_id = excluded.tenant_id,
+                organization_id = excluded.organization_id,
+                data_scope = excluded.data_scope,
                 user_id = excluded.user_id,
-                team_id = excluded.team_id,
-                role = excluded.role,
-                created_by_user_id = excluded.created_by_user_id,
-                granted_by_user_id = excluded.granted_by_user_id,
-                status = excluded.status
+                parent_id = excluded.parent_id,
+                project_id = excluded.project_id,
+                project_uuid = excluded.project_uuid,
+                config_data = excluded.config_data
             "#,
             params![
-                BOOTSTRAP_PROJECT_COLLABORATOR_ID,
-                &project_collaborator_uuid,
+                BOOTSTRAP_PROJECT_ID,
+                Uuid::new_v4().to_string(),
+                bootstrap_timestamp,
+                bootstrap_timestamp,
                 &tenant_id,
                 &organization_id,
-                bootstrap_timestamp,
-                bootstrap_timestamp,
+                data_scope_storage_code,
+                &created_by_user_id,
+                DEFAULT_TREE_ROOT_ID,
                 BOOTSTRAP_PROJECT_ID,
-                preferred_workspace_id,
-                &owner_id,
-                &project_owner_team_id,
-                "owner",
-                &created_by_user_id,
-                &created_by_user_id,
-                "active",
+                &project_uuid,
+                &project_config_data,
             ],
         )
-        .map_err(|error| format!("upsert bootstrap project collaborator failed: {error}"))?;
+        .map_err(|error| format!("upsert bootstrap project content failed: {error}"))?;
+    if sqlite_column_exists(transaction, "project_collaborators", "identity_id")? {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO project_collaborators (
+                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                    project_id, workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
+                    granted_by_identity_id, created_by_user_id, granted_by_user_id, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+                ON CONFLICT(id)
+                DO UPDATE SET
+                    uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
+                    tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
+                    organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
+                    updated_at = excluded.updated_at,
+                    is_deleted = 0,
+                    project_id = excluded.project_id,
+                    workspace_id = excluded.workspace_id,
+                    identity_id = excluded.identity_id,
+                    user_id = excluded.user_id,
+                    team_id = excluded.team_id,
+                    role = excluded.role,
+                    created_by_identity_id = excluded.created_by_identity_id,
+                    granted_by_identity_id = excluded.granted_by_identity_id,
+                    created_by_user_id = excluded.created_by_user_id,
+                    granted_by_user_id = excluded.granted_by_user_id,
+                    status = excluded.status
+                "#,
+                params![
+                    BOOTSTRAP_PROJECT_COLLABORATOR_ID,
+                    &project_collaborator_uuid,
+                    &tenant_id,
+                    &organization_id,
+                    bootstrap_timestamp,
+                    bootstrap_timestamp,
+                    BOOTSTRAP_PROJECT_ID,
+                    preferred_workspace_id,
+                    &owner_id,
+                    &owner_id,
+                    &project_owner_team_id,
+                    "owner",
+                    &created_by_user_id,
+                    &created_by_user_id,
+                    &created_by_user_id,
+                    &created_by_user_id,
+                    "active",
+                ],
+            )
+            .map_err(|error| format!("upsert bootstrap project collaborator failed: {error}"))?;
+    } else {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO project_collaborators (
+                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                    project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
+                    status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                ON CONFLICT(id)
+                DO UPDATE SET
+                    uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
+                    tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
+                    organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
+                    updated_at = excluded.updated_at,
+                    is_deleted = 0,
+                    project_id = excluded.project_id,
+                    workspace_id = excluded.workspace_id,
+                    user_id = excluded.user_id,
+                    team_id = excluded.team_id,
+                    role = excluded.role,
+                    created_by_user_id = excluded.created_by_user_id,
+                    granted_by_user_id = excluded.granted_by_user_id,
+                    status = excluded.status
+                "#,
+                params![
+                    BOOTSTRAP_PROJECT_COLLABORATOR_ID,
+                    &project_collaborator_uuid,
+                    &tenant_id,
+                    &organization_id,
+                    bootstrap_timestamp,
+                    bootstrap_timestamp,
+                    BOOTSTRAP_PROJECT_ID,
+                    preferred_workspace_id,
+                    &owner_id,
+                    &project_owner_team_id,
+                    "owner",
+                    &created_by_user_id,
+                    &created_by_user_id,
+                    "active",
+                ],
+            )
+            .map_err(|error| format!("upsert bootstrap project collaborator failed: {error}"))?;
+    }
 
     Ok(())
 }
@@ -11594,6 +12987,10 @@ fn backfill_sqlite_authority_access_context(connection: &mut Connection) -> Resu
     let transaction = connection
         .transaction()
         .map_err(|error| format!("open authority access backfill transaction failed: {error}"))?;
+    let workspace_members_use_identity_columns =
+        sqlite_column_exists(&transaction, "workspace_members", "identity_id")?;
+    let project_collaborators_use_identity_columns =
+        sqlite_column_exists(&transaction, "project_collaborators", "identity_id")?;
 
     for (workspace_id, (owner_user_id, created_by_user_id)) in workspace_authority_pairs.iter() {
         let workspace_member_count: i64 = transaction
@@ -11605,32 +13002,69 @@ fn backfill_sqlite_authority_access_context(connection: &mut Connection) -> Resu
             .map_err(|error| format!("count workspace members during backfill failed: {error}"))?;
         if workspace_member_count == 0 {
             let workspace_member_id = create_identifier("workspace-member");
-            transaction
-                .execute(
-                    r#"
-                INSERT INTO workspace_members (
-                        id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                        workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
+            if workspace_members_use_identity_columns {
+                transaction
+                    .execute(
+                        r#"
+                    INSERT INTO workspace_members (
+                            id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                            workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
+                            granted_by_identity_id, created_by_user_id, granted_by_user_id, status
+                        )
+                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+                        "#,
+                        params![
+                            &workspace_member_id,
+                            Uuid::new_v4().to_string(),
+                            SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                            SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                            &now,
+                            &now,
+                            workspace_id,
+                            owner_user_id,
+                            owner_user_id,
+                            Option::<String>::None,
+                            "owner",
+                            created_by_user_id,
+                            created_by_user_id,
+                            created_by_user_id,
+                            created_by_user_id,
+                            "active",
+                        ],
                     )
-                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-                    "#,
-                    params![
-                        &workspace_member_id,
-                        Uuid::new_v4().to_string(),
-                        SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                        Option::<String>::None,
-                        &now,
-                        &now,
-                        workspace_id,
-                        owner_user_id,
-                        Option::<String>::None,
-                        "owner",
-                        created_by_user_id,
-                        created_by_user_id,
-                        "active",
-                    ],
-                )
-                .map_err(|error| format!("insert workspace access backfill member failed: {error}"))?;
+                    .map_err(|error| {
+                        format!("insert workspace access backfill member failed: {error}")
+                    })?;
+            } else {
+                transaction
+                    .execute(
+                        r#"
+                    INSERT INTO workspace_members (
+                            id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                            workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
+                        )
+                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                        "#,
+                        params![
+                            &workspace_member_id,
+                            Uuid::new_v4().to_string(),
+                            SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                            SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                            &now,
+                            &now,
+                            workspace_id,
+                            owner_user_id,
+                            Option::<String>::None,
+                            "owner",
+                            created_by_user_id,
+                            created_by_user_id,
+                            "active",
+                        ],
+                    )
+                    .map_err(|error| {
+                        format!("insert workspace access backfill member failed: {error}")
+                    })?;
+            }
         }
     }
 
@@ -11660,86 +13094,180 @@ fn backfill_sqlite_authority_access_context(connection: &mut Connection) -> Resu
                 create_identifier("project-collaborator")
             };
             if is_bootstrap_project {
-                transaction
-                    .execute(
-                        r#"
-                        INSERT INTO project_collaborators (
-                            id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                            project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
-                            status
+                if project_collaborators_use_identity_columns {
+                    transaction
+                        .execute(
+                            r#"
+                            INSERT INTO project_collaborators (
+                                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                                project_id, workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
+                                granted_by_identity_id, created_by_user_id, granted_by_user_id, status
+                            )
+                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+                            ON CONFLICT(id)
+                            DO UPDATE SET
+                                uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
+                                tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
+                                organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
+                                updated_at = excluded.updated_at,
+                                is_deleted = 0,
+                                project_id = excluded.project_id,
+                                workspace_id = excluded.workspace_id,
+                                identity_id = excluded.identity_id,
+                                user_id = excluded.user_id,
+                                team_id = excluded.team_id,
+                                role = excluded.role,
+                                created_by_identity_id = excluded.created_by_identity_id,
+                                granted_by_identity_id = excluded.granted_by_identity_id,
+                                created_by_user_id = excluded.created_by_user_id,
+                                granted_by_user_id = excluded.granted_by_user_id,
+                                status = excluded.status
+                            "#,
+                            params![
+                                &project_collaborator_id,
+                                Uuid::new_v4().to_string(),
+                                project.tenant_id
+                                    .clone()
+                                    .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
+                                &project.organization_id,
+                                &now,
+                                &now,
+                                &project.id,
+                                &project.workspace_id,
+                                &owner_user_id,
+                                &owner_user_id,
+                                Option::<String>::None,
+                                "owner",
+                                &created_by_user_id,
+                                &created_by_user_id,
+                                &created_by_user_id,
+                                &created_by_user_id,
+                                "active",
+                            ],
                         )
-                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
-                        ON CONFLICT(id)
-                        DO UPDATE SET
-                            uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
-                            tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
-                            organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
-                            updated_at = excluded.updated_at,
-                            is_deleted = 0,
-                            project_id = excluded.project_id,
-                            workspace_id = excluded.workspace_id,
-                            user_id = excluded.user_id,
-                            team_id = excluded.team_id,
-                            role = excluded.role,
-                            created_by_user_id = excluded.created_by_user_id,
-                            granted_by_user_id = excluded.granted_by_user_id,
-                            status = excluded.status
-                        "#,
-                        params![
-                            &project_collaborator_id,
-                            Uuid::new_v4().to_string(),
-                            project.tenant_id
-                                .clone()
-                                .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
-                            &project.organization_id,
-                            &now,
-                            &now,
-                            &project.id,
-                            &project.workspace_id,
-                            &owner_user_id,
-                            Option::<String>::None,
-                            "owner",
-                            &created_by_user_id,
-                            &created_by_user_id,
-                            "active",
-                        ],
-                    )
-                    .map_err(|error| {
-                        format!("upsert project access backfill bootstrap collaborator failed: {error}")
-                    })?;
+                        .map_err(|error| {
+                            format!("upsert project access backfill bootstrap collaborator failed: {error}")
+                        })?;
+                } else {
+                    transaction
+                        .execute(
+                            r#"
+                            INSERT INTO project_collaborators (
+                                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                                project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
+                                status
+                            )
+                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                            ON CONFLICT(id)
+                            DO UPDATE SET
+                                uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
+                                tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
+                                organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
+                                updated_at = excluded.updated_at,
+                                is_deleted = 0,
+                                project_id = excluded.project_id,
+                                workspace_id = excluded.workspace_id,
+                                user_id = excluded.user_id,
+                                team_id = excluded.team_id,
+                                role = excluded.role,
+                                created_by_user_id = excluded.created_by_user_id,
+                                granted_by_user_id = excluded.granted_by_user_id,
+                                status = excluded.status
+                            "#,
+                            params![
+                                &project_collaborator_id,
+                                Uuid::new_v4().to_string(),
+                                project.tenant_id
+                                    .clone()
+                                    .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
+                                &project.organization_id,
+                                &now,
+                                &now,
+                                &project.id,
+                                &project.workspace_id,
+                                &owner_user_id,
+                                Option::<String>::None,
+                                "owner",
+                                &created_by_user_id,
+                                &created_by_user_id,
+                                "active",
+                            ],
+                        )
+                        .map_err(|error| {
+                            format!("upsert project access backfill bootstrap collaborator failed: {error}")
+                        })?;
+                }
             } else {
-                transaction
-                    .execute(
-                        r#"
-                        INSERT INTO project_collaborators (
-                            id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                            project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
-                            status
+                if project_collaborators_use_identity_columns {
+                    transaction
+                        .execute(
+                            r#"
+                            INSERT INTO project_collaborators (
+                                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                                project_id, workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
+                                granted_by_identity_id, created_by_user_id, granted_by_user_id, status
+                            )
+                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+                            "#,
+                            params![
+                                &project_collaborator_id,
+                                Uuid::new_v4().to_string(),
+                                project.tenant_id
+                                    .clone()
+                                    .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
+                                &project.organization_id,
+                                &now,
+                                &now,
+                                &project.id,
+                                &project.workspace_id,
+                                &owner_user_id,
+                                &owner_user_id,
+                                Option::<String>::None,
+                                "owner",
+                                &created_by_user_id,
+                                &created_by_user_id,
+                                &created_by_user_id,
+                                &created_by_user_id,
+                                "active",
+                            ],
                         )
-                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
-                        "#,
-                        params![
-                            &project_collaborator_id,
-                            Uuid::new_v4().to_string(),
-                            project.tenant_id
-                                .clone()
-                                .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
-                            &project.organization_id,
-                            &now,
-                            &now,
-                            &project.id,
-                            &project.workspace_id,
-                            &owner_user_id,
-                            Option::<String>::None,
-                            "owner",
-                            &created_by_user_id,
-                            &created_by_user_id,
-                            "active",
-                        ],
-                    )
-                    .map_err(|error| {
-                        format!("insert project access backfill collaborator failed: {error}")
-                    })?;
+                        .map_err(|error| {
+                            format!("insert project access backfill collaborator failed: {error}")
+                        })?;
+                } else {
+                    transaction
+                        .execute(
+                            r#"
+                            INSERT INTO project_collaborators (
+                                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                                project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
+                                status
+                            )
+                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                            "#,
+                            params![
+                                &project_collaborator_id,
+                                Uuid::new_v4().to_string(),
+                                project.tenant_id
+                                    .clone()
+                                    .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
+                                &project.organization_id,
+                                &now,
+                                &now,
+                                &project.id,
+                                &project.workspace_id,
+                                &owner_user_id,
+                                Option::<String>::None,
+                                "owner",
+                                &created_by_user_id,
+                                &created_by_user_id,
+                                "active",
+                            ],
+                        )
+                        .map_err(|error| {
+                            format!("insert project access backfill collaborator failed: {error}")
+                        })?;
+                }
             }
         }
     }
@@ -11788,6 +13316,7 @@ impl ProjectionReadState {
             host_mode: "server".to_owned(),
             engine_id: "codex".to_owned(),
             model_id: "gpt-5-codex".to_owned(),
+            native_session_id: None,
             created_at: "2026-04-10T00:00:00Z".to_owned(),
             updated_at: "2026-04-10T00:00:03Z".to_owned(),
             last_turn_at: Some("2026-04-10T00:00:01Z".to_owned()),
@@ -11925,6 +13454,17 @@ impl ProjectionReadState {
                 model_id: latest_runtime
                     .map(|runtime| runtime.model_id.clone())
                     .unwrap_or(session.model_id),
+                native_session_id: latest_runtime.and_then(|runtime| {
+                    runtime
+                        .native_session_id
+                        .as_ref()
+                        .and_then(|native_session_id| {
+                            normalize_attached_native_session_id(
+                                runtime.engine_id.as_str(),
+                                native_session_id.as_str(),
+                            )
+                        })
+                }),
                 created_at: session.created_at.clone(),
                 updated_at: resolve_latest_storage_timestamp_from_candidates(&[
                     Some(session.updated_at.as_str()),
@@ -11932,7 +13472,7 @@ impl ProjectionReadState {
                 ])
                 .unwrap_or(session.updated_at),
                 last_turn_at: session.last_turn_at,
-                runtime_status: None,
+                runtime_status: latest_runtime.map(|runtime| runtime.status.clone()),
                 sort_timestamp: 0,
                 transcript_updated_at: None,
             });
@@ -12165,6 +13705,15 @@ impl ProjectionReadState {
                     .map(|context| (coding_session_id.clone(), context))
             })
     }
+
+    fn user_question_context(&self, question_id: &str) -> Option<(String, UserQuestionContext)> {
+        self.sessions
+            .iter()
+            .find_map(|(coding_session_id, snapshot)| {
+                find_user_question_context(snapshot, question_id)
+                    .map(|context| (coding_session_id.clone(), context))
+            })
+    }
 }
 
 impl ProjectionAuthorityState {
@@ -12212,6 +13761,14 @@ impl ProjectionAuthorityState {
             .is_some()
     }
 
+    fn has_user_question(&self, question_id: &str) -> bool {
+        self.state
+            .read()
+            .expect("read projection authority state")
+            .user_question_context(question_id)
+            .is_some()
+    }
+
     fn create_coding_session(
         &self,
         input: CreateCodingSessionInput,
@@ -12226,10 +13783,11 @@ impl ProjectionAuthorityState {
             host_mode: input.host_mode.clone(),
             engine_id: input.engine_id.clone(),
             model_id: input.model_id.clone(),
+            native_session_id: None,
             created_at: timestamp.clone(),
             updated_at: timestamp.clone(),
             last_turn_at: Some(timestamp.clone()),
-            runtime_status: None,
+            runtime_status: Some("initializing".to_owned()),
             sort_timestamp: parse_storage_timestamp_millis(timestamp.as_str()).unwrap_or_default(),
             transcript_updated_at: None,
         };
@@ -12260,6 +13818,107 @@ impl ProjectionAuthorityState {
         }
 
         Ok(session)
+    }
+
+    fn initialize_coding_session_runtime(
+        &self,
+        coding_session_id: &str,
+    ) -> Result<Option<CodingSessionPayload>, String> {
+        let session = self
+            .session(coding_session_id)
+            .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
+        if !should_retry_coding_session_runtime_initialization(session.runtime_status.as_deref()) {
+            return Ok(None);
+        }
+
+        let initialization_result = resolve_authoritative_engine_runtime_profile(
+            session.engine_id.as_str(),
+            session.host_mode.as_str(),
+        );
+        let (runtime_status, runtime_profile, initialization_error) = match initialization_result {
+            Ok(runtime_profile) => ("ready", Some(runtime_profile), None),
+            Err(error) => ("failed", None, Some(error)),
+        };
+
+        if let Some(sqlite_file) = self.sqlite_file.as_deref() {
+            let mut connection = Connection::open(sqlite_file).map_err(|error| {
+                format!(
+                    "open sqlite coding-session runtime initialization authority {} failed: {error}",
+                    sqlite_file.display()
+                )
+            })?;
+            ensure_sqlite_provider_authority(&mut connection, sqlite_file)?;
+            let did_update = persist_coding_session_runtime_initialization_result_to_provider(
+                &mut connection,
+                coding_session_id,
+                runtime_status,
+                runtime_profile.as_ref(),
+                initialization_error.as_deref(),
+            )?;
+            if !did_update {
+                return Ok(None);
+            }
+            let reloaded_state = ProjectionReadState::from_sqlite_provider_connection(&connection)?;
+            *self
+                .state
+                .write()
+                .expect("write projection authority state") = reloaded_state;
+            return Ok(self.session(coding_session_id));
+        }
+
+        let updated_at = current_session_timestamp();
+        let mut state = self
+            .state
+            .write()
+            .expect("write projection authority state");
+        let snapshot = state
+            .sessions
+            .get_mut(coding_session_id)
+            .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
+        let current_runtime_status = resolve_projection_runtime_status(snapshot.events.as_slice())
+            .or_else(|| {
+                snapshot
+                    .session
+                    .as_ref()
+                    .and_then(|session| session.runtime_status.clone())
+            });
+        if !should_retry_coding_session_runtime_initialization(current_runtime_status.as_deref()) {
+            return Ok(None);
+        }
+
+        let runtime_id = derive_runtime_id(snapshot, coding_session_id);
+        let event_sequence = next_event_sequence(snapshot);
+        if let Some(session) = snapshot.session.as_mut() {
+            session.runtime_status = Some(runtime_status.to_owned());
+            session.updated_at = updated_at.clone();
+        }
+        let mut payload = build_demo_metadata(&[
+            ("engineId", session.engine_id.as_str()),
+            ("runtimeStatus", runtime_status),
+        ]);
+        if let Some(error) = initialization_error.as_deref() {
+            payload.insert("error".to_owned(), error.to_owned());
+        }
+        snapshot.events.push(CodingSessionEventPayload {
+            id: format!(
+                "{coding_session_id}:{runtime_id}:event:{event_sequence}:session-initialized"
+            ),
+            coding_session_id: coding_session_id.to_owned(),
+            turn_id: None,
+            runtime_id: Some(runtime_id),
+            kind: "session.started".to_owned(),
+            sequence: event_sequence,
+            payload,
+            created_at: updated_at,
+        });
+
+        Ok(snapshot.session.as_ref().map(|session| {
+            normalize_coding_session_payload(
+                session,
+                resolve_projection_transcript_updated_at(snapshot.events.as_slice()),
+                resolve_projection_runtime_status(snapshot.events.as_slice()),
+            )
+        }))
     }
 
     fn fork_coding_session(
@@ -12643,10 +14302,96 @@ impl ProjectionAuthorityState {
         })
     }
 
+    fn append_coding_session_message_delta(
+        &self,
+        pending: &PendingProjectionTurnExecution,
+        role: &str,
+        content_delta: &str,
+        native_session_id: Option<&str>,
+    ) -> Result<Option<String>, String> {
+        let normalized_role = role.trim();
+        let normalized_content_delta = content_delta;
+        if normalized_role.is_empty() || normalized_content_delta.is_empty() {
+            return Ok(None);
+        }
+
+        let coding_session_id = pending.turn.coding_session_id.as_str();
+        let runtime_id = pending
+            .turn
+            .runtime_id
+            .as_deref()
+            .ok_or("coding session turn runtimeId is required.")?;
+        let created_at = current_session_timestamp();
+
+        if let Some(sqlite_file) = self.sqlite_file.as_deref() {
+            let mut connection = Connection::open(sqlite_file).map_err(|error| {
+                format!(
+                    "open sqlite coding-session streaming authority {} failed: {error}",
+                    sqlite_file.display()
+                )
+            })?;
+            ensure_sqlite_provider_authority(&mut connection, sqlite_file)?;
+            let provider_state = ProjectionReadState::from_sqlite_provider_connection(&connection)?;
+            let snapshot = provider_state
+                .session_snapshot(coding_session_id)
+                .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
+            let event = build_streaming_coding_session_message_delta_event(
+                coding_session_id,
+                runtime_id,
+                pending.turn.id.as_str(),
+                pending.operation.operation_id.as_str(),
+                normalized_role,
+                normalized_content_delta,
+                next_event_sequence(&snapshot),
+                created_at.as_str(),
+                native_session_id,
+            );
+            persist_streaming_coding_session_message_delta_to_provider(
+                &mut connection,
+                &event,
+                native_session_id,
+            )?;
+            let reloaded_state = ProjectionReadState::from_sqlite_provider_connection(&connection)?;
+            *self
+                .state
+                .write()
+                .expect("write projection authority state") = reloaded_state;
+            return Ok(Some(created_at));
+        }
+
+        let mut state = self
+            .state
+            .write()
+            .expect("write projection authority state");
+        let snapshot = state
+            .sessions
+            .get_mut(coding_session_id)
+            .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
+        let event = build_streaming_coding_session_message_delta_event(
+            coding_session_id,
+            runtime_id,
+            pending.turn.id.as_str(),
+            pending.operation.operation_id.as_str(),
+            normalized_role,
+            normalized_content_delta,
+            next_event_sequence(snapshot),
+            created_at.as_str(),
+            native_session_id,
+        );
+        if let Some(session) = snapshot.session.as_mut() {
+            session.updated_at = created_at.clone();
+            session.last_turn_at = Some(created_at.clone());
+        }
+        snapshot.events.push(event);
+
+        Ok(Some(created_at))
+    }
+
     fn complete_coding_session_turn(
         &self,
         pending: &PendingProjectionTurnExecution,
         assistant_content: &str,
+        commands: Option<&[native_sessions::NativeSessionCommandPayload]>,
         resolved_native_session_id: Option<&str>,
     ) -> Result<CodingSessionTurnPayload, String> {
         let completed_at = current_session_timestamp();
@@ -12675,6 +14420,7 @@ impl ProjectionAuthorityState {
             completed_turn.id.as_str(),
             completed_operation.operation_id.as_str(),
             assistant_content,
+            commands,
             next_event_sequence(&snapshot),
             completed_at.as_str(),
             resolved_native_session_id,
@@ -12887,6 +14633,81 @@ impl ProjectionAuthorityState {
             .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
         apply_approval_decision_to_snapshot(snapshot, &context, approval_id, &input, &decided_at)
     }
+
+    fn submit_user_question_answer(
+        &self,
+        question_id: &str,
+        input: SubmitUserQuestionAnswerInput,
+    ) -> Result<UserQuestionAnswerPayload, String> {
+        let answered_at = current_session_timestamp();
+
+        if let Some(sqlite_file) = self.sqlite_file.as_deref() {
+            let mut connection = Connection::open(sqlite_file).map_err(|error| {
+                format!(
+                    "open sqlite user question authority {} failed: {error}",
+                    sqlite_file.display()
+                )
+            })?;
+            ensure_sqlite_provider_authority(&mut connection, sqlite_file)?;
+            let reloaded_state = ProjectionReadState::from_sqlite_provider_connection(&connection)?;
+            let (coding_session_id, context) = reloaded_state
+                .user_question_context(question_id)
+                .ok_or_else(|| format!("user question {question_id} was not found"))?;
+            let answer = persist_user_question_answer_to_provider(
+                &mut connection,
+                &reloaded_state,
+                &coding_session_id,
+                &context,
+                question_id,
+                &input,
+                &answered_at,
+            )?;
+            let refreshed_state =
+                ProjectionReadState::from_sqlite_provider_connection(&connection)?;
+            *self
+                .state
+                .write()
+                .expect("write projection authority state") = refreshed_state;
+            return Ok(answer);
+        }
+
+        let mut state = self
+            .state
+            .write()
+            .expect("write projection authority state");
+        let (coding_session_id, context) = state
+            .user_question_context(question_id)
+            .ok_or_else(|| format!("user question {question_id} was not found"))?;
+        let snapshot = state
+            .sessions
+            .get_mut(&coding_session_id)
+            .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
+        Ok(apply_user_question_answer_to_snapshot(
+            snapshot,
+            &context,
+            question_id,
+            &input,
+            &answered_at,
+        ))
+    }
+}
+
+struct CodingSessionRealtimeEventInput {
+    event_kind: &'static str,
+    source_surface: &'static str,
+    workspace_id: String,
+    project_id: String,
+    project_root_path: Option<String>,
+    coding_session_id: String,
+    coding_session_title: String,
+    coding_session_status: String,
+    coding_session_host_mode: String,
+    coding_session_engine_id: String,
+    coding_session_model_id: String,
+    coding_session_runtime_status: Option<String>,
+    native_session_id: Option<String>,
+    coding_session_updated_at: Option<String>,
+    turn_id: Option<String>,
 }
 
 impl AppState {
@@ -12983,6 +14804,7 @@ impl AppState {
         coding_session_engine_id: Option<String>,
         coding_session_model_id: Option<String>,
         coding_session_runtime_status: Option<String>,
+        native_session_id: Option<String>,
         coding_session_updated_at: Option<String>,
         turn_id: Option<String>,
     ) {
@@ -13000,11 +14822,98 @@ impl AppState {
             coding_session_engine_id,
             coding_session_model_id,
             coding_session_runtime_status,
+            native_session_id,
             turn_id,
             occurred_at: current_storage_timestamp(),
             project_updated_at,
             coding_session_updated_at,
             source_surface: source_surface.to_owned(),
+        });
+    }
+
+    fn resolve_workspace_realtime_project_metadata(
+        &self,
+        project_id: &str,
+        fallback_project_root_path: Option<String>,
+    ) -> (Option<String>, Option<String>, Option<String>) {
+        let normalized_project_id = project_id.trim();
+        if normalized_project_id.is_empty() {
+            return (None, fallback_project_root_path, None);
+        }
+
+        let project = self
+            .read_app_admin_state()
+            .projects
+            .into_iter()
+            .find(|candidate| candidate.id == normalized_project_id);
+        let project_name = project
+            .as_ref()
+            .map(|candidate| candidate.name.clone())
+            .or_else(|| Some(normalized_project_id.to_owned()));
+        let project_root_path = project
+            .as_ref()
+            .and_then(|candidate| candidate.root_path.clone())
+            .or(fallback_project_root_path);
+        let project_updated_at = project
+            .as_ref()
+            .and_then(|candidate| candidate.updated_at.clone());
+
+        (project_name, project_root_path, project_updated_at)
+    }
+
+    fn publish_coding_session_realtime_event(&self, input: CodingSessionRealtimeEventInput) {
+        let project_id = input.project_id;
+        let (project_name, project_root_path, project_updated_at) = self
+            .resolve_workspace_realtime_project_metadata(
+                project_id.as_str(),
+                input.project_root_path,
+            );
+
+        self.publish_workspace_realtime_event(
+            input.event_kind,
+            input.source_surface,
+            input.workspace_id,
+            Some(project_id),
+            project_name,
+            project_root_path,
+            project_updated_at,
+            Some(input.coding_session_id),
+            Some(input.coding_session_title),
+            Some(input.coding_session_status),
+            Some(input.coding_session_host_mode),
+            Some(input.coding_session_engine_id),
+            Some(input.coding_session_model_id),
+            input.coding_session_runtime_status,
+            input.native_session_id,
+            input.coding_session_updated_at,
+            input.turn_id,
+        );
+    }
+
+    fn publish_streaming_coding_session_delta_realtime_event(
+        &self,
+        pending: &PendingProjectionTurnExecution,
+        updated_at: String,
+    ) {
+        self.publish_coding_session_realtime_event(CodingSessionRealtimeEventInput {
+            event_kind: "coding-session.updated",
+            source_surface: "core",
+            workspace_id: pending.session.workspace_id.clone(),
+            project_id: pending.session.project_id.clone(),
+            project_root_path: pending
+                .working_directory
+                .as_ref()
+                .map(|path| path.to_string_lossy().to_string()),
+            coding_session_id: pending.session.id.clone(),
+            coding_session_title: pending.session.title.clone(),
+            coding_session_status: pending.session.status.clone(),
+            coding_session_host_mode: pending.session.host_mode.clone(),
+            coding_session_engine_id: pending.session.engine_id.clone(),
+            coding_session_model_id: pending.session.model_id.clone(),
+            coding_session_runtime_status: Some("streaming".to_owned()),
+            native_session_id: pending.session.native_session_id.clone(),
+            coding_session_updated_at: Some(updated_at),
+            turn_id: Some(pending.turn.id.clone()),
         });
     }
 
@@ -13295,7 +15204,62 @@ impl AppState {
     }
 }
 
-const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 76] = [
+fn publish_coding_session_runtime_update(state: &AppState, session: &CodingSessionPayload) {
+    state.publish_coding_session_realtime_event(CodingSessionRealtimeEventInput {
+        event_kind: "coding-session.updated",
+        source_surface: "core",
+        workspace_id: session.workspace_id.clone(),
+        project_id: session.project_id.clone(),
+        project_root_path: None,
+        coding_session_id: session.id.clone(),
+        coding_session_title: session.title.clone(),
+        coding_session_status: session.status.clone(),
+        coding_session_host_mode: session.host_mode.clone(),
+        coding_session_engine_id: session.engine_id.clone(),
+        coding_session_model_id: session.model_id.clone(),
+        coding_session_runtime_status: session.runtime_status.clone(),
+        native_session_id: session.native_session_id.clone(),
+        coding_session_updated_at: Some(session.updated_at.clone()),
+        turn_id: None,
+    });
+}
+
+fn schedule_coding_session_runtime_initialization_if_needed(
+    state: &AppState,
+    session: &CodingSessionPayload,
+) {
+    if !should_retry_coding_session_runtime_initialization(session.runtime_status.as_deref()) {
+        return;
+    }
+    if state
+        .projections
+        .session_snapshot(session.id.as_str())
+        .is_none()
+    {
+        return;
+    }
+
+    let background_state = state.clone();
+    let coding_session_id = session.id.clone();
+    tokio::spawn(async move {
+        match background_state
+            .projections
+            .initialize_coding_session_runtime(coding_session_id.as_str())
+        {
+            Ok(Some(updated_session)) => {
+                publish_coding_session_runtime_update(&background_state, &updated_session);
+            }
+            Ok(None) => {}
+            Err(error) => {
+                eprintln!(
+                    "Failed to initialize coding session runtime {coding_session_id}: {error}"
+                );
+            }
+        }
+    });
+}
+
+const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 77] = [
     RouteSpec {
         method: "get",
         operation_id: "core.getDescriptor",
@@ -13448,6 +15412,13 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 76] = [
         operation_id: "core.submitApprovalDecision",
         path: "/api/core/v1/approvals/:approvalId/decision",
         summary: "Submit approval decision",
+        tag: "core",
+    },
+    RouteSpec {
+        method: "post",
+        operation_id: "core.submitUserQuestionAnswer",
+        path: "/api/core/v1/questions/:questionId/answer",
+        summary: "Submit user question answer",
         tag: "core",
     },
     RouteSpec {
@@ -14083,6 +16054,8 @@ struct WorkspaceRealtimeEventPayload {
     coding_session_model_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     coding_session_runtime_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    native_session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     turn_id: Option<String>,
     occurred_at: String,
@@ -15299,8 +17272,16 @@ async fn app_create_workspace(
     let requested_max_members = request.max_members;
     let requested_current_members = request.current_members;
     let requested_member_count = request.member_count;
-    let requested_max_storage = request.max_storage;
-    let requested_used_storage = request.used_storage;
+    let requested_max_storage = parse_optional_long_integer_request_value(
+        request.max_storage,
+        "maxStorage",
+        "create-workspace-invalid",
+    )?;
+    let requested_used_storage = parse_optional_long_integer_request_value(
+        request.used_storage,
+        "usedStorage",
+        "create-workspace-invalid",
+    )?;
     let requested_settings =
         normalize_optional_json_object_value(request.settings, "workspace settings").map_err(
             |message| {
@@ -15333,8 +17314,9 @@ async fn app_create_workspace(
         .unwrap_or_else(|| BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_owned());
     let tenant_id =
         requested_tenant_id.unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-    let organization_id = requested_organization_id;
+    let organization_id = normalize_organization_id_or_default(requested_organization_id);
     let data_scope = requested_data_scope.unwrap_or_else(|| DEFAULT_PRIVATE_DATA_SCOPE.to_owned());
+    let data_scope_storage_code = data_scope_storage_value(&data_scope);
     let owner_id = requested_owner_id.unwrap_or_else(|| {
         current_user_id
             .clone()
@@ -15379,7 +17361,7 @@ async fn app_create_workspace(
     transaction
         .execute(
             r#"
-            INSERT INTO workspaces (
+            INSERT INTO plus_workspace AS workspaces (
                 id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                 data_scope, name, code, title, description, owner_id, leader_id, created_by_user_id, icon, color,
                 type, start_time, end_time, max_members, current_members, member_count, max_storage,
@@ -15393,7 +17375,7 @@ async fn app_create_workspace(
                 &organization_id,
                 &now,
                 &now,
-                &data_scope,
+                data_scope_storage_code,
                 &name,
                 &workspace_code,
                 &workspace_title,
@@ -15610,6 +17592,7 @@ async fn app_update_workspace(
     let next_data_scope = normalized_data_scope
         .or_else(|| existing_workspace.data_scope.clone())
         .unwrap_or_else(|| DEFAULT_PRIVATE_DATA_SCOPE.to_owned());
+    let next_data_scope_storage_value = data_scope_storage_value(&next_data_scope);
     let next_code = request
         .code
         .and_then(normalize_required_string)
@@ -15658,8 +17641,42 @@ async fn app_update_workspace(
     let next_member_count = request
         .member_count
         .or_else(|| existing_workspace.member_count.map(|value| value as i64));
-    let next_max_storage = request.max_storage.or(existing_workspace.max_storage);
-    let next_used_storage = request.used_storage.or(existing_workspace.used_storage);
+    let requested_max_storage = parse_optional_long_integer_request_value(
+        request.max_storage,
+        "maxStorage",
+        "update-workspace-invalid",
+    )?;
+    let requested_used_storage = parse_optional_long_integer_request_value(
+        request.used_storage,
+        "usedStorage",
+        "update-workspace-invalid",
+    )?;
+    let existing_max_storage = parse_optional_long_integer_decimal_string(
+        existing_workspace.max_storage.clone(),
+        "maxStorage",
+    )
+    .map_err(|message| {
+        problem_response(
+            "update-workspace-existing-long-integer-invalid",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            message,
+        )
+    })?;
+    let existing_used_storage = parse_optional_long_integer_decimal_string(
+        existing_workspace.used_storage.clone(),
+        "usedStorage",
+    )
+    .map_err(|message| {
+        problem_response(
+            "update-workspace-existing-long-integer-invalid",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            message,
+        )
+    })?;
+    let next_max_storage = requested_max_storage.or(existing_max_storage);
+    let next_used_storage = requested_used_storage.or(existing_used_storage);
     let next_settings = match request.settings {
         Some(settings) => {
             normalize_optional_json_object_value(Some(settings), "workspace settings").map_err(
@@ -15699,7 +17716,7 @@ async fn app_update_workspace(
     connection
         .execute(
             r#"
-            UPDATE workspaces
+            UPDATE plus_workspace AS workspaces
             SET
                 updated_at = ?2,
                 name = ?3,
@@ -15729,7 +17746,7 @@ async fn app_update_workspace(
             params![
                 &normalized_workspace_id,
                 current_storage_timestamp(),
-                &next_data_scope,
+                next_data_scope_storage_value,
                 &next_name,
                 &next_code,
                 &next_title,
@@ -15811,7 +17828,7 @@ async fn app_delete_workspace(
     let deleted_count = connection
         .execute(
             r#"
-            UPDATE workspaces
+            UPDATE plus_workspace AS workspaces
             SET is_deleted = 1, updated_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -15838,7 +17855,7 @@ async fn app_delete_workspace(
     connection
         .execute(
             r#"
-            UPDATE projects
+            UPDATE plus_project AS projects
             SET is_deleted = 1, updated_at = ?2
             WHERE workspace_id = ?1 AND is_deleted = 0
             "#,
@@ -16621,8 +18638,12 @@ async fn app_install_skill_package(
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, Option<String>>(1)?,
-                    row.get::<_, Option<String>>(2)?,
-                    row.get::<_, Option<String>>(3)?,
+                    sqlite_row_optional_string_value(row, 2, "skill_installations.tenant_id")?,
+                    sqlite_row_optional_string_value(
+                        row,
+                        3,
+                        "skill_installations.organization_id",
+                    )?,
                     row.get::<_, String>(4)?,
                     row.get::<_, String>(5)?,
                 ))
@@ -16715,7 +18736,7 @@ async fn app_install_skill_package(
             id: installation_id,
             uuid: Some(installation_uuid),
             tenant_id: Some(scope_tenant_id),
-            organization_id: scope_organization_id,
+            organization_id: Some(scope_organization_id),
             created_at: Some(created_at),
             updated_at: Some(updated_at),
             package_id: resolved_package_id,
@@ -16817,7 +18838,11 @@ async fn app_create_project(
     let requested_conversation_id = normalize_optional_string(request.conversation_id);
     let requested_start_time = normalize_optional_string(request.start_time);
     let requested_end_time = normalize_optional_string(request.end_time);
-    let requested_budget_amount = request.budget_amount;
+    let requested_budget_amount = parse_optional_long_integer_request_value(
+        request.budget_amount,
+        "budgetAmount",
+        "create-project-invalid",
+    )?;
     let requested_cover_image =
         normalize_optional_json_object_value(request.cover_image, "project coverImage").map_err(
             |message| {
@@ -16925,10 +18950,13 @@ async fn app_create_project(
     let tenant_id = requested_tenant_id
         .or_else(|| workspace.tenant_id.clone())
         .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
-    let organization_id = requested_organization_id.or_else(|| workspace.organization_id.clone());
+    let organization_id = normalize_organization_id_or_default(
+        requested_organization_id.or_else(|| workspace.organization_id.clone()),
+    );
     let data_scope = requested_data_scope
         .or_else(|| workspace.data_scope.clone())
         .unwrap_or_else(|| DEFAULT_PRIVATE_DATA_SCOPE.to_owned());
+    let data_scope_storage_code = data_scope_storage_value(&data_scope);
     let owner_id = requested_owner_id.unwrap_or_else(|| {
         current_user_id
             .clone()
@@ -16939,8 +18967,7 @@ async fn app_create_project(
     let user_id = requested_user_id.unwrap_or_else(|| created_by_user_id.clone());
     let parent_id = requested_parent_id.unwrap_or_else(|| DEFAULT_TREE_ROOT_ID.to_owned());
     let parent_uuid = requested_parent_uuid.unwrap_or_else(|| DEFAULT_TREE_ROOT_UUID.to_owned());
-    let parent_metadata_json =
-        requested_parent_metadata_json.unwrap_or_else(|| "{}".to_owned());
+    let parent_metadata_json = requested_parent_metadata_json.unwrap_or_else(|| "{}".to_owned());
     if let Some(existing_project) = find_provider_project_payload_by_workspace_and_root_path(
         &connection,
         &workspace_id,
@@ -17007,11 +19034,15 @@ async fn app_create_project(
 
     let project_id = create_identifier("project");
     let project_uuid = Uuid::new_v4().to_string();
+    let project_name = build_project_business_name(&project_id, &name);
     let project_code = requested_code
         .unwrap_or_else(|| build_project_business_code(&project_id, &name, Some(&root_path)));
     let project_title = requested_title.unwrap_or_else(|| name.clone());
     let project_author = requested_author.unwrap_or_else(|| created_by_user_id.clone());
     let project_type = requested_type.unwrap_or_else(|| "CODE".to_owned());
+    let project_type_storage = project_type_storage_value(Some(project_type.as_str()));
+    let project_status_storage = project_status_storage_value(Some(status.as_str()));
+    let project_config_data = build_project_config_data(Some(root_path.as_str()));
     let project_collaborator_id = create_identifier("project-collaborator");
     let project_collaborator_uuid = Uuid::new_v4().to_string();
     let project_owner_team_id = load_provider_team_payloads(&connection)
@@ -17028,12 +19059,13 @@ async fn app_create_project(
             team.workspace_id == workspace_id && team.owner_id.as_deref() == Some(owner_id.as_str())
         })
         .map(|team| team.id);
-    let workspace_uuid =
-        if let Some(workspace_uuid) = requested_workspace_uuid.or_else(|| workspace.uuid.clone()) {
-            workspace_uuid
-        } else {
-            match connection.query_row(
-                "SELECT uuid FROM workspaces WHERE id = ?1 AND is_deleted = 0 LIMIT 1",
+    let workspace_uuid = if let Some(workspace_uuid) =
+        requested_workspace_uuid.or_else(|| workspace.uuid.clone())
+    {
+        workspace_uuid
+    } else {
+        match connection.query_row(
+                "SELECT uuid FROM plus_workspace AS workspaces WHERE id = ?1 AND is_deleted = 0 LIMIT 1",
                 params![&workspace_id],
                 |row| row.get::<_, Option<String>>(0),
             ) {
@@ -17055,7 +19087,7 @@ async fn app_create_project(
                     ))
                 }
             }
-        };
+    };
     let transaction = connection.transaction().map_err(|error| {
         problem_response(
             "create-project-transaction-open-failed",
@@ -17068,51 +19100,72 @@ async fn app_create_project(
     transaction
         .execute(
             r#"
-            INSERT INTO projects (
-                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                data_scope, user_id, parent_id, parent_uuid, parent_metadata,
-                workspace_id, workspace_uuid, name, code, title, description, root_path, site_path,
-                domain_prefix, owner_id, leader_id, created_by_user_id, author, file_id,
-                conversation_id, type, start_time, end_time, budget_amount, cover_image_json,
-                is_template, status
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33)
+            INSERT INTO plus_project AS projects (
+                id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
+                parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
+                author, file_id, code, type, site_path, domain_prefix, description, status,
+                conversation_id, workspace_id, workspace_uuid, leader_id, start_time, end_time,
+                budget_amount, is_deleted, is_template
+            ) VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, 0, ?30)
             "#,
             params![
                 &project_id,
                 &project_uuid,
+                &now,
+                &now,
                 &tenant_id,
                 &organization_id,
-                &now,
-                &now,
-                &data_scope,
-                &user_id,
+                data_scope_storage_code,
                 &parent_id,
                 &parent_uuid,
                 &parent_metadata_json,
-                &workspace_id,
-                &workspace_uuid,
-                &name,
-                &project_code,
+                &user_id,
+                &project_name,
                 &project_title,
-                &description,
-                &root_path,
-                &requested_site_path,
-                &requested_domain_prefix,
-                &owner_id,
-                &leader_id,
-                &created_by_user_id,
+                &requested_cover_image_json,
                 &project_author,
                 &requested_file_id,
+                &project_code,
+                &project_type_storage,
+                &requested_site_path,
+                &requested_domain_prefix,
+                &description,
+                &project_status_storage,
                 &requested_conversation_id,
-                &project_type,
+                &workspace_id,
+                &workspace_uuid,
+                &leader_id,
                 &requested_start_time,
                 &requested_end_time,
                 &requested_budget_amount,
-                &requested_cover_image_json,
                 if requested_is_template { 1_i64 } else { 0_i64 },
-                &status,
             ],
         )
+        .and_then(|_| {
+            transaction.execute(
+                r#"
+                INSERT INTO plus_project_content (
+                    id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
+                    user_id, parent_id, project_id, project_uuid, config_data, content_data,
+                    metadata, content_version, content_hash
+                ) VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, NULL, NULL, '1.0', NULL)
+                "#,
+                params![
+                    &project_id,
+                    Uuid::new_v4().to_string(),
+                    &now,
+                    &now,
+                    &tenant_id,
+                    &organization_id,
+                    data_scope_storage_code,
+                    &user_id,
+                    &parent_id,
+                    &project_id,
+                    &project_uuid,
+                    &project_config_data,
+                ],
+            )
+        })
         .and_then(|_| {
             transaction.execute(
                 r#"
@@ -17211,6 +19264,7 @@ async fn app_create_project(
         None,
         None,
         None,
+        None,
     );
 
     Ok((
@@ -17250,7 +19304,7 @@ async fn app_update_project(
         )
     })?;
 
-    let connection = state
+    let mut connection = state
         .open_authority_connection_for_write()
         .map_err(|error| {
             problem_response(
@@ -17279,9 +19333,10 @@ async fn app_update_project(
         })?;
     let existing_workspace_id = existing_project.workspace_id.clone();
 
-    let next_name = request
-        .name
-        .and_then(normalize_required_string)
+    let requested_display_name = request.name.and_then(normalize_required_string);
+    let next_name = requested_display_name
+        .as_ref()
+        .map(|name| build_project_business_name(&normalized_project_id, name))
         .unwrap_or(existing_project.name.clone());
     let next_description = match request.description {
         Some(description) => normalize_optional_string(Some(description)),
@@ -17290,6 +19345,7 @@ async fn app_update_project(
     let next_data_scope = normalized_data_scope
         .or_else(|| existing_project.data_scope.clone())
         .unwrap_or_else(|| DEFAULT_PRIVATE_DATA_SCOPE.to_owned());
+    let next_data_scope_storage_value = data_scope_storage_value(&next_data_scope);
     let next_root_path = match request.root_path {
         Some(root_path) => {
             normalize_optional_project_root_path(Some(root_path)).map_err(|message| {
@@ -17321,6 +19377,7 @@ async fn app_update_project(
     let next_title = request
         .title
         .and_then(normalize_required_string)
+        .or_else(|| requested_display_name.clone())
         .or_else(|| existing_project.title.clone())
         .unwrap_or_else(|| next_name.clone());
     let next_owner_id = request
@@ -17384,7 +19441,24 @@ async fn app_update_project(
         Some(end_time) => normalize_optional_string(Some(end_time)),
         None => existing_project.end_time.clone(),
     };
-    let next_budget_amount = request.budget_amount.or(existing_project.budget_amount);
+    let requested_budget_amount = parse_optional_long_integer_request_value(
+        request.budget_amount,
+        "budgetAmount",
+        "update-project-invalid",
+    )?;
+    let existing_budget_amount = parse_optional_long_integer_decimal_string(
+        existing_project.budget_amount.clone(),
+        "budgetAmount",
+    )
+    .map_err(|message| {
+        problem_response(
+            "update-project-existing-long-integer-invalid",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            message,
+        )
+    })?;
+    let next_budget_amount = requested_budget_amount.or(existing_budget_amount);
     let next_cover_image = match request.cover_image {
         Some(cover_image) => {
             normalize_optional_json_object_value(Some(cover_image), "project coverImage").map_err(
@@ -17401,18 +19475,17 @@ async fn app_update_project(
         None => existing_project.cover_image.clone(),
     };
     let next_parent_metadata = match request.parent_metadata {
-        Some(parent_metadata) => normalize_optional_json_object_value(
-            Some(parent_metadata),
-            "project parentMetadata",
-        )
-        .map_err(|message| {
-            problem_response(
-                "update-project-invalid",
-                StatusCode::BAD_REQUEST,
-                "argument_invalid",
-                message,
-            )
-        })?,
+        Some(parent_metadata) => {
+            normalize_optional_json_object_value(Some(parent_metadata), "project parentMetadata")
+                .map_err(|message| {
+                    problem_response(
+                        "update-project-invalid",
+                        StatusCode::BAD_REQUEST,
+                        "argument_invalid",
+                        message,
+                    )
+                })?
+        }
         None => existing_project.parent_metadata.clone(),
     };
     let next_cover_image_json =
@@ -17426,23 +19499,35 @@ async fn app_update_project(
                 )
             },
         )?;
-    let next_parent_metadata_json = serialize_optional_json_value(
-        next_parent_metadata.as_ref(),
-        "project parentMetadata",
-    )
-    .map_err(|message| {
-        problem_response(
-            "update-project-invalid",
-            StatusCode::BAD_REQUEST,
-            "argument_invalid",
-            message,
-        )
-    })?;
+    let next_parent_metadata_json =
+        serialize_optional_json_value(next_parent_metadata.as_ref(), "project parentMetadata")
+            .map_err(|message| {
+                problem_response(
+                    "update-project-invalid",
+                    StatusCode::BAD_REQUEST,
+                    "argument_invalid",
+                    message,
+                )
+            })?;
     let next_is_template = request
         .is_template
         .or(existing_project.is_template)
         .unwrap_or(false);
     let next_status = normalized_status.unwrap_or(existing_project.status);
+    let next_type_storage = project_type_storage_value(Some(next_type.as_str()));
+    let next_status_storage = project_status_storage_value(Some(next_status.as_str()));
+    let next_project_config_data = build_project_config_data(Some(next_root_path.as_str()));
+    let next_project_uuid = existing_project
+        .uuid
+        .clone()
+        .unwrap_or_else(|| normalized_project_id.clone());
+    let next_tenant_id = existing_project
+        .tenant_id
+        .clone()
+        .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned());
+    let next_organization_id =
+        normalize_organization_id_or_default(existing_project.organization_id.clone());
+    let next_updated_at = current_storage_timestamp();
 
     if let Some(conflicting_project) = find_provider_project_payload_by_workspace_and_root_path(
         &connection,
@@ -17469,11 +19554,20 @@ async fn app_update_project(
         ));
     }
 
-    connection
+    let transaction = connection.transaction().map_err(|error| {
+        problem_response(
+            "update-project-transaction-open-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to open project update transaction: {error}"),
+        )
+    })?;
+    transaction
         .execute(
             r#"
-            UPDATE projects
+            UPDATE plus_project AS projects
             SET
+                v = v + 1,
                 updated_at = ?2,
                 data_scope = ?3,
                 user_id = ?4,
@@ -17484,27 +19578,25 @@ async fn app_update_project(
                 code = ?9,
                 title = ?10,
                 description = ?11,
-                root_path = ?12,
-                site_path = ?13,
-                domain_prefix = ?14,
-                owner_id = ?15,
-                leader_id = ?16,
-                author = ?17,
-                file_id = ?18,
-                conversation_id = ?19,
-                type = ?20,
-                start_time = ?21,
-                end_time = ?22,
-                budget_amount = ?23,
-                cover_image_json = ?24,
-                is_template = ?25,
-                status = ?26
+                site_path = ?12,
+                domain_prefix = ?13,
+                leader_id = ?14,
+                author = ?15,
+                file_id = ?16,
+                conversation_id = ?17,
+                type = ?18,
+                start_time = ?19,
+                end_time = ?20,
+                budget_amount = ?21,
+                cover_image = ?22,
+                is_template = ?23,
+                status = ?24
             WHERE id = ?1 AND is_deleted = 0
             "#,
             params![
                 &normalized_project_id,
-                current_storage_timestamp(),
-                &next_data_scope,
+                &next_updated_at,
+                next_data_scope_storage_value,
                 &next_user_id,
                 &next_parent_id,
                 &next_parent_uuid,
@@ -17513,21 +19605,19 @@ async fn app_update_project(
                 &next_code,
                 &next_title,
                 &next_description,
-                &next_root_path,
                 &next_site_path,
                 &next_domain_prefix,
-                &next_owner_id,
                 &next_leader_id,
                 &next_author,
                 &next_file_id,
                 &next_conversation_id,
-                &next_type,
+                &next_type_storage,
                 &next_start_time,
                 &next_end_time,
                 &next_budget_amount,
                 &next_cover_image_json,
                 if next_is_template { 1_i64 } else { 0_i64 },
-                &next_status,
+                &next_status_storage,
             ],
         )
         .map_err(|error| {
@@ -17538,6 +19628,85 @@ async fn app_update_project(
                 format!("Failed to persist project authority: {error}"),
             )
         })?;
+    let updated_project_content_count = transaction
+        .execute(
+            r#"
+            UPDATE plus_project_content
+            SET
+                v = v + 1,
+                updated_at = ?2,
+                tenant_id = ?3,
+                organization_id = ?4,
+                data_scope = ?5,
+                user_id = ?6,
+                parent_id = ?7,
+                project_uuid = ?8,
+                config_data = ?9
+            WHERE project_id = ?1
+            "#,
+            params![
+                &normalized_project_id,
+                &next_updated_at,
+                &next_tenant_id,
+                &next_organization_id,
+                next_data_scope_storage_value,
+                &next_user_id,
+                &next_parent_id,
+                &next_project_uuid,
+                &next_project_config_data,
+            ],
+        )
+        .map_err(|error| {
+            problem_response(
+                "update-project-content-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to persist project content authority: {error}"),
+            )
+        })?;
+    if updated_project_content_count == 0 {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO plus_project_content (
+                    id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
+                    user_id, parent_id, project_id, project_uuid, config_data, content_data,
+                    metadata, content_version, content_hash
+                )
+                VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, NULL, NULL, '1.0', NULL)
+                "#,
+                params![
+                    &normalized_project_id,
+                    Uuid::new_v4().to_string(),
+                    &next_updated_at,
+                    &next_updated_at,
+                    &next_tenant_id,
+                    &next_organization_id,
+                    next_data_scope_storage_value,
+                    &next_user_id,
+                    &next_parent_id,
+                    &normalized_project_id,
+                    &next_project_uuid,
+                    &next_project_config_data,
+                ],
+            )
+            .map_err(|error| {
+                problem_response(
+                    "update-project-content-insert-failed",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "system_error",
+                    format!("Failed to insert project content authority: {error}"),
+                )
+            })?;
+    }
+    transaction.commit().map_err(|error| {
+        problem_response(
+            "update-project-transaction-commit-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to commit project update transaction: {error}"),
+        )
+    })?;
 
     let project = load_provider_project_payload_by_id(&connection, &normalized_project_id)
         .map_err(|error| {
@@ -17565,6 +19734,7 @@ async fn app_update_project(
         Some(project.name.clone()),
         project.root_path.clone(),
         project.updated_at.clone(),
+        None,
         None,
         None,
         None,
@@ -17624,7 +19794,7 @@ async fn app_delete_project(
     let deleted_count = connection
         .execute(
             r#"
-            UPDATE projects
+            UPDATE plus_project AS projects
             SET is_deleted = 1, updated_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -17666,6 +19836,7 @@ async fn app_delete_project(
         Some(normalized_project_id.clone()),
         Some(existing_project.name),
         existing_project.root_path,
+        None,
         None,
         None,
         None,
@@ -18009,7 +20180,7 @@ async fn app_upsert_workspace_member(
         transaction
             .execute(
                 r#"
-                UPDATE workspaces
+                UPDATE plus_workspace AS workspaces
                 SET updated_at = ?2, owner_id = ?3, leader_id = ?4
                 WHERE id = ?1 AND is_deleted = 0
                 "#,
@@ -18396,7 +20567,7 @@ async fn app_upsert_project_collaborator(
         transaction
             .execute(
                 r#"
-                UPDATE projects
+                UPDATE plus_project AS projects
                 SET updated_at = ?2, owner_id = ?3, leader_id = ?4
                 WHERE id = ?1 AND is_deleted = 0
                 "#,
@@ -19156,10 +21327,6 @@ fn normalize_attached_native_session_id(
         return None;
     }
 
-    if is_native_coding_session_id(normalized_native_session_id) {
-        return Some(normalized_native_session_id.to_owned());
-    }
-
     Some(native_sessions::build_native_session_id(
         engine_id,
         normalized_native_session_id,
@@ -19258,6 +21425,7 @@ fn build_coding_session_payload_from_native_summary(
         host_mode: summary.host_mode.clone(),
         engine_id: summary.engine_id.clone(),
         model_id: summary.model_id.clone(),
+        native_session_id: Some(summary.id.clone()),
         created_at: summary.created_at.clone(),
         updated_at: summary.updated_at.clone(),
         last_turn_at: summary.last_turn_at.clone(),
@@ -19280,6 +21448,7 @@ fn overlay_projection_session_with_native_summary(
         host_mode: native_summary.host_mode.clone(),
         engine_id: native_summary.engine_id.clone(),
         model_id: native_summary.model_id.clone(),
+        native_session_id: Some(native_summary.id.clone()),
         created_at: native_summary.created_at.clone(),
         updated_at: native_summary.updated_at.clone(),
         last_turn_at: native_summary
@@ -19540,6 +21709,24 @@ fn build_native_session_events_for_coding_session(
                     payload.insert("commandsJson".to_owned(), serialized_commands);
                 }
             }
+            if let Some(tool_calls) = message.tool_calls.as_ref() {
+                if let Ok(serialized_tool_calls) = serde_json::to_string(tool_calls) {
+                    payload.insert("toolCallsJson".to_owned(), serialized_tool_calls);
+                }
+            }
+            if let Some(tool_call_id) = message.tool_call_id.as_ref() {
+                payload.insert("toolCallId".to_owned(), tool_call_id.clone());
+            }
+            if let Some(file_changes) = message.file_changes.as_ref() {
+                if let Ok(serialized_file_changes) = serde_json::to_string(file_changes) {
+                    payload.insert("fileChangesJson".to_owned(), serialized_file_changes);
+                }
+            }
+            if let Some(task_progress) = message.task_progress.as_ref() {
+                if let Ok(serialized_task_progress) = serde_json::to_string(task_progress) {
+                    payload.insert("taskProgressJson".to_owned(), serialized_task_progress);
+                }
+            }
 
             CodingSessionEventPayload {
                 id: format!(
@@ -19569,31 +21756,217 @@ fn build_native_session_events(
     build_native_session_events_for_coding_session(detail, detail.summary.id.as_str(), 0)
 }
 
-fn build_message_event_overlay_key(event: &CodingSessionEventPayload) -> Option<String> {
+const PROJECTION_NATIVE_MESSAGE_OVERLAY_DUPLICATE_WINDOW_MS: i64 = 5 * 60 * 1000;
+
+fn strip_projection_overlay_tag_block(value: &str, tag_name: &str) -> String {
+    let start_tag = format!("<{tag_name}>");
+    let end_tag = format!("</{tag_name}>");
+    let mut remaining = value;
+    let mut cleaned = String::new();
+
+    while let Some(start_index) = remaining.find(start_tag.as_str()) {
+        cleaned.push_str(&remaining[..start_index]);
+        let after_start = &remaining[start_index + start_tag.len()..];
+        if let Some(end_index) = after_start.find(end_tag.as_str()) {
+            remaining = &after_start[end_index + end_tag.len()..];
+        } else {
+            remaining = "";
+            break;
+        }
+    }
+
+    cleaned.push_str(remaining);
+    cleaned
+}
+
+fn strip_projection_overlay_control_tags(value: &str) -> String {
+    let without_environment_context =
+        strip_projection_overlay_tag_block(value, "environment_context");
+    strip_projection_overlay_tag_block(without_environment_context.as_str(), "turn_aborted")
+}
+
+fn extract_projection_overlay_request_segment(value: &str) -> &str {
+    if value.contains("IDE context:")
+        || value.contains("Current file path:")
+        || value.contains("Current file content:")
+    {
+        if let Some(start_index) = value.find("User request:") {
+            return &value[start_index + "User request:".len()..];
+        }
+    }
+
+    for marker in [
+        "## My request for Codex:",
+        "# My request for Codex:",
+        "My request for Codex:",
+    ] {
+        if let Some(start_index) = value.find(marker) {
+            return &value[start_index + marker.len()..];
+        }
+    }
+
+    value
+}
+
+fn normalize_projection_overlay_message_content(value: &str) -> Option<String> {
+    let extracted_request = extract_projection_overlay_request_segment(value);
+    let stripped = strip_projection_overlay_control_tags(extracted_request);
+    let normalized = stripped.split_whitespace().collect::<Vec<_>>().join(" ");
+    let trimmed = normalized.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_owned())
+    }
+}
+
+fn read_message_event_overlay_content(event: &CodingSessionEventPayload) -> Option<String> {
     if !matches!(event.kind.as_str(), "message.completed" | "message.delta") {
         return None;
     }
 
-    let role = event_payload_role(&event.payload)?;
-    if let Some(turn_id) = event
+    event
+        .payload
+        .get("content")
+        .or_else(|| event.payload.get("contentDelta"))
+        .and_then(|content| normalize_projection_overlay_message_content(content.as_str()))
+}
+
+fn read_message_event_overlay_raw_content(event: &CodingSessionEventPayload) -> Option<&str> {
+    if !matches!(event.kind.as_str(), "message.completed" | "message.delta") {
+        return None;
+    }
+
+    event
+        .payload
+        .get("content")
+        .or_else(|| event.payload.get("contentDelta"))
+        .map(String::as_str)
+}
+
+fn message_overlay_timestamps_are_near(
+    left: &CodingSessionEventPayload,
+    right: &CodingSessionEventPayload,
+) -> bool {
+    match (
+        parse_storage_timestamp_millis(left.created_at.as_str()),
+        parse_storage_timestamp_millis(right.created_at.as_str()),
+    ) {
+        (Some(left_timestamp), Some(right_timestamp)) => {
+            (left_timestamp - right_timestamp).abs()
+                <= PROJECTION_NATIVE_MESSAGE_OVERLAY_DUPLICATE_WINDOW_MS
+        }
+        _ => false,
+    }
+}
+
+#[derive(Default)]
+struct ProjectionDeltaOverlayAggregate {
+    content: String,
+    is_near_native_event: bool,
+}
+
+fn projection_delta_aggregates_match_native_event(
+    native_event: &CodingSessionEventPayload,
+    projection_events: &[CodingSessionEventPayload],
+    native_role: &str,
+    native_content: &str,
+) -> bool {
+    let mut sorted_delta_events = projection_events
+        .iter()
+        .filter(|event| {
+            event.kind == "message.delta" && event_payload_role(&event.payload) == Some(native_role)
+        })
+        .collect::<Vec<_>>();
+    sorted_delta_events.sort_by(|left, right| {
+        left.sequence
+            .cmp(&right.sequence)
+            .then_with(|| left.created_at.cmp(&right.created_at))
+            .then_with(|| left.id.cmp(&right.id))
+    });
+
+    let mut aggregates = BTreeMap::<String, ProjectionDeltaOverlayAggregate>::new();
+    for projection_event in sorted_delta_events {
+        let Some(turn_id) = projection_event
+            .turn_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|turn_id| !turn_id.is_empty())
+        else {
+            continue;
+        };
+        let Some(raw_content) = read_message_event_overlay_raw_content(projection_event) else {
+            continue;
+        };
+
+        let aggregate = aggregates.entry(turn_id.to_owned()).or_default();
+        aggregate.content.push_str(raw_content);
+        if message_overlay_timestamps_are_near(native_event, projection_event) {
+            aggregate.is_near_native_event = true;
+        }
+    }
+
+    aggregates.into_values().any(|aggregate| {
+        aggregate.is_near_native_event
+            && normalize_projection_overlay_message_content(aggregate.content.as_str())
+                .is_some_and(|projection_content| projection_content == native_content)
+    })
+}
+
+fn is_duplicate_projection_native_message_event(
+    native_event: &CodingSessionEventPayload,
+    projection_events: &[CodingSessionEventPayload],
+) -> bool {
+    let Some(native_role) = event_payload_role(&native_event.payload) else {
+        return false;
+    };
+    let native_turn_id = native_event
         .turn_id
         .as_deref()
         .map(str::trim)
-        .filter(|turn_id| !turn_id.is_empty())
+        .filter(|turn_id| !turn_id.is_empty());
+    let native_content = read_message_event_overlay_content(native_event);
+
+    if projection_events
+        .iter()
+        .filter(|event| matches!(event.kind.as_str(), "message.completed" | "message.delta"))
+        .any(|projection_event| {
+            if event_payload_role(&projection_event.payload) != Some(native_role) {
+                return false;
+            }
+
+            let projection_turn_id = projection_event
+                .turn_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|turn_id| !turn_id.is_empty());
+            if native_turn_id.is_some()
+                && projection_turn_id.is_some()
+                && native_turn_id == projection_turn_id
+            {
+                return true;
+            }
+
+            native_content
+                .as_ref()
+                .zip(read_message_event_overlay_content(projection_event))
+                .is_some_and(|(left_content, right_content)| {
+                    left_content == &right_content
+                        && message_overlay_timestamps_are_near(native_event, projection_event)
+                })
+        })
     {
-        return Some(format!("turn:{turn_id}:role:{role}"));
+        return true;
     }
 
-    let content = event
-        .payload
-        .get("content")
-        .map(String::as_str)
-        .unwrap_or_default()
-        .trim();
-    Some(format!(
-        "role:{role}:created:{}:content:{content}",
-        event.created_at
-    ))
+    native_content.as_ref().is_some_and(|content| {
+        projection_delta_aggregates_match_native_event(
+            native_event,
+            projection_events,
+            native_role,
+            content.as_str(),
+        )
+    })
 }
 
 fn build_projection_session_events_with_native_detail(
@@ -19606,17 +21979,6 @@ fn build_projection_session_events_with_native_detail(
         coding_session_id,
         next_event_sequence(snapshot),
     );
-    let native_overlay_message_keys = native_events
-        .iter()
-        .filter(|event| event_payload_role(&event.payload) != Some("user"))
-        .filter_map(build_message_event_overlay_key)
-        .collect::<BTreeSet<_>>();
-    let projection_user_message_keys = snapshot
-        .events
-        .iter()
-        .filter(|event| event_payload_role(&event.payload) == Some("user"))
-        .filter_map(build_message_event_overlay_key)
-        .collect::<BTreeSet<_>>();
     let mut events = snapshot
         .events
         .iter()
@@ -19625,24 +21987,13 @@ fn build_projection_session_events_with_native_detail(
                 return true;
             }
 
-            match event_payload_role(&event.payload) {
-                Some("user") => true,
-                Some(_) => build_message_event_overlay_key(event)
-                    .map(|key| !native_overlay_message_keys.contains(&key))
-                    .unwrap_or(true),
-                None => false,
-            }
+            event_payload_role(&event.payload).is_some()
         })
         .cloned()
         .collect::<Vec<_>>();
     events.extend(native_events.into_iter().filter(|event| {
-        match event_payload_role(&event.payload) {
-            Some("user") => build_message_event_overlay_key(event)
-                .map(|key| !projection_user_message_keys.contains(&key))
-                .unwrap_or(true),
-            Some(_) => true,
-            None => false,
-        }
+        event_payload_role(&event.payload).is_some()
+            && !is_duplicate_projection_native_message_event(event, snapshot.events.as_slice())
     }));
     events.sort_by(|left, right| {
         left.sequence
@@ -19703,13 +22054,24 @@ fn resolve_native_turn_id(
         })
 }
 
+fn runtime_status_for_coding_session_turn_status(turn_status: &str) -> &'static str {
+    match turn_status {
+        "queued" | "running" => "streaming",
+        "failed" => "failed",
+        "cancelled" => "terminated",
+        _ => "completed",
+    }
+}
+
 fn create_native_coding_session_turn(
     state: &AppState,
     coding_session_id: &str,
+    engine_id: Option<String>,
     input: &CreateCodingSessionTurnInput,
 ) -> Result<CodingSessionTurnPayload, String> {
     let app_admin_state = state.read_app_admin_state();
-    let native_engine_id = native_sessions::resolve_native_session_engine_id(coding_session_id);
+    let native_engine_id =
+        engine_id.or_else(|| native_sessions::resolve_native_session_engine_id(coding_session_id));
     let before_detail = native_sessions::get_native_session(
         &app_admin_state.projects,
         &native_sessions::NativeSessionLookup {
@@ -19856,7 +22218,7 @@ async fn core_sessions(
 
     sessions = sessions
         .into_iter()
-        .map(|session| {
+        .map(|mut session| {
             let Some(snapshot) = state.projections.session_snapshot(session.id.as_str()) else {
                 return session;
             };
@@ -19871,6 +22233,9 @@ async fn core_sessions(
             };
 
             attached_native_session_ids.insert(attached_native_session_id.clone());
+            if session.native_session_id.is_none() {
+                session.native_session_id = Some(attached_native_session_id.clone());
+            }
             native_summaries_by_id
                 .get(&attached_native_session_id)
                 .map(|native_summary| {
@@ -19911,6 +22276,9 @@ async fn core_sessions(
             .then_with(|| left.id.cmp(&right.id))
     });
     sessions.dedup_by(|left, right| left.id == right.id);
+    for session in &sessions {
+        schedule_coding_session_runtime_initialization_if_needed(&state, session);
+    }
 
     let (paged_sessions, normalized_offset, requested_page_size, total) =
         paginate_vec(sessions, query.offset, query.limit);
@@ -19965,7 +22333,7 @@ async fn core_session(
     Json<ApiEnvelope<CodingSessionPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
-    let session = if let Some(session) = state.projections.session(&coding_session_id) {
+    let session = if let Some(mut session) = state.projections.session(&coding_session_id) {
         if let Some(snapshot) = state.projections.session_snapshot(&coding_session_id) {
             if let Some(summary) = read_projection_native_session_summary(
                 state.clone(),
@@ -19983,12 +22351,20 @@ async fn core_session(
             })? {
                 overlay_projection_session_with_native_summary(&session, &summary)
             } else {
+                if session.native_session_id.is_none() {
+                    session.native_session_id = resolve_projection_attached_native_session_id(
+                        &state,
+                        session.id.as_str(),
+                        session.engine_id.as_str(),
+                        &snapshot,
+                    );
+                }
                 session
             }
         } else {
             session
         }
-    } else if is_native_coding_session_id(&coding_session_id) {
+    } else {
         let app_admin_state = state.read_app_admin_state();
         let detail = get_native_session_async(
             app_admin_state.projects,
@@ -20019,14 +22395,8 @@ async fn core_session(
             )
         })?;
         build_coding_session_payload_from_native_summary(&detail.summary)
-    } else {
-        return Err(problem_response(
-            "session-not-found",
-            StatusCode::NOT_FOUND,
-            "not_found",
-            "Coding session projection was not found.",
-        ));
     };
+    schedule_coding_session_runtime_initialization_if_needed(&state, &session);
 
     Ok(Json(create_envelope("core-session", session)))
 }
@@ -20059,24 +22429,24 @@ async fn core_create_session(
             )
         })?;
 
-    state.publish_workspace_realtime_event(
-        "coding-session.created",
-        "core",
-        session.workspace_id.clone(),
-        Some(session.project_id.clone()),
-        None,
-        None,
-        None,
-        Some(session.id.clone()),
-        Some(session.title.clone()),
-        Some(session.status.clone()),
-        Some(session.host_mode.clone()),
-        Some(session.engine_id.clone()),
-        Some(session.model_id.clone()),
-        session.runtime_status.clone(),
-        Some(session.updated_at.clone()),
-        None,
-    );
+    state.publish_coding_session_realtime_event(CodingSessionRealtimeEventInput {
+        event_kind: "coding-session.created",
+        source_surface: "core",
+        workspace_id: session.workspace_id.clone(),
+        project_id: session.project_id.clone(),
+        project_root_path: None,
+        coding_session_id: session.id.clone(),
+        coding_session_title: session.title.clone(),
+        coding_session_status: session.status.clone(),
+        coding_session_host_mode: session.host_mode.clone(),
+        coding_session_engine_id: session.engine_id.clone(),
+        coding_session_model_id: session.model_id.clone(),
+        coding_session_runtime_status: session.runtime_status.clone(),
+        native_session_id: session.native_session_id.clone(),
+        coding_session_updated_at: Some(session.updated_at.clone()),
+        turn_id: None,
+    });
+    schedule_coding_session_runtime_initialization_if_needed(&state, &session);
 
     Ok((
         StatusCode::CREATED,
@@ -20134,24 +22504,23 @@ async fn core_fork_session(
             )
         })?;
 
-    state.publish_workspace_realtime_event(
-        "coding-session.created",
-        "core",
-        session.workspace_id.clone(),
-        Some(session.project_id.clone()),
-        None,
-        None,
-        None,
-        Some(session.id.clone()),
-        Some(session.title.clone()),
-        Some(session.status.clone()),
-        Some(session.host_mode.clone()),
-        Some(session.engine_id.clone()),
-        Some(session.model_id.clone()),
-        session.runtime_status.clone(),
-        Some(session.updated_at.clone()),
-        None,
-    );
+    state.publish_coding_session_realtime_event(CodingSessionRealtimeEventInput {
+        event_kind: "coding-session.created",
+        source_surface: "core",
+        workspace_id: session.workspace_id.clone(),
+        project_id: session.project_id.clone(),
+        project_root_path: None,
+        coding_session_id: session.id.clone(),
+        coding_session_title: session.title.clone(),
+        coding_session_status: session.status.clone(),
+        coding_session_host_mode: session.host_mode.clone(),
+        coding_session_engine_id: session.engine_id.clone(),
+        coding_session_model_id: session.model_id.clone(),
+        coding_session_runtime_status: session.runtime_status.clone(),
+        native_session_id: session.native_session_id.clone(),
+        coding_session_updated_at: Some(session.updated_at.clone()),
+        turn_id: None,
+    });
 
     Ok((
         StatusCode::CREATED,
@@ -20198,24 +22567,23 @@ async fn core_update_session(
             )
         })?;
 
-    state.publish_workspace_realtime_event(
-        "coding-session.updated",
-        "core",
-        session.workspace_id.clone(),
-        Some(session.project_id.clone()),
-        None,
-        None,
-        None,
-        Some(session.id.clone()),
-        Some(session.title.clone()),
-        Some(session.status.clone()),
-        Some(session.host_mode.clone()),
-        Some(session.engine_id.clone()),
-        Some(session.model_id.clone()),
-        session.runtime_status.clone(),
-        Some(session.updated_at.clone()),
-        None,
-    );
+    state.publish_coding_session_realtime_event(CodingSessionRealtimeEventInput {
+        event_kind: "coding-session.updated",
+        source_surface: "core",
+        workspace_id: session.workspace_id.clone(),
+        project_id: session.project_id.clone(),
+        project_root_path: None,
+        coding_session_id: session.id.clone(),
+        coding_session_title: session.title.clone(),
+        coding_session_status: session.status.clone(),
+        coding_session_host_mode: session.host_mode.clone(),
+        coding_session_engine_id: session.engine_id.clone(),
+        coding_session_model_id: session.model_id.clone(),
+        coding_session_runtime_status: session.runtime_status.clone(),
+        native_session_id: session.native_session_id.clone(),
+        coding_session_updated_at: Some(session.updated_at.clone()),
+        turn_id: None,
+    });
 
     Ok(Json(create_envelope("core-update-session", session)))
 }
@@ -20261,24 +22629,23 @@ async fn core_delete_session(
             )
         })?;
 
-    state.publish_workspace_realtime_event(
-        "coding-session.deleted",
-        "core",
-        existing_session.workspace_id.clone(),
-        Some(existing_session.project_id.clone()),
-        None,
-        None,
-        None,
-        Some(existing_session.id.clone()),
-        Some(existing_session.title.clone()),
-        Some(existing_session.status.clone()),
-        Some(existing_session.host_mode.clone()),
-        Some(existing_session.engine_id.clone()),
-        Some(existing_session.model_id.clone()),
-        existing_session.runtime_status.clone(),
-        Some(current_storage_timestamp()),
-        None,
-    );
+    state.publish_coding_session_realtime_event(CodingSessionRealtimeEventInput {
+        event_kind: "coding-session.deleted",
+        source_surface: "core",
+        workspace_id: existing_session.workspace_id.clone(),
+        project_id: existing_session.project_id.clone(),
+        project_root_path: None,
+        coding_session_id: existing_session.id.clone(),
+        coding_session_title: existing_session.title.clone(),
+        coding_session_status: existing_session.status.clone(),
+        coding_session_host_mode: existing_session.host_mode.clone(),
+        coding_session_engine_id: existing_session.engine_id.clone(),
+        coding_session_model_id: existing_session.model_id.clone(),
+        coding_session_runtime_status: existing_session.runtime_status.clone(),
+        native_session_id: existing_session.native_session_id.clone(),
+        coding_session_updated_at: Some(current_storage_timestamp()),
+        turn_id: None,
+    });
 
     Ok(Json(create_envelope(
         "core-delete-session",
@@ -20341,24 +22708,23 @@ async fn core_delete_session_message(
         .projections
         .session(&normalized_coding_session_id)
         .unwrap_or(existing_session.clone());
-    state.publish_workspace_realtime_event(
-        "coding-session.updated",
-        "core",
-        updated_session.workspace_id.clone(),
-        Some(updated_session.project_id.clone()),
-        None,
-        None,
-        None,
-        Some(updated_session.id.clone()),
-        Some(updated_session.title.clone()),
-        Some(updated_session.status.clone()),
-        Some(updated_session.host_mode.clone()),
-        Some(updated_session.engine_id.clone()),
-        Some(updated_session.model_id.clone()),
-        updated_session.runtime_status.clone(),
-        Some(updated_session.updated_at.clone()),
-        None,
-    );
+    state.publish_coding_session_realtime_event(CodingSessionRealtimeEventInput {
+        event_kind: "coding-session.updated",
+        source_surface: "core",
+        workspace_id: updated_session.workspace_id.clone(),
+        project_id: updated_session.project_id.clone(),
+        project_root_path: None,
+        coding_session_id: updated_session.id.clone(),
+        coding_session_title: updated_session.title.clone(),
+        coding_session_status: updated_session.status.clone(),
+        coding_session_host_mode: updated_session.host_mode.clone(),
+        coding_session_engine_id: updated_session.engine_id.clone(),
+        coding_session_model_id: updated_session.model_id.clone(),
+        coding_session_runtime_status: updated_session.runtime_status.clone(),
+        native_session_id: updated_session.native_session_id.clone(),
+        coding_session_updated_at: Some(updated_session.updated_at.clone()),
+        turn_id: None,
+    });
 
     Ok(Json(create_envelope(
         "core-delete-session-message",
@@ -20371,6 +22737,7 @@ async fn core_delete_session_message(
 async fn core_create_turn(
     State(state): State<AppState>,
     AxumPath(coding_session_id): AxumPath<String>,
+    Query(query): Query<NativeSessionLookupQueryParams>,
     Json(request): Json<CreateCodingSessionTurnRequest>,
 ) -> Result<
     (StatusCode, Json<ApiEnvelope<CodingSessionTurnPayload>>),
@@ -20385,19 +22752,24 @@ async fn core_create_turn(
         )
     })?;
 
+    let native_engine_id = normalize_optional_string(query.engine_id);
     if state.projections.session(&coding_session_id).is_none()
-        && is_native_coding_session_id(&coding_session_id)
+        && (is_native_coding_session_id(&coding_session_id) || native_engine_id.is_some())
     {
-        let turn = create_native_coding_session_turn(&state, &coding_session_id, &input).map_err(
-            |error| {
-                problem_response(
-                    "create-native-coding-session-turn-failed",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "system_error",
-                    format!("Failed to execute native coding session turn: {error}"),
-                )
-            },
-        )?;
+        let turn = create_native_coding_session_turn(
+            &state,
+            &coding_session_id,
+            native_engine_id.clone(),
+            &input,
+        )
+        .map_err(|error| {
+            problem_response(
+                "create-native-coding-session-turn-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to execute native coding session turn: {error}"),
+            )
+        })?;
 
         return Ok((
             StatusCode::CREATED,
@@ -20407,33 +22779,59 @@ async fn core_create_turn(
                     app_admin_state.projects,
                     native_sessions::NativeSessionLookup {
                         session_id: coding_session_id.clone(),
-                        engine_id: native_sessions::resolve_native_session_engine_id(
-                            coding_session_id.as_str(),
-                        ),
+                        engine_id: native_engine_id.clone().or_else(|| {
+                            native_sessions::resolve_native_session_engine_id(
+                                coding_session_id.as_str(),
+                            )
+                        }),
                         workspace_id: None,
                         project_id: None,
                     },
                 )
                 .await
                 {
-                    state.publish_workspace_realtime_event(
-                        "coding-session.turn.created",
-                        "core",
-                        detail.summary.workspace_id.clone(),
-                        Some(detail.summary.project_id.clone()),
-                        None,
-                        detail.summary.native_cwd.clone(),
-                        None,
-                        Some(detail.summary.id.clone()),
-                        Some(detail.summary.title.clone()),
-                        Some(detail.summary.status.clone()),
-                        Some(detail.summary.host_mode.clone()),
-                        Some(detail.summary.engine_id.clone()),
-                        Some(detail.summary.model_id.clone()),
-                        Some("streaming".to_owned()),
-                        Some(detail.summary.updated_at.clone()),
-                        turn.id.clone().into(),
-                    );
+                    let native_turn_runtime_status =
+                        runtime_status_for_coding_session_turn_status(turn.status.as_str())
+                            .to_owned();
+                    let native_turn_activity_at = turn
+                        .completed_at
+                        .clone()
+                        .or_else(|| turn.started_at.clone())
+                        .unwrap_or_else(current_session_timestamp);
+                    state.publish_coding_session_realtime_event(CodingSessionRealtimeEventInput {
+                        event_kind: "coding-session.turn.created",
+                        source_surface: "core",
+                        workspace_id: detail.summary.workspace_id.clone(),
+                        project_id: detail.summary.project_id.clone(),
+                        project_root_path: detail.summary.native_cwd.clone(),
+                        coding_session_id: detail.summary.id.clone(),
+                        coding_session_title: detail.summary.title.clone(),
+                        coding_session_status: detail.summary.status.clone(),
+                        coding_session_host_mode: detail.summary.host_mode.clone(),
+                        coding_session_engine_id: detail.summary.engine_id.clone(),
+                        coding_session_model_id: detail.summary.model_id.clone(),
+                        coding_session_runtime_status: Some(native_turn_runtime_status.clone()),
+                        native_session_id: Some(detail.summary.id.clone()),
+                        coding_session_updated_at: Some(native_turn_activity_at.clone()),
+                        turn_id: Some(turn.id.clone()),
+                    });
+                    state.publish_coding_session_realtime_event(CodingSessionRealtimeEventInput {
+                        event_kind: "coding-session.updated",
+                        source_surface: "core",
+                        workspace_id: detail.summary.workspace_id.clone(),
+                        project_id: detail.summary.project_id.clone(),
+                        project_root_path: detail.summary.native_cwd.clone(),
+                        coding_session_id: detail.summary.id.clone(),
+                        coding_session_title: detail.summary.title.clone(),
+                        coding_session_status: detail.summary.status.clone(),
+                        coding_session_host_mode: detail.summary.host_mode.clone(),
+                        coding_session_engine_id: detail.summary.engine_id.clone(),
+                        coding_session_model_id: detail.summary.model_id.clone(),
+                        coding_session_runtime_status: Some(native_turn_runtime_status),
+                        native_session_id: Some(detail.summary.id.clone()),
+                        coding_session_updated_at: Some(native_turn_activity_at),
+                        turn_id: Some(turn.id.clone()),
+                    });
                 }
                 create_envelope("core-create-turn", turn)
             }),
@@ -20473,30 +22871,29 @@ async fn core_create_turn(
                 format!("Failed to persist coding session turn authority: {error}"),
             )
         })?;
-    state.publish_workspace_realtime_event(
-        "coding-session.turn.created",
-        "core",
-        pending_turn.session.workspace_id.clone(),
-        Some(pending_turn.session.project_id.clone()),
-        None,
-        None,
-        None,
-        Some(pending_turn.session.id.clone()),
-        Some(pending_turn.session.title.clone()),
-        Some(pending_turn.session.status.clone()),
-        Some(pending_turn.session.host_mode.clone()),
-        Some(pending_turn.session.engine_id.clone()),
-        Some(pending_turn.session.model_id.clone()),
-        Some("streaming".to_owned()),
-        Some(
+    state.publish_coding_session_realtime_event(CodingSessionRealtimeEventInput {
+        event_kind: "coding-session.turn.created",
+        source_surface: "core",
+        workspace_id: pending_turn.session.workspace_id.clone(),
+        project_id: pending_turn.session.project_id.clone(),
+        project_root_path: None,
+        coding_session_id: pending_turn.session.id.clone(),
+        coding_session_title: pending_turn.session.title.clone(),
+        coding_session_status: pending_turn.session.status.clone(),
+        coding_session_host_mode: pending_turn.session.host_mode.clone(),
+        coding_session_engine_id: pending_turn.session.engine_id.clone(),
+        coding_session_model_id: pending_turn.session.model_id.clone(),
+        coding_session_runtime_status: Some("streaming".to_owned()),
+        native_session_id: pending_turn.session.native_session_id.clone(),
+        coding_session_updated_at: Some(
             pending_turn
                 .turn
                 .started_at
                 .clone()
                 .unwrap_or_else(current_session_timestamp),
         ),
-        Some(pending_turn.turn.id.clone()),
-    );
+        turn_id: Some(pending_turn.turn.id.clone()),
+    });
 
     let background_state = state.clone();
     let background_turn = pending_turn.clone();
@@ -20516,8 +22913,30 @@ async fn core_create_turn(
             },
         };
 
+        let streaming_state = background_state.clone();
+        let streaming_turn = background_turn.clone();
         let completion_result = match tokio::task::spawn_blocking(move || {
-            native_sessions::execute_native_session_turn(&turn_request)
+            native_sessions::execute_native_session_turn_with_events(&turn_request, |event| {
+                let resolved_native_session_id = event
+                    .native_session_id
+                    .as_deref()
+                    .or(streaming_turn.native_session_id.as_deref());
+                let delta_created_at = streaming_state
+                    .projections
+                    .append_coding_session_message_delta(
+                        &streaming_turn,
+                        event.role.as_str(),
+                        event.content_delta.as_str(),
+                        resolved_native_session_id,
+                    )?;
+                if let Some(delta_created_at) = delta_created_at {
+                    streaming_state.publish_streaming_coding_session_delta_realtime_event(
+                        &streaming_turn,
+                        delta_created_at,
+                    );
+                }
+                Ok(())
+            })
         })
         .await
         {
@@ -20529,6 +22948,7 @@ async fn core_create_turn(
                 background_state.projections.complete_coding_session_turn(
                     &background_turn,
                     native_turn_result.assistant_content.as_str(),
+                    native_turn_result.commands.as_deref(),
                     resolved_native_session_id,
                 )
             }
@@ -20550,23 +22970,24 @@ async fn core_create_turn(
                     .projections
                     .session(completed_turn.coding_session_id.as_str())
                 {
-                    background_state.publish_workspace_realtime_event(
-                        "coding-session.updated",
-                        "core",
-                        updated_session.workspace_id.clone(),
-                        Some(updated_session.project_id.clone()),
-                        None,
-                        None,
-                        None,
-                        Some(updated_session.id.clone()),
-                        Some(updated_session.title.clone()),
-                        Some(updated_session.status.clone()),
-                        Some(updated_session.host_mode.clone()),
-                        Some(updated_session.engine_id.clone()),
-                        Some(updated_session.model_id.clone()),
-                        updated_session.runtime_status.clone(),
-                        Some(updated_session.updated_at.clone()),
-                        Some(completed_turn.id.clone()),
+                    background_state.publish_coding_session_realtime_event(
+                        CodingSessionRealtimeEventInput {
+                            event_kind: "coding-session.updated",
+                            source_surface: "core",
+                            workspace_id: updated_session.workspace_id.clone(),
+                            project_id: updated_session.project_id.clone(),
+                            project_root_path: None,
+                            coding_session_id: updated_session.id.clone(),
+                            coding_session_title: updated_session.title.clone(),
+                            coding_session_status: updated_session.status.clone(),
+                            coding_session_host_mode: updated_session.host_mode.clone(),
+                            coding_session_engine_id: updated_session.engine_id.clone(),
+                            coding_session_model_id: updated_session.model_id.clone(),
+                            coding_session_runtime_status: updated_session.runtime_status.clone(),
+                            native_session_id: updated_session.native_session_id.clone(),
+                            coding_session_updated_at: Some(updated_session.updated_at.clone()),
+                            turn_id: Some(completed_turn.id.clone()),
+                        },
                     );
                 }
             }
@@ -20626,6 +23047,56 @@ async fn core_submit_approval_decision(
     Ok(Json(create_envelope("core-approval-decision", approval)))
 }
 
+async fn core_submit_user_question_answer(
+    State(state): State<AppState>,
+    AxumPath(question_id): AxumPath<String>,
+    Json(request): Json<SubmitUserQuestionAnswerRequest>,
+) -> Result<
+    Json<ApiEnvelope<UserQuestionAnswerPayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let input = SubmitUserQuestionAnswerInput::try_from(request).map_err(|message| {
+        problem_response(
+            "submit-user-question-answer-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            message,
+        )
+    })?;
+
+    if !state.projections.has_user_question(&question_id) {
+        return Err(problem_response(
+            "submit-user-question-answer-not-found",
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "User question was not found.",
+        ));
+    }
+
+    let answer = state
+        .projections
+        .submit_user_question_answer(&question_id, input)
+        .map_err(|error| {
+            if error.contains("user question") && error.contains("was not found") {
+                return problem_response(
+                    "submit-user-question-answer-not-found",
+                    StatusCode::NOT_FOUND,
+                    "not_found",
+                    "User question was not found.",
+                );
+            }
+
+            problem_response(
+                "submit-user-question-answer-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to persist user question authority: {error}"),
+            )
+        })?;
+
+    Ok(Json(create_envelope("core-user-question-answer", answer)))
+}
+
 async fn core_session_events(
     State(state): State<AppState>,
     AxumPath(coding_session_id): AxumPath<String>,
@@ -20664,15 +23135,6 @@ async fn core_session_events(
             "core-session-events",
             snapshot.events.clone(),
         )));
-    }
-
-    if !is_native_coding_session_id(&coding_session_id) {
-        return Err(problem_response(
-            "session-events-not-found",
-            StatusCode::NOT_FOUND,
-            "not_found",
-            "Coding session projection was not found.",
-        ));
     }
 
     let app_admin_state = state.read_app_admin_state();
@@ -20777,7 +23239,29 @@ async fn core_session_artifacts(
         )));
     }
 
-    if is_native_coding_session_id(&coding_session_id) {
+    let app_admin_state = state.read_app_admin_state();
+    let native_engine_id =
+        native_sessions::resolve_native_session_engine_id(coding_session_id.as_str());
+    if get_native_session_async(
+        app_admin_state.projects,
+        native_sessions::NativeSessionLookup {
+            session_id: coding_session_id.clone(),
+            engine_id: native_engine_id,
+            workspace_id: None,
+            project_id: None,
+        },
+    )
+    .await
+    .map_err(|error| {
+        problem_response(
+            "native-session-artifacts-read-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to read native session artifacts: {error}"),
+        )
+    })?
+    .is_some()
+    {
         return Ok(Json(create_list_envelope(
             "core-session-artifacts",
             Vec::<CodingSessionArtifactPayload>::new(),
@@ -20806,7 +23290,29 @@ async fn core_session_checkpoints(
         )));
     }
 
-    if is_native_coding_session_id(&coding_session_id) {
+    let app_admin_state = state.read_app_admin_state();
+    let native_engine_id =
+        native_sessions::resolve_native_session_engine_id(coding_session_id.as_str());
+    if get_native_session_async(
+        app_admin_state.projects,
+        native_sessions::NativeSessionLookup {
+            session_id: coding_session_id.clone(),
+            engine_id: native_engine_id,
+            workspace_id: None,
+            project_id: None,
+        },
+    )
+    .await
+    .map_err(|error| {
+        problem_response(
+            "native-session-checkpoints-read-failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "system_error",
+            format!("Failed to read native session checkpoints: {error}"),
+        )
+    })?
+    .is_some()
+    {
         return Ok(Json(create_list_envelope(
             "core-session-checkpoints",
             Vec::<CodingSessionCheckpointPayload>::new(),
@@ -20910,6 +23416,10 @@ fn build_app_with_state(state: AppState) -> Router {
         .route(
             "/api/core/v1/approvals/{approval_id}/decision",
             post(core_submit_approval_decision),
+        )
+        .route(
+            "/api/core/v1/questions/{question_id}/answer",
+            post(core_submit_user_question_answer),
         )
         .route(
             "/api/core/v1/operations/{operation_id}",
@@ -21126,6 +23636,12 @@ fn build_local_cors_layer() -> CorsLayer {
             header::AUTHORIZATION,
             header::CONTENT_TYPE,
             HeaderName::from_static(BIRDCODER_SESSION_HEADER_NAME),
+            HeaderName::from_static(USER_CENTER_APP_ID_HEADER_NAME),
+            HeaderName::from_static(USER_CENTER_PROVIDER_KEY_HEADER_NAME),
+            HeaderName::from_static(USER_CENTER_HANDSHAKE_MODE_HEADER_NAME),
+            HeaderName::from_static(USER_CENTER_SECRET_ID_HEADER_NAME),
+            HeaderName::from_static(USER_CENTER_SIGNATURE_HEADER_NAME),
+            HeaderName::from_static(USER_CENTER_SIGNED_AT_HEADER_NAME),
             HeaderName::from_static("access-token"),
             HeaderName::from_static("refresh-token"),
         ])
@@ -21158,7 +23674,10 @@ mod tests {
         fs,
         path::{Path, PathBuf},
         process::Command,
-        sync::Mutex,
+        sync::{
+            atomic::{AtomicU64, Ordering},
+            Mutex,
+        },
         time::{SystemTime, UNIX_EPOCH},
     };
 
@@ -21170,6 +23689,7 @@ mod tests {
     use tower::ServiceExt;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
+    static SQLITE_FIXTURE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     struct FakeCodexCliGuard {
         fixture_directory: PathBuf,
@@ -21192,6 +23712,147 @@ mod tests {
         ));
         fs::create_dir_all(&path).expect("create temp directory");
         path
+    }
+
+    #[test]
+    fn generated_project_business_codes_preserve_unique_suffix_for_long_common_paths() {
+        let root_path_a = "D:/workspace/very-long-common-prefix/that-used-to-truncate-the-project-code-before-the-unique-suffix/a";
+        let root_path_b = "D:/workspace/very-long-common-prefix/that-used-to-truncate-the-project-code-before-the-unique-suffix/b";
+
+        let project_code_a =
+            build_project_business_code("100000000000000101", "Repeated Folder", Some(root_path_a));
+        let project_code_b =
+            build_project_business_code("100000000000000102", "Repeated Folder", Some(root_path_b));
+
+        assert_ne!(project_code_a, project_code_b);
+        assert!(project_code_a.len() <= 64);
+        assert!(project_code_b.len() <= 64);
+        assert!(project_code_a.ends_with("100000000000000101"));
+        assert!(project_code_b.ends_with("100000000000000102"));
+    }
+
+    #[test]
+    fn succeeded_coding_session_turn_events_attach_command_payloads() {
+        let commands = vec![native_sessions::NativeSessionCommandPayload {
+            command: "pnpm lint".to_owned(),
+            status: "success".to_owned(),
+            output: Some("ok".to_owned()),
+            ..Default::default()
+        }];
+
+        let events = build_succeeded_coding_session_turn_events(
+            "coding-session-1",
+            "runtime-1",
+            "turn-1",
+            "operation-1",
+            "Done.",
+            Some(commands.as_slice()),
+            4,
+            "2026-04-26T00:00:00Z",
+            Some("session-1"),
+        );
+
+        assert_eq!(events[0].kind, "message.completed");
+        let commands_json = events[0]
+            .payload
+            .get("commandsJson")
+            .expect("message.completed includes commandsJson");
+        let parsed_commands = serde_json::from_str::<
+            Vec<native_sessions::NativeSessionCommandPayload>,
+        >(commands_json)
+        .expect("commandsJson is valid command payload JSON");
+        assert_eq!(parsed_commands, commands);
+    }
+
+    fn insert_plus_project_fixture(
+        connection: &Connection,
+        id: &str,
+        uuid: &str,
+        workspace_id: &str,
+        workspace_uuid: &str,
+        name: &str,
+        code: &str,
+        title: &str,
+        description: &str,
+        root_path: Option<&str>,
+        user_id: &str,
+        created_at: &str,
+        updated_at: &str,
+        is_deleted: i64,
+        status: &str,
+    ) {
+        let config_data = build_project_config_data(root_path);
+        let content_id = connection
+            .query_row(
+                "SELECT COALESCE(MAX(id), 0) + 1 FROM plus_project_content",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .expect("allocate plus_project_content fixture id");
+        connection
+            .execute(
+                r#"
+                INSERT INTO plus_project AS projects (
+                    id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
+                    parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
+                    author, file_id, code, type, site_path, domain_prefix, description, status,
+                    conversation_id, workspace_id, workspace_uuid, leader_id, start_time, end_time,
+                    budget_amount, is_deleted, is_template
+                )
+                VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, NULL, ?14, NULL, ?15, ?16, NULL, NULL, ?17, ?18, NULL, ?19, ?20, ?21, NULL, NULL, NULL, ?22, 0)
+                "#,
+                params![
+                    id,
+                    uuid,
+                    created_at,
+                    updated_at,
+                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                    SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
+                    DEFAULT_TREE_ROOT_ID,
+                    DEFAULT_TREE_ROOT_UUID,
+                    "{}",
+                    user_id,
+                    name,
+                    title,
+                    user_id,
+                    code,
+                    project_type_storage_value(Some("SDK")),
+                    description,
+                    project_status_storage_value(Some(status)),
+                    workspace_id,
+                    workspace_uuid,
+                    user_id,
+                    is_deleted,
+                ],
+            )
+            .expect("insert plus_project fixture");
+        connection
+            .execute(
+                r#"
+                INSERT INTO plus_project_content (
+                    id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
+                    user_id, parent_id, project_id, project_uuid, config_data, content_data,
+                    metadata, content_version, content_hash
+                )
+                VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, NULL, NULL, '1.0', NULL)
+                "#,
+                params![
+                    content_id,
+                    format!("{uuid}:content"),
+                    created_at,
+                    updated_at,
+                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                    SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
+                    user_id,
+                    DEFAULT_TREE_ROOT_ID,
+                    id,
+                    uuid,
+                    &config_data,
+                ],
+            )
+            .expect("insert plus_project_content fixture");
     }
 
     fn run_git(args: &[&str], cwd: &Path) {
@@ -21542,8 +24203,22 @@ mod tests {
             Connection::open(sqlite_path).expect("open sqlite fixture for native session attach");
         connection
             .execute(
-                "UPDATE projects SET root_path = ?1 WHERE id = 'project-provider'",
-                params![fake_codex_home.project_root().display().to_string()],
+                r#"
+                UPDATE plus_project_content
+                SET config_data = ?1,
+                    updated_at = ?2
+                WHERE project_id = 'project-provider'
+                "#,
+                params![
+                    build_project_config_data(Some(
+                        fake_codex_home
+                            .project_root()
+                            .display()
+                            .to_string()
+                            .as_str()
+                    )),
+                    current_storage_timestamp(),
+                ],
             )
             .expect("update provider project root path for native session attribution");
         connection
@@ -21622,7 +24297,7 @@ mod tests {
         let detail = native_sessions::NativeSessionDetailPayload {
             summary: native_sessions::NativeSessionSummaryPayload {
                 created_at: "2026-04-20T09:00:00Z".to_owned(),
-                id: "codex-native:019d-demo".to_owned(),
+                id: "019d-demo".to_owned(),
                 workspace_id: BOOTSTRAP_WORKSPACE_ID.to_owned(),
                 project_id: "project-demo".to_owned(),
                 title: "Transcript bug demo".to_owned(),
@@ -21641,7 +24316,7 @@ mod tests {
             messages: vec![
                 native_sessions::NativeSessionMessagePayload {
                     id: "native-user".to_owned(),
-                    coding_session_id: "codex-native:019d-demo".to_owned(),
+                    coding_session_id: "019d-demo".to_owned(),
                     turn_id: Some("turn-1".to_owned()),
                     role: "user".to_owned(),
                     content: format!(
@@ -21649,16 +24324,24 @@ mod tests {
                         BOOTSTRAP_WORKSPACE_ID
                     ),
                     commands: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                    file_changes: None,
+                    task_progress: None,
                     metadata: None,
                     created_at: "2026-04-20T09:00:00Z".to_owned(),
                 },
                 native_sessions::NativeSessionMessagePayload {
                     id: "native-assistant".to_owned(),
-                    coding_session_id: "codex-native:019d-demo".to_owned(),
+                    coding_session_id: "019d-demo".to_owned(),
                     turn_id: Some("turn-1".to_owned()),
                     role: "assistant".to_owned(),
                     content: "The transcript was empty because the visible user message was replaced by the engine prompt.".to_owned(),
                     commands: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                    file_changes: None,
+                    task_progress: None,
                     metadata: None,
                     created_at: "2026-04-20T09:00:01Z".to_owned(),
                 },
@@ -21696,6 +24379,368 @@ mod tests {
             Some(
                 "The transcript was empty because the visible user message was replaced by the engine prompt."
             )
+        );
+    }
+
+    #[test]
+    fn build_projection_session_events_with_native_detail_dedupes_mismatched_native_turn_ids() {
+        let snapshot = ProjectionSnapshot {
+            session: None,
+            turns: Vec::new(),
+            operations: Vec::new(),
+            events: vec![
+                CodingSessionEventPayload {
+                    id: "runtime-demo:birdcoder-turn:event:1".to_owned(),
+                    coding_session_id: "coding-session-demo".to_owned(),
+                    turn_id: Some("birdcoder-turn".to_owned()),
+                    runtime_id: Some("runtime-demo".to_owned()),
+                    kind: "message.completed".to_owned(),
+                    sequence: 1,
+                    payload: BTreeMap::from([
+                        ("content".to_owned(), "Run lint".to_owned()),
+                        ("role".to_owned(), "user".to_owned()),
+                        ("runtimeStatus".to_owned(), "completed".to_owned()),
+                    ]),
+                    created_at: "2026-04-20T09:00:00Z".to_owned(),
+                },
+                CodingSessionEventPayload {
+                    id: "runtime-demo:birdcoder-turn:event:2".to_owned(),
+                    coding_session_id: "coding-session-demo".to_owned(),
+                    turn_id: Some("birdcoder-turn".to_owned()),
+                    runtime_id: Some("runtime-demo".to_owned()),
+                    kind: "message.completed".to_owned(),
+                    sequence: 2,
+                    payload: BTreeMap::from([
+                        ("content".to_owned(), "Lint completed.".to_owned()),
+                        ("role".to_owned(), "assistant".to_owned()),
+                        ("runtimeStatus".to_owned(), "completed".to_owned()),
+                    ]),
+                    created_at: "2026-04-20T09:00:01Z".to_owned(),
+                },
+            ],
+            artifacts: Vec::new(),
+            checkpoints: Vec::new(),
+        };
+        let detail = native_sessions::NativeSessionDetailPayload {
+            summary: native_sessions::NativeSessionSummaryPayload {
+                created_at: "2026-04-20T09:00:00Z".to_owned(),
+                id: "019d-demo".to_owned(),
+                workspace_id: BOOTSTRAP_WORKSPACE_ID.to_owned(),
+                project_id: "project-demo".to_owned(),
+                title: "Transcript overlay demo".to_owned(),
+                status: "completed".to_owned(),
+                host_mode: "server".to_owned(),
+                engine_id: "codex".to_owned(),
+                model_id: "gpt-5.4".to_owned(),
+                updated_at: "2026-04-20T09:00:04Z".to_owned(),
+                last_turn_at: Some("2026-04-20T09:00:04Z".to_owned()),
+                runtime_status: Some("completed".to_owned()),
+                kind: "native".to_owned(),
+                native_cwd: Some("D:/demo".to_owned()),
+                sort_timestamp: 1,
+                transcript_updated_at: Some("2026-04-20T09:00:04Z".to_owned()),
+            },
+            messages: vec![
+                native_sessions::NativeSessionMessagePayload {
+                    id: "native-user-same-turn".to_owned(),
+                    coding_session_id: "019d-demo".to_owned(),
+                    turn_id: Some("codex-turn".to_owned()),
+                    role: "user".to_owned(),
+                    content:
+                        "IDE context:\n- Session ID: coding-session-demo\n\nUser request:\nRun lint"
+                            .to_owned(),
+                    commands: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                    file_changes: None,
+                    task_progress: None,
+                    metadata: None,
+                    created_at: "2026-04-20T09:00:00Z".to_owned(),
+                },
+                native_sessions::NativeSessionMessagePayload {
+                    id: "native-assistant-same-turn".to_owned(),
+                    coding_session_id: "019d-demo".to_owned(),
+                    turn_id: Some("codex-turn".to_owned()),
+                    role: "assistant".to_owned(),
+                    content: "Lint completed.".to_owned(),
+                    commands: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                    file_changes: None,
+                    task_progress: None,
+                    metadata: None,
+                    created_at: "2026-04-20T09:00:01Z".to_owned(),
+                },
+                native_sessions::NativeSessionMessagePayload {
+                    id: "native-user-external".to_owned(),
+                    coding_session_id: "019d-demo".to_owned(),
+                    turn_id: Some("codex-turn-external".to_owned()),
+                    role: "user".to_owned(),
+                    content: "External CLI follow-up".to_owned(),
+                    commands: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                    file_changes: None,
+                    task_progress: None,
+                    metadata: None,
+                    created_at: "2026-04-20T09:00:03Z".to_owned(),
+                },
+                native_sessions::NativeSessionMessagePayload {
+                    id: "native-assistant-external".to_owned(),
+                    coding_session_id: "019d-demo".to_owned(),
+                    turn_id: Some("codex-turn-external".to_owned()),
+                    role: "assistant".to_owned(),
+                    content: "External CLI reply.".to_owned(),
+                    commands: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                    file_changes: None,
+                    task_progress: None,
+                    metadata: None,
+                    created_at: "2026-04-20T09:00:04Z".to_owned(),
+                },
+            ],
+        };
+
+        let events = build_projection_session_events_with_native_detail(
+            &snapshot,
+            &detail,
+            "coding-session-demo",
+        );
+        let messages = events
+            .iter()
+            .filter(|event| event.kind == "message.completed")
+            .map(|event| {
+                (
+                    event_payload_role(&event.payload)
+                        .unwrap_or_default()
+                        .to_owned(),
+                    event.payload.get("content").cloned().unwrap_or_default(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            messages,
+            vec![
+                ("user".to_owned(), "Run lint".to_owned()),
+                ("assistant".to_owned(), "Lint completed.".to_owned()),
+                ("user".to_owned(), "External CLI follow-up".to_owned()),
+                ("assistant".to_owned(), "External CLI reply.".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn build_projection_session_events_with_native_detail_dedupes_native_final_against_projection_deltas(
+    ) {
+        let snapshot = ProjectionSnapshot {
+            session: None,
+            turns: Vec::new(),
+            operations: Vec::new(),
+            events: vec![
+                CodingSessionEventPayload {
+                    id: "runtime-demo:birdcoder-turn:event:1".to_owned(),
+                    coding_session_id: "coding-session-demo".to_owned(),
+                    turn_id: Some("birdcoder-turn".to_owned()),
+                    runtime_id: Some("runtime-demo".to_owned()),
+                    kind: "message.delta".to_owned(),
+                    sequence: 1,
+                    payload: BTreeMap::from([
+                        ("contentDelta".to_owned(), "Lint ".to_owned()),
+                        ("role".to_owned(), "assistant".to_owned()),
+                        ("runtimeStatus".to_owned(), "streaming".to_owned()),
+                    ]),
+                    created_at: "2026-04-20T09:00:01Z".to_owned(),
+                },
+                CodingSessionEventPayload {
+                    id: "runtime-demo:birdcoder-turn:event:2".to_owned(),
+                    coding_session_id: "coding-session-demo".to_owned(),
+                    turn_id: Some("birdcoder-turn".to_owned()),
+                    runtime_id: Some("runtime-demo".to_owned()),
+                    kind: "message.delta".to_owned(),
+                    sequence: 2,
+                    payload: BTreeMap::from([
+                        ("contentDelta".to_owned(), "completed.".to_owned()),
+                        ("role".to_owned(), "assistant".to_owned()),
+                        ("runtimeStatus".to_owned(), "streaming".to_owned()),
+                    ]),
+                    created_at: "2026-04-20T09:00:02Z".to_owned(),
+                },
+            ],
+            artifacts: Vec::new(),
+            checkpoints: Vec::new(),
+        };
+        let detail = native_sessions::NativeSessionDetailPayload {
+            summary: native_sessions::NativeSessionSummaryPayload {
+                created_at: "2026-04-20T09:00:00Z".to_owned(),
+                id: "019d-demo".to_owned(),
+                workspace_id: BOOTSTRAP_WORKSPACE_ID.to_owned(),
+                project_id: "project-demo".to_owned(),
+                title: "Transcript overlay delta demo".to_owned(),
+                status: "completed".to_owned(),
+                host_mode: "server".to_owned(),
+                engine_id: "codex".to_owned(),
+                model_id: "gpt-5.4".to_owned(),
+                updated_at: "2026-04-20T09:00:03Z".to_owned(),
+                last_turn_at: Some("2026-04-20T09:00:03Z".to_owned()),
+                runtime_status: Some("completed".to_owned()),
+                kind: "native".to_owned(),
+                native_cwd: Some("D:/demo".to_owned()),
+                sort_timestamp: 1,
+                transcript_updated_at: Some("2026-04-20T09:00:03Z".to_owned()),
+            },
+            messages: vec![native_sessions::NativeSessionMessagePayload {
+                id: "native-assistant-final".to_owned(),
+                coding_session_id: "019d-demo".to_owned(),
+                turn_id: Some("codex-turn".to_owned()),
+                role: "assistant".to_owned(),
+                content: "Lint completed.".to_owned(),
+                commands: None,
+                tool_calls: None,
+                tool_call_id: None,
+                file_changes: None,
+                task_progress: None,
+                metadata: None,
+                created_at: "2026-04-20T09:00:03Z".to_owned(),
+            }],
+        };
+
+        let events = build_projection_session_events_with_native_detail(
+            &snapshot,
+            &detail,
+            "coding-session-demo",
+        );
+        let assistant_messages = events
+            .iter()
+            .filter(|event| {
+                matches!(event.kind.as_str(), "message.completed" | "message.delta")
+                    && event_payload_role(&event.payload) == Some("assistant")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(assistant_messages.len(), 2);
+        assert!(
+            assistant_messages
+                .iter()
+                .all(|event| event.kind == "message.delta"),
+            "native final assistant message must not be appended when projection deltas already represent the same reply"
+        );
+    }
+
+    #[test]
+    fn native_session_events_preserve_rich_message_payloads() {
+        let detail = native_sessions::NativeSessionDetailPayload {
+            summary: native_sessions::NativeSessionSummaryPayload {
+                created_at: "2026-04-20T10:00:00Z".to_owned(),
+                id: "rich-session".to_owned(),
+                workspace_id: BOOTSTRAP_WORKSPACE_ID.to_owned(),
+                project_id: "project-rich".to_owned(),
+                title: "Rich native transcript".to_owned(),
+                status: "completed".to_owned(),
+                host_mode: "server".to_owned(),
+                engine_id: "codex".to_owned(),
+                model_id: "gpt-5.4".to_owned(),
+                updated_at: "2026-04-20T10:00:01Z".to_owned(),
+                last_turn_at: Some("2026-04-20T10:00:01Z".to_owned()),
+                runtime_status: Some("completed".to_owned()),
+                kind: "native".to_owned(),
+                native_cwd: Some("D:/project-rich".to_owned()),
+                sort_timestamp: 1,
+                transcript_updated_at: Some("2026-04-20T10:00:01Z".to_owned()),
+            },
+            messages: vec![
+                native_sessions::NativeSessionMessagePayload {
+                    id: "rich-assistant".to_owned(),
+                    coding_session_id: "rich-session".to_owned(),
+                    turn_id: Some("rich-turn".to_owned()),
+                    role: "assistant".to_owned(),
+                    content: "Updated files and ran tests.".to_owned(),
+                    commands: Some(vec![native_sessions::NativeSessionCommandPayload {
+                        command: "pnpm test".to_owned(),
+                        status: "success".to_owned(),
+                        output: Some("ok".to_owned()),
+                        kind: Some("command".to_owned()),
+                        tool_name: Some("run_command".to_owned()),
+                        tool_call_id: Some("tool-run-tests".to_owned()),
+                        runtime_status: Some("completed".to_owned()),
+                        requires_approval: Some(false),
+                        requires_reply: Some(false),
+                    }]),
+                    tool_calls: Some(vec![serde_json::json!({
+                        "id": "tool-run-tests",
+                        "type": "function",
+                        "function": {
+                            "name": "run_command",
+                            "arguments": "{\"command\":\"pnpm test\"}"
+                        }
+                    })]),
+                    tool_call_id: None,
+                    file_changes: Some(vec![serde_json::json!({
+                        "path": "src/App.tsx",
+                        "additions": 1,
+                        "deletions": 1
+                    })]),
+                    task_progress: Some(serde_json::json!({
+                        "total": 2,
+                        "completed": 2
+                    })),
+                    metadata: None,
+                    created_at: "2026-04-20T10:00:01Z".to_owned(),
+                },
+                native_sessions::NativeSessionMessagePayload {
+                    id: "rich-tool".to_owned(),
+                    coding_session_id: "rich-session".to_owned(),
+                    turn_id: Some("rich-turn".to_owned()),
+                    role: "tool".to_owned(),
+                    content: "ok".to_owned(),
+                    commands: None,
+                    tool_calls: None,
+                    tool_call_id: Some("tool-run-tests".to_owned()),
+                    file_changes: None,
+                    task_progress: None,
+                    metadata: None,
+                    created_at: "2026-04-20T10:00:02Z".to_owned(),
+                },
+            ],
+        };
+
+        let events =
+            build_native_session_events_for_coding_session(&detail, "coding-session-rich", 0);
+        let assistant_event = events
+            .iter()
+            .find(|event| event_payload_role(&event.payload) == Some("assistant"))
+            .expect("assistant event");
+        let tool_event = events
+            .iter()
+            .find(|event| event_payload_role(&event.payload) == Some("tool"))
+            .expect("tool event");
+
+        assert_eq!(
+            assistant_event.payload.get("commandsJson").map(String::as_str),
+            Some("[{\"command\":\"pnpm test\",\"status\":\"success\",\"output\":\"ok\",\"kind\":\"command\",\"toolName\":\"run_command\",\"toolCallId\":\"tool-run-tests\",\"runtimeStatus\":\"completed\",\"requiresApproval\":false,\"requiresReply\":false}]")
+        );
+        assert_eq!(
+            assistant_event.payload.get("toolCallsJson").map(String::as_str),
+            Some("[{\"function\":{\"arguments\":\"{\\\"command\\\":\\\"pnpm test\\\"}\",\"name\":\"run_command\"},\"id\":\"tool-run-tests\",\"type\":\"function\"}]")
+        );
+        assert_eq!(
+            assistant_event
+                .payload
+                .get("fileChangesJson")
+                .map(String::as_str),
+            Some("[{\"additions\":1,\"deletions\":1,\"path\":\"src/App.tsx\"}]")
+        );
+        assert_eq!(
+            assistant_event
+                .payload
+                .get("taskProgressJson")
+                .map(String::as_str),
+            Some("{\"completed\":2,\"total\":2}")
+        );
+        assert_eq!(
+            tool_event.payload.get("toolCallId").map(String::as_str),
+            Some("tool-run-tests")
         );
     }
 
@@ -21757,6 +24802,7 @@ setlocal\r\n\
 {delay_script}\
 echo {{\"type\":\"thread.started\",\"thread_id\":\"fake-codex-thread\"}}\r\n\
 echo {{\"type\":\"turn.started\"}}\r\n\
+echo {{\"type\":\"item.updated\",\"item\":{{\"id\":\"fake-codex-message\",\"type\":\"agent_message\",\"text\":{encoded_assistant_content}}}}}\r\n\
 echo {{\"type\":\"item.completed\",\"item\":{{\"id\":\"fake-codex-message\",\"type\":\"agent_message\",\"text\":{encoded_assistant_content}}}}}\r\n\
 echo {{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"cached_input_tokens\":0,\"output_tokens\":1}}}}\r\n"
             )
@@ -21766,6 +24812,7 @@ echo {{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"cached_input
 {delay_script}\
 printf '%s\\n' '{{\"type\":\"thread.started\",\"thread_id\":\"fake-codex-thread\"}}'\n\
 printf '%s\\n' '{{\"type\":\"turn.started\"}}'\n\
+printf '%s\\n' '{{\"type\":\"item.updated\",\"item\":{{\"id\":\"fake-codex-message\",\"type\":\"agent_message\",\"text\":{encoded_assistant_content}}}}}'\n\
 printf '%s\\n' '{{\"type\":\"item.completed\",\"item\":{{\"id\":\"fake-codex-message\",\"type\":\"agent_message\",\"text\":{encoded_assistant_content}}}}}'\n\
 printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"cached_input_tokens\":0,\"output_tokens\":1}}}}'\n"
             )
@@ -21788,9 +24835,29 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         script_path
     }
 
-    fn write_empty_sqlite_fixture(file_name: &str) -> std::path::PathBuf {
+    fn unique_sqlite_fixture_path(file_name: &str) -> std::path::PathBuf {
+        let source = Path::new(file_name);
+        let stem = source
+            .file_stem()
+            .and_then(|value| value.to_str())
+            .filter(|value| !value.is_empty())
+            .unwrap_or("birdcoder-sqlite-fixture");
+        let suffix = format!(
+            "{}-{}",
+            std::process::id(),
+            SQLITE_FIXTURE_COUNTER.fetch_add(1, Ordering::Relaxed)
+        );
+        let unique_file_name = match source.extension().and_then(|value| value.to_str()) {
+            Some(extension) if !extension.is_empty() => format!("{stem}-{suffix}.{extension}"),
+            _ => format!("{stem}-{suffix}"),
+        };
         let mut path = std::env::temp_dir();
-        path.push(file_name);
+        path.push(unique_file_name);
+        path
+    }
+
+    fn write_empty_sqlite_fixture(file_name: &str) -> std::path::PathBuf {
+        let path = unique_sqlite_fixture_path(file_name);
 
         if path.exists() {
             fs::remove_file(&path).expect("remove existing empty sqlite fixture");
@@ -21801,8 +24868,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
     }
 
     fn write_empty_sqlite_provider_authority_fixture(file_name: &str) -> std::path::PathBuf {
-        let mut path = std::env::temp_dir();
-        path.push(file_name);
+        let path = unique_sqlite_fixture_path(file_name);
 
         if path.exists() {
             fs::remove_file(&path).expect("remove existing empty sqlite provider fixture");
@@ -21825,15 +24891,15 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                 DROP TABLE workspace_members;
                 DROP TABLE team_members;
                 DROP TABLE teams;
-                DROP TABLE projects;
-                DROP TABLE workspaces;
+                DROP TABLE plus_project;
+                DROP TABLE plus_workspace;
 
-                CREATE TABLE workspaces (
+                CREATE TABLE plus_workspace (
                     id TEXT PRIMARY KEY,
                     uuid TEXT NULL,
-                    tenant_id TEXT NULL,
-                    organization_id TEXT NULL,
-                    data_scope TEXT NULL,
+                    tenant_id INTEGER NOT NULL DEFAULT 0,
+                    organization_id INTEGER NOT NULL DEFAULT 0,
+                    data_scope INTEGER NOT NULL DEFAULT 1,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     version INTEGER NOT NULL DEFAULT 0,
@@ -21842,9 +24908,9 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     code TEXT NULL,
                     title TEXT NULL,
                     description TEXT NULL,
-                    owner_id TEXT NULL,
-                    leader_id TEXT NULL,
-                    created_by_user_id TEXT NULL,
+                    owner_id INTEGER NULL,
+                    leader_id INTEGER NULL,
+                    created_by_user_id INTEGER NULL,
                     icon TEXT NULL,
                     color TEXT NULL,
                     type TEXT NULL,
@@ -21861,49 +24927,46 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     status TEXT NOT NULL
                 );
 
-                CREATE TABLE projects (
+                CREATE TABLE plus_project (
                     id TEXT PRIMARY KEY,
-                    uuid TEXT NULL,
-                    tenant_id TEXT NULL,
-                    organization_id TEXT NULL,
-                    data_scope TEXT NULL,
-                    user_id TEXT NULL,
-                    parent_id TEXT NULL,
-                    parent_uuid TEXT NULL,
-                    parent_metadata TEXT NULL,
+                    uuid TEXT NOT NULL UNIQUE,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    workspace_id TEXT NOT NULL,
-                    workspace_uuid TEXT NULL,
+                    v INTEGER NOT NULL DEFAULT 0,
+                    tenant_id INTEGER NOT NULL DEFAULT 0,
+                    organization_id INTEGER NOT NULL DEFAULT 0,
+                    data_scope INTEGER NOT NULL DEFAULT 1,
+                    parent_id INTEGER NULL,
+                    parent_uuid TEXT NULL,
+                    parent_metadata TEXT NULL,
+                    user_id INTEGER NULL,
                     name TEXT NOT NULL,
-                    code TEXT NULL,
-                    title TEXT NULL,
-                    description TEXT NULL,
-                    root_path TEXT NULL,
+                    title TEXT NOT NULL,
+                    cover_image TEXT NULL,
                     author TEXT NULL,
-                    file_id TEXT NULL,
-                    type TEXT NULL,
+                    file_id INTEGER NULL,
+                    code TEXT NOT NULL,
+                    type INTEGER NOT NULL,
                     site_path TEXT NULL,
                     domain_prefix TEXT NULL,
-                    conversation_id TEXT NULL,
-                    owner_id TEXT NULL,
-                    leader_id TEXT NULL,
-                    created_by_user_id TEXT NULL,
+                    description TEXT NULL,
+                    status INTEGER NOT NULL,
+                    conversation_id INTEGER NULL,
+                    workspace_id TEXT NULL,
+                    workspace_uuid TEXT NULL,
+                    leader_id INTEGER NULL,
                     start_time TEXT NULL,
                     end_time TEXT NULL,
                     budget_amount INTEGER NULL,
-                    cover_image_json TEXT NULL,
-                    is_template INTEGER NOT NULL DEFAULT 0,
-                    status TEXT NOT NULL
+                    is_deleted INTEGER NOT NULL,
+                    is_template INTEGER NOT NULL
                 );
 
                 CREATE TABLE teams (
                     id TEXT PRIMARY KEY,
                     uuid TEXT NULL,
-                    tenant_id TEXT NULL,
-                    organization_id TEXT NULL,
+                    tenant_id INTEGER NOT NULL DEFAULT 0,
+                    organization_id INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     version INTEGER NOT NULL DEFAULT 0,
@@ -21913,9 +24976,9 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     code TEXT NULL,
                     title TEXT NULL,
                     description TEXT NULL,
-                    owner_id TEXT NULL,
-                    leader_id TEXT NULL,
-                    created_by_user_id TEXT NULL,
+                    owner_id INTEGER NULL,
+                    leader_id INTEGER NULL,
+                    created_by_user_id INTEGER NULL,
                     metadata_json TEXT NULL,
                     status TEXT NOT NULL
                 );
@@ -21923,54 +24986,54 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                 CREATE TABLE team_members (
                     id TEXT PRIMARY KEY,
                     uuid TEXT NULL,
-                    tenant_id TEXT NULL,
-                    organization_id TEXT NULL,
+                    tenant_id INTEGER NOT NULL DEFAULT 0,
+                    organization_id INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     version INTEGER NOT NULL DEFAULT 0,
                     is_deleted INTEGER NOT NULL DEFAULT 0,
                     team_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
+                    user_id INTEGER NOT NULL,
                     role TEXT NOT NULL,
-                    created_by_user_id TEXT NULL,
-                    granted_by_user_id TEXT NULL,
+                    created_by_user_id INTEGER NULL,
+                    granted_by_user_id INTEGER NULL,
                     status TEXT NOT NULL
                 );
 
                 CREATE TABLE workspace_members (
                     id TEXT PRIMARY KEY,
                     uuid TEXT NULL,
-                    tenant_id TEXT NULL,
-                    organization_id TEXT NULL,
+                    tenant_id INTEGER NOT NULL DEFAULT 0,
+                    organization_id INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     version INTEGER NOT NULL DEFAULT 0,
                     is_deleted INTEGER NOT NULL DEFAULT 0,
                     workspace_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
+                    user_id INTEGER NOT NULL,
                     team_id TEXT NULL,
                     role TEXT NOT NULL,
-                    created_by_user_id TEXT NULL,
-                    granted_by_user_id TEXT NULL,
+                    created_by_user_id INTEGER NULL,
+                    granted_by_user_id INTEGER NULL,
                     status TEXT NOT NULL
                 );
 
                 CREATE TABLE project_collaborators (
                     id TEXT PRIMARY KEY,
                     uuid TEXT NULL,
-                    tenant_id TEXT NULL,
-                    organization_id TEXT NULL,
+                    tenant_id INTEGER NOT NULL DEFAULT 0,
+                    organization_id INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     version INTEGER NOT NULL DEFAULT 0,
                     is_deleted INTEGER NOT NULL DEFAULT 0,
                     project_id TEXT NOT NULL,
                     workspace_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
+                    user_id INTEGER NOT NULL,
                     team_id TEXT NULL,
                     role TEXT NOT NULL,
-                    created_by_user_id TEXT NULL,
-                    granted_by_user_id TEXT NULL,
+                    created_by_user_id INTEGER NULL,
+                    granted_by_user_id INTEGER NULL,
                     status TEXT NOT NULL
                 );
                 "#,
@@ -21986,9 +25049,85 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         path
     }
 
+    fn rewrite_provider_authority_collaboration_tables_to_legacy_identity_columns(
+        connection: &Connection,
+    ) {
+        connection
+            .execute_batch(
+                r#"
+                DROP TABLE project_collaborators;
+                DROP TABLE workspace_members;
+                DROP TABLE team_members;
+
+                CREATE TABLE team_members (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    team_id TEXT NOT NULL,
+                    identity_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    created_by_identity_id TEXT NULL,
+                    granted_by_identity_id TEXT NULL,
+                    uuid TEXT NULL,
+                    tenant_id INTEGER NOT NULL DEFAULT 0,
+                    organization_id INTEGER NOT NULL DEFAULT 0,
+                    user_id INTEGER NULL,
+                    created_by_user_id INTEGER NULL,
+                    granted_by_user_id INTEGER NULL
+                );
+
+                CREATE TABLE workspace_members (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    workspace_id TEXT NOT NULL,
+                    identity_id TEXT NOT NULL,
+                    team_id TEXT NULL,
+                    role TEXT NOT NULL,
+                    created_by_identity_id TEXT NULL,
+                    granted_by_identity_id TEXT NULL,
+                    status TEXT NOT NULL,
+                    uuid TEXT NULL,
+                    tenant_id INTEGER NOT NULL DEFAULT 0,
+                    organization_id INTEGER NOT NULL DEFAULT 0,
+                    user_id INTEGER NULL,
+                    created_by_user_id INTEGER NULL,
+                    granted_by_user_id INTEGER NULL
+                );
+
+                CREATE TABLE project_collaborators (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    project_id TEXT NOT NULL,
+                    workspace_id TEXT NOT NULL,
+                    identity_id TEXT NOT NULL,
+                    team_id TEXT NULL,
+                    role TEXT NOT NULL,
+                    created_by_identity_id TEXT NULL,
+                    granted_by_identity_id TEXT NULL,
+                    status TEXT NOT NULL,
+                    uuid TEXT NULL,
+                    tenant_id INTEGER NOT NULL DEFAULT 0,
+                    organization_id INTEGER NOT NULL DEFAULT 0,
+                    user_id INTEGER NULL,
+                    created_by_user_id INTEGER NULL,
+                    granted_by_user_id INTEGER NULL
+                );
+                "#,
+            )
+            .expect("rewrite provider authority collaboration tables to legacy identity columns");
+    }
+
     fn write_sqlite_provider_authority_fixture(file_name: &str) -> std::path::PathBuf {
-        let mut path = std::env::temp_dir();
-        path.push(file_name);
+        let path = unique_sqlite_fixture_path(file_name);
 
         if path.exists() {
             fs::remove_file(&path).expect("remove existing sqlite provider fixture");
@@ -22177,7 +25316,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         connection
             .execute(
                 r#"
-                INSERT INTO workspaces (
+                INSERT INTO plus_workspace AS workspaces (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     name, code, title, description, owner_id, leader_id, created_by_user_id, type,
                     settings_json, is_public, is_template, status
@@ -22188,7 +25327,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     "workspace-provider",
                     "workspace-uuid-provider",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-10T13:00:00Z",
                     "2026-04-10T13:00:00Z",
                     0_i64,
@@ -22209,42 +25348,23 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             )
             .expect("insert provider workspace");
 
-        connection
-            .execute(
-                r#"
-                INSERT INTO projects (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    workspace_id, workspace_uuid, name, code, title, description, root_path, owner_id,
-                    leader_id, created_by_user_id, author, type, is_template, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
-                "#,
-                params![
-                    "project-provider",
-                    "project-uuid-provider",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
-                    "2026-04-10T13:00:00Z",
-                    "2026-04-10T13:00:00Z",
-                    0_i64,
-                    0_i64,
-                    "workspace-provider",
-                    "workspace-uuid-provider",
-                    "Provider authority project",
-                    "provider.project",
-                    "Provider authority project",
-                    "Provider-backed app project list item",
-                    "E:/sdkwork/project-provider",
-                    "user-provider-owner",
-                    "user-provider-owner",
-                    "user-provider-owner",
-                    "user-provider-owner",
-                    "CODE",
-                    0_i64,
-                    "active",
-                ],
-            )
-            .expect("insert provider project");
+        insert_plus_project_fixture(
+            &connection,
+            "project-provider",
+            "project-uuid-provider",
+            "workspace-provider",
+            "workspace-uuid-provider",
+            "Provider authority project",
+            "provider.project",
+            "Provider authority project",
+            "Provider-backed app project list item",
+            Some("E:/sdkwork/project-provider"),
+            "user-provider-owner",
+            "2026-04-10T13:00:00Z",
+            "2026-04-10T13:00:00Z",
+            0_i64,
+            "active",
+        );
 
         connection
             .execute(
@@ -22259,7 +25379,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     "doc-provider-architecture",
                     "project-document-uuid-provider-architecture",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-10T13:00:00Z",
                     "2026-04-10T13:00:01Z",
                     0_i64,
@@ -22287,7 +25407,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     "target-provider-web",
                     "deployment-target-uuid-provider-web",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-10T13:00:01Z",
                     "2026-04-10T13:00:02Z",
                     0_i64,
@@ -22314,7 +25434,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     "deployment-provider",
                     "deployment-uuid-provider",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-10T13:00:01Z",
                     "2026-04-10T13:00:02Z",
                     0_i64,
@@ -22344,7 +25464,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     "team-provider",
                     "team-uuid-provider",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-10T13:00:00Z",
                     "2026-04-10T13:00:00Z",
                     0_i64,
@@ -22376,7 +25496,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     "member-provider-admin",
                     "team-member-uuid-provider-admin",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-10T13:00:00Z",
                     "2026-04-10T13:00:00Z",
                     0_i64,
@@ -22404,7 +25524,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     "release-0.3.0-provider",
                     "release-uuid-0.3.0-provider",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-10T13:00:00Z",
                     "2026-04-10T13:00:00Z",
                     0_i64,
@@ -22431,7 +25551,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     "audit-provider-release",
                     "audit-uuid-provider-release",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-10T13:00:04Z",
                     "2026-04-10T13:00:04Z",
                     0_i64,
@@ -22457,7 +25577,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     "policy-provider-terminal",
                     "policy-uuid-provider-terminal",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-10T13:00:05Z",
                     "2026-04-10T13:00:05Z",
                     0_i64,
@@ -22475,6 +25595,143 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             .expect("insert provider policy");
 
         path
+    }
+
+    #[test]
+    fn sqlite_provider_payload_loaders_normalize_integer_java_long_columns() {
+        let connection = Connection::open_in_memory().expect("open in-memory provider authority");
+        connection
+            .execute_batch(SQLITE_PROVIDER_AUTHORITY_SCHEMA)
+            .expect("create sqlite provider authority schema");
+        connection
+            .execute(
+                r#"
+                INSERT INTO plus_workspace AS workspaces (
+                    id, uuid, tenant_id, organization_id, data_scope, created_at, updated_at,
+                    version, is_deleted, name, code, title, description, owner_id, leader_id,
+                    created_by_user_id, type, settings_json, is_public, is_template, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, 0, 0, ?17)
+                "#,
+                params![
+                    101_i64,
+                    "workspace-integer-uuid",
+                    0_i64,
+                    0_i64,
+                    SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
+                    "2026-04-24T00:00:00Z",
+                    "2026-04-24T00:00:00Z",
+                    "Integer workspace",
+                    "integer.workspace",
+                    "Integer workspace",
+                    "Workspace row with Java Long columns",
+                    1001_i64,
+                    1002_i64,
+                    1003_i64,
+                    "DEFAULT",
+                    "{}",
+                    "active",
+                ],
+            )
+            .expect("insert integer workspace row");
+        connection
+            .execute(
+                r#"
+                INSERT INTO plus_project AS projects (
+                    id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
+                    parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
+                    author, file_id, code, type, site_path, domain_prefix, description, status,
+                    conversation_id, workspace_id, workspace_uuid, leader_id, start_time, end_time,
+                    budget_amount, is_deleted, is_template
+                )
+                VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, NULL, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, NULL, NULL, NULL, 0, 0)
+                "#,
+                params![
+                    201_i64,
+                    "project-integer-uuid",
+                    "2026-04-24T00:00:01Z",
+                    "2026-04-24T00:00:01Z",
+                    0_i64,
+                    0_i64,
+                    SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
+                    0_i64,
+                    DEFAULT_TREE_ROOT_UUID,
+                    "{}",
+                    1004_i64,
+                    "Integer project",
+                    "Integer project",
+                    "1003",
+                    3001_i64,
+                    "integer.project",
+                    project_type_storage_value(Some("SDK")),
+                    "/integer-project",
+                    "integer-project",
+                    "Project row with Java Long columns",
+                    project_status_storage_value(Some("active")),
+                    4001_i64,
+                    101_i64,
+                    "workspace-integer-uuid",
+                    1002_i64,
+                ],
+            )
+            .expect("insert integer project row");
+        connection
+            .execute(
+                r#"
+                INSERT INTO plus_project_content (
+                    id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
+                    user_id, parent_id, project_id, project_uuid, config_data, content_data,
+                    metadata, content_version, content_hash
+                )
+                VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, NULL, NULL, '1.0', NULL)
+                "#,
+                params![
+                    202_i64,
+                    "project-integer-content-uuid",
+                    "2026-04-24T00:00:01Z",
+                    "2026-04-24T00:00:01Z",
+                    0_i64,
+                    0_i64,
+                    SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
+                    1004_i64,
+                    0_i64,
+                    201_i64,
+                    "project-integer-uuid",
+                    build_project_config_data(Some("D:/workspace/integer-project")),
+                ],
+            )
+            .expect("insert integer project content row");
+
+        let workspaces =
+            load_provider_workspace_payloads(&connection).expect("load workspace payloads");
+        let projects = load_provider_project_payloads(&connection).expect("load project payloads");
+
+        assert_eq!(workspaces.len(), 1);
+        assert_eq!(workspaces[0].id, "101");
+        assert_eq!(workspaces[0].tenant_id.as_deref(), Some("0"));
+        assert_eq!(workspaces[0].organization_id.as_deref(), Some("0"));
+        assert_eq!(workspaces[0].data_scope.as_deref(), Some("PRIVATE"));
+        assert_eq!(workspaces[0].owner_id.as_deref(), Some("1001"));
+        assert_eq!(workspaces[0].leader_id.as_deref(), Some("1002"));
+        assert_eq!(workspaces[0].created_by_user_id.as_deref(), Some("1003"));
+
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].id, "201");
+        assert_eq!(projects[0].workspace_id, "101");
+        assert_eq!(projects[0].tenant_id.as_deref(), Some("0"));
+        assert_eq!(projects[0].organization_id.as_deref(), Some("0"));
+        assert_eq!(projects[0].data_scope.as_deref(), Some("PRIVATE"));
+        assert_eq!(projects[0].user_id.as_deref(), Some("1004"));
+        assert_eq!(projects[0].parent_id.as_deref(), Some("0"));
+        assert_eq!(projects[0].file_id.as_deref(), Some("3001"));
+        assert_eq!(projects[0].conversation_id.as_deref(), Some("4001"));
+        assert_eq!(
+            projects[0].root_path.as_deref(),
+            Some("D:/workspace/integer-project")
+        );
+        assert_eq!(projects[0].owner_id.as_deref(), Some("1004"));
+        assert_eq!(projects[0].leader_id.as_deref(), Some("1002"));
+        assert_eq!(projects[0].created_by_user_id.as_deref(), Some("1004"));
     }
 
     fn write_legacy_nullable_model_id_provider_authority_fixture(
@@ -23762,7 +27019,9 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             .as_str()
             .expect("created session id")
             .to_owned();
-        assert!(created_session_id.chars().all(|character| character.is_ascii_digit()));
+        assert!(created_session_id
+            .chars()
+            .all(|character| character.is_ascii_digit()));
         assert_eq!(create_json["data"]["workspaceId"], "workspace-create");
         assert_eq!(create_json["data"]["projectId"], "project-create");
         assert_eq!(create_json["data"]["title"], "Create session route");
@@ -23974,6 +27233,61 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
     }
 
     #[test]
+    fn created_provider_session_is_readable_as_initializing_before_runtime_ready() {
+        let sqlite_path = write_sqlite_provider_authority_fixture(
+            "birdcoder-create-coding-session-initializing-runtime.sqlite",
+        );
+        let mut connection =
+            Connection::open(&sqlite_path).expect("open provider authority sqlite");
+        let session = CodingSessionPayload {
+            id: "provider-created-initializing-session".to_owned(),
+            workspace_id: "workspace-provider-initializing".to_owned(),
+            project_id: "project-provider-initializing".to_owned(),
+            title: "Provider initializing session".to_owned(),
+            status: "active".to_owned(),
+            host_mode: "server".to_owned(),
+            engine_id: "codex".to_owned(),
+            model_id: "gpt-5-codex".to_owned(),
+            native_session_id: None,
+            created_at: "2026-04-26T10:00:00Z".to_owned(),
+            updated_at: "2026-04-26T10:00:00Z".to_owned(),
+            last_turn_at: Some("2026-04-26T10:00:00Z".to_owned()),
+            runtime_status: Some("initializing".to_owned()),
+            sort_timestamp: 0,
+            transcript_updated_at: None,
+        };
+
+        persist_created_coding_session_to_provider(&mut connection, &session, "server")
+            .expect("persist created provider session");
+
+        let persisted_runtime_status: String = connection
+            .query_row(
+                r#"
+                SELECT status
+                FROM coding_session_runtimes
+                WHERE coding_session_id = ?1
+                "#,
+                params![session.id],
+                |row| row.get(0),
+            )
+            .expect("read persisted runtime status");
+        assert_eq!(persisted_runtime_status, "initializing");
+
+        let reloaded_state = ProjectionReadState::from_sqlite_provider_connection(&connection)
+            .expect("reload projection state");
+        let reloaded_session = reloaded_state
+            .session("provider-created-initializing-session")
+            .expect("read reloaded session");
+        assert_eq!(
+            reloaded_session.runtime_status.as_deref(),
+            Some("initializing")
+        );
+
+        drop(connection);
+        fs::remove_file(sqlite_path).expect("remove provider authority fixture");
+    }
+
+    #[test]
     fn sqlite_provider_authority_schema_requires_non_null_coding_session_model_id() {
         let sqlite_path = write_sqlite_provider_authority_fixture(
             "birdcoder-provider-authority-model-id-not-null.sqlite",
@@ -24091,6 +27405,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         );
         let mut state = AppState::demo();
         override_project_root_path(&mut state, "demo-project", fake_codex.project_root());
+        let mut realtime_receiver = state.realtime.subscribe();
         let app = build_app_with_state(state);
         let request_body = serde_json::json!({
             "requestKind": "chat",
@@ -24124,7 +27439,9 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             .to_owned();
         let created_operation_id = format!("{created_turn_id}:operation");
 
-        assert!(created_turn_id.chars().all(|character| character.is_ascii_digit()));
+        assert!(created_turn_id
+            .chars()
+            .all(|character| character.is_ascii_digit()));
         assert_eq!(
             create_json["data"]["codingSessionId"],
             "demo-coding-session"
@@ -24229,17 +27546,40 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             .iter()
             .filter(|event| event["turnId"] == created_turn_id)
             .collect::<Vec<_>>();
-        assert_eq!(created_events.len(), 6);
+        assert_eq!(created_events.len(), 7);
+        assert_eq!(created_events[3]["kind"], "message.delta");
+        assert_eq!(created_events[3]["payload"]["role"], "assistant");
         assert_eq!(
-            created_events[3]["payload"]["content"],
+            created_events[3]["payload"]["contentDelta"],
             "Codex CLI executed for the demo create-turn route."
         );
-        assert_eq!(created_events[3]["kind"], "message.completed");
-        assert_eq!(created_events[3]["payload"]["role"], "assistant");
-        assert_eq!(created_events[4]["kind"], "operation.updated");
-        assert_eq!(created_events[4]["payload"]["status"], "succeeded");
-        assert_eq!(created_events[5]["kind"], "turn.completed");
-        assert_eq!(created_events[5]["payload"]["finishReason"], "stop");
+        assert_eq!(
+            created_events[4]["payload"]["content"],
+            "Codex CLI executed for the demo create-turn route."
+        );
+        assert_eq!(created_events[4]["kind"], "message.completed");
+        assert_eq!(created_events[4]["payload"]["role"], "assistant");
+        assert_eq!(created_events[5]["kind"], "operation.updated");
+        assert_eq!(created_events[5]["payload"]["status"], "succeeded");
+        assert_eq!(created_events[6]["kind"], "turn.completed");
+        assert_eq!(created_events[6]["payload"]["finishReason"], "stop");
+        let mut realtime_events = Vec::new();
+        while let Ok(Ok(realtime_event)) =
+            tokio::time::timeout(Duration::from_millis(100), realtime_receiver.recv()).await
+        {
+            realtime_events.push(realtime_event);
+            if realtime_events.len() >= 8 {
+                break;
+            }
+        }
+        assert!(
+            realtime_events.iter().any(|event| {
+                event.event_kind == "coding-session.updated"
+                    && event.turn_id.as_deref() == Some(created_turn_id.as_str())
+                    && event.coding_session_runtime_status.as_deref() == Some("streaming")
+            }),
+            "message.delta persistence must publish a streaming coding-session.updated event so other windows refresh streamed transcript content"
+        );
 
         let session_response = app
             .clone()
@@ -24260,7 +27600,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             serde_json::from_slice(&session_body).expect("parse get coding session response");
         assert_eq!(
             session_json["data"]["lastTurnAt"],
-            created_events[5]["createdAt"]
+            created_events[6]["createdAt"]
         );
     }
 
@@ -24316,14 +27656,83 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             .filter(|event| event["turnId"] == created_turn_id)
             .collect::<Vec<_>>();
 
-        assert_eq!(created_events[3]["kind"], "message.completed");
+        assert_eq!(created_events[3]["kind"], "message.delta");
         assert_eq!(
-            created_events[3]["payload"]["content"],
+            created_events[3]["payload"]["contentDelta"],
+            "Codex CLI executed from the local server bridge."
+        );
+        assert_eq!(created_events[4]["kind"], "message.completed");
+        assert_eq!(
+            created_events[4]["payload"]["content"],
             "Codex CLI executed from the local server bridge."
         );
         assert_ne!(
-            created_events[3]["payload"]["content"],
+            created_events[4]["payload"]["content"],
             "Completed chat request: Use the real Codex CLI lane."
+        );
+    }
+
+    #[tokio::test]
+    async fn native_only_coding_session_turn_realtime_does_not_publish_streaming_after_completion()
+    {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let native_session_id = "019d-native-route-realtime-session";
+        let fake_codex_home = FakeCodexHomeGuard::install(
+            "birdcoder-fake-codex-home-native-route-realtime",
+            native_session_id,
+            "Existing native session prompt",
+            "Existing native session response.",
+        );
+        let _fake_codex = FakeCodexCliGuard::install_with_delay(
+            "birdcoder-fake-codex-cli-native-route-realtime",
+            "Native route turn completed.",
+            0,
+        );
+        let mut state = AppState::demo();
+        override_project_root_path(&mut state, "demo-project", fake_codex_home.project_root());
+        let mut realtime_receiver = state.realtime.subscribe();
+        let app = build_app_with_state(state);
+        let request_body = serde_json::json!({
+            "requestKind": "chat",
+            "inputSummary": "Continue the native session",
+        });
+
+        let create_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!(
+                        "/api/core/v1/coding-sessions/{native_session_id}/turns?engineId=codex"
+                    ))
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build native create coding session turn request"),
+            )
+            .await
+            .expect("serve native create coding session turn request");
+
+        assert_eq!(create_response.status(), StatusCode::CREATED);
+        let create_body = to_bytes(create_response.into_body(), usize::MAX)
+            .await
+            .expect("read native create coding session turn body");
+        let create_json: serde_json::Value = serde_json::from_slice(&create_body)
+            .expect("parse native create coding session turn response");
+        assert_eq!(create_json["data"]["status"], "completed");
+
+        let realtime_event = tokio::time::timeout(Duration::from_secs(2), realtime_receiver.recv())
+            .await
+            .expect("receive native turn realtime event")
+            .expect("native turn realtime event is published");
+        assert_eq!(realtime_event.event_kind, "coding-session.turn.created");
+        assert_eq!(
+            realtime_event.coding_session_id.as_deref(),
+            Some(native_session_id)
+        );
+        assert_eq!(
+            realtime_event.coding_session_runtime_status.as_deref(),
+            Some("completed"),
+            "native-only turns are synchronous here, so realtime must not leave the UI in streaming"
         );
     }
 
@@ -24502,7 +27911,9 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     || persisted_event.3.contains("\"status\":\"succeeded\"")
             );
         } else {
-            assert!(persisted_event.3.contains("\"runtimeStatus\":\"completed\""));
+            assert!(persisted_event
+                .3
+                .contains("\"runtimeStatus\":\"completed\""));
         }
 
         let persisted_session: (String, Option<String>) = connection
@@ -24678,6 +28089,415 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
     }
 
     #[tokio::test]
+    async fn submit_user_question_answer_route_updates_snapshot_projection_authority() {
+        let snapshot_path = write_snapshot_fixture(
+            "birdcoder-user-question-answer-snapshot.json",
+            r#"{
+  "sessions": {
+    "question-session": {
+      "session": {
+        "id": "question-session",
+        "workspaceId": "workspace-question",
+        "projectId": "project-question",
+        "title": "Question session",
+        "status": "active",
+        "hostMode": "server",
+        "engineId": "claude-code",
+        "modelId": "claude-sonnet-4-5",
+        "createdAt": "2026-04-10T14:00:00Z",
+        "updatedAt": "2026-04-10T14:00:01Z",
+        "lastTurnAt": "2026-04-10T14:00:01Z",
+        "runtimeStatus": "awaiting_user"
+      },
+      "turns": [
+        {
+          "id": "question-turn",
+          "codingSessionId": "question-session",
+          "runtimeId": "question-runtime",
+          "requestKind": "chat",
+          "status": "waiting",
+          "inputSummary": "Choose implementation path",
+          "startedAt": "2026-04-10T14:00:01Z",
+          "completedAt": null
+        }
+      ],
+      "events": [
+        {
+          "id": "question-runtime:question-turn:event:0",
+          "codingSessionId": "question-session",
+          "turnId": "question-turn",
+          "runtimeId": "question-runtime",
+          "kind": "tool.call.requested",
+          "sequence": 0,
+          "payload": {
+            "toolName": "user_question",
+            "toolCallId": "tool-call-question-1",
+            "runtimeStatus": "awaiting_user",
+            "toolArguments": "{\"questionId\":\"question-1\",\"prompt\":\"Choose implementation path\"}"
+          },
+          "createdAt": "2026-04-10T14:00:02Z"
+        }
+      ],
+      "operations": [],
+      "artifacts": [],
+      "checkpoints": []
+    }
+  }
+}"#,
+        );
+        let app = build_app_with_state(
+            AppState::load(&AuthorityBootstrapConfig {
+                sqlite_file: None,
+                snapshot_file: Some(snapshot_path.clone()),
+            })
+            .expect("load user question snapshot authority"),
+        );
+        let request_body = serde_json::json!({
+            "answer": "Use the streaming adapter path",
+            "optionId": "streaming-adapter",
+            "optionLabel": "Streaming adapter",
+        });
+
+        let answer_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/core/v1/questions/question-1/answer")
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build submit user question answer request"),
+            )
+            .await
+            .expect("serve submit user question answer request");
+
+        assert_eq!(answer_response.status(), StatusCode::OK);
+
+        let answer_body = to_bytes(answer_response.into_body(), usize::MAX)
+            .await
+            .expect("read submit user question answer body");
+        let answer_json: serde_json::Value = serde_json::from_slice(&answer_body)
+            .expect("parse submit user question answer response");
+
+        assert_eq!(answer_json["data"]["questionId"], "question-1");
+        assert_eq!(answer_json["data"]["codingSessionId"], "question-session");
+        assert_eq!(
+            answer_json["data"]["answer"],
+            "Use the streaming adapter path"
+        );
+        assert_eq!(answer_json["data"]["optionId"], "streaming-adapter");
+        assert_eq!(answer_json["data"]["optionLabel"], "Streaming adapter");
+        assert_eq!(answer_json["data"]["runtimeId"], "question-runtime");
+        assert_eq!(answer_json["data"]["runtimeStatus"], "awaiting_tool");
+        assert_eq!(answer_json["data"]["turnId"], "question-turn");
+
+        let session_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/core/v1/coding-sessions/question-session")
+                    .body(Body::empty())
+                    .expect("build question session request"),
+            )
+            .await
+            .expect("serve question session request");
+
+        assert_eq!(session_response.status(), StatusCode::OK);
+
+        let session_body = to_bytes(session_response.into_body(), usize::MAX)
+            .await
+            .expect("read question session body");
+        let session_json: serde_json::Value =
+            serde_json::from_slice(&session_body).expect("parse question session response");
+
+        assert_eq!(session_json["data"]["runtimeStatus"], "awaiting_tool");
+
+        let events_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/core/v1/coding-sessions/question-session/events")
+                    .body(Body::empty())
+                    .expect("build question events request"),
+            )
+            .await
+            .expect("serve question events request");
+
+        assert_eq!(events_response.status(), StatusCode::OK);
+
+        let events_body = to_bytes(events_response.into_body(), usize::MAX)
+            .await
+            .expect("read question events body");
+        let events_json: serde_json::Value =
+            serde_json::from_slice(&events_body).expect("parse question events response");
+
+        assert_eq!(events_json["meta"]["total"], 2);
+        assert_eq!(events_json["items"][1]["kind"], "operation.updated");
+        assert_eq!(
+            events_json["items"][1]["payload"]["questionId"],
+            "question-1"
+        );
+        assert_eq!(
+            events_json["items"][1]["payload"]["answer"],
+            "Use the streaming adapter path"
+        );
+        assert_eq!(
+            events_json["items"][1]["payload"]["toolCallId"],
+            "tool-call-question-1"
+        );
+        assert_eq!(
+            events_json["items"][1]["payload"]["runtimeStatus"],
+            "awaiting_tool"
+        );
+
+        fs::remove_file(snapshot_path).expect("remove user question snapshot fixture");
+    }
+
+    #[tokio::test]
+    async fn submit_user_question_answer_route_persists_into_sqlite_provider_authority() {
+        let sqlite_path = write_sqlite_provider_authority_fixture(
+            "birdcoder-submit-user-question-provider-authority.sqlite",
+        );
+        {
+            let connection =
+                Connection::open(&sqlite_path).expect("open provider user question sqlite");
+            connection
+                .execute(
+                    r#"
+                    UPDATE coding_session_runtimes
+                    SET status = ?2
+                    WHERE id = ?1
+                    "#,
+                    params!["provider-runtime", "awaiting_user"],
+                )
+                .expect("mark provider runtime awaiting user");
+            connection
+                .execute(
+                    r#"
+                    INSERT INTO coding_session_events (
+                        id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
+                    )
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                    "#,
+                    params![
+                        "provider-runtime:provider-turn:event:question",
+                        "2026-04-10T13:00:04Z",
+                        "2026-04-10T13:00:04Z",
+                        0_i64,
+                        0_i64,
+                        "provider-session",
+                        "provider-turn",
+                        "provider-runtime",
+                        "tool.call.requested",
+                        1_i64,
+                        r#"{"toolName":"user_question","toolCallId":"provider-tool-call-question-1","runtimeStatus":"awaiting_user","toolArguments":"{\"questionId\":\"provider-question-1\",\"prompt\":\"Choose provider path\"}"}"#,
+                    ],
+                )
+                .expect("insert provider user question event");
+        }
+        let app = build_app_with_state(
+            AppState::load(&AuthorityBootstrapConfig {
+                sqlite_file: Some(sqlite_path.clone()),
+                snapshot_file: None,
+            })
+            .expect("load provider-backed app state"),
+        );
+        let request_body = serde_json::json!({
+            "answer": "Continue with provider-backed persistence",
+        });
+
+        let answer_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/core/v1/questions/provider-question-1/answer")
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build provider user question answer request"),
+            )
+            .await
+            .expect("serve provider user question answer request");
+
+        assert_eq!(answer_response.status(), StatusCode::OK);
+
+        let answer_body = to_bytes(answer_response.into_body(), usize::MAX)
+            .await
+            .expect("read provider user question answer body");
+        let answer_json: serde_json::Value = serde_json::from_slice(&answer_body)
+            .expect("parse provider user question answer response");
+
+        assert_eq!(answer_json["data"]["questionId"], "provider-question-1");
+        assert_eq!(answer_json["data"]["codingSessionId"], "provider-session");
+        assert_eq!(
+            answer_json["data"]["answer"],
+            "Continue with provider-backed persistence"
+        );
+        assert_eq!(answer_json["data"]["runtimeId"], "provider-runtime");
+        assert_eq!(answer_json["data"]["runtimeStatus"], "awaiting_tool");
+        assert_eq!(answer_json["data"]["turnId"], "provider-turn");
+
+        let connection = Connection::open(&sqlite_path)
+            .expect("open provider user question sqlite after answer");
+        let persisted_runtime_status: String = connection
+            .query_row(
+                "SELECT status FROM coding_session_runtimes WHERE id = ?1",
+                params!["provider-runtime"],
+                |row| row.get(0),
+            )
+            .expect("query provider user question runtime status");
+        let persisted_turn: (String, Option<String>) = connection
+            .query_row(
+                "SELECT status, completed_at FROM coding_session_turns WHERE id = ?1",
+                params!["provider-turn"],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("query provider user question turn");
+        let persisted_answer_payload: String = connection
+            .query_row(
+                r#"
+                SELECT payload_json
+                FROM coding_session_events
+                WHERE event_kind = 'operation.updated'
+                ORDER BY sequence_no DESC
+                LIMIT 1
+                "#,
+                [],
+                |row| row.get(0),
+            )
+            .expect("query persisted user question answer event");
+        let persisted_answer: serde_json::Value = serde_json::from_str(&persisted_answer_payload)
+            .expect("parse persisted user question answer event");
+
+        assert_eq!(persisted_runtime_status, "awaiting_tool");
+        assert_eq!(persisted_turn.0, "running");
+        assert_eq!(persisted_turn.1, None);
+        assert_eq!(persisted_answer["questionId"], "provider-question-1");
+        assert_eq!(
+            persisted_answer["answer"],
+            "Continue with provider-backed persistence"
+        );
+        assert_eq!(
+            persisted_answer["toolCallId"],
+            "provider-tool-call-question-1"
+        );
+        assert_eq!(persisted_answer["runtimeStatus"], "awaiting_tool");
+
+        drop(connection);
+        fs::remove_file(sqlite_path).expect("remove provider user question authority fixture");
+    }
+
+    #[tokio::test]
+    async fn submit_user_question_answer_route_resolves_provider_request_id_aliases() {
+        let sqlite_path = write_sqlite_provider_authority_fixture(
+            "birdcoder-submit-user-question-provider-alias-authority.sqlite",
+        );
+        {
+            let connection =
+                Connection::open(&sqlite_path).expect("open provider alias user question sqlite");
+            connection
+                .execute(
+                    r#"
+                    UPDATE coding_session_runtimes
+                    SET status = ?2
+                    WHERE id = ?1
+                    "#,
+                    params!["provider-runtime", "awaiting_user"],
+                )
+                .expect("mark provider alias runtime awaiting user");
+            connection
+                .execute(
+                    r#"
+                    INSERT INTO coding_session_events (
+                        id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
+                    )
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                    "#,
+                    params![
+                        "provider-runtime:provider-turn:event:question-alias",
+                        "2026-04-10T13:00:04Z",
+                        "2026-04-10T13:00:04Z",
+                        0_i64,
+                        0_i64,
+                        "provider-session",
+                        "provider-turn",
+                        "provider-runtime",
+                        "tool.call.requested",
+                        1_i64,
+                        r#"{"toolName":"user_question","callID":"provider-tool-call-question-alias-1","runtimeStatus":"awaiting_user","toolArguments":"{\"requestID\":\"provider-question-alias-1\",\"prompt\":\"Choose provider alias path\"}"}"#,
+                    ],
+                )
+                .expect("insert provider alias user question event");
+        }
+        let app = build_app_with_state(
+            AppState::load(&AuthorityBootstrapConfig {
+                sqlite_file: Some(sqlite_path.clone()),
+                snapshot_file: None,
+            })
+            .expect("load provider alias question app state"),
+        );
+        let request_body = serde_json::json!({
+            "answer": "Continue with provider alias persistence",
+        });
+
+        let answer_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/core/v1/questions/provider-question-alias-1/answer")
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build provider alias user question answer request"),
+            )
+            .await
+            .expect("serve provider alias user question answer request");
+
+        assert_eq!(answer_response.status(), StatusCode::OK);
+
+        let answer_body = to_bytes(answer_response.into_body(), usize::MAX)
+            .await
+            .expect("read provider alias user question answer body");
+        let answer_json: serde_json::Value = serde_json::from_slice(&answer_body)
+            .expect("parse provider alias user question answer response");
+
+        assert_eq!(
+            answer_json["data"]["questionId"],
+            "provider-question-alias-1"
+        );
+        assert_eq!(answer_json["data"]["runtimeStatus"], "awaiting_tool");
+
+        let connection = Connection::open(&sqlite_path)
+            .expect("open provider alias user question sqlite after answer");
+        let persisted_answer_payload: String = connection
+            .query_row(
+                r#"
+                SELECT payload_json
+                FROM coding_session_events
+                WHERE event_kind = 'operation.updated'
+                ORDER BY sequence_no DESC
+                LIMIT 1
+                "#,
+                [],
+                |row| row.get(0),
+            )
+            .expect("query persisted alias user question answer event");
+        let persisted_answer: serde_json::Value = serde_json::from_str(&persisted_answer_payload)
+            .expect("parse persisted alias user question answer event");
+
+        assert_eq!(persisted_answer["questionId"], "provider-question-alias-1");
+        assert_eq!(
+            persisted_answer["toolCallId"],
+            "provider-tool-call-question-alias-1"
+        );
+        assert_eq!(persisted_answer["runtimeStatus"], "awaiting_tool");
+
+        drop(connection);
+        fs::remove_file(sqlite_path)
+            .expect("remove provider alias user question authority fixture");
+    }
+
+    #[tokio::test]
     async fn submit_approval_decision_route_persists_into_sqlite_provider_authority() {
         let sqlite_path = write_sqlite_provider_authority_fixture(
             "birdcoder-submit-approval-provider-authority.sqlite",
@@ -24789,6 +28609,100 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
 
         drop(connection);
         fs::remove_file(sqlite_path).expect("remove provider approval authority fixture");
+    }
+
+    #[tokio::test]
+    async fn submit_approval_decision_route_resolves_provider_permission_id_aliases() {
+        let sqlite_path = write_sqlite_provider_authority_fixture(
+            "birdcoder-submit-approval-provider-alias-authority.sqlite",
+        );
+        {
+            let connection =
+                Connection::open(&sqlite_path).expect("open provider alias approval sqlite");
+            connection
+                .execute(
+                    r#"
+                    UPDATE coding_session_checkpoints
+                    SET state_json = ?2
+                    WHERE id = ?1
+                    "#,
+                    params![
+                        "provider-checkpoint:1",
+                        r#"{"permissionId":"provider-permission-1","reason":"Need alias confirmation"}"#,
+                    ],
+                )
+                .expect("rewrite provider approval checkpoint with permissionId alias");
+        }
+        let app = build_app_with_state(
+            AppState::load(&AuthorityBootstrapConfig {
+                sqlite_file: Some(sqlite_path.clone()),
+                snapshot_file: None,
+            })
+            .expect("load provider alias approval app state"),
+        );
+        let request_body = serde_json::json!({
+            "decision": "approved",
+            "reason": "Alias is safe",
+        });
+
+        let approval_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/core/v1/approvals/provider-permission-1/decision")
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build provider alias submit approval request"),
+            )
+            .await
+            .expect("serve provider alias submit approval request");
+
+        assert_eq!(approval_response.status(), StatusCode::OK);
+
+        let approval_body = to_bytes(approval_response.into_body(), usize::MAX)
+            .await
+            .expect("read provider alias submit approval body");
+        let approval_json: serde_json::Value = serde_json::from_slice(&approval_body)
+            .expect("parse provider alias submit approval response");
+
+        assert_eq!(approval_json["data"]["approvalId"], "provider-permission-1");
+        assert_eq!(
+            approval_json["data"]["checkpointId"],
+            "provider-checkpoint:1"
+        );
+        assert_eq!(approval_json["data"]["runtimeStatus"], "awaiting_tool");
+        assert_eq!(approval_json["data"]["operationStatus"], "succeeded");
+
+        let connection = Connection::open(&sqlite_path)
+            .expect("open provider alias approval sqlite after decision");
+        let persisted_checkpoint_state_json: String = connection
+            .query_row(
+                r#"
+                SELECT state_json
+                FROM coding_session_checkpoints
+                WHERE id = ?1
+                "#,
+                params!["provider-checkpoint:1"],
+                |row| row.get(0),
+            )
+            .expect("query persisted alias checkpoint");
+        let persisted_checkpoint_state: serde_json::Value =
+            serde_json::from_str(&persisted_checkpoint_state_json)
+                .expect("parse persisted alias checkpoint state");
+
+        assert_eq!(
+            persisted_checkpoint_state["approvalId"],
+            "provider-permission-1"
+        );
+        assert_eq!(
+            persisted_checkpoint_state["permissionId"],
+            "provider-permission-1"
+        );
+        assert_eq!(persisted_checkpoint_state["decision"], "approved");
+
+        drop(connection);
+        fs::remove_file(sqlite_path).expect("remove provider alias approval authority fixture");
     }
 
     #[tokio::test]
@@ -25213,7 +29127,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             .expect("provider-backed session is present");
         let native_session = scoped_items
             .iter()
-            .find(|item| item["id"] == "codex-native:019d-native-provider-session")
+            .find(|item| item["id"] == "019d-native-provider-session")
             .expect("native session is present");
 
         assert_eq!(scoped_items.len(), 2);
@@ -25223,6 +29137,10 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         assert_eq!(native_session["workspaceId"], "workspace-provider");
         assert_eq!(native_session["projectId"], "project-provider");
         assert_eq!(native_session["engineId"], "codex");
+        assert_eq!(
+            native_session["nativeSessionId"],
+            "019d-native-provider-session"
+        );
         assert_eq!(
             native_session["title"],
             "Implement unified session authority"
@@ -25385,7 +29303,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         connection
             .execute(
                 r#"
-                INSERT INTO workspaces (
+                INSERT INTO plus_workspace AS workspaces (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     name, code, title, description, owner_id, leader_id, created_by_user_id, type,
                     settings_json, is_public, is_template, status
@@ -25396,7 +29314,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     "workspace-live",
                     "workspace-uuid-live",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-10T13:10:00Z",
                     "2026-04-10T13:10:00Z",
                     0_i64,
@@ -25416,42 +29334,23 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                 ],
             )
             .expect("insert live workspace");
-        connection
-            .execute(
-                r#"
-                INSERT INTO projects (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    workspace_id, workspace_uuid, name, code, title, description, root_path, owner_id,
-                    leader_id, created_by_user_id, author, type, is_template, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
-                "#,
-                params![
-                    "project-live",
-                    "project-uuid-live",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
-                    "2026-04-10T13:10:01Z",
-                    "2026-04-10T13:10:01Z",
-                    0_i64,
-                    0_i64,
-                    "workspace-live",
-                    "workspace-uuid-live",
-                    "Live authority project",
-                    "live.project",
-                    "Live authority project",
-                    "Project inserted after router bootstrap",
-                    "E:/sdkwork/project-live",
-                    "user-live-owner",
-                    "user-live-owner",
-                    "user-live-owner",
-                    "user-live-owner",
-                    "CODE",
-                    0_i64,
-                    "active",
-                ],
-            )
-            .expect("insert live project");
+        insert_plus_project_fixture(
+            &connection,
+            "project-live",
+            "project-uuid-live",
+            "workspace-live",
+            "workspace-uuid-live",
+            "Live authority project",
+            "live.project",
+            "Live authority project",
+            "Project inserted after router bootstrap",
+            Some("E:/sdkwork/project-live"),
+            "user-live-owner",
+            "2026-04-10T13:10:01Z",
+            "2026-04-10T13:10:01Z",
+            0_i64,
+            "active",
+        );
         drop(connection);
 
         let workspaces_response = app
@@ -25506,6 +29405,148 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
     }
 
     #[tokio::test]
+    async fn app_workspace_project_routes_accept_and_return_long_integers_as_decimal_strings() {
+        let sqlite_path = write_sqlite_provider_authority_fixture(
+            "birdcoder-coding-server-long-integer-api.sqlite3",
+        );
+        let app = build_app_from_sqlite_file(&sqlite_path).expect("load long integer sqlite app");
+        let workspace_request = serde_json::json!({
+            "name": "Long integer workspace",
+            "maxStorage": "101777208078558101",
+            "usedStorage": "101777208078558102"
+        });
+
+        let workspace_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/app/v1/workspaces")
+                    .header("content-type", "application/json")
+                    .body(Body::from(workspace_request.to_string()))
+                    .expect("build create workspace request"),
+            )
+            .await
+            .expect("serve create workspace request");
+        assert_eq!(workspace_response.status(), StatusCode::CREATED);
+
+        let workspace_body = to_bytes(workspace_response.into_body(), usize::MAX)
+            .await
+            .expect("read create workspace body");
+        let workspace_json: serde_json::Value =
+            serde_json::from_slice(&workspace_body).expect("parse create workspace response");
+        let workspace_id = workspace_json["data"]["id"]
+            .as_str()
+            .expect("created workspace id")
+            .to_owned();
+        assert_eq!(workspace_json["data"]["maxStorage"], "101777208078558101");
+        assert_eq!(workspace_json["data"]["usedStorage"], "101777208078558102");
+
+        let project_request = serde_json::json!({
+            "workspaceId": workspace_id,
+            "name": "Long integer project",
+            "rootPath": "E:/sdkwork/long-integer-project",
+            "budgetAmount": "101777208078558103"
+        });
+        let project_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/app/v1/projects")
+                    .header("content-type", "application/json")
+                    .body(Body::from(project_request.to_string()))
+                    .expect("build create project request"),
+            )
+            .await
+            .expect("serve create project request");
+        assert_eq!(project_response.status(), StatusCode::CREATED);
+
+        let project_body = to_bytes(project_response.into_body(), usize::MAX)
+            .await
+            .expect("read create project body");
+        let project_json: serde_json::Value =
+            serde_json::from_slice(&project_body).expect("parse create project response");
+        let project_id = project_json["data"]["id"]
+            .as_str()
+            .expect("created project id")
+            .to_owned();
+        assert_eq!(project_json["data"]["budgetAmount"], "101777208078558103");
+
+        let connection =
+            Connection::open(&sqlite_path).expect("open long integer sqlite authority");
+        let persisted_workspace_longs: (i64, i64) = connection
+            .query_row(
+                "SELECT max_storage, used_storage FROM plus_workspace WHERE id = ?1",
+                params![workspace_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("read persisted workspace long integers");
+        let persisted_project_budget: i64 = connection
+            .query_row(
+                "SELECT budget_amount FROM plus_project WHERE id = ?1",
+                params![project_id],
+                |row| row.get(0),
+            )
+            .expect("read persisted project budget");
+        drop(connection);
+        fs::remove_file(sqlite_path).expect("remove long integer sqlite fixture");
+
+        assert_eq!(
+            persisted_workspace_longs,
+            (101777208078558101, 101777208078558102)
+        );
+        assert_eq!(persisted_project_budget, 101777208078558103);
+    }
+
+    #[tokio::test]
+    async fn app_skill_package_route_returns_install_counts_as_decimal_strings() {
+        let sqlite_path = write_sqlite_provider_authority_fixture(
+            "birdcoder-coding-server-skill-install-count-long.sqlite3",
+        );
+        let app = build_app_from_sqlite_file(&sqlite_path).expect("load skill package sqlite app");
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/app/v1/skill-packages")
+                    .body(Body::empty())
+                    .expect("build skill packages request"),
+            )
+            .await
+            .expect("serve skill packages request");
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read skill packages body");
+        let json: serde_json::Value =
+            serde_json::from_slice(&body).expect("parse skill packages response");
+        let items = json["items"].as_array().expect("skill package items");
+        assert!(!items.is_empty(), "seeded skill packages should be present");
+        assert!(
+            items
+                .iter()
+                .all(|item| item["installCount"].as_str().is_some()),
+            "skill package installCount values must be decimal strings"
+        );
+        assert!(
+            items
+                .iter()
+                .flat_map(|item| {
+                    item["skills"]
+                        .as_array()
+                        .expect("skill package skills")
+                        .iter()
+                })
+                .all(|skill| skill["installCount"].as_str().is_some()),
+            "nested skill installCount values must be decimal strings"
+        );
+
+        fs::remove_file(sqlite_path).expect("remove skill package sqlite fixture");
+    }
+
+    #[tokio::test]
     async fn build_app_from_sqlite_file_bootstraps_default_workspace_and_starter_project() {
         let sqlite_path = write_empty_sqlite_provider_authority_fixture(
             "birdcoder-coding-server-bootstrap-empty.sqlite3",
@@ -25537,14 +29578,14 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         let connection = Connection::open(&sqlite_path).expect("open sqlite bootstrap fixture");
         let persisted_workspace_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM workspaces WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM plus_workspace AS workspaces WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
             .expect("read persisted workspace count");
         let persisted_project_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM projects WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM plus_project AS projects WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
@@ -25593,7 +29634,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         connection
             .execute(
                 r#"
-                INSERT INTO workspaces (
+                INSERT INTO plus_workspace AS workspaces (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     name, code, title, description, owner_id, leader_id, created_by_user_id, type,
                     settings_json, is_public, is_template, status
@@ -25604,7 +29645,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     existing_workspace_id,
                     "workspace-uuid-existing",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-15T18:30:00Z",
                     "2026-04-15T18:30:00Z",
                     0_i64,
@@ -25640,14 +29681,14 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         let connection = Connection::open(&sqlite_path).expect("open sqlite bootstrap fixture");
         let persisted_workspace_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM workspaces WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM plus_workspace AS workspaces WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
             .expect("read persisted workspace count");
         let persisted_project_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM projects WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM plus_project AS projects WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
@@ -25668,7 +29709,10 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         assert_eq!(persisted_workspace_count, 1);
         assert_eq!(persisted_project_count, 1);
         assert_eq!(projects_json["items"][0]["id"], BOOTSTRAP_PROJECT_ID);
-        assert_eq!(projects_json["items"][0]["workspaceId"], existing_workspace_id);
+        assert_eq!(
+            projects_json["items"][0]["workspaceId"],
+            existing_workspace_id
+        );
         assert_eq!(
             projects_json["items"][0]["rootPath"],
             bootstrap_project_root.display().to_string()
@@ -25688,7 +29732,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         connection
             .execute(
                 r#"
-                INSERT INTO workspaces (
+                INSERT INTO plus_workspace AS workspaces (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     name, code, title, description, owner_id, leader_id, created_by_user_id, type,
                     settings_json, is_public, is_template, status
@@ -25699,7 +29743,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     existing_workspace_id,
                     "workspace-uuid-existing",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-15T18:30:00Z",
                     "2026-04-15T18:30:00Z",
                     0_i64,
@@ -25719,42 +29763,23 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                 ],
             )
             .expect("insert existing workspace");
-        connection
-            .execute(
-                r#"
-                INSERT INTO projects (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    workspace_id, workspace_uuid, name, code, title, description, root_path, owner_id,
-                    leader_id, created_by_user_id, author, type, is_template, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
-                "#,
-                params![
-                    invalid_root_project_id,
-                    "project-uuid-invalid-root",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
-                    "2026-04-15T18:31:00Z",
-                    "2026-04-15T18:31:00Z",
-                    0_i64,
-                    0_i64,
-                    existing_workspace_id,
-                    "workspace-uuid-existing",
-                    "Invalid Root Project",
-                    "invalid.root.project",
-                    "Invalid Root Project",
-                    "Project persisted before root path validation was enforced",
-                    "relative/project",
-                    "user-existing",
-                    "user-existing",
-                    "user-existing",
-                    "user-existing",
-                    "CODE",
-                    0_i64,
-                    "active",
-                ],
-            )
-            .expect("insert invalid root project");
+        insert_plus_project_fixture(
+            &connection,
+            invalid_root_project_id,
+            "project-uuid-invalid-root",
+            existing_workspace_id,
+            "workspace-uuid-existing",
+            "Invalid Root Project",
+            "invalid.root.project",
+            "Invalid Root Project",
+            "Project persisted before root path validation was enforced",
+            Some("relative/project"),
+            "user-existing",
+            "2026-04-15T18:31:00Z",
+            "2026-04-15T18:31:00Z",
+            0_i64,
+            "active",
+        );
         drop(connection);
 
         let app =
@@ -25794,7 +29819,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             .execute(
                 r#"
                 CREATE UNIQUE INDEX IF NOT EXISTS uk_projects_workspace_name
-                ON projects(workspace_id, name)
+                ON plus_project(workspace_id, name)
                 "#,
                 [],
             )
@@ -25802,7 +29827,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         connection
             .execute(
                 r#"
-                INSERT INTO workspaces (
+                INSERT INTO plus_workspace AS workspaces (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     name, code, title, description, owner_id, leader_id, created_by_user_id, type,
                     settings_json, is_public, is_template, status
@@ -25813,7 +29838,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     existing_workspace_id,
                     "workspace-uuid-existing",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-15T18:30:00Z",
                     "2026-04-15T18:30:00Z",
                     0_i64,
@@ -25833,42 +29858,23 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                 ],
             )
             .expect("insert existing workspace");
-        connection
-            .execute(
-                r#"
-                INSERT INTO projects (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    workspace_id, workspace_uuid, name, code, title, description, root_path, owner_id,
-                    leader_id, created_by_user_id, author, type, is_template, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
-                "#,
-                params![
-                    BOOTSTRAP_PROJECT_ID,
-                    "project-uuid-default",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
-                    "2026-04-15T18:31:00Z",
-                    "2026-04-15T18:31:00Z",
-                    0_i64,
-                    1_i64,
-                    existing_workspace_id,
-                    "workspace-uuid-existing",
-                    BOOTSTRAP_PROJECT_NAME,
-                    "default.project",
-                    BOOTSTRAP_PROJECT_NAME,
-                    "Soft-deleted starter project",
-                    Option::<String>::None,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "CODE",
-                    0_i64,
-                    "archived",
-                ],
-            )
-            .expect("insert soft-deleted starter project");
+        insert_plus_project_fixture(
+            &connection,
+            BOOTSTRAP_PROJECT_ID,
+            "project-uuid-default",
+            existing_workspace_id,
+            "workspace-uuid-existing",
+            BOOTSTRAP_PROJECT_NAME,
+            "default.project",
+            BOOTSTRAP_PROJECT_NAME,
+            "Soft-deleted starter project",
+            None,
+            BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+            "2026-04-15T18:31:00Z",
+            "2026-04-15T18:31:00Z",
+            1_i64,
+            "archived",
+        );
         connection
             .execute(
                 r#"
@@ -25883,7 +29889,7 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     BOOTSTRAP_PROJECT_COLLABORATOR_ID,
                     "project-collaborator-uuid-default-owner",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    Option::<String>::None,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
                     "2026-04-15T18:31:00Z",
                     "2026-04-15T18:31:00Z",
                     0_i64,
@@ -25927,9 +29933,9 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         let collaborators_status = collaborators_response.status();
 
         let connection = Connection::open(&sqlite_path).expect("open sqlite bootstrap fixture");
-        let persisted_project_row: (String, String, i64, String) = connection
+        let persisted_project_row: (String, String, i64, i64) = connection
             .query_row(
-                "SELECT id, workspace_id, is_deleted, status FROM projects WHERE id = ?1",
+                "SELECT id, workspace_id, is_deleted, status FROM plus_project AS projects WHERE id = ?1",
                 params![BOOTSTRAP_PROJECT_ID],
                 |row| {
                     Ok((
@@ -25969,8 +29975,14 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         assert_eq!(persisted_project_row.0, BOOTSTRAP_PROJECT_ID);
         assert_eq!(persisted_project_row.1, existing_workspace_id);
         assert_eq!(persisted_project_row.2, 0);
-        assert_eq!(persisted_project_row.3, "active");
-        assert_eq!(persisted_collaborator_row.0, BOOTSTRAP_PROJECT_COLLABORATOR_ID);
+        assert_eq!(
+            persisted_project_row.3,
+            project_status_storage_value(Some("active"))
+        );
+        assert_eq!(
+            persisted_collaborator_row.0,
+            BOOTSTRAP_PROJECT_COLLABORATOR_ID
+        );
         assert_eq!(persisted_collaborator_row.1, 0);
         assert_eq!(persisted_collaborator_row.2, "active");
         assert_eq!(projects_json["items"][0]["id"], BOOTSTRAP_PROJECT_ID);
@@ -26049,14 +30061,19 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             "projects table should expose parent_metadata"
         );
         assert!(
-            sqlite_column_exists(&connection, PROVIDER_PROJECTS_TABLE, "owner_id")
+            !sqlite_column_exists(&connection, PROVIDER_PROJECTS_TABLE, "owner_id")
                 .expect("probe projects.owner_id"),
-            "projects table should expose owner_id"
+            "plus_project must not retain non-Java owner_id"
         );
         assert!(
-            sqlite_column_exists(&connection, PROVIDER_PROJECTS_TABLE, "created_by_user_id")
+            !sqlite_column_exists(&connection, PROVIDER_PROJECTS_TABLE, "created_by_user_id")
                 .expect("probe projects.created_by_user_id"),
-            "projects table should expose created_by_user_id"
+            "plus_project must not retain non-Java created_by_user_id"
+        );
+        assert!(
+            sqlite_table_exists(&connection, "plus_project_content")
+                .expect("probe plus_project_content table"),
+            "project runtime config must move to plus_project_content"
         );
         assert!(
             sqlite_column_exists(&connection, PROVIDER_TEAMS_TABLE, "owner_id")
@@ -26109,14 +30126,14 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
 
         let workspace_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM workspaces WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM plus_workspace AS workspaces WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
             .expect("read upgraded workspace count");
         let project_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM projects WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM plus_project AS projects WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
@@ -26140,6 +30157,235 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
         assert_eq!(project_count, 1);
         assert_eq!(workspaces_json["items"][0]["id"], BOOTSTRAP_WORKSPACE_ID);
         assert_eq!(projects_json["items"][0]["id"], BOOTSTRAP_PROJECT_ID);
+    }
+
+    #[tokio::test]
+    async fn build_app_from_sqlite_file_bootstraps_legacy_identity_collaboration_tables() {
+        let sqlite_path = write_minimal_direct_provider_authority_fixture(
+            "birdcoder-coding-server-legacy-identity-collaboration.sqlite3",
+        );
+        let connection =
+            Connection::open(&sqlite_path).expect("open legacy identity collaboration fixture");
+        rewrite_provider_authority_collaboration_tables_to_legacy_identity_columns(&connection);
+        connection
+            .execute(
+                r#"
+                INSERT INTO plus_workspace AS workspaces (
+                    id, uuid, tenant_id, organization_id, data_scope, created_at, updated_at, version, is_deleted,
+                    name, code, title, description, owner_id, leader_id, created_by_user_id, settings_json,
+                    is_public, is_template, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, 0, 0, ?16)
+                "#,
+                params![
+                    "workspace-existing",
+                    "workspace-uuid-existing",
+                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                    DEFAULT_PRIVATE_DATA_SCOPE,
+                    "2026-04-24T09:00:00Z",
+                    "2026-04-24T09:00:00Z",
+                    "Existing Workspace",
+                    "existing.workspace",
+                    "Existing Workspace",
+                    "Legacy identity workspace",
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "{}",
+                    "active",
+                ],
+            )
+            .expect("insert existing workspace");
+        insert_plus_project_fixture(
+            &connection,
+            "project-existing",
+            "project-uuid-existing",
+            "workspace-existing",
+            "workspace-uuid-existing",
+            "Existing Project",
+            "existing.project",
+            "Existing Project",
+            "Legacy identity project",
+            None,
+            BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+            "2026-04-24T09:00:00Z",
+            "2026-04-24T09:00:00Z",
+            0_i64,
+            "active",
+        );
+        connection
+            .execute(
+                r#"
+                INSERT INTO teams (
+                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                    workspace_id, name, code, title, description, owner_id, leader_id, created_by_user_id, metadata_json, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+                "#,
+                params![
+                    "team-existing",
+                    "team-uuid-existing",
+                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                    "2026-04-24T09:00:00Z",
+                    "2026-04-24T09:00:00Z",
+                    "workspace-existing",
+                    "Existing Team",
+                    "existing.team",
+                    "Existing Team",
+                    "Legacy identity team",
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "{}",
+                    "active",
+                ],
+            )
+            .expect("insert existing team");
+        connection
+            .execute(
+                r#"
+                INSERT INTO team_members (
+                    id, created_at, updated_at, version, is_deleted, team_id, identity_id, role, status,
+                    created_by_identity_id, granted_by_identity_id, uuid, tenant_id, organization_id, user_id,
+                    created_by_user_id, granted_by_user_id
+                )
+                VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+                "#,
+                params![
+                    "team-member-existing",
+                    "2026-04-24T09:00:00Z",
+                    "2026-04-24T09:00:00Z",
+                    "team-existing",
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "owner",
+                    "active",
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "team-member-uuid-existing",
+                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                ],
+            )
+            .expect("insert existing team member");
+        connection
+            .execute(
+                r#"
+                INSERT INTO workspace_members (
+                    id, created_at, updated_at, version, is_deleted, workspace_id, identity_id, team_id, role,
+                    created_by_identity_id, granted_by_identity_id, status, uuid, tenant_id, organization_id, user_id,
+                    created_by_user_id, granted_by_user_id
+                )
+                VALUES (?1, ?2, ?3, 0, 1, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+                "#,
+                params![
+                    "workspace-member-existing",
+                    "2026-04-24T09:00:00Z",
+                    "2026-04-24T09:00:00Z",
+                    "workspace-existing",
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "team-existing",
+                    "owner",
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "active",
+                    "workspace-member-uuid-existing",
+                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                ],
+            )
+            .expect("insert existing workspace member");
+        connection
+            .execute(
+                r#"
+                INSERT INTO project_collaborators (
+                    id, created_at, updated_at, version, is_deleted, project_id, workspace_id, identity_id, team_id,
+                    role, created_by_identity_id, granted_by_identity_id, status, uuid, tenant_id, organization_id,
+                    user_id, created_by_user_id, granted_by_user_id
+                )
+                VALUES (?1, ?2, ?3, 0, 1, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+                "#,
+                params![
+                    "project-collaborator-existing",
+                    "2026-04-24T09:00:00Z",
+                    "2026-04-24T09:00:00Z",
+                    "project-existing",
+                    "workspace-existing",
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "team-existing",
+                    "owner",
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    "active",
+                    "project-collaborator-uuid-existing",
+                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                ],
+            )
+            .expect("insert existing project collaborator");
+        drop(connection);
+
+        let _ = build_app_from_sqlite_file(&sqlite_path)
+            .expect("load sqlite app with legacy identity collaboration tables");
+
+        let connection =
+            Connection::open(&sqlite_path).expect("reopen legacy identity collaboration fixture");
+        let team_member_identity: (String, String) = connection
+            .query_row(
+                "SELECT identity_id, user_id FROM team_members WHERE id = ?1",
+                params![BOOTSTRAP_TEAM_MEMBER_ID],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        sqlite_row_required_string_value(row, 1, "team_members.user_id")?,
+                    ))
+                },
+            )
+            .expect("read bootstrapped team member");
+        let workspace_member_identity: (String, String) = connection
+            .query_row(
+                "SELECT identity_id, user_id FROM workspace_members WHERE id = ?1",
+                params![BOOTSTRAP_WORKSPACE_MEMBER_ID],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        sqlite_row_required_string_value(row, 1, "workspace_members.user_id")?,
+                    ))
+                },
+            )
+            .expect("read bootstrapped workspace member");
+        assert!(
+            sqlite_column_exists(&connection, "project_collaborators", "identity_id")
+                .expect("probe project collaborator identity column"),
+            "legacy identity collaborator table should preserve identity_id column"
+        );
+        drop(connection);
+        fs::remove_file(&sqlite_path).expect("remove legacy identity collaboration fixture");
+
+        assert_eq!(
+            team_member_identity,
+            (
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_string(),
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_string(),
+            )
+        );
+        assert_eq!(
+            workspace_member_identity,
+            (
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_string(),
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_string(),
+            )
+        );
     }
 
     #[tokio::test]
@@ -26344,6 +30590,75 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             json["data"]["user"]["email"],
             "local-default@sdkwork-birdcoder.local"
         );
+    }
+
+    #[tokio::test]
+    async fn app_user_center_membership_route_accepts_and_returns_long_integers_as_decimal_strings()
+    {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let sqlite_path = write_empty_sqlite_provider_authority_fixture(
+            "birdcoder-coding-server-membership-long-integer.sqlite3",
+        );
+        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
+        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        let login_request = serde_json::json!({
+            "email": "local-default@sdkwork-birdcoder.local",
+            "password": "dev123456"
+        });
+        let app = build_app_from_sqlite_file(&sqlite_path).expect("load membership sqlite app");
+
+        let login_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(USER_CENTER_AUTH_LOGIN_PATH)
+                    .header("content-type", "application/json")
+                    .body(Body::from(login_request.to_string()))
+                    .expect("build auth login request"),
+            )
+            .await
+            .expect("serve auth login request");
+        assert_eq!(login_response.status(), StatusCode::OK);
+        let session_header = login_response
+            .headers()
+            .get(BIRDCODER_SESSION_HEADER_NAME)
+            .cloned()
+            .expect("login response session header");
+
+        let membership_request = serde_json::json!({
+            "pointBalance": "101777208078558104",
+            "totalRechargedPoints": "101777208078558105",
+            "status": "active"
+        });
+        let membership_response = app
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri(USER_CENTER_VIP_INFO_PATH)
+                    .header("content-type", "application/json")
+                    .header(BIRDCODER_SESSION_HEADER_NAME, session_header)
+                    .body(Body::from(membership_request.to_string()))
+                    .expect("build membership update request"),
+            )
+            .await
+            .expect("serve membership update request");
+        assert_eq!(membership_response.status(), StatusCode::OK);
+
+        let body = to_bytes(membership_response.into_body(), usize::MAX)
+            .await
+            .expect("read membership update body");
+        let json: serde_json::Value =
+            serde_json::from_slice(&body).expect("parse membership update response");
+
+        fs::remove_file(sqlite_path).expect("remove membership sqlite fixture");
+        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
+        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+
+        assert_eq!(json["data"]["pointBalance"], "101777208078558104");
+        assert_eq!(json["data"]["totalRechargedPoints"], "101777208078558105");
     }
 
     #[tokio::test]
@@ -26593,7 +30908,23 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
                     .uri("/api/app/v1/workspaces")
                     .header("origin", "http://127.0.0.1:1520")
                     .header("access-control-request-method", "GET")
-                    .header("access-control-request-headers", "content-type")
+                    .header(
+                        "access-control-request-headers",
+                        [
+                            header::CONTENT_TYPE.as_str(),
+                            header::AUTHORIZATION.as_str(),
+                            BIRDCODER_SESSION_HEADER_NAME,
+                            "access-token",
+                            "refresh-token",
+                            USER_CENTER_APP_ID_HEADER_NAME,
+                            USER_CENTER_PROVIDER_KEY_HEADER_NAME,
+                            USER_CENTER_HANDSHAKE_MODE_HEADER_NAME,
+                            USER_CENTER_SECRET_ID_HEADER_NAME,
+                            USER_CENTER_SIGNATURE_HEADER_NAME,
+                            USER_CENTER_SIGNED_AT_HEADER_NAME,
+                        ]
+                        .join(", "),
+                    )
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -26614,5 +30945,29 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             true,
             "preflight responses must advertise the allowed methods so local web/desktop shells can call app APIs.",
         );
+        let allowed_headers = response
+            .headers()
+            .get("access-control-allow-headers")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        for expected_header in [
+            header::CONTENT_TYPE.as_str(),
+            header::AUTHORIZATION.as_str(),
+            BIRDCODER_SESSION_HEADER_NAME,
+            "access-token",
+            "refresh-token",
+            USER_CENTER_APP_ID_HEADER_NAME,
+            USER_CENTER_PROVIDER_KEY_HEADER_NAME,
+            USER_CENTER_HANDSHAKE_MODE_HEADER_NAME,
+            USER_CENTER_SECRET_ID_HEADER_NAME,
+            USER_CENTER_SIGNATURE_HEADER_NAME,
+            USER_CENTER_SIGNED_AT_HEADER_NAME,
+        ] {
+            assert!(
+                allowed_headers.contains(expected_header),
+                "preflight responses must allow user-center app API header {expected_header} used by browser-hosted local clients.",
+            );
+        }
     }
 }

@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    build_native_session_id, find_codeengine_descriptor, native_session_prefix_for_engine,
+    build_native_session_id, find_codeengine_descriptor, map_codeengine_session_runtime_status,
+    map_codeengine_tool_command_status, native_session_prefix_for_engine,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionSummaryRecord,
 };
@@ -281,7 +282,9 @@ fn read_codex_session_file_stamp(file_path: &Path) -> Option<CodexSessionFileSta
     })
 }
 
-fn resolve_live_codex_session_file_stamp(file_entry: &CodexSessionFileEntry) -> CodexSessionFileStamp {
+fn resolve_live_codex_session_file_stamp(
+    file_entry: &CodexSessionFileEntry,
+) -> CodexSessionFileStamp {
     read_codex_session_file_stamp(&file_entry.path).unwrap_or_else(|| file_entry.stamp.clone())
 }
 
@@ -318,8 +321,7 @@ fn build_codex_session_catalog_snapshot() -> Result<CodexSessionCatalogSnapshot,
                 })
                 .unwrap_or(true);
             if should_replace {
-                session_id_to_file
-                    .insert(session_id.clone(), (stamp.clone(), file_path.clone()));
+                session_id_to_file.insert(session_id.clone(), (stamp.clone(), file_path.clone()));
             }
         }
         files.push(CodexSessionFileEntry {
@@ -623,6 +625,10 @@ fn parse_codex_session(
                 role: entry.role,
                 content: entry.content,
                 commands: entry.commands,
+                tool_calls: None,
+                tool_call_id: None,
+                file_changes: None,
+                task_progress: None,
                 metadata: None,
                 created_at: entry.created_at,
             })
@@ -750,11 +756,9 @@ fn apply_codex_session_line(
         resolve_more_recent_timestamp(context.latest_timestamp.take(), Some(timestamp.clone()));
 
     match envelope_type.as_deref() {
-        Some("session_meta") | Some("turn_context") => apply_codex_context_payload(
-            context,
-            envelope.get("payload"),
-            timestamp.as_str(),
-        ),
+        Some("session_meta") | Some("turn_context") => {
+            apply_codex_context_payload(context, envelope.get("payload"), timestamp.as_str())
+        }
         Some("response_item") => {
             let payload = envelope.get("payload");
             let payload_type =
@@ -1113,6 +1117,7 @@ fn apply_codex_session_line(
                                     output: sanitize_codex_tool_output(
                                         output.as_deref().unwrap_or_default(),
                                     ),
+                                    ..Default::default()
                                 }]),
                             },
                         );
@@ -1150,13 +1155,13 @@ fn apply_codex_session_line(
                         TranscriptEntry {
                             created_at: timestamp,
                             role: "tool".to_owned(),
-                            content:
-                                "Context compacted to keep the session responsive.".to_owned(),
+                            content: "Context compacted to keep the session responsive.".to_owned(),
                             turn_id: read_codex_turn_id(payload),
                             commands: Some(vec![CodeEngineSessionCommandRecord {
                                 command: "context_compact".to_owned(),
                                 status: "success".to_owned(),
                                 output: None,
+                                ..Default::default()
                             }]),
                         },
                     );
@@ -1179,6 +1184,7 @@ fn apply_codex_session_line(
                         command: "context_compact".to_owned(),
                         status: "success".to_owned(),
                         output: None,
+                        ..Default::default()
                     }]),
                 },
             );
@@ -1214,9 +1220,7 @@ fn apply_codex_context_payload(
         .or_else(|| normalize_value_string(payload.and_then(|value| value.get("model_name"))))
         .or_else(|| normalize_value_string(payload.and_then(|value| value.get("modelName"))))
         .or_else(|| normalize_value_string(payload.and_then(|value| value.get("model_provider"))))
-        .or_else(|| {
-            normalize_value_string(payload.and_then(|value| value.get("modelProvider")))
-        })
+        .or_else(|| normalize_value_string(payload.and_then(|value| value.get("modelProvider"))))
         .or_else(|| context.model_id.clone());
 }
 
@@ -1247,7 +1251,8 @@ fn build_codex_summary(
                 "resolve native Codex session id from {} failed.",
                 file_path.display()
             )
-        })?;
+        })
+        .map(|session_id| extract_native_lookup_id_for_codex(session_id.as_str()))?;
     let summary_id = build_native_session_id(CODEX_ENGINE_ID, raw_session_id.as_str());
     let index_entry = session_index
         .get(&raw_session_id)
@@ -1301,6 +1306,7 @@ fn build_codex_summary(
         id: summary_id,
         title,
         status: status.to_owned(),
+        runtime_status: Some(map_codeengine_session_runtime_status(Some(status)).to_owned()),
         host_mode: "desktop".to_owned(),
         engine_id: CODEX_ENGINE_ID.to_owned(),
         model_id,
@@ -1434,7 +1440,10 @@ fn register_pending_codex_tool_call(
         .pending_tool_calls
         .entry(call_id)
         .and_modify(|pending| {
-            pending.created_at = pending.created_at.clone().or_else(|| Some(timestamp.to_owned()));
+            pending.created_at = pending
+                .created_at
+                .clone()
+                .or_else(|| Some(timestamp.to_owned()));
             pending.command = pending.command.clone().or_else(|| command.clone());
             pending.tool_name = pending.tool_name.clone().or_else(|| tool_name.clone());
             pending.turn_id = pending.turn_id.clone().or_else(|| turn_id.clone());
@@ -1544,34 +1553,22 @@ fn read_codex_tool_output_status(payload: Option<&Value>) -> String {
     };
 
     if let Some(success) = payload.get("success").and_then(Value::as_bool) {
-        return if success {
-            "success".to_owned()
-        } else {
-            "error".to_owned()
-        };
+        return map_codeengine_tool_command_status(
+            Some(if success { "success" } else { "failed" }),
+            None,
+        );
     }
 
-    if let Some(status) = normalize_value_string(payload.get("status")) {
-        return match status.as_str() {
-            "completed" | "success" => "success".to_owned(),
-            "failed" | "error" => "error".to_owned(),
-            other => other.to_owned(),
-        };
-    }
-
-    if let Some(exit_code) = payload
+    let status = normalize_value_string(payload.get("status"));
+    let exit_code = payload
         .get("metadata")
         .and_then(|metadata| metadata.get("exit_code"))
         .and_then(Value::as_i64)
-    {
-        return if exit_code == 0 {
-            "success".to_owned()
-        } else {
-            "error".to_owned()
-        };
-    }
+        .map(|value| value.to_string())
+        .or_else(|| normalize_value_string(payload.get("exit_code")))
+        .or_else(|| normalize_value_string(payload.get("exitCode")));
 
-    "success".to_owned()
+    map_codeengine_tool_command_status(status.as_deref(), exit_code.as_deref())
 }
 
 fn extract_codex_tool_output_text(payload: Option<&Value>) -> Option<String> {
@@ -1657,6 +1654,7 @@ fn build_codex_tool_output_transcript_entry(
             command: command.unwrap_or_else(|| "tool".to_owned()),
             status,
             output,
+            ..Default::default()
         }]),
     })
 }
@@ -1701,6 +1699,7 @@ fn build_codex_patch_apply_transcript_entry(
                 .unwrap_or_else(|| "apply_patch".to_owned()),
             status,
             output,
+            ..Default::default()
         }]),
     })
 }
@@ -1725,11 +1724,13 @@ fn build_codex_web_search_transcript_entry(
         .map(|value| format!("Action: {value}"))
         .and_then(|value| sanitize_codex_tool_output(value.as_str()));
     let content = if event_type == "web_search_end" {
-        query.as_ref()
+        query
+            .as_ref()
             .map(|value| format!("Web search completed: {value}"))
             .unwrap_or_else(|| "Web search completed.".to_owned())
     } else {
-        query.as_ref()
+        query
+            .as_ref()
             .map(|value| format!("Web search started: {value}"))
             .unwrap_or_else(|| "Web search started.".to_owned())
     };
@@ -1751,6 +1752,7 @@ fn build_codex_web_search_transcript_entry(
                 "running".to_owned()
             },
             output,
+            ..Default::default()
         }]),
     })
 }

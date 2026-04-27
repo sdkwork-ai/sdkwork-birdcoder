@@ -92,6 +92,7 @@ try {
   await Promise.all([
     repositories.workspaces.clear(),
     repositories.projects.clear(),
+    repositories.projectContents.clear(),
     repositories.teams.clear(),
     repositories.releases.clear(),
   ]);
@@ -125,6 +126,7 @@ try {
         hostMode: request.hostMode ?? 'server',
         engineId: request.engineId,
         modelId: request.modelId,
+        nativeSessionId: `persistence-native-${sessionCounter}`,
         createdAt: timestamp,
         updatedAt: timestamp,
         lastTurnAt: timestamp,
@@ -162,7 +164,7 @@ try {
           turnId,
           runtimeId: 'runtime-persistence-contract',
           kind: 'turn.started',
-          sequence: baseSequence,
+          sequence: String(baseSequence),
           payload: {
             requestKind: request.requestKind,
             inputSummary: request.inputSummary,
@@ -176,7 +178,7 @@ try {
           turnId,
           runtimeId: 'runtime-persistence-contract',
           kind: 'message.completed',
-          sequence: baseSequence + 1,
+          sequence: String(baseSequence + 1),
           payload: {
             role: 'user',
             content: request.inputSummary,
@@ -190,7 +192,7 @@ try {
           turnId,
           runtimeId: 'runtime-persistence-contract',
           kind: 'message.completed',
-          sequence: baseSequence + 2,
+          sequence: String(baseSequence + 2),
           payload: {
             role: 'assistant',
             content: `Acknowledged: ${request.inputSummary}`,
@@ -218,6 +220,9 @@ try {
       };
     },
     async submitApprovalDecision() {
+      throw new Error('not needed');
+    },
+    async submitUserQuestionAnswer() {
       throw new Error('not needed');
     },
     async deleteCodingSessionMessage() {
@@ -333,6 +338,7 @@ try {
       title: session.title,
       engineId: session.engineId,
       modelId: session.modelId,
+      nativeSessionId: session.nativeSessionId,
       messages: session.messages.map((message) => ({
         id: message.id,
         role: message.role,
@@ -345,6 +351,7 @@ try {
         title: 'Persistent Session',
         engineId: 'codex',
         modelId: 'codex',
+        nativeSessionId: 'persistence-native-1',
         messages: [
           {
             id: createdMessage.id,
@@ -365,6 +372,11 @@ try {
     storedCodingSessions.map((session) => session.id),
     [createdSession.id],
     'coding session inventory must enumerate the persisted session from canonical storage.',
+  );
+  assert.deepEqual(
+    storedCodingSessions.map((session) => session.nativeSessionId),
+    ['persistence-native-1'],
+    'coding session inventory storage must preserve raw provider-native session ids for later terminal resume.',
   );
   backingStore.set(
     'sdkwork-birdcoder:coding-session:table.sqlite.coding-sessions.v1',
@@ -431,6 +443,74 @@ try {
       },
     ],
     'coding session inventory must preserve the authoritative persisted model id instead of coercing it through the engine catalog.',
+  );
+  backingStore.set(
+    'sdkwork-birdcoder:coding-session:table.sqlite.coding-sessions.v1',
+    JSON.stringify([
+      {
+        id: 'coding-session-runtime-busy-alias',
+        workspaceId: createdWorkspace.id,
+        projectId: createdProject.id,
+        title: 'Runtime Busy Alias',
+        status: 'active',
+        hostMode: 'desktop',
+        engineId: 'claude-code',
+        modelId: 'claude-sonnet-4.5',
+        runtimeStatus: 'busy',
+        createdAt: createTimestamp(1101),
+        updatedAt: createTimestamp(1101),
+      },
+      {
+        id: 'coding-session-runtime-retry-alias',
+        workspaceId: createdWorkspace.id,
+        projectId: createdProject.id,
+        title: 'Runtime Retry Alias',
+        status: 'active',
+        hostMode: 'desktop',
+        engineId: 'opencode',
+        modelId: 'opencode-default',
+        runtimeStatus: 'retry',
+        createdAt: createTimestamp(1102),
+        updatedAt: createTimestamp(1102),
+      },
+      {
+        id: 'coding-session-runtime-unknown',
+        workspaceId: createdWorkspace.id,
+        projectId: createdProject.id,
+        title: 'Runtime Unknown',
+        status: 'active',
+        hostMode: 'desktop',
+        engineId: 'gemini',
+        modelId: 'gemini-2.5-pro',
+        runtimeStatus: 'unknown-runtime-status',
+        createdAt: createTimestamp(1103),
+        updatedAt: createTimestamp(1103),
+      },
+    ]),
+  );
+  const normalizedRuntimeStatusSessions = await listStoredCodingSessions({
+    projectId: createdProject.id,
+  });
+  assert.deepEqual(
+    normalizedRuntimeStatusSessions.map((session) => ({
+      id: session.id,
+      runtimeStatus: session.runtimeStatus,
+    })),
+    [
+      {
+        id: 'coding-session-runtime-unknown',
+        runtimeStatus: undefined,
+      },
+      {
+        id: 'coding-session-runtime-retry-alias',
+        runtimeStatus: 'failed',
+      },
+      {
+        id: 'coding-session-runtime-busy-alias',
+        runtimeStatus: 'streaming',
+      },
+    ],
+    'coding session inventory must normalize native runtime status aliases and discard unknown persisted runtime statuses.',
   );
 } finally {
   if (originalWindowDescriptor) {

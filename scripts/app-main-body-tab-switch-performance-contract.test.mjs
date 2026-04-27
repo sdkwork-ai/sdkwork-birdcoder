@@ -29,8 +29,8 @@ assert.match(
 
 assert.match(
   appSource,
-  /const handleActiveTabChange = useCallback\(\(nextTab: AppTab\) => \{\s*startTransition\(\(\) => \{\s*setActiveTab\(nextTab\);/s,
-  'App must transition top-level tab switches so click handling stays responsive while heavy panels change activity.',
+  /const handleActiveTabChange = useCallback\(\(nextTab: AppTab\) => \{[\s\S]*if \(!user && requiresAuthenticatedSession\(nextTab\)\) \{[\s\S]*openAuthenticationSurface\(nextTab\);[\s\S]*return;[\s\S]*startTransition\(\(\) => \{[\s\S]*setActiveTab\(nextTab\);/s,
+  'App must route unauthenticated protected tabs through auth, while still transitioning ordinary top-level tab switches so heavy panels stay responsive.',
 );
 
 assert.match(

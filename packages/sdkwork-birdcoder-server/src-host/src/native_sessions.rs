@@ -6,13 +6,15 @@ use std::{
 use sdkwork_birdcoder_codeengine::{
     build_native_session_id as build_standard_native_session_id,
     is_authority_backed_native_session_id as is_standard_authority_backed_native_session_id,
+    map_codeengine_session_runtime_status, map_codeengine_session_status_from_runtime,
     resolve_native_session_engine_id as resolve_standard_native_session_engine_id,
     standard_codeengine_provider_registry, CodeEngineSessionCommandRecord,
     CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord, CodeEngineSessionSummaryRecord,
     CodeEngineTurnConfigRecord, CodeEngineTurnCurrentFileContextRecord,
     CodeEngineTurnIdeContextRecord, CodeEngineTurnRequestRecord, CodeEngineTurnResultRecord,
+    CodeEngineTurnStreamEventRecord,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::ProjectPayload;
 
@@ -72,15 +74,35 @@ pub(crate) struct NativeSessionTurnIdeContext {
 pub(crate) struct NativeSessionTurnResult {
     pub(crate) assistant_content: String,
     pub(crate) native_session_id: Option<String>,
+    pub(crate) commands: Option<Vec<NativeSessionCommandPayload>>,
 }
 
-#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Default)]
+pub(crate) struct NativeSessionTurnStreamEvent {
+    pub(crate) role: String,
+    pub(crate) content_delta: String,
+    pub(crate) native_session_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct NativeSessionCommandPayload {
     pub(crate) command: String,
     pub(crate) status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) output: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) tool_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) tool_call_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) runtime_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) requires_approval: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) requires_reply: Option<bool>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -94,6 +116,22 @@ pub(crate) struct NativeSessionMessagePayload {
     pub(crate) content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) commands: Option<Vec<NativeSessionCommandPayload>>,
+    #[serde(
+        default,
+        rename = "tool_calls",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub(crate) tool_calls: Option<Vec<serde_json::Value>>,
+    #[serde(
+        default,
+        rename = "tool_call_id",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub(crate) tool_call_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) file_changes: Option<Vec<serde_json::Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) task_progress: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) metadata: Option<BTreeMap<String, String>>,
     pub(crate) created_at: String,
@@ -119,9 +157,44 @@ pub(crate) struct NativeSessionSummaryPayload {
     pub(crate) kind: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) native_cwd: Option<String>,
+    #[serde(
+        deserialize_with = "deserialize_i64_from_decimal_string_or_number",
+        serialize_with = "serialize_i64_as_decimal_string"
+    )]
     pub(crate) sort_timestamp: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) transcript_updated_at: Option<String>,
+}
+
+fn serialize_i64_as_decimal_string<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&value.to_string())
+}
+
+fn parse_i64_decimal_string<E>(value: &str) -> Result<i64, E>
+where
+    E: serde::de::Error,
+{
+    value
+        .trim()
+        .parse::<i64>()
+        .map_err(|_| E::custom("expected an i64 decimal string"))
+}
+
+fn deserialize_i64_from_decimal_string_or_number<'de, D>(deserializer: D) -> Result<i64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::String(value) => parse_i64_decimal_string::<D::Error>(&value),
+        serde_json::Value::Number(value) => value
+            .as_i64()
+            .ok_or_else(|| serde::de::Error::custom("expected an i64 JSON number")),
+        _ => Err(serde::de::Error::custom("expected an i64 decimal string")),
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -138,6 +211,12 @@ fn map_codeengine_command_record(
         command: command.command,
         status: command.status,
         output: command.output,
+        kind: command.kind,
+        tool_name: command.tool_name,
+        tool_call_id: command.tool_call_id,
+        runtime_status: command.runtime_status,
+        requires_approval: command.requires_approval,
+        requires_reply: command.requires_reply,
     }
 }
 
@@ -157,6 +236,10 @@ fn map_codeengine_message_record(
                 .map(map_codeengine_command_record)
                 .collect()
         }),
+        tool_calls: message.tool_calls,
+        tool_call_id: message.tool_call_id,
+        file_changes: message.file_changes,
+        task_progress: message.task_progress,
         metadata: message.metadata,
         created_at: message.created_at,
     }
@@ -165,24 +248,27 @@ fn map_codeengine_message_record(
 fn map_codeengine_summary_record(
     summary: CodeEngineSessionSummaryRecord,
 ) -> NativeSessionSummaryPayload {
-    let runtime_status = match summary.status.as_str() {
-        "completed" | "archived" => Some("completed".to_owned()),
-        "failed" => Some("failed".to_owned()),
-        _ => Some("ready".to_owned()),
-    };
+    let runtime_status = map_codeengine_session_runtime_status(
+        summary
+            .runtime_status
+            .as_deref()
+            .or(Some(summary.status.as_str())),
+    )
+    .to_owned();
+    let status = map_codeengine_session_status_from_runtime(runtime_status.as_str()).to_owned();
     NativeSessionSummaryPayload {
         created_at: summary.created_at,
         id: summary.id,
         workspace_id: String::new(),
         project_id: String::new(),
         title: summary.title,
-        status: summary.status,
+        status,
         host_mode: summary.host_mode,
         engine_id: summary.engine_id,
         model_id: summary.model_id,
         updated_at: summary.updated_at,
         last_turn_at: summary.last_turn_at,
-        runtime_status,
+        runtime_status: Some(runtime_status),
         kind: summary.kind,
         native_cwd: summary.native_cwd,
         sort_timestamp: summary.sort_timestamp,
@@ -334,12 +420,22 @@ fn matches_native_session_lookup_scope(
 pub(crate) fn execute_native_session_turn(
     request: &NativeSessionTurnRequest,
 ) -> Result<NativeSessionTurnResult, String> {
+    execute_native_session_turn_with_events(request, |_| Ok(()))
+}
+
+pub(crate) fn execute_native_session_turn_with_events(
+    request: &NativeSessionTurnRequest,
+    mut on_event: impl FnMut(NativeSessionTurnStreamEvent) -> Result<(), String>,
+) -> Result<NativeSessionTurnResult, String> {
     let providers = standard_codeengine_provider_registry()
         .resolve_provider(Some(request.engine_id.as_str()))?;
     let provider = providers.into_iter().next().ok_or_else(|| {
         "Native session provider registry did not resolve an engine provider.".to_owned()
     })?;
-    let result = provider.execute_turn(&map_codeengine_turn_request_record(request))?;
+    let result = provider
+        .execute_turn_with_events(&map_codeengine_turn_request_record(request), &mut |event| {
+            on_event(map_codeengine_turn_stream_event_record(event))
+        })?;
     Ok(map_codeengine_turn_result_record(result))
 }
 
@@ -407,6 +503,22 @@ fn map_codeengine_turn_result_record(
     NativeSessionTurnResult {
         assistant_content: result.assistant_content,
         native_session_id: result.native_session_id,
+        commands: result.commands.map(|commands| {
+            commands
+                .into_iter()
+                .map(map_codeengine_command_record)
+                .collect()
+        }),
+    }
+}
+
+fn map_codeengine_turn_stream_event_record(
+    event: CodeEngineTurnStreamEventRecord,
+) -> NativeSessionTurnStreamEvent {
+    NativeSessionTurnStreamEvent {
+        role: event.role,
+        content_delta: event.content_delta,
+        native_session_id: event.native_session_id,
     }
 }
 
@@ -499,7 +611,7 @@ fn normalize_non_empty_string(value: Option<&str>) -> Option<String> {
 mod tests {
     use sdkwork_birdcoder_codeengine::{
         normalize_codex_prompt_title, parse_codex_session_detail, parse_codex_session_summary,
-        CodexSessionIndexEntry as SessionIndexEntry,
+        CodeEngineSessionSummaryRecord, CodexSessionIndexEntry as SessionIndexEntry,
     };
     use std::{
         collections::BTreeMap,
@@ -517,6 +629,56 @@ mod tests {
         path.push(format!("sdkwork-birdcoder-{name}-{unique}.jsonl"));
         fs::write(&path, contents).expect("write codex jsonl fixture");
         path
+    }
+
+    #[test]
+    fn codeengine_summary_runtime_status_precedes_generic_session_status() {
+        let summary = CodeEngineSessionSummaryRecord {
+            created_at: "2026-04-26T00:00:00.000Z".to_owned(),
+            id: "busy-session".to_owned(),
+            title: "Busy session".to_owned(),
+            status: "completed".to_owned(),
+            runtime_status: Some("busy".to_owned()),
+            host_mode: "server".to_owned(),
+            engine_id: "opencode".to_owned(),
+            model_id: "opencode/test".to_owned(),
+            updated_at: "2026-04-26T00:00:01.000Z".to_owned(),
+            last_turn_at: Some("2026-04-26T00:00:01.000Z".to_owned()),
+            kind: "coding".to_owned(),
+            native_cwd: Some("D:/workspace".to_owned()),
+            sort_timestamp: 1,
+            transcript_updated_at: Some("2026-04-26T00:00:01.000Z".to_owned()),
+        };
+
+        let mapped_summary = super::map_codeengine_summary_record(summary);
+
+        assert_eq!(mapped_summary.runtime_status.as_deref(), Some("streaming"));
+        assert_eq!(mapped_summary.status.as_str(), "active");
+    }
+
+    #[test]
+    fn codeengine_summary_retry_alias_maps_to_paused_session_status() {
+        let summary = CodeEngineSessionSummaryRecord {
+            created_at: "2026-04-26T00:00:00.000Z".to_owned(),
+            id: "retry-session".to_owned(),
+            title: "Retry session".to_owned(),
+            status: "active".to_owned(),
+            runtime_status: Some("retry".to_owned()),
+            host_mode: "server".to_owned(),
+            engine_id: "opencode".to_owned(),
+            model_id: "opencode/test".to_owned(),
+            updated_at: "2026-04-26T00:00:01.000Z".to_owned(),
+            last_turn_at: Some("2026-04-26T00:00:01.000Z".to_owned()),
+            kind: "coding".to_owned(),
+            native_cwd: Some("D:/workspace".to_owned()),
+            sort_timestamp: 1,
+            transcript_updated_at: Some("2026-04-26T00:00:01.000Z".to_owned()),
+        };
+
+        let mapped_summary = super::map_codeengine_summary_record(summary);
+
+        assert_eq!(mapped_summary.runtime_status.as_deref(), Some("failed"));
+        assert_eq!(mapped_summary.status.as_str(), "paused");
     }
 
     #[test]
@@ -660,7 +822,7 @@ mod tests {
         let request = super::NativeSessionTurnRequest {
             engine_id: "codex".to_owned(),
             model_id: "gpt-5.4".to_owned(),
-            native_session_id: Some("codex-native:thread-1".to_owned()),
+            native_session_id: Some("thread-1".to_owned()),
             request_kind: "chat".to_owned(),
             input_summary: "Implement strict turn contract".to_owned(),
             ide_context: None,

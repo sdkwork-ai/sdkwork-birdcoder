@@ -10,8 +10,10 @@ import {
   BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
   BIRDCODER_STANDARD_ENGINE_IDS,
   normalizeBirdCoderCodeEngineId,
+  resolveBirdCoderCodeEngineNativeSessionLookupId,
 } from './catalog.ts';
 import {
+  BIRDCODER_CODE_ENGINE_RESUME_SESSION_ARG_TOKEN,
   BIRDCODER_STANDARD_ENGINE_MANIFESTS,
   type WorkbenchCodeEngineCliDefinition,
   type WorkbenchCodeEngineServerSupportStatus,
@@ -128,6 +130,36 @@ export function findWorkbenchCodeEngineKernel(
 
 export function listWorkbenchCliEngines(): ReadonlyArray<WorkbenchCodeEngineKernelDefinition> {
   return WORKBENCH_ENGINE_KERNELS;
+}
+
+function quoteWorkbenchCodeEngineTerminalArg(value: string): string {
+  if (/^[A-Za-z0-9._:@/\\-]+$/u.test(value)) {
+    return value;
+  }
+
+  return `"${value.replace(/["\\]/gu, '\\$&')}"`;
+}
+
+export function buildWorkbenchCodeEngineTerminalResumeCommand(input: {
+  engineId: string | null | undefined;
+  nativeSessionId: string | null | undefined;
+}): string {
+  const kernel = getWorkbenchCodeEngineKernel(input.engineId);
+  const sessionId = resolveBirdCoderCodeEngineNativeSessionLookupId(
+    input.nativeSessionId,
+    kernel.id,
+  );
+  if (!sessionId) {
+    throw new Error(`Cannot build ${kernel.id} terminal resume command without a native session id.`);
+  }
+
+  return kernel.cli.resumeArgs
+    .map((arg) =>
+      arg === BIRDCODER_CODE_ENGINE_RESUME_SESSION_ARG_TOKEN
+        ? quoteWorkbenchCodeEngineTerminalArg(sessionId)
+        : arg,
+    )
+    .join(' ');
 }
 
 export function listWorkbenchCodeEngineDescriptors(): ReadonlyArray<BirdCoderEngineDescriptor> {

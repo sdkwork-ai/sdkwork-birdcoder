@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   mergeSdkworkAuthAppearanceConfigs,
+  type SdkworkAuthUser,
 } from "@sdkwork/auth-pc-react";
 import {
   createSdkworkCanonicalAuthSurfacePage,
@@ -12,6 +13,7 @@ import {
   useIDEServices,
 } from "@sdkwork/birdcoder-commons";
 import { BIRDCODER_USER_CENTER_AUTH_BASE_PATH } from "@sdkwork/birdcoder-core";
+import type { User } from "@sdkwork/birdcoder-types";
 import {
   createBirdCoderAuthController,
   resolveBirdCoderAuthRuntimeConfig,
@@ -34,8 +36,32 @@ const BIRDCODER_AUTH_SURFACE_RUNTIME_INVARIANT = Object.freeze({
   qrLoginEnabled: true,
 });
 
+function mapBirdCoderQrAuthenticatedUser(user: SdkworkAuthUser): User {
+  const email = user.email.trim();
+  const displayName = user.displayName.trim();
+  const username = user.username?.trim() ?? "";
+  const fallbackIdentity = email || user.id?.trim() || username;
+
+  return {
+    avatarUrl: user.avatarUrl,
+    email,
+    id: user.id?.trim() || fallbackIdentity,
+    name: displayName || username || fallbackIdentity,
+  };
+}
+
 function useBirdCoderAuthSurfaceService() {
-  const { refreshCurrentUser } = useAuth();
+  const {
+    adoptAuthenticatedUser,
+    exchangeUserCenterSession,
+    login,
+    logout,
+    refreshAuthenticatedUserFromRuntime,
+    register,
+    signInWithEmailCode,
+    signInWithOAuth,
+    signInWithPhoneCode,
+  } = useAuth();
   const { authService } = useIDEServices();
 
   return useMemo(
@@ -44,56 +70,58 @@ function useBirdCoderAuthSurfaceService() {
       checkLoginQrCodeStatus: authService.checkLoginQrCodeStatus
         ? async (...args: Parameters<NonNullable<typeof authService.checkLoginQrCodeStatus>>) => {
             const result = await authService.checkLoginQrCodeStatus!(...args);
-            if (result.status === "confirmed") {
-              await refreshCurrentUser();
+            if (result.status === "confirmed" && result.user) {
+              await adoptAuthenticatedUser(
+                mapBirdCoderQrAuthenticatedUser(result.user),
+              );
+            } else if (result.status === "confirmed") {
+              await refreshAuthenticatedUserFromRuntime();
             }
             return result;
           }
         : undefined,
       exchangeUserCenterSession: authService.exchangeUserCenterSession
         ? async (...args: Parameters<NonNullable<typeof authService.exchangeUserCenterSession>>) => {
-            const user = await authService.exchangeUserCenterSession!(...args);
-            await refreshCurrentUser();
-            return user;
+            return exchangeUserCenterSession(...args);
           }
         : undefined,
       login: async (...args: Parameters<typeof authService.login>) => {
-        const user = await authService.login(...args);
-        await refreshCurrentUser();
-        return user;
+        return login(...args);
       },
       logout: async (...args: Parameters<typeof authService.logout>) => {
-        await authService.logout(...args);
-        await refreshCurrentUser();
+        await logout(...args);
       },
       register: async (...args: Parameters<typeof authService.register>) => {
-        const user = await authService.register(...args);
-        await refreshCurrentUser();
-        return user;
+        return register(...args);
       },
       signInWithEmailCode: authService.signInWithEmailCode
         ? async (...args: Parameters<NonNullable<typeof authService.signInWithEmailCode>>) => {
-            const user = await authService.signInWithEmailCode!(...args);
-            await refreshCurrentUser();
-            return user;
+            return signInWithEmailCode(...args);
           }
         : undefined,
       signInWithOAuth: authService.signInWithOAuth
         ? async (...args: Parameters<NonNullable<typeof authService.signInWithOAuth>>) => {
-            const user = await authService.signInWithOAuth!(...args);
-            await refreshCurrentUser();
-            return user;
+            return signInWithOAuth(...args);
           }
         : undefined,
       signInWithPhoneCode: authService.signInWithPhoneCode
         ? async (...args: Parameters<NonNullable<typeof authService.signInWithPhoneCode>>) => {
-            const user = await authService.signInWithPhoneCode!(...args);
-            await refreshCurrentUser();
-            return user;
+            return signInWithPhoneCode(...args);
           }
         : undefined,
     }),
-    [authService, refreshCurrentUser],
+    [
+      adoptAuthenticatedUser,
+      authService,
+      exchangeUserCenterSession,
+      login,
+      logout,
+      refreshAuthenticatedUserFromRuntime,
+      register,
+      signInWithEmailCode,
+      signInWithOAuth,
+      signInWithPhoneCode,
+    ],
   );
 }
 

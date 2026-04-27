@@ -3,6 +3,9 @@ import type {
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineTransportKind,
 } from './engine.ts';
+import type { BirdCoderLongIntegerString } from './data.ts';
+import { normalizeBirdCoderCodeEngineRuntimeStatus } from './codeEngineDialect.ts';
+import { stringifyBirdCoderApiJson } from './json.ts';
 
 export const BIRDCODER_HOST_MODES = ['web', 'desktop', 'server'] as const;
 
@@ -25,6 +28,7 @@ export const BIRDCODER_CODING_SESSION_RUNTIME_STATUSES = [
   'streaming',
   'awaiting_tool',
   'awaiting_approval',
+  'awaiting_user',
   'completed',
   'failed',
   'terminated',
@@ -35,7 +39,7 @@ export type BirdCoderCodingSessionRuntimeStatus =
 
 const BIRDCODER_CODING_SESSION_EXECUTING_RUNTIME_STATUS_SET = new Set<
   BirdCoderCodingSessionRuntimeStatus
->(['initializing', 'streaming', 'awaiting_tool', 'awaiting_approval']);
+>(['initializing', 'streaming', 'awaiting_tool', 'awaiting_approval', 'awaiting_user']);
 
 function isBirdCoderCodingSessionRuntimeStatus(
   value: unknown,
@@ -57,13 +61,15 @@ export function resolveBirdCoderCodingSessionRuntimeStatus(
   fallback?: BirdCoderCodingSessionRuntimeStatus | null,
 ): BirdCoderCodingSessionRuntimeStatus | undefined {
   for (let index = events.length - 1; index >= 0; index -= 1) {
-    const runtimeStatus = events[index]?.payload?.runtimeStatus;
-    if (isBirdCoderCodingSessionRuntimeStatus(runtimeStatus)) {
+    const runtimeStatus = normalizeBirdCoderCodeEngineRuntimeStatus(
+      events[index]?.payload?.runtimeStatus,
+    );
+    if (runtimeStatus) {
       return runtimeStatus;
     }
   }
 
-  return fallback ?? undefined;
+  return normalizeBirdCoderCodeEngineRuntimeStatus(fallback);
 }
 
 export function isBirdCoderCodingSessionExecuting(
@@ -144,11 +150,12 @@ export interface BirdCoderCodingSessionSummary {
   hostMode: BirdCoderHostMode;
   engineId: BirdCoderCodeEngineKey;
   modelId: string;
+  nativeSessionId?: string;
   runtimeStatus?: BirdCoderCodingSessionRuntimeStatus;
   createdAt: string;
   updatedAt: string;
   lastTurnAt?: string;
-  sortTimestamp?: number;
+  sortTimestamp?: BirdCoderLongIntegerString;
   transcriptUpdatedAt?: string | null;
 }
 
@@ -185,9 +192,91 @@ export function formatBirdCoderSessionDisplayTime(
 export interface BirdCoderSessionActivityLike {
   createdAt?: string;
   lastTurnAt?: string;
-  sortTimestamp?: number;
+  sortTimestamp?: BirdCoderLongIntegerString;
   transcriptUpdatedAt?: string | null;
   updatedAt?: string;
+}
+
+export function stringifyBirdCoderLongInteger(
+  value: bigint | number | string,
+): BirdCoderLongIntegerString {
+  if (typeof value === 'bigint') {
+    return value.toString();
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) {
+      throw new Error('BirdCoder Long value must be a finite integer.');
+    }
+    if (!Number.isSafeInteger(value)) {
+      throw new Error('BirdCoder Long value must not be passed as an unsafe JavaScript number.');
+    }
+    return String(value);
+  }
+
+  const normalizedValue = value.trim();
+  if (!/^-?\d+$/u.test(normalizedValue)) {
+    throw new Error('BirdCoder Long value must be an exact decimal string.');
+  }
+  return normalizedValue;
+}
+
+export function resolveBirdCoderLongIntegerNumber(value: unknown): number {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && Number.isInteger(value) && Number.isSafeInteger(value)
+      ? value
+      : Number.NaN;
+  }
+
+  if (typeof value === 'bigint') {
+    const maxSafeInteger = BigInt(Number.MAX_SAFE_INTEGER);
+    const minSafeInteger = BigInt(Number.MIN_SAFE_INTEGER);
+    return value >= minSafeInteger && value <= maxSafeInteger
+      ? Number(value)
+      : Number.NaN;
+  }
+
+  if (typeof value === 'string' && /^-?\d+$/u.test(value.trim())) {
+    const bigintValue = BigInt(value.trim());
+    const maxSafeInteger = BigInt(Number.MAX_SAFE_INTEGER);
+    const minSafeInteger = BigInt(Number.MIN_SAFE_INTEGER);
+    return bigintValue >= minSafeInteger && bigintValue <= maxSafeInteger
+      ? Number(bigintValue)
+      : Number.NaN;
+  }
+
+  return Number.NaN;
+}
+
+function resolveBirdCoderLongIntegerBigInt(value: unknown): bigint | undefined {
+  if (typeof value === 'bigint') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || !Number.isInteger(value) || !Number.isSafeInteger(value)) {
+      return undefined;
+    }
+    return BigInt(value);
+  }
+
+  if (typeof value === 'string' && /^-?\d+$/u.test(value.trim())) {
+    return BigInt(value.trim());
+  }
+
+  return undefined;
+}
+
+export function compareBirdCoderLongIntegers(left: unknown, right: unknown): number {
+  const leftValue = resolveBirdCoderLongIntegerBigInt(left) ?? 0n;
+  const rightValue = resolveBirdCoderLongIntegerBigInt(right) ?? 0n;
+  if (leftValue < rightValue) {
+    return -1;
+  }
+  if (leftValue > rightValue) {
+    return 1;
+  }
+  return 0;
 }
 
 function parseBirdCoderIsoTimestamp(value: string | null | undefined): number {
@@ -217,16 +306,38 @@ export function resolveBirdCoderSessionActivityTimestamp(
 export function resolveBirdCoderSessionSortTimestamp(
   session: BirdCoderSessionActivityLike,
 ): number {
-  if (
-    typeof session.sortTimestamp === 'number' &&
-    Number.isFinite(session.sortTimestamp)
-  ) {
-    return session.sortTimestamp;
+  const explicitSortTimestamp = resolveBirdCoderLongIntegerNumber(
+    resolveBirdCoderSessionSortTimestampString(session),
+  );
+  if (Number.isFinite(explicitSortTimestamp)) {
+    return explicitSortTimestamp;
+  }
+
+  return 0;
+}
+
+export function resolveBirdCoderSessionSortTimestampString(
+  session: BirdCoderSessionActivityLike,
+): BirdCoderLongIntegerString {
+  if (session.sortTimestamp) {
+    return stringifyBirdCoderLongInteger(session.sortTimestamp);
   }
 
   const activityTimestamp = resolveBirdCoderSessionActivityTimestamp(session);
   const parsedActivityTimestamp = parseBirdCoderIsoTimestamp(activityTimestamp);
-  return Number.isNaN(parsedActivityTimestamp) ? 0 : parsedActivityTimestamp;
+  return stringifyBirdCoderLongInteger(
+    Number.isNaN(parsedActivityTimestamp) ? 0 : parsedActivityTimestamp,
+  );
+}
+
+export function compareBirdCoderSessionSortTimestamp(
+  left: BirdCoderSessionActivityLike,
+  right: BirdCoderSessionActivityLike,
+): number {
+  return compareBirdCoderLongIntegers(
+    resolveBirdCoderSessionSortTimestampString(left),
+    resolveBirdCoderSessionSortTimestampString(right),
+  );
 }
 
 export interface BirdCoderProjectActivityLike {
@@ -284,12 +395,23 @@ export function resolveBirdCoderProjectActivityTimestamp(
 export function resolveBirdCoderProjectSortTimestamp(
   project: BirdCoderProjectActivityLike,
 ): number {
-  let latestValue = 0;
+  return resolveBirdCoderLongIntegerNumber(
+    resolveBirdCoderProjectSortTimestampString(project),
+  );
+}
+
+export function resolveBirdCoderProjectSortTimestampString(
+  project: BirdCoderProjectActivityLike,
+): BirdCoderLongIntegerString {
+  let latestValue = '0';
 
   const recordCandidate = (candidate: string | null | undefined): void => {
     const parsedCandidate = parseBirdCoderIsoTimestamp(candidate);
-    if (!Number.isNaN(parsedCandidate) && parsedCandidate > latestValue) {
-      latestValue = parsedCandidate;
+    if (
+      !Number.isNaN(parsedCandidate) &&
+      compareBirdCoderLongIntegers(parsedCandidate, latestValue) > 0
+    ) {
+      latestValue = stringifyBirdCoderLongInteger(parsedCandidate);
     }
   };
 
@@ -297,8 +419,8 @@ export function resolveBirdCoderProjectSortTimestamp(
   recordCandidate(project.createdAt);
 
   for (const codingSession of project.codingSessions ?? []) {
-    const sortTimestamp = resolveBirdCoderSessionSortTimestamp(codingSession);
-    if (sortTimestamp > latestValue) {
+    const sortTimestamp = resolveBirdCoderSessionSortTimestampString(codingSession);
+    if (compareBirdCoderLongIntegers(sortTimestamp, latestValue) > 0) {
       latestValue = sortTimestamp;
     }
   }
@@ -311,8 +433,10 @@ export function compareBirdCoderProjectsByActivity(
   right: BirdCoderProjectActivityLike,
 ): number {
   return (
-    resolveBirdCoderProjectSortTimestamp(right) -
-      resolveBirdCoderProjectSortTimestamp(left) ||
+    compareBirdCoderLongIntegers(
+      resolveBirdCoderProjectSortTimestampString(right),
+      resolveBirdCoderProjectSortTimestampString(left),
+    ) ||
     BIRDCODER_PROJECT_SORT_COLLATOR.compare(
       normalizeBirdCoderProjectSortName(left),
       normalizeBirdCoderProjectSortName(right),
@@ -328,10 +452,10 @@ export function buildBirdCoderSessionSynchronizationVersion(
   const normalizedMessageCount =
     Number.isFinite(messageCount) && messageCount > 0 ? Math.floor(messageCount) : 0;
   const transcriptUpdatedAt = session.transcriptUpdatedAt ?? null;
-  return `${resolveBirdCoderSessionSortTimestamp(session)}:${normalizedMessageCount}:${transcriptUpdatedAt ?? ''}`;
+  return `${resolveBirdCoderSessionSortTimestampString(session)}:${normalizedMessageCount}:${transcriptUpdatedAt ?? ''}`;
 }
 
-interface BirdCoderComparableChatMessageLike {
+export interface BirdCoderComparableChatMessageLike {
   id: string;
   codingSessionId: string;
   turnId?: string;
@@ -350,6 +474,7 @@ interface BirdCoderComparableChatMessageLike {
 
 export interface BirdCoderChatMessageLogicalMatchLike {
   id: string;
+  codingSessionId: string;
   turnId?: string;
   role: BirdCoderCodingSessionMessage['role'];
   content: string;
@@ -387,7 +512,8 @@ function stableSerializeBirdCoderComparableValue(
     return serializedObject;
   }
 
-  return JSON.stringify(value);
+  const serializedValue = stringifyBirdCoderApiJson(value);
+  return typeof serializedValue === 'string' ? serializedValue : 'null';
 }
 
 export function buildBirdCoderChatMessageSynchronizationSignature(
@@ -418,22 +544,42 @@ function normalizeBirdCoderComparableChatMessageContent(content: string): string
 export function buildBirdCoderChatMessageLogicalMatchKey(
   message: BirdCoderChatMessageLogicalMatchLike,
 ): string {
+  const normalizedCodingSessionId = message.codingSessionId.trim();
   const normalizedContent = normalizeBirdCoderComparableChatMessageContent(message.content);
   const normalizedTurnId = message.turnId?.trim() ?? '';
   if (normalizedTurnId) {
-    return `${normalizedTurnId}:${message.role}:${normalizedContent}`;
+    return JSON.stringify([
+      normalizedCodingSessionId,
+      normalizedTurnId,
+      message.role,
+      normalizedContent,
+    ]);
   }
 
-  return `${message.role}:${normalizedContent}:${message.createdAt}`;
+  return JSON.stringify([
+    normalizedCodingSessionId,
+    '',
+    message.role,
+    normalizedContent,
+    message.createdAt,
+  ]);
 }
 
 export function areBirdCoderChatMessagesLogicallyMatched(
   left: BirdCoderChatMessageLogicalMatchLike,
   right: BirdCoderChatMessageLogicalMatchLike,
 ): boolean {
+  const leftCodingSessionId = left.codingSessionId.trim();
+  const rightCodingSessionId = right.codingSessionId.trim();
+  if (leftCodingSessionId !== rightCodingSessionId) {
+    return false;
+  }
+  const leftMessageId = left.id.trim();
+  const rightMessageId = right.id.trim();
+
   return (
     left === right ||
-    left.id === right.id ||
+    (!!leftMessageId && leftMessageId === rightMessageId) ||
     buildBirdCoderChatMessageLogicalMatchKey(left) ===
       buildBirdCoderChatMessageLogicalMatchKey(right)
   );
@@ -473,6 +619,75 @@ export function mergeBirdCoderComparableChatMessages<
   return areBirdCoderChatMessagesEquivalent(existingMessage, nextMessage)
     ? existingMessage
     : nextMessage;
+}
+
+export function deduplicateBirdCoderComparableChatMessages<
+  TMessage extends BirdCoderComparableChatMessageLike,
+>(
+  messages: readonly TMessage[],
+): TMessage[] {
+  if (messages.length < 2) {
+    return messages as TMessage[];
+  }
+
+  const deduplicatedMessages: TMessage[] = [];
+  const messageIndexesById = new Map<string, number>();
+  const messageIndexesByLogicalKey = new Map<string, number>();
+  const messageIndexesBySynchronizationSignature = new Map<string, number>();
+
+  const rememberMessage = (message: TMessage, index: number): void => {
+    const normalizedMessageId = message.id.trim();
+    if (normalizedMessageId) {
+      messageIndexesById.set(
+        JSON.stringify([message.codingSessionId.trim(), normalizedMessageId]),
+        index,
+      );
+    }
+    messageIndexesByLogicalKey.set(
+      buildBirdCoderChatMessageLogicalMatchKey(message),
+      index,
+    );
+    messageIndexesBySynchronizationSignature.set(
+      buildBirdCoderChatMessageSynchronizationSignature(message),
+      index,
+    );
+  };
+
+  for (const incomingMessage of messages) {
+    const normalizedMessageId = incomingMessage.id.trim();
+    const scopedMessageId = normalizedMessageId
+      ? JSON.stringify([
+          incomingMessage.codingSessionId.trim(),
+          normalizedMessageId,
+        ])
+      : null;
+    const logicalMatchKey = buildBirdCoderChatMessageLogicalMatchKey(incomingMessage);
+    const synchronizationSignature =
+      buildBirdCoderChatMessageSynchronizationSignature(incomingMessage);
+    const matchingMessageIndex =
+      (scopedMessageId ? messageIndexesById.get(scopedMessageId) : undefined) ??
+      messageIndexesBySynchronizationSignature.get(synchronizationSignature) ??
+      messageIndexesByLogicalKey.get(logicalMatchKey);
+
+    if (matchingMessageIndex === undefined) {
+      const nextIndex = deduplicatedMessages.length;
+      deduplicatedMessages.push(incomingMessage);
+      rememberMessage(incomingMessage, nextIndex);
+      continue;
+    }
+
+    const existingMessage = deduplicatedMessages[matchingMessageIndex]!;
+    const mergedMessage = mergeBirdCoderComparableChatMessages(
+      existingMessage,
+      incomingMessage,
+    );
+    deduplicatedMessages[matchingMessageIndex] = mergedMessage;
+    rememberMessage(mergedMessage, matchingMessageIndex);
+  }
+
+  return deduplicatedMessages.length === messages.length
+    ? (messages as TMessage[])
+    : deduplicatedMessages;
 }
 
 export function formatBirdCoderSessionActivityDisplayTime(
@@ -611,9 +826,23 @@ export interface BirdCoderCodingSessionEvent {
   turnId?: string;
   runtimeId?: string;
   kind: BirdCoderCodingSessionEventKind | (string & {});
-  sequence: number;
+  sequence: BirdCoderLongIntegerString;
   payload: Record<string, unknown>;
   createdAt: string;
+}
+
+export function resolveBirdCoderCodingSessionEventSequence(
+  event: Pick<BirdCoderCodingSessionEvent, 'sequence'>,
+): number {
+  const sequence = resolveBirdCoderLongIntegerNumber(event.sequence);
+  return Number.isFinite(sequence) ? sequence : 0;
+}
+
+export function compareBirdCoderCodingSessionEventSequence(
+  left: Pick<BirdCoderCodingSessionEvent, 'sequence'>,
+  right: Pick<BirdCoderCodingSessionEvent, 'sequence'>,
+): number {
+  return compareBirdCoderLongIntegers(left.sequence, right.sequence);
 }
 
 export interface BirdCoderCodingSessionArtifact {

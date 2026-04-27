@@ -22,11 +22,14 @@ export type WorkbenchCodeEngineSourceKind = 'repository' | 'extension' | 'sdk-on
 export type WorkbenchCodeEngineServerSupportStatus = 'ready' | 'planned';
 export type BirdCoderCodeEngineNativeSessionDiscoveryMode = 'explicit-only' | 'passive-global';
 
+export const BIRDCODER_CODE_ENGINE_RESUME_SESSION_ARG_TOKEN = '{sessionId}';
+
 export interface WorkbenchCodeEngineCliDefinition {
   profileId: BirdCoderStandardEngineId;
   executable: string;
   aliases: readonly string[];
   startupArgs: readonly string[];
+  resumeArgs: readonly string[];
   installHint: string;
   packageName: string | null;
   launcherPath: string | null;
@@ -253,6 +256,11 @@ function createBirdCoderCodeEngineManifest(
   input: BirdCoderCodeEngineManifestInput,
 ): BirdCoderCodeEngineManifest {
   const [defaultModel] = validateBirdCoderCodeEngineModelCatalog(input);
+  if (!input.cli.resumeArgs.includes(BIRDCODER_CODE_ENGINE_RESUME_SESSION_ARG_TOKEN)) {
+    throw new Error(
+      `BirdCoder engine manifest "${input.id}" must declare terminal resume args with ${BIRDCODER_CODE_ENGINE_RESUME_SESSION_ARG_TOKEN}.`,
+    );
+  }
 
   return {
     ...input,
@@ -275,6 +283,7 @@ const CODEX_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = [
 ];
 const CLAUDE_CODE_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = [
   'sdk-stream',
+  'cli-jsonl',
   'remote-control-http',
 ];
 const GEMINI_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = [
@@ -383,6 +392,7 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
       executable: 'codex',
       aliases: ['codex', 'openai-codex'],
       startupArgs: [],
+      resumeArgs: ['resume', BIRDCODER_CODE_ENGINE_RESUME_SESSION_ARG_TOKEN],
       installHint: 'Install Codex CLI and ensure the codex command is on PATH.',
       packageName: '@openai/codex',
       launcherPath: null,
@@ -433,7 +443,7 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
           supplementalLanes: ['query stream', 'tool progress', 'preview sessions'],
         },
         notes:
-          'BirdCoder standardizes Claude Code on the official Agent SDK contract and routes execution through a dedicated bridge lane when Rust authority needs to delegate.',
+          'BirdCoder standardizes Claude Code on the official Agent SDK contract, with a real Claude CLI print fallback inside the bundled TypeScript stdio bridge when Rust authority delegates SDK execution.',
       }),
     },
     modelCatalog: [
@@ -484,6 +494,7 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
       executable: 'claude',
       aliases: ['claude', 'claude-code'],
       startupArgs: [],
+      resumeArgs: ['--resume', BIRDCODER_CODE_ENGINE_RESUME_SESSION_ARG_TOKEN],
       installHint: 'Install Claude Code CLI and ensure the claude command is on PATH.',
       packageName: 'claude-code',
       launcherPath: null,
@@ -498,7 +509,7 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
     },
     nativeSession: {
       authorityBacked: true,
-      discoveryMode: 'explicit-only',
+      discoveryMode: 'passive-global',
       nativeSessionIdPrefix: 'claude-code-native:',
     },
   }),
@@ -534,7 +545,7 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
           supplementalLanes: ['CLI core runtime', 'tool and skill registry'],
         },
         notes:
-          'BirdCoder standardizes Gemini on the Gemini CLI SDK contract and treats the gRPC bridge as the primary authority delegation lane.',
+          'BirdCoder standardizes Gemini on the Gemini CLI SDK contract and treats the bundled TypeScript stdio bridge as the primary authority delegation lane.',
       }),
     },
     modelCatalog: [
@@ -562,6 +573,7 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
       executable: 'gemini',
       aliases: ['gemini', 'gemini-cli'],
       startupArgs: [],
+      resumeArgs: ['--resume', BIRDCODER_CODE_ENGINE_RESUME_SESSION_ARG_TOKEN],
       installHint: 'Install Gemini CLI and ensure the gemini command is on PATH.',
       packageName: '@google/gemini-cli',
       launcherPath: null,
@@ -576,7 +588,7 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
     },
     nativeSession: {
       authorityBacked: true,
-      discoveryMode: 'explicit-only',
+      discoveryMode: 'passive-global',
       nativeSessionIdPrefix: 'gemini-native:',
     },
   }),
@@ -623,6 +635,7 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
       executable: 'opencode',
       aliases: ['opencode'],
       startupArgs: [],
+      resumeArgs: ['--session', BIRDCODER_CODE_ENGINE_RESUME_SESSION_ARG_TOKEN],
       installHint: 'Install OpenCode CLI and ensure the opencode command is on PATH.',
       packageName: 'opencode-ai',
       launcherPath: null,

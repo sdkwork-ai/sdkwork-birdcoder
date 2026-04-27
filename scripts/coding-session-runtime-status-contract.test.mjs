@@ -41,6 +41,18 @@ assert.match(
 );
 
 assert.match(
+  typesSource,
+  /'awaiting_user'/,
+  'Coding session runtime statuses must distinguish user-question waits from approval and tool-execution waits.',
+);
+
+assert.match(
+  typesSource,
+  /\['initializing', 'streaming', 'awaiting_tool', 'awaiting_approval', 'awaiting_user'\]/,
+  'Coding session executing-state helper must treat awaiting_user as an active runtime status.',
+);
+
+assert.match(
   sessionRefreshSource,
   /const resolvedRuntimeStatus = resolveBirdCoderCodingSessionRuntimeStatus\(\s*events,\s*resolvedLocation\.codingSession\.runtimeStatus \?\? resolvedLocation\.summary\?\.runtimeStatus,\s*\);/s,
   'Refreshing a selected coding session must derive runtimeStatus from authoritative session events.',

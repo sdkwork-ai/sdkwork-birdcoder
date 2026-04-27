@@ -75,6 +75,7 @@ try {
   await Promise.all([
     repositories.workspaces.clear(),
     repositories.projects.clear(),
+    repositories.projectContents.clear(),
     repositories.documents.clear(),
     repositories.deployments.clear(),
     repositories.targets.clear(),
@@ -98,10 +99,20 @@ try {
     workspaceId: 'workspace-sdk-contract',
     name: 'SDK Contract Project',
     description: 'Project catalog served through the typed app client.',
-    rootPath: 'D:/workspace/sdk-contract-project',
     status: 'active',
     createdAt: '2026-04-10T19:00:01.000Z',
     updatedAt: '2026-04-10T19:00:01.000Z',
+  });
+  await repositories.projectContents.save({
+    id: 'project-content-sdk-contract',
+    projectId: 'project-sdk-contract',
+    projectUuid: 'project-project-sdk-contract',
+    configData: JSON.stringify({
+      rootPath: 'D:/workspace/sdk-contract-project',
+    }),
+    contentVersion: '1.0',
+    createdAt: '2026-04-10T19:00:01.250Z',
+    updatedAt: '2026-04-10T19:00:01.250Z',
   });
   await repositories.documents.save({
     id: 'doc-sdk-contract',

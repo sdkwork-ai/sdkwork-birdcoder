@@ -3,6 +3,10 @@ import type {
   BirdCoderEntityName,
   BirdCoderEntityStorageBinding,
 } from '@sdkwork/birdcoder-types';
+import {
+  parseBirdCoderApiJson,
+  stringifyBirdCoderApiJson,
+} from '@sdkwork/birdcoder-types';
 
 const LOCAL_STORE_NAMESPACE = 'sdkwork-birdcoder';
 const inMemoryStorageFallback = new Map<string, string>();
@@ -76,7 +80,7 @@ function parseLocalStoreKey(value: string): { key: string; scope: string } | nul
 }
 
 export function serializeStoredValue<T>(value: T): string {
-  return JSON.stringify(value);
+  return stringifyBirdCoderApiJson(value);
 }
 
 export function deserializeStoredValue<T>(rawValue: string | null, fallback: T): T {
@@ -85,7 +89,7 @@ export function deserializeStoredValue<T>(rawValue: string | null, fallback: T):
   }
 
   try {
-    return JSON.parse(rawValue) as T;
+    return parseBirdCoderApiJson<T>(rawValue);
   } catch {
     return fallback;
   }

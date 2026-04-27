@@ -18,6 +18,9 @@ const infrastructureInterfaceSource = read(
 const sharedHookSource = read('packages/sdkwork-birdcoder-commons/src/hooks/useFileSystem.ts');
 const appSource = read('packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx');
 const codePageSource = read('packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx');
+const codeLocalFolderImportSource = read(
+  'packages/sdkwork-birdcoder-code/src/pages/useCodeLocalFolderProjectImport.ts',
+);
 const studioPageSource = read('packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx');
 
 assert.match(
@@ -339,7 +342,7 @@ assert.match(
 
 for (const [label, source] of [
   ['App', appSource],
-  ['CodePage', codePageSource],
+  ['CodePage', `${codePageSource}\n${codeLocalFolderImportSource}`],
   ['StudioPage', studioPageSource],
 ]) {
   assert.match(
@@ -354,6 +357,12 @@ for (const [label, source] of [
     `${label} must not keep inline folder-name parsing once the shared local-folder import helper exists.`,
   );
 }
+
+assert.match(
+  codePageSource,
+  /useCodeLocalFolderProjectImport/,
+  'CodePage must delegate local-folder project import wiring to its componentized hook.',
+);
 
 for (const [label, source] of [
   ['CodePage', codePageSource],

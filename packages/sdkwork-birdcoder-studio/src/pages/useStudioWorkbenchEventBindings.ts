@@ -74,6 +74,10 @@ export function useStudioWorkbenchEventBindings({
       setIsTerminalOpen((previousState) => !previousState);
     };
     const handleTerminalRequest = (request: TerminalCommandRequest) => {
+      if (request.surface !== 'embedded') {
+        return;
+      }
+
       setTerminalRequest(request);
       setIsTerminalOpen(true);
     };

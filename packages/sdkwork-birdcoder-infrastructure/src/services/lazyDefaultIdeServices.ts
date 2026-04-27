@@ -5,6 +5,21 @@ import {
   type BirdCoderDefaultIdeSharedRuntime,
   type CreateBirdCoderDefaultIdeServicesOptions,
 } from './defaultIdeServicesShared.ts';
+import { ApiBackedAdminDeploymentService } from './impl/ApiBackedAdminDeploymentService.ts';
+import { ApiBackedAdminPolicyService } from './impl/ApiBackedAdminPolicyService.ts';
+import { ApiBackedAuditService } from './impl/ApiBackedAuditService.ts';
+import { ApiBackedCatalogService } from './impl/ApiBackedCatalogService.ts';
+import { ApiBackedCollaborationService } from './impl/ApiBackedCollaborationService.ts';
+import { ApiBackedCoreReadService } from './impl/ApiBackedCoreReadService.ts';
+import { ApiBackedCoreWriteService } from './impl/ApiBackedCoreWriteService.ts';
+import { ApiBackedDeploymentService } from './impl/ApiBackedDeploymentService.ts';
+import { ApiBackedDocumentService } from './impl/ApiBackedDocumentService.ts';
+import { ApiBackedGitService } from './impl/ApiBackedGitService.ts';
+import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
+import { ApiBackedReleaseService } from './impl/ApiBackedReleaseService.ts';
+import { ApiBackedTeamService } from './impl/ApiBackedTeamService.ts';
+import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
+import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
 
 let sharedRuntimePromise: Promise<BirdCoderDefaultIdeSharedRuntime> | null = null;
 const servicePromiseByKey = new Map<
@@ -30,7 +45,6 @@ async function loadWorkspaceService(
     return runtime.providerBackedWorkspaceService;
   }
 
-  const { ApiBackedWorkspaceService } = await import('./impl/ApiBackedWorkspaceService.ts');
   return new ApiBackedWorkspaceService({
     client: runtime.appAdminClient,
     identityProvider: runtime.authService,
@@ -46,7 +60,6 @@ async function loadProjectService(
     return runtime.providerBackedProjectService;
   }
 
-  const { ApiBackedProjectService } = await import('./impl/ApiBackedProjectService.ts');
   return new ApiBackedProjectService({
     client: runtime.appAdminClient,
     codingSessionMirror: runtime.providerBackedProjectService,
@@ -74,17 +87,11 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
   const servicePromise = loadSharedRuntime(options).then(async (runtime) => {
     switch (serviceKey) {
       case 'adminDeploymentService': {
-        const { ApiBackedAdminDeploymentService } = await import(
-          './impl/ApiBackedAdminDeploymentService.ts'
-        );
         return new ApiBackedAdminDeploymentService({
           client: runtime.appAdminClient,
         });
       }
       case 'adminPolicyService': {
-        const { ApiBackedAdminPolicyService } = await import(
-          './impl/ApiBackedAdminPolicyService.ts'
-        );
         return new ApiBackedAdminPolicyService({
           client: runtime.appAdminClient,
         });
@@ -92,57 +99,46 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
       case 'authService':
         return runtime.authService;
       case 'auditService': {
-        const { ApiBackedAuditService } = await import('./impl/ApiBackedAuditService.ts');
         return new ApiBackedAuditService({
           client: runtime.appAdminClient,
         });
       }
       case 'catalogService': {
-        const { ApiBackedCatalogService } = await import('./impl/ApiBackedCatalogService.ts');
         return new ApiBackedCatalogService({
           client: runtime.appAdminClient,
         });
       }
       case 'collaborationService': {
-        const { ApiBackedCollaborationService } = await import(
-          './impl/ApiBackedCollaborationService.ts'
-        );
         return new ApiBackedCollaborationService({
           client: runtime.appAdminClient,
           identityProvider: runtime.authService,
         });
       }
       case 'coreReadService': {
-        const { ApiBackedCoreReadService } = await import('./impl/ApiBackedCoreReadService.ts');
         return new ApiBackedCoreReadService({
           client: runtime.coreReadClient,
           identityProvider: runtime.authService,
         });
       }
       case 'coreWriteService': {
-        const { ApiBackedCoreWriteService } = await import('./impl/ApiBackedCoreWriteService.ts');
         return new ApiBackedCoreWriteService({
           client: runtime.coreWriteClient,
         });
       }
       case 'deploymentService': {
-        const { ApiBackedDeploymentService } = await import('./impl/ApiBackedDeploymentService.ts');
         return new ApiBackedDeploymentService({
           client: runtime.appAdminClient,
         });
       }
       case 'documentService': {
-        const { ApiBackedDocumentService } = await import('./impl/ApiBackedDocumentService.ts');
         return new ApiBackedDocumentService({
           client: runtime.appAdminClient,
         });
       }
       case 'fileSystemService': {
-        const { RuntimeFileSystemService } = await import('./impl/RuntimeFileSystemService.ts');
         return new RuntimeFileSystemService();
       }
       case 'gitService': {
-        const { ApiBackedGitService } = await import('./impl/ApiBackedGitService.ts');
         return new ApiBackedGitService({
           client: runtime.appAdminClient,
         });
@@ -152,13 +148,11 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
       case 'projectService':
         return loadProjectService(runtime);
       case 'releaseService': {
-        const { ApiBackedReleaseService } = await import('./impl/ApiBackedReleaseService.ts');
         return new ApiBackedReleaseService({
           client: runtime.appAdminClient,
         });
       }
       case 'teamService': {
-        const { ApiBackedTeamService } = await import('./impl/ApiBackedTeamService.ts');
         return new ApiBackedTeamService({
           client: runtime.appAdminClient,
           identityProvider: runtime.authService,

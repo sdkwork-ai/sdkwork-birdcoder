@@ -30,7 +30,7 @@ const projects: BirdCoderProject[] = [
         pinned: false,
         projectId: 'project-1',
         runtimeStatus: 'ready',
-        sortTimestamp: Date.parse('2026-04-22T00:00:00.000Z'),
+        sortTimestamp: String(Date.parse('2026-04-22T00:00:00.000Z')),
         status: 'active',
         title: 'First session',
         transcriptUpdatedAt: '2026-04-22T00:00:00.000Z',

@@ -30,12 +30,6 @@ const commonsIndexSource = readSource(
   'src',
   'index.ts',
 );
-const commonsWorkbenchSource = readSource(
-  'packages',
-  'sdkwork-birdcoder-commons',
-  'src',
-  'workbench.ts',
-);
 const codePageSource = readSource(
   'packages',
   'sdkwork-birdcoder-code',
@@ -49,6 +43,13 @@ const studioPageSource = readSource(
   'src',
   'pages',
   'StudioPage.tsx',
+);
+const legacyCommonsWorkbenchPath = path.join(
+  rootDir,
+  'packages',
+  'sdkwork-birdcoder-commons',
+  'src',
+  'workbench.ts',
 );
 
 assert.match(
@@ -64,15 +65,26 @@ assert.match(
 );
 
 assert.match(
+  hookSource,
+  /async \(\s*projectId: string,\s*requestedEngineId\?: string,\s*options\?: \{[\s\S]*shouldSelectCreatedSession\?:[\s\S]*\},\s*\)/,
+  'The shared workbench coding session creation actions hook must accept a per-call created-session selection guard so UI surfaces can prevent stale async creation from overriding newer user navigation.',
+);
+
+assert.match(
+  hookSource,
+  /shouldSelectCreatedSession:\s*options\?\.shouldSelectCreatedSession,/,
+  'The shared workbench coding session creation actions hook must pass the per-call selection guard into createWorkbenchCodingSessionInProject.',
+);
+
+assert.match(
   commonsIndexSource,
   /export \* from '\.\/hooks\/useWorkbenchCodingSessionCreationActions\.ts';/,
   'Commons public index must export useWorkbenchCodingSessionCreationActions for package consumers.',
 );
 
-assert.match(
-  commonsWorkbenchSource,
-  /export \* from '\.\/hooks\/useWorkbenchCodingSessionCreationActions\.ts';/,
-  'Workbench entrypoint must export useWorkbenchCodingSessionCreationActions for workbench surface consumers.',
+assert.ok(
+  !fs.existsSync(legacyCommonsWorkbenchPath),
+  'Commons must not restore the legacy src/workbench.ts barrel; workbench consumers should import shared hooks from the root package entrypoint.',
 );
 
 assert.match(

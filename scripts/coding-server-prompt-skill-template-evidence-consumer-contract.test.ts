@@ -88,7 +88,7 @@ const projection = {
       turnId: 'turn-evidence-consumer-contract',
       runtimeId: 'runtime-evidence-consumer-contract',
       kind: 'turn.completed',
-      sequence: 1,
+      sequence: '1',
       payload: {
         runtimeStatus: 'ready',
       },

@@ -199,10 +199,7 @@ function createUnavailableError(): Error {
 function isUserCenterRouteUnavailable(error: unknown): boolean {
   return (
     error instanceof Error
-    && (
-      error.message.includes(" -> 404")
-      || error.message.includes("requires a bound coding-server runtime")
-    )
+    && error.message.includes(" -> 404")
   );
 }
 
@@ -210,6 +207,13 @@ function isUserCenterSessionRejected(error: unknown): boolean {
   return (
     error instanceof Error
     && (error.message.includes(" -> 401") || error.message.includes(" -> 403"))
+  );
+}
+
+function isRuntimeAuthAuthorityUnavailable(error: unknown): boolean {
+  return (
+    error instanceof Error
+    && error.message.includes("requires a bound coding-server runtime")
   );
 }
 
@@ -398,6 +402,29 @@ export function createBirdCoderRuntimeAuthService(
 
   return {
     ...authority,
+    getCurrentUser: async () => {
+      try {
+        return await authority.getCurrentUser();
+      } catch (error) {
+        if (isRuntimeAuthAuthorityUnavailable(error)) {
+          return null;
+        }
+
+        throw error;
+      }
+    },
+    logout: async () => {
+      try {
+        await authority.logout();
+      } catch (error) {
+        if (isRuntimeAuthAuthorityUnavailable(error)) {
+          clearRuntimeServerSessionId();
+          return;
+        }
+
+        throw error;
+      }
+    },
     checkLoginQrCodeStatus: client
       ? async (qrKey: string) =>
           mapBirdCoderQrStatusResult(

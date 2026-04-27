@@ -70,6 +70,7 @@ assert.deepEqual(launch.request, {
   runConfigurationId: 'build-app',
   buildProfile,
   terminalRequest: {
+    surface: 'embedded',
     path: '/workspace/demo-project',
     command: 'pnpm build:app',
     profileId: 'powershell',
@@ -94,6 +95,7 @@ assert.deepEqual(
   buildStudioBuildExecutionEvidence(
     buildProfile,
     {
+      surface: 'embedded',
       path: '/workspace/demo-project',
       command: 'pnpm build:app',
       profileId: 'powershell',

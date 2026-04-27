@@ -79,13 +79,14 @@ function assertLucideRollupWarningFilter(onwarn, label) {
     `${label} must suppress known lucide-react module directive warnings so build output stays clean.`,
   );
 
-  onwarn(genericWarning, (warning) => {
-    forwardedWarnings.push(warning);
-  });
-  assert.deepEqual(
-    forwardedWarnings,
-    [genericWarning],
-    `${label} must continue forwarding unrelated Rollup warnings instead of globally silencing them.`,
+  assert.throws(
+    () => {
+      onwarn(genericWarning, (warning) => {
+        forwardedWarnings.push(warning);
+      });
+    },
+    /BirdCoder Rollup warning is not governed/u,
+    `${label} must fail loudly for unrelated Rollup warnings instead of letting release builds pass with warning debt.`,
   );
 }
 
@@ -236,6 +237,36 @@ assertLucideRollupWarningFilter(
   webConfig.build?.rollupOptions?.onwarn,
   'Web Vite config',
 );
+const webManualChunks = webConfig.build?.rollupOptions?.output?.manualChunks;
+assert.equal(typeof webManualChunks, 'function', 'Web Vite config must expose manual chunk governance.');
+for (const platformRuntimeModuleId of [
+  '/repo/packages/sdkwork-birdcoder-workbench-state/src/userProfileState.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts',
+]) {
+  assert.equal(
+    webManualChunks(platformRuntimeModuleId),
+    'birdcoder-platform-runtime',
+    `Web Vite config must keep tightly coupled platform runtime services in one chunk to avoid circular chunk warnings for ${platformRuntimeModuleId}.`,
+  );
+}
+for (const identitySurfaceModuleId of [
+  '/repo/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth.ts',
+  '/repo/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/pages/AuthPage.tsx',
+  '/repo/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-pc-react/src/index.ts',
+  '/repo/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/domain/userCenterSurfaceRouting.ts',
+  '/repo/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/pages/userCenterProfileSurfacePage.tsx',
+  '/repo/packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx',
+  '/repo/packages/sdkwork-birdcoder-user/src/pages/UserCenterPage.tsx',
+]) {
+  assert.equal(
+    webManualChunks(identitySurfaceModuleId),
+    'birdcoder-identity-surface',
+    `Web Vite config must keep mutually dependent auth/user/user-center surfaces in one lazy identity chunk to avoid circular chunk warnings for ${identitySurfaceModuleId}.`,
+  );
+}
 assert.deepEqual(
   webConfig.server?.fs?.allow,
   [

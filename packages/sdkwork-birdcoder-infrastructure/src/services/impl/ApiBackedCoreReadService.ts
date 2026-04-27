@@ -1,4 +1,7 @@
-import type { BirdCoderCoreReadApiClient } from '@sdkwork/birdcoder-types';
+import {
+  stringifyBirdCoderApiJson,
+  type BirdCoderCoreReadApiClient,
+} from '@sdkwork/birdcoder-types';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { ICoreReadService } from '../interfaces/ICoreReadService.ts';
 
@@ -35,11 +38,14 @@ function stableSerializeCacheKeyPart(value: unknown): string {
       .filter(([, entryValue]) => entryValue !== undefined)
       .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
     return `{${entries
-      .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableSerializeCacheKeyPart(entryValue)}`)
+      .map(
+        ([key, entryValue]) =>
+          `${stringifyBirdCoderApiJson(key)}:${stableSerializeCacheKeyPart(entryValue)}`,
+      )
       .join(',')}}`;
   }
 
-  return JSON.stringify(value);
+  return stringifyBirdCoderApiJson(value);
 }
 
 export class ApiBackedCoreReadService implements ICoreReadService {

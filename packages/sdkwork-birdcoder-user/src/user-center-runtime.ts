@@ -6,7 +6,7 @@ export {
   createBirdCoderCanonicalUserCenterConfig,
   createBirdCoderRuntimeUserCenterClient,
   resolveBirdCoderRuntimeUserCenterApiBaseUrl,
-} from '@sdkwork/birdcoder-infrastructure';
+} from '@sdkwork/birdcoder-infrastructure-runtime';
 export {
   createUserCenterRuntimeClient,
   createUserCenterSessionStore,

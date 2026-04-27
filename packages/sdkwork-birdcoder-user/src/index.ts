@@ -1,6 +1,4 @@
 export * from './pageLoaders.ts';
-export * from './pages/UserCenterPage.tsx';
-export * from './pages/VipPage.tsx';
 export * from './profileStorage.ts';
 export * from './storage.ts';
 export * from './user-center-runtime.ts';

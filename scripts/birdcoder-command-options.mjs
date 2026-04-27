@@ -22,6 +22,7 @@ export function parseBirdcoderIdentityCliOptions(
   let identityMode;
   let userCenterProvider;
   let viteMode;
+  let demoLogin = false;
 
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
@@ -40,11 +41,16 @@ export function parseBirdcoderIdentityCliOptions(
       index += 1;
       continue;
     }
+    if (token === '--demo-login') {
+      demoLogin = true;
+      continue;
+    }
 
     throw new Error(`Unknown argument for ${commandName}: ${token}`);
   }
 
   return {
+    demoLogin,
     identityMode,
     userCenterProvider,
     viteMode,
@@ -53,16 +59,24 @@ export function parseBirdcoderIdentityCliOptions(
 
 export function resolveBirdcoderCommandEnv({
   env = process.env,
+  demoLogin = false,
   userCenterProvider,
 } = {}) {
-  if (!userCenterProvider) {
+  if (!userCenterProvider && !demoLogin) {
     return env;
   }
 
-  return {
+  const nextEnv = {
     ...env,
-    BIRDCODER_USER_CENTER_LOGIN_PROVIDER: userCenterProvider,
   };
+  if (userCenterProvider) {
+    nextEnv.BIRDCODER_USER_CENTER_LOGIN_PROVIDER = userCenterProvider;
+  }
+  if (demoLogin) {
+    nextEnv.BIRDCODER_ENABLE_RELEASE_DEMO_LOGIN = 'true';
+  }
+
+  return nextEnv;
 }
 
 export function createBirdcoderIdentityCliFlags({

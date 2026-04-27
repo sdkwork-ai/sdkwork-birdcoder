@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::CodeEngineSessionCommandRecord;
+
 const CODE_ENGINE_TURN_CONTEXT_FILE_CONTENT_CHAR_LIMIT: usize = 4_000;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -49,6 +51,17 @@ pub struct CodeEngineTurnRequestRecord {
 pub struct CodeEngineTurnResultRecord {
     pub assistant_content: String,
     pub native_session_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commands: Option<Vec<CodeEngineSessionCommandRecord>>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeEngineTurnStreamEventRecord {
+    pub role: String,
+    pub content_delta: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub native_session_id: Option<String>,
 }
 
 pub fn build_codeengine_turn_prompt(
@@ -56,12 +69,12 @@ pub fn build_codeengine_turn_prompt(
     input_summary: &str,
     ide_context: Option<&CodeEngineTurnIdeContextRecord>,
 ) -> String {
-    let contextual_input = if let Some(context_block) = build_codeengine_turn_context_block(ide_context)
-    {
-        format!("{context_block}\n\nUser request:\n{input_summary}")
-    } else {
-        input_summary.to_owned()
-    };
+    let contextual_input =
+        if let Some(context_block) = build_codeengine_turn_context_block(ide_context) {
+            format!("{context_block}\n\nUser request:\n{input_summary}")
+        } else {
+            input_summary.to_owned()
+        };
 
     if request_kind == "chat" {
         contextual_input
@@ -145,16 +158,7 @@ fn should_inline_turn_context_file_content(path: &str, language: Option<&str>) -
         .unwrap_or_default();
     if matches!(
         normalized_language.as_str(),
-        "json"
-            | "jsonc"
-            | "yaml"
-            | "yml"
-            | "toml"
-            | "xml"
-            | "csv"
-            | "tsv"
-            | "ini"
-            | "properties"
+        "json" | "jsonc" | "yaml" | "yml" | "toml" | "xml" | "csv" | "tsv" | "ini" | "properties"
     ) {
         return false;
     }
@@ -220,7 +224,9 @@ mod tests {
                 current_file: Some(CodeEngineTurnCurrentFileContextRecord {
                     path: "/demo/src/App.tsx".to_owned(),
                     language: Some("tsx".to_owned()),
-                    content: Some("export function App() {\n  return <main>Hello</main>;\n}".to_owned()),
+                    content: Some(
+                        "export function App() {\n  return <main>Hello</main>;\n}".to_owned(),
+                    ),
                 }),
             }),
         );

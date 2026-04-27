@@ -65,9 +65,18 @@ await withMockCodexCliJsonl(async () => {
   assert.equal(projection.runtime.nativeRef.transportKind, 'cli-jsonl');
   assert.equal(projection.events[0]?.kind, 'session.started');
   assert.equal(projection.events[1]?.kind, 'turn.started');
-  assert.equal(projection.events.some((event) => event.kind === 'approval.required'), true);
+  assert.equal(
+    projection.events.some((event) => event.kind === 'approval.required'),
+    false,
+    'server projection must not request approval for completed native command history',
+  );
+  assert.equal(
+    projection.events.some((event) => event.kind === 'tool.call.completed'),
+    true,
+    'server projection must preserve completed native command snapshots as completed tool events',
+  );
   assert.equal(projection.artifacts.length > 0, true, 'server projection must preserve projected artifacts');
-  assert.equal(projection.operation.status, 'running');
+  assert.equal(projection.operation.status, 'succeeded');
   assert.equal(projection.operation.streamKind, 'sse');
   assert.equal(
     projection.operation.streamUrl,
@@ -93,7 +102,7 @@ await withMockCodexCliJsonl(async () => {
   assert.equal(envelopes.length > 0, true, 'coding-server SSE contract must emit envelopes');
   assert.equal(envelopes[0]?.meta.version, 'v1');
   assert.equal(envelopes[0]?.data.kind, 'session.started');
-  assert.equal(envelopes.some((envelope) => envelope.data.kind === 'tool.call.requested'), true);
+  assert.equal(envelopes.some((envelope) => envelope.data.kind === 'tool.call.completed'), true);
   assert.equal(envelopes.some((envelope) => envelope.data.kind === 'artifact.upserted'), true);
   assert.equal(envelopes.some((envelope) => envelope.data.kind === 'turn.completed'), true);
 }, {

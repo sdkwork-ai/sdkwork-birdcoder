@@ -68,6 +68,20 @@ const fakeCliJsonlEvents = [
     },
   },
   {
+    type: 'item.completed',
+    item: {
+      id: 'fake-codex-todo',
+      type: 'todo_list',
+      items: [
+        {
+          text: 'Run regression contracts',
+          status: 'completed',
+        },
+      ],
+      status: 'completed',
+    },
+  },
+  {
     type: 'turn.completed',
   },
 ] as const satisfies ReadonlyArray<Record<string, unknown>>;
@@ -96,6 +110,27 @@ assert.equal(
   'Codex CLI bridge response.',
   'Codex one-shot fallback must use the CLI JSONL runtime instead of fabricating a local reply.',
 );
+assert.equal(
+  response.choices[0]?.message.tool_calls?.[0]?.function.name,
+  'run_command',
+  'Codex one-shot CLI JSONL fallback must preserve command artifacts as assistant tool_calls instead of dropping non-text semantics.',
+);
+const oneShotTodoToolCall = response.choices[0]?.message.tool_calls?.find(
+  (toolCall) => toolCall.function.name === 'write_todo',
+);
+assert.deepEqual(
+  JSON.parse(String(oneShotTodoToolCall?.function.arguments ?? '{}')),
+  {
+    items: [
+      {
+        text: 'Run regression contracts',
+        status: 'completed',
+      },
+    ],
+    status: 'completed',
+  },
+  'Codex one-shot CLI JSONL fallback must preserve todo_list lifecycle status so completed native task snapshots do not render as running.',
+);
 
 const chunks = await collectStream(engine.sendMessageStream(messages, {
   model: 'codex',
@@ -111,8 +146,24 @@ assert.equal(
 );
 assert.equal(
   chunks.find((chunk) => chunk.choices[0]?.delta.tool_calls?.length)?.choices[0]?.delta.tool_calls?.[0]?.function.name,
-  'execute_command',
+  'run_command',
   'Codex streaming fallback must preserve command artifacts from the CLI JSONL lane.',
+);
+const streamedTodoToolCall = chunks
+  .flatMap((chunk) => chunk.choices[0]?.delta.tool_calls ?? [])
+  .find((toolCall) => toolCall.function.name === 'write_todo');
+assert.deepEqual(
+  JSON.parse(String(streamedTodoToolCall?.function.arguments ?? '{}')),
+  {
+    items: [
+      {
+        text: 'Run regression contracts',
+        status: 'completed',
+      },
+    ],
+    status: 'completed',
+  },
+  'Codex streaming fallback must preserve todo_list lifecycle status so completed native task snapshots do not render as running.',
 );
 assert.equal(
   chunks.at(-1)?.choices[0]?.finish_reason,

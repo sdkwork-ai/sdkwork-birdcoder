@@ -194,15 +194,25 @@ function mutateWorkspacesStore(
   });
 }
 
-export function useWorkspaces() {
+export interface UseWorkspacesOptions {
+  isActive?: boolean;
+}
+
+export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   const { workspaceService } = useIDEServices();
   const { user } = useAuth();
+  const isActive = options.isActive ?? true;
   const normalizedUserScope = normalizeWorkspacesStoreUserScope(user?.id);
   const [storeSnapshot, setStoreSnapshot] = useState<WorkspacesStoreSnapshot>(
     () => getWorkspacesStore(normalizedUserScope).snapshot,
   );
 
   useEffect(() => {
+    if (!isActive) {
+      setStoreSnapshot(createWorkspacesStoreSnapshot());
+      return;
+    }
+
     const store = getWorkspacesStore(normalizedUserScope);
     setStoreSnapshot(store.snapshot);
 
@@ -221,7 +231,7 @@ export function useWorkspaces() {
         workspacesStoresByScopeKey.delete(normalizedUserScope);
       }
     };
-  }, [normalizedUserScope, workspaceService]);
+  }, [isActive, normalizedUserScope, workspaceService]);
 
   const refreshWorkspaces = useCallback(async () => {
     return fetchWorkspaces(getWorkspacesStore(normalizedUserScope), workspaceService);

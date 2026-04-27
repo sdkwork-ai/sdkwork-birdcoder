@@ -1115,6 +1115,7 @@ export const FileExplorer = React.memo(function FileExplorer({
                 return;
               }
               emitOpenTerminalRequest({
+                surface: 'workspace',
                 path: projectBasePath,
                 timestamp: Date.now(),
               });
@@ -1240,6 +1241,7 @@ export const FileExplorer = React.memo(function FileExplorer({
                 return;
               }
               emitOpenTerminalRequest({
+                surface: 'workspace',
                 path: targetPath,
                 timestamp: Date.now(),
               });

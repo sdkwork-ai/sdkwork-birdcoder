@@ -19,8 +19,11 @@ import {
   importLocalFolderProject,
   isWorkbenchRecoverySelectionResolutionReady,
   normalizeWorkbenchRecoverySnapshot,
+  normalizeWorkbenchRecoveryUserScope,
   openLocalFolder,
   recoverySnapshotsEqual,
+  resolveLocalFolderImportWorkspaceId,
+  resolveWorkbenchRecoverySnapshotForUser,
   resolveStartupCodingSessionId,
   resolveStartupProjectId,
   resolveStartupWorkspaceId,
@@ -520,6 +523,9 @@ const PersistentAppTabPanel = React.memo(function PersistentAppTabPanel({
 
 PersistentAppTabPanel.displayName = 'PersistentAppTabPanel';
 
+const isWorkspaceTerminalRequest = (request: TerminalCommandRequest): boolean =>
+  request.surface === 'workspace';
+
 const AppMainBody = React.memo(function AppMainBody({
   activeTab,
   isAuthenticated,
@@ -711,11 +717,25 @@ function AppContent() {
     updateWorkspace,
     deleteWorkspace,
     refreshWorkspaces,
-  } = useWorkspaces();
-  const normalizedRecoverySnapshot = normalizeWorkbenchRecoverySnapshot(recoverySnapshot);
+  } = useWorkspaces({
+    isActive: Boolean(user),
+  });
+  const currentWorkbenchUserScope = normalizeWorkbenchRecoveryUserScope(user?.id);
+  const normalizedStoredRecoverySnapshot = normalizeWorkbenchRecoverySnapshot(recoverySnapshot);
+  const normalizedRecoverySnapshot = resolveWorkbenchRecoverySnapshotForUser(
+    normalizedStoredRecoverySnapshot,
+    currentWorkbenchUserScope,
+  );
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
   const [activeProjectId, setActiveProjectId] = useState<string>('');
   const [activeCodingSessionId, setActiveCodingSessionId] = useState<string>('');
+  const previousWorkbenchUserScopeRef = useRef(currentWorkbenchUserScope);
+  const isWorkbenchSelectionForCurrentUser =
+    previousWorkbenchUserScopeRef.current === currentWorkbenchUserScope;
+  const scopedActiveWorkspaceId = isWorkbenchSelectionForCurrentUser ? activeWorkspaceId : '';
+  const scopedActiveProjectId = isWorkbenchSelectionForCurrentUser ? activeProjectId : '';
+  const scopedActiveCodingSessionId =
+    isWorkbenchSelectionForCurrentUser ? activeCodingSessionId : '';
   const workspacesById = useMemo(
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
     [workspaces],
@@ -728,7 +748,7 @@ function AppContent() {
     recoverySnapshot: normalizedRecoverySnapshot,
   });
   const fallbackWorkspaceId = workspaces[0]?.id ?? '';
-  const effectiveWorkspaceId = (activeWorkspaceId || resolvedWorkspaceId || fallbackWorkspaceId).trim();
+  const effectiveWorkspaceId = (scopedActiveWorkspaceId || resolvedWorkspaceId || fallbackWorkspaceId).trim();
   const effectiveMenuWorkspaceId = (menuActiveWorkspaceId || effectiveWorkspaceId).trim();
   const projectsWorkspaceId = user ? effectiveWorkspaceId : '';
   const menuProjectsScopeWorkspaceId =
@@ -844,11 +864,9 @@ function AppContent() {
   const projectMountRecoveryActiveSurfaceRef = useRef('');
 
   const openAuthenticationSurface = useCallback((targetTab: AppTab) => {
-    startTransition(() => {
-      explicitLogoutRedirectRef.current = false;
-      pendingAuthTargetTabRef.current = targetTab;
-      setActiveTab('auth');
-    });
+    explicitLogoutRedirectRef.current = false;
+    pendingAuthTargetTabRef.current = targetTab;
+    setActiveTab('auth');
   }, []);
 
   const handleLogout = useCallback(async () => {
@@ -908,27 +926,30 @@ function AppContent() {
     projects: activeProjects,
     recoverySnapshot: normalizedRecoverySnapshot,
   });
-  const effectiveProjectId = (activeProjectId || resolvedProjectId).trim();
+  const effectiveProjectId = (scopedActiveProjectId || resolvedProjectId).trim();
   const resolvedCodingSessionId = resolveStartupCodingSessionId({
     projectId: effectiveProjectId,
     projects: activeProjects,
     recoverySnapshot: normalizedRecoverySnapshot,
   });
-  const effectiveCodingSessionId = (activeCodingSessionId || resolvedCodingSessionId).trim();
+  const effectiveCodingSessionId = (scopedActiveCodingSessionId || resolvedCodingSessionId).trim();
+  const currentUserFallbackRecoverySnapshot =
+    lastPersistedRecoverySnapshotRef.current?.userScope === currentWorkbenchUserScope
+      ? lastPersistedRecoverySnapshotRef.current
+      : normalizedRecoverySnapshot;
   const persistedRecoverySelection = useMemo(() => resolveWorkbenchRecoveryPersistenceSelection({
       currentWorkspaceId: effectiveWorkspaceId,
       currentProjectId: effectiveProjectId,
       currentCodingSessionId: effectiveCodingSessionId,
-      fallbackSnapshot:
-        lastPersistedRecoverySnapshotRef.current ?? normalizedRecoverySnapshot,
+      fallbackSnapshot: currentUserFallbackRecoverySnapshot,
       hasProjectsFetched: activeProjectsHasFetched,
       hasWorkspacesFetched: workspacesHasFetched,
     }), [
       activeProjectsHasFetched,
+      currentUserFallbackRecoverySnapshot,
       effectiveCodingSessionId,
       effectiveProjectId,
       effectiveWorkspaceId,
-      normalizedRecoverySnapshot,
       workspacesHasFetched,
     ]);
   const recoverySelectionResolutionReady = useMemo(
@@ -1031,6 +1052,7 @@ function AppContent() {
       effectiveWorkspaceId,
       menuProjects,
       projectService,
+      user?.id,
     ],
   );
 
@@ -1101,6 +1123,25 @@ function AppContent() {
   }, [activeTab, isAuthLoading, user]);
 
   useEffect(() => {
+    const previousWorkbenchUserScope = previousWorkbenchUserScopeRef.current;
+    if (previousWorkbenchUserScope === currentWorkbenchUserScope) {
+      return;
+    }
+
+    previousWorkbenchUserScopeRef.current = currentWorkbenchUserScope;
+    pendingImportedProjectIdRef.current = '';
+    pendingImportedWorkspaceIdRef.current = '';
+    lastPersistedRecoverySnapshotRef.current = null;
+    hasAnnouncedRecoveryRef.current = false;
+    setActiveWorkspaceId('');
+    setMenuActiveWorkspaceId('');
+    setActiveProjectId('');
+    setActiveCodingSessionId('');
+    setProjectActionsMenuId(null);
+    setShowWorkspaceMenu(false);
+  }, [currentWorkbenchUserScope]);
+
+  useEffect(() => {
     if (!isRecoveryHydrated || recoverySessionIdRef.current) {
       return;
     }
@@ -1108,6 +1149,7 @@ function AppContent() {
     recoverySessionIdRef.current =
       normalizedRecoverySnapshot.sessionId || createWorkbenchRecoverySessionId();
     lastPersistedRecoverySnapshotRef.current = buildWorkbenchRecoverySnapshot({
+      userScope: currentWorkbenchUserScope,
       sessionId: recoverySessionIdRef.current,
       activeTab: normalizedRecoverySnapshot.activeTab,
       activeWorkspaceId: normalizedRecoverySnapshot.activeWorkspaceId,
@@ -1115,7 +1157,7 @@ function AppContent() {
       activeCodingSessionId: normalizedRecoverySnapshot.activeCodingSessionId,
       cleanExit: normalizedRecoverySnapshot.cleanExit,
     });
-  }, [isRecoveryHydrated, normalizedRecoverySnapshot]);
+  }, [currentWorkbenchUserScope, isRecoveryHydrated, normalizedRecoverySnapshot]);
 
   useEffect(() => {
     if (
@@ -1235,6 +1277,7 @@ function AppContent() {
     }
 
     const nextRecoverySnapshot = buildWorkbenchRecoverySnapshot({
+      userScope: currentWorkbenchUserScope,
       sessionId:
         recoverySessionIdRef.current ||
         normalizedRecoverySnapshot.sessionId ||
@@ -1269,6 +1312,7 @@ function AppContent() {
   }, [
     activeTab,
     clearPendingRecoverySnapshotPersistence,
+    currentWorkbenchUserScope,
     isRecoveryHydrated,
     normalizedRecoverySnapshot,
     persistedRecoverySelection,
@@ -1291,6 +1335,7 @@ function AppContent() {
         'workbench',
         'recovery-context',
         buildWorkbenchRecoverySnapshot({
+          userScope: currentWorkbenchUserScope,
           sessionId:
             recoverySessionIdRef.current ||
             normalizedRecoverySnapshot.sessionId ||
@@ -1311,6 +1356,7 @@ function AppContent() {
   }, [
     activeTab,
     clearPendingRecoverySnapshotPersistence,
+    currentWorkbenchUserScope,
     isRecoveryHydrated,
     normalizedRecoverySnapshot.sessionId,
     persistedRecoverySelection,
@@ -1335,8 +1381,12 @@ function AppContent() {
   }, [effectiveWorkspaceId, menuActiveWorkspaceId, showWorkspaceMenu]);
 
   useEffect(() => {
-    const focusTerminalSurface = () => {
+    const focusTerminalSurface = (options?: { forceWorkspace?: boolean }) => {
       setActiveTab((previousTab) => {
+        if (options?.forceWorkspace) {
+          return 'terminal';
+        }
+
         if (
           previousTab !== 'terminal' &&
           previousTab !== 'code' &&
@@ -1368,8 +1418,12 @@ function AppContent() {
       setActiveTab('settings');
     };
     const handleTerminalRequest = (req: TerminalCommandRequest) => {
+      if (!isWorkspaceTerminalRequest(req)) {
+        return;
+      }
+
       setTerminalRequest(req);
-      focusTerminalSurface();
+      focusTerminalSurface({ forceWorkspace: true });
     };
     const unsubscribeProjectMountRecovery = subscribeProjectMountRecoveryState((payload) => {
       if (payload.state.status !== 'recovering') {
@@ -1518,39 +1572,25 @@ function AppContent() {
       return null;
     }
 
-    const resolveTargetWorkspaceId = async (): Promise<string> => {
-      const immediateWorkspaceId =
-        (
-          effectiveMenuWorkspaceId ||
-          effectiveWorkspaceId ||
-          activeWorkspaceId ||
-          workspaces[0]?.id ||
-          ''
-        ).trim();
-      if (immediateWorkspaceId) {
-        return immediateWorkspaceId;
-      }
-
-      const refreshedWorkspaces = await refreshWorkspaces();
-      const refreshedWorkspaceId = (
+    const targetWorkspaceId = await resolveLocalFolderImportWorkspaceId({
+      createWorkspace,
+      effectiveWorkspaceId:
+        effectiveMenuWorkspaceId ||
+        effectiveWorkspaceId ||
+        activeWorkspaceId ||
+        workspaces[0]?.id ||
+        '',
+      refreshWorkspaces,
+      selectWorkspaceId: (refreshedWorkspaces) =>
         resolveStartupWorkspaceId({
           workspaces: refreshedWorkspaces,
           recoverySnapshot: normalizedRecoverySnapshot,
         }) ||
         refreshedWorkspaces[0]?.id ||
-        ''
-      ).trim();
-
-      if (!refreshedWorkspaceId) {
-        throw new Error('Default workspace is unavailable. Please wait for workspace initialization to complete.');
-      }
-
-      setActiveWorkspaceId((currentWorkspaceId) => currentWorkspaceId || refreshedWorkspaceId);
-      setMenuActiveWorkspaceId(refreshedWorkspaceId);
-      return refreshedWorkspaceId;
-    };
-
-    const targetWorkspaceId = await resolveTargetWorkspaceId();
+        '',
+    });
+    setActiveWorkspaceId((currentWorkspaceId) => currentWorkspaceId || targetWorkspaceId);
+    setMenuActiveWorkspaceId(targetWorkspaceId);
     const normalizedTargetWorkspaceId = targetWorkspaceId.trim();
     const createProjectForTargetWorkspace = (name: string, options?: Parameters<typeof createMenuProject>[1]) => {
       if (normalizedTargetWorkspaceId === menuProjectsScopeWorkspaceId) {

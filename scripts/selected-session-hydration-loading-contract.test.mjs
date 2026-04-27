@@ -52,6 +52,24 @@ assert.match(
 
 assert.match(
   hookSource,
+  /const isMountedRef = useRef\(true\);/,
+  'useSelectedCodingSessionMessages must track hook mount state separately from per-refresh disposal so stale refreshes can still release shared loading ownership.',
+);
+
+assert.match(
+  hookSource,
+  /if \(isMountedRef\.current && activeSynchronizationCountRef\.current === 0\) \{/,
+  'useSelectedCodingSessionMessages must clear loading when all refreshes settle, even if the last completed refresh belonged to a previous selected session.',
+);
+
+assert.doesNotMatch(
+  hookSource,
+  /if \(!isDisposed && activeSynchronizationCountRef\.current === 0\) \{/,
+  'useSelectedCodingSessionMessages must not couple loading release to per-refresh disposal because session switches can otherwise leave hydration stuck.',
+);
+
+assert.match(
+  hookSource,
   /return isSelectedCodingSessionMessagesLoading;/,
   'useSelectedCodingSessionMessages must return the selected session hydration state.',
 );
@@ -64,14 +82,14 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /const selectedCodingSessionMessages = useMemo\(\s*\(\) => selectedCodingSession\?\.messages \?\? \[\],\s*\[selectedCodingSession\?\.messages\],\s*\);/s,
-  'CodePage must normalize the selected session transcript into a dedicated derived collection before deciding whether the visible chat is still hydrating.',
+  /const selectedCodingSessionMessages = useMemo\(\s*\(\) => \(isNewCodingSessionCreating \? \[\] : selectedCodingSession\?\.messages \?\? \[\]\),\s*\[isNewCodingSessionCreating,\s*selectedCodingSession\?\.messages\],\s*\);/s,
+  'CodePage must normalize the visible selected session transcript and mask it to an empty collection while a new coding session is being created.',
 );
 
 assert.match(
   codePageSource,
-  /const isSelectedCodingSessionHydrating = Boolean\([\s\S]*isSelectedCodingSessionMessagesLoading[\s\S]*selectedCodingSessionMessages\.length === 0/s,
-  'CodePage must derive a session transcript hydration state from the normalized visible message collection so missing local session objects still render a loading state while authority history is syncing.',
+  /const isSelectedCodingSessionHydrating = Boolean\(\s*isNewCodingSessionCreating \|\|[\s\S]*visibleSessionId[\s\S]*isSelectedCodingSessionMessagesLoading[\s\S]*selectedCodingSessionMessages\.length === 0/s,
+  'CodePage must render transcript loading immediately while a new session is being created and while authority history is syncing for an existing visible session.',
 );
 
 assert.match(

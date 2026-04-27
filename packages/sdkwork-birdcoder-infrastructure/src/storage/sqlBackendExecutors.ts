@@ -39,6 +39,12 @@ interface NodeSqliteModule {
   DatabaseSync: new (databaseFile: string) => DatabaseSync;
 }
 
+interface NodeSqlitePreparedStatement {
+  all(...params: unknown[]): unknown[];
+  run(...params: unknown[]): { changes?: bigint | number | null };
+  setReadBigInts(enabled: boolean): void;
+}
+
 const SQLITE_EXPERIMENTAL_WARNING_MESSAGE =
   'SQLite is an experimental feature and might change at any time';
 
@@ -110,6 +116,23 @@ function isReadStatement(sql: string): boolean {
   return /^\s*(select|with)\b/i.test(sql);
 }
 
+function prepareSqliteStatement(
+  database: DatabaseSync,
+  sql: string,
+): NodeSqlitePreparedStatement {
+  return database.prepare(sql) as unknown as NodeSqlitePreparedStatement;
+}
+
+function enableSqliteBigIntReads(statement: NodeSqlitePreparedStatement): void {
+  if (typeof statement.setReadBigInts !== 'function') {
+    throw new Error(
+      'BirdCoder sqlite SQL executor requires node:sqlite StatementSync.setReadBigInts(true) to preserve Java Long identifiers.',
+    );
+  }
+
+  statement.setReadBigInts(true);
+}
+
 function assertPlanProvider(
   expectedProviderId: BirdCoderDatabaseProviderId,
   plan: BirdCoderSqlPlan,
@@ -147,10 +170,11 @@ function executeSqlitePlan(
   let rows: readonly BirdCoderSqlRow[] | undefined;
 
   for (const statement of plan.statements) {
-    const preparedStatement = database.prepare(statement.sql);
-    const params = statement.params as any[];
+    const preparedStatement = prepareSqliteStatement(database, statement.sql);
+    const params = [...statement.params];
 
     if (isReadStatement(statement.sql)) {
+      enableSqliteBigIntReads(preparedStatement);
       rows = cloneSqlRows(preparedStatement.all(...params) as BirdCoderSqlRow[]);
       continue;
     }

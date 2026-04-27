@@ -15,6 +15,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   messages,
   showComposerEngineSelector,
   selectedCodingSessionId,
+  selectedCodingSessionScopeKey,
   selectedEngineId,
   selectedModelId,
   onDeleteMessage,
@@ -29,6 +30,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   return (
     <UniversalChat
       sessionId={selectedCodingSessionId || undefined}
+      sessionScopeKey={selectedCodingSessionScopeKey || undefined}
       isActive={isActive}
       messages={messages}
       onSendMessage={onSendMessage}
@@ -78,6 +80,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   explorerWidth,
   chatWidth,
   selectedCodingSessionId,
+  selectedCodingSessionScopeKey,
   messages,
   chatEmptyState,
   isBusy,
@@ -147,6 +150,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
           <div className="min-h-0 flex-1">
             <CodeEditorWorkspaceChatPanel
               selectedCodingSessionId={selectedCodingSessionId}
+              selectedCodingSessionScopeKey={selectedCodingSessionScopeKey}
               messages={messages}
               chatEmptyState={chatEmptyState}
               isActive={isActive}

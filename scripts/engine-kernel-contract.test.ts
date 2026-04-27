@@ -4,6 +4,7 @@ import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 
 import {
+  buildWorkbenchCodeEngineTerminalResumeCommand,
   ENGINE_TERMINAL_PROFILE_IDS,
   WORKBENCH_ENGINE_KERNELS,
   findWorkbenchCodeEngineKernel,
@@ -12,6 +13,7 @@ import {
   listWorkbenchCodeEngineDescriptors,
   listWorkbenchModelCatalogEntries,
 } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
+import { normalizeBirdCoderCodeEngineNativeSessionId } from '../packages/sdkwork-birdcoder-codeengine/src/catalog.ts';
 import { listBirdCoderCodeEngineManifests } from '../packages/sdkwork-birdcoder-codeengine/src/manifest.ts';
 import {
   getWorkbenchCodeEngineSessionSummary,
@@ -59,6 +61,11 @@ assert.deepEqual(
 const codexKernel = getWorkbenchCodeEngineKernel('codex');
 assert.equal(codexKernel.cli.executable, 'codex');
 assert.equal(codexKernel.cli.packageName, '@openai/codex');
+assert.deepEqual(
+  codexKernel.cli.resumeArgs,
+  ['resume', '{sessionId}'],
+  'Codex interactive terminal sessions must resume the selected session instead of opening a fresh CLI.',
+);
 assert.equal(codexKernel.source.externalPath, 'external/codex');
 assert.equal(codexKernel.source.sdkPath, 'external/codex/sdk/typescript');
 assert.equal(codexKernel.source.sourceStatus, 'mirrored');
@@ -104,6 +111,11 @@ assert.throws(
 const claudeKernel = getWorkbenchCodeEngineKernel('claude-code');
 assert.equal(claudeKernel.cli.executable, 'claude');
 assert.equal(claudeKernel.cli.packageName, 'claude-code');
+assert.deepEqual(
+  claudeKernel.cli.resumeArgs,
+  ['--resume', '{sessionId}'],
+  'Claude Code interactive terminal sessions must resume the selected session.',
+);
 assert.equal(claudeKernel.source.externalPath, 'external/claude-code');
 assert.equal(claudeKernel.source.sdkPath, null);
 assert.equal(claudeKernel.source.sourceStatus, 'mirrored');
@@ -117,7 +129,21 @@ assert.equal(
 assert.equal(claudeKernel.executionTopology.authorityPath, 'typescript-rpc-bridge');
 assert.equal(claudeKernel.executionTopology.bridgeRequired, true);
 assert.ok(claudeKernel.descriptor.transportKinds.includes('sdk-stream'));
+assert.ok(claudeKernel.descriptor.transportKinds.includes('cli-jsonl'));
 assert.ok(claudeKernel.descriptor.transportKinds.includes('remote-control-http'));
+const claudeCliFallbackLane = claudeKernel.descriptor.accessPlan?.lanes.find(
+  (lane) => lane.laneId === 'claude-code-cli-print',
+);
+assert.equal(
+  claudeCliFallbackLane?.transportKind,
+  'cli-jsonl',
+  'Claude Code must expose its real CLI fallback lane in the shared access plan so runtime transport selection stays truthful.',
+);
+assert.equal(
+  claudeCliFallbackLane?.status,
+  'ready',
+  'Claude Code CLI fallback is implemented by the TypeScript bridge and must not remain cataloged as planned.',
+);
 assert.equal(claudeKernel.descriptor.capabilityMatrix.remoteBridge, true);
 assert.equal(claudeKernel.modelCatalog[0]?.engineKey, 'claude-code');
 assert.equal(
@@ -128,6 +154,11 @@ assert.equal(
 const geminiKernel = getWorkbenchCodeEngineKernel('gemini');
 assert.equal(geminiKernel.cli.executable, 'gemini');
 assert.equal(geminiKernel.cli.packageName, '@google/gemini-cli');
+assert.deepEqual(
+  geminiKernel.cli.resumeArgs,
+  ['--resume', '{sessionId}'],
+  'Gemini interactive terminal sessions must resume the selected session.',
+);
 assert.equal(geminiKernel.source.externalPath, 'external/gemini');
 assert.equal(geminiKernel.source.sdkPath, 'external/gemini/packages/sdk');
 assert.equal(geminiKernel.source.sourceStatus, 'mirrored');
@@ -145,6 +176,11 @@ assert.equal(
 const opencodeKernel = getWorkbenchCodeEngineKernel('opencode');
 assert.equal(opencodeKernel.cli.executable, 'opencode');
 assert.equal(opencodeKernel.cli.packageName, 'opencode-ai');
+assert.deepEqual(
+  opencodeKernel.cli.resumeArgs,
+  ['--session', '{sessionId}'],
+  'OpenCode interactive terminal sessions must attach to the selected session.',
+);
 assert.equal(opencodeKernel.source.externalPath, 'external/opencode');
 assert.equal(opencodeKernel.source.sdkPath, 'external/opencode/packages/sdk/js');
 assert.equal(opencodeKernel.source.sourceStatus, 'mirrored');
@@ -162,6 +198,52 @@ assert.equal(opencodeKernel.descriptor.capabilityMatrix.todoArtifacts, true);
 assert.equal(
   createChatEngineById(opencodeKernel.id).describeIntegration?.()?.officialEntry.packageName,
   '@opencode-ai/sdk',
+);
+
+assert.equal(
+  buildWorkbenchCodeEngineTerminalResumeCommand({
+    engineId: 'codex',
+    nativeSessionId: '019dc9ed-5e34-7ac1-9176-746135cb324b',
+  }),
+  'resume 019dc9ed-5e34-7ac1-9176-746135cb324b',
+  'Codex terminal resume commands must pass the raw provider-native session id without requiring or adding a BirdCoder prefix.',
+);
+assert.equal(
+  buildWorkbenchCodeEngineTerminalResumeCommand({
+    engineId: 'claude-code',
+    nativeSessionId: 'session-2',
+  }),
+  '--resume session-2',
+);
+assert.equal(
+  buildWorkbenchCodeEngineTerminalResumeCommand({
+    engineId: 'gemini',
+    nativeSessionId: 'session-3',
+  }),
+  '--resume session-3',
+);
+assert.equal(
+  buildWorkbenchCodeEngineTerminalResumeCommand({
+    engineId: 'opencode',
+    nativeSessionId: 'session-4',
+  }),
+  '--session session-4',
+);
+assert.equal(
+  buildWorkbenchCodeEngineTerminalResumeCommand({
+    engineId: 'codex',
+    nativeSessionId: 'codex-native:legacy-session-5',
+  }),
+  'resume legacy-session-5',
+  'Legacy prefixed native session ids may be accepted at boundaries, but terminal commands must normalize them back to raw provider ids.',
+);
+assert.equal(
+  normalizeBirdCoderCodeEngineNativeSessionId(
+    'opencode-native:legacy-session-6',
+    'codex',
+  ),
+  'legacy-session-6',
+  'Native session normalization must strip any legacy engine prefix; engineId is carried as a separate discriminator, not encoded in nativeSessionId.',
 );
 
 assert.deepEqual(
@@ -232,8 +314,8 @@ assert.equal(
     preferredEngineId: 'codex',
     preferredModelId: 'gpt-5.4',
   }).modelId,
-  'gpt-5.4',
-  'New session selection must not leak a model from a different non-server-ready engine after engine fallback resolves to the default implemented engine.',
+  'claude-3-opus',
+  'New session selection must preserve the authoritative current session model when that engine is server-ready.',
 );
 
 for (const engine of listWorkbenchCliEngines()) {
@@ -252,10 +334,19 @@ const manifestSource = await readFile(
   new URL('../packages/sdkwork-birdcoder-codeengine/src/manifest.ts', import.meta.url),
   'utf8',
 );
+const codeengineHostSource = await readFile(
+  new URL('../packages/sdkwork-birdcoder-codeengine/src-host/src/lib.rs', import.meta.url),
+  'utf8',
+);
 assert.equal(
   manifestSource.includes('defaultModel?.modelId ?? input.id'),
   false,
   'Engine manifest assembly must not synthesize defaultModelId from the engine id.',
+);
+assert.doesNotMatch(
+  codeengineHostSource,
+  /format!\(\s*"\{prefix\}\{\}"\s*,\s*native_session_id\.trim\(\)\s*\)/,
+  'Rust codeengine must not build stored nativeSessionId values by prefixing raw provider ids; engineId is the engine discriminator.',
 );
 assert.equal(
   fs.existsSync(path.join(process.cwd(), 'packages', 'sdkwork-birdcoder-terminal')),

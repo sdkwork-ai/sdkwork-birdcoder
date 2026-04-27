@@ -64,6 +64,13 @@ const PUBLISH_ROLLOUT_STAGE_OPTIONS = [
   { value: 'staged', label: 'Staged rollout' },
 ];
 
+function resolveDefaultPublishTargetName(
+  runtime: BirdCoderDeploymentTargetSummary['runtime'],
+  projectName?: string,
+) {
+  return runtime === 'web' ? 'SDKWORK Cloud Web' : `${projectName?.trim() || 'App'} Production`;
+}
+
 interface TopBarProps {
   projectId?: string;
   projectName?: string;
@@ -174,7 +181,8 @@ function TopBarComponent({
       setPublishEnvironmentKey(target?.environmentKey ?? 'prod');
       setPublishRuntime(target?.runtime ?? 'web');
       setPublishTargetName(
-        target?.name?.trim() || `${projectName?.trim() || 'Project'} Production`,
+        target?.name?.trim()
+          || resolveDefaultPublishTargetName(target?.runtime ?? 'web', projectName),
       );
     },
     [projectName],
@@ -702,7 +710,7 @@ function TopBarComponent({
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-[#121214]">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Upload size={18} className="text-blue-400" />
-                Publish Project
+                Publish App
               </h3>
               <button 
                 onClick={() => setShowPublishModal(false)}
@@ -718,12 +726,26 @@ function TopBarComponent({
                 </div>
               ) : (
                 <>
+                  <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-4">
+                    <div className="flex items-start gap-3">
+                      <Globe size={18} className="mt-0.5 text-blue-300" />
+                      <div>
+                        <div className="text-sm font-semibold text-blue-50">
+                          One-click publish from the IDE
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-blue-100/75">
+                          Build and publish the current app to SDKWORK Cloud by default, then record
+                          release, endpoint, and deployment evidence for the workspace.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                   <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
                     <div className="space-y-4">
                       <div>
-                        <div className="text-sm font-medium text-gray-200">Deployment target</div>
+                        <div className="text-sm font-medium text-gray-200">Publish destination</div>
                         <p className="mt-1 text-xs text-gray-500">
-                          Reuse an existing target or create a new target before the release flow is recorded.
+                          Choose an existing destination or use the default SDKWORK Cloud app target.
                         </p>
                       </div>
 
@@ -787,7 +809,7 @@ function TopBarComponent({
                               <div className="mt-1 text-sm text-gray-200">{publishEnvironmentKey}</div>
                             </div>
                             <div className="rounded-md border border-white/5 bg-[#121214] px-3 py-2">
-                              <div className="text-[11px] uppercase tracking-wide text-gray-500">Runtime</div>
+                              <div className="text-[11px] uppercase tracking-wide text-gray-500">App mode</div>
                               <div className="mt-1 text-sm text-gray-200">{publishRuntime}</div>
                             </div>
                           </div>
@@ -802,7 +824,7 @@ function TopBarComponent({
                               type="text"
                               value={publishTargetName}
                               onChange={(event) => setPublishTargetName(event.target.value)}
-                              placeholder="Production"
+                              placeholder="SDKWORK Cloud Web"
                               className="w-full rounded-md border border-white/10 bg-[#0e0e11] px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500"
                             />
                           </div>

@@ -16,6 +16,11 @@ import {
   type BirdCoderTeamSummary,
   type BirdCoderWorkspaceSummary,
 } from '@sdkwork/birdcoder-types';
+import {
+  normalizeBirdCoderApiQueryValue,
+  parseBirdCoderApiJson,
+  stringifyBirdCoderApiJson,
+} from './apiJson.ts';
 import type { BirdCoderAppAdminConsoleQueries } from './appAdminConsoleQueries.ts';
 
 export interface CreateBirdCoderInProcessAppAdminApiTransportOptions {
@@ -52,15 +57,11 @@ function createListEnvelope<TItem>(items: readonly TItem[]): BirdCoderApiListEnv
   };
 }
 
-function normalizeQueryValue(value: BirdCoderApiQueryValue): string | undefined {
-  if (typeof value === 'string') {
-    const normalizedValue = value.trim();
-    return normalizedValue.length > 0 ? normalizedValue : undefined;
-  }
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  return undefined;
+function normalizeQueryValue(
+  key: string,
+  value: BirdCoderApiQueryValue,
+): string | undefined {
+  return normalizeBirdCoderApiQueryValue(key, value);
 }
 
 function buildUrl(baseUrl: string, request: BirdCoderApiTransportRequest): URL {
@@ -69,7 +70,7 @@ function buildUrl(baseUrl: string, request: BirdCoderApiTransportRequest): URL {
   const normalizedRequestPath = request.path.startsWith('/') ? request.path : `/${request.path}`;
   url.pathname = `${normalizedBasePath}${normalizedRequestPath}`;
   for (const [key, value] of Object.entries(request.query ?? {})) {
-    const normalizedValue = normalizeQueryValue(value);
+    const normalizedValue = normalizeQueryValue(key, value);
     if (normalizedValue) {
       url.searchParams.set(key, normalizedValue);
     }
@@ -362,7 +363,7 @@ async function buildBirdCoderApiError(response: Response, request: BirdCoderApiT
     }
 
     try {
-      const parsedBody: unknown = JSON.parse(trimmedBody);
+      const parsedBody: unknown = parseBirdCoderApiJson(trimmedBody);
       if (isRecord(parsedBody)) {
         const directMessage =
           typeof parsedBody.message === 'string' ? parsedBody.message.trim() : '';
@@ -431,7 +432,7 @@ export function createBirdCoderHttpApiTransport({
         response = await resolvedFetch(buildUrl(baseUrl, request), {
           method: request.method,
           headers,
-          body: request.body === undefined ? undefined : JSON.stringify(request.body),
+          body: request.body === undefined ? undefined : stringifyBirdCoderApiJson(request.body),
           signal: abortController?.signal,
         });
       } catch (error) {
@@ -454,7 +455,13 @@ export function createBirdCoderHttpApiTransport({
         throw await buildBirdCoderApiError(response, request);
       }
 
-      return response.json() as Promise<TResponse>;
+      const rawBody = await response.text();
+      const trimmedBody = rawBody.trim();
+      if (!trimmedBody) {
+        return undefined as TResponse;
+      }
+
+      return parseBirdCoderApiJson<TResponse>(trimmedBody);
     },
   };
 }
@@ -603,20 +610,20 @@ export function createBirdCoderInProcessAppAdminApiTransport({
           return createListEnvelope(
             (
               await queries.listProjects({
-                rootPath: normalizeQueryValue(request.query?.rootPath),
-                workspaceId: normalizeQueryValue(request.query?.workspaceId),
+                rootPath: normalizeQueryValue('rootPath', request.query?.rootPath),
+                workspaceId: normalizeQueryValue('workspaceId', request.query?.workspaceId),
               })
             ).map(mapProjectSummary),
           ) as TResponse;
         case `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/teams`:
           return createListEnvelope(
-            (await queries.listTeams({ workspaceId: normalizeQueryValue(request.query?.workspaceId) })).map(
+            (await queries.listTeams({ workspaceId: normalizeQueryValue('workspaceId', request.query?.workspaceId) })).map(
               mapTeamSummary,
             ),
           ) as TResponse;
         case `${BIRDCODER_CODING_SERVER_API_PREFIXES.admin}/teams`:
           return createListEnvelope(
-            (await queries.listTeams({ workspaceId: normalizeQueryValue(request.query?.workspaceId) })).map(
+            (await queries.listTeams({ workspaceId: normalizeQueryValue('workspaceId', request.query?.workspaceId) })).map(
               mapTeamSummary,
             ),
           ) as TResponse;

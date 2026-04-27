@@ -16,6 +16,7 @@ import type {
   BirdCoderOperationDescriptor,
 } from '@sdkwork/birdcoder-types';
 import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
+import { ApiBackedCoreReadService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCoreReadService.ts';
 
 const routeFixture: BirdCoderApiRouteCatalogEntry = {
   authMode: 'host',
@@ -178,7 +179,7 @@ const eventFixture: BirdCoderCodingSessionEvent = {
   turnId: 'turn-core-read-contract',
   runtimeId: 'runtime-core-read-contract',
   kind: 'message.completed',
-  sequence: 1,
+  sequence: '1',
   payload: {
     content: 'completed',
   },
@@ -314,6 +315,40 @@ assert.deepEqual(
   await services.coreReadService.listCodingSessionCheckpoints(sessionFixture.id),
   [checkpointFixture],
 );
+
+const longCacheKeyCalls: unknown[] = [];
+const longSafeCacheService = new ApiBackedCoreReadService({
+  client: {
+    ...coreReadClient,
+    async listCodingSessions(request) {
+      longCacheKeyCalls.push(request);
+      return [sessionFixture];
+    },
+  },
+  identityProvider: {
+    async getCurrentUser() {
+      return {
+        id: '101777208078558057',
+      } as never;
+    },
+  },
+});
+assert.deepEqual(
+  await (longSafeCacheService.listCodingSessions as unknown as (
+    request: Record<string, unknown>,
+  ) => Promise<BirdCoderCodingSessionSummary[]>)({
+    projectId: 101777208078558059n,
+    workspaceId: 101777208078558061n,
+  }),
+  [sessionFixture],
+  'core read service cache keys must serialize provider-native bigint request ids without crashing before the generated client boundary.',
+);
+assert.deepEqual(longCacheKeyCalls, [
+  {
+    projectId: 101777208078558059n,
+    workspaceId: 101777208078558061n,
+  },
+]);
 
 assert.deepEqual(calls, [
   'getDescriptor',

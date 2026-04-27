@@ -63,9 +63,12 @@ function assertContains(source, anchor, snippets, label) {
   }
 }
 
-function collectCreateTableBodies(source, tableName) {
+function collectCreateTableBodies(source, tableName, options = {}) {
+  const createTablePrefix = options.requireIfNotExists
+    ? 'CREATE TABLE IF NOT EXISTS'
+    : 'CREATE TABLE(?: IF NOT EXISTS)?';
   const pattern = new RegExp(
-    `CREATE TABLE(?: IF NOT EXISTS)? ${escapeRegExp(tableName)} \\(([\\s\\S]*?)\\);`,
+    `${createTablePrefix} ${escapeRegExp(tableName)} \\(([\\s\\S]*?)\\);`,
     'g',
   );
   return [...source.matchAll(pattern)].map((match) => match[1]);
@@ -180,7 +183,9 @@ for (const expectation of [
     fields: ['uuid', 'tenant_id', 'organization_id', 'created_at', 'updated_at'],
   },
 ]) {
-  const tableBodies = collectCreateTableBodies(desktopRustSource, expectation.tableName);
+  const tableBodies = collectCreateTableBodies(desktopRustSource, expectation.tableName, {
+    requireIfNotExists: true,
+  });
   assert.ok(tableBodies.length > 0, `desktop rust schema must declare ${expectation.tableName}.`);
   for (const body of tableBodies) {
     for (const fieldName of expectation.fields) {

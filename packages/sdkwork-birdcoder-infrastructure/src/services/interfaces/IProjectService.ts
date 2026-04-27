@@ -9,6 +9,7 @@ export interface CreateCodingSessionOptions {
   engineId: BirdCoderCodingSession['engineId'];
   hostMode?: BirdCoderCodingSession['hostMode'];
   modelId: string;
+  workspaceId?: string;
 }
 
 export interface UpdateCodingSessionOptions {

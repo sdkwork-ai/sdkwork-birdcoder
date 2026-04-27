@@ -136,6 +136,7 @@ assert.equal(
 assert.deepEqual(
   buildUnifiedStudioEvidenceReplayRequest(entries[0], 400),
   {
+    surface: 'embedded',
     path: '/workspace/demo',
     command: 'npm test',
     profileId: 'powershell',
@@ -192,6 +193,7 @@ assert.equal(
 assert.deepEqual(
   buildUnifiedStudioEvidenceReplayRequest(profileFallbackEntry, 450),
   {
+    surface: 'embedded',
     path: '/workspace/demo',
     command: 'npm test',
     profileId: 'powershell',

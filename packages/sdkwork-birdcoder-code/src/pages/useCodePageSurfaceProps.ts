@@ -131,6 +131,8 @@ interface UseCodePageSurfacePropsOptions {
   onOpenFolder: NonNullable<ProjectExplorerProps['onOpenFolder']>;
   onOpenInFileExplorer: NonNullable<ProjectExplorerProps['onOpenInFileExplorer']>;
   onOpenInTerminal: NonNullable<ProjectExplorerProps['onOpenInTerminal']>;
+  onOpenCodingSessionInTerminal:
+    NonNullable<ProjectExplorerProps['onOpenCodingSessionInTerminal']>;
   onPinCodingSession: NonNullable<ProjectExplorerProps['onPinCodingSession']>;
   onProjectSelect: NonNullable<ProjectExplorerProps['onSelectProject']>;
   onRefreshCodingSessionMessages:
@@ -257,6 +259,7 @@ export function useCodePageSurfaceProps({
   onOpenFolder,
   onOpenInFileExplorer,
   onOpenInTerminal,
+  onOpenCodingSessionInTerminal,
   onPinCodingSession,
   onProjectSelect,
   onRefreshCodingSessionMessages,
@@ -291,6 +294,10 @@ export function useCodePageSurfaceProps({
     activeTab === 'ai' ? selectedCodingSessionMessages : EMPTY_CHAT_MESSAGES;
   const editorChatMessages =
     activeTab === 'editor' ? selectedCodingSessionMessages : EMPTY_CHAT_MESSAGES;
+  const transcriptSessionScopeKey =
+    workspaceId && currentProjectId && sessionId
+      ? `${workspaceId}\u0001${currentProjectId}\u0001${sessionId}`
+      : sessionId || undefined;
 
   const projectExplorerProps = useMemo<ProjectExplorerProps>(() => ({
     isVisible: isVisible && isSidebarVisible,
@@ -314,6 +321,7 @@ export function useCodePageSurfaceProps({
     onCopyProjectPath,
     onOpenInTerminal,
     onOpenInFileExplorer,
+    onOpenCodingSessionInTerminal,
     onPinCodingSession,
     onArchiveCodingSession,
     onMarkCodingSessionUnread,
@@ -346,6 +354,7 @@ export function useCodePageSurfaceProps({
     onNewCodingSessionInProject,
     onNewProject,
     onOpenFolder,
+    onOpenCodingSessionInTerminal,
     onOpenInFileExplorer,
     onOpenInTerminal,
     onPinCodingSession,
@@ -467,6 +476,7 @@ export function useCodePageSurfaceProps({
 
   const mainChatProps = useMemo<UniversalChatComponentProps>(() => ({
     sessionId: activeTab === 'ai' ? (sessionId || undefined) : undefined,
+    sessionScopeKey: activeTab === 'ai' ? transcriptSessionScopeKey : undefined,
     messages: mainChatMessages,
     onSendMessage,
     isBusy: isChatBusy,
@@ -502,6 +512,7 @@ export function useCodePageSurfaceProps({
     selectedSessionModelId,
     sessionId,
     showComposerEngineSelector,
+    transcriptSessionScopeKey,
   ]);
 
   const workspaceProps = useMemo<Omit<CodeEditorWorkspacePanelProps, 'isActive'>>(() => ({
@@ -516,6 +527,7 @@ export function useCodePageSurfaceProps({
     explorerWidth: editorExplorerWidth,
     chatWidth,
     selectedCodingSessionId: activeTab === 'editor' ? sessionId : undefined,
+    selectedCodingSessionScopeKey: activeTab === 'editor' ? transcriptSessionScopeKey : undefined,
     messages: editorChatMessages,
     chatEmptyState: editorChatEmptyState,
     isBusy: isChatBusy,
@@ -587,6 +599,7 @@ export function useCodePageSurfaceProps({
     selectedSessionModelId,
     sessionId,
     showComposerEngineSelector,
+    transcriptSessionScopeKey,
     viewingDiff,
   ]);
 

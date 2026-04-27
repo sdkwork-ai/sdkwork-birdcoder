@@ -1,5 +1,5 @@
 import React from 'react';
-import { Archive, Pin, RefreshCw } from 'lucide-react';
+import { Archive, MoreHorizontal, Pin, RefreshCw } from 'lucide-react';
 import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-types';
 import {
   formatBirdCoderSessionActivityDisplayTime,
@@ -15,6 +15,12 @@ export interface ProjectExplorerSessionRowProps {
   isRenaming: boolean;
   renameValue: string;
   paddingClassName: string;
+  awaitingApprovalSessionLabel: string;
+  awaitingUserSessionLabel: string;
+  executingSessionLabel: string;
+  initializingSessionLabel: string;
+  failedSessionLabel: string;
+  moreActionsLabel: string;
   onSelectCodingSession: (codingSessionId: string) => void;
   onCodingSessionContextMenu: (event: React.MouseEvent, codingSessionId: string) => void;
   onRenameValueChange: (value: string) => void;
@@ -29,6 +35,12 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
   isRenaming,
   renameValue,
   paddingClassName,
+  awaitingApprovalSessionLabel,
+  awaitingUserSessionLabel,
+  executingSessionLabel,
+  initializingSessionLabel,
+  failedSessionLabel,
+  moreActionsLabel,
   onSelectCodingSession,
   onCodingSessionContextMenu,
   onRenameValueChange,
@@ -36,17 +48,29 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
   onRenameCancel,
 }: ProjectExplorerSessionRowProps) {
   const isExecutingSession = isBirdCoderCodingSessionExecuting(session);
+  const runtimeStatusLabel =
+    session.runtimeStatus === 'initializing'
+      ? initializingSessionLabel
+      : session.runtimeStatus === 'awaiting_approval'
+        ? awaitingApprovalSessionLabel
+        : session.runtimeStatus === 'awaiting_user'
+          ? awaitingUserSessionLabel
+          : session.runtimeStatus === 'awaiting_tool' || session.runtimeStatus === 'streaming'
+            ? executingSessionLabel
+            : session.runtimeStatus === 'failed'
+              ? failedSessionLabel
+              : null;
 
   return (
     <div
-      className={`${paddingClassName} py-1.5 flex justify-between items-center cursor-pointer rounded-md transition-colors ${
+      className={`${paddingClassName} py-1.5 relative group flex w-full min-w-0 max-w-full items-center justify-between overflow-hidden cursor-pointer rounded-md transition-colors ${
         isSelected ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200 hover:bg-white/10'
       }`}
       style={buildProjectExplorerSurfaceStyle('36px')}
       onClick={() => onSelectCodingSession(session.id)}
       onContextMenu={(event) => onCodingSessionContextMenu(event, session.id)}
     >
-      <div className="flex items-center gap-2 overflow-hidden flex-1">
+      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
         <WorkbenchCodeEngineIcon engineId={session.engineId} />
         {isExecutingSession && <RefreshCw size={12} className="text-emerald-400 shrink-0 animate-spin" />}
         {session.pinned && <Pin size={12} className="text-blue-400 shrink-0" />}
@@ -70,13 +94,36 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
             onClick={(event) => event.stopPropagation()}
           />
         ) : (
-          <span className="truncate">{session.title}</span>
+          <span className="min-w-0 flex-1 truncate">{session.title}</span>
         )}
       </div>
       {!isRenaming && (
-        <span className={`text-[10px] shrink-0 ml-2 ${isSelected ? 'text-gray-400' : 'opacity-50'}`}>
-          {formatBirdCoderSessionActivityDisplayTime(session, relativeTimeNow)}
+        <span
+          className={`text-[10px] shrink-0 ml-2 ${
+            runtimeStatusLabel
+              ? session.runtimeStatus === 'failed'
+                ? 'text-red-300'
+                : session.runtimeStatus === 'awaiting_approval' ||
+                    session.runtimeStatus === 'awaiting_user'
+                  ? 'text-amber-300'
+                : 'text-emerald-300'
+              : isSelected
+                ? 'text-gray-400'
+                : 'opacity-50'
+          }`}
+        >
+          {runtimeStatusLabel ?? formatBirdCoderSessionActivityDisplayTime(session, relativeTimeNow)}
         </span>
+      )}
+      {!isRenaming && (
+        <button
+          type="button"
+          className="pointer-events-none absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-md bg-[#18181b]/95 p-1 text-gray-500 opacity-0 shadow-lg ring-1 ring-white/10 transition-all hover:bg-white/10 hover:text-white group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+          title={moreActionsLabel}
+          onClick={(event) => onCodingSessionContextMenu(event, session.id)}
+        >
+          <MoreHorizontal size={12} />
+        </button>
       )}
     </div>
   );

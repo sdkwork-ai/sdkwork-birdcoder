@@ -121,7 +121,7 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:server'],
-  'node scripts/runtime-user-center-bridge-contract.test.mjs && node scripts/birdcoder-rust-user-center-validation-contract.test.mjs && node scripts/identity-seed-parity-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-server --noEmit && cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
+  'node scripts/runtime-user-center-bridge-contract.test.mjs && node scripts/birdcoder-rust-user-center-validation-contract.test.mjs && node scripts/identity-seed-parity-contract.test.mjs && node scripts/rust-long-id-standard-contract.test.mjs && node scripts/rust-workspace-project-schema-parity-contract.test.mjs && node scripts/codeengine-catalog-tenant-standard-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-server --noEmit && cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
 );
 assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/run-quality-standard-check.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');
@@ -130,6 +130,12 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.at(-1), 'no
 assert.equal(
   qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
     'node scripts/run-workspace-package-script.mjs . test:user-center-standard',
+  ),
+  true,
+);
+assert.equal(
+  qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
+    'node scripts/run-workspace-package-script.mjs . check:quality-matrix',
   ),
   true,
 );

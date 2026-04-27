@@ -9,6 +9,10 @@ const pageSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx', import.meta.url),
   'utf8',
 );
+const surfacePropsSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   panelSource,
@@ -42,8 +46,14 @@ assert.match(
 
 assert.match(
   pageSource,
-  /const terminalProps = \{[\s\S]*onClose: handleCloseTerminal,[\s\S]*\};/,
-  'Code page must wire the terminal panel close handler into terminal props.',
+  /useCodePageSurfaceProps\(\{[\s\S]*onCloseTerminal: handleCloseTerminal,[\s\S]*\}\);/,
+  'Code page must wire the terminal panel close handler into the shared surface prop assembler.',
+);
+
+assert.match(
+  surfacePropsSource,
+  /const terminalProps = useMemo<CodeTerminalIntegrationPanelComponentProps>\(\(\) => \(\{[\s\S]*onClose: onCloseTerminal,[\s\S]*\}\),/,
+  'Code page surface props must pass the close handler into terminal panel props.',
 );
 
 console.log('code terminal panel close contract passed.');

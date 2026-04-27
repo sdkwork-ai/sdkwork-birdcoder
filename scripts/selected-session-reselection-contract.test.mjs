@@ -30,4 +30,10 @@ assert.match(
   'Selected-session hydration cleanup must release attempted-version markers when the user switches away from a session.',
 );
 
+assert.match(
+  hookSource,
+  /useEffect\(\(\) => \{[\s\S]*const synchronizationVersion =[\s\S]*selectedCodingSessionSynchronizationVersion,[\s\S]*\]\);/s,
+  'Selected-session hydration must rerun when the selected transcript synchronization version changes, so realtime project/session updates trigger authoritative message sync for external CLI or IDE turns.',
+);
+
 console.log('selected session reselection contract passed.');

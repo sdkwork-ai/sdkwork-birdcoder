@@ -7,8 +7,11 @@ import {
   areBirdCoderChatMessagesEquivalent,
   buildBirdCoderSessionSynchronizationVersion,
   compareBirdCoderProjectsByActivity,
+  compareBirdCoderSessionSortTimestamp,
+  deduplicateBirdCoderComparableChatMessages,
   formatBirdCoderSessionActivityDisplayTime,
-  resolveBirdCoderSessionSortTimestamp,
+  resolveBirdCoderSessionSortTimestampString,
+  stringifyBirdCoderApiJson,
 } from '@sdkwork/birdcoder-types';
 
 export interface ProjectsStoreSnapshot {
@@ -73,7 +76,8 @@ function areProjectScalarsEqual(
     left.userId === right.userId &&
     left.parentId === right.parentId &&
     left.parentUuid === right.parentUuid &&
-    JSON.stringify(left.parentMetadata ?? null) === JSON.stringify(right.parentMetadata ?? null) &&
+    stringifyBirdCoderApiJson(left.parentMetadata ?? null) ===
+      stringifyBirdCoderApiJson(right.parentMetadata ?? null) &&
     left.code === right.code &&
     left.title === right.title &&
     left.name === right.name &&
@@ -88,7 +92,8 @@ function areProjectScalarsEqual(
     left.fileId === right.fileId &&
     left.conversationId === right.conversationId &&
     left.type === right.type &&
-    JSON.stringify(left.coverImage ?? null) === JSON.stringify(right.coverImage ?? null) &&
+    stringifyBirdCoderApiJson(left.coverImage ?? null) ===
+      stringifyBirdCoderApiJson(right.coverImage ?? null) &&
     left.startTime === right.startTime &&
     left.endTime === right.endTime &&
     left.budgetAmount === right.budgetAmount &&
@@ -113,6 +118,7 @@ function areCodingSessionScalarsEqual(
     left.hostMode === right.hostMode &&
     left.engineId === right.engineId &&
     left.modelId === right.modelId &&
+    left.nativeSessionId === right.nativeSessionId &&
     left.createdAt === right.createdAt &&
     left.updatedAt === right.updatedAt &&
     left.lastTurnAt === right.lastTurnAt &&
@@ -211,19 +217,72 @@ function canReuseCodingSessionMessages(
   return areCodingSessionMessageCollectionsEquivalent(existingMessages, incomingMessages);
 }
 
+function filterCodingSessionMessagesForStore(
+  codingSessionId: string,
+  messages: readonly BirdCoderChatMessage[],
+): BirdCoderChatMessage[] {
+  const normalizedCodingSessionId = codingSessionId.trim();
+  if (!normalizedCodingSessionId || messages.length === 0) {
+    return [];
+  }
+
+  const scopedMessages = messages.filter(
+    (message) => message.codingSessionId.trim() === normalizedCodingSessionId,
+  );
+  return scopedMessages.length === messages.length
+    ? (messages as BirdCoderChatMessage[])
+    : scopedMessages;
+}
+
+function normalizeCodingSessionMessagesForStore(
+  codingSessionId: string,
+  messages: readonly BirdCoderChatMessage[],
+): BirdCoderChatMessage[] {
+  return deduplicateBirdCoderComparableChatMessages(
+    filterCodingSessionMessagesForStore(codingSessionId, messages),
+  );
+}
+
+interface CloneCodingSessionForStoreOptions {
+  preserveEmptyMessages?: boolean;
+}
+
 function cloneCodingSessionForStore(
   codingSession: BirdCoderCodingSession,
   existingCodingSession?: BirdCoderCodingSession,
+  options: CloneCodingSessionForStoreOptions = {},
 ): BirdCoderCodingSession {
+  const preserveEmptyMessages = options.preserveEmptyMessages ?? true;
+  const incomingMessages =
+    codingSession.messages.length > 0
+      ? normalizeCodingSessionMessagesForStore(
+          codingSession.id,
+          codingSession.messages,
+        )
+      : (codingSession.messages as BirdCoderChatMessage[]);
+  const scopedCodingSession =
+    incomingMessages === codingSession.messages
+      ? codingSession
+      : {
+          ...codingSession,
+          messages: incomingMessages,
+        };
   const messages =
     codingSession.messages.length === 0
-      ? existingCodingSession?.messages ?? []
-      : existingCodingSession && canReuseCodingSessionMessages(existingCodingSession, codingSession)
+      ? preserveEmptyMessages
+        ? normalizeCodingSessionMessagesForStore(
+            codingSession.id,
+            existingCodingSession?.messages ?? [],
+          )
+        : []
+      : incomingMessages.length === 0
+        ? []
+        : existingCodingSession && canReuseCodingSessionMessages(existingCodingSession, scopedCodingSession)
         ? existingCodingSession.messages
-        : (codingSession.messages as BirdCoderChatMessage[]);
+        : incomingMessages;
 
   const nextCodingSession = {
-    ...codingSession,
+    ...scopedCodingSession,
     messages,
   };
 
@@ -239,8 +298,7 @@ function compareCodingSessionsForStore(
   right: BirdCoderCodingSession,
 ): number {
   return (
-    resolveBirdCoderSessionSortTimestamp(right) -
-      resolveBirdCoderSessionSortTimestamp(left) ||
+    compareBirdCoderSessionSortTimestamp(right, left) ||
     left.id.localeCompare(right.id)
   );
 }
@@ -416,6 +474,7 @@ export function upsertCodingSessionIntoCollection(
             project.codingSessions.find(
               (candidateCodingSession) => candidateCodingSession.id === codingSession.id,
             ),
+            { preserveEmptyMessages: false },
           ),
         ]);
 
@@ -432,9 +491,14 @@ export function upsertCodingSessionIntoCollection(
 function finalizeCodingSessionForStore(
   codingSession: BirdCoderCodingSession,
 ): BirdCoderCodingSession {
-  const sortTimestamp = resolveBirdCoderSessionSortTimestamp(codingSession);
+  const messages = normalizeCodingSessionMessagesForStore(
+    codingSession.id,
+    codingSession.messages,
+  );
+  const sortTimestamp = resolveBirdCoderSessionSortTimestampString(codingSession);
   return {
     ...codingSession,
+    messages,
     sortTimestamp,
     displayTime: formatBirdCoderSessionActivityDisplayTime({
       ...codingSession,

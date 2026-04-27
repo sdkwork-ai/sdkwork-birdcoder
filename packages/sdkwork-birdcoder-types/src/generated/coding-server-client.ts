@@ -694,6 +694,16 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Submit approval decision",
       "surface": "core"
     },
+  "core.submitUserQuestionAnswer":     {
+      "method": "POST",
+      "operationId": "core.submitUserQuestionAnswer",
+      "path": "/api/core/v1/questions/{questionId}/answer",
+      "pathParamNames": [
+        "questionId"
+      ],
+      "summary": "Submit user-question answer",
+      "surface": "core"
+    },
   "core.updateCodingSession":     {
       "method": "PATCH",
       "operationId": "core.updateCodingSession",
@@ -787,6 +797,7 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "core.listNativeSessions": {};
   "core.listRoutes": {};
   "core.submitApprovalDecision": { approvalId: string };
+  "core.submitUserQuestionAnswer": { questionId: string };
   "core.updateCodingSession": { id: string };
 }
 

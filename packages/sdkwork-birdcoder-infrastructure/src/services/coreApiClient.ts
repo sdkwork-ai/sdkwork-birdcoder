@@ -8,7 +8,10 @@ import {
   BIRDCODER_CODING_SERVER_API_PREFIXES,
   BIRDCODER_CODING_SERVER_API_VERSION,
   BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS,
-  resolveBirdCoderSessionSortTimestamp,
+  compareBirdCoderSessionSortTimestamp,
+  resolveBirdCoderSessionSortTimestampString,
+  stringifyBirdCoderApiJson,
+  stringifyBirdCoderLongInteger,
   type BirdCoderApiEnvelope,
   type BirdCoderApiGatewaySummary,
   type BirdCoderApiListEnvelope,
@@ -42,7 +45,9 @@ import {
   type BirdCoderNativeSessionProviderSummary,
   type BirdCoderNativeSessionSummary,
   type BirdCoderSubmitApprovalDecisionRequest,
+  type BirdCoderSubmitUserQuestionAnswerRequest,
   type BirdCoderUpdateCodingSessionRequest,
+  type BirdCoderUserQuestionAnswerResult,
 } from '@sdkwork/birdcoder-types';
 import type { IProjectService } from './interfaces/IProjectService.ts';
 import { resolveRequiredCodingSessionSelection } from './codingSessionSelection.ts';
@@ -223,7 +228,7 @@ function compareCodingSessions(
   right: BirdCoderCodingSessionSummary,
 ): number {
   return (
-    resolveBirdCoderSessionSortTimestamp(right) - resolveBirdCoderSessionSortTimestamp(left) ||
+    compareBirdCoderSessionSortTimestamp(right, left) ||
     right.updatedAt.localeCompare(left.updatedAt) ||
     left.id.localeCompare(right.id)
   );
@@ -261,6 +266,7 @@ function toCodingSessionSummary(
     hostMode: session.hostMode,
     engineId: session.engineId,
     modelId: session.modelId,
+    nativeSessionId: session.nativeSessionId,
     runtimeStatus: session.runtimeStatus,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
@@ -289,7 +295,7 @@ function toNativeSessionMetadata(
       ) {
         return [key, String(value)] as const;
       }
-      const serializedValue = JSON.stringify(value);
+      const serializedValue = stringifyBirdCoderApiJson(value);
       return typeof serializedValue === 'string'
         ? ([key, serializedValue] as const)
         : null;
@@ -310,9 +316,19 @@ function toNativeSessionMessage(
     content: message.content,
     commands: message.commands?.map((command) => ({
       command: command.command,
+      kind: command.kind,
       output: command.output,
+      requiresApproval: command.requiresApproval,
+      requiresReply: command.requiresReply,
+      runtimeStatus: command.runtimeStatus,
       status: command.status,
+      toolCallId: command.toolCallId,
+      toolName: command.toolName,
     })),
+    tool_calls: message.tool_calls,
+    tool_call_id: message.tool_call_id,
+    fileChanges: message.fileChanges,
+    taskProgress: message.taskProgress,
     metadata: toNativeSessionMetadata(message.metadata),
     createdAt: message.createdAt,
   };
@@ -325,8 +341,7 @@ function toNativeSessionSummary(
     ...toCodingSessionSummary(session),
     kind: 'coding',
     nativeCwd: null,
-    sortTimestamp:
-      session.sortTimestamp ?? resolveBirdCoderSessionSortTimestamp(session),
+    sortTimestamp: resolveBirdCoderSessionSortTimestampString(session),
     transcriptUpdatedAt: session.transcriptUpdatedAt ?? null,
   };
 }
@@ -352,7 +367,7 @@ function createTurnEvent(
     turnId,
     runtimeId: resolveTurnRuntimeId(session.id, turnId),
     kind,
-    sequence,
+    sequence: stringifyBirdCoderLongInteger(sequence),
     payload,
     createdAt,
   };
@@ -389,7 +404,19 @@ function buildProjectionEvents(
       runtimeStatus: 'completed' satisfies BirdCoderCodingSessionRuntimeStatus,
     };
     if (message.commands && message.commands.length > 0) {
-      payload.commandsJson = JSON.stringify(message.commands);
+      payload.commandsJson = stringifyBirdCoderApiJson(message.commands);
+    }
+    if (message.tool_calls && message.tool_calls.length > 0) {
+      payload.toolCallsJson = stringifyBirdCoderApiJson(message.tool_calls);
+    }
+    if (message.tool_call_id) {
+      payload.toolCallId = message.tool_call_id;
+    }
+    if (message.fileChanges && message.fileChanges.length > 0) {
+      payload.fileChangesJson = stringifyBirdCoderApiJson(message.fileChanges);
+    }
+    if (message.taskProgress) {
+      payload.taskProgressJson = stringifyBirdCoderApiJson(message.taskProgress);
     }
 
     events.push({
@@ -398,7 +425,7 @@ function buildProjectionEvents(
       turnId,
       runtimeId: resolveTurnRuntimeId(session.id, turnId),
       kind: 'message.completed',
-      sequence,
+      sequence: stringifyBirdCoderLongInteger(sequence),
       payload,
       createdAt: message.createdAt,
     });
@@ -575,7 +602,7 @@ async function listAllCodingSessions(
 async function getCodingSessionById(
   projectService: Pick<IProjectService, 'getProjectById' | 'getProjects'>,
   codingSessionProjectIndex: Map<string, { projectId: string; workspaceId: string }>,
-  knownWorkspaceIds: ReadonlySet<string>,
+  knownWorkspaceIds: Set<string>,
   codingSessionId: string,
 ): Promise<BirdCoderCodingSession> {
   const cachedLocation = codingSessionProjectIndex.get(codingSessionId);
@@ -586,7 +613,7 @@ async function getCodingSessionById(
     );
     if (cachedProject && cachedCodingSession) {
       if (cachedProject.workspaceId.trim()) {
-        (knownWorkspaceIds as Set<string>).add(cachedProject.workspaceId.trim());
+        knownWorkspaceIds.add(cachedProject.workspaceId.trim());
       }
       codingSessionProjectIndex.set(codingSessionId, {
         projectId: cachedProject.id,
@@ -626,20 +653,18 @@ async function getCodingSessionById(
     }
   }
 
-  if (knownWorkspaceIds.size === 0) {
-    const projects = await projectService.getProjects();
-    for (const project of projects) {
-      if (project.workspaceId.trim()) {
-        (knownWorkspaceIds as Set<string>).add(project.workspaceId.trim());
-      }
-      for (const codingSession of project.codingSessions) {
-        codingSessionProjectIndex.set(codingSession.id, {
-          projectId: project.id,
-          workspaceId: project.workspaceId,
-        });
-        if (codingSession.id === codingSessionId) {
-          return codingSession;
-        }
+  const projects = await projectService.getProjects();
+  for (const project of projects) {
+    if (project.workspaceId.trim()) {
+      knownWorkspaceIds.add(project.workspaceId.trim());
+    }
+    for (const codingSession of project.codingSessions) {
+      codingSessionProjectIndex.set(codingSession.id, {
+        projectId: project.id,
+        workspaceId: project.workspaceId,
+      });
+      if (codingSession.id === codingSessionId) {
+        return codingSession;
       }
     }
   }
@@ -650,7 +675,7 @@ async function getCodingSessionById(
 async function resolveProjectIdForCodingSession(
   projectService: Pick<IProjectService, 'getProjectById' | 'getProjects'>,
   codingSessionProjectIndex: Map<string, { projectId: string; workspaceId: string }>,
-  knownWorkspaceIds: ReadonlySet<string>,
+  knownWorkspaceIds: Set<string>,
   codingSessionId: string,
 ): Promise<string> {
   const cachedLocation = codingSessionProjectIndex.get(codingSessionId);
@@ -838,6 +863,13 @@ export function createBirdCoderInProcessCoreApiTransport({
               `Project ${body.projectId} does not belong to workspace ${body.workspaceId}.`,
             );
           }
+          if (createdSession.workspaceId.trim()) {
+            knownWorkspaceIds.add(createdSession.workspaceId.trim());
+          }
+          codingSessionProjectIndex.set(createdSession.id, {
+            projectId: createdSession.projectId || body.projectId,
+            workspaceId: createdSession.workspaceId,
+          });
           return createEnvelope(toCodingSessionSummary(createdSession)) as TResponse;
         }
         case 'core.forkCodingSession': {
@@ -978,6 +1010,22 @@ export function createBirdCoderInProcessCoreApiTransport({
             operationId: '',
             operationStatus: 'succeeded',
             reason: normalizeText(body.reason),
+            runtimeId: '',
+            runtimeStatus: 'completed',
+            turnId: '',
+          };
+          return createEnvelope(result) as TResponse;
+        }
+        case 'core.submitUserQuestionAnswer': {
+          const questionId = resolvedOperation.pathParams.questionId;
+          const body = readRequestBody<BirdCoderSubmitUserQuestionAnswerRequest>(request);
+          const result: BirdCoderUserQuestionAnswerResult = {
+            questionId,
+            codingSessionId: '',
+            answer: body.answer,
+            answeredAt: new Date().toISOString(),
+            optionId: normalizeText(body.optionId),
+            optionLabel: normalizeText(body.optionLabel),
             runtimeId: '',
             runtimeStatus: 'completed',
             turnId: '',

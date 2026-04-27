@@ -32,8 +32,14 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /const \{[\s\S]*renderedMessages[\s\S]*\} = useProgressiveTranscriptWindow\(\s*messages,\s*messagesEndRef,\s*(isActive,)?\s*\);/s,
+  /const \{[\s\S]*renderedMessages[\s\S]*\} = useProgressiveTranscriptWindow\(\s*messages,\s*messagesEndRef,\s*isActive,\s*sessionId,\s*\);/s,
   'UniversalChat transcript must delegate progressive transcript windowing to the dedicated hook.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /transcriptScopeKey[\s\S]*previousTranscriptIdentityRef[\s\S]*effectiveVisibleTranscriptStartIndex/s,
+  'Progressive transcript rendering must scope its window reset to the visible session identity, not only the first message id.',
 );
 
 assert.match(
@@ -50,7 +56,7 @@ assert.match(
 
 assert.match(
   progressiveTranscriptHookSource,
-  /const renderedMessages = useMemo\(\(\) => \{[\s\S]*messages\.slice\(visibleTranscriptStartIndex\)/s,
+  /const renderedMessages = useMemo\(\(\) => \{[\s\S]*messages\.slice\((?:visibleTranscriptStartIndex|effectiveVisibleTranscriptStartIndex)\)/s,
   'Progressive transcript rendering must render a sliced message window instead of always mapping the full transcript payload.',
 );
 

@@ -9,7 +9,11 @@ import {
   type SdkworkVipService,
   type SdkworkVipSummary,
 } from '@sdkwork/vip-pc-react';
-import type { User } from '@sdkwork/birdcoder-types';
+import {
+  stringifyBirdCoderLongInteger,
+  type BirdCoderLongIntegerString,
+  type User,
+} from '@sdkwork/birdcoder-types';
 import {
   readBirdCoderVipMembership,
   writeBirdCoderVipMembership,
@@ -32,8 +36,18 @@ const BIRDCODER_VIP_PLAN_PACK_IDS: Record<BirdCoderVipPlan['id'], number> = {
   team: 1003,
 };
 
+const BIRDCODER_VIP_PLAN_LEVEL_IDS: Record<BirdCoderVipPlan['id'], string | undefined> = {
+  free: undefined,
+  pro: '1',
+  team: '2',
+};
+
 function getBirdCoderVipPlanIncludedPoints(planId: BirdCoderVipPlan['id']): number {
   return BIRDCODER_VIP_PLAN_INCLUDED_POINTS[planId];
+}
+
+function toBirdCoderLongIntegerString(value: number): BirdCoderLongIntegerString {
+  return stringifyBirdCoderLongInteger(value);
 }
 
 function getBirdCoderVipPlanPackId(planId: BirdCoderVipPlan['id']): number {
@@ -49,6 +63,19 @@ function resolveBirdCoderVipPlanId(packId: number): BirdCoderVipPlan['id'] {
   );
 }
 
+function resolveBirdCoderVipPlanIdFromMembership(
+  membership: BirdCoderVipMembershipSnapshot | null,
+): BirdCoderVipPlan['id'] {
+  const vipLevelId = membership?.vipLevelId?.trim();
+  if (vipLevelId === BIRDCODER_VIP_PLAN_LEVEL_IDS.team) {
+    return 'team';
+  }
+  if (vipLevelId === BIRDCODER_VIP_PLAN_LEVEL_IDS.pro) {
+    return 'pro';
+  }
+  return 'free';
+}
+
 function findBirdCoderVipPlanById(planId: BirdCoderVipPlan['id']): BirdCoderVipPlan {
   return BIRDCODER_USER_VIP_PLANS.find((plan) => plan.id === planId) ?? BIRDCODER_USER_VIP_PLANS[0]!;
 }
@@ -59,18 +86,18 @@ function createBirdCoderVipExpiryDate(days: number): string {
   return expiresAt.toISOString().slice(0, 10);
 }
 
-function resolveBirdCoderVipRemainingDays(renewAt: string): number | null {
-  const normalizedRenewAt = renewAt.trim();
-  if (!normalizedRenewAt || normalizedRenewAt.toLowerCase() === 'not scheduled') {
+function resolveBirdCoderVipRemainingDays(validTo: string | undefined): number | null {
+  const normalizedValidTo = validTo?.trim();
+  if (!normalizedValidTo) {
     return null;
   }
 
-  const renewAtEpochMs = Date.parse(normalizedRenewAt);
-  if (Number.isNaN(renewAtEpochMs)) {
+  const validToEpochMs = Date.parse(normalizedValidTo);
+  if (Number.isNaN(validToEpochMs)) {
     return null;
   }
 
-  const remainingMs = renewAtEpochMs - Date.now();
+  const remainingMs = validToEpochMs - Date.now();
   if (remainingMs <= 0) {
     return 0;
   }
@@ -78,10 +105,22 @@ function resolveBirdCoderVipRemainingDays(renewAt: string): number | null {
   return Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
 }
 
+function resolveSdkworkVipDisplayNumber(value: BirdCoderLongIntegerString): number | null {
+  const normalizedValue = value.trim();
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const numericValue = Number(normalizedValue);
+  return Number.isSafeInteger(numericValue) ? numericValue : null;
+}
+
 function createBirdCoderVipBenefits(
   membership: BirdCoderVipMembershipSnapshot | null,
 ): SdkworkVipDashboardData['benefits'] {
-  const plan = membership ? findBirdCoderVipPlanById(membership.planId) : null;
+  const plan = membership
+    ? findBirdCoderVipPlanById(resolveBirdCoderVipPlanIdFromMembership(membership))
+    : null;
   if (!plan) {
     return [];
   }
@@ -100,7 +139,7 @@ function createBirdCoderVipBenefits(
 function createBirdCoderVipLevels(
   membership: BirdCoderVipMembershipSnapshot | null,
 ): SdkworkVipLevel[] {
-  const currentPlanId = membership?.planId ?? 'free';
+  const currentPlanId = resolveBirdCoderVipPlanIdFromMembership(membership);
 
   return BIRDCODER_USER_VIP_PLANS.map((plan) => ({
     description: plan.description,
@@ -153,38 +192,35 @@ function createBirdCoderVipSummary(
     };
   }
 
-  const resolvedMembership = membership ?? {
-    creditsPerMonth: 0,
-    planId: 'free',
-    planTitle: 'Free',
-    renewAt: 'Not scheduled',
-    seats: 1,
+  const resolvedMembership: BirdCoderVipMembershipSnapshot = membership ?? {
+    pointBalance: '0',
+    totalRechargedPoints: '0',
     status: 'inactive',
   };
+  const currentPlanId = resolveBirdCoderVipPlanIdFromMembership(resolvedMembership);
+  const currentPlan = findBirdCoderVipPlanById(currentPlanId);
   const currentLevelValue =
-    resolvedMembership.planId === 'team'
+    currentPlanId === 'team'
       ? 2
-      : resolvedMembership.planId === 'pro'
+      : currentPlanId === 'pro'
         ? 1
         : 0;
   const isVip = resolvedMembership.status === 'active' || resolvedMembership.status === 'trialing';
+  const pointBalance = resolveSdkworkVipDisplayNumber(resolvedMembership.pointBalance);
 
   return {
-    currentLevelName: resolvedMembership.planTitle,
+    currentLevelName: currentPlan.title,
     currentLevelValue,
-    expireTime:
-      resolvedMembership.renewAt.trim().toLowerCase() === 'not scheduled'
-        ? undefined
-        : resolvedMembership.renewAt,
-    growthValue: resolvedMembership.creditsPerMonth,
+    expireTime: resolvedMembership.validTo,
+    growthValue: pointBalance,
     isAuthenticated: true,
     isVip,
-    pointBalance: resolvedMembership.creditsPerMonth,
-    remainingDays: resolveBirdCoderVipRemainingDays(resolvedMembership.renewAt),
+    pointBalance,
+    remainingDays: resolveBirdCoderVipRemainingDays(resolvedMembership.validTo),
     status: isVip ? 'vip' : 'free',
     totalSpent: null,
     upgradeGrowthValue: getBirdCoderVipPlanIncludedPoints('team'),
-    vipPoints: resolvedMembership.creditsPerMonth,
+    vipPoints: pointBalance,
   };
 }
 
@@ -201,20 +237,22 @@ function mapBirdCoderVipPurchaseResult(
   membership: BirdCoderVipMembershipSnapshot,
   packId: number,
 ): SdkworkVipPurchaseResult {
+  const planId = resolveBirdCoderVipPlanIdFromMembership(membership);
+  const plan = findBirdCoderVipPlanById(planId);
   return {
-    amountCny: findBirdCoderVipPlanById(membership.planId).monthlyPrice,
-    durationDays: membership.planId === 'free' ? null : 30,
+    amountCny: plan.monthlyPrice,
+    durationDays: planId === 'free' ? null : 30,
     orderId: `birdcoder-vip-${packId}-${Date.now()}`,
     packId,
-    packName: membership.planTitle,
+    packName: plan.title,
     status: 'completed',
     targetLevelId:
-      membership.planId === 'team'
+      planId === 'team'
         ? 2
-        : membership.planId === 'pro'
+        : planId === 'pro'
           ? 1
           : 0,
-    targetLevelName: membership.planTitle,
+    targetLevelName: plan.title,
   };
 }
 
@@ -246,13 +284,14 @@ export function createBirdCoderVipService({
       }
 
       const planId = resolveBirdCoderVipPlanId(input.packId);
-      const plan = findBirdCoderVipPlanById(planId);
       const membership = await writeBirdCoderVipMembership({
-        creditsPerMonth: getBirdCoderVipPlanIncludedPoints(planId),
-        planId,
-        planTitle: plan.title,
-        renewAt: planId === 'free' ? 'Not scheduled' : createBirdCoderVipExpiryDate(30),
-        seats: planId === 'team' ? 5 : 1,
+        ...(BIRDCODER_VIP_PLAN_LEVEL_IDS[planId]
+          ? { vipLevelId: BIRDCODER_VIP_PLAN_LEVEL_IDS[planId] }
+          : {}),
+        pointBalance: toBirdCoderLongIntegerString(getBirdCoderVipPlanIncludedPoints(planId)),
+        totalRechargedPoints: toBirdCoderLongIntegerString(getBirdCoderVipPlanIncludedPoints(planId)),
+        ...(planId === 'free' ? {} : { validTo: createBirdCoderVipExpiryDate(30) }),
+        lastActiveTime: new Date().toISOString(),
         status: planId === 'free' ? 'inactive' : 'active',
       });
 
@@ -265,13 +304,14 @@ export function createBirdCoderVipService({
       }
 
       const planId = resolveBirdCoderVipPlanId(input.packId);
-      const plan = findBirdCoderVipPlanById(planId);
       const membership = await writeBirdCoderVipMembership({
-        creditsPerMonth: getBirdCoderVipPlanIncludedPoints(planId),
-        planId,
-        planTitle: plan.title,
-        renewAt: planId === 'free' ? 'Not scheduled' : createBirdCoderVipExpiryDate(30),
-        seats: planId === 'team' ? 5 : 1,
+        ...(BIRDCODER_VIP_PLAN_LEVEL_IDS[planId]
+          ? { vipLevelId: BIRDCODER_VIP_PLAN_LEVEL_IDS[planId] }
+          : {}),
+        pointBalance: toBirdCoderLongIntegerString(getBirdCoderVipPlanIncludedPoints(planId)),
+        totalRechargedPoints: toBirdCoderLongIntegerString(getBirdCoderVipPlanIncludedPoints(planId)),
+        ...(planId === 'free' ? {} : { validTo: createBirdCoderVipExpiryDate(30) }),
+        lastActiveTime: new Date().toISOString(),
         status: planId === 'free' ? 'inactive' : 'active',
       });
 

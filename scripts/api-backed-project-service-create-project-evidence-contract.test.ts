@@ -13,7 +13,8 @@ const createdAt = '2026-04-23T14:00:00.000Z';
 const remoteProject = {
   id: 'project-authoritative-create',
   workspaceId: 'workspace-1',
-  name: 'Authoritative project',
+  name: 'Authoritative project [project-authoritative-create]',
+  title: 'Authoritative project',
   rootPath: 'D:\\repos\\birdcoder',
   status: 'active',
   createdAt,
@@ -59,6 +60,11 @@ assert.equal(capturedEvidenceSnapshot.createdAt, createdAt);
 assert.equal(capturedEvidenceSnapshot.updatedAt, createdAt);
 assert.equal(capturedEvidenceSnapshot.path, 'D:\\repos\\birdcoder');
 assert.equal(project.id, 'project-authoritative-create');
+assert.equal(
+  project.name,
+  'Authoritative project',
+  'api-backed project service must expose project title as the UI display name while plus_project.name remains a unique business key.',
+);
 
 const resilientService = new ApiBackedProjectService({
   client: {

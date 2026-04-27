@@ -31,7 +31,10 @@ export interface TerminalExecutionResult {
   executedVia: 'policy-blocked' | 'tauri' | 'unsupported-runtime';
 }
 
+export type TerminalCommandSurface = 'workspace' | 'embedded';
+
 export interface TerminalCommandRequest {
+  surface: TerminalCommandSurface;
   path?: string;
   command?: string;
   profileId?: TerminalProfileId;
@@ -515,6 +518,7 @@ export function buildDefaultTerminalCommandRequest(
   overrides: Partial<Omit<TerminalCommandRequest, 'timestamp'>> = {},
 ): TerminalCommandRequest {
   return {
+    surface: overrides.surface ?? 'workspace',
     path: overrides.path?.trim() || undefined,
     command: overrides.command?.trim() || undefined,
     profileId: overrides.profileId ?? resolveBrowserTerminalProfileId(),
@@ -526,7 +530,6 @@ export function emitOpenTerminalRequest(
   request: TerminalCommandRequest,
   eventBus: TerminalEventEmitterLike = globalEventBus,
 ): void {
-  emitOpenTerminalVisibility(eventBus);
   eventBus.emit('terminalRequest', request);
 }
 
@@ -543,6 +546,7 @@ export function areTerminalCommandRequestsEqual(
   }
 
   return (
+    left.surface === right.surface &&
     left.path === right.path &&
     left.command === right.command &&
     left.profileId === right.profileId &&

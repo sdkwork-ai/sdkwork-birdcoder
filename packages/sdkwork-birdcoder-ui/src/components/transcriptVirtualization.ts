@@ -1,17 +1,17 @@
 import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-types';
 
-export const MIN_VIRTUALIZED_MESSAGE_COUNT = 32;
+export const MIN_VIRTUALIZED_MESSAGE_COUNT = 96;
 export const VIRTUALIZED_OVERSCAN_PX = 720;
 
 interface TranscriptPrefixHeightCacheEntry {
   height: number;
-  id: string;
+  key: string;
   message: BirdCoderChatMessage;
 }
 
 export interface TranscriptPrefixHeightsCache {
   entries: readonly TranscriptPrefixHeightCacheEntry[];
-  messageIndexesById: ReadonlyMap<string, number>;
+  messageIndexesByKey: ReadonlyMap<string, number>;
   messages: readonly BirdCoderChatMessage[];
   prefixHeights: readonly number[];
 }
@@ -28,12 +28,12 @@ export interface VirtualizedTranscriptWindowState {
   visibleStartIndex: number;
 }
 
-function resolveTranscriptMessageId(
+export function resolveTranscriptMessageKey(
   message: BirdCoderChatMessage | undefined,
   index: number,
 ): string {
   const normalizedMessageId = message?.id.trim() ?? '';
-  return normalizedMessageId || `message-${index}`;
+  return `${index}\u0001${normalizedMessageId || 'message'}`;
 }
 
 function estimateTranscriptMessageHeight(message: BirdCoderChatMessage): number {
@@ -44,7 +44,8 @@ function estimateTranscriptMessageHeight(message: BirdCoderChatMessage): number 
   const contentHeight = Math.min(720, contentLineEstimate * (message.role === 'user' ? 18 : 22));
   const fileChangeHeight = (message.fileChanges?.length ?? 0) * 36;
   const commandHeight = (message.commands?.length ?? 0) * 44;
-  return baseHeight + contentHeight + fileChangeHeight + commandHeight;
+  const taskProgressHeight = message.taskProgress ? 40 : 0;
+  return baseHeight + contentHeight + fileChangeHeight + commandHeight + taskProgressHeight;
 }
 
 function resolveTranscriptMessageHeight(
@@ -52,7 +53,7 @@ function resolveTranscriptMessageHeight(
   index: number,
   measuredHeights: ReadonlyMap<string, number>,
 ): number {
-  const measuredHeight = measuredHeights.get(resolveTranscriptMessageId(message, index));
+  const measuredHeight = measuredHeights.get(resolveTranscriptMessageKey(message, index));
   return measuredHeight ?? estimateTranscriptMessageHeight(message);
 }
 
@@ -61,25 +62,25 @@ function buildTranscriptPrefixHeightsCache(
   measuredHeights: ReadonlyMap<string, number>,
 ): TranscriptPrefixHeightsCache {
   const entries: TranscriptPrefixHeightCacheEntry[] = new Array(messages.length);
-  const messageIndexesById = new Map<string, number>();
+  const messageIndexesByKey = new Map<string, number>();
   const prefixHeights = new Array<number>(messages.length + 1).fill(0);
 
   for (let index = 0; index < messages.length; index += 1) {
     const message = messages[index]!;
-    const id = resolveTranscriptMessageId(message, index);
+    const key = resolveTranscriptMessageKey(message, index);
     const height = resolveTranscriptMessageHeight(message, index, measuredHeights);
     entries[index] = {
       height,
-      id,
+      key,
       message,
     };
-    messageIndexesById.set(id, index);
+    messageIndexesByKey.set(key, index);
     prefixHeights[index + 1] = prefixHeights[index] + height;
   }
 
   return {
     entries,
-    messageIndexesById,
+    messageIndexesByKey,
     messages,
     prefixHeights,
   };
@@ -97,13 +98,13 @@ function reconcileMeasuredTranscriptPrefixHeightsCache(
   let earliestChangedIndex = Number.POSITIVE_INFINITY;
   let nextEntries: TranscriptPrefixHeightCacheEntry[] | null = null;
 
-  for (const invalidatedMessageId of invalidatedMessageIds) {
-    const normalizedMessageId = invalidatedMessageId.trim();
-    if (!normalizedMessageId) {
+  for (const invalidatedMessageKey of invalidatedMessageIds) {
+    const normalizedMessageKey = invalidatedMessageKey.trim();
+    if (!normalizedMessageKey) {
       continue;
     }
 
-    const messageIndex = previousCache.messageIndexesById.get(normalizedMessageId);
+    const messageIndex = previousCache.messageIndexesByKey.get(normalizedMessageKey);
     if (messageIndex === undefined) {
       continue;
     }
@@ -142,7 +143,7 @@ function reconcileMeasuredTranscriptPrefixHeightsCache(
 
   return {
     entries: nextEntries,
-    messageIndexesById: previousCache.messageIndexesById,
+    messageIndexesByKey: previousCache.messageIndexesByKey,
     messages: previousCache.messages,
     prefixHeights: nextPrefixHeights,
   };
@@ -218,11 +219,11 @@ export function reconcileTranscriptPrefixHeightsCache({
     );
   }
 
-  const invalidatedMessageIdSet = new Set(
-    invalidatedMessageIds.map((messageId) => messageId.trim()).filter(Boolean),
+  const invalidatedMessageKeySet = new Set(
+    invalidatedMessageIds.map((messageKey) => messageKey.trim()).filter(Boolean),
   );
   const nextEntries: TranscriptPrefixHeightCacheEntry[] = new Array(messages.length);
-  const nextMessageIndexesById = new Map<string, number>();
+  const nextMessageIndexesByKey = new Map<string, number>();
   let firstChangedIndex =
     messages.length === previousCache.entries.length
       ? messages.length
@@ -230,15 +231,15 @@ export function reconcileTranscriptPrefixHeightsCache({
 
   for (let index = 0; index < messages.length; index += 1) {
     const message = messages[index]!;
-    const id = resolveTranscriptMessageId(message, index);
-    nextMessageIndexesById.set(id, index);
+    const key = resolveTranscriptMessageKey(message, index);
+    nextMessageIndexesByKey.set(key, index);
     const previousEntry = previousCache.entries[index];
 
     if (
       previousEntry &&
-      previousEntry.id === id &&
+      previousEntry.key === key &&
       previousEntry.message === message &&
-      !invalidatedMessageIdSet.has(id)
+      !invalidatedMessageKeySet.has(key)
     ) {
       nextEntries[index] = previousEntry;
       continue;
@@ -249,7 +250,7 @@ export function reconcileTranscriptPrefixHeightsCache({
       firstChangedIndex === messages.length &&
       (
         !previousEntry ||
-        previousEntry.id !== id ||
+        previousEntry.key !== key ||
         previousEntry.message !== message ||
         previousEntry.height !== nextHeight
       )
@@ -259,7 +260,7 @@ export function reconcileTranscriptPrefixHeightsCache({
 
     nextEntries[index] = {
       height: nextHeight,
-      id,
+      key,
       message,
     };
   }
@@ -267,7 +268,7 @@ export function reconcileTranscriptPrefixHeightsCache({
   if (firstChangedIndex === messages.length) {
     return {
       entries: previousCache.entries,
-      messageIndexesById: previousCache.messageIndexesById,
+      messageIndexesByKey: previousCache.messageIndexesByKey,
       messages,
       prefixHeights: previousCache.prefixHeights,
     };
@@ -287,7 +288,7 @@ export function reconcileTranscriptPrefixHeightsCache({
 
   return {
     entries: nextEntries,
-    messageIndexesById: nextMessageIndexesById,
+    messageIndexesByKey: nextMessageIndexesByKey,
     messages,
     prefixHeights: nextPrefixHeights,
   };

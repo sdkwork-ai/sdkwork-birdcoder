@@ -68,6 +68,7 @@ try {
   await Promise.all([
     repositories.workspaces.clear(),
     repositories.projects.clear(),
+    repositories.projectContents.clear(),
   ]);
 
   const bootstrappedWorkspaces = await queries.listWorkspaces();

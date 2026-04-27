@@ -182,16 +182,28 @@ assert.match(
 );
 
 const webViteConfigSource = readText('packages/sdkwork-birdcoder-web/vite.config.ts');
+for (const staleChunkName of [
+  'birdcoder-platform-services',
+  'birdcoder-auth-root',
+  'birdcoder-user-root',
+  'birdcoder-user-pages',
+  'birdcoder-user-center-surface',
+  'birdcoder-identity-runtime',
+]) {
+  assert.doesNotMatch(
+    webViteConfigSource,
+    new RegExp(staleChunkName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'),
+    `Web Vite config must not retain stale ${staleChunkName} chunk governance after platform and identity chunk consolidation.`,
+  );
+}
+
 for (const requiredChunkName of [
   'ui-shell',
   'ui-workbench',
   'birdcoder-platform',
   'birdcoder-codeengine',
-  'birdcoder-auth-root',
   'birdcoder-platform-auth-runtime',
-  'birdcoder-user-root',
-  'birdcoder-user-pages',
-  'birdcoder-user-center-surface',
+  'birdcoder-identity-surface',
   'birdcoder-user-center-core',
   'birdcoder-commons-root',
   'birdcoder-infrastructure-root',
@@ -218,6 +230,8 @@ assert.match(
 );
 for (const filteredChunk of [
   'ui-workbench',
+  'birdcoder-identity-surface',
+  'birdcoder-user-center-core',
   'birdcoder-platform',
   'vendor-markdown',
   'vendor-code-highlight',

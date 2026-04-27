@@ -1,8 +1,9 @@
 import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-types';
 import type { RefObject } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   reconcileTranscriptPrefixHeightsCache,
+  resolveTranscriptMessageKey,
   resolveVirtualizedTranscriptWindow,
   type TranscriptPrefixHeightsCache,
   type TranscriptViewport,
@@ -27,7 +28,9 @@ export function useVirtualizedTranscriptWindow(
   messages: readonly BirdCoderChatMessage[],
   scrollContainerRef: RefObject<HTMLDivElement | null>,
   isActive = true,
+  measurementScopeKey = '',
 ): VirtualizedTranscriptWindowResult {
+  const normalizedMeasurementScopeKey = measurementScopeKey.trim();
   const [viewport, setViewport] = useState<TranscriptViewport>({
     clientHeight: 0,
     scrollTop: 0,
@@ -45,6 +48,26 @@ export function useVirtualizedTranscriptWindow(
   const prefixHeightsCacheRef = useRef<TranscriptPrefixHeightsCache | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const isActiveRef = useRef(isActive);
+  const measurementScopeKeyRef = useRef(normalizedMeasurementScopeKey);
+
+  const didResetMeasurementScope = measurementScopeKeyRef.current !== normalizedMeasurementScopeKey;
+  if (didResetMeasurementScope) {
+    measurementScopeKeyRef.current = normalizedMeasurementScopeKey;
+    for (const element of observedElementsRef.current.values()) {
+      resizeObserverRef.current?.unobserve(element);
+    }
+    observedElementsRef.current.clear();
+    messageIdByElementRef.current.clear();
+    messageRefCallbackMapRef.current.clear();
+    measuredHeightsRef.current.clear();
+    prefixHeightsCacheRef.current = null;
+  }
+  const effectiveViewport = didResetMeasurementScope
+    ? {
+        clientHeight: viewport.clientHeight,
+        scrollTop: 0,
+      }
+    : viewport;
 
   const publishMeasurementChange = useCallback((changedMessageIds?: readonly string[]) => {
     const normalizedChangedMessageIds =
@@ -83,11 +106,28 @@ export function useVirtualizedTranscriptWindow(
   }, [isActive]);
 
   useEffect(() => {
+    setViewport((previousViewport) =>
+      previousViewport.scrollTop === 0
+        ? previousViewport
+        : {
+            ...previousViewport,
+            scrollTop: 0,
+          },
+    );
+  }, [normalizedMeasurementScopeKey]);
+
+  useLayoutEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer || scrollContainer.scrollTop === 0) {
+      return;
+    }
+
+    scrollContainer.scrollTop = 0;
+  }, [normalizedMeasurementScopeKey, scrollContainerRef]);
+
+  useEffect(() => {
     const messageIdSet = new Set(
-      messages.map((message, index) => {
-        const normalizedMessageId = message.id.trim();
-        return normalizedMessageId || `message-${index}`;
-      }),
+      messages.map((message, index) => resolveTranscriptMessageKey(message, index)),
     );
     for (const messageId of measuredHeightsRef.current.keys()) {
       if (messageIdSet.has(messageId)) {
@@ -111,7 +151,7 @@ export function useVirtualizedTranscriptWindow(
       }
       messageRefCallbackMapRef.current.delete(messageId);
     }
-  }, [messages]);
+  }, [messages, normalizedMeasurementScopeKey]);
 
   useEffect(() => {
     if (!isActive || typeof ResizeObserver !== 'function') {
@@ -218,7 +258,7 @@ export function useVirtualizedTranscriptWindow(
         messages,
         previousCache: prefixHeightsCacheRef.current,
       }),
-    [measurementState, messages],
+    [measurementState, messages, normalizedMeasurementScopeKey],
   );
   useEffect(() => {
     prefixHeightsCacheRef.current = prefixHeightsCache;
@@ -301,9 +341,9 @@ export function useVirtualizedTranscriptWindow(
         isActive,
         messages,
         prefixHeights,
-        viewport,
+        viewport: effectiveViewport,
       }),
-    [isActive, messages, prefixHeights, viewport],
+    [effectiveViewport, isActive, messages, prefixHeights],
   );
 
   return {

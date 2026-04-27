@@ -30,6 +30,17 @@ export type SelectWorkbenchCodingSession = (
   },
 ) => void;
 
+export interface WorkbenchCodingSessionSelectionContext {
+  projectId: string;
+  requestedEngineId?: string;
+  title?: string;
+}
+
+export type ShouldSelectWorkbenchCodingSession = (
+  codingSession: BirdCoderCodingSession,
+  context: WorkbenchCodingSessionSelectionContext,
+) => boolean;
+
 export type ResolveWorkbenchProjectId = () =>
   | Promise<string | null | undefined>
   | string
@@ -79,12 +90,14 @@ export async function createWorkbenchCodingSessionInProject({
   projectId,
   requestedEngineId,
   selectCodingSession,
+  shouldSelectCreatedSession,
   title,
 }: {
   createCodingSessionWithSelection: CreateWorkbenchCodingSessionWithSelection;
   projectId: string;
   requestedEngineId?: string;
   selectCodingSession: SelectWorkbenchCodingSession;
+  shouldSelectCreatedSession?: ShouldSelectWorkbenchCodingSession;
   title?: string;
 }): Promise<BirdCoderCodingSession> {
   const newSession = await createCodingSessionWithSelection(
@@ -94,8 +107,15 @@ export async function createWorkbenchCodingSessionInProject({
       ? { engineId: requestedEngineId }
       : undefined,
   );
-  selectCodingSession(newSession.id, { projectId });
-  focusWorkbenchChatInputSoon();
+  const selectionContext: WorkbenchCodingSessionSelectionContext = {
+    projectId,
+    ...(requestedEngineId ? { requestedEngineId } : {}),
+    ...(title ? { title } : {}),
+  };
+  if (shouldSelectCreatedSession?.(newSession, selectionContext) !== false) {
+    selectCodingSession(newSession.id, { projectId });
+    focusWorkbenchChatInputSoon();
+  }
   return newSession;
 }
 
@@ -264,9 +284,13 @@ export async function deleteWorkbenchCodingSessionMessages({
   messageIds: readonly string[];
   projectId: string;
 }): Promise<number> {
-  const normalizedMessageIds = messageIds
-    .map((messageId) => messageId.trim())
-    .filter((messageId) => messageId.length > 0);
+  const normalizedMessageIds = Array.from(
+    new Set(
+      messageIds
+        .map((messageId) => messageId.trim())
+        .filter((messageId) => messageId.length > 0)
+    )
+  );
 
   for (
     let messageIndex = normalizedMessageIds.length - 1;

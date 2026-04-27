@@ -56,6 +56,8 @@ const BIRDCODER_LOCAL_BOOTSTRAP_PASSWORD_ENV =
   'BIRDCODER_LOCAL_BOOTSTRAP_PASSWORD';
 const BIRDCODER_LOCAL_VERIFY_CODE_FIXED_ENV =
   'BIRDCODER_LOCAL_VERIFY_CODE_FIXED';
+const BIRDCODER_ENABLE_RELEASE_DEMO_LOGIN_ENV =
+  'BIRDCODER_ENABLE_RELEASE_DEMO_LOGIN';
 const VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED_ENV =
   'VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED';
 const VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT_ENV =
@@ -562,6 +564,74 @@ function applyDevelopmentPrefillDefaults({
   }
 }
 
+function applyReleaseDemoLoginDefaults({
+  env,
+  identityMode,
+  target,
+}) {
+  const enableReleaseDemoLogin = parseBoolean(
+    readEnvValue(env, BIRDCODER_ENABLE_RELEASE_DEMO_LOGIN_ENV),
+  );
+  if (!enableReleaseDemoLogin) {
+    return;
+  }
+
+  const isClientBuildTarget = target === 'desktop-build' || target === 'web-build';
+  if (!isClientBuildTarget) {
+    return;
+  }
+
+  const providerKind =
+    normalizeBirdcoderUserCenterLoginProvider(
+      readEnvValue(env, BIRDCODER_USER_CENTER_LOGIN_PROVIDER_ENV),
+    )
+    ?? (
+      readEnvValue(env, BIRDCODER_USER_CENTER_LOGIN_PROVIDER_ENV)
+        ? undefined
+        : resolveImplicitUserCenterLoginProvider(identityMode)
+    );
+  if (providerKind !== 'builtin-local') {
+    return;
+  }
+
+  const bootstrapAccount =
+    readEnvValue(env, BIRDCODER_LOCAL_BOOTSTRAP_EMAIL_ENV)
+    ?? DEFAULT_BIRDCODER_LOCAL_BOOTSTRAP_ACCOUNT;
+  const bootstrapPhone =
+    readEnvValue(env, BIRDCODER_LOCAL_BOOTSTRAP_PHONE_ENV)
+    ?? DEFAULT_BIRDCODER_LOCAL_BOOTSTRAP_PHONE;
+  const bootstrapPassword =
+    readEnvValue(env, BIRDCODER_LOCAL_BOOTSTRAP_PASSWORD_ENV)
+    ?? DEFAULT_BIRDCODER_LOCAL_BOOTSTRAP_PASSWORD;
+
+  setEnvValue(env, VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED_ENV, 'true');
+  setEnvDefault(
+    env,
+    VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT_ENV,
+    bootstrapAccount,
+  );
+  setEnvDefault(
+    env,
+    VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL_ENV,
+    bootstrapAccount,
+  );
+  setEnvDefault(
+    env,
+    VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE_ENV,
+    bootstrapPhone,
+  );
+  setEnvDefault(
+    env,
+    VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD_ENV,
+    bootstrapPassword,
+  );
+  setEnvDefault(
+    env,
+    VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD_ENV,
+    'password',
+  );
+}
+
 function applyAuthSurfaceDefaults({
   env,
 }) {
@@ -778,6 +848,12 @@ export function resolveBirdcoderIdentityCommandEnv({
 
   applyAuthSurfaceDefaults({
     env: nextEnv,
+  });
+
+  applyReleaseDemoLoginDefaults({
+    env: nextEnv,
+    identityMode: resolvedIdentityMode,
+    target,
   });
 
   applyDevelopmentPrefillDefaults({

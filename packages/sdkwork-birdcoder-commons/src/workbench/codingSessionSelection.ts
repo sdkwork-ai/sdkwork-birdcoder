@@ -1,5 +1,5 @@
 import {
-  resolveBirdCoderSessionSortTimestamp,
+  compareBirdCoderSessionSortTimestamp,
   type BirdCoderCodingSession,
   type BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
@@ -26,15 +26,8 @@ function isLaterCodingSession(
   candidate: BirdCoderCodingSession,
   current: BirdCoderCodingSession,
 ): boolean {
-  return (
-    resolveBirdCoderSessionSortTimestamp(candidate) >
-      resolveBirdCoderSessionSortTimestamp(current) ||
-    (
-      resolveBirdCoderSessionSortTimestamp(candidate) ===
-        resolveBirdCoderSessionSortTimestamp(current) &&
-      candidate.id.localeCompare(current.id) < 0
-    )
-  );
+  const sortOrder = compareBirdCoderSessionSortTimestamp(candidate, current);
+  return sortOrder > 0 || (sortOrder === 0 && candidate.id.localeCompare(current.id) < 0);
 }
 
 export function buildProjectCodingSessionIndex(

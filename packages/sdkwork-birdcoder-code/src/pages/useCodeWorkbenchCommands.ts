@@ -153,6 +153,7 @@ export function useCodeWorkbenchCommands({
       }
 
       emitOpenTerminalRequest({
+        surface: 'embedded',
         command: 'npm start',
         path:
           currentProjectPathRef.current?.trim() || defaultWorkingDirectoryRef.current,
@@ -170,6 +171,10 @@ export function useCodeWorkbenchCommands({
     };
 
     const handleTerminalRequest = (request: TerminalCommandRequest) => {
+      if (request.surface !== 'embedded') {
+        return;
+      }
+
       setTerminalRequest(request);
       setIsTerminalOpen(true);
     };

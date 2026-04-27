@@ -2,7 +2,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { createPortal } from 'react-dom';
 import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-types';
 import {
-  resolveBirdCoderSessionSortTimestamp,
+  compareBirdCoderSessionSortTimestamp,
 } from '@sdkwork/birdcoder-types';
 import {
   listWorkbenchCliEngines,
@@ -110,6 +110,7 @@ function areSidebarPropsEqual(left: ProjectExplorerProps, right: ProjectExplorer
     left.onPinCodingSession === right.onPinCodingSession &&
     left.onArchiveCodingSession === right.onArchiveCodingSession &&
     left.onMarkCodingSessionUnread === right.onMarkCodingSessionUnread &&
+    left.onOpenCodingSessionInTerminal === right.onOpenCodingSessionInTerminal &&
     left.onCopyCodingSessionWorkingDirectory === right.onCopyCodingSessionWorkingDirectory &&
     left.onCopyCodingSessionSessionId === right.onCopyCodingSessionSessionId &&
     left.onCopyCodingSessionDeeplink === right.onCopyCodingSessionDeeplink &&
@@ -154,6 +155,7 @@ export const Sidebar = React.memo(function Sidebar({
   onPinCodingSession,
   onArchiveCodingSession,
   onMarkCodingSessionUnread,
+  onOpenCodingSessionInTerminal,
   onCopyCodingSessionWorkingDirectory,
   onCopyCodingSessionSessionId,
   onCopyCodingSessionDeeplink,
@@ -605,16 +607,12 @@ export const Sidebar = React.memo(function Sidebar({
   }, [addToast, t]);
   const buildSortedCodingSessions = useCallback(
     (codingSessions: readonly BirdCoderCodingSession[]) =>
-      codingSessions
-        .map((codingSession) => ({
-          codingSession,
-          sortTimestamp:
-            sortBy === 'created'
-              ? Math.max(0, Date.parse(codingSession.createdAt))
-              : resolveBirdCoderSessionSortTimestamp(codingSession),
-        }))
-        .sort((left, right) => right.sortTimestamp - left.sortTimestamp)
-        .map((entry) => entry.codingSession),
+      [...codingSessions].sort((left, right) =>
+        sortBy === 'created'
+          ? Math.max(0, Date.parse(right.createdAt)) -
+            Math.max(0, Date.parse(left.createdAt))
+          : compareBirdCoderSessionSortTimestamp(right, left),
+      ),
     [sortBy],
   );
   const filteredProjectSessions = useMemo<SidebarFilteredProjectSessionsEntry[]>(
@@ -800,6 +798,11 @@ export const Sidebar = React.memo(function Sidebar({
                   }
                   defaultNewSessionEngineId={newSessionEngineCatalog.preferredSelection.engineId}
                   newSessionInProjectLabel={t('code.newSessionInProject')}
+                  awaitingApprovalSessionLabel={t('code.awaitingApprovalSession')}
+                  awaitingUserSessionLabel={t('code.awaitingUserSession')}
+                  executingSessionLabel={t('code.executingSession')}
+                  initializingSessionLabel={t('code.initializingSession')}
+                  failedSessionLabel={t('code.failedSession')}
                   moreActionsLabel={t('app.moreActions')}
                   onSelectProject={selectProject}
                   onToggleProject={toggleProject}
@@ -833,6 +836,12 @@ export const Sidebar = React.memo(function Sidebar({
                     isRenaming={renamingCodingSessionId === session.id}
                     renameValue={renamingCodingSessionId === session.id ? renameValue : ''}
                     paddingClassName="px-2"
+                    awaitingApprovalSessionLabel={t('code.awaitingApprovalSession')}
+                    awaitingUserSessionLabel={t('code.awaitingUserSession')}
+                    executingSessionLabel={t('code.executingSession')}
+                    initializingSessionLabel={t('code.initializingSession')}
+                    failedSessionLabel={t('code.failedSession')}
+                    moreActionsLabel={t('app.moreActions')}
                     onSelectCodingSession={handleSelectCodingSession}
                     onCodingSessionContextMenu={handleContextMenu}
                     onRenameValueChange={handleRenameValueChange}
@@ -882,6 +891,7 @@ export const Sidebar = React.memo(function Sidebar({
             onArchive={onArchiveCodingSession}
             onMarkUnread={onMarkCodingSessionUnread}
             onCopyWorkingDirectory={onCopyCodingSessionWorkingDirectory}
+            onOpenInTerminal={onOpenCodingSessionInTerminal}
             onCopySessionId={onCopyCodingSessionSessionId}
             onCopyDeeplink={onCopyCodingSessionDeeplink}
             onForkLocal={onForkCodingSessionLocal}

@@ -19,8 +19,8 @@ const source = fs.readFileSync(
 
 assert.match(
   source,
-  /const mirroredProjects = await Promise\.all\(\s*projectSummaries\.map\(\s*async \(projectSummary\) =>/s,
-  'ApiBackedProjectService.getProjects must mirror project summaries in parallel so workspace project loading does not stall on serial mirror writes.',
+  /const mirroredProjects = await Promise\.all\(\s*visibleProjectSummaries\.map\(\s*async \(projectSummary\) =>/s,
+  'ApiBackedProjectService.getProjects must mirror visible project summaries in parallel so workspace project loading does not stall on serial mirror writes or mirror hidden catalog entries.',
 );
 
 assert.match(

@@ -89,9 +89,9 @@ for (const forbiddenPreloadPrefix of [
   'birdcoder-shell-app-',
   'birdcoder-shell-bootstrap-',
   'ui-workbench-',
+  'birdcoder-identity-surface-',
+  'birdcoder-user-center-core-',
   'birdcoder-platform-',
-  'birdcoder-auth-',
-  'birdcoder-user-',
   'vendor-markdown-',
   'vendor-code-highlight-',
   'vendor-monaco-',
@@ -108,9 +108,8 @@ for (const requiredChunkPrefix of [
   'birdcoder-storage-runtime-',
   'ui-shell-',
   'birdcoder-platform-',
+  'birdcoder-identity-surface-',
   'birdcoder-codeengine-',
-  'birdcoder-user-root-',
-  'birdcoder-user-pages-',
   'birdcoder-commons-root-',
   'birdcoder-infrastructure-root-',
   'vendor-i18n-',
@@ -120,17 +119,16 @@ for (const requiredChunkPrefix of [
   assertChunkExists(jsAssets, requiredChunkPrefix);
 }
 
-const authRootAsset = findAssetByPrefix(jsAssets, 'birdcoder-auth-root-');
-const authPagesAsset = findAssetByPrefix(jsAssets, 'birdcoder-auth-pages-');
-
 assert.ok(
-  authRootAsset,
-  'web bundle budget check expected a birdcoder-auth-root- chunk.',
+  !findAssetByPrefix(jsAssets, 'birdcoder-identity-runtime-'),
+  'web bundle budget check must not emit a separate birdcoder-identity-runtime chunk because identity runtime hooks are part of the platform runtime boundary.',
 );
 
+const identitySurfaceAsset = findAssetByPrefix(jsAssets, 'birdcoder-identity-surface-');
+
 assert.ok(
-  authPagesAsset || authRootAsset,
-  'web bundle budget check expected BirdCoder auth to build as either split auth root/pages chunks or a merged auth root chunk.',
+  identitySurfaceAsset,
+  'web bundle budget check expected BirdCoder auth, user, and user-center pages to build as a single birdcoder-identity-surface chunk.',
 );
 
 const markdownAsset = findAssetByPrefix(jsAssets, 'vendor-markdown-');

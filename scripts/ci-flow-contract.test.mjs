@@ -61,6 +61,85 @@ assert.equal(
   rootPackageJson.scripts['test:user-center-standard'],
   'node scripts/run-user-center-standard.mjs',
 );
+assert.equal(
+  rootPackageJson.scripts['check:auth-session-standard'],
+  'node scripts/auth-bootstrap-gating-contract.test.mjs && node scripts/auth-required-tab-navigation-contract.test.mjs && node scripts/auth-workspace-loading-gating-contract.test.mjs && node scripts/auth-config-hydration-retry-contract.test.mjs && node scripts/auth-config-null-profile-preserves-adopted-user-contract.test.mjs && node scripts/auth-bootstrap-stale-current-user-guard-contract.test.mjs && node scripts/auth-interactive-refresh-stale-mutation-guard-contract.test.mjs && node --experimental-strip-types scripts/auth-user-identity-contract.test.ts && node scripts/auth-surface-successful-login-adoption-contract.test.mjs && node --experimental-strip-types scripts/runtime-server-session-persistence-contract.test.ts && node --experimental-strip-types scripts/runtime-auth-unbound-profile-preserves-session-contract.test.ts',
+  'Root quality scripts must expose non-blocking auth bootstrap, urgent auth-required navigation, authenticated workspace loading gates, metadata-synchronized hydration retry, null-profile preservation, stale bootstrap guards, stale interactive refresh guards, canonical auth user identity matching, successful login adoption, and durable runtime session persistence as one first-class standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:terminal-surface-standard'],
+  'node scripts/terminal-request-surface-contract.test.mjs && node scripts/app-terminal-request-focus-contract.test.mjs && node scripts/code-topbar-terminal-default-path-contract.test.mjs && node scripts/code-terminal-panel-close-contract.test.mjs',
+  'Root quality scripts must expose workspace-vs-embedded terminal routing, forced Terminal focus, topbar default paths, and embedded terminal close behavior as one first-class standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:universal-chat-scroll'],
+  'node --experimental-strip-types scripts/universal-chat-scroll-behavior-contract.test.ts && node --experimental-strip-types scripts/universal-chat-scroll-ownership-contract.test.ts && node scripts/universal-chat-scroll-ownership-source-contract.test.mjs && node scripts/universal-chat-scroll-performance-contract.test.mjs && node scripts/universal-chat-transcript-performance-contract.test.mjs && node scripts/transcript-scroll-gating-performance-contract.test.mjs && node scripts/transcript-top-load-contract.test.mjs && node --experimental-strip-types scripts/transcript-pagination-contract.test.ts',
+  'Root quality scripts must expose chat transcript scroll ownership, mount stability, and overflow gating as one first-class standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:workbench-activity-performance'],
+  'node scripts/hidden-workbench-activity-gating-contract.test.mjs && node scripts/hidden-workbench-sidebar-refresh-performance-contract.test.mjs && node scripts/app-main-body-tab-switch-performance-contract.test.mjs && node scripts/app-shell-startup-lazy-load-contract.test.mjs',
+  'Root quality scripts must expose persistent workbench activity gating, sidebar refresh gating, tab switch, and startup lazy-load behavior as one first-class performance standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:universal-chat-rendering-performance'],
+  'node scripts/universal-chat-inactive-gating-performance-contract.test.mjs && node scripts/universal-chat-row-animation-performance-contract.test.mjs && node scripts/transcript-inactive-measurement-gating-contract.test.mjs',
+  'Root quality scripts must expose UniversalChat inactive gating and no per-row animation churn as one first-class rendering standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:project-explorer-hover-stability'],
+  'node scripts/project-explorer-scrollbar-contract.test.mjs && node scripts/sidebar-row-animation-performance-contract.test.mjs',
+  'Root quality scripts must guard project/sidebar row hover geometry and per-row animation stability as one first-class standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:code-page-componentization'],
+  'node scripts/code-page-componentization-contract.test.mjs && node scripts/code-tab-switch-performance-contract.test.mjs && node scripts/code-main-chat-width-stability-contract.test.mjs',
+  'Root quality scripts must keep Code view composition, tab switching, and main chat width stability covered by one first-class standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:code-active-surface-performance'],
+  'node scripts/code-active-surface-memo-contract.test.mjs && node scripts/code-sidebar-callback-stability-contract.test.mjs',
+  'Root quality scripts must expose Code active-surface memoization and sidebar callback identity stability as one first-class performance standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:file-explorer-rendering-performance'],
+  'node scripts/file-explorer-inactive-gating-performance-contract.test.mjs && node scripts/file-explorer-node-render-performance-contract.test.mjs',
+  'Root quality scripts must expose FileExplorer inactive gating and no per-node animation churn as one first-class rendering standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:workbench-session-standard'],
+  'node scripts/code-new-session-transcript-reset-contract.test.mjs && node scripts/coding-session-creation-standardization-contract.test.mjs && node scripts/workbench-coding-session-creation-actions-contract.test.mjs && node scripts/selected-session-hydration-loading-contract.test.mjs && node scripts/app-session-inventory-refresh-contract.test.mjs && node --experimental-strip-types scripts/project-mirror-snapshot-authoritative-sessions-contract.test.ts && node --experimental-strip-types scripts/selected-session-stale-project-refresh-contract.test.ts && node --experimental-strip-types scripts/selected-session-user-scope-refresh-contract.test.ts && node --experimental-strip-types scripts/workbench-recovery-user-scope-contract.test.ts',
+);
+assert.equal(
+  rootPackageJson.scripts['check:project-inventory-standard'],
+  'node scripts/project-inventory-mirror-snapshot-contract.test.mjs && node --experimental-strip-types scripts/project-mirror-snapshot-syncs-authority-project-contract.test.ts && node --experimental-strip-types scripts/session-inventory-native-session-id-contract.test.ts && node scripts/projects-inventory-lazy-transcript-contract.test.mjs && node scripts/projects-store-message-reuse-contract.test.mjs && node scripts/projects-store-nonblocking-contract.test.mjs && node scripts/project-refresh-cache-bypass-contract.test.mjs && node scripts/api-backed-project-service-parallel-mirror-contract.test.mjs && node --experimental-strip-types scripts/api-backed-project-service-user-scope-fallback-contract.test.ts && node --experimental-strip-types scripts/api-backed-workspace-service-user-scope-fallback-contract.test.ts',
+  'Root quality scripts must expose project inventory mirror, authority project mirror sync, native session id inventory, lazy transcript, nonblocking store, refresh cache bypass, parallel mirror behavior, and user-scoped local project/workspace fallback as one first-class project loading standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:project-session-index-performance'],
+  'node scripts/project-session-index-performance-contract.test.mjs && node --experimental-strip-types scripts/project-session-index-cache-performance-contract.test.ts && node --experimental-strip-types scripts/project-session-location-cache-performance-contract.test.ts && node --experimental-strip-types scripts/project-session-navigation-cache-performance-contract.test.ts && node --experimental-strip-types scripts/coding-session-authoritative-summary-cache-contract.test.ts',
+  'Root quality scripts must expose project/session index, location lookup, navigation lookup, and authoritative summary cache behavior as one first-class session loading performance standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:code-session-standard'],
+  'node scripts/code-session-executing-ui-contract.test.mjs && node scripts/code-session-refresh-ui-contract.test.mjs && node scripts/selected-session-executing-refresh-performance-contract.test.mjs && node scripts/new-session-engine-management-contract.test.mjs && node scripts/code-session-sync-loop-contract.test.mjs && node scripts/selected-session-reselection-contract.test.mjs && node scripts/selected-session-stale-hydration-write-contract.test.mjs && node --experimental-strip-types scripts/coding-session-message-synchronization-contract.test.ts',
+  'Root quality scripts must expose code/session executing UI, refresh UI, refresh performance, new-session engine management, and synchronization behavior as a first-class standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:api-transport-standard'],
+  'node --experimental-strip-types scripts/http-api-transport-cors-contract.test.ts',
+  'Root quality scripts must expose API transport/CORS behavior as a first-class standard.',
+);
+assert.match(
+  rootPackageJson.scripts['check:data-kernel'] ?? '',
+  /provider-dialect-contract\.test\.mjs/,
+  'Root quality scripts must expose provider dialect and data-kernel storage contracts as a first-class standard.',
+);
+assert.match(
+  rootPackageJson.scripts['check:data-kernel'] ?? '',
+  /console-default-bootstrap-contract\.test\.ts/,
+  'Root quality scripts must expose default console workspace bootstrap as part of the data-kernel standard.',
+);
 
 for (const governedWorkflowContract of [
   'scripts/user-center-upstream-sync-payload.test.mjs',
@@ -101,18 +180,35 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:desktop-startup-graph',
   'node scripts/run-workspace-package-script.mjs . check:ui-dependency-resolution',
   'node scripts/run-workspace-package-script.mjs . check:ui-bundle-segmentation',
+  'node scripts/run-workspace-package-script.mjs . check:workbench-activity-performance',
+  'node scripts/run-workspace-package-script.mjs . check:universal-chat-scroll',
+  'node scripts/run-workspace-package-script.mjs . check:universal-chat-rendering-performance',
   'node scripts/run-workspace-package-script.mjs . test:react-syntax-highlighter-types-contract',
   'node scripts/run-workspace-package-script.mjs . check:runtime-symlink-dependency-resolution',
   'node scripts/run-workspace-package-script.mjs . check:tailwind-source',
   'node scripts/run-workspace-package-script.mjs . check:studio-chat-layout',
   'node scripts/run-workspace-package-script.mjs . check:studio-sidebar-stability',
   'node scripts/run-workspace-package-script.mjs . check:studio-stage-header',
+  'node scripts/run-workspace-package-script.mjs . check:project-explorer-hover-stability',
+  'node scripts/run-workspace-package-script.mjs . check:project-git-header-controls',
+  'node scripts/run-workspace-package-script.mjs . check:code-topbar-git-overview',
+  'node scripts/run-workspace-package-script.mjs . check:git-overview-drawer',
   'node scripts/run-workspace-package-script.mjs . check:studio-page-componentization',
   'node scripts/run-workspace-package-script.mjs . check:code-page-componentization',
+  'node scripts/run-workspace-package-script.mjs . check:code-active-surface-performance',
   'node scripts/run-workspace-package-script.mjs . check:code-editor-surface-boundary',
   'node scripts/run-workspace-package-script.mjs . check:file-system-boundary',
+  'node scripts/run-workspace-package-script.mjs . check:file-explorer-rendering-performance',
   'node scripts/run-workspace-package-script.mjs . check:code-workbench-command-boundary',
   'node scripts/run-workspace-package-script.mjs . check:code-run-entry-boundary',
+  'node scripts/run-workspace-package-script.mjs . check:api-transport-standard',
+  'node scripts/run-workspace-package-script.mjs . check:auth-session-standard',
+  'node scripts/run-workspace-package-script.mjs . check:terminal-surface-standard',
+  'node scripts/run-workspace-package-script.mjs . check:workbench-session-standard',
+  'node scripts/run-workspace-package-script.mjs . check:project-inventory-standard',
+  'node scripts/run-workspace-package-script.mjs . check:project-session-index-performance',
+  'node scripts/run-workspace-package-script.mjs . check:code-session-standard',
+  'node scripts/run-workspace-package-script.mjs . check:data-kernel',
   'node scripts/run-workspace-package-script.mjs . check:local-store-browser-fallback',
   'node scripts/run-workspace-package-script.mjs . check:package-governance',
   'node scripts/run-workspace-package-script.mjs . check:package-subpath-exports',
@@ -120,6 +216,7 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:governance-baseline',
   'node scripts/run-workspace-package-script.mjs . check:governance-regression-contract',
   'node scripts/run-workspace-package-script.mjs . check:live-docs-governance-baseline',
+  'node scripts/run-workspace-package-script.mjs . check:quality-matrix',
   'node scripts/run-workspace-package-script.mjs . check:quality-loop-scoreboard',
   'node scripts/run-workspace-package-script.mjs . test:prompt-service-contract',
   'node scripts/run-workspace-package-script.mjs . test:coding-session-prompt-history-persistence-contract',

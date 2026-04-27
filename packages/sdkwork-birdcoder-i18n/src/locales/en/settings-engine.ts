@@ -51,7 +51,7 @@ export default defineLocaleModule('settings/engine', {
       serverReady: 'Rust server ready',
       serverPlanned: 'Server planned',
       serverUnavailable:
-        '{{engine}} server adapter is not implemented yet. BirdCoder currently routes real coding turns through the Rust server, and only Codex plus OpenCode are enabled right now.',
+        '{{engine}} server adapter is not available in the current runtime. Check the engine access plan and install or configure the required SDK or CLI runtime before starting a coding turn.',
       builtInModel: 'Built-in',
       customModel: 'Custom',
       removeCustomModel: 'Remove custom model',

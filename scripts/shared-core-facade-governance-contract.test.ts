@@ -43,6 +43,7 @@ const includedOperationIds = [
   'core.deleteCodingSessionMessage',
   'core.createCodingSessionTurn',
   'core.submitApprovalDecision',
+  'core.submitUserQuestionAnswer',
   'core.getCodingSession',
   'core.listCodingSessionEvents',
   'core.listCodingSessionArtifacts',
@@ -126,6 +127,7 @@ assert.equal(typeof writeClient.deleteCodingSession, 'function');
 assert.equal(typeof writeClient.deleteCodingSessionMessage, 'function');
 assert.equal(typeof writeClient.createCodingSessionTurn, 'function');
 assert.equal(typeof writeClient.submitApprovalDecision, 'function');
+assert.equal(typeof writeClient.submitUserQuestionAnswer, 'function');
 assert.equal(
   'createCodingSession' in client,
   false,
@@ -147,9 +149,19 @@ assert.equal(
   'shared core write facade must publish submitApprovalDecision once the route is real and typed.',
 );
 assert.equal(
+  'submitUserQuestionAnswer' in writeClient,
+  true,
+  'shared core write facade must publish submitUserQuestionAnswer once user-question checkpoints are real and typed.',
+);
+assert.equal(
   'submitApprovalDecision' in client,
   false,
   'shared core read facade must stay read-only after submitApprovalDecision is promoted into the typed shared core write facade.',
+);
+assert.equal(
+  'submitUserQuestionAnswer' in client,
+  false,
+  'shared core read facade must stay read-only after submitUserQuestionAnswer is promoted into the typed shared core write facade.',
 );
 assert.equal(
   'forkCodingSession' in client,

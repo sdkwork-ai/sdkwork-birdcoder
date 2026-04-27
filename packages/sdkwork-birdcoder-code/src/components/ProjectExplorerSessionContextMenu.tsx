@@ -17,7 +17,8 @@ interface ProjectExplorerSessionContextMenuProps {
   onArchive?: (id: string) => void;
   onMarkUnread?: (id: string) => void;
   onCopyWorkingDirectory?: (id: string) => void;
-  onCopySessionId?: (id: string) => void;
+  onOpenInTerminal?: (id: string, nativeSessionId?: string) => void;
+  onCopySessionId?: (id: string, nativeSessionId?: string) => void;
   onCopyDeeplink?: (id: string) => void;
   onForkLocal?: (id: string) => void;
   onForkNewTree?: (id: string) => void;
@@ -38,6 +39,7 @@ export function ProjectExplorerSessionContextMenu({
   onArchive,
   onMarkUnread,
   onCopyWorkingDirectory,
+  onOpenInTerminal,
   onCopySessionId,
   onCopyDeeplink,
   onForkLocal,
@@ -125,7 +127,17 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onCopySessionId?.(sessionId);
+          onOpenInTerminal?.(sessionId, session?.nativeSessionId?.trim());
+          onClose();
+        }}
+      >
+        {t('code.openInTerminal')}
+      </button>
+      <button
+        type="button"
+        className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
+        onClick={() => {
+          onCopySessionId?.(sessionId, session?.nativeSessionId?.trim());
           onClose();
         }}
       >

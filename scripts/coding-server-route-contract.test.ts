@@ -18,10 +18,10 @@ assert.deepEqual(descriptor, {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/api/core/v1/routes',
-    routeCount: 74,
+    routeCount: 79,
     routesBySurface: {
-      core: 23,
-      app: 44,
+      core: 24,
+      app: 48,
       admin: 7,
     },
     surfaces: [
@@ -30,14 +30,14 @@ assert.deepEqual(descriptor, {
         basePath: '/api/core/v1',
         description: 'Core coding runtime, engine catalog, session execution, and operation control.',
         name: 'core',
-        routeCount: 23,
+        routeCount: 24,
       },
       {
         authMode: 'user',
         basePath: '/api/app/v1',
         description: 'Application-facing workspace, project, collaboration, and user-center routes.',
         name: 'app',
-        routeCount: 44,
+        routeCount: 48,
       },
       {
         authMode: 'admin',
@@ -72,6 +72,7 @@ assert.equal(core.events.path, '/api/core/v1/coding-sessions/:id/events');
 assert.equal(core.sessionArtifacts.path, '/api/core/v1/coding-sessions/:id/artifacts');
 assert.equal(core.sessionCheckpoints.path, '/api/core/v1/coding-sessions/:id/checkpoints');
 assert.equal(core.approvals.path, '/api/core/v1/approvals/:approvalId/decision');
+assert.equal(core.questions.path, '/api/core/v1/questions/:questionId/answer');
 assert.equal(core.operations.path, '/api/core/v1/operations/:operationId');
 assert.equal(core.models.path, '/api/core/v1/models');
 assert.equal(core.routes.path, '/api/core/v1/routes');
@@ -161,7 +162,7 @@ assert.equal(admin.releases.path, '/api/admin/v1/releases');
 assert.equal(admin.deployments.path, '/api/admin/v1/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 74, 'coding-server should expose the full core/app/admin route matrix');
+assert.equal(routes.length, 79, 'coding-server should expose the full core/app/admin route matrix');
 assert.equal(
   routes.every((route) => route.path.startsWith('/api/core/v1') || route.path.startsWith('/api/app/v1') || route.path.startsWith('/api/admin/v1')),
   true,
@@ -274,6 +275,18 @@ assert.deepEqual(
     path: '/api/core/v1/coding-sessions/:id/fork',
     surface: 'core',
     summary: 'Fork coding session',
+  },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'core.submitUserQuestionAnswer'),
+  {
+    authMode: 'host',
+    method: 'POST',
+    openApiPath: '/api/core/v1/questions/{questionId}/answer',
+    operationId: 'core.submitUserQuestionAnswer',
+    path: '/api/core/v1/questions/:questionId/answer',
+    surface: 'core',
+    summary: 'Submit user-question answer',
   },
 );
 assert.deepEqual(

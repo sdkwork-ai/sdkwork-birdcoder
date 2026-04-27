@@ -5,6 +5,8 @@ import {
   type BirdCoderEntityStorageBinding,
   type BirdCoderSchemaColumnDefinition,
   type BirdCoderSchemaMigrationDefinition,
+  stringifyBirdCoderApiJson,
+  stringifyBirdCoderLongInteger,
 } from '@sdkwork/birdcoder-types';
 import { createBirdCoderStorageDialect } from './providers.ts';
 
@@ -124,7 +126,171 @@ function normalizeJsonValue(value: unknown): string {
     return value;
   }
 
-  return JSON.stringify(value ?? {});
+  return stringifyBirdCoderApiJson(value ?? {});
+}
+
+function normalizeIdSqlParamValue(columnName: string, value: unknown): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'bigint') {
+    return value.toString();
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) {
+      throw new Error(`BirdCoder SQL id field ${columnName} must be an integer.`);
+    }
+    if (!Number.isSafeInteger(value)) {
+      throw new Error(
+        `BirdCoder SQL id field ${columnName} received an unsafe JavaScript number; pass the exact decimal string instead.`,
+      );
+    }
+    return String(value);
+  }
+
+  throw new Error(
+    `BirdCoder SQL id field ${columnName} must be a string, bigint, or safe integer.`,
+  );
+}
+
+function normalizeLongIntegerSqlParamValue(columnName: string, value: unknown): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value === 'string' && value.trim().length === 0) {
+    return null;
+  }
+
+  if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'bigint') {
+    return stringifyBirdCoderLongInteger(String(value));
+  }
+
+  try {
+    return stringifyBirdCoderLongInteger(value);
+  } catch (error) {
+    throw new Error(
+      `BirdCoder SQL bigint field ${columnName} must be an exact decimal string.`,
+      { cause: error },
+    );
+  }
+}
+
+function normalizeIntegerSqlParamValue(columnName: string, value: unknown): number | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) {
+      throw new Error(`BirdCoder SQL int field ${columnName} must be an integer.`);
+    }
+    if (!Number.isSafeInteger(value)) {
+      throw new Error(
+        `BirdCoder SQL int field ${columnName} received an unsafe JavaScript number; pass a safe integer instead.`,
+      );
+    }
+    return value;
+  }
+
+  if (typeof value === 'bigint') {
+    const min = BigInt(Number.MIN_SAFE_INTEGER);
+    const max = BigInt(Number.MAX_SAFE_INTEGER);
+    if (value < min || value > max) {
+      throw new Error(`BirdCoder SQL int field ${columnName} must be a safe integer.`);
+    }
+    return Number(value);
+  }
+
+  if (typeof value === 'string') {
+    const normalizedValue = value.trim();
+    if (!normalizedValue) {
+      return null;
+    }
+    if (!/^[+-]?\d+$/u.test(normalizedValue)) {
+      throw new Error(`BirdCoder SQL int field ${columnName} must be an integer.`);
+    }
+
+    const integerValue = BigInt(normalizedValue);
+    const min = BigInt(Number.MIN_SAFE_INTEGER);
+    const max = BigInt(Number.MAX_SAFE_INTEGER);
+    if (integerValue < min || integerValue > max) {
+      throw new Error(`BirdCoder SQL int field ${columnName} must be a safe integer.`);
+    }
+    return Number(integerValue);
+  }
+
+  throw new Error(`BirdCoder SQL int field ${columnName} must be a safe integer.`);
+}
+
+function normalizeDefaultedLongScopeValue(columnName: string, value: unknown): string {
+  if (value === undefined || value === null) {
+    return '0';
+  }
+
+  if (typeof value === 'string' && value.trim().length === 0) {
+    return '0';
+  }
+
+  return normalizeLongIntegerSqlParamValue(columnName, value) ?? '0';
+}
+
+function normalizeDataScopeStorageValue(value: unknown): number {
+  if (value === undefined || value === null) {
+    return 1;
+  }
+
+  const resolveNumericScope = (numericValue: number): number => {
+    if (numericValue >= 0 && numericValue <= 3) {
+      return numericValue;
+    }
+    throw new Error(`Unsupported BirdCoder data_scope value: ${String(value)}`);
+  };
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || !Number.isInteger(value) || !Number.isSafeInteger(value)) {
+      throw new Error(`Unsupported BirdCoder data_scope value: ${String(value)}`);
+    }
+    return resolveNumericScope(value);
+  }
+
+  if (typeof value === 'bigint') {
+    if (value >= 0n && value <= 3n) {
+      return Number(value);
+    }
+    throw new Error(`Unsupported BirdCoder data_scope value: ${String(value)}`);
+  }
+
+  const normalizedValue = String(value).trim().toUpperCase();
+  if (!normalizedValue) {
+    return 1;
+  }
+
+  switch (normalizedValue) {
+    case 'DEFAULT':
+      return 0;
+    case 'PRIVATE':
+      return 1;
+    case 'SHARED':
+      return 2;
+    case 'PUBLIC':
+      return 3;
+    default: {
+      if (/^[+-]?\d+$/u.test(normalizedValue)) {
+        const numericValue = BigInt(normalizedValue);
+        if (numericValue >= 0n && numericValue <= 3n) {
+          return Number(numericValue);
+        }
+      }
+      throw new Error(`Unsupported BirdCoder data_scope value: ${String(value)}`);
+    }
+  }
 }
 
 function normalizeColumnValue(
@@ -134,9 +300,17 @@ function normalizeColumnValue(
 ): unknown {
   const value = row[column.name];
 
+  if (column.name === 'tenant_id' || column.name === 'organization_id') {
+    return normalizeDefaultedLongScopeValue(column.name, value);
+  }
+
+  if (column.name === 'data_scope') {
+    return normalizeDataScopeStorageValue(value);
+  }
+
   if (value === undefined) {
-    if (column.name === 'version') {
-      return 0;
+    if (column.name === 'version' || column.name === 'v') {
+      return '0';
     }
 
     if (column.name === 'is_deleted') {
@@ -152,6 +326,18 @@ function normalizeColumnValue(
 
   if (column.logicalType === 'bool') {
     return normalizeBooleanValue(providerId, value);
+  }
+
+  if (column.logicalType === 'id') {
+    return normalizeIdSqlParamValue(column.name, value);
+  }
+
+  if (column.logicalType === 'bigint') {
+    return normalizeLongIntegerSqlParamValue(column.name, value);
+  }
+
+  if (column.logicalType === 'int') {
+    return normalizeIntegerSqlParamValue(column.name, value);
   }
 
   if (column.logicalType === 'json') {
@@ -184,6 +370,7 @@ export function createBirdCoderTableSqlPlanner({
   providerId,
 }: CreateBirdCoderTableSqlPlannerOptions): BirdCoderTableSqlPlanner {
   const tableName = definition.tableName;
+  const hasSoftDeleteColumn = definition.columns.some((column) => column.name === 'is_deleted');
   const updateColumns = buildConflictUpdateColumns(definition);
   const defaultOrdering: readonly BirdCoderSqlPlanOrderBy[] = [
     { column: 'updated_at', direction: 'desc' },
@@ -192,17 +379,23 @@ export function createBirdCoderTableSqlPlanner({
 
   return {
     buildListPlan() {
+      const dialect = createBirdCoderStorageDialect(providerId);
       return buildPlan(
         providerId,
         'read',
         [
-          {
-            params: [defaultSoftDeleteValue(providerId)],
-            sql: `SELECT * FROM ${tableName} WHERE is_deleted = ${createBirdCoderStorageDialect(providerId).buildPlaceholder(1)} ORDER BY updated_at DESC, id ASC;`,
-          },
+          hasSoftDeleteColumn
+            ? {
+                params: [defaultSoftDeleteValue(providerId)],
+                sql: `SELECT * FROM ${tableName} WHERE is_deleted = ${dialect.buildPlaceholder(1)} ORDER BY updated_at DESC, id ASC;`,
+              }
+            : {
+                params: [],
+                sql: `SELECT * FROM ${tableName} ORDER BY updated_at DESC, id ASC;`,
+              },
         ],
         {
-          excludeDeleted: true,
+          excludeDeleted: hasSoftDeleteColumn,
           kind: 'table-list',
           orderBy: defaultOrdering,
           tableName,
@@ -210,34 +403,46 @@ export function createBirdCoderTableSqlPlanner({
       );
     },
     buildCountPlan() {
+      const dialect = createBirdCoderStorageDialect(providerId);
       return buildPlan(
         providerId,
         'read',
         [
-          {
-            params: [defaultSoftDeleteValue(providerId)],
-            sql: `SELECT COUNT(*) AS total FROM ${tableName} WHERE is_deleted = ${createBirdCoderStorageDialect(providerId).buildPlaceholder(1)};`,
-          },
+          hasSoftDeleteColumn
+            ? {
+                params: [defaultSoftDeleteValue(providerId)],
+                sql: `SELECT COUNT(*) AS total FROM ${tableName} WHERE is_deleted = ${dialect.buildPlaceholder(1)};`,
+              }
+            : {
+                params: [],
+                sql: `SELECT COUNT(*) AS total FROM ${tableName};`,
+              },
         ],
         {
-          excludeDeleted: true,
+          excludeDeleted: hasSoftDeleteColumn,
           kind: 'table-count',
           tableName,
         },
       );
     },
     buildFindByIdPlan(id) {
+      const dialect = createBirdCoderStorageDialect(providerId);
       return buildPlan(
         providerId,
         'read',
         [
-          {
-            params: [id, defaultSoftDeleteValue(providerId)],
-            sql: `SELECT * FROM ${tableName} WHERE id = ${createBirdCoderStorageDialect(providerId).buildPlaceholder(1)} AND is_deleted = ${createBirdCoderStorageDialect(providerId).buildPlaceholder(2)} LIMIT 1;`,
-          },
+          hasSoftDeleteColumn
+            ? {
+                params: [id, defaultSoftDeleteValue(providerId)],
+                sql: `SELECT * FROM ${tableName} WHERE id = ${dialect.buildPlaceholder(1)} AND is_deleted = ${dialect.buildPlaceholder(2)} LIMIT 1;`,
+              }
+            : {
+                params: [id],
+                sql: `SELECT * FROM ${tableName} WHERE id = ${dialect.buildPlaceholder(1)} LIMIT 1;`,
+              },
         ],
         {
-          excludeDeleted: true,
+          excludeDeleted: hasSoftDeleteColumn,
           id,
           kind: 'table-find-by-id',
           tableName,
@@ -334,7 +539,7 @@ export function buildBirdCoderSchemaMigrationPlan(
 function buildMigrationHistoryDetailsJson(
   input: BirdCoderSchemaMigrationHistoryPlanInput,
 ): string {
-  return JSON.stringify({
+  return stringifyBirdCoderApiJson({
     description: input.description,
     entityNames: input.entityNames,
   });
@@ -346,6 +551,7 @@ function mapMigrationHistoryColumns(
 ): readonly unknown[] {
   return [
     `${input.providerId}:${input.migrationId}`,
+    null,
     input.appliedAt,
     input.appliedAt,
     0,
@@ -383,6 +589,7 @@ export function buildBirdCoderSchemaMigrationHistoryUpsertPlan(
       kind: 'migration-history-upsert',
       row: {
         id: `${input.providerId}:${input.migrationId}`,
+        uuid: null,
         created_at: input.appliedAt,
         updated_at: input.appliedAt,
         version: 0,

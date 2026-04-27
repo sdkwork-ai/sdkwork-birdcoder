@@ -55,10 +55,20 @@ function toFsUrl(filePath) {
 async function createDesktopServer() {
   return createDesktopConfiguredViteServer({
     host: '127.0.0.1',
-    port: 1532,
-    strictPort: true,
+    port: 0,
+    strictPort: false,
     mode: 'development',
   });
+}
+
+function resolveDesktopServerOrigin(server, host = '127.0.0.1') {
+  const address = server.httpServer?.address();
+  assert.ok(
+    address && typeof address === 'object' && typeof address.port === 'number' && address.port > 0,
+    'Desktop React compatibility contract must resolve the actual Vite loopback port before probing modules.',
+  );
+
+  return `http://${host}:${address.port}`;
 }
 
 async function readProbe(url) {
@@ -66,6 +76,14 @@ async function readProbe(url) {
     maxAttempts: 3,
     timeoutMs: 10000,
   });
+}
+
+function createServerProbeReader(serverOrigin) {
+  return function readServerProbe(requestPath) {
+    const normalizedPath = requestPath.startsWith('/') ? requestPath : `/${requestPath}`;
+
+    return readProbe(`${serverOrigin}${normalizedPath}`);
+  };
 }
 
 const lucideEntryPath = rootRequire.resolve('lucide-react');
@@ -114,8 +132,10 @@ const server = await createDesktopServer();
 
 try {
   await server.listen();
+  const serverOrigin = resolveDesktopServerOrigin(server);
+  const readServerProbe = createServerProbeReader(serverOrigin);
 
-  const { response: mainResponse, source: mainSource } = await readProbe('http://127.0.0.1:1532/src/main.tsx');
+  const { response: mainResponse, source: mainSource } = await readServerProbe('/src/main.tsx');
 
   assert.equal(
     mainResponse.status,
@@ -128,7 +148,7 @@ try {
     'Desktop main.tsx transform must not rely on an esbuild child-process path that fails with spawn EPERM in this Windows environment.',
   );
 
-  const { response: appEntryResponse, source: appEntrySource } = await readProbe(`http://127.0.0.1:1532${toFsUrl(appEntryPath)}`);
+  const { response: appEntryResponse, source: appEntrySource } = await readServerProbe(toFsUrl(appEntryPath));
 
   assert.equal(
     appEntryResponse.status,
@@ -141,8 +161,8 @@ try {
     'Desktop App.tsx must not leak unresolved package subpath imports into the startup graph.',
   );
 
-  const { response: shellBootstrapResponse, source: shellBootstrapSource } = await readProbe(
-    `http://127.0.0.1:1532${toFsUrl(shellBootstrapEntryPath)}`,
+  const { response: shellBootstrapResponse, source: shellBootstrapSource } = await readServerProbe(
+    toFsUrl(shellBootstrapEntryPath),
   );
 
   assert.equal(
@@ -156,8 +176,8 @@ try {
     'Desktop shell bootstrap runtime must not leak unresolved imports into the startup graph.',
   );
 
-  const { response: pageLoadersResponse, source: pageLoadersSource } = await readProbe(
-    `http://127.0.0.1:1532${toFsUrl(pageLoadersEntryPath)}`,
+  const { response: pageLoadersResponse, source: pageLoadersSource } = await readServerProbe(
+    toFsUrl(pageLoadersEntryPath),
   );
 
   assert.equal(
@@ -171,8 +191,8 @@ try {
     'Desktop pageLoaders.ts must not leak unresolved sdkwork-terminal imports into the startup graph.',
   );
 
-  const { response: terminalDesktopResponse, source: terminalDesktopSource } = await readProbe(
-    `http://127.0.0.1:1532${toFsUrl(terminalDesktopEntryPath)}`,
+  const { response: terminalDesktopResponse, source: terminalDesktopSource } = await readServerProbe(
+    toFsUrl(terminalDesktopEntryPath),
   );
 
   assert.equal(
@@ -186,8 +206,8 @@ try {
     'sdkwork-terminal desktop index.ts must not leak unresolved imports when BirdCoder consumes the shared desktop surface directly.',
   );
 
-  const { response: terminalInfrastructureResponse, source: terminalInfrastructureSource } = await readProbe(
-    `http://127.0.0.1:1532${toFsUrl(terminalInfrastructureEntryPath)}`,
+  const { response: terminalInfrastructureResponse, source: terminalInfrastructureSource } = await readServerProbe(
+    toFsUrl(terminalInfrastructureEntryPath),
   );
 
   assert.equal(
@@ -206,8 +226,8 @@ try {
     'sdkwork-terminal infrastructure must not fall back to the raw xterm UMD runtime inside BirdCoder.',
   );
 
-  const { response: xtermCompatResponse, source: xtermCompatSource } = await readProbe(
-    'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-xterm-xterm',
+  const { response: xtermCompatResponse, source: xtermCompatSource } = await readServerProbe(
+    '/@id/__x00__sdkwork-birdcoder-desktop-xterm-xterm',
   );
 
   assert.equal(
@@ -221,7 +241,7 @@ try {
     'Desktop xterm compat module must provide a default export while preserving named exports for terminal runtime consumers.',
   );
 
-  const { response: iconResponse, source: iconSource } = await readProbe(`http://127.0.0.1:1532${toFsUrl(iconEntryPath)}`);
+  const { response: iconResponse, source: iconSource } = await readServerProbe(toFsUrl(iconEntryPath));
 
   assert.equal(
     iconResponse.status,
@@ -239,7 +259,7 @@ try {
     'Desktop dependency transforms must not crash the CommonJS plugin container while resolving React runtime modules.',
   );
 
-  const { response: htmlParseStringifyResponse, source: htmlParseStringifySource } = await readProbe(`http://127.0.0.1:1532${toFsUrl(htmlParseStringifyEntryPath)}`);
+  const { response: htmlParseStringifyResponse, source: htmlParseStringifySource } = await readServerProbe(toFsUrl(htmlParseStringifyEntryPath));
 
   assert.equal(
     htmlParseStringifyResponse.status,
@@ -252,8 +272,8 @@ try {
     'Desktop dependency transforms must not leak the raw void-elements CommonJS entry into browser ESM imports.',
   );
 
-  const { response: voidElementsCompatResponse, source: voidElementsCompatSource } = await readProbe(
-    'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-void-elements',
+  const { response: voidElementsCompatResponse, source: voidElementsCompatSource } = await readServerProbe(
+    '/@id/__x00__sdkwork-birdcoder-desktop-void-elements',
   );
 
   assert.equal(
@@ -267,7 +287,7 @@ try {
     'Desktop void-elements compat module must provide a default export so html-parse-stringify can import it in the browser.',
   );
 
-  const { response: hastUtilToJsxRuntimeResponse, source: hastUtilToJsxRuntimeSource } = await readProbe(`http://127.0.0.1:1532${toFsUrl(hastUtilToJsxRuntimeEntryPath)}`);
+  const { response: hastUtilToJsxRuntimeResponse, source: hastUtilToJsxRuntimeSource } = await readServerProbe(toFsUrl(hastUtilToJsxRuntimeEntryPath));
 
   assert.equal(
     hastUtilToJsxRuntimeResponse.status,
@@ -280,8 +300,8 @@ try {
     'Desktop dependency transforms must not leak the raw style-to-js CommonJS entry into browser ESM imports.',
   );
 
-  const { response: styleToJsCompatResponse, source: styleToJsCompatSource } = await readProbe(
-    'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-style-to-js',
+  const { response: styleToJsCompatResponse, source: styleToJsCompatSource } = await readServerProbe(
+    '/@id/__x00__sdkwork-birdcoder-desktop-style-to-js',
   );
 
   assert.equal(
@@ -295,8 +315,8 @@ try {
     'Desktop style-to-js compat module must provide a default export so hast-util-to-jsx-runtime can import it in the browser.',
   );
 
-  const { response: reactSyntaxHighlighterVueResponse, source: reactSyntaxHighlighterVueSource } = await readProbe(
-    `http://127.0.0.1:1532${toFsUrl(reactSyntaxHighlighterVueEntryPath)}`,
+  const { response: reactSyntaxHighlighterVueResponse, source: reactSyntaxHighlighterVueSource } = await readServerProbe(
+    toFsUrl(reactSyntaxHighlighterVueEntryPath),
   );
 
   assert.equal(
@@ -310,8 +330,8 @@ try {
     'Desktop dependency transforms must not leak the raw highlight.js CommonJS entry into browser ESM imports.',
   );
 
-  const { response: highlightJsCompatResponse, source: highlightJsCompatSource } = await readProbe(
-    'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-highlight-js',
+  const { response: highlightJsCompatResponse, source: highlightJsCompatSource } = await readServerProbe(
+    '/@id/__x00__sdkwork-birdcoder-desktop-highlight-js',
   );
 
   assert.equal(
@@ -325,8 +345,8 @@ try {
     'Desktop highlight.js compat module must provide a default export so react-syntax-highlighter language modules can import it in the browser.',
   );
 
-  const { response: micromarkCreateTokenizerResponse, source: micromarkCreateTokenizerSource } = await readProbe(
-    `http://127.0.0.1:1532${toFsUrl(micromarkCreateTokenizerEntryPath)}`,
+  const { response: micromarkCreateTokenizerResponse, source: micromarkCreateTokenizerSource } = await readServerProbe(
+    toFsUrl(micromarkCreateTokenizerEntryPath),
   );
 
   assert.equal(
@@ -340,8 +360,8 @@ try {
     'Desktop dependency transforms must not leak the raw debug browser CommonJS entry into browser ESM imports.',
   );
 
-  const { response: debugCompatResponse, source: debugCompatSource } = await readProbe(
-    'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-debug',
+  const { response: debugCompatResponse, source: debugCompatSource } = await readServerProbe(
+    '/@id/__x00__sdkwork-birdcoder-desktop-debug',
   );
 
   assert.equal(
@@ -355,8 +375,8 @@ try {
     'Desktop debug compat module must provide a default export so micromark can import debug in the browser.',
   );
 
-  const { response: unifiedLibIndexResponse, source: unifiedLibIndexSource } = await readProbe(
-    `http://127.0.0.1:1532${toFsUrl(unifiedLibIndexEntryPath)}`,
+  const { response: unifiedLibIndexResponse, source: unifiedLibIndexSource } = await readServerProbe(
+    toFsUrl(unifiedLibIndexEntryPath),
   );
 
   assert.equal(
@@ -370,8 +390,8 @@ try {
     'Desktop dependency transforms must not leak the raw extend CommonJS entry into browser ESM imports.',
   );
 
-  const { response: extendCompatResponse, source: extendCompatSource } = await readProbe(
-    'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-extend',
+  const { response: extendCompatResponse, source: extendCompatSource } = await readServerProbe(
+    '/@id/__x00__sdkwork-birdcoder-desktop-extend',
   );
 
   assert.equal(
@@ -385,8 +405,8 @@ try {
     'Desktop extend compat module must provide a default export so unified can import extend in the browser.',
   );
 
-  const { response: reactDomClientCompiledResponse, source: reactDomClientCompiledSource } = await readProbe(
-    'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-react-dom-client-compiled',
+  const { response: reactDomClientCompiledResponse, source: reactDomClientCompiledSource } = await readServerProbe(
+    '/@id/__x00__sdkwork-birdcoder-desktop-react-dom-client-compiled',
   );
 
   assert.equal(
@@ -400,8 +420,8 @@ try {
     'Desktop react-dom/client compat chunk must resolve scheduler without leaking raw unresolved imports into the startup graph.',
   );
 
-  const { response: reactCompatCompiledResponse, source: reactCompatCompiledSource } = await readProbe(
-    'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-react-compiled',
+  const { response: reactCompatCompiledResponse, source: reactCompatCompiledSource } = await readServerProbe(
+    '/@id/__x00__sdkwork-birdcoder-desktop-react-compiled',
   );
 
   assert.equal(
@@ -415,8 +435,8 @@ try {
     'Desktop react compat chunk must preserve a default export because the virtual wrapper imports React as a default export.',
   );
 
-  const { response: reactCompatWrapperResponse, source: reactCompatWrapperSource } = await readProbe(
-    'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-react',
+  const { response: reactCompatWrapperResponse, source: reactCompatWrapperSource } = await readServerProbe(
+    '/@id/__x00__sdkwork-birdcoder-desktop-react',
   );
 
   assert.equal(
@@ -430,8 +450,8 @@ try {
     'Desktop react compat wrapper must continue to import the compiled React chunk as a default export.',
   );
 
-  const { response: useSyncShimCompiledResponse, source: useSyncShimCompiledSource } = await readProbe(
-    'http://127.0.0.1:1532/@id/__x00__sdkwork-birdcoder-desktop-use-sync-external-store-shim-compiled',
+  const { response: useSyncShimCompiledResponse, source: useSyncShimCompiledSource } = await readServerProbe(
+    '/@id/__x00__sdkwork-birdcoder-desktop-use-sync-external-store-shim-compiled',
   );
 
   assert.equal(

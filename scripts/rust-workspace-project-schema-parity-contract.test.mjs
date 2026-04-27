@@ -44,45 +44,86 @@ const requiredProjectColumns = [
   'uuid',
   'created_at',
   'updated_at',
+  'v',
+  'tenant_id',
+  'organization_id',
   'data_scope',
-  'user_id',
   'parent_id',
   'parent_uuid',
   'parent_metadata',
-  'workspace_id',
-  'workspace_uuid',
-  'code',
+  'user_id',
+  'name',
   'title',
-  'root_path',
-  'owner_id',
-  'leader_id',
-  'created_by_user_id',
+  'cover_image',
   'author',
   'file_id',
+  'code',
   'type',
   'site_path',
   'domain_prefix',
+  'description',
+  'status',
   'conversation_id',
+  'workspace_id',
+  'workspace_uuid',
+  'leader_id',
   'start_time',
   'end_time',
   'budget_amount',
-  'cover_image_json',
+  'is_deleted',
   'is_template',
-  'status',
+];
+
+const forbiddenProjectColumns = [
+  'version',
+  'root_path',
+  'cover_image_json',
+  'owner_id',
+  'created_by_user_id',
+];
+
+const requiredProjectContentColumns = [
+  'id',
+  'uuid',
+  'created_at',
+  'updated_at',
+  'v',
+  'tenant_id',
+  'organization_id',
+  'data_scope',
+  'user_id',
+  'parent_id',
+  'project_id',
+  'project_uuid',
+  'config_data',
+  'content_data',
+  'metadata',
+  'content_version',
+  'content_hash',
 ];
 
 const physicalSchemaTargets = [
   {
-    tableName: 'workspaces',
+    tableName: 'plus_workspace',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
+      owner_id: 'INTEGER NOT NULL',
     },
   },
   {
-    tableName: 'projects',
+    tableName: 'plus_project',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
-      workspace_id: 'INTEGER NOT NULL',
+      workspace_id: 'INTEGER NULL',
+      type: 'INTEGER NOT NULL',
+      status: 'INTEGER NOT NULL',
+    },
+  },
+  {
+    tableName: 'plus_project_content',
+    requiredColumns: {
+      id: 'INTEGER PRIMARY KEY',
+      project_id: 'INTEGER NOT NULL',
     },
   },
   {
@@ -138,35 +179,68 @@ function bodyMatchesColumnType(body, columnName, columnDefinition) {
 for (const { label, path } of sources) {
   const rustSource = await readFile(path, 'utf8');
 
-  const workspaceBodies = collectCreateTableBodies(rustSource, 'workspaces');
+  const workspaceBodies = collectCreateTableBodies(rustSource, 'plus_workspace');
   assert(
     workspaceBodies.length > 0,
-    `${label} rust source must declare at least one workspaces table.`,
+    `${label} rust source must declare at least one plus_workspace table.`,
   );
   for (const workspaceBody of workspaceBodies) {
     for (const columnName of requiredWorkspaceColumns) {
       assert.match(
         workspaceBody,
         new RegExp(`\\b${escapeRegExp(columnName)}\\b`),
-        `${label} workspaces schema must include "${columnName}".`,
+        `${label} plus_workspace schema must include "${columnName}".`,
       );
     }
   }
 
-  const projectBodies = collectCreateTableBodies(rustSource, 'projects');
+  const projectBodies = collectCreateTableBodies(rustSource, 'plus_project');
   assert(
     projectBodies.length > 0,
-    `${label} rust source must declare at least one projects table.`,
+    `${label} rust source must declare at least one plus_project table.`,
   );
   for (const projectBody of projectBodies) {
     for (const columnName of requiredProjectColumns) {
       assert.match(
         projectBody,
         new RegExp(`\\b${escapeRegExp(columnName)}\\b`),
-        `${label} projects schema must include "${columnName}".`,
+        `${label} plus_project schema must include "${columnName}".`,
+      );
+    }
+    for (const columnName of forbiddenProjectColumns) {
+      assert.doesNotMatch(
+        projectBody,
+        new RegExp(`\\b${escapeRegExp(columnName)}\\b`),
+        `${label} plus_project schema must not retain non-Java column "${columnName}".`,
       );
     }
   }
+
+  const projectContentBodies = collectCreateTableBodies(rustSource, 'plus_project_content');
+  assert(
+    projectContentBodies.length > 0,
+    `${label} rust source must declare at least one plus_project_content table.`,
+  );
+  for (const projectContentBody of projectContentBodies) {
+    for (const columnName of requiredProjectContentColumns) {
+      assert.match(
+        projectContentBody,
+        new RegExp(`\\b${escapeRegExp(columnName)}\\b`),
+        `${label} plus_project_content schema must include "${columnName}".`,
+      );
+    }
+  }
+
+  assert.equal(
+    collectCreateTableBodies(rustSource, 'workspaces').length,
+    0,
+    `${label} rust source must not declare the legacy workspaces physical table.`,
+  );
+  assert.equal(
+    collectCreateTableBodies(rustSource, 'projects').length,
+    0,
+    `${label} rust source must not declare the legacy projects physical table.`,
+  );
 
   for (const { tableName, requiredColumns } of physicalSchemaTargets) {
     const tableBodies = collectCreateTableBodies(rustSource, tableName);
@@ -189,6 +263,16 @@ for (const { label, path } of sources) {
       rustSource,
       /ensure_sqlite_provider_authority_integer_identifier_upgrade\(connection\)\?/,
       'server sqlite provider authority upgrade must invoke integer identifier schema migration.',
+    );
+    assert.doesNotMatch(
+      rustSource,
+      /const SQLITE_INTEGER_IDENTIFIER_TABLE_RULES:\s*\[\(&str,\s*&\[\(&str,\s*bool\)\]\);\s*\d+\]/,
+      'server sqlite provider authority integer identifier rules must not require a manually maintained array length.',
+    );
+    assert.match(
+      rustSource,
+      /const SQLITE_INTEGER_IDENTIFIER_TABLE_RULES:\s*&\[\(&str,\s*&\[\(&str,\s*bool\)\]\)\]\s*=\s*&\[/,
+      'server sqlite provider authority integer identifier rules must be a static slice so adding tables does not require length bookkeeping.',
     );
   }
 }

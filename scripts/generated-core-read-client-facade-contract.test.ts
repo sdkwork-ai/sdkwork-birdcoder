@@ -241,7 +241,7 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
             [
               {
                 createdAt: '2026-04-17T00:00:00.000Z',
-                id: 'codex-native:session-generated-contract',
+                id: 'session-generated-contract',
                 workspaceId: 'workspace-generated-contract',
                 projectId: 'project-generated-contract',
                 title: 'Generated native session',
@@ -253,18 +253,18 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
                 lastTurnAt: '2026-04-17T00:05:00.000Z',
                 kind: 'coding',
                 nativeCwd: 'D:/workspace/generated-contract',
-                sortTimestamp: 1713312300000,
+                sortTimestamp: '1713312300000',
                 transcriptUpdatedAt: '2026-04-17T00:05:00.000Z',
               },
             ],
             'req.core.native-sessions',
           ) as TResponse;
-        case '/api/core/v1/native-sessions/codex-native%3Asession-generated-contract':
+        case '/api/core/v1/native-sessions/session-generated-contract':
           return createEnvelope(
             {
               summary: {
                 createdAt: '2026-04-17T00:00:00.000Z',
-                id: 'codex-native:session-generated-contract',
+                id: 'session-generated-contract',
                 workspaceId: 'workspace-generated-contract',
                 projectId: 'project-generated-contract',
                 title: 'Generated native session',
@@ -276,13 +276,13 @@ const client = createBirdCoderGeneratedCoreReadApiClient({
                 lastTurnAt: '2026-04-17T00:05:00.000Z',
                 kind: 'coding',
                 nativeCwd: 'D:/workspace/generated-contract',
-                sortTimestamp: 1713312300000,
+                sortTimestamp: '1713312300000',
                 transcriptUpdatedAt: '2026-04-17T00:05:00.000Z',
               },
               messages: [
                 {
                   id: 'native-message-generated-contract',
-                  codingSessionId: 'codex-native:session-generated-contract',
+                  codingSessionId: 'session-generated-contract',
                   turnId: 'native-turn-generated-contract',
                   role: 'assistant',
                   content: 'Generated native session message.',
@@ -330,7 +330,7 @@ const nativeSessions = await client.listNativeSessions({
   projectId: 'project-generated-contract',
   workspaceId: 'workspace-generated-contract',
 });
-const nativeSession = await client.getNativeSession('codex-native:session-generated-contract', {
+const nativeSession = await client.getNativeSession('session-generated-contract', {
   engineId: 'codex',
   projectId: 'project-generated-contract',
   workspaceId: 'workspace-generated-contract',
@@ -347,8 +347,8 @@ assert.equal(models[0]?.modelId, 'codex');
 assert.equal(nativeSessionProviders[0]?.engineId, 'codex');
 assert.equal(routes[0]?.operationId, 'core.listRoutes');
 assert.equal(codingSessions[0]?.id, 'coding-session-generated-contract');
-assert.equal(nativeSessions[0]?.id, 'codex-native:session-generated-contract');
-assert.equal(nativeSession.summary.id, 'codex-native:session-generated-contract');
+assert.equal(nativeSessions[0]?.id, 'session-generated-contract');
+assert.equal(nativeSession.summary.id, 'session-generated-contract');
 assert.equal(operation.operationId, 'op-generated-core-read');
 assert.deepEqual(observedRequests, [
   {
@@ -405,7 +405,7 @@ assert.deepEqual(observedRequests, [
   },
   {
     method: 'GET',
-    path: '/api/core/v1/native-sessions/codex-native%3Asession-generated-contract',
+    path: '/api/core/v1/native-sessions/session-generated-contract',
     query: {
       engineId: 'codex',
       projectId: 'project-generated-contract',

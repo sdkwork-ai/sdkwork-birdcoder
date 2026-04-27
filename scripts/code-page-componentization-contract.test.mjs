@@ -102,8 +102,8 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /showComposerEngineSelector:\s*!sessionId,/,
-  'CodePage must hide the composer engine selector once a coding session exists so session engine and model stay immutable.',
+  /showComposerEngineSelector:\s*!visibleSessionId,/,
+  'CodePage must hide the composer engine selector once a visible coding session exists and restore selector affordances while a new session is pending.',
 );
 
 assert.match(

@@ -3,18 +3,20 @@ import type {
   BirdCoderCodingSessionSummary,
   BirdCoderGetNativeSessionRequest,
   BirdCoderListNativeSessionsRequest,
+  BirdCoderLongIntegerString,
   BirdCoderNativeSessionDetail,
   BirdCoderNativeSessionSummary,
 } from '@sdkwork/birdcoder-types';
 import {
   isBirdCoderCodeEngineNativeSessionId,
+  normalizeBirdCoderCodeEngineNativeSessionId,
   resolveBirdCoderCodeEngineNativeSessionIdPrefix,
 } from '@sdkwork/birdcoder-codeengine';
 
 export interface StoredCodingSessionInventoryRecord extends BirdCoderCodingSessionSummary {
   kind: 'coding';
   nativeCwd?: string | null;
-  sortTimestamp: number;
+  sortTimestamp: BirdCoderLongIntegerString;
   transcriptUpdatedAt?: string | null;
 }
 
@@ -33,8 +35,25 @@ export function resolveAuthorityBackedNativeSessionIdPrefix(
 export function isAuthorityBackedNativeSessionId(
   codingSessionId: string,
   engineId?: string,
+  nativeSessionId?: string | null,
 ): boolean {
-  return isBirdCoderCodeEngineNativeSessionId(codingSessionId, engineId);
+  if (isBirdCoderCodeEngineNativeSessionId(codingSessionId, engineId)) {
+    return true;
+  }
+
+  const normalizedCodingSessionId = normalizeBirdCoderCodeEngineNativeSessionId(
+    codingSessionId,
+    engineId,
+  );
+  const normalizedNativeSessionId = normalizeBirdCoderCodeEngineNativeSessionId(
+    nativeSessionId,
+    engineId,
+  );
+  return (
+    !!normalizedCodingSessionId &&
+    !!normalizedNativeSessionId &&
+    normalizedCodingSessionId === normalizedNativeSessionId
+  );
 }
 
 export type NativeSessionAuthorityCoreReadService = Pick<
@@ -53,14 +72,21 @@ export type NativeSessionAuthorityCoreReadService = Pick<
 function toStoredNativeSessionSummary(
   summary: BirdCoderNativeSessionSummary,
 ): StoredCodingSessionInventoryRecord {
+  const nativeSessionId =
+    normalizeBirdCoderCodeEngineNativeSessionId(summary.nativeSessionId ?? summary.id, summary.engineId) ??
+    summary.nativeSessionId ??
+    summary.id;
+  const sessionId =
+    normalizeBirdCoderCodeEngineNativeSessionId(summary.id, summary.engineId) ?? summary.id;
   return {
     createdAt: summary.createdAt,
     engineId: summary.engineId,
     hostMode: summary.hostMode,
-    id: summary.id,
+    id: sessionId,
     kind: 'coding',
     lastTurnAt: summary.lastTurnAt,
     modelId: summary.modelId,
+    nativeSessionId,
     nativeCwd: summary.nativeCwd ?? null,
     projectId: summary.projectId,
     runtimeStatus: summary.runtimeStatus,
@@ -81,12 +107,22 @@ function toNativeChatMessage(message: BirdCoderNativeSessionDetail['messages'][n
     createdAt: message.createdAt,
     commands: message.commands?.map((command) => ({
       command: command.command,
+      kind: command.kind,
       output: command.output,
+      requiresApproval: command.requiresApproval,
+      requiresReply: command.requiresReply,
+      runtimeStatus: command.runtimeStatus,
       status: command.status,
+      toolCallId: command.toolCallId,
+      toolName: command.toolName,
     })),
+    fileChanges: message.fileChanges as BirdCoderChatMessage['fileChanges'],
     metadata: message.metadata,
     role: message.role,
+    taskProgress: message.taskProgress as BirdCoderChatMessage['taskProgress'],
     timestamp: Date.parse(message.createdAt),
+    tool_call_id: message.tool_call_id,
+    tool_calls: message.tool_calls as BirdCoderChatMessage['tool_calls'],
     turnId: message.turnId,
   };
 }

@@ -4,12 +4,16 @@ import type {
   BirdCoderHostMode,
   BirdCoderListCodingSessionsRequest,
   BirdCoderListNativeSessionsRequest,
+  BirdCoderNativeSessionSummary,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
+import { normalizeBirdCoderCodeEngineNativeSessionId } from '@sdkwork/birdcoder-codeengine';
 import {
   BIRDCODER_CODING_SESSION_STATUSES,
   BIRDCODER_HOST_MODES,
-  resolveBirdCoderSessionSortTimestamp,
+  compareBirdCoderLongIntegers,
+  normalizeBirdCoderCodeEngineRuntimeStatus,
+  resolveBirdCoderSessionSortTimestampString,
 } from '@sdkwork/birdcoder-types';
 import {
   BIRDCODER_CODING_SESSION_STORAGE_BINDING,
@@ -36,6 +40,7 @@ interface StoredCodingSessionPersistedEntry {
   id?: unknown;
   lastTurnAt?: unknown;
   modelId?: unknown;
+  nativeSessionId?: unknown;
   projectId?: unknown;
   runtimeStatus?: unknown;
   status?: unknown;
@@ -87,7 +92,7 @@ type SessionInventoryCoreReadService =
       ): Promise<BirdCoderCodingSessionSummary[]>;
       listNativeSessions(
         request?: BirdCoderListNativeSessionsRequest,
-      ): Promise<StoredCodingSessionInventoryRecord[]>;
+      ): Promise<BirdCoderNativeSessionSummary[]>;
     },
     'listCodingSessions' | 'listNativeSessions'
   >;
@@ -100,6 +105,15 @@ const CODING_SESSION_TABLE_STORAGE_KEY = [
   BIRDCODER_CODING_SESSION_STORAGE_BINDING.preferredProvider,
   BIRDCODER_CODING_SESSION_STORAGE_BINDING.storageKey,
 ].join('.');
+
+function normalizeInventoryNativeSessionId(
+  value: unknown,
+  engineId: string | null | undefined,
+): string | undefined {
+  return typeof value === 'string'
+    ? normalizeBirdCoderCodeEngineNativeSessionId(value, engineId) ?? undefined
+    : undefined;
+}
 
 function normalizeIsoTimestamp(value: unknown, fallback: string): string {
   if (typeof value !== 'string') {
@@ -134,14 +148,7 @@ function normalizeHostMode(value: unknown): BirdCoderHostMode {
 function normalizeRuntimeStatus(
   value: unknown,
 ): BirdCoderCodingSessionSummary['runtimeStatus'] {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-
-  const normalizedValue = value.trim();
-  return normalizedValue.length > 0
-    ? (normalizedValue as BirdCoderCodingSessionSummary['runtimeStatus'])
-    : undefined;
+  return normalizeBirdCoderCodeEngineRuntimeStatus(value);
 }
 
 function normalizeStoredCodingSessionRecord(
@@ -183,6 +190,7 @@ function normalizeStoredCodingSessionRecord(
     hostMode: normalizeHostMode(value.hostMode),
     engineId,
     modelId: rawModelId,
+    nativeSessionId: normalizeInventoryNativeSessionId(value.nativeSessionId, engineId),
     runtimeStatus: normalizeRuntimeStatus(value.runtimeStatus),
     createdAt,
     updatedAt,
@@ -248,10 +256,77 @@ function toAuthorityBackedCodingSessionInventoryRecord(
   return {
     ...summary,
     kind: 'coding',
+    nativeSessionId: normalizeInventoryNativeSessionId(
+      summary.nativeSessionId,
+      summary.engineId,
+    ),
     nativeCwd: null,
-    sortTimestamp: resolveBirdCoderSessionSortTimestamp(summary),
+    sortTimestamp: resolveBirdCoderSessionSortTimestampString(summary),
     transcriptUpdatedAt: summary.transcriptUpdatedAt ?? null,
   };
+}
+
+function toAuthorityBackedNativeCodingSessionInventoryRecord(
+  summary: BirdCoderNativeSessionSummary,
+): StoredCodingSessionInventoryRecord {
+  const id = normalizeInventoryNativeSessionId(summary.id, summary.engineId) ?? summary.id.trim();
+  const nativeSessionId =
+    normalizeInventoryNativeSessionId(summary.nativeSessionId ?? summary.id, summary.engineId) ??
+    id;
+
+  return {
+    ...summary,
+    id,
+    kind: 'coding',
+    nativeSessionId,
+    nativeCwd: summary.nativeCwd ?? null,
+    sortTimestamp: resolveBirdCoderSessionSortTimestampString(summary),
+    transcriptUpdatedAt: summary.transcriptUpdatedAt ?? null,
+  };
+}
+
+function buildCodingSessionIdentityKeys(
+  summary: Pick<BirdCoderCodingSessionSummary, 'engineId' | 'id' | 'nativeSessionId'>,
+): string[] {
+  const engineId = normalizeScopedIdentifier(summary.engineId);
+  const keys = new Set<string>();
+  const addKey = (value: unknown) => {
+    const normalizedValue = normalizeInventoryNativeSessionId(value, summary.engineId);
+    if (normalizedValue) {
+      keys.add(`${engineId}:${normalizedValue}`);
+    }
+  };
+
+  addKey(summary.id);
+  addKey(summary.nativeSessionId);
+  return [...keys];
+}
+
+function indexNativeCodingSessionRecordsByIdentity(
+  records: readonly StoredCodingSessionInventoryRecord[],
+): Map<string, StoredCodingSessionInventoryRecord> {
+  const recordsByIdentity = new Map<string, StoredCodingSessionInventoryRecord>();
+  for (const record of records) {
+    for (const key of buildCodingSessionIdentityKeys(record)) {
+      if (!recordsByIdentity.has(key)) {
+        recordsByIdentity.set(key, record);
+      }
+    }
+  }
+  return recordsByIdentity;
+}
+
+function findNativeCodingSessionRecord(
+  record: StoredCodingSessionInventoryRecord,
+  recordsByIdentity: ReadonlyMap<string, StoredCodingSessionInventoryRecord>,
+): StoredCodingSessionInventoryRecord | null {
+  for (const key of buildCodingSessionIdentityKeys(record)) {
+    const nativeRecord = recordsByIdentity.get(key);
+    if (nativeRecord) {
+      return nativeRecord;
+    }
+  }
+  return null;
 }
 
 async function listAuthorityBackedCodingSessions(
@@ -276,45 +351,55 @@ async function listAuthorityBackedCodingSessions(
     }),
   ]);
 
-  const nativeRecordsById = new Map(
-    nativeSummaries
-      .filter(
-        (summary) =>
-          summary.kind === 'coding' &&
-          summary.projectId.trim().length > 0 &&
-          summary.workspaceId.trim().length > 0,
-      )
-      .map(
-        (summary) =>
-          [summary.id, summary] satisfies [string, StoredCodingSessionInventoryRecord],
-      ),
-  );
-
-  return projectionSummaries
+  const nativeRecords = nativeSummaries
+    .filter(
+      (summary) =>
+        summary.kind === 'coding' &&
+        summary.projectId.trim().length > 0 &&
+        summary.workspaceId.trim().length > 0,
+    )
+    .map(toAuthorityBackedNativeCodingSessionInventoryRecord);
+  const nativeRecordsByIdentity = indexNativeCodingSessionRecordsByIdentity(nativeRecords);
+  const projectedRecords = projectionSummaries
     .filter(isProjectScopedCodingSession)
-    .map(toAuthorityBackedCodingSessionInventoryRecord)
+    .map(toAuthorityBackedCodingSessionInventoryRecord);
+  const mergedProjectedRecords = projectedRecords
     .map((record) => {
-      const matchingNativeRecord = nativeRecordsById.get(record.id);
+      const matchingNativeRecord = findNativeCodingSessionRecord(record, nativeRecordsByIdentity);
       if (!matchingNativeRecord) {
         return record;
       }
 
       return {
         ...record,
+        nativeSessionId: matchingNativeRecord.nativeSessionId ?? record.nativeSessionId,
         nativeCwd: matchingNativeRecord.nativeCwd ?? record.nativeCwd ?? null,
         sortTimestamp: matchingNativeRecord.sortTimestamp || record.sortTimestamp,
         transcriptUpdatedAt:
           matchingNativeRecord.transcriptUpdatedAt ?? record.transcriptUpdatedAt ?? null,
       };
     });
+  const projectedIdentityKeys = new Set(
+    mergedProjectedRecords.flatMap(buildCodingSessionIdentityKeys),
+  );
+  const nativeOnlyRecords = nativeRecords.filter(
+    (record) =>
+      !buildCodingSessionIdentityKeys(record).some((key) => projectedIdentityKeys.has(key)),
+  );
+
+  return [...mergedProjectedRecords, ...nativeOnlyRecords].sort(compareSessionInventoryRecords);
 }
 
 function compareSessionInventoryRecords(
   left: WorkbenchSessionInventoryRecord,
   right: WorkbenchSessionInventoryRecord,
 ): number {
+  const leftSortTimestamp =
+    left.kind === 'terminal' ? left.sortTimestamp : resolveBirdCoderSessionSortTimestampString(left);
+  const rightSortTimestamp =
+    right.kind === 'terminal' ? right.sortTimestamp : resolveBirdCoderSessionSortTimestampString(right);
   return (
-    right.sortTimestamp - left.sortTimestamp ||
+    compareBirdCoderLongIntegers(rightSortTimestamp, leftSortTimestamp) ||
     left.kind.localeCompare(right.kind) ||
     left.id.localeCompare(right.id)
   );
@@ -366,13 +451,17 @@ function toProjectBackedCodingSessionInventoryRecord(
     hostMode: codingSession.hostMode,
     engineId: codingSession.engineId,
     modelId: codingSession.modelId,
+    nativeSessionId: normalizeInventoryNativeSessionId(
+      codingSession.nativeSessionId,
+      codingSession.engineId,
+    ),
     runtimeStatus: codingSession.runtimeStatus,
     createdAt: codingSession.createdAt,
     updatedAt: codingSession.updatedAt,
     lastTurnAt: codingSession.lastTurnAt,
     kind: 'coding',
     nativeCwd: null,
-    sortTimestamp: resolveBirdCoderSessionSortTimestamp(codingSession),
+    sortTimestamp: resolveBirdCoderSessionSortTimestampString(codingSession),
     transcriptUpdatedAt: codingSession.transcriptUpdatedAt ?? null,
   };
 }
@@ -467,7 +556,7 @@ export async function listStoredSessionInventory(
           ...session,
           kind: 'coding' as const,
           nativeCwd: null,
-          sortTimestamp: resolveBirdCoderSessionSortTimestamp(session),
+          sortTimestamp: resolveBirdCoderSessionSortTimestampString(session),
           transcriptUpdatedAt: session.transcriptUpdatedAt ?? null,
         }));
 

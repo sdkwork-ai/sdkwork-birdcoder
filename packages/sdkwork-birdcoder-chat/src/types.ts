@@ -5,13 +5,17 @@ import type {
   BirdCoderCodingSessionRuntimeStatus,
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineTransportKind,
+  BirdCoderLongIntegerString,
   BirdcoderApprovalPolicy,
 } from '@sdkwork/birdcoder-types';
+
+export type { ChatEngineOfficialSdkBridgeLoader } from './providerAdapter.ts';
 
 export type Role = 'user' | 'assistant' | 'system' | 'tool';
 
 export interface Attachment {
   id: string;
+  workspaceId?: bigint | string;
   type: 'file' | 'code_snippet' | 'terminal_output' | 'image';
   name: string;
   content?: string;
@@ -77,6 +81,7 @@ export interface ChatContext {
   projectId?: string;
   codingSessionId?: string;
   sessionId?: string;
+  nativeSessionId?: string;
   workspaceRoot?: string;
   currentFile?: FileContext;
   openFiles?: FileContext[];
@@ -161,7 +166,7 @@ export interface ChatCanonicalRuntimeDescriptor {
 
 export interface ChatCanonicalEvent {
   kind: BirdCoderCodingSessionEventKind | (string & {});
-  sequence: number;
+  sequence: BirdCoderLongIntegerString;
   runtimeStatus: BirdCoderCodingSessionRuntimeStatus;
   payload: Record<string, unknown>;
   artifact?: ChatCanonicalArtifact;

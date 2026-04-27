@@ -7,7 +7,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_EVIDENCE = {
   ],
   "openapi": "3.1.0",
   "releaseTag": "release-local",
-  "sha256": "66b50676fa3a08a5aad5309eda00748e6ddd583928efa85ffbe1035e0ce99192",
+  "sha256": "013c91c1f2d2a89c0ee02427bd3cc72449ff21c8f3c19bd69a5dd54305664b5e",
   "targetCount": 1,
   "targets": [
     "windows/x64"
@@ -547,6 +547,13 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "operationId": "core.getOperation",
     "path": "/api/core/v1/operations/{operationId}",
     "summary": "Get operation status",
+    "surface": "core"
+  },
+  {
+    "method": "POST",
+    "operationId": "core.submitUserQuestionAnswer",
+    "path": "/api/core/v1/questions/{questionId}/answer",
+    "summary": "Submit user-question answer",
     "surface": "core"
   },
   {

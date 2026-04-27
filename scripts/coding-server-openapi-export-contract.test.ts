@@ -34,9 +34,9 @@ try {
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
   assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCatalogPath, '/api/core/v1/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 78);
+  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 79);
   assert.deepEqual(writtenDocument['x-sdkwork-api-gateway']?.routesBySurface, {
-    core: 23,
+    core: 24,
     app: 48,
     admin: 7,
   });
@@ -71,6 +71,10 @@ try {
   assert.equal(
     writtenDocument.paths['/api/core/v1/coding-sessions/{id}/events']?.get?.operationId,
     'core.listCodingSessionEvents',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/core/v1/questions/{questionId}/answer']?.post?.operationId,
+    'core.submitUserQuestionAnswer',
   );
   assert.equal(
     writtenDocument.paths['/api/core/v1/coding-sessions/{id}/fork']?.post?.responses['201']?.content[

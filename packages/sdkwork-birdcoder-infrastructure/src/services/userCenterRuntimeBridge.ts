@@ -22,6 +22,7 @@ import {
   createUserCenterValidationSnapshot,
 } from "@sdkwork/user-center-validation-pc-react";
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from "./defaultIdeServicesRuntime.ts";
+import { createRuntimeServerTokenStore } from "./runtimeServerSession.ts";
 
 export type BirdCoderRuntimeUserCenterClient = UserCenterRuntimeClient;
 export type BirdCoderRuntimeUserCenterConfig = UserCenterRuntimeConfig;
@@ -149,7 +150,11 @@ export function createBirdCoderCanonicalUserCenterRuntimeBridge(
     runtimeClient: bridge.apiBaseUrl
       ? createUserCenterRuntimeClient(
           bridge.runtimeConfig,
-          resolvedRuntimeClientOptions,
+          {
+            ...resolvedRuntimeClientOptions,
+            tokenStore:
+              runtimeClientOptions.tokenStore ?? createRuntimeServerTokenStore(),
+          },
         )
       : null,
   };

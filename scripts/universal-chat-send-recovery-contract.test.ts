@@ -14,8 +14,20 @@ const codePageSurfacePropsSource = await readFile(
   resolve('packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts'),
   'utf8',
 );
+const codePageSource = await readFile(
+  resolve('packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx'),
+  'utf8',
+);
 const studioChatSidebarSource = await readFile(
   resolve('packages/sdkwork-birdcoder-studio/src/pages/StudioChatSidebar.tsx'),
+  'utf8',
+);
+const studioPageSource = await readFile(
+  resolve('packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx'),
+  'utf8',
+);
+const useProjectsSource = await readFile(
+  resolve('packages/sdkwork-birdcoder-commons/src/hooks/useProjects.ts'),
   'utf8',
 );
 const workspaceChatTypesSource = await readFile(
@@ -97,6 +109,24 @@ assert.match(
 
 assert.match(
   universalChatSource,
+  /function resolveVisibleSessionMessages\([\s\S]*message\.codingSessionId\?\.trim\(\)[\s\S]*normalizedSessionId[\s\S]*return filteredMessages \?\? messages;/s,
+  'UniversalChat must defensively filter explicit wrong-session transcript entries while preserving the original messages reference when the collection is already clean.',
+);
+
+assert.doesNotMatch(
+  universalChatSource,
+  /!messageSessionId\s*\|\|\s*messageSessionId === normalizedSessionId/,
+  'UniversalChat must not render blank-scope messages inside a selected session because they can hide upstream session leakage.',
+);
+
+assert.match(
+  universalChatSource,
+  /const normalizedMessages = useMemo\(\s*\(\) => resolveVisibleSessionMessages\(messages, normalizedSessionId\),\s*\[messages, normalizedSessionId\],\s*\);/s,
+  'UniversalChat must derive the visible transcript from the active session id so mixed upstream message payloads cannot render in the selected session.',
+);
+
+assert.match(
+  universalChatSource,
   /else if \(e\.key === 'ArrowUp'\) \{[\s\S]*if \([\s\S]*normalizedSessionId[\s\S]*textareaRef\.current[\s\S]*textareaRef\.current\.selectionStart === 0[\s\S]*\) \{[\s\S]*setHistoryIndex\(nextIndex\);[\s\S]*setInputValue\(sessionChatInputHistoryRef\.current\[nextIndex\]\);/s,
   'Arrow-up recall must stay session-aware and only step through prompt history when the composer cursor is at the start boundary.',
 );
@@ -127,8 +157,38 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /setIsDispatchingMessage\(true\);[\s\S]*finally \{\s*setIsDispatchingMessage\(false\);\s*\}/s,
+  /setIsDispatchingMessage\(true\);[\s\S]*finally \{[\s\S]*setIsDispatchingMessage\(false\);[\s\S]*\}/s,
   'UniversalChat must always clear the dispatching flag after a send attempt so failed sends do not leave the composer stuck in a busy state.',
+);
+
+assert.match(
+  universalChatSource,
+  /const isDispatchingMessageRef = useRef\(false\);/,
+  'UniversalChat must keep a synchronous dispatch guard so duplicate Enter/click events cannot submit the same draft before React busy state renders.',
+);
+
+assert.match(
+  universalChatSource,
+  /if \(isDispatchingMessageRef\.current\) \{\s*return;\s*\}[\s\S]*isDispatchingMessageRef\.current = true;[\s\S]*setIsDispatchingMessage\(true\);[\s\S]*finally \{\s*isDispatchingMessageRef\.current = false;\s*setIsDispatchingMessage\(false\);/s,
+  'UniversalChat send handling must acquire and release the synchronous dispatch guard around the awaited send operation.',
+);
+
+assert.match(
+  codePageSource,
+  /const sentMessage = await sendMessage\([\s\S]*bootstrappedSession\.codingSessionId[\s\S]*\);[\s\S]*sentMessage\?\.codingSessionId[\s\S]*!== bootstrappedSession\.codingSessionId[\s\S]*selectSession\(sentMessage\.codingSessionId,\s*\{\s*projectId: bootstrappedSession\.projectId\s*\}\);/s,
+  'CodePage must switch selection to a recovered authoritative session id when send recovery remaps a stale local session.',
+);
+
+assert.match(
+  studioPageSource,
+  /const sentMessage = await sendMessage\([\s\S]*bootstrappedSession\.codingSessionId[\s\S]*\);[\s\S]*sentMessage\?\.codingSessionId[\s\S]*!== bootstrappedSession\.codingSessionId[\s\S]*selectCodingSession\(sentMessage\.codingSessionId,\s*\{\s*projectId: bootstrappedSession\.projectId\s*\}\);/s,
+  'StudioPage must switch selection to a recovered authoritative session id when send recovery remaps a stale local session.',
+);
+
+assert.match(
+  useProjectsSource,
+  /if \(previousCodingSession && projectService\.upsertCodingSession\) \{[\s\S]*await projectService\.upsertCodingSession\(projectId, previousCodingSession\);[\s\S]*const newMessage = await projectService\.addCodingSessionMessage\(projectId, codingSessionId,/s,
+  'sendMessage must repair the project-service session mirror from the selected store session before creating the core turn so stale mirror misses do not surface as delayed coding-session-not-found toasts.',
 );
 
 console.log('universal chat send recovery contract passed.');

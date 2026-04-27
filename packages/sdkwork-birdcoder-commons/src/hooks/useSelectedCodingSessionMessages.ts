@@ -41,11 +41,13 @@ function normalizeSelectionScopePart(value: string | null | undefined): string {
 }
 
 function buildSynchronizationScopeKey(
+  userScope: string,
   codingSessionId: string,
   selectedCodingSession: BirdCoderCodingSession | null | undefined,
   selectedProject: BirdCoderProject | null | undefined,
   workspaceId: string | undefined,
 ): string {
+  const normalizedUserScope = normalizeSelectionScopePart(userScope) || 'anonymous';
   const normalizedCodingSessionId = normalizeSelectionScopePart(codingSessionId);
   const normalizedWorkspaceId =
     normalizeSelectionScopePart(selectedProject?.workspaceId) ||
@@ -56,6 +58,7 @@ function buildSynchronizationScopeKey(
     normalizeSelectionScopePart(selectedCodingSession?.projectId);
 
   return [
+    normalizedUserScope,
     normalizedWorkspaceId || 'workspace:unknown',
     normalizedProjectId || 'project:unknown',
     normalizedCodingSessionId,
@@ -72,6 +75,7 @@ const EXECUTING_SESSION_STALE_REFRESH_INTERVAL_MS = 1600;
 const EXECUTING_SESSION_FRESH_ACTIVITY_WINDOW_MS = 2_500;
 const EXECUTING_SESSION_RECENT_ACTIVITY_WINDOW_MS = 8_000;
 const EXECUTING_SESSION_REFRESH_SETTLE_WINDOW_MS = 15_000;
+const SELECTED_SESSION_IDLE_EXTERNAL_REFRESH_INTERVAL_MS = 5000;
 
 function isReplyMessageRole(role: BirdCoderCodingSession['messages'][number]['role']): boolean {
   return (
@@ -153,6 +157,7 @@ export function useSelectedCodingSessionMessages({
 }: UseSelectedCodingSessionMessagesOptions): boolean {
   const { user } = useAuth();
   const activeSynchronizationCountRef = useRef(0);
+  const isMountedRef = useRef(true);
   const pendingExecutionRefreshUntilRef = useRef(0);
   const [isSelectedCodingSessionMessagesLoading, setIsSelectedCodingSessionMessagesLoading] = useState(false);
   const [executionRefreshTick, setExecutionRefreshTick] = useState(0);
@@ -173,6 +178,13 @@ export function useSelectedCodingSessionMessages({
   const hasSelectedCodingSessionPendingReply =
     selectedCodingSession?.id === normalizedCodingSessionId &&
     hasPendingVisibleReply(selectedCodingSession);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!normalizedCodingSessionId) {
@@ -209,19 +221,22 @@ export function useSelectedCodingSessionMessages({
     const shouldContinuePollingAfterCompletion =
       hasSelectedCodingSessionPendingReply &&
       pendingExecutionRefreshUntilRef.current > Date.now();
+    const shouldUseExecutingSessionRefresh =
+      isSelectedCodingSessionExecuting || shouldContinuePollingAfterCompletion;
     if (
       !isActive ||
       !coreReadService ||
       isSelectedCodingSessionMessagesLoading ||
-      !normalizedCodingSessionId ||
-      (!isSelectedCodingSessionExecuting && !shouldContinuePollingAfterCompletion)
+      !normalizedCodingSessionId
     ) {
       return;
     }
 
-    const executionRefreshDelay = resolveSelectedCodingSessionExecutionRefreshDelay(
-      selectedCodingSession,
-    );
+    const executionRefreshDelay = shouldUseExecutingSessionRefresh
+      ? resolveSelectedCodingSessionExecutionRefreshDelay(
+          selectedCodingSession,
+        )
+      : SELECTED_SESSION_IDLE_EXTERNAL_REFRESH_INTERVAL_MS;
     const refreshTimer = window.setTimeout(() => {
       setExecutionRefreshTick((previousState) => previousState + 1);
     }, executionRefreshDelay);
@@ -249,6 +264,7 @@ export function useSelectedCodingSessionMessages({
     }
 
     const synchronizationScopeKey = buildSynchronizationScopeKey(
+      normalizedUserScope,
       normalizedCodingSessionId,
       selectedCodingSession,
       selectedProject,
@@ -293,7 +309,11 @@ export function useSelectedCodingSessionMessages({
       return;
     }
 
-    attemptedSessionVersionsByScopeKey.set(synchronizationScopeKey, synchronizationVersion);
+    setTrackedScopeValue(
+      attemptedSessionVersionsByScopeKey,
+      synchronizationScopeKey,
+      synchronizationVersion,
+    );
     activeSynchronizationCountRef.current += 1;
     setIsSelectedCodingSessionMessagesLoading((previousState) =>
       previousState ? previousState : true,
@@ -301,17 +321,19 @@ export function useSelectedCodingSessionMessages({
     let isDisposed = false;
 
     const synchronizationTask = shouldBootstrapFromAuthority
-      ? refreshCodingSessionMessages({
-          codingSessionId: normalizedCodingSessionId,
-          coreReadService,
-          projectService,
-          workspaceId,
-        })
+        ? refreshCodingSessionMessages({
+            codingSessionId: normalizedCodingSessionId,
+            coreReadService,
+            identityScope: normalizedUserScope,
+            projectService,
+            workspaceId,
+          })
       : refreshCodingSessionMessages({
-          codingSessionId: normalizedCodingSessionId,
-          coreReadService,
-          projectService,
-          resolvedLocation: {
+            codingSessionId: normalizedCodingSessionId,
+            coreReadService,
+            identityScope: normalizedUserScope,
+            projectService,
+            resolvedLocation: {
             codingSession: resolvedCodingSession,
             project: resolvedProject,
           },
@@ -387,7 +409,7 @@ export function useSelectedCodingSessionMessages({
           0,
           activeSynchronizationCountRef.current - 1,
         );
-        if (!isDisposed && activeSynchronizationCountRef.current === 0) {
+        if (isMountedRef.current && activeSynchronizationCountRef.current === 0) {
           setIsSelectedCodingSessionMessagesLoading((previousState) =>
             previousState ? false : previousState,
           );
@@ -409,6 +431,7 @@ export function useSelectedCodingSessionMessages({
     normalizedSelectedProjectId,
     normalizedSelectedProjectWorkspaceId,
     normalizedUserScope,
+    selectedCodingSessionSynchronizationVersion,
     executionRefreshTick,
     workspaceId,
   ]);

@@ -54,6 +54,7 @@ assert.deepEqual(launch.request, {
   runConfigurationId: 'simulate-harmony',
   session: simulatorSession,
   terminalRequest: {
+    surface: 'embedded',
     path: '/workspace/demo-project',
     command: 'pnpm simulate:harmony',
     profileId: 'powershell',
@@ -80,6 +81,7 @@ assert.deepEqual(
   buildStudioSimulatorExecutionEvidence(
     simulatorSession,
     {
+      surface: 'embedded',
       path: '/workspace/demo-project',
       command: 'pnpm simulate:harmony',
       profileId: 'powershell',

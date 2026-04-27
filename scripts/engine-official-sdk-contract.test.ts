@@ -101,11 +101,11 @@ for (const engine of listWorkbenchCliEngines()) {
       `${engine.id} should not mark fallback active when the SDK is installed`,
     );
   } else {
-    if (engine.id === 'codex') {
+    if (engine.id === 'codex' || engine.id === 'claude-code') {
       assert.equal(
         health.fallbackActive,
         health.cliAvailable,
-        'codex should only activate fallback when the real CLI lane is executable',
+        `${engine.id} should only activate fallback when the real CLI lane is executable`,
       );
     } else {
       assert.equal(

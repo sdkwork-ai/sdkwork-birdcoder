@@ -9,6 +9,7 @@ const modulePath = new URL(
 
 const {
   reconcileTranscriptPrefixHeightsCache,
+  resolveTranscriptMessageKey,
 } = await import(`${modulePath.href}?t=${Date.now()}`);
 
 const virtualizationSource = readFileSync(
@@ -40,10 +41,11 @@ const initialCache = reconcileTranscriptPrefixHeightsCache({
   messages,
   measuredHeights: new Map<string, number>(),
 });
+const assistantMessageKey = resolveTranscriptMessageKey(messages[1], 1);
 
 const updatedCache = reconcileTranscriptPrefixHeightsCache({
-  invalidatedMessageIds: ['assistant-1'],
-  measuredHeights: new Map<string, number>([['assistant-1', 400]]),
+  invalidatedMessageIds: [assistantMessageKey],
+  measuredHeights: new Map<string, number>([[assistantMessageKey, 400]]),
   messages,
   previousCache: initialCache,
 });

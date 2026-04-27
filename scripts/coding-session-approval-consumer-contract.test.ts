@@ -31,6 +31,7 @@ const projectionModulePath = new URL(
 
 const sessionId = 'approval-consumer-contract-session';
 const approvalId = 'approval-consumer-contract-1';
+const unsafeApprovalId = '101777208078558015';
 
 const sessionFixture: BirdCoderCodingSessionSummary = {
   id: sessionId,
@@ -52,13 +53,56 @@ const eventFixture: BirdCoderCodingSessionEvent = {
   turnId: 'approval-consumer-contract-turn',
   runtimeId: 'approval-consumer-contract-runtime',
   kind: 'approval.required',
-  sequence: 3,
+  sequence: '3',
   payload: {
     approvalId,
     toolName: 'apply_patch',
     runtimeStatus: 'awaiting_approval',
   },
   createdAt: '2026-04-11T13:05:00.000Z',
+};
+
+const approvalDecisionEventFixture: BirdCoderCodingSessionEvent = {
+  id: 'approval-consumer-contract-decision-event',
+  codingSessionId: sessionId,
+  turnId: 'approval-consumer-contract-turn',
+  runtimeId: 'approval-consumer-contract-runtime',
+  kind: 'operation.updated',
+  sequence: '4',
+  payload: {
+    approvalId,
+    checkpointId: 'approval-consumer-contract-checkpoint',
+    approvalDecision: 'approved',
+    runtimeStatus: 'awaiting_tool',
+    operationStatus: 'running',
+  },
+  createdAt: '2026-04-11T13:06:00.000Z',
+};
+
+const unsafeLongApprovalDecisionEventFixture: BirdCoderCodingSessionEvent = {
+  ...approvalDecisionEventFixture,
+  id: 'approval-consumer-contract-long-id-decision-event',
+  payload: {
+    toolName: 'permission_request',
+    toolArguments: `{
+      "approvalId": ${unsafeApprovalId},
+      "approvalDecision": "approved",
+      "runtimeStatus": "awaiting_tool"
+    }`,
+  },
+};
+
+const permissionIdApprovalDecisionEventFixture: BirdCoderCodingSessionEvent = {
+  ...approvalDecisionEventFixture,
+  id: 'approval-consumer-contract-permission-id-decision-event',
+  payload: {
+    toolName: 'permission_request',
+    toolArguments: JSON.stringify({
+      permissionId: approvalId,
+      decision: 'approved',
+      runtimeStatus: 'awaiting_tool',
+    }),
+  },
 };
 
 const artifactFixture: BirdCoderCodingSessionArtifact = {
@@ -86,6 +130,15 @@ const checkpointFixture: BirdCoderCodingSessionCheckpoint = {
     reason: 'Review patch before applying',
   },
   createdAt: '2026-04-11T13:05:00.000Z',
+};
+
+const unsafeLongCheckpointFixture: BirdCoderCodingSessionCheckpoint = {
+  ...checkpointFixture,
+  id: 'approval-consumer-contract-long-id-checkpoint',
+  state: {
+    approvalId: unsafeApprovalId,
+    reason: 'Review long-id approval before applying',
+  },
 };
 
 const approvalResultFixture: BirdCoderApprovalDecisionResult = {
@@ -183,6 +236,9 @@ const coreWriteClient: BirdCoderCoreWriteApiClient = {
     });
     return approvalResultFixture;
   },
+  async submitUserQuestionAnswer() {
+    throw new Error('not needed');
+  },
   async deleteCodingSessionMessage() {
     throw new Error('not needed');
   },
@@ -235,6 +291,72 @@ assert.deepEqual(approvals, [
     turnId: 'approval-consumer-contract-turn',
   },
 ]);
+
+const decidedCoreReadService: ICoreReadService = {
+  ...coreReadService,
+  async listCodingSessionEvents() {
+    return [eventFixture, approvalDecisionEventFixture];
+  },
+};
+
+const decidedApprovals = await projectionModule.loadCodingSessionApprovalState(
+  decidedCoreReadService as Pick<
+    ICoreReadService,
+    'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
+  >,
+  sessionId,
+);
+
+assert.deepEqual(
+  decidedApprovals,
+  [],
+  'approval decision lifecycle events must settle pending approvals even if a stale checkpoint snapshot still says resumable.',
+);
+
+const permissionIdDecisionCoreReadService: ICoreReadService = {
+  ...coreReadService,
+  async listCodingSessionEvents() {
+    return [eventFixture, permissionIdApprovalDecisionEventFixture];
+  },
+};
+
+const permissionIdDecidedApprovals = await projectionModule.loadCodingSessionApprovalState(
+  permissionIdDecisionCoreReadService as Pick<
+    ICoreReadService,
+    'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
+  >,
+  sessionId,
+);
+
+assert.deepEqual(
+  permissionIdDecidedApprovals,
+  [],
+  'approval settlement must resolve provider permissionId aliases so stale checkpoints do not keep approval UI pending.',
+);
+
+const unsafeLongApprovalCoreReadService: ICoreReadService = {
+  ...coreReadService,
+  async listCodingSessionCheckpoints() {
+    return [unsafeLongCheckpointFixture];
+  },
+  async listCodingSessionEvents() {
+    return [unsafeLongApprovalDecisionEventFixture];
+  },
+};
+
+const unsafeLongApprovals = await projectionModule.loadCodingSessionApprovalState(
+  unsafeLongApprovalCoreReadService as Pick<
+    ICoreReadService,
+    'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
+  >,
+  sessionId,
+);
+
+assert.deepEqual(
+  unsafeLongApprovals,
+  [],
+  'approval lifecycle toolArguments parsing must preserve unquoted Long approvalId values so stale checkpoints are settled.',
+);
 
 const approvalResult = await projectionModule.submitCodingSessionApprovalDecision(
   services.coreWriteService as Pick<ICoreWriteService, 'submitApprovalDecision'>,

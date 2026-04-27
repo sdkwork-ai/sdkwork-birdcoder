@@ -6,6 +6,7 @@ import {
   type CreateNewCodingSessionRequest,
   type CreateWorkbenchCodingSessionWithSelection,
   type SelectWorkbenchCodingSession,
+  type ShouldSelectWorkbenchCodingSession,
 } from '../workbench/codingSessionCreation.ts';
 
 interface UseWorkbenchCodingSessionCreationActionsOptions {
@@ -28,7 +29,13 @@ export function useWorkbenchCodingSessionCreationActions({
   labels,
 }: UseWorkbenchCodingSessionCreationActionsOptions) {
   const createCodingSessionInProject = useCallback(
-    async (projectId: string, requestedEngineId?: string) => {
+    async (
+      projectId: string,
+      requestedEngineId?: string,
+      options?: {
+        shouldSelectCreatedSession?: ShouldSelectWorkbenchCodingSession;
+      },
+    ) => {
       const normalizedProjectId = projectId.trim();
       if (!normalizedProjectId) {
         addToast(labels.noProjectSelected, 'error');
@@ -41,6 +48,7 @@ export function useWorkbenchCodingSessionCreationActions({
           projectId: normalizedProjectId,
           requestedEngineId,
           selectCodingSession,
+          shouldSelectCreatedSession: options?.shouldSelectCreatedSession,
         });
         addToast(labels.creationSucceeded, 'success');
         return newSession;

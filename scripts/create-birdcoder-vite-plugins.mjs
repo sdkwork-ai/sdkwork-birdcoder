@@ -436,6 +436,14 @@ function isKnownSharedUiUseClientModule(id) {
   );
 }
 
+function isKnownSmolTomlSelfCycleWarning(code, message) {
+  const normalizedMessage = normalizeWarningModuleReference(message);
+  return code === 'CIRCULAR_DEPENDENCY'
+    && normalizedMessage.startsWith('Circular dependency:')
+    && normalizedMessage.includes('/node_modules/smol-toml/dist/struct.js')
+    && normalizedMessage.includes('/node_modules/smol-toml/dist/extract.js');
+}
+
 function isSharedCoreEnvModule(id) {
   return normalizeWarningModuleReference(id).endsWith('/sdkwork-core/sdkwork-core-pc-react/src/env/index.ts');
 }
@@ -507,37 +515,14 @@ function shouldIgnoreBirdcoderRollupWarning(warning) {
     warningCode === 'MODULE_LEVEL_DIRECTIVE'
       && warningMessage.includes('"use client"')
       && isSharedReactRouterModule(warningModuleReference);
-  const isKnownShellRuntimePreloadCycle =
-    warningMessage.startsWith('Circular chunk:')
-      && warningMessage.includes('birdcoder-shell-runtime')
-      && (
-        warningMessage.includes('birdcoder-platform-runtime')
-        || warningMessage.includes('birdcoder-platform-services')
-        || warningMessage.includes('birdcoder-shell-bootstrap')
-      );
-  const isKnownAuthRuntimeChunkCycle =
-    warningMessage.startsWith('Circular chunk:')
-      && warningMessage.includes('birdcoder-auth-root')
-      && warningMessage.includes('birdcoder-platform-transport');
-  const isKnownAuthPresentationChunkCycle =
-    warningMessage.startsWith('Circular chunk:')
-      && warningMessage.includes('birdcoder-auth-root')
-      && (
-        warningMessage.includes('birdcoder-terminal-profiles')
-        || warningMessage.includes('birdcoder-shell-bootstrap')
-      );
-  const isKnownIdentityRuntimeChunkCycle =
-    warningMessage.startsWith('Circular chunk:')
-      && warningMessage.includes('birdcoder-identity-runtime')
-      && warningMessage.includes('birdcoder-platform-runtime');
-
+  const isKnownSmolTomlSelfCycle = isKnownSmolTomlSelfCycleWarning(
+    warningCode,
+    warningMessage,
+  );
   return isLucideUseClientNoise
     || isKnownSharedUiUseClientNoise
     || isSharedReactRouterUseClientNoise
-    || isKnownShellRuntimePreloadCycle
-    || isKnownAuthRuntimeChunkCycle
-    || isKnownAuthPresentationChunkCycle
-    || isKnownIdentityRuntimeChunkCycle;
+    || isKnownSmolTomlSelfCycle;
 }
 
 function onBirdcoderRollupWarning(warning, warn) {
@@ -545,7 +530,14 @@ function onBirdcoderRollupWarning(warning, warn) {
     return;
   }
 
-  warn(warning);
+  const warningCode = String(warning?.code ?? 'UNKNOWN_WARNING').trim() || 'UNKNOWN_WARNING';
+  const warningMessage = String(warning?.message ?? warning ?? '').trim();
+  throw new Error(
+    [
+      `BirdCoder Rollup warning is not governed (${warningCode}).`,
+      warningMessage || 'No warning message was provided.',
+    ].join('\n'),
+  );
 }
 
 function resolveRollupEntryPath(commonjsEntryPath) {

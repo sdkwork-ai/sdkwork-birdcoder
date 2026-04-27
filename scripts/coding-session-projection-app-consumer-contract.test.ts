@@ -37,7 +37,7 @@ const eventFixture: BirdCoderCodingSessionEvent = {
   turnId: 'turn-projection-consumer-contract',
   runtimeId: 'runtime-projection-consumer-contract',
   kind: 'turn.completed',
-  sequence: 1,
+  sequence: '1',
   payload: {
     summary: 'done',
   },

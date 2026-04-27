@@ -52,6 +52,7 @@ Object.defineProperty(globalThis, 'window', {
 
 const firstEvidence = buildStudioTestExecutionEvidence(
   {
+    surface: 'embedded',
     path: '/workspace/demo-project',
     command: 'npm test',
     profileId: 'powershell',
@@ -72,6 +73,7 @@ assert.deepEqual(
 
 const updatedEvidence = buildStudioTestExecutionEvidence(
   {
+    surface: 'embedded',
     path: '/workspace/demo-project',
     command: 'npm test -- --runInBand',
     profileId: 'powershell',

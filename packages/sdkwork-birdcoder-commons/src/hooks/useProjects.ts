@@ -6,6 +6,7 @@ import type {
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import {
+  areBirdCoderChatMessagesEquivalent,
   areBirdCoderChatMessagesLogicallyMatched,
   mergeBirdCoderComparableChatMessages,
 } from '@sdkwork/birdcoder-types';
@@ -102,6 +103,25 @@ type BirdCoderSendMessageContext = BirdCoderCodingSessionTurnIdeContext;
 const WORKSPACE_REALTIME_EVENT_DEDUP_LIMIT = 256;
 const EMPTY_PROJECT_INVENTORY_MESSAGES: BirdCoderChatMessage[] = [];
 const EMPTY_FILTERED_PROJECT_CODING_SESSIONS: BirdCoderCodingSession[] = [];
+
+function sanitizeCodingSessionMessageUpdates(
+  updates: Partial<BirdCoderChatMessage>,
+): Partial<BirdCoderChatMessage> {
+  const {
+    codingSessionId: _codingSessionId,
+    createdAt: _createdAt,
+    id: _id,
+    role: _role,
+    turnId: _turnId,
+    ...editableUpdates
+  } = updates;
+  void _codingSessionId;
+  void _createdAt;
+  void _id;
+  void _role;
+  void _turnId;
+  return editableUpdates;
+}
 
 function normalizeSearchValue(value: string): string {
   return value.trim().toLowerCase();
@@ -275,6 +295,7 @@ function appendCodingSessionMessageIfMissing(
   incomingMessage: BirdCoderChatMessage,
 ): BirdCoderChatMessage[] {
   const matchingMessageIndex = messages.findIndex((message) =>
+    areBirdCoderChatMessagesEquivalent(message, incomingMessage) ||
     areBirdCoderChatMessagesLogicallyMatched(message, incomingMessage),
   );
   if (matchingMessageIndex < 0) {
@@ -304,6 +325,7 @@ function reconcileCodingSessionMessage(
     (message) => message.id !== optimisticMessageId,
   );
   const matchingResolvedMessageIndex = messagesWithoutOptimistic.findIndex((message) =>
+    areBirdCoderChatMessagesEquivalent(message, resolvedMessage) ||
     areBirdCoderChatMessagesLogicallyMatched(message, resolvedMessage),
   );
   if (matchingResolvedMessageIndex >= 0) {
@@ -781,22 +803,23 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     options: CreateCodingSessionOptions,
   ) => {
     try {
-      const codingSession = await projectService.createCodingSession(projectId, title, options);
-      const synchronizedProjectSession = await resolveSynchronizedProjectSession(
-        projectId,
-        codingSession.id,
+      const codingSession = await projectService.createCodingSession(projectId, title, {
+        ...options,
+        ...(normalizedWorkspaceId ? { workspaceId: normalizedWorkspaceId } : {}),
+      });
+      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+        upsertCodingSessionIntoCollection(projects, projectId, codingSession),
       );
-      if (synchronizedProjectSession?.project) {
-        upsertProjectIntoProjectsStore(
-          synchronizedProjectSession.project.workspaceId,
-          synchronizedProjectSession.project,
-          normalizedUserScope,
-        );
-      } else {
-        mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-          upsertCodingSessionIntoCollection(projects, projectId, codingSession),
-        );
-      }
+      void resolveSynchronizedProjectSession(projectId, codingSession.id)
+        .then((synchronizedProjectSession) => {
+          if (synchronizedProjectSession?.project) {
+            upsertProjectIntoProjectsStore(
+              synchronizedProjectSession.project.workspaceId,
+              synchronizedProjectSession.project,
+              normalizedUserScope,
+            );
+          }
+        });
       return codingSession;
     } catch (error: unknown) {
       const message =
@@ -1044,11 +1067,12 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     updates: Partial<BirdCoderChatMessage>,
   ) => {
     try {
+      const editableUpdates = sanitizeCodingSessionMessageUpdates(updates);
       await projectService.editCodingSessionMessage(
         projectId,
         codingSessionId,
         messageId,
-        updates,
+        editableUpdates,
       );
       const updatedAt = new Date().toISOString();
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
@@ -1058,7 +1082,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
             message.id === messageId
               ? {
                   ...message,
-                  ...updates,
+                  ...editableUpdates,
                 }
               : message,
           ),
@@ -1141,11 +1165,52 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     );
 
     try {
+      if (previousCodingSession && projectService.upsertCodingSession) {
+        try {
+          await projectService.upsertCodingSession(projectId, previousCodingSession);
+        } catch (error) {
+          console.warn(
+            `Failed to synchronize coding session "${codingSessionId}" mirror before sending`,
+            error,
+          );
+        }
+      }
+
       const newMessage = await projectService.addCodingSessionMessage(projectId, codingSessionId, {
         role: 'user',
         content,
         metadata: context ? { ideContext: structuredClone(context) } : undefined,
       });
+      const effectiveCodingSessionId = newMessage.codingSessionId.trim() || codingSessionId;
+      if (effectiveCodingSessionId !== codingSessionId) {
+        const synchronizedProjectSession = await resolveSynchronizedProjectSession(
+          projectId,
+          effectiveCodingSessionId,
+        );
+        if (synchronizedProjectSession?.project) {
+          upsertProjectIntoProjectsStore(
+            synchronizedProjectSession.project.workspaceId,
+            synchronizedProjectSession.project,
+            normalizedUserScope,
+          );
+        } else {
+          mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+            updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
+              ...codingSession,
+              messages: removeCodingSessionMessageById(
+                codingSession.messages,
+                optimisticMessage.id,
+              ),
+              runtimeStatus: previousCodingSession?.runtimeStatus,
+              updatedAt: previousCodingSession?.updatedAt ?? codingSession.updatedAt,
+              lastTurnAt: previousCodingSession?.lastTurnAt,
+              transcriptUpdatedAt:
+                previousCodingSession?.transcriptUpdatedAt ?? codingSession.transcriptUpdatedAt,
+            })),
+          );
+        }
+        return newMessage;
+      }
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
         updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
           ...codingSession,

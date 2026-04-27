@@ -20,6 +20,19 @@ function listen(server, { host, port }) {
   });
 }
 
+async function occupyPortIfAvailable(server, { host, port }) {
+  try {
+    await listen(server, { host, port });
+    return true;
+  } catch (error) {
+    if (error?.code === 'EADDRINUSE') {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
 function close(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => {
@@ -36,7 +49,10 @@ const occupiedHost = '127.0.0.1';
 const occupiedPort = 1537;
 const blockingServer = net.createServer();
 
-await listen(blockingServer, { host: occupiedHost, port: occupiedPort });
+const ownsBlockingServer = await occupyPortIfAvailable(blockingServer, {
+  host: occupiedHost,
+  port: occupiedPort,
+});
 
 try {
   const visitedCount = await runDesktopStartupGraphContract();
@@ -46,7 +62,9 @@ try {
     'Desktop startup graph contract must tolerate the legacy fixed port being occupied by selecting a free loopback port.',
   );
 } finally {
-  await close(blockingServer);
+  if (ownsBlockingServer) {
+    await close(blockingServer);
+  }
 }
 
 console.log('desktop startup graph port resilience contract passed.');

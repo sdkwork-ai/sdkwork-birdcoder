@@ -116,7 +116,6 @@ export function ProjectExplorerHeader({
       <style>
         {`
           .project-explorer-scroll-region {
-            scrollbar-gutter: stable;
             scrollbar-width: none;
             scrollbar-color: transparent transparent;
           }
@@ -140,10 +139,15 @@ export function ProjectExplorerHeader({
             background: transparent;
           }
 
-          .project-explorer-scroll-region:hover::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.18);
+          .project-explorer-scroll-region::-webkit-scrollbar-thumb {
+            background: transparent;
             border: 2px solid transparent;
             border-radius: 9999px;
+            background-clip: padding-box;
+          }
+
+          .project-explorer-scroll-region:hover::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
             background-clip: padding-box;
           }
 
@@ -153,7 +157,7 @@ export function ProjectExplorerHeader({
           }
         `}
       </style>
-      <div className="p-4 flex flex-col gap-2">
+      <div className="p-3 flex flex-col gap-2">
         <WorkbenchNewSessionButton
           buttonLabel={newSessionLabel}
           currentSessionEngineId={currentSessionEngineId}
@@ -170,7 +174,7 @@ export function ProjectExplorerHeader({
 
       <div
         ref={scrollRegionRef}
-        className="project-explorer-scroll-region px-4 py-2 flex-1 overflow-y-auto"
+        className="project-explorer-scroll-region px-1 py-2 flex-1 overflow-y-auto"
       >
         <div
           className="flex items-center justify-between text-gray-400 text-xs mb-3 px-2 relative font-semibold tracking-wider uppercase animate-in fade-in slide-in-from-left-4 fill-mode-both"

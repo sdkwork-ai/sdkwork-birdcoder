@@ -1,19 +1,69 @@
 import {
+  BIRDCODER_USER_CENTER_SESSION_HEADER_NAME,
   BIRDCODER_USER_CENTER_STORAGE_PLAN,
+  resolveBirdCoderProtectedToken,
 } from "@sdkwork/birdcoder-core";
 import {
   createUserCenterStandardTokenHeaders,
-  createUserCenterRuntimeSessionBinding,
+  type UserCenterStorageLike,
   type UserCenterTokenBundle,
+  type UserCenterTokenStore,
 } from "@sdkwork/user-center-core-pc-react";
 
-const runtimeServerSessionBinding = createUserCenterRuntimeSessionBinding({
-  storagePlan: BIRDCODER_USER_CENTER_STORAGE_PLAN,
-});
 const runtimeServerTokenHeaders = createUserCenterStandardTokenHeaders(
   BIRDCODER_USER_CENTER_STORAGE_PLAN,
 );
+const RUNTIME_SERVER_SESSION_STORAGE_KEY =
+  BIRDCODER_USER_CENTER_STORAGE_PLAN.sessionTokenKey;
+const RUNTIME_SERVER_SESSION_HEADER_NAME =
+  BIRDCODER_USER_CENTER_SESSION_HEADER_NAME;
 const RUNTIME_SERVER_DEFAULT_TOKEN_TYPE = "Bearer";
+const RUNTIME_SERVER_TOKEN_STORAGE_KEYS = Object.freeze([
+  BIRDCODER_USER_CENTER_STORAGE_PLAN.sessionTokenKey,
+  BIRDCODER_USER_CENTER_STORAGE_PLAN.authTokenKey,
+  BIRDCODER_USER_CENTER_STORAGE_PLAN.accessTokenKey,
+  BIRDCODER_USER_CENTER_STORAGE_PLAN.refreshTokenKey,
+  BIRDCODER_USER_CENTER_STORAGE_PLAN.tokenTypeKey,
+]);
+
+function isRuntimeServerStorageLike(
+  storage: unknown,
+): storage is UserCenterStorageLike {
+  return Boolean(
+    storage
+      && typeof storage === "object"
+      && "getItem" in storage
+      && "removeItem" in storage
+      && "setItem" in storage,
+  );
+}
+
+function resolveRuntimeServerLocalStorage(): UserCenterStorageLike | null {
+  if (typeof globalThis === "undefined") {
+    return null;
+  }
+
+  try {
+    const storage = (globalThis as Record<string, unknown>).localStorage;
+    if (isRuntimeServerStorageLike(storage)) {
+      return storage;
+    }
+  } catch {
+    // Continue with the browser-style window lookup below.
+  }
+
+  try {
+    const windowObject = (globalThis as Record<string, unknown>).window;
+    if (!windowObject || typeof windowObject !== "object") {
+      return null;
+    }
+
+    const storage = (windowObject as Record<string, unknown>).localStorage;
+    return isRuntimeServerStorageLike(storage) ? storage : null;
+  } catch {
+    return null;
+  }
+}
 
 function normalizeOptionalTokenValue(value: unknown): string | undefined {
   const normalizedValue = typeof value === "string" ? value.trim() : "";
@@ -31,21 +81,243 @@ function createRuntimeServerSyntheticTokenBundle(
   };
 }
 
+function normalizeRuntimeServerTokenBundle(
+  bundle: UserCenterTokenBundle | undefined,
+): UserCenterTokenBundle {
+  if (!bundle) {
+    return {};
+  }
+
+  return {
+    ...(normalizeOptionalTokenValue(bundle.accessToken)
+      ? { accessToken: normalizeOptionalTokenValue(bundle.accessToken) }
+      : {}),
+    ...(normalizeOptionalTokenValue(bundle.authToken)
+      ? { authToken: normalizeOptionalTokenValue(bundle.authToken) }
+      : {}),
+    ...(normalizeOptionalTokenValue(bundle.refreshToken)
+      ? { refreshToken: normalizeOptionalTokenValue(bundle.refreshToken) }
+      : {}),
+    ...(normalizeOptionalTokenValue(bundle.sessionToken)
+      ? { sessionToken: normalizeOptionalTokenValue(bundle.sessionToken) }
+      : {}),
+    ...(normalizeOptionalTokenValue(bundle.tokenType)
+      ? { tokenType: normalizeOptionalTokenValue(bundle.tokenType) }
+      : {}),
+  };
+}
+
+function mergeRuntimeServerTokenBundles(
+  previousBundle: UserCenterTokenBundle,
+  nextBundle: UserCenterTokenBundle,
+): UserCenterTokenBundle {
+  return normalizeRuntimeServerTokenBundle({
+    ...previousBundle,
+    ...nextBundle,
+  });
+}
+
+function hasRuntimeServerTokenBundleValues(
+  bundle: UserCenterTokenBundle,
+): boolean {
+  return Boolean(
+    bundle.accessToken
+      || bundle.authToken
+      || bundle.refreshToken
+      || bundle.sessionToken
+      || bundle.tokenType,
+  );
+}
+
+function readRuntimeServerStorageToken(
+  storage: UserCenterStorageLike,
+  key: string,
+): string | undefined {
+  try {
+    const value = storage.getItem(key);
+    const normalizedValue = normalizeOptionalTokenValue(value);
+    if (!normalizedValue && value !== null) {
+      storage.removeItem(key);
+    }
+
+    return normalizedValue;
+  } catch {
+    return undefined;
+  }
+}
+
+function removeRuntimeServerStorageToken(
+  storage: UserCenterStorageLike,
+  key: string,
+): boolean {
+  try {
+    storage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeRuntimeServerStorageToken(
+  storage: UserCenterStorageLike,
+  key: string,
+  token: string | undefined,
+): boolean {
+  if (!token) {
+    return removeRuntimeServerStorageToken(storage, key);
+  }
+
+  try {
+    storage.setItem(key, token);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readRuntimeServerTokenBundleFromStorage(
+  storage: UserCenterStorageLike,
+): UserCenterTokenBundle {
+  return normalizeRuntimeServerTokenBundle({
+    accessToken: readRuntimeServerStorageToken(
+      storage,
+      BIRDCODER_USER_CENTER_STORAGE_PLAN.accessTokenKey,
+    ),
+    authToken: readRuntimeServerStorageToken(
+      storage,
+      BIRDCODER_USER_CENTER_STORAGE_PLAN.authTokenKey,
+    ),
+    refreshToken: readRuntimeServerStorageToken(
+      storage,
+      BIRDCODER_USER_CENTER_STORAGE_PLAN.refreshTokenKey,
+    ),
+    sessionToken: readRuntimeServerStorageToken(
+      storage,
+      RUNTIME_SERVER_SESSION_STORAGE_KEY,
+    ),
+    tokenType: readRuntimeServerStorageToken(
+      storage,
+      BIRDCODER_USER_CENTER_STORAGE_PLAN.tokenTypeKey,
+    ),
+  });
+}
+
+function persistRuntimeServerTokenBundleToStorage(
+  storage: UserCenterStorageLike,
+  bundle: UserCenterTokenBundle,
+): boolean {
+  const operations = [
+    writeRuntimeServerStorageToken(
+      storage,
+      RUNTIME_SERVER_SESSION_STORAGE_KEY,
+      bundle.sessionToken,
+    ),
+    writeRuntimeServerStorageToken(
+      storage,
+      BIRDCODER_USER_CENTER_STORAGE_PLAN.authTokenKey,
+      bundle.authToken,
+    ),
+    writeRuntimeServerStorageToken(
+      storage,
+      BIRDCODER_USER_CENTER_STORAGE_PLAN.accessTokenKey,
+      bundle.accessToken,
+    ),
+    writeRuntimeServerStorageToken(
+      storage,
+      BIRDCODER_USER_CENTER_STORAGE_PLAN.refreshTokenKey,
+      bundle.refreshToken,
+    ),
+    writeRuntimeServerStorageToken(
+      storage,
+      BIRDCODER_USER_CENTER_STORAGE_PLAN.tokenTypeKey,
+      bundle.tokenType,
+    ),
+  ];
+
+  return operations.every(Boolean);
+}
+
+export function createRuntimeServerTokenStore(): UserCenterTokenStore {
+  let memoryBundle: UserCenterTokenBundle = {};
+
+  function readCurrentBundle(): UserCenterTokenBundle {
+    const localStorage = resolveRuntimeServerLocalStorage();
+    if (!localStorage) {
+      return {
+        ...memoryBundle,
+      };
+    }
+
+    const storageBundle = readRuntimeServerTokenBundleFromStorage(localStorage);
+    memoryBundle = storageBundle;
+    return {
+      ...storageBundle,
+    };
+  }
+
+  return {
+    clearTokenBundle() {
+      const localStorage = resolveRuntimeServerLocalStorage();
+      if (localStorage) {
+        for (const key of RUNTIME_SERVER_TOKEN_STORAGE_KEYS) {
+          removeRuntimeServerStorageToken(localStorage, key);
+        }
+      }
+
+      memoryBundle = {};
+    },
+
+    persistTokenBundle(bundle) {
+      const normalizedBundle = normalizeRuntimeServerTokenBundle(bundle);
+      if (!hasRuntimeServerTokenBundleValues(normalizedBundle)) {
+        return false;
+      }
+
+      const mergedBundle = mergeRuntimeServerTokenBundles(
+        readCurrentBundle(),
+        normalizedBundle,
+      );
+      memoryBundle = mergedBundle;
+
+      const localStorage = resolveRuntimeServerLocalStorage();
+      if (!localStorage) {
+        return false;
+      }
+
+      return persistRuntimeServerTokenBundleToStorage(
+        localStorage,
+        mergedBundle,
+      );
+    },
+
+    readTokenBundle() {
+      return readCurrentBundle();
+    },
+  };
+}
+
+const runtimeServerTokenStore = createRuntimeServerTokenStore();
+
 export function getRuntimeServerSessionHeaderName(): string {
-  return runtimeServerSessionBinding.getSessionHeaderName();
+  return RUNTIME_SERVER_SESSION_HEADER_NAME;
 }
 
 export function readRuntimeServerSessionId(): string | null {
-  return runtimeServerSessionBinding.readSessionToken();
+  return runtimeServerTokenStore.readTokenBundle().sessionToken ?? null;
 }
 
 export function readRuntimeServerTokenBundle(): UserCenterTokenBundle {
-  return runtimeServerSessionBinding.readTokenBundle();
+  return runtimeServerTokenStore.readTokenBundle();
 }
 
 export function writeRuntimeServerSessionId(sessionId: string): string {
-  const normalizedSessionId = runtimeServerSessionBinding.writeSessionToken(sessionId);
-  runtimeServerSessionBinding.writeTokenBundle(
+  const normalizedSessionId = normalizeOptionalTokenValue(sessionId);
+  if (!normalizedSessionId) {
+    throw new Error("Runtime server session token must not be empty.");
+  }
+
+  runtimeServerTokenStore.clearTokenBundle();
+  runtimeServerTokenStore.persistTokenBundle(
     createRuntimeServerSyntheticTokenBundle(normalizedSessionId),
   );
   return normalizedSessionId;
@@ -67,24 +339,28 @@ export function writeRuntimeServerTokenBundle(
       ? RUNTIME_SERVER_DEFAULT_TOKEN_TYPE
       : undefined);
 
-  return runtimeServerSessionBinding.writeTokenBundle({
+  runtimeServerTokenStore.persistTokenBundle({
     ...(accessToken ? { accessToken } : {}),
     ...(authToken ? { authToken } : {}),
     ...(refreshToken ? { refreshToken } : {}),
     ...(sessionToken ? { sessionToken } : {}),
     ...(tokenType ? { tokenType } : {}),
   });
+  return runtimeServerTokenStore.readTokenBundle();
 }
 
 export function clearRuntimeServerSessionId(): void {
-  runtimeServerSessionBinding.clearTokenBundle();
+  runtimeServerTokenStore.clearTokenBundle();
 }
 
 export function resolveRuntimeServerSessionHeaders(): Record<string, string | undefined> {
-  const tokenBundle = runtimeServerSessionBinding.readTokenBundle();
+  const tokenBundle = runtimeServerTokenStore.readTokenBundle();
   const sessionToken =
     normalizeOptionalTokenValue(tokenBundle.sessionToken)
-    ?? runtimeServerSessionBinding.resolveProtectedToken();
+    ?? resolveBirdCoderProtectedToken({
+      tokenBundle,
+    })
+    ?? undefined;
   const authToken =
     normalizeOptionalTokenValue(tokenBundle.authToken)
     ?? normalizeOptionalTokenValue(tokenBundle.accessToken)
@@ -101,7 +377,7 @@ export function resolveRuntimeServerSessionHeaders(): Record<string, string | un
     ?? RUNTIME_SERVER_DEFAULT_TOKEN_TYPE;
 
   return {
-    [runtimeServerSessionBinding.getSessionHeaderName()]: sessionToken,
+    [RUNTIME_SERVER_SESSION_HEADER_NAME]: sessionToken,
     [runtimeServerTokenHeaders.accessTokenHeaderName]: accessToken,
     [runtimeServerTokenHeaders.authorizationHeaderName]:
       authToken ? `${tokenType} ${authToken}` : undefined,

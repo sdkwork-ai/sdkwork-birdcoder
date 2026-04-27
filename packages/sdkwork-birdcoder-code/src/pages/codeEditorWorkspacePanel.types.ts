@@ -15,6 +15,7 @@ export interface CodeEditorWorkspacePanelProps {
   explorerWidth: number;
   chatWidth: number;
   selectedCodingSessionId?: string | null;
+  selectedCodingSessionScopeKey?: string | null;
   messages: BirdCoderChatMessage[];
   chatEmptyState?: ReactNode;
   isBusy: boolean;
@@ -53,6 +54,7 @@ export interface WorkspaceChatProps {
   messages: BirdCoderChatMessage[];
   showComposerEngineSelector: boolean;
   selectedCodingSessionId?: string | null;
+  selectedCodingSessionScopeKey?: string | null;
   selectedEngineId: string;
   selectedModelId: string;
   onDeleteMessage: (messageIds: string[]) => void;

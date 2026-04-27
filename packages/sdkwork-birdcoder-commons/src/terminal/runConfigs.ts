@@ -69,6 +69,7 @@ export function buildRunConfigurationTerminalRequest(
   options: BuildRunConfigurationTerminalRequestOptions,
 ): RunConfigurationTerminalRequest {
   return {
+    surface: 'embedded',
     path: resolveRunConfigurationDirectory(
       configuration,
       options.projectDirectory,

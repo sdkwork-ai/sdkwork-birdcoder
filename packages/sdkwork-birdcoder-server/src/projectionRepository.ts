@@ -19,6 +19,8 @@ import {
   BIRDCODER_CODING_SESSION_OPERATION_STORAGE_BINDING,
   BIRDCODER_CODING_SESSION_RUNTIME_STORAGE_BINDING,
   getBirdCoderEntityDefinition,
+  parseBirdCoderApiJson,
+  stringifyBirdCoderLongInteger,
   type BirdCoderCodingSessionArtifact,
   type BirdCoderCodingSessionEvent,
   type BirdCoderCodingSessionRuntime,
@@ -137,7 +139,7 @@ function normalizeEventRecord(value: unknown): BirdCoderCodingSessionEvent | nul
     turnId: typeof row.turn_id === 'string' ? row.turn_id : undefined,
     runtimeId: typeof row.runtime_id === 'string' ? row.runtime_id : undefined,
     kind: String(row.event_kind),
-    sequence: Number(row.sequence_no ?? 0),
+    sequence: stringifyBirdCoderLongInteger(String(row.sequence_no ?? 0)),
     payload: isRecord(row.payload_json) ? row.payload_json : {},
     createdAt:
       typeof row.created_at === 'string' ? row.created_at : DEFAULT_SQL_PROJECTION_TIMESTAMP,
@@ -184,7 +186,7 @@ function normalizeOperationRecord(value: unknown): BirdCoderOperationDescriptor 
       : typeof value.artifact_refs_json === 'string'
         ? (() => {
             try {
-              const parsed = JSON.parse(value.artifact_refs_json);
+              const parsed = parseBirdCoderApiJson(value.artifact_refs_json);
               return Array.isArray(parsed) ? parsed.map((entry) => String(entry)) : [];
             } catch {
               return [];

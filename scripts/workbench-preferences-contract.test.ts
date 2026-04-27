@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import {
   DEFAULT_WORKBENCH_PREFERENCES,
@@ -80,5 +82,20 @@ assert.deepEqual(
   },
   'Workbench active chat selection updates must switch engine/model atomically so a new-session engine change cannot leave a stale model from the previous engine.',
 );
+
+const settingsEngineLocalePaths = [
+  '../packages/sdkwork-birdcoder-i18n/src/locales/en/settings-engine.ts',
+  '../packages/sdkwork-birdcoder-i18n/src/locales/zh/settings-engine.ts',
+] as const;
+
+for (const localePath of settingsEngineLocalePaths) {
+  const absolutePath = fileURLToPath(new URL(localePath, import.meta.url));
+  const source = readFileSync(absolutePath, 'utf8');
+  assert.equal(
+    /only Codex plus OpenCode|只启用 Codex 和 OpenCode/.test(source),
+    false,
+    `${absolutePath} must not describe Claude Code or Gemini as unavailable after all standard code engines became server-ready.`,
+  );
+}
 
 console.log('workbench preferences contract passed.');

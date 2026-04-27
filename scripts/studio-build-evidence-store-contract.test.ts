@@ -61,6 +61,7 @@ const buildProfile = resolveStudioBuildProfile({
 const firstEvidence = buildStudioBuildExecutionEvidence(
   buildProfile,
   {
+    surface: 'embedded',
     path: '/workspace/demo-project',
     command: 'pnpm build',
     profileId: 'powershell',
@@ -82,6 +83,7 @@ assert.deepEqual(
 const updatedEvidence = buildStudioBuildExecutionEvidence(
   buildProfile,
   {
+    surface: 'embedded',
     path: '/workspace/demo-project',
     command: 'pnpm build --mode production',
     profileId: 'powershell',

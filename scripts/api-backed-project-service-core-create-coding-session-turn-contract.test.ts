@@ -79,6 +79,7 @@ try {
   await Promise.all([
     repositories.workspaces.clear(),
     repositories.projects.clear(),
+    repositories.projectContents.clear(),
     repositories.teams.clear(),
     repositories.releases.clear(),
   ]);
@@ -96,10 +97,20 @@ try {
     workspaceId: 'workspace-core-turn-contract',
     name: 'Core Turn Contract Project',
     description: 'Project catalog item resolved before remote create turn.',
-    rootPath: 'D:/workspace/core-turn-contract',
     status: 'active',
     createdAt: '2026-04-11T12:01:00.000Z',
     updatedAt: '2026-04-11T12:01:00.000Z',
+  });
+  await repositories.projectContents.save({
+    id: 'project-content-core-turn-contract',
+    projectId: 'project-core-turn-contract',
+    projectUuid: 'project-project-core-turn-contract',
+    configData: JSON.stringify({
+      rootPath: 'D:/workspace/core-turn-contract',
+    }),
+    contentVersion: '1.0',
+    createdAt: '2026-04-11T12:01:00.250Z',
+    updatedAt: '2026-04-11T12:01:00.250Z',
   });
 
   const appAdminClient = createBirdCoderGeneratedAppAdminApiClient({
@@ -114,11 +125,43 @@ try {
     requestKind: string;
     runtimeId?: string;
   }> = [];
+  const observedRemoteSessionCreates: Array<{
+    engineId: string;
+    modelId: string;
+    projectId: string;
+    title?: string;
+    workspaceId: string;
+  }> = [];
+  const postTurnSyncLagSessionId = '101777208078558000';
+  const postTurnSyncLagReadFailures = new Set<string>();
 
   const coreWriteClient: BirdCoderCoreWriteApiClient = {
     async createCodingSession(request) {
       if (!request.engineId || !request.modelId) {
         throw new Error('expected explicit engineId and modelId');
+      }
+      observedRemoteSessionCreates.push({
+        engineId: request.engineId,
+        modelId: request.modelId,
+        projectId: request.projectId,
+        title: request.title,
+        workspaceId: request.workspaceId,
+      });
+
+      if (request.title === 'Stale Local Session') {
+        return {
+          id: 'coding-session-turn-recovered',
+          workspaceId: request.workspaceId,
+          projectId: request.projectId,
+          title: request.title,
+          status: 'active',
+          hostMode: request.hostMode ?? 'server',
+          engineId: request.engineId,
+          modelId: request.modelId,
+          createdAt: '2026-04-11T12:04:00.000Z',
+          updatedAt: '2026-04-11T12:04:00.000Z',
+          lastTurnAt: '2026-04-11T12:04:00.000Z',
+        };
       }
 
       return {
@@ -145,6 +188,12 @@ try {
       throw new Error('not needed');
     },
     async createCodingSessionTurn(codingSessionId, request) {
+      if (codingSessionId === 'coding-session-turn-stale-local') {
+        throw new Error(
+          'BirdCoder API request failed: POST /api/core/v1/coding-sessions/coding-session-turn-stale-local/turns -> 404 (Coding session projection was not found.)',
+        );
+      }
+
       observedRemoteTurnCreates.push({
         codingSessionId,
         runtimeId: request.runtimeId,
@@ -166,12 +215,19 @@ try {
     async submitApprovalDecision() {
       throw new Error('not needed');
     },
+    async submitUserQuestionAnswer() {
+      throw new Error('not needed');
+    },
     async deleteCodingSessionMessage() {
       throw new Error('not needed');
     },
   };
   const coreReadClient: BirdCoderCoreReadApiClient = {
     async getCodingSession(codingSessionId) {
+      if (postTurnSyncLagReadFailures.has(codingSessionId)) {
+        throw new Error(`Coding session ${codingSessionId} not found.`);
+      }
+
       return {
         id: codingSessionId,
         workspaceId: 'workspace-core-turn-contract',
@@ -218,7 +274,7 @@ try {
           turnId: 'coding-turn-server-authoritative',
           runtimeId: 'runtime-turn-contract',
           kind: 'turn.started',
-          sequence: 1,
+          sequence: '1',
           payload: {
             requestKind: 'chat',
             inputSummary: 'Implement shared core turn facade.',
@@ -232,7 +288,7 @@ try {
           turnId: 'coding-turn-server-authoritative',
           runtimeId: 'runtime-turn-contract',
           kind: 'message.completed',
-          sequence: 2,
+          sequence: '2',
           payload: {
             role: 'user',
             content: 'Implement shared core turn facade.',
@@ -246,7 +302,7 @@ try {
           turnId: 'coding-turn-server-authoritative',
           runtimeId: 'runtime-turn-contract',
           kind: 'message.completed',
-          sequence: 3,
+          sequence: '3',
           payload: {
             role: 'assistant',
             content: 'Server runtime turn completed for shared core turn facade.',
@@ -260,7 +316,7 @@ try {
           turnId: 'coding-turn-server-authoritative',
           runtimeId: 'runtime-turn-contract',
           kind: 'turn.completed',
-          sequence: 4,
+          sequence: '4',
           payload: {
             finishReason: 'stop',
             runtimeStatus: 'completed',
@@ -336,6 +392,15 @@ try {
       inputSummary: 'Implement shared core turn facade.',
     },
   ]);
+  assert.deepEqual(observedRemoteSessionCreates, [
+    {
+      engineId: 'codex',
+      modelId: 'gpt-5-codex',
+      projectId: 'project-core-turn-contract',
+      title: 'Turn Contract Session',
+      workspaceId: 'workspace-core-turn-contract',
+    },
+  ]);
 
   const projects = await services.projectService.getProjects('workspace-core-turn-contract');
   const project = projects.find((candidate) => candidate.id === 'project-core-turn-contract');
@@ -367,6 +432,111 @@ try {
       },
     ],
     'remote create-turn adoption must preserve the server-authoritative turn id and mirror completed assistant output back into refreshed project session state.',
+  );
+
+  const remoteOnlyMessage = await services.projectService.addCodingSessionMessage(
+    'project-core-turn-contract',
+    'coding-session-turn-remote-only',
+    {
+      role: 'user',
+      content: 'Continue remote-only session.',
+    },
+  );
+
+  assert.equal(
+    remoteOnlyMessage.turnId,
+    'coding-turn-server-authoritative',
+    'send should create a core turn even when the authoritative session is not yet present in the local project mirror.',
+  );
+
+  await services.projectService.upsertCodingSession?.(
+    'project-core-turn-contract',
+    {
+      id: 'coding-session-turn-stale-local',
+      workspaceId: 'workspace-core-turn-contract',
+      projectId: 'project-core-turn-contract',
+      title: 'Stale Local Session',
+      status: 'active',
+      hostMode: 'server',
+      engineId: 'codex',
+      modelId: 'gpt-5-codex',
+      createdAt: '2026-04-11T12:03:30.000Z',
+      updatedAt: '2026-04-11T12:03:30.000Z',
+      lastTurnAt: '2026-04-11T12:03:30.000Z',
+      transcriptUpdatedAt: null,
+      displayTime: 'Just now',
+      messages: [],
+    },
+  );
+
+  const recoveredMessage = await services.projectService.addCodingSessionMessage(
+    'project-core-turn-contract',
+    'coding-session-turn-stale-local',
+    {
+      role: 'user',
+      content: 'Recover stale local session.',
+    },
+  );
+
+  assert.equal(
+    recoveredMessage.codingSessionId,
+    'coding-session-turn-recovered',
+    'send should recover a stale local mirror session by creating a new authoritative core session instead of surfacing a not-found toast.',
+  );
+  assert.equal(recoveredMessage.turnId, 'coding-turn-server-authoritative');
+  assert.deepEqual(
+    observedRemoteTurnCreates.map((entry) => entry.codingSessionId),
+    [
+      'coding-session-turn-contract',
+      'coding-session-turn-remote-only',
+      'coding-session-turn-recovered',
+    ],
+  );
+
+  await services.projectService.upsertCodingSession?.(
+    'project-core-turn-contract',
+    {
+      id: postTurnSyncLagSessionId,
+      workspaceId: 'workspace-core-turn-contract',
+      projectId: 'project-core-turn-contract',
+      title: 'Post Turn Sync Lag Session',
+      status: 'active',
+      hostMode: 'server',
+      engineId: 'codex',
+      modelId: 'gpt-5-codex',
+      createdAt: '2026-04-11T12:05:00.000Z',
+      updatedAt: '2026-04-11T12:05:00.000Z',
+      lastTurnAt: '2026-04-11T12:05:00.000Z',
+      transcriptUpdatedAt: null,
+      displayTime: 'Just now',
+      messages: [],
+    },
+  );
+  postTurnSyncLagReadFailures.add(postTurnSyncLagSessionId);
+
+  const postTurnSyncLagMessage = await services.projectService.addCodingSessionMessage(
+    'project-core-turn-contract',
+    postTurnSyncLagSessionId,
+    {
+      role: 'user',
+      content: 'Send while post-turn projection read is lagging.',
+    },
+  );
+
+  assert.equal(
+    postTurnSyncLagMessage.codingSessionId,
+    postTurnSyncLagSessionId,
+    'send must not surface a coding-session-not-found toast after the remote turn has already been accepted and the local mirror has been updated.',
+  );
+  assert.equal(postTurnSyncLagMessage.turnId, 'coding-turn-server-authoritative');
+  assert.deepEqual(
+    observedRemoteTurnCreates.map((entry) => entry.codingSessionId),
+    [
+      'coding-session-turn-contract',
+      'coding-session-turn-remote-only',
+      'coding-session-turn-recovered',
+      postTurnSyncLagSessionId,
+    ],
   );
 } finally {
   if (originalWindowDescriptor) {

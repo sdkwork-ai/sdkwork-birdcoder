@@ -1,5 +1,6 @@
 import {
   buildMessageTranscriptPrompt,
+  canonicalizeBirdCoderCodeEngineProviderToolName,
   createDetectedHealthReport,
   createModuleBackedOfficialSdkBridgeLoader,
   createRawExtensionDescriptor,
@@ -8,7 +9,12 @@ import {
   createTextChatResponse,
   createTextStreamChunk,
   createToolCallStreamChunk,
+  normalizeProviderToolArgumentRecord,
+  parseBirdCoderApiJson,
+  resolveCumulativeTextDelta,
   resolvePackagePresence,
+  streamResponseAsChunks,
+  stringifyProviderToolArgumentPayload,
   type ChatEngineOfficialSdkBridge,
   type ChatEngineOfficialSdkBridgeLoader,
   type ChatMessage,
@@ -315,22 +321,32 @@ function normalizeOptionalIdentifier(value: string | null | undefined): string |
   return normalizedValue || null;
 }
 
-function toNativeCodexSessionId(candidate: string | null | undefined): string | null {
+function normalizeCodexNativeSessionId(candidate: string | null | undefined): string | null {
+  const normalizedCandidate = normalizeOptionalIdentifier(candidate);
+  if (!normalizedCandidate) {
+    return null;
+  }
+
+  const nativeSessionId = normalizedCandidate.startsWith(CODEX_NATIVE_SESSION_ID_PREFIX)
+    ? normalizedCandidate.slice(CODEX_NATIVE_SESSION_ID_PREFIX.length).trim()
+    : normalizedCandidate;
+  return nativeSessionId || null;
+}
+
+function toLegacyNativeCodexSessionId(candidate: string | null | undefined): string | null {
   const normalizedCandidate = normalizeOptionalIdentifier(candidate);
   if (!normalizedCandidate?.startsWith(CODEX_NATIVE_SESSION_ID_PREFIX)) {
     return null;
   }
 
-  const nativeSessionId = normalizedCandidate
-    .slice(CODEX_NATIVE_SESSION_ID_PREFIX.length)
-    .trim();
-  return nativeSessionId || null;
+  return normalizeCodexNativeSessionId(normalizedCandidate);
 }
 
 function resolveCodexCliResumeSessionId(options?: ChatOptions): string | null {
   return (
-    toNativeCodexSessionId(options?.context?.sessionId) ||
-    toNativeCodexSessionId(options?.context?.codingSessionId)
+    normalizeCodexNativeSessionId(options?.context?.nativeSessionId) ||
+    toLegacyNativeCodexSessionId(options?.context?.sessionId) ||
+    toLegacyNativeCodexSessionId(options?.context?.codingSessionId)
   );
 }
 
@@ -391,23 +407,6 @@ function formatCodexCliError(message: string): string {
   }
 
   return normalizedMessage;
-}
-
-function getCodexAgentMessageDelta(
-  itemId: string,
-  nextText: string,
-  itemContentById: Map<string, string>,
-): string {
-  const previousText = itemContentById.get(itemId) ?? '';
-  itemContentById.set(itemId, nextText);
-
-  if (!previousText) {
-    return nextText;
-  }
-
-  return nextText.startsWith(previousText)
-    ? nextText.slice(previousText.length)
-    : nextText;
 }
 
 async function executeCodexCliJsonlTurn(
@@ -480,7 +479,7 @@ async function executeCodexCliJsonlTurn(
       .filter(Boolean)
       .map((line) => {
         try {
-          return JSON.parse(line) as Record<string, unknown>;
+          return parseBirdCoderApiJson<Record<string, unknown>>(line);
         } catch (error) {
           throw new Error(
             `Codex CLI JSONL parse failed: ${error instanceof Error ? error.message : String(error)}. Line: ${line}`,
@@ -535,8 +534,12 @@ function toCodexToolCall(item: Record<string, unknown>): ToolCall | null {
         id: String(item.id ?? `codex-command-${Date.now()}`),
         type: 'function',
         function: {
-          name: 'execute_command',
-          arguments: JSON.stringify({
+          name: canonicalizeBirdCoderCodeEngineProviderToolName({
+            fallbackToolName: 'run_command',
+            provider: 'codex',
+            toolName: item.type,
+          }),
+          arguments: stringifyProviderToolArgumentPayload({
             command: item.command,
             output: item.aggregated_output,
             exitCode: item.exit_code,
@@ -549,8 +552,12 @@ function toCodexToolCall(item: Record<string, unknown>): ToolCall | null {
         id: String(item.id ?? `codex-patch-${Date.now()}`),
         type: 'function',
         function: {
-          name: 'apply_patch',
-          arguments: JSON.stringify({
+          name: canonicalizeBirdCoderCodeEngineProviderToolName({
+            fallbackToolName: 'apply_patch',
+            provider: 'codex',
+            toolName: item.type,
+          }),
+          arguments: stringifyProviderToolArgumentPayload({
             changes: item.changes,
             status: item.status,
           }),
@@ -561,9 +568,14 @@ function toCodexToolCall(item: Record<string, unknown>): ToolCall | null {
         id: String(item.id ?? `codex-todo-${Date.now()}`),
         type: 'function',
         function: {
-          name: 'write_todo',
-          arguments: JSON.stringify({
+          name: canonicalizeBirdCoderCodeEngineProviderToolName({
+            fallbackToolName: 'write_todo',
+            provider: 'codex',
+            toolName: item.type,
+          }),
+          arguments: stringifyProviderToolArgumentPayload({
             items: item.items,
+            status: item.status,
           }),
         },
       };
@@ -572,13 +584,47 @@ function toCodexToolCall(item: Record<string, unknown>): ToolCall | null {
         id: String(item.id ?? `codex-mcp-${Date.now()}`),
         type: 'function',
         function: {
-          name: String(item.tool ?? 'mcp_tool_call'),
-          arguments: JSON.stringify(item.arguments ?? {}),
+          name: canonicalizeBirdCoderCodeEngineProviderToolName({
+            fallbackToolName: 'mcp_tool_call',
+            provider: 'codex',
+            toolName: item.tool,
+          }),
+          arguments: stringifyProviderToolArgumentPayload(
+            normalizeProviderToolArgumentRecord(item.arguments),
+          ),
         },
       };
     default:
       return null;
   }
+}
+
+function extractCodexEventItem(event: Record<string, unknown>): Record<string, unknown> | null {
+  if (event.type !== 'item.updated' && event.type !== 'item.completed') {
+    return null;
+  }
+
+  return event.item && typeof event.item === 'object'
+    ? event.item as Record<string, unknown>
+    : null;
+}
+
+function extractCodexItemsFromEvents(
+  events: readonly Record<string, unknown>[],
+): Record<string, unknown>[] {
+  return events
+    .map(extractCodexEventItem)
+    .filter((item): item is Record<string, unknown> => item !== null);
+}
+
+function extractCodexToolCallsFromItems(value: unknown): ToolCall[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => item && typeof item === 'object' ? toCodexToolCall(item as Record<string, unknown>) : null)
+    .filter((toolCall): toolCall is ToolCall => toolCall !== null);
 }
 
 export function createCodexOfficialSdkBridge(
@@ -614,6 +660,7 @@ export function createCodexOfficialSdkBridge(
         id: `codex-chat-${Date.now()}`,
         model: options?.model || 'codex',
         content: finalResponse,
+        toolCalls: extractCodexToolCallsFromItems(turn.items),
         usage: createCodexUsage(
           turn.usage && typeof turn.usage === 'object'
             ? turn.usage as Record<string, unknown>
@@ -630,6 +677,7 @@ export function createCodexOfficialSdkBridge(
       const streamedTurn = await codexThread.runStreamed(prompt, {
         signal: options?.signal,
       });
+      const itemContentById = new Map<string, string>();
 
       for await (const event of streamedTurn.events) {
         switch (event.type) {
@@ -642,12 +690,19 @@ export function createCodexOfficialSdkBridge(
 
             const itemRecord = item as Record<string, unknown>;
             if (itemRecord.type === 'agent_message' && typeof itemRecord.text === 'string') {
+              const itemId = String(itemRecord.id ?? 'codex-agent-message');
+              const previousContent = itemContentById.get(itemId) ?? '';
+              const contentDelta = resolveCumulativeTextDelta(previousContent, itemRecord.text);
+              itemContentById.set(itemId, itemRecord.text);
+              if (!contentDelta) {
+                continue;
+              }
               yield createTextStreamChunk({
                 id,
                 created,
                 model,
                 role: 'assistant',
-                content: itemRecord.text,
+                content: contentDelta,
               });
               continue;
             }
@@ -717,7 +772,9 @@ export class CodexChatEngine implements IChatEngine {
 
   constructor(options: CodexChatEngineOptions = {}) {
     this.officialSdkBridgeLoader =
-      options.officialSdkBridgeLoader ?? DEFAULT_CODEX_OFFICIAL_SDK_BRIDGE_LOADER;
+      'officialSdkBridgeLoader' in options
+        ? options.officialSdkBridgeLoader ?? null
+        : DEFAULT_CODEX_OFFICIAL_SDK_BRIDGE_LOADER;
     this.cliJsonlTurnExecutor =
       options.cliJsonlTurnExecutor === undefined
         ? executeCodexCliJsonlTurn
@@ -774,27 +831,22 @@ export class CodexChatEngine implements IChatEngine {
       throw new Error(CODEX_CLI_UNAVAILABLE_MESSAGE);
     }
     const events = await this.cliJsonlTurnExecutor(prompt, options);
-    const assistantContent = events
-      .map((event) =>
-        event.type === 'item.updated' || event.type === 'item.completed'
-          ? event.item && typeof event.item === 'object'
-            ? event.item as Record<string, unknown>
-            : null
-          : null,
-      )
-      .filter((item): item is Record<string, unknown> => item !== null)
+    const items = extractCodexItemsFromEvents(events);
+    const toolCalls = extractCodexToolCallsFromItems(items);
+    const assistantContent = items
       .filter((item) => item.type === 'agent_message' && typeof item.text === 'string')
       .map((item) => String(item.text))
       .at(-1);
 
-    if (!assistantContent) {
+    if (!assistantContent && toolCalls.length === 0) {
       throw new Error('Codex CLI did not return an assistant response.');
     }
 
     return createTextChatResponse({
       id: `codex-chat-${Date.now()}`,
       model: options?.model || 'codex',
-      content: assistantContent,
+      content: assistantContent ?? '',
+      toolCalls,
     });
   }
 
@@ -810,14 +862,7 @@ export class CodexChatEngine implements IChatEngine {
 
     if (bridge?.sendMessage) {
       const response = await bridge.sendMessage(messages, options);
-      yield createTextStreamChunk({
-        id: response.id,
-        created: response.created,
-        model: response.model,
-        role: response.choices[0]?.message.role,
-        content: response.choices[0]?.message.content,
-        finishReason: response.choices[0]?.finish_reason,
-      });
+      yield* streamResponseAsChunks(response);
       return;
     }
 
@@ -842,11 +887,9 @@ export class CodexChatEngine implements IChatEngine {
           const itemRecord = item as Record<string, unknown>;
           if (itemRecord.type === 'agent_message' && typeof itemRecord.text === 'string') {
             const itemId = String(itemRecord.id ?? 'codex-agent-message');
-            const contentDelta = getCodexAgentMessageDelta(
-              itemId,
-              itemRecord.text,
-              itemContentById,
-            );
+            const previousContent = itemContentById.get(itemId) ?? '';
+            const contentDelta = resolveCumulativeTextDelta(previousContent, itemRecord.text);
+            itemContentById.set(itemId, itemRecord.text);
             if (contentDelta) {
               yield createTextStreamChunk({
                 id,

@@ -149,10 +149,10 @@ export function resolveBirdCoderCodeEngineNativeSessionIdPrefix(
 }
 
 export function isBirdCoderCodeEngineNativeSessionId(
-  sessionId: string | null | undefined,
+  nativeSessionId: string | null | undefined,
   engineKey?: BirdCoderCodeEngineKey | null,
 ): boolean {
-  const normalizedSessionId = sessionId?.trim().toLowerCase();
+  const normalizedSessionId = nativeSessionId?.trim().toLowerCase();
   if (!normalizedSessionId) {
     return false;
   }
@@ -165,6 +165,44 @@ export function isBirdCoderCodeEngineNativeSessionId(
   return BIRDCODER_NATIVE_SESSION_PROVIDERS.some((provider) =>
     normalizedSessionId.startsWith(provider.nativeSessionIdPrefix.toLowerCase()),
   );
+}
+
+export function resolveBirdCoderCodeEngineNativeSessionLookupId(
+  nativeSessionId: string | null | undefined,
+  engineKey?: BirdCoderCodeEngineKey | null,
+): string | null {
+  const normalizedSessionId = nativeSessionId?.trim();
+  if (!normalizedSessionId) {
+    return null;
+  }
+
+  const provider = getBirdCoderCodeEngineNativeSessionProvider(engineKey);
+  const providers = provider
+    ? [
+        provider,
+        ...BIRDCODER_NATIVE_SESSION_PROVIDERS.filter(
+          (entry) => entry.engineId !== provider.engineId,
+        ),
+      ]
+    : BIRDCODER_NATIVE_SESSION_PROVIDERS;
+  const matchedProvider = providers.find((entry) =>
+    normalizedSessionId
+      .toLowerCase()
+      .startsWith(entry.nativeSessionIdPrefix.toLowerCase()),
+  );
+
+  if (!matchedProvider) {
+    return normalizedSessionId;
+  }
+
+  return normalizedSessionId.slice(matchedProvider.nativeSessionIdPrefix.length).trim() || null;
+}
+
+export function normalizeBirdCoderCodeEngineNativeSessionId(
+  nativeSessionId: string | null | undefined,
+  engineKey?: BirdCoderCodeEngineKey | null,
+): string | null {
+  return resolveBirdCoderCodeEngineNativeSessionLookupId(nativeSessionId, engineKey);
 }
 
 export function listBirdCoderCodeEngineDescriptors(): ReadonlyArray<BirdCoderEngineDescriptor> {

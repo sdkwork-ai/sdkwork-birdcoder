@@ -142,6 +142,7 @@ try {
   await Promise.all([
     repositories.workspaces.clear(),
     repositories.projects.clear(),
+    repositories.projectContents.clear(),
     evidenceRepositories.promptRuns.clear(),
     evidenceRepositories.promptEvaluations.clear(),
     evidenceRepositories.templateInstantiations.clear(),
@@ -206,6 +207,9 @@ try {
     async submitApprovalDecision() {
       throw new Error('not implemented');
     },
+    async submitUserQuestionAnswer() {
+      throw new Error('not implemented');
+    },
     async deleteCodingSessionMessage() {
       throw new Error('not implemented');
     },
@@ -214,6 +218,7 @@ try {
   const providerBackedProjectService = new ProviderBackedProjectService({
     codingSessionRepositories,
     evidenceRepositories,
+    projectContentRepository: repositories.projectContents,
     repository: repositories.projects,
   });
   const projectService = new ApiBackedProjectService({
@@ -239,6 +244,17 @@ try {
     {
       path: 'D:/sdkwork/contracts/evidence-consumer-project',
     },
+  );
+  const resolvedCreatedProject = await projectService.getProjectById(createdProject.id);
+  assert.equal(
+    resolvedCreatedProject?.id,
+    createdProject.id,
+    'project creation must make the authoritative project immediately resolvable for the current user before session creation.',
+  );
+  assert.equal(
+    resolvedCreatedProject?.path,
+    'D:/sdkwork/contracts/evidence-consumer-project',
+    'project creation must preserve the local rootPath through the SQL-backed app authority.',
   );
   const createdSession = await projectService.createCodingSession(
     createdProject.id,
@@ -281,6 +297,11 @@ try {
   );
   assert.equal(templateInstantiation?.projectId, createdProject.id);
   assert.equal(templateInstantiation?.presetKey, 'default');
+  assert.equal(
+    templateInstantiation?.outputRoot,
+    'D:/sdkwork/contracts/evidence-consumer-project',
+    'project creation evidence must use the canonical plus_project_content rootPath as outputRoot.',
+  );
   assert.equal(templateInstantiation?.status, 'planned');
 } finally {
   if (originalWindowDescriptor) {

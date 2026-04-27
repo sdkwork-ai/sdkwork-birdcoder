@@ -55,6 +55,14 @@ assert.equal(
   'Plain stderr warnings must pass through untouched.',
 );
 
+assert.equal(
+  formatStructuredTerminalWarningPayload(
+    '{"message":"Terminal warning","status":101777208078558059}',
+  ),
+  'Terminal warning (status: 101777208078558059)',
+  'Structured runtime warning JSON must preserve unsafe Long status values before formatting.',
+);
+
 const sanitizedReplay = sanitizeDesktopSessionReplay({
   sessionId: 'session-001',
   fromCursor: null,

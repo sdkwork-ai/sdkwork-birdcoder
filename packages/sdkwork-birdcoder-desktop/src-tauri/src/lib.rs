@@ -5,6 +5,7 @@ use sdkwork_birdcoder_server::{
     BIRD_SERVER_DEFAULT_BIND_ADDRESS, BIRD_SERVER_DEFAULT_HOST,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::sync::OnceLock;
@@ -21,7 +22,8 @@ const DEFAULT_BOOTSTRAP_WORKSPACE_NAME: &str = "Default Workspace";
 const DEFAULT_BOOTSTRAP_WORKSPACE_DESCRIPTION: &str = "Primary local workspace for BirdCoder.";
 const DEFAULT_BOOTSTRAP_WORKSPACE_OWNER_USER_ID: &str = "100000000000000001";
 const DEFAULT_BOOTSTRAP_TENANT_ID: &str = "0";
-const DEFAULT_PRIVATE_DATA_SCOPE: &str = "PRIVATE";
+const DEFAULT_BOOTSTRAP_ORGANIZATION_ID: &str = "0";
+const DEFAULT_PRIVATE_DATA_SCOPE_VALUE: i64 = 1;
 
 static DESKTOP_RUNTIME_CONFIG: OnceLock<DesktopRuntimeConfig> = OnceLock::new();
 
@@ -347,8 +349,188 @@ fn local_database_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(database_path)
 }
 
+fn sqlite_table_exists(connection: &Connection, table_name: &str) -> Result<bool, String> {
+    let mut statement = connection
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?1")
+        .map_err(|error| format!("prepare sqlite table probe for {table_name} failed: {error}"))?;
+    let mut rows = statement
+        .query([table_name])
+        .map_err(|error| format!("query sqlite table probe for {table_name} failed: {error}"))?;
+
+    rows.next()
+        .map(|row| row.is_some())
+        .map_err(|error| format!("read sqlite table probe for {table_name} failed: {error}"))
+}
+
+fn sqlite_column_exists(
+    connection: &Connection,
+    table_name: &str,
+    column_name: &str,
+) -> Result<bool, String> {
+    let pragma = format!("PRAGMA table_info({table_name})");
+    let mut statement = connection
+        .prepare(&pragma)
+        .map_err(|error| format!("prepare sqlite table info for {table_name} failed: {error}"))?;
+    let rows = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("query sqlite table info for {table_name} failed: {error}"))?;
+
+    for row in rows {
+        let existing_column_name = row
+            .map_err(|error| format!("read sqlite table info for {table_name} failed: {error}"))?;
+        if existing_column_name == column_name {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+fn ensure_sqlite_table_column(
+    connection: &Connection,
+    table_name: &str,
+    column_name: &str,
+    column_sql: &str,
+) -> Result<(), String> {
+    if sqlite_column_exists(connection, table_name, column_name)? {
+        return Ok(());
+    }
+
+    connection
+        .execute(
+            &format!("ALTER TABLE {table_name} ADD COLUMN {column_sql}"),
+            [],
+        )
+        .map_err(|error| {
+            format!("alter sqlite table {table_name} add column {column_name} failed: {error}")
+        })?;
+
+    Ok(())
+}
+
+fn derive_legacy_run_configuration_config_key(storage_id: &str, rowid: i64) -> String {
+    let normalized_storage_id = storage_id.trim();
+    if normalized_storage_id.is_empty() {
+        return format!("config-{rowid}");
+    }
+
+    if normalized_storage_id.starts_with("run-config:") {
+        if let Some(candidate) = normalized_storage_id.rsplit(':').next() {
+            let normalized_candidate = candidate.trim();
+            if !normalized_candidate.is_empty() {
+                return normalized_candidate.to_string();
+            }
+        }
+    }
+
+    normalized_storage_id.to_string()
+}
+
+fn backfill_legacy_run_configuration_config_keys(connection: &Connection) -> Result<(), String> {
+    if !sqlite_table_exists(connection, "run_configurations")?
+        || !sqlite_column_exists(connection, "run_configurations", "config_key")?
+    {
+        return Ok(());
+    }
+
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT rowid, id, scope_type, scope_id, config_key
+            FROM run_configurations
+            ORDER BY created_at ASC, rowid ASC
+            "#,
+        )
+        .map_err(|error| format!("prepare legacy run configuration backfill failed: {error}"))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, Option<String>>(4)?,
+            ))
+        })
+        .map_err(|error| format!("query legacy run configuration backfill failed: {error}"))?;
+
+    let mut scoped_key_counts = HashMap::<(String, String, String), usize>::new();
+    let mut updates = Vec::<(i64, String)>::new();
+
+    for row in rows {
+        let (rowid, storage_id, scope_type, scope_id, existing_config_key) =
+            row.map_err(|error| format!("read legacy run configuration row failed: {error}"))?;
+        let base_config_key = existing_config_key
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+            .unwrap_or_else(|| derive_legacy_run_configuration_config_key(&storage_id, rowid));
+        let occurrence_key = (
+            scope_type.clone(),
+            scope_id.clone(),
+            base_config_key.clone(),
+        );
+        let next_occurrence = scoped_key_counts.entry(occurrence_key).or_insert(0);
+        *next_occurrence += 1;
+
+        let config_key = if *next_occurrence == 1 {
+            base_config_key
+        } else {
+            format!("{base_config_key}-{}", next_occurrence)
+        };
+
+        updates.push((rowid, config_key));
+    }
+
+    drop(statement);
+
+    for (rowid, config_key) in updates {
+        connection
+            .execute(
+                "UPDATE run_configurations SET config_key = ?1 WHERE rowid = ?2",
+                params![config_key, rowid],
+            )
+            .map_err(|error| {
+                format!(
+                    "update legacy run configuration config_key for row {rowid} failed: {error}"
+                )
+            })?;
+    }
+
+    Ok(())
+}
+
+fn ensure_runtime_schema_backfill(connection: &Connection) -> Result<(), String> {
+    if sqlite_table_exists(connection, "run_configurations")? {
+        ensure_sqlite_table_column(connection, "run_configurations", "uuid", "uuid TEXT NULL")?;
+        ensure_sqlite_table_column(
+            connection,
+            "run_configurations",
+            "tenant_id",
+            "tenant_id INTEGER NOT NULL DEFAULT 0",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            "run_configurations",
+            "organization_id",
+            "organization_id INTEGER NOT NULL DEFAULT 0",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            "run_configurations",
+            "config_key",
+            "config_key TEXT NOT NULL DEFAULT ''",
+        )?;
+        backfill_legacy_run_configuration_config_keys(connection)?;
+    }
+
+    Ok(())
+}
+
 fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
     initialize_sqlite_provider_authority_schema(connection)?;
+    ensure_runtime_schema_backfill(connection)?;
     connection
         .execute_batch(
             r#"
@@ -376,8 +558,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS run_configurations (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 workspace_id TEXT NOT NULL DEFAULT '',
                 project_id TEXT NOT NULL DEFAULT '',
                 scope_type TEXT NOT NULL DEFAULT 'global',
@@ -398,8 +580,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS terminal_executions (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 workspace_id TEXT NOT NULL DEFAULT '',
                 project_id TEXT NOT NULL DEFAULT '',
                 session_id TEXT NOT NULL,
@@ -420,8 +602,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS workbench_preferences (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -437,8 +619,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS engine_registry (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -456,8 +638,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS model_catalog (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -475,8 +657,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS engine_bindings (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -602,12 +784,12 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 use_count INTEGER NOT NULL DEFAULT 1
             );
 
-            CREATE TABLE IF NOT EXISTS workspaces (
+            CREATE TABLE IF NOT EXISTS plus_workspace (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
-                data_scope TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
+                data_scope INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -616,9 +798,9 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 code TEXT NULL,
                 title TEXT NULL,
                 description TEXT NULL,
-                owner_id TEXT NULL,
-                leader_id TEXT NULL,
-                created_by_user_id TEXT NULL,
+                owner_id INTEGER NOT NULL,
+                leader_id INTEGER NULL,
+                created_by_user_id INTEGER NULL,
                 icon TEXT NULL,
                 color TEXT NULL,
                 type TEXT NULL,
@@ -635,49 +817,66 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS projects (
+            CREATE TABLE IF NOT EXISTS plus_project (
                 id INTEGER PRIMARY KEY,
-                uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
-                data_scope TEXT NULL,
-                user_id TEXT NULL,
-                parent_id TEXT NULL,
+                uuid TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                v INTEGER NOT NULL DEFAULT 0,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
+                data_scope INTEGER NOT NULL DEFAULT 1,
+                parent_id INTEGER NULL,
                 parent_uuid TEXT NULL,
                 parent_metadata TEXT NULL,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                version INTEGER NOT NULL DEFAULT 0,
-                is_deleted INTEGER NOT NULL DEFAULT 0,
-                workspace_id INTEGER NOT NULL,
-                workspace_uuid TEXT NULL,
+                user_id INTEGER NULL,
                 name TEXT NOT NULL,
-                code TEXT NULL,
-                title TEXT NULL,
-                description TEXT NULL,
-                root_path TEXT NULL,
+                title TEXT NOT NULL,
+                cover_image TEXT NULL,
                 author TEXT NULL,
-                file_id TEXT NULL,
-                type TEXT NULL,
+                file_id INTEGER NULL,
+                code TEXT NOT NULL,
+                type INTEGER NOT NULL,
                 site_path TEXT NULL,
                 domain_prefix TEXT NULL,
-                conversation_id TEXT NULL,
-                owner_id TEXT NULL,
-                leader_id TEXT NULL,
-                created_by_user_id TEXT NULL,
+                description TEXT NULL,
+                status INTEGER NOT NULL,
+                conversation_id INTEGER NULL,
+                workspace_id INTEGER NULL,
+                workspace_uuid TEXT NULL,
+                leader_id INTEGER NULL,
                 start_time TEXT NULL,
                 end_time TEXT NULL,
                 budget_amount INTEGER NULL,
-                cover_image_json TEXT NULL,
-                is_template INTEGER NOT NULL DEFAULT 0,
-                status TEXT NOT NULL
+                is_deleted INTEGER NOT NULL,
+                is_template INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS plus_project_content (
+                id INTEGER PRIMARY KEY,
+                uuid TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                v INTEGER NOT NULL DEFAULT 0,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
+                data_scope INTEGER NOT NULL DEFAULT 1,
+                user_id INTEGER NULL,
+                parent_id INTEGER NULL,
+                project_id INTEGER NOT NULL,
+                project_uuid TEXT NOT NULL,
+                config_data TEXT NULL,
+                content_data TEXT NULL,
+                metadata TEXT NULL,
+                content_version TEXT NOT NULL,
+                content_hash TEXT NULL
             );
 
             CREATE TABLE IF NOT EXISTS skill_packages (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -691,8 +890,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS skill_versions (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -706,8 +905,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS skill_capabilities (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -721,8 +920,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS skill_installations (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -737,8 +936,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS app_templates (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -752,8 +951,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS app_template_versions (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -767,8 +966,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS app_template_target_profiles (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -783,8 +982,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS app_template_presets (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -798,8 +997,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS app_template_instantiations (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -814,8 +1013,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS teams (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -825,9 +1024,9 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 code TEXT NULL,
                 title TEXT NULL,
                 description TEXT NULL,
-                owner_id TEXT NULL,
-                leader_id TEXT NULL,
-                created_by_user_id TEXT NULL,
+                owner_id INTEGER NOT NULL,
+                leader_id INTEGER NULL,
+                created_by_user_id INTEGER NULL,
                 metadata_json TEXT NULL,
                 status TEXT NOT NULL
             );
@@ -835,8 +1034,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS project_documents (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -852,8 +1051,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS deployment_targets (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -868,8 +1067,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS deployment_records (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -886,62 +1085,62 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS team_members (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
                 is_deleted INTEGER NOT NULL DEFAULT 0,
                 team_id INTEGER NOT NULL,
-                user_id TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
                 role TEXT NOT NULL,
-                created_by_user_id TEXT NULL,
-                granted_by_user_id TEXT NULL,
+                created_by_user_id INTEGER NULL,
+                granted_by_user_id INTEGER NULL,
                 status TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS workspace_members (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
                 is_deleted INTEGER NOT NULL DEFAULT 0,
                 workspace_id INTEGER NOT NULL,
-                user_id TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
                 team_id INTEGER NULL,
                 role TEXT NOT NULL,
-                created_by_user_id TEXT NULL,
-                granted_by_user_id TEXT NULL,
+                created_by_user_id INTEGER NULL,
+                granted_by_user_id INTEGER NULL,
                 status TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS project_collaborators (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
                 is_deleted INTEGER NOT NULL DEFAULT 0,
                 project_id INTEGER NOT NULL,
                 workspace_id INTEGER NOT NULL,
-                user_id TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
                 team_id INTEGER NULL,
                 role TEXT NOT NULL,
-                created_by_user_id TEXT NULL,
-                granted_by_user_id TEXT NULL,
+                created_by_user_id INTEGER NULL,
+                granted_by_user_id INTEGER NULL,
                 status TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS release_records (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -956,8 +1155,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS audit_events (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -971,8 +1170,8 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE TABLE IF NOT EXISTS governance_policies (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
-                tenant_id TEXT NULL,
-                organization_id TEXT NULL,
+                tenant_id INTEGER NOT NULL DEFAULT 0,
+                organization_id INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -1011,8 +1210,17 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE UNIQUE INDEX IF NOT EXISTS uk_schema_migration_history_provider_migration
             ON schema_migration_history(provider_id, migration_id);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_projects_workspace_name
-            ON projects(workspace_id, name);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_project_name
+            ON plus_project(name);
+
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_project_code
+            ON plus_project(code);
+
+            CREATE INDEX IF NOT EXISTS idx_plus_project_content_project_id
+            ON plus_project_content(project_id);
+
+            CREATE INDEX IF NOT EXISTS idx_plus_project_content_project_uuid
+            ON plus_project_content(project_uuid);
 
             CREATE INDEX IF NOT EXISTS idx_coding_sessions_project_updated
             ON coding_sessions(project_id, updated_at);
@@ -1096,7 +1304,7 @@ fn purge_reserved_authority_local_store_rows(connection: &Connection) -> Result<
 fn ensure_bootstrap_workspace_authority(connection: &Connection) -> Result<(), String> {
     let workspace_count: i64 = connection
         .query_row(
-            "SELECT COUNT(*) FROM workspaces WHERE is_deleted = 0",
+            "SELECT COUNT(*) FROM plus_workspace AS workspaces WHERE is_deleted = 0",
             [],
             |row| row.get(0),
         )
@@ -1108,7 +1316,7 @@ fn ensure_bootstrap_workspace_authority(connection: &Connection) -> Result<(), S
     connection
         .execute(
             r#"
-            INSERT INTO workspaces (
+            INSERT INTO plus_workspace AS workspaces (
                 id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                 data_scope, name, code, title, description, owner_id, leader_id, created_by_user_id, type,
                 settings_json, is_public, is_template, status
@@ -1122,8 +1330,8 @@ fn ensure_bootstrap_workspace_authority(connection: &Connection) -> Result<(), S
                 DEFAULT_BOOTSTRAP_WORKSPACE_ID,
                 "workspace-uuid-default",
                 DEFAULT_BOOTSTRAP_TENANT_ID,
-                Option::<String>::None,
-                DEFAULT_PRIVATE_DATA_SCOPE,
+                DEFAULT_BOOTSTRAP_ORGANIZATION_ID,
+                DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
                 DEFAULT_BOOTSTRAP_WORKSPACE_NAME,
                 DEFAULT_BOOTSTRAP_WORKSPACE_ID,
                 DEFAULT_BOOTSTRAP_WORKSPACE_NAME,
@@ -1957,6 +2165,24 @@ mod tests {
         rows.next().expect("read table probe").is_some()
     }
 
+    fn column_exists(connection: &Connection, table_name: &str, column_name: &str) -> bool {
+        let pragma = format!("PRAGMA table_info({table_name})");
+        let mut statement = connection
+            .prepare(&pragma)
+            .expect("prepare table info probe");
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(1))
+            .expect("query table info probe");
+
+        for row in rows {
+            if row.expect("read table info probe") == column_name {
+                return true;
+            }
+        }
+
+        false
+    }
+
     #[test]
     fn initialize_database_schema_creates_direct_authority_tables_and_migration_markers() {
         let connection = Connection::open_in_memory().expect("open in-memory sqlite");
@@ -1978,8 +2204,8 @@ mod tests {
             "coding_session_artifacts",
             "coding_session_checkpoints",
             "coding_session_operations",
-            "workspaces",
-            "projects",
+            "plus_workspace",
+            "plus_project",
             "teams",
             "release_records",
         ] {
@@ -2027,5 +2253,72 @@ mod tests {
             build_result.is_ok(),
             "desktop-initialized authority file should load in embedded server: {build_result:?}"
         );
+    }
+
+    #[test]
+    fn initialize_database_schema_upgrades_legacy_run_configurations_with_config_keys() {
+        let unique_suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("read system time")
+            .as_nanos();
+        let sqlite_path = std::env::temp_dir().join(format!(
+            "sdkwork-birdcoder-desktop-legacy-run-configs-{unique_suffix}.sqlite3"
+        ));
+        let connection = Connection::open(&sqlite_path).expect("open temp sqlite file");
+
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE run_configurations (
+                    id TEXT PRIMARY KEY,
+                    workspace_id TEXT NOT NULL DEFAULT '',
+                    project_id TEXT NOT NULL DEFAULT '',
+                    scope_type TEXT NOT NULL DEFAULT 'global',
+                    scope_id TEXT NOT NULL DEFAULT '',
+                    name TEXT NOT NULL,
+                    command TEXT NOT NULL,
+                    profile_id TEXT NOT NULL,
+                    group_name TEXT NOT NULL DEFAULT 'custom',
+                    cwd_mode TEXT NOT NULL DEFAULT 'project',
+                    custom_cwd TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0
+                );
+
+                INSERT INTO run_configurations (
+                    id, workspace_id, project_id, scope_type, scope_id, name, command, profile_id, group_name
+                )
+                VALUES
+                    ('run-config:project:project-1:dev', '', 'project-1', 'project', 'project-1', 'Start Dev', 'npm run dev', 'powershell', 'dev'),
+                    ('run-config:project:project-1:test', '', 'project-1', 'project', 'project-1', 'Run Tests', 'npm test', 'powershell', 'test');
+                "#,
+            )
+            .expect("create legacy run configuration table");
+
+        initialize_database_schema(&connection).expect("upgrade legacy sqlite schema");
+
+        assert!(
+            column_exists(&connection, "run_configurations", "config_key"),
+            "legacy run configuration table should gain config_key column"
+        );
+
+        let config_keys: Vec<String> = connection
+            .prepare("SELECT config_key FROM run_configurations ORDER BY id")
+            .expect("prepare config key read")
+            .query_map([], |row| row.get::<_, String>(0))
+            .expect("query config key read")
+            .map(|row| row.expect("read config key"))
+            .collect();
+
+        assert_eq!(
+            config_keys,
+            vec!["dev".to_string(), "test".to_string()],
+            "legacy run configuration rows should be backfilled with stable public config keys"
+        );
+
+        drop(connection);
+        fs::remove_file(&sqlite_path).expect("remove temp sqlite file");
     }
 }

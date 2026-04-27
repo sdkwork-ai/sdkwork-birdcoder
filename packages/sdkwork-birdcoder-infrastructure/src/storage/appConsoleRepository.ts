@@ -8,6 +8,7 @@ import {
   BIRDCODER_GOVERNANCE_POLICY_STORAGE_BINDING,
   BIRDCODER_DEPLOYMENT_TARGET_STORAGE_BINDING,
   BIRDCODER_DEPLOYMENT_RECORD_STORAGE_BINDING,
+  BIRDCODER_PROJECT_CONTENT_STORAGE_BINDING,
   BIRDCODER_PROJECT_STORAGE_BINDING,
   BIRDCODER_PROJECT_DOCUMENT_STORAGE_BINDING,
   BIRDCODER_RELEASE_RECORD_STORAGE_BINDING,
@@ -15,8 +16,13 @@ import {
   BIRDCODER_TEAM_STORAGE_BINDING,
   BIRDCODER_TEAM_MEMBER_STORAGE_BINDING,
   BIRDCODER_WORKSPACE_STORAGE_BINDING,
+  buildBirdCoderProjectBusinessCode,
   getBirdCoderEntityDefinition,
+  parseBirdCoderApiJson,
+  stringifyBirdCoderApiJson,
+  stringifyBirdCoderLongInteger,
   type BirdCoderDatabaseProviderId,
+  type BirdCoderLongIntegerString,
 } from '@sdkwork/birdcoder-types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -64,8 +70,8 @@ export interface BirdCoderWorkspaceRecord {
   maxMembers?: number;
   currentMembers?: number;
   memberCount?: number;
-  maxStorage?: number;
-  usedStorage?: number;
+  maxStorage?: BirdCoderLongIntegerString;
+  usedStorage?: BirdCoderLongIntegerString;
   settings?: Record<string, unknown>;
   isPublic?: boolean;
   isTemplate?: boolean;
@@ -102,11 +108,30 @@ export interface BirdCoderRepresentativeProjectRecord {
   coverImage?: Record<string, unknown>;
   startTime?: string;
   endTime?: string;
-  budgetAmount?: number;
+  budgetAmount?: BirdCoderLongIntegerString;
   isTemplate?: boolean;
   status: string;
   updatedAt: string;
   workspaceId: string;
+}
+
+export interface BirdCoderProjectContentRecord {
+  configData?: string;
+  contentData?: Record<string, unknown>;
+  contentHash?: string;
+  contentVersion: string;
+  createdAt: string;
+  dataScope?: string;
+  id: string;
+  metadata?: string;
+  organizationId?: string;
+  parentId?: string;
+  projectId: string;
+  projectUuid?: string;
+  tenantId?: string;
+  updatedAt: string;
+  userId?: string;
+  uuid?: string;
 }
 
 export interface BirdCoderRepresentativeProjectDocumentRecord {
@@ -239,6 +264,7 @@ export interface BirdCoderRepresentativeAppAdminRepositories {
   documents: BirdCoderTableRecordRepository<BirdCoderRepresentativeProjectDocumentRecord>;
   members: BirdCoderTableRecordRepository<BirdCoderRepresentativeTeamMemberRecord>;
   policies: BirdCoderTableRecordRepository<BirdCoderRepresentativePolicyRecord>;
+  projectContents: BirdCoderTableRecordRepository<BirdCoderProjectContentRecord>;
   projects: BirdCoderTableRecordRepository<BirdCoderRepresentativeProjectRecord>;
   releases: BirdCoderTableRecordRepository<BirdCoderRepresentativeReleaseRecord>;
   teams: BirdCoderTableRecordRepository<BirdCoderRepresentativeTeamRecord>;
@@ -283,17 +309,79 @@ function normalizeOptionalTextValue(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-function normalizeOptionalNumberValue(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
+function normalizeOptionalNumberValue(
+  fieldName: string,
+  value: unknown,
+): number | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) {
+      throw new Error(`BirdCoder repository int field ${fieldName} must be an integer.`);
+    }
+    if (!Number.isSafeInteger(value)) {
+      throw new Error(
+        `BirdCoder repository int field ${fieldName} received an unsafe JavaScript number; pass a safe integer instead.`,
+      );
+    }
     return value;
   }
 
-  if (typeof value === 'string' && value.trim().length > 0) {
-    const parsedValue = Number(value);
-    return Number.isFinite(parsedValue) ? parsedValue : undefined;
+  if (typeof value === 'bigint') {
+    const min = BigInt(Number.MIN_SAFE_INTEGER);
+    const max = BigInt(Number.MAX_SAFE_INTEGER);
+    if (value < min || value > max) {
+      throw new Error(`BirdCoder repository int field ${fieldName} must be a safe integer.`);
+    }
+    return Number(value);
   }
 
-  return undefined;
+  if (typeof value === 'string') {
+    const normalizedValue = value.trim();
+    if (!normalizedValue) {
+      return undefined;
+    }
+    if (!/^[+-]?\d+$/u.test(normalizedValue)) {
+      throw new Error(`BirdCoder repository int field ${fieldName} must be an integer.`);
+    }
+    const integerValue = BigInt(normalizedValue);
+    const min = BigInt(Number.MIN_SAFE_INTEGER);
+    const max = BigInt(Number.MAX_SAFE_INTEGER);
+    if (integerValue < min || integerValue > max) {
+      throw new Error(`BirdCoder repository int field ${fieldName} must be a safe integer.`);
+    }
+    return Number(integerValue);
+  }
+
+  throw new Error(`BirdCoder repository int field ${fieldName} must be a safe integer.`);
+}
+
+function normalizeOptionalLongIntegerValue(
+  fieldName: string,
+  value: unknown,
+): BirdCoderLongIntegerString | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value === 'string' && value.trim().length === 0) {
+    return undefined;
+  }
+
+  if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'bigint') {
+    throw new Error(`BirdCoder repository Long field ${fieldName} must be an exact decimal string.`);
+  }
+
+  try {
+    return stringifyBirdCoderLongInteger(value);
+  } catch (error) {
+    throw new Error(
+      `BirdCoder repository Long field ${fieldName} is invalid: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
 }
 
 function normalizeOptionalBooleanValue(value: unknown): boolean | undefined {
@@ -328,11 +416,15 @@ function normalizeOptionalJsonRecord(value: unknown): Record<string, unknown> | 
   }
 
   try {
-    const parsedValue = JSON.parse(value);
+    const parsedValue = parseBirdCoderApiJson(value);
     return isRecord(parsedValue) ? parsedValue : undefined;
   } catch {
     return undefined;
   }
+}
+
+function serializeOptionalJsonRecord(value: Record<string, unknown> | undefined): string | null {
+  return value ? stringifyBirdCoderApiJson(value) : null;
 }
 
 function normalizeWorkspaceRecord(value: unknown): BirdCoderWorkspaceRecord | null {
@@ -363,18 +455,18 @@ function normalizeWorkspaceRecord(value: unknown): BirdCoderWorkspaceRecord | nu
           ? value.leaderId
           : ownerId,
       createdByUserId: normalizeCanonicalCreatedByUserId(value, ownerId),
-      type: typeof value.type === 'string' ? value.type : undefined,
+      type: normalizeProjectTypeApiValue(value.type),
       startTime: normalizeOptionalTextValue(value.startTime),
       endTime: normalizeOptionalTextValue(value.endTime),
-      maxMembers: normalizeOptionalNumberValue(value.maxMembers),
-      currentMembers: normalizeOptionalNumberValue(value.currentMembers),
-      memberCount: normalizeOptionalNumberValue(value.memberCount),
-      maxStorage: normalizeOptionalNumberValue(value.maxStorage),
-      usedStorage: normalizeOptionalNumberValue(value.usedStorage),
+      maxMembers: normalizeOptionalNumberValue('maxMembers', value.maxMembers),
+      currentMembers: normalizeOptionalNumberValue('currentMembers', value.currentMembers),
+      memberCount: normalizeOptionalNumberValue('memberCount', value.memberCount),
+      maxStorage: normalizeOptionalLongIntegerValue('maxStorage', value.maxStorage),
+      usedStorage: normalizeOptionalLongIntegerValue('usedStorage', value.usedStorage),
       settings: normalizeOptionalJsonRecord(value.settings),
       isPublic: normalizeOptionalBooleanValue(value.isPublic),
       isTemplate: normalizeOptionalBooleanValue(value.isTemplate),
-      status: typeof value.status === 'string' ? value.status : 'active',
+      status: normalizeProjectStatusApiValue(value.status),
       updatedAt:
         typeof value.updatedAt === 'string' ? value.updatedAt : new Date(0).toISOString(),
     };
@@ -422,14 +514,14 @@ function normalizeWorkspaceRecord(value: unknown): BirdCoderWorkspaceRecord | nu
       },
       ownerId,
     ),
-    type: typeof row.type === 'string' ? row.type : undefined,
+    type: normalizeProjectTypeApiValue(row.type),
     startTime: normalizeOptionalTextValue(row.start_time),
     endTime: normalizeOptionalTextValue(row.end_time),
-    maxMembers: normalizeOptionalNumberValue(row.max_members),
-    currentMembers: normalizeOptionalNumberValue(row.current_members),
-    memberCount: normalizeOptionalNumberValue(row.member_count),
-    maxStorage: normalizeOptionalNumberValue(row.max_storage),
-    usedStorage: normalizeOptionalNumberValue(row.used_storage),
+    maxMembers: normalizeOptionalNumberValue('maxMembers', row.max_members),
+    currentMembers: normalizeOptionalNumberValue('currentMembers', row.current_members),
+    memberCount: normalizeOptionalNumberValue('memberCount', row.member_count),
+    maxStorage: normalizeOptionalLongIntegerValue('maxStorage', row.max_storage),
+    usedStorage: normalizeOptionalLongIntegerValue('usedStorage', row.used_storage),
     settings: normalizeOptionalJsonRecord((row as { settings_json?: unknown }).settings_json),
     isPublic: normalizeOptionalBooleanValue((row as { is_public?: unknown }).is_public),
     isTemplate: normalizeOptionalBooleanValue((row as { is_template?: unknown }).is_template),
@@ -469,11 +561,131 @@ function workspaceToRow(value: BirdCoderWorkspaceRecord): Record<string, unknown
     member_count: value.memberCount ?? null,
     max_storage: value.maxStorage ?? null,
     used_storage: value.usedStorage ?? null,
-    settings_json: value.settings ? JSON.stringify(value.settings) : null,
+    settings_json: serializeOptionalJsonRecord(value.settings),
     is_public: value.isPublic ?? false,
     is_template: value.isTemplate ?? false,
     status: value.status,
   };
+}
+
+function normalizeProjectTypeStorageValue(value: unknown): number {
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value;
+  }
+
+  const normalizedValue = typeof value === 'string' ? value.trim().toUpperCase() : '';
+  switch (normalizedValue) {
+    case 'NONE':
+      return 0;
+    case 'PPT':
+      return 2;
+    case 'APP_HTML':
+      return 3;
+    case 'APP_VUE':
+      return 4;
+    case 'APP_FLUTTER':
+      return 5;
+    case 'APP_UNIAPP':
+      return 6;
+    case 'APP_REACT':
+    case 'APP':
+      return 7;
+    case 'APP_UNITY':
+      return 8;
+    case 'VIDEO':
+      return 30;
+    case 'POSTER':
+      return 40;
+    case 'SDK':
+    case 'CODE':
+    default:
+      return 1;
+  }
+}
+
+function normalizeProjectStatusStorageValue(value: unknown): number {
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value;
+  }
+
+  const normalizedValue = typeof value === 'string' ? value.trim().toUpperCase() : '';
+  switch (normalizedValue) {
+    case 'IN_PROGRESS':
+    case 'ACTIVE':
+      return 2;
+    case 'SUSPENDED':
+    case 'PAUSED':
+      return 3;
+    case 'COMPLETED':
+      return 4;
+    case 'CANCELED':
+    case 'CANCELLED':
+      return 5;
+    case 'PLANNING':
+    default:
+      return 1;
+  }
+}
+
+function normalizeProjectTypeApiValue(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const numericValue = Number(value);
+    if (!Number.isInteger(numericValue)) {
+      return value;
+    }
+    value = numericValue;
+  }
+
+  switch (value) {
+    case 0:
+      return 'NONE';
+    case 1:
+      return 'SDK';
+    case 2:
+      return 'PPT';
+    case 3:
+      return 'APP_HTML';
+    case 4:
+      return 'APP_VUE';
+    case 5:
+      return 'APP_FLUTTER';
+    case 6:
+      return 'APP_UNIAPP';
+    case 7:
+      return 'APP_REACT';
+    case 8:
+      return 'APP_UNITY';
+    case 30:
+      return 'VIDEO';
+    case 40:
+      return 'POSTER';
+    default:
+      return undefined;
+  }
+}
+
+function normalizeProjectStatusApiValue(value: unknown): string {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const numericValue = Number(value);
+    if (!Number.isInteger(numericValue)) {
+      return value;
+    }
+    value = numericValue;
+  }
+
+  switch (value) {
+    case 2:
+      return 'IN_PROGRESS';
+    case 3:
+      return 'SUSPENDED';
+    case 4:
+      return 'COMPLETED';
+    case 5:
+      return 'CANCELED';
+    case 1:
+    default:
+      return 'PLANNING';
+  }
 }
 
 function normalizeProjectRecord(value: unknown): BirdCoderRepresentativeProjectRecord | null {
@@ -513,7 +725,7 @@ function normalizeProjectRecord(value: unknown): BirdCoderRepresentativeProjectR
       description: typeof value.description === 'string' ? value.description : undefined,
       sitePath: normalizeOptionalTextValue(value.sitePath),
       domainPrefix: normalizeOptionalTextValue(value.domainPrefix),
-      rootPath: typeof value.rootPath === 'string' ? value.rootPath : undefined,
+      rootPath: undefined,
       ownerId,
       leaderId:
         typeof value.leaderId === 'string' && value.leaderId.trim().length > 0
@@ -530,7 +742,7 @@ function normalizeProjectRecord(value: unknown): BirdCoderRepresentativeProjectR
       coverImage: normalizeOptionalJsonRecord(value.coverImage),
       startTime: normalizeOptionalTextValue(value.startTime),
       endTime: normalizeOptionalTextValue(value.endTime),
-      budgetAmount: normalizeOptionalNumberValue(value.budgetAmount),
+      budgetAmount: normalizeOptionalLongIntegerValue('budgetAmount', value.budgetAmount),
       isTemplate: normalizeOptionalBooleanValue(value.isTemplate),
       status: typeof value.status === 'string' ? value.status : 'active',
       createdAt:
@@ -545,15 +757,18 @@ function normalizeProjectRecord(value: unknown): BirdCoderRepresentativeProjectR
     return null;
   }
 
+  const projectUserId =
+    typeof (row as { user_id?: unknown }).user_id === 'string'
+      ? String((row as { user_id: unknown }).user_id)
+      : undefined;
+  const projectAuthorId =
+    typeof row.author === 'string' && row.author.trim().length > 0 ? row.author : undefined;
   const ownerId = normalizeCanonicalOwnerId({
-    ownerId: typeof row.owner_id === 'string' ? row.owner_id : undefined,
+    ownerId: projectUserId ?? projectAuthorId,
   });
   const createdByUserId = normalizeCanonicalCreatedByUserId(
     {
-      createdByUserId:
-        typeof (row as { created_by_user_id?: unknown }).created_by_user_id === 'string'
-          ? String((row as { created_by_user_id: unknown }).created_by_user_id)
-          : undefined,
+      createdByUserId: projectUserId ?? projectAuthorId,
     },
     ownerId,
   );
@@ -573,10 +788,7 @@ function normalizeProjectRecord(value: unknown): BirdCoderRepresentativeProjectR
         : DEFAULT_PRIVATE_DATA_SCOPE,
     workspaceId: String(row.workspace_id),
     workspaceUuid: typeof row.workspace_uuid === 'string' ? row.workspace_uuid : undefined,
-    userId:
-      typeof (row as { user_id?: unknown }).user_id === 'string'
-        ? String((row as { user_id: unknown }).user_id)
-        : createdByUserId,
+    userId: projectUserId ?? createdByUserId,
     parentId:
       typeof (row as { parent_id?: unknown }).parent_id === 'string'
         ? String((row as { parent_id: unknown }).parent_id)
@@ -594,7 +806,7 @@ function normalizeProjectRecord(value: unknown): BirdCoderRepresentativeProjectR
     description: typeof row.description === 'string' ? row.description : undefined,
     sitePath: normalizeOptionalTextValue((row as { site_path?: unknown }).site_path),
     domainPrefix: normalizeOptionalTextValue((row as { domain_prefix?: unknown }).domain_prefix),
-    rootPath: typeof row.root_path === 'string' ? row.root_path : undefined,
+    rootPath: undefined,
     ownerId,
     leaderId:
       typeof row.leader_id === 'string' && row.leader_id.trim().length > 0
@@ -611,13 +823,16 @@ function normalizeProjectRecord(value: unknown): BirdCoderRepresentativeProjectR
     ),
     type: typeof row.type === 'string' ? row.type : undefined,
     coverImage: normalizeOptionalJsonRecord(
-      (row as { cover_image_json?: unknown }).cover_image_json,
+      (row as { cover_image?: unknown }).cover_image,
     ),
     startTime: normalizeOptionalTextValue((row as { start_time?: unknown }).start_time),
     endTime: normalizeOptionalTextValue((row as { end_time?: unknown }).end_time),
-    budgetAmount: normalizeOptionalNumberValue((row as { budget_amount?: unknown }).budget_amount),
+    budgetAmount: normalizeOptionalLongIntegerValue(
+      'budgetAmount',
+      (row as { budget_amount?: unknown }).budget_amount,
+    ),
     isTemplate: normalizeOptionalBooleanValue((row as { is_template?: unknown }).is_template),
-    status: String(row.status ?? 'active'),
+    status: normalizeProjectStatusApiValue(row.status),
     createdAt: typeof row.created_at === 'string' ? row.created_at : new Date(0).toISOString(),
     updatedAt: typeof row.updated_at === 'string' ? row.updated_at : new Date(0).toISOString(),
   };
@@ -630,9 +845,9 @@ function projectToRow(value: BirdCoderRepresentativeProjectRecord): Record<strin
     id: value.id,
     created_at: value.createdAt,
     updated_at: value.updatedAt,
-    version: 0,
+    v: 0,
     is_deleted: false,
-    uuid: value.uuid ?? null,
+    uuid: value.uuid ?? `project-${value.id}`,
     tenant_id: value.tenantId ?? DEFAULT_LOCAL_TENANT_ID,
     organization_id: value.organizationId ?? DEFAULT_LOCAL_ORGANIZATION_ID,
     data_scope: value.dataScope ?? DEFAULT_PRIVATE_DATA_SCOPE,
@@ -641,27 +856,134 @@ function projectToRow(value: BirdCoderRepresentativeProjectRecord): Record<strin
     user_id: (value.userId ?? createdByUserId) || null,
     parent_id: value.parentId ?? DEFAULT_TREE_ROOT_ID,
     parent_uuid: value.parentUuid ?? DEFAULT_TREE_ROOT_UUID,
-    parent_metadata: value.parentMetadata ? JSON.stringify(value.parentMetadata) : null,
+    parent_metadata: serializeOptionalJsonRecord(value.parentMetadata),
     name: value.name,
-    code: value.code ?? null,
+    code:
+      value.code ??
+      buildBirdCoderProjectBusinessCode({
+        name: value.name,
+        projectId: value.id,
+        rootPath: value.rootPath,
+      }),
     title: value.title ?? value.name,
     description: value.description ?? null,
     site_path: value.sitePath ?? null,
     domain_prefix: value.domainPrefix ?? null,
-    root_path: value.rootPath ?? null,
-    cover_image_json: value.coverImage ? JSON.stringify(value.coverImage) : null,
-    owner_id: ownerId || null,
+    cover_image: serializeOptionalJsonRecord(value.coverImage),
     leader_id: (value.leaderId ?? value.ownerId ?? ownerId) || null,
-    created_by_user_id: createdByUserId || null,
     author: (value.author ?? createdByUserId ?? ownerId) || null,
     file_id: value.fileId ?? null,
     conversation_id: value.conversationId ?? null,
-    type: value.type ?? 'CODE',
+    type: normalizeProjectTypeStorageValue(value.type),
     start_time: value.startTime ?? null,
     end_time: value.endTime ?? null,
     budget_amount: value.budgetAmount ?? null,
     is_template: value.isTemplate ?? false,
-    status: value.status,
+    status: normalizeProjectStatusStorageValue(value.status),
+  };
+}
+
+function normalizeProjectContentRecord(value: unknown): BirdCoderProjectContentRecord | null {
+  if (isRecord(value) && typeof value.id === 'string' && typeof value.projectId === 'string') {
+    return {
+      id: value.id,
+      uuid: normalizeOptionalTextValue(value.uuid),
+      tenantId:
+        typeof value.tenantId === 'string' ? value.tenantId : DEFAULT_LOCAL_TENANT_ID,
+      organizationId:
+        typeof value.organizationId === 'string'
+          ? value.organizationId
+          : DEFAULT_LOCAL_ORGANIZATION_ID,
+      dataScope:
+        typeof value.dataScope === 'string' ? value.dataScope : DEFAULT_PRIVATE_DATA_SCOPE,
+      userId: normalizeOptionalTextValue(value.userId),
+      parentId:
+        typeof value.parentId === 'string' && value.parentId.trim().length > 0
+          ? value.parentId
+          : DEFAULT_TREE_ROOT_ID,
+      projectId: value.projectId,
+      projectUuid:
+        typeof value.projectUuid === 'string' && value.projectUuid.trim().length > 0
+          ? value.projectUuid
+          : `project-${value.projectId}`,
+      configData: normalizeOptionalTextValue(value.configData),
+      contentData: normalizeOptionalJsonRecord(value.contentData),
+      metadata: normalizeOptionalTextValue(value.metadata),
+      contentVersion:
+        typeof value.contentVersion === 'string' && value.contentVersion.trim().length > 0
+          ? value.contentVersion
+          : '1.0',
+      contentHash: normalizeOptionalTextValue(value.contentHash),
+      createdAt:
+        typeof value.createdAt === 'string' ? value.createdAt : new Date(0).toISOString(),
+      updatedAt:
+        typeof value.updatedAt === 'string' ? value.updatedAt : new Date(0).toISOString(),
+    };
+  }
+
+  const row = coerceBirdCoderSqlEntityRow(getBirdCoderEntityDefinition('project_content'), value);
+  if (!row || typeof row.project_id !== 'string') {
+    return null;
+  }
+
+  return {
+    id: String(row.id),
+    uuid: typeof row.uuid === 'string' ? row.uuid : undefined,
+    tenantId:
+      typeof row.tenant_id === 'string' ? row.tenant_id : DEFAULT_LOCAL_TENANT_ID,
+    organizationId:
+      typeof row.organization_id === 'string'
+        ? row.organization_id
+        : DEFAULT_LOCAL_ORGANIZATION_ID,
+    dataScope:
+      typeof (row as { data_scope?: unknown }).data_scope === 'string'
+        ? String((row as { data_scope: unknown }).data_scope)
+        : DEFAULT_PRIVATE_DATA_SCOPE,
+    userId:
+      typeof (row as { user_id?: unknown }).user_id === 'string'
+        ? String((row as { user_id: unknown }).user_id)
+        : undefined,
+    parentId:
+      typeof (row as { parent_id?: unknown }).parent_id === 'string'
+        ? String((row as { parent_id: unknown }).parent_id)
+        : DEFAULT_TREE_ROOT_ID,
+    projectId: String(row.project_id),
+    projectUuid:
+      typeof row.project_uuid === 'string' && row.project_uuid.trim().length > 0
+        ? row.project_uuid
+        : `project-${String(row.project_id)}`,
+    configData: normalizeOptionalTextValue((row as { config_data?: unknown }).config_data),
+    contentData: normalizeOptionalJsonRecord((row as { content_data?: unknown }).content_data),
+    metadata: normalizeOptionalTextValue(row.metadata),
+    contentVersion:
+      typeof row.content_version === 'string' && row.content_version.trim().length > 0
+        ? row.content_version
+        : '1.0',
+    contentHash: normalizeOptionalTextValue((row as { content_hash?: unknown }).content_hash),
+    createdAt: typeof row.created_at === 'string' ? row.created_at : new Date(0).toISOString(),
+    updatedAt: typeof row.updated_at === 'string' ? row.updated_at : new Date(0).toISOString(),
+  };
+}
+
+function projectContentToRow(value: BirdCoderProjectContentRecord): Record<string, unknown> {
+  return {
+    id: value.id,
+    uuid: value.uuid ?? `project-content-${value.id}`,
+    created_at: value.createdAt,
+    updated_at: value.updatedAt,
+    v: 0,
+    tenant_id: value.tenantId ?? DEFAULT_LOCAL_TENANT_ID,
+    organization_id: value.organizationId ?? DEFAULT_LOCAL_ORGANIZATION_ID,
+    data_scope: value.dataScope ?? DEFAULT_PRIVATE_DATA_SCOPE,
+    user_id: value.userId ?? null,
+    parent_id: value.parentId ?? DEFAULT_TREE_ROOT_ID,
+    project_id: value.projectId,
+    project_uuid: value.projectUuid ?? `project-${value.projectId}`,
+    config_data: value.configData ?? null,
+    content_data: value.contentData ?? null,
+    metadata: value.metadata ?? null,
+    content_version: value.contentVersion || '1.0',
+    content_hash: value.contentHash ?? null,
   };
 }
 
@@ -1358,6 +1680,18 @@ export function createBirdCoderRepresentativeAppAdminRepositories({
       normalize: normalizePolicyRecord,
       sort: sortByUpdatedAtDescending,
       toRow: policyToRow,
+    }),
+    projectContents: createBirdCoderTableRecordRepository({
+      binding: BIRDCODER_PROJECT_CONTENT_STORAGE_BINDING,
+      definition: getBirdCoderEntityDefinition('project_content'),
+      providerId,
+      storage,
+      identify(value) {
+        return value.id;
+      },
+      normalize: normalizeProjectContentRecord,
+      sort: sortByUpdatedAtDescending,
+      toRow: projectContentToRow,
     }),
     projects: createBirdCoderTableRecordRepository({
       binding: BIRDCODER_PROJECT_STORAGE_BINDING,

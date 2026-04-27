@@ -14,6 +14,9 @@ function pathExists(relativePath) {
 
 const shellRootSource = readText('packages/sdkwork-birdcoder-shell/src/index.ts');
 const shellRuntimeRootSource = readText('packages/sdkwork-birdcoder-shell-runtime/src/index.ts');
+const shellRuntimeBootstrapServerBaseUrlSource = readText(
+  'packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/bootstrapServerBaseUrl.ts',
+);
 const lazyDefaultIdeServicesSource = readText(
   'packages/sdkwork-birdcoder-commons/src/context/lazyDefaultIdeServices.ts',
 );
@@ -118,5 +121,18 @@ assert.ok(
     !shellRuntimeRootSource.includes('AppRoot'),
   '@sdkwork/birdcoder-shell-runtime root entry must expose startup runtime helpers without re-exporting the application shell surface.',
 );
+
+for (const forbiddenStartupRuntimeDependency of [
+  '@sdkwork/birdcoder-commons',
+  '@sdkwork/birdcoder-workbench-storage',
+  '@sdkwork/birdcoder-infrastructure',
+  '@sdkwork/birdcoder-infrastructure-runtime',
+]) {
+  assert.doesNotMatch(
+    shellRuntimeBootstrapServerBaseUrlSource,
+    new RegExp(forbiddenStartupRuntimeDependency.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'),
+    `bootstrapServerBaseUrl must not import ${forbiddenStartupRuntimeDependency}; startup URL resolution must stay independent from platform runtime chunks.`,
+  );
+}
 
 console.log('commons shell entry contract passed.');

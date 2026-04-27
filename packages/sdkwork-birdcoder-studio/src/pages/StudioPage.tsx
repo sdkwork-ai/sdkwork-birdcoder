@@ -287,6 +287,7 @@ function StudioPageComponent({
     },
     {
       isActive: isVisible,
+      createCodingSessionInProject,
     },
   );
   useStudioWorkbenchEventBindings({
@@ -873,12 +874,18 @@ function StudioPageComponent({
         sessionId: bootstrappedSession.codingSessionId,
         workspaceId,
       });
-      await sendMessage(
+      const sentMessage = await sendMessage(
         bootstrappedSession.projectId,
         bootstrappedSession.codingSessionId,
         trimmedContent,
         context,
       );
+      if (
+        sentMessage?.codingSessionId &&
+        sentMessage.codingSessionId !== bootstrappedSession.codingSessionId
+      ) {
+        selectCodingSession(sentMessage.codingSessionId, { projectId: bootstrappedSession.projectId });
+      }
       setSelectionRefreshToken((previousState) => previousState + 1);
     } finally {
       setIsSubmittingTurn(false);

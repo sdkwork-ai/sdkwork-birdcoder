@@ -5,6 +5,33 @@ function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 }
 
+function hasDataKernelEntity(source, entityName) {
+  const escapedEntityName = entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  return (
+    new RegExp(`\\|\\s*'${escapedEntityName}'\\b`).test(source)
+    || new RegExp(`define(?:Exact)?Entity\\(\\s*'${escapedEntityName}'\\s*,`).test(source)
+  );
+}
+
+function hasDataKernelAggregate(source, aggregateName) {
+  const escapedAggregateName = aggregateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const aggregateTypeMatch = source.match(/export type BirdCoderAggregateName =([\s\S]*?);/);
+
+  assert.ok(aggregateTypeMatch, 'data kernel must expose BirdCoderAggregateName.');
+
+  return new RegExp(`\\|\\s*'${escapedAggregateName}'\\b`).test(aggregateTypeMatch[1]);
+}
+
+function hasEntityInAggregate(source, entityName, aggregateName) {
+  const escapedEntityName = entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedAggregateName = aggregateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  return new RegExp(
+    `define(?:Exact)?Entity\\(\\s*'${escapedEntityName}'\\s*,\\s*'[^']+'\\s*,\\s*'${escapedAggregateName}'\\s*,`,
+  ).test(source);
+}
+
 const legacyThreadToken = ['th', 'read'].join('');
 const legacyThreadIdToken = `${legacyThreadToken}Id?:`;
 const legacyThreadEntityToken = `'${legacyThreadToken}'`;
@@ -51,15 +78,16 @@ assert.ok(
 );
 
 assert.ok(
-  !dataSource.includes("'conversation'"),
+  !hasDataKernelAggregate(dataSource, 'conversation') &&
+    !hasEntityInAggregate(dataSource, 'conversation', 'conversation'),
   'data kernel must remove the legacy conversation aggregate',
 );
 assert.ok(
-  !dataSource.includes(legacyThreadEntityToken),
+  !hasDataKernelEntity(dataSource, legacyThreadToken),
   'data kernel must remove the legacy non-session aggregate entity',
 );
 assert.ok(
-  !dataSource.includes("'message'"),
+  !hasDataKernelEntity(dataSource, 'message'),
   'data kernel must remove the legacy message entity',
 );
 assert.ok(

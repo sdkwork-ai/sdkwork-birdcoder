@@ -311,7 +311,13 @@ fn backfill_codeengine_descriptor_record(record: &mut CodeEngineDescriptorRecord
     if record.status.trim().is_empty() {
         record.status = "active".to_owned();
     }
-    if record.tenant_id.as_deref().map(str::trim).unwrap_or_default().is_empty() {
+    if record
+        .tenant_id
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or_default()
+        .is_empty()
+    {
         record.tenant_id = Some(ENGINE_CATALOG_DEFAULT_TENANT_ID.to_owned());
     }
     if record
@@ -342,7 +348,13 @@ fn backfill_codeengine_model_catalog_record(record: &mut CodeEngineModelCatalogE
     if record.status.trim().is_empty() {
         record.status = "active".to_owned();
     }
-    if record.tenant_id.as_deref().map(str::trim).unwrap_or_default().is_empty() {
+    if record
+        .tenant_id
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or_default()
+        .is_empty()
+    {
         record.tenant_id = Some(ENGINE_CATALOG_DEFAULT_TENANT_ID.to_owned());
     }
     if record
@@ -368,8 +380,7 @@ fn hydrate_shared_codeengine_catalog(
     catalog
 }
 
-pub fn native_session_provider_catalog_entries(
-) -> &'static [NativeSessionProviderCatalogRecord] {
+pub fn native_session_provider_catalog_entries() -> &'static [NativeSessionProviderCatalogRecord] {
     let generated_entries = shared_codeengine_catalog().native_providers.as_slice();
     if generated_entries.is_empty() {
         return fallback_native_session_provider_catalog_entries();
@@ -419,5 +430,9 @@ pub fn find_native_session_provider_catalog_entry(
     let normalized_engine_id = engine_id.trim().to_ascii_lowercase();
     native_session_provider_catalog_entries()
         .iter()
-        .find(|provider| provider.engine_id.eq_ignore_ascii_case(normalized_engine_id.as_str()))
+        .find(|provider| {
+            provider
+                .engine_id
+                .eq_ignore_ascii_case(normalized_engine_id.as_str())
+        })
 }

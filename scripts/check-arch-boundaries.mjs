@@ -131,7 +131,7 @@ const allowedInternalDependencies = new Map([
   ['@sdkwork/birdcoder-user', new Set([
     '@sdkwork/birdcoder-commons',
     '@sdkwork/birdcoder-core',
-    '@sdkwork/birdcoder-infrastructure',
+    '@sdkwork/birdcoder-infrastructure-runtime',
     '@sdkwork/birdcoder-types',
     '@sdkwork/birdcoder-ui-shell',
     '@sdkwork/birdcoder-workbench-state',

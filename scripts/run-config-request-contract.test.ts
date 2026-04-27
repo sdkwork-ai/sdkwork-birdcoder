@@ -24,6 +24,7 @@ const request = buildRunConfigurationTerminalRequest(configuration, {
 });
 
 assert.deepEqual(request, {
+  surface: 'embedded',
   path: '/workspace',
   command: 'pnpm lint',
   profileId: 'codex',
@@ -90,6 +91,7 @@ const powershellLaunch = await resolveRunConfigurationTerminalLaunch(
 );
 
 assert.deepEqual(powershellLaunch.request, {
+  surface: 'embedded',
   path: '/workspace',
   command: 'pnpm lint',
   profileId: 'powershell',
@@ -119,10 +121,23 @@ const studioPageSource = await readFile(
   new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
+const studioWorkbenchEventBindingsSource = await readFile(
+  new URL(
+    '../packages/sdkwork-birdcoder-studio/src/pages/useStudioWorkbenchEventBindings.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const studioExecutionActionsSource = await readFile(
+  new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
+  'utf8',
+);
 assert.equal(
-  studioPageSource.includes('resolveRunConfigurationTerminalLaunch('),
+  studioPageSource.includes('resolveRunConfigurationTerminalLaunch(') ||
+    studioWorkbenchEventBindingsSource.includes('resolveRunConfigurationTerminalLaunch(') ||
+    studioExecutionActionsSource.includes('resolveRunConfigurationTerminalLaunch('),
   true,
-  'StudioPage should use the shared run configuration terminal launch guard.',
+  'StudioPage should use the shared run configuration terminal launch guard directly or through its run-entry hooks.',
 );
 
 console.log('run config request contract passed.');

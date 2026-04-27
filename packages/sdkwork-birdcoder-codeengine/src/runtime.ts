@@ -2,6 +2,18 @@ import {
   createCapabilitySnapshot,
   resolveTransportKindForRuntimeMode,
 } from '@sdkwork/birdcoder-chat';
+import {
+  canonicalizeBirdCoderCodeEngineToolName,
+  flushBirdCoderCodeEngineToolCallDeltas,
+  mergeBirdCoderCodeEngineToolCallDelta,
+  normalizeBirdCoderCodeEngineExitCode,
+  normalizeBirdCoderCodeEngineToolLifecycleStatus,
+  parseBirdCoderApiJson,
+  resolveBirdCoderCodeEngineArtifactKind,
+  resolveBirdCoderCodeEngineRiskLevel,
+  resolveBirdCoderCodeEngineToolKind,
+  stringifyBirdCoderLongInteger,
+} from '@sdkwork/birdcoder-types';
 import type {
   ChatCanonicalArtifact,
   ChatCanonicalEvent,
@@ -12,12 +24,13 @@ import type {
   ToolCall,
 } from '@sdkwork/birdcoder-chat';
 import type {
-  BirdCoderCodingSessionArtifactKind,
+  BirdCoderCodeEngineToolLifecycleStatus,
   BirdCoderCodingSessionRuntimeStatus,
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineDescriptor,
   BirdcoderApprovalPolicy,
   BirdcoderRiskLevel,
+  BirdCoderCodeEnginePendingToolCallDelta,
 } from '@sdkwork/birdcoder-types';
 
 export interface WorkbenchCanonicalRuntimeBinding {
@@ -30,6 +43,21 @@ interface CanonicalToolProjection {
   requiresApproval: boolean;
   riskLevel: BirdcoderRiskLevel;
   runtimeStatus: BirdCoderCodingSessionRuntimeStatus;
+  toolName: string;
+}
+
+interface CanonicalToolCallEventInput {
+  artifact?: ChatCanonicalArtifact;
+  kind: ChatCanonicalEvent['kind'];
+  payload: Record<string, unknown>;
+  runtimeStatus: BirdCoderCodingSessionRuntimeStatus;
+}
+
+interface CanonicalToolLifecycleProjection {
+  kind: ChatCanonicalEvent['kind'];
+  runtimeStatus: BirdCoderCodingSessionRuntimeStatus;
+  status: BirdCoderCodeEngineToolLifecycleStatus | null;
+  emitApproval: boolean;
 }
 
 function resolveRuntimeModelId(
@@ -68,81 +96,237 @@ function resolveRuntimeApprovalPolicy(
   return binding.descriptor.capabilityMatrix.approvalCheckpoints ? 'OnRequest' : 'AutoAllow';
 }
 
-function normalizeArtifactKind(
-  toolName: string,
-): BirdCoderCodingSessionArtifactKind | null {
-  switch (toolName) {
-    case 'edit_file':
-    case 'apply_patch':
-    case 'write_file':
-      return 'patch';
-    case 'run_command':
-    case 'execute_command':
-      return 'command-log';
-    case 'update_todo':
-    case 'write_todo':
-      return 'todo-list';
-    case 'open_terminal':
-    case 'pty_exec':
-      return 'pty-transcript';
-    case 'search_code':
-    case 'read_file':
-    case 'grep_code':
-      return 'diagnostic-bundle';
-    default:
-      return 'structured-output';
-  }
-}
-
-function buildArtifactTitle(toolCall: ToolCall): string {
-  return `${toolCall.function.name}:${toolCall.id}`;
-}
-
-function resolveToolRiskLevel(toolName: string): BirdcoderRiskLevel {
-  switch (toolName) {
-    case 'search_code':
-    case 'read_file':
-    case 'grep_code':
-      return 'P0';
-    case 'update_todo':
-    case 'write_todo':
-      return 'P1';
-    case 'run_command':
-    case 'execute_command':
-    case 'edit_file':
-    case 'apply_patch':
-    case 'write_file':
-    case 'open_terminal':
-    case 'pty_exec':
-      return 'P2';
-    default:
-      return 'P1';
-  }
+function buildArtifactTitle(toolName: string, toolCallId: string): string {
+  return `${toolName}:${toolCallId}`;
 }
 
 function projectToolCall(
   toolCall: ToolCall,
   approvalPolicy: BirdcoderApprovalPolicy,
 ): CanonicalToolProjection {
-  const riskLevel = resolveToolRiskLevel(toolCall.function.name);
+  const toolName = canonicalizeBirdCoderCodeEngineToolName(toolCall.function.name);
+  const toolArguments = parseCanonicalToolArgumentsRecord(toolCall);
+  const toolKind = resolveBirdCoderCodeEngineToolKind({
+    toolArguments,
+    toolName,
+  });
+  const riskLevel = resolveBirdCoderCodeEngineRiskLevel({ toolKind, toolName });
   const requiresApproval = approvalPolicy !== 'AutoAllow' && riskLevel !== 'P0';
-  const artifactKind = normalizeArtifactKind(toolCall.function.name);
+  const artifactKind = resolveBirdCoderCodeEngineArtifactKind({ toolKind, toolName });
 
   return {
     artifact: artifactKind
       ? {
           kind: artifactKind,
-          title: buildArtifactTitle(toolCall),
+          title: buildArtifactTitle(toolName, toolCall.id),
           metadata: {
             toolCallId: toolCall.id,
-            toolName: toolCall.function.name,
+            toolName,
           },
         }
       : null,
     requiresApproval,
     riskLevel,
     runtimeStatus: requiresApproval ? 'awaiting_approval' : 'awaiting_tool',
+    toolName,
   };
+}
+
+function isCanonicalRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseCanonicalToolArgumentsRecord(
+  toolCall: ToolCall,
+): Record<string, unknown> | null {
+  const rawArguments = toolCall.function.arguments.trim();
+  if (!rawArguments) {
+    return null;
+  }
+
+  try {
+    const parsedArguments = parseBirdCoderApiJson(rawArguments) as unknown;
+    return isCanonicalRecord(parsedArguments) ? parsedArguments : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveCanonicalToolLifecycleStatus(
+  toolCall: ToolCall,
+): BirdCoderCodeEngineToolLifecycleStatus | null {
+  const args = parseCanonicalToolArgumentsRecord(toolCall);
+  const status =
+    normalizeBirdCoderCodeEngineToolLifecycleStatus(args?.status) ??
+    normalizeBirdCoderCodeEngineToolLifecycleStatus(args?.state) ??
+    normalizeBirdCoderCodeEngineToolLifecycleStatus(args?.phase) ??
+    normalizeBirdCoderCodeEngineToolLifecycleStatus(args?.resultStatus) ??
+    normalizeBirdCoderCodeEngineToolLifecycleStatus(args?.result_status);
+
+  if (status) {
+    return status;
+  }
+
+  const exitCode =
+    normalizeBirdCoderCodeEngineExitCode(args?.exitCode) ??
+    normalizeBirdCoderCodeEngineExitCode(args?.exit_code);
+  if (exitCode === undefined) {
+    return null;
+  }
+
+  return exitCode === 0 ? 'completed' : 'failed';
+}
+
+function resolveCanonicalToolLifecycleProjection(input: {
+  lifecycleStatus: BirdCoderCodeEngineToolLifecycleStatus | null;
+  projection: CanonicalToolProjection;
+  wasRequested: boolean;
+}): CanonicalToolLifecycleProjection {
+  if (!input.wasRequested) {
+    if (input.lifecycleStatus === 'completed') {
+      return {
+        kind: 'tool.call.completed',
+        runtimeStatus: 'completed',
+        status: input.lifecycleStatus,
+        emitApproval: false,
+      };
+    }
+
+    if (input.lifecycleStatus === 'failed') {
+      return {
+        kind: 'tool.call.completed',
+        runtimeStatus: 'failed',
+        status: input.lifecycleStatus,
+        emitApproval: false,
+      };
+    }
+
+    if (input.lifecycleStatus === 'cancelled') {
+      return {
+        kind: 'tool.call.completed',
+        runtimeStatus: 'terminated',
+        status: input.lifecycleStatus,
+        emitApproval: false,
+      };
+    }
+
+    if (input.lifecycleStatus === 'running') {
+      return {
+        kind: 'tool.call.progress',
+        runtimeStatus: 'awaiting_tool',
+        status: input.lifecycleStatus,
+        emitApproval: false,
+      };
+    }
+
+    return {
+      kind: 'tool.call.requested',
+      runtimeStatus:
+        input.lifecycleStatus === 'awaiting_user'
+          ? 'awaiting_user'
+          : input.projection.runtimeStatus,
+      status: input.lifecycleStatus,
+      emitApproval:
+        input.lifecycleStatus === 'awaiting_user' ? false : input.projection.requiresApproval,
+    };
+  }
+
+  if (input.lifecycleStatus === 'completed') {
+    return {
+      kind: 'tool.call.completed',
+      runtimeStatus: 'completed',
+      status: input.lifecycleStatus,
+      emitApproval: false,
+    };
+  }
+
+  if (input.lifecycleStatus === 'failed') {
+    return {
+      kind: 'tool.call.completed',
+      runtimeStatus: 'failed',
+      status: input.lifecycleStatus,
+      emitApproval: false,
+    };
+  }
+
+  if (input.lifecycleStatus === 'cancelled') {
+    return {
+      kind: 'tool.call.completed',
+      runtimeStatus: 'terminated',
+      status: input.lifecycleStatus,
+      emitApproval: false,
+    };
+  }
+
+  return {
+    kind: 'tool.call.progress',
+    runtimeStatus:
+      input.lifecycleStatus === 'awaiting_approval'
+        ? 'awaiting_approval'
+        : input.lifecycleStatus === 'awaiting_user'
+          ? 'awaiting_user'
+          : 'awaiting_tool',
+    status: input.lifecycleStatus,
+    emitApproval: false,
+  };
+}
+
+function projectToolCallToCanonicalEventInputs(
+  toolCall: ToolCall,
+  approvalPolicy: BirdcoderApprovalPolicy,
+  wasRequested: boolean,
+): CanonicalToolCallEventInput[] {
+  const projection = projectToolCall(toolCall, approvalPolicy);
+  const lifecycle = resolveCanonicalToolLifecycleProjection({
+    lifecycleStatus: resolveCanonicalToolLifecycleStatus(toolCall),
+    projection,
+    wasRequested,
+  });
+  const events: CanonicalToolCallEventInput[] = [
+    {
+      kind: lifecycle.kind,
+      runtimeStatus: lifecycle.runtimeStatus,
+      payload: {
+        toolCallId: toolCall.id,
+        toolName: projection.toolName,
+        toolArguments: toolCall.function.arguments,
+        riskLevel: projection.riskLevel,
+        requiresApproval: lifecycle.emitApproval,
+        ...(lifecycle.status ? { status: lifecycle.status } : {}),
+      },
+    },
+  ];
+
+  if (projection.artifact) {
+    events.push({
+      kind: 'artifact.upserted',
+      runtimeStatus: lifecycle.runtimeStatus,
+      payload: {
+        toolCallId: toolCall.id,
+        toolName: projection.toolName,
+        toolArguments: toolCall.function.arguments,
+        artifactKind: projection.artifact.kind,
+        artifactTitle: projection.artifact.title,
+        ...(lifecycle.status ? { status: lifecycle.status } : {}),
+      },
+      artifact: projection.artifact,
+    });
+  }
+
+  if (lifecycle.emitApproval) {
+    events.push({
+      kind: 'approval.required',
+      runtimeStatus: 'awaiting_approval',
+      payload: {
+        toolCallId: toolCall.id,
+        toolName: projection.toolName,
+        approvalPolicy,
+        riskLevel: projection.riskLevel,
+      },
+    });
+  }
+
+  return events;
 }
 
 function createCanonicalEvent(
@@ -154,7 +338,7 @@ function createCanonicalEvent(
 ): ChatCanonicalEvent {
   return {
     kind,
-    sequence,
+    sequence: stringifyBirdCoderLongInteger(sequence),
     runtimeStatus,
     payload,
     artifact,
@@ -253,6 +437,9 @@ export function createWorkbenchCanonicalChatEngine(
       let combinedContent = '';
       let sawToolCall = false;
       let finalRuntimeStatus: BirdCoderCodingSessionRuntimeStatus = 'streaming';
+      const pendingToolCalls = new Map<string, BirdCoderCodeEnginePendingToolCallDelta>();
+      const pendingToolCallOrder: string[] = [];
+      const requestedToolCallIds = new Set<string>();
 
       yield createCanonicalEvent(++sequence, 'session.started', 'ready', {
         engineId: runtime.engineId,
@@ -284,44 +471,37 @@ export function createWorkbenchCanonicalChatEngine(
           }
 
           for (const toolCall of delta.tool_calls ?? []) {
-            sawToolCall = true;
-            const projection = projectToolCall(toolCall, runtime.approvalPolicy);
-            finalRuntimeStatus = projection.runtimeStatus;
-
-            yield createCanonicalEvent(++sequence, 'tool.call.requested', projection.runtimeStatus, {
-              toolCallId: toolCall.id,
-              toolName: toolCall.function.name,
-              toolArguments: toolCall.function.arguments,
-              riskLevel: projection.riskLevel,
-              requiresApproval: projection.requiresApproval,
+            mergeBirdCoderCodeEngineToolCallDelta({
+              pendingToolCallOrder,
+              pendingToolCalls,
+              toolCall,
             });
-
-            if (projection.artifact) {
-              yield createCanonicalEvent(
-                ++sequence,
-                'artifact.upserted',
-                projection.runtimeStatus,
-                {
-                  toolCallId: toolCall.id,
-                  toolName: toolCall.function.name,
-                  artifactKind: projection.artifact.kind,
-                  artifactTitle: projection.artifact.title,
-                },
-                projection.artifact,
-              );
-            }
-
-            if (projection.requiresApproval) {
-              yield createCanonicalEvent(++sequence, 'approval.required', 'awaiting_approval', {
-                toolCallId: toolCall.id,
-                toolName: toolCall.function.name,
-                approvalPolicy: runtime.approvalPolicy,
-                riskLevel: projection.riskLevel,
-              });
-            }
           }
 
           if (choice.finish_reason === 'tool_calls') {
+            const toolCalls = flushBirdCoderCodeEngineToolCallDeltas({
+              pendingToolCallOrder,
+              pendingToolCalls,
+            });
+            for (const toolCall of toolCalls) {
+              sawToolCall = true;
+              const wasRequested = requestedToolCallIds.has(toolCall.id);
+              for (const eventInput of projectToolCallToCanonicalEventInputs(
+                toolCall,
+                runtime.approvalPolicy,
+                wasRequested,
+              )) {
+                finalRuntimeStatus = eventInput.runtimeStatus;
+                yield createCanonicalEvent(
+                  ++sequence,
+                  eventInput.kind,
+                  eventInput.runtimeStatus,
+                  eventInput.payload,
+                  eventInput.artifact,
+                );
+              }
+              requestedToolCallIds.add(toolCall.id);
+            }
             yield createCanonicalEvent(++sequence, 'operation.updated', finalRuntimeStatus, {
               finishReason: choice.finish_reason,
               status: finalRuntimeStatus,
@@ -333,6 +513,36 @@ export function createWorkbenchCanonicalChatEngine(
           error: String(error),
         });
         throw error;
+      }
+
+      const remainingToolCalls = flushBirdCoderCodeEngineToolCallDeltas({
+        pendingToolCallOrder,
+        pendingToolCalls,
+      });
+      if (remainingToolCalls.length > 0) {
+        for (const toolCall of remainingToolCalls) {
+          sawToolCall = true;
+          const wasRequested = requestedToolCallIds.has(toolCall.id);
+          for (const eventInput of projectToolCallToCanonicalEventInputs(
+            toolCall,
+            runtime.approvalPolicy,
+            wasRequested,
+          )) {
+            finalRuntimeStatus = eventInput.runtimeStatus;
+            yield createCanonicalEvent(
+              ++sequence,
+              eventInput.kind,
+              eventInput.runtimeStatus,
+              eventInput.payload,
+              eventInput.artifact,
+            );
+          }
+          requestedToolCallIds.add(toolCall.id);
+        }
+        yield createCanonicalEvent(++sequence, 'operation.updated', finalRuntimeStatus, {
+          status: finalRuntimeStatus,
+          toolCallsDetected: true,
+        });
       }
 
       const completionRuntimeStatus = sawToolCall ? finalRuntimeStatus : 'completed';

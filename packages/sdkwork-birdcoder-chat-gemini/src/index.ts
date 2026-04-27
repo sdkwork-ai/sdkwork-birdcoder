@@ -1,5 +1,6 @@
 import {
   buildMessageTranscriptPrompt,
+  canonicalizeBirdCoderCodeEngineProviderToolName,
   createDetectedHealthReport,
   createModuleBackedOfficialSdkBridgeLoader,
   createRawExtensionDescriptor,
@@ -9,8 +10,10 @@ import {
   createTextStreamChunk,
   createToolCallStreamChunk,
   invokeWithOptionalOfficialSdk,
+  normalizeProviderToolArgumentRecord,
   resolvePackagePresence,
   streamWithOptionalOfficialSdk,
+  stringifyProviderToolArgumentPayload,
   type ChatEngineOfficialSdkBridge,
   type ChatEngineOfficialSdkBridgeLoader,
   type ChatMessage,
@@ -18,6 +21,7 @@ import {
   type ChatResponse,
   type ChatStreamChunk,
   type IChatEngine,
+  type ToolCall,
 } from '@sdkwork/birdcoder-chat';
 
 const GEMINI_PACKAGE = resolvePackagePresence({
@@ -80,6 +84,21 @@ function buildGeminiPrompt(messages: readonly ChatMessage[]): string {
     || GEMINI_DEFAULT_PROMPT;
 }
 
+function normalizeGeminiRequestedModel(value: string | null | undefined): string | null {
+  const normalizedValue = value?.trim();
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const normalizedModelKey = normalizedValue.toLowerCase();
+  return normalizedModelKey === 'gemini'
+    || normalizedModelKey === 'gemini cli'
+    || normalizedModelKey === 'gemini-cli'
+    || normalizedModelKey === 'google gemini'
+    ? null
+    : normalizedValue;
+}
+
 function extractGeminiText(value: unknown): string {
   if (typeof value === 'string') {
     return value;
@@ -104,6 +123,238 @@ function extractGeminiText(value: unknown): string {
     .find(Boolean) ?? '';
 }
 
+function formatGeminiSdkError(event: Record<string, unknown>): string {
+  return extractGeminiText(event.value ?? event.error ?? event.message ?? event)
+    || 'Gemini CLI SDK stream failed.';
+}
+
+function formatGeminiControlEventError(event: Record<string, unknown>): string | null {
+  const eventType = typeof event.type === 'string' ? event.type : '';
+  const value = event.value && typeof event.value === 'object'
+    ? event.value as Record<string, unknown>
+    : {};
+  const diagnostic = extractGeminiText(value.systemMessage ?? value.reason ?? event.value).trim();
+
+  switch (eventType) {
+    case 'agent_execution_blocked':
+      return `Gemini agent execution blocked: ${diagnostic || 'policy denied execution'}`;
+    case 'context_window_will_overflow': {
+      const estimated = value.estimatedRequestTokenCount;
+      const remaining = value.remainingTokenCount;
+      const tokenDetail =
+        typeof estimated === 'number' && typeof remaining === 'number'
+          ? ` (estimated request tokens: ${estimated}, remaining tokens: ${remaining})`
+          : '';
+      return `Gemini CLI SDK context window will overflow${tokenDetail}.`;
+    }
+    case 'invalid_stream':
+      return 'Gemini CLI SDK received an invalid model stream.';
+    case 'loop_detected':
+      return 'Gemini CLI SDK detected a loop and stopped execution.';
+    case 'max_session_turns':
+      return 'Gemini CLI SDK reached the maximum session turn limit.';
+    case 'user_cancelled':
+      return 'Gemini CLI SDK turn was cancelled.';
+    default:
+      return null;
+  }
+}
+
+function asGeminiRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function toJsonSafeGeminiValue(value: unknown): unknown {
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: value.message,
+    };
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => toJsonSafeGeminiValue(entry));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return typeof value === 'function' ? undefined : value;
+  }
+
+  const safeRecord: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof entry === 'function') {
+      continue;
+    }
+    const safeValue = toJsonSafeGeminiValue(entry);
+    if (safeValue !== undefined) {
+      safeRecord[key] = safeValue;
+    }
+  }
+  return safeRecord;
+}
+
+function compactGeminiRecord(
+  record: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(record).filter(([, value]) => value !== undefined),
+  );
+}
+
+interface PendingGeminiToolRequest {
+  args: Record<string, unknown>;
+  name: string;
+}
+
+function normalizeGeminiToolRequestArgs(
+  name: string,
+  args: Record<string, unknown>,
+): Record<string, unknown> {
+  if (name === 'user_question') {
+    return compactGeminiRecord({
+      ...args,
+      status: args.status ?? 'awaiting_user',
+    });
+  }
+
+  if (name === 'permission_request') {
+    return compactGeminiRecord({
+      ...args,
+      status: args.status ?? 'awaiting_approval',
+    });
+  }
+
+  return args;
+}
+
+function createGeminiToolRequestCall(
+  value: unknown,
+  pendingToolRequests: Map<string, PendingGeminiToolRequest>,
+): ToolCall {
+  const toolRequest = asGeminiRecord(value) ?? {};
+  const callId = String(toolRequest.callId ?? `gemini-tool-${Date.now()}`);
+  const name = canonicalizeBirdCoderCodeEngineProviderToolName({
+    fallbackToolName: 'tool_call_request',
+    provider: 'gemini',
+    toolName: toolRequest.name,
+  });
+  const args = normalizeGeminiToolRequestArgs(
+    name,
+    normalizeProviderToolArgumentRecord(
+      toolRequest.args ?? toolRequest.arguments ?? toolRequest.input,
+    ),
+  );
+  pendingToolRequests.set(callId, {
+    args,
+    name,
+  });
+
+  return {
+    id: callId,
+    type: 'function',
+    function: {
+      name,
+      arguments: stringifyProviderToolArgumentPayload(args),
+    },
+  };
+}
+
+function extractGeminiErrorMessage(value: unknown): string | undefined {
+  if (value instanceof Error) {
+    return value.message;
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  const record = asGeminiRecord(value);
+  if (!record) {
+    return undefined;
+  }
+
+  return extractGeminiText(record.message ?? record.error ?? record).trim() || undefined;
+}
+
+function extractGeminiToolResponseOutput(value: Record<string, unknown>): string | undefined {
+  const errorMessage = extractGeminiErrorMessage(value.error);
+  if (errorMessage) {
+    return errorMessage;
+  }
+
+  if (typeof value.resultDisplay === 'string' && value.resultDisplay.trim()) {
+    return value.resultDisplay;
+  }
+
+  if (value.resultDisplay && typeof value.resultDisplay === 'object') {
+    return stringifyProviderToolArgumentPayload(toJsonSafeGeminiValue(value.resultDisplay));
+  }
+
+  const responsePartsText = extractGeminiText(value.responseParts).trim();
+  return responsePartsText || undefined;
+}
+
+function createGeminiToolResponseCall(
+  value: unknown,
+  pendingToolRequests: Map<string, PendingGeminiToolRequest>,
+): ToolCall {
+  const toolResponse = asGeminiRecord(value) ?? {};
+  const callId = String(toolResponse.callId ?? `gemini-tool-response-${Date.now()}`);
+  const pendingToolRequest = pendingToolRequests.get(callId);
+  const errorMessage = extractGeminiErrorMessage(toolResponse.error);
+  const args = compactGeminiRecord({
+    ...(pendingToolRequest?.args ?? {}),
+    status: errorMessage ? 'error' : 'success',
+    output: extractGeminiToolResponseOutput(toolResponse),
+    responseParts: toJsonSafeGeminiValue(toolResponse.responseParts),
+    resultDisplay: toJsonSafeGeminiValue(toolResponse.resultDisplay),
+    error: errorMessage,
+    errorType: toJsonSafeGeminiValue(toolResponse.errorType),
+    outputFile: toolResponse.outputFile,
+    contentLength: toolResponse.contentLength,
+    data: toJsonSafeGeminiValue(toolResponse.data),
+  });
+  pendingToolRequests.delete(callId);
+
+  return {
+    id: callId,
+    type: 'function',
+    function: {
+      name: pendingToolRequest?.name ?? String(toolResponse.name ?? 'tool_call_response'),
+      arguments: stringifyProviderToolArgumentPayload(args),
+    },
+  };
+}
+
+function createGeminiPermissionRequestCall(value: unknown): ToolCall {
+  const confirmation = asGeminiRecord(value) ?? {};
+  const request = asGeminiRecord(confirmation.request);
+  const callId = String(
+    request?.callId ??
+      confirmation.callId ??
+      confirmation.correlationId ??
+      `gemini-confirmation-${Date.now()}`,
+  );
+
+  return {
+    id: callId,
+    type: 'function',
+    function: {
+      name: 'permission_request',
+      arguments: stringifyProviderToolArgumentPayload(
+        compactGeminiRecord({
+          status: 'awaiting_approval',
+          request: toJsonSafeGeminiValue(confirmation.request),
+          details: toJsonSafeGeminiValue(confirmation.details),
+          correlationId: confirmation.correlationId,
+        }),
+      ),
+    },
+  };
+}
+
 export function createGeminiOfficialSdkBridge(
   moduleNamespace: Record<string, unknown>,
 ): ChatEngineOfficialSdkBridge | null {
@@ -124,18 +375,40 @@ export function createGeminiOfficialSdkBridge(
 
   return {
     async sendMessage(messages, options) {
+      const model = normalizeGeminiRequestedModel(options?.model);
       const agent = new GeminiCliAgent({
         instructions: buildGeminiInstructions(messages),
-        model: options?.model,
+        model: model ?? undefined,
         cwd: options?.context?.workspaceRoot ?? resolveRuntimeWorkingDirectory(),
       });
       const session = agent.session();
       const prompt = buildGeminiPrompt(messages);
       let responseText = '';
+      const pendingToolRequests = new Map<string, PendingGeminiToolRequest>();
+      const toolCalls: ToolCall[] = [];
 
       for await (const event of session.sendStream(prompt, options?.signal)) {
+        const controlEventError = formatGeminiControlEventError(event);
+        if (controlEventError) {
+          throw new Error(controlEventError);
+        }
         if (event.type === 'content') {
           responseText += extractGeminiText(event.value);
+          continue;
+        }
+        if (event.type === 'error') {
+          throw new Error(formatGeminiSdkError(event));
+        }
+        if (event.type === 'tool_call_request') {
+          toolCalls.push(createGeminiToolRequestCall(event.value, pendingToolRequests));
+          continue;
+        }
+        if (event.type === 'tool_call_response') {
+          toolCalls.push(createGeminiToolResponseCall(event.value, pendingToolRequests));
+          continue;
+        }
+        if (event.type === 'tool_call_confirmation') {
+          toolCalls.push(createGeminiPermissionRequestCall(event.value));
         }
       }
 
@@ -143,21 +416,28 @@ export function createGeminiOfficialSdkBridge(
         id: `gemini-chat-${Date.now()}`,
         model: options?.model || 'gemini',
         content: responseText,
+        toolCalls,
       });
     },
     async *sendMessageStream(messages, options) {
       const id = `gemini-chat-${Date.now()}`;
       const created = Math.floor(Date.now() / 1000);
       const model = options?.model || 'gemini';
+      const sdkModel = normalizeGeminiRequestedModel(options?.model);
       const agent = new GeminiCliAgent({
         instructions: buildGeminiInstructions(messages),
-        model: options?.model,
+        model: sdkModel ?? undefined,
         cwd: options?.context?.workspaceRoot ?? resolveRuntimeWorkingDirectory(),
       });
       const session = agent.session();
       const prompt = buildGeminiPrompt(messages);
+      const pendingToolRequests = new Map<string, PendingGeminiToolRequest>();
 
       for await (const event of session.sendStream(prompt, options?.signal)) {
+        const controlEventError = formatGeminiControlEventError(event);
+        if (controlEventError) {
+          throw new Error(controlEventError);
+        }
         switch (event.type) {
           case 'content': {
             const content = extractGeminiText(event.value);
@@ -172,23 +452,32 @@ export function createGeminiOfficialSdkBridge(
             }
             break;
           }
+          case 'error':
+            throw new Error(formatGeminiSdkError(event));
           case 'tool_call_request': {
-            const toolRequest =
-              event.value && typeof event.value === 'object'
-                ? event.value as Record<string, unknown>
-                : {};
             yield createToolCallStreamChunk({
               id,
               created,
               model,
-              toolCall: {
-                id: String(toolRequest.callId ?? `gemini-tool-${Date.now()}`),
-                type: 'function',
-                function: {
-                  name: String(toolRequest.name ?? 'tool_call_request'),
-                  arguments: JSON.stringify(toolRequest.args ?? {}),
-                },
-              },
+              toolCall: createGeminiToolRequestCall(event.value, pendingToolRequests),
+            });
+            break;
+          }
+          case 'tool_call_response': {
+            yield createToolCallStreamChunk({
+              id,
+              created,
+              model,
+              toolCall: createGeminiToolResponseCall(event.value, pendingToolRequests),
+            });
+            break;
+          }
+          case 'tool_call_confirmation': {
+            yield createToolCallStreamChunk({
+              id,
+              created,
+              model,
+              toolCall: createGeminiPermissionRequestCall(event.value),
             });
             break;
           }
@@ -221,10 +510,6 @@ const DEFAULT_GEMINI_OFFICIAL_SDK_BRIDGE_LOADER = createModuleBackedOfficialSdkB
       kind: 'path',
       specifier: 'external/gemini/packages/sdk/src/index.ts',
     },
-    {
-      kind: 'path',
-      specifier: 'packages/sdkwork-birdcoder-chat-gemini/src/developmentOfficialSdkCandidate.ts',
-    },
   ],
   createBridge: createGeminiOfficialSdkBridge,
 });
@@ -237,7 +522,9 @@ export class GeminiChatEngine implements IChatEngine {
 
   constructor(options: GeminiChatEngineOptions = {}) {
     this.officialSdkBridgeLoader =
-      options.officialSdkBridgeLoader ?? DEFAULT_GEMINI_OFFICIAL_SDK_BRIDGE_LOADER;
+      'officialSdkBridgeLoader' in options
+        ? options.officialSdkBridgeLoader ?? null
+        : DEFAULT_GEMINI_OFFICIAL_SDK_BRIDGE_LOADER;
   }
 
   describeIntegration() {

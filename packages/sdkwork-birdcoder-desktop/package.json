@@ -27,6 +27,7 @@
     "tauri:dev:test": "node ../../scripts/run-birdcoder-desktop-command.mjs tauri:dev:test --identity-mode desktop-local",
     "tauri:build": "node ../../scripts/run-birdcoder-desktop-command.mjs tauri:build --identity-mode desktop-local",
     "tauri:build:local": "node ../../scripts/run-birdcoder-desktop-command.mjs tauri:build --identity-mode desktop-local",
+    "tauri:build:demo": "node ../../scripts/run-birdcoder-desktop-command.mjs tauri:build --identity-mode desktop-local --demo-login",
     "tauri:build:private": "node ../../scripts/run-birdcoder-desktop-command.mjs tauri:build --identity-mode server-private",
     "tauri:build:external": "node ../../scripts/run-birdcoder-desktop-command.mjs tauri:build --identity-mode server-private --user-center-provider external-user-center",
     "tauri:build:cloud": "node ../../scripts/run-birdcoder-desktop-command.mjs tauri:build --identity-mode cloud-saas",

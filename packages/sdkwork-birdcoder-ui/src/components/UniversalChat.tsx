@@ -1,8 +1,9 @@
-import React, { Suspense, lazy, memo, useCallback, useMemo, useRef, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { Plus, ChevronDown, ChevronUp, GripVertical, Check, Mic, ArrowUp, Edit, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, FileUp, FolderUp, Image as ImageIcon, Lightbulb, BookOpen, List, Loader2 } from 'lucide-react';
+import React, { Suspense, lazy, memo, useCallback, useMemo, useRef, useEffect, useLayoutEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { Plus, ChevronDown, ChevronUp, GripVertical, Check, Mic, ArrowUp, Edit, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, FileUp, FolderUp, Image as ImageIcon, Lightbulb, BookOpen, List, Loader2, CircleHelp, ShieldAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button, ResizeHandle, WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-ui-shell';
-import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-types';
+import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-types';
+import type { BirdCoderChatMessage, CommandExecution, FileChange } from '@sdkwork/birdcoder-types';
 import {
   findWorkbenchCodeEngineDefinition,
   getWorkbenchCodeEngineDefinition,
@@ -32,9 +33,13 @@ import {
 } from './chatComposerRecovery';
 import { shouldUseRichChatMarkdown } from './chatMarkdownHeuristics';
 import {
+  CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS,
+  computeTranscriptBottomScrollTop,
   isTranscriptNearBottom,
+  shouldDeferTranscriptAutoScrollForUserIntent,
   type TranscriptScrollMetrics,
 } from './chatScrollBehavior';
+import { resolveTranscriptMessageKey } from './transcriptVirtualization';
 import { useProgressiveTranscriptWindow } from './useProgressiveTranscriptWindow';
 import { useVirtualizedTranscriptWindow } from './useVirtualizedTranscriptWindow';
 
@@ -60,6 +65,7 @@ const MAX_FOLDER_UPLOAD_TEXT_FILES = 24;
 
 export interface UniversalChatProps {
   sessionId?: string;
+  sessionScopeKey?: string;
   isActive?: boolean;
   messages: BirdCoderChatMessage[];
   inputValue?: string;
@@ -182,15 +188,51 @@ interface UniversalChatTranscriptProps {
   emptyState?: React.ReactNode;
   environmentRef: React.MutableRefObject<UniversalChatTranscriptEnvironment | null>;
   isActive: boolean;
+  isUserControllingScrollRef: React.MutableRefObject<boolean>;
   layout: 'sidebar' | 'main';
   localeKey: string;
   messages: readonly BirdCoderChatMessage[];
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  scrollTranscriptToBottom: () => void;
+  sessionId: string;
   shouldStickToBottomRef: React.MutableRefObject<boolean>;
 }
 
 const EMPTY_CHAT_MESSAGES: BirdCoderChatMessage[] = [];
+
+function resolveVisibleSessionMessages(
+  messages: readonly BirdCoderChatMessage[],
+  normalizedSessionId: string,
+): readonly BirdCoderChatMessage[] {
+  if (messages.length === 0) {
+    return EMPTY_CHAT_MESSAGES;
+  }
+
+  if (!normalizedSessionId) {
+    return messages;
+  }
+
+  let filteredMessages: BirdCoderChatMessage[] | null = null;
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index]!;
+    const messageSessionId = message.codingSessionId?.trim() ?? '';
+    if (messageSessionId === normalizedSessionId) {
+      filteredMessages?.push(message);
+      continue;
+    }
+
+    if (!filteredMessages) {
+      filteredMessages = messages.slice(0, index) as BirdCoderChatMessage[];
+    }
+  }
+
+  if (filteredMessages?.length === 0) {
+    return EMPTY_CHAT_MESSAGES;
+  }
+
+  return filteredMessages ?? messages;
+}
 
 type ChatScrollSnapshot = {
   contentLength: number;
@@ -198,22 +240,32 @@ type ChatScrollSnapshot = {
   messageId: string;
 };
 
-function resolveChatScrollBehavior(
+type ChatScrollTiming = 'frame' | 'layout';
+
+function resolveChatScrollTiming(
   previousSnapshot: ChatScrollSnapshot | null,
   nextSnapshot: ChatScrollSnapshot,
-): ScrollBehavior {
+): ChatScrollTiming {
   if (!previousSnapshot || previousSnapshot.messageCount === 0 || nextSnapshot.messageCount === 0) {
-    return 'auto';
+    return 'layout';
   }
 
   if (
     previousSnapshot.messageId === nextSnapshot.messageId &&
     previousSnapshot.contentLength !== nextSnapshot.contentLength
   ) {
-    return 'auto';
+    return 'layout';
   }
 
-  return 'smooth';
+  return 'frame';
+}
+
+function readTranscriptScrollClock(): number {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now();
+  }
+
+  return Date.now();
 }
 
 function buildTranscriptSurfaceStyle(containIntrinsicSize: string): React.CSSProperties {
@@ -221,6 +273,109 @@ function buildTranscriptSurfaceStyle(containIntrinsicSize: string): React.CSSPro
     contain: 'layout paint style',
     containIntrinsicSize,
   };
+}
+
+interface CommandExecutionTone {
+  backgroundClassName: string;
+  borderClassName: string;
+  iconClassName: string;
+  semantic: 'approval' | 'command' | 'reply';
+  statusClassName: string;
+  textClassName: string;
+  waitingLabel?: string;
+}
+
+function resolveCommandExecutionTone(cmd: CommandExecution): CommandExecutionTone {
+  const interactionState = resolveBirdCoderCodeEngineCommandInteractionState(cmd);
+  const isWaitingForReply = interactionState.requiresReply;
+  const isWaitingForApproval = interactionState.requiresApproval;
+
+  if (isWaitingForReply) {
+    return {
+      backgroundClassName: 'bg-amber-500/10',
+      borderClassName: 'border-amber-400/20',
+      iconClassName: 'text-amber-300',
+      semantic: 'reply',
+      statusClassName: 'text-amber-200 bg-amber-400/10 border-amber-400/20',
+      textClassName: 'font-sans text-gray-100',
+      waitingLabel: 'Needs reply',
+    };
+  }
+
+  if (isWaitingForApproval) {
+    return {
+      backgroundClassName: 'bg-sky-500/10',
+      borderClassName: 'border-sky-400/20',
+      iconClassName: 'text-sky-300',
+      semantic: 'approval',
+      statusClassName: 'text-sky-200 bg-sky-400/10 border-sky-400/20',
+      textClassName: 'font-sans text-gray-100',
+      waitingLabel: 'Needs approval',
+    };
+  }
+
+  return {
+    backgroundClassName: 'bg-black/30',
+    borderClassName: 'border-white/5',
+    iconClassName: 'text-blue-400',
+    semantic: 'command',
+    statusClassName: 'text-blue-200 bg-blue-400/10 border-blue-400/20',
+    textClassName: 'font-mono text-gray-300',
+  };
+}
+
+function renderCommandExecutionCard({
+  cmd,
+  cmdIdx,
+  copyLabel,
+  copyMessageToClipboard,
+  successIconSize,
+}: {
+  cmd: CommandExecution;
+  cmdIdx: number;
+  copyLabel: string;
+  copyMessageToClipboard: (content: string) => void;
+  successIconSize: number;
+}) {
+  const tone = resolveCommandExecutionTone(cmd);
+  return (
+    <div
+      key={cmd.toolCallId ?? `${cmdIdx}:${cmd.command}`}
+      className={`group/command flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-[13px] text-gray-300 ${tone.borderClassName} ${tone.backgroundClassName}`}
+    >
+      <div className="flex min-w-0 items-center gap-3 overflow-hidden">
+        {tone.semantic === 'reply' ? (
+          <CircleHelp size={14} className={`shrink-0 ${tone.iconClassName}`} />
+        ) : tone.semantic === 'approval' ? (
+          <ShieldAlert size={14} className={`shrink-0 ${tone.iconClassName}`} />
+        ) : (
+          <span className={`${tone.iconClassName} shrink-0 font-mono`}>$</span>
+        )}
+        <span className={`truncate ${tone.textClassName}`}>{cmd.command}</span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          className="opacity-0 transition-opacity group-hover/command:opacity-100 text-gray-500 hover:text-gray-200 hover:bg-white/10 rounded-md p-1"
+          title={copyLabel}
+          onClick={() => copyMessageToClipboard(cmd.command)}
+        >
+          <Copy size={12} />
+        </button>
+        {cmd.status === 'success' ? (
+          <CheckCircle2 size={successIconSize} className="text-green-500/70 shrink-0" />
+        ) : cmd.status === 'error' ? (
+          <span className="shrink-0 text-[11px] text-red-400">Failed</span>
+        ) : tone.waitingLabel ? (
+          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${tone.statusClassName}`}>
+            {tone.waitingLabel}
+          </span>
+        ) : (
+          <div className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
+        )}
+      </div>
+    </div>
+  );
 }
 
 function isReplySegmentRole(role: BirdCoderChatMessage['role']): boolean {
@@ -298,17 +453,25 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   emptyState,
   environmentRef,
   isActive,
+  isUserControllingScrollRef,
   layout,
   localeKey: _localeKey,
   messages,
   messagesEndRef,
   scrollContainerRef,
-  shouldStickToBottomRef: _shouldStickToBottomRef,
+  scrollTranscriptToBottom,
+  sessionId,
+  shouldStickToBottomRef,
 }: UniversalChatTranscriptProps) {
-  const { isLoadingEarlierMessages, renderedMessages } = useProgressiveTranscriptWindow(
+  const {
+    hasEarlierMessages,
+    isLoadingEarlierMessages,
+    renderedMessages,
+  } = useProgressiveTranscriptWindow(
     messages,
     messagesEndRef,
     isActive,
+    sessionId,
   );
   const messageActionTargets = useMemo(
     () => buildMessageActionTargets(renderedMessages),
@@ -318,8 +481,31 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     useVirtualizedTranscriptWindow(
       renderedMessages,
       scrollContainerRef,
-      isActive,
+      isActive && !hasEarlierMessages,
+      sessionId,
     );
+
+  useLayoutEffect(() => {
+    if (
+      !isActive ||
+      !shouldStickToBottomRef.current ||
+      isUserControllingScrollRef.current
+    ) {
+      return;
+    }
+
+    scrollTranscriptToBottom();
+  }, [
+    isActive,
+    isUserControllingScrollRef,
+    paddingBottom,
+    paddingTop,
+    renderedMessages.length,
+    scrollTranscriptToBottom,
+    shouldStickToBottomRef,
+    visibleMessages.length,
+    visibleStartIndex,
+  ]);
 
   const renderMarkdownContent = (
     content: string,
@@ -349,10 +535,41 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     environment.addToast(environment.t('chat.messageCopied'), 'success');
   };
 
+  const renderTaskProgress = (msg: BirdCoderChatMessage) => {
+    if (!msg.taskProgress) {
+      return null;
+    }
+
+    const total = Math.max(0, Math.floor(msg.taskProgress.total));
+    const completed = Math.min(total, Math.max(0, Math.floor(msg.taskProgress.completed)));
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    return (
+      <div className="mt-2 w-full rounded-lg border border-white/5 bg-black/25 px-3 py-2 text-xs text-gray-300">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <List size={13} className="shrink-0 text-blue-400" />
+            <span className="truncate">Task progress</span>
+          </div>
+          <span className="shrink-0 font-mono text-[11px] text-gray-500">
+            {completed}/{total}
+          </span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full bg-blue-400 transition-[width]"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      </div>
+    );
+  };
+
   const renderSidebarMessage = (
     msg: BirdCoderChatMessage,
     idx: number,
     messageRef?: (element: HTMLDivElement | null) => void,
+    messageRenderKey?: string,
   ) => {
     const environment = environmentRef.current;
     const copyLabel = environment?.t('common.copy') ?? 'Copy';
@@ -361,7 +578,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     return (
       <div
         ref={messageRef}
-        key={msg.id || idx}
+        key={messageRenderKey ?? `${sessionId}\u0001${idx}\u0001${msg.id || 'message'}`}
         className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start w-full'} group`}
         style={buildTranscriptSurfaceStyle('180px')}
       >
@@ -450,36 +667,19 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
             </div>
           )}
 
+          {renderTaskProgress(msg)}
+
           {msg.commands && msg.commands.length > 0 && (
             <div className="mt-1.5 flex flex-col gap-1 w-full">
-              {msg.commands.map((cmd, cmdIdx) => (
-                <div
-                  key={cmdIdx}
-                  className="group/command flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/30 px-3 py-2 font-mono text-[13px] text-gray-300"
-                >
-                  <div className="flex min-w-0 items-center gap-3 overflow-hidden">
-                    <span className="text-blue-400 shrink-0">$</span>
-                    <span className="truncate">{cmd.command}</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      className="opacity-0 transition-opacity group-hover/command:opacity-100 text-gray-500 hover:text-gray-200 hover:bg-white/10 rounded-md p-1"
-                      title={copyLabel}
-                      onClick={() => copyMessageToClipboard(cmd.command)}
-                    >
-                      <Copy size={12} />
-                    </button>
-                    {cmd.status === 'success' ? (
-                      <CheckCircle2 size={13} className="text-green-500/70 shrink-0" />
-                    ) : cmd.status === 'error' ? (
-                      <span className="shrink-0 text-[11px] text-red-400">Failed</span>
-                    ) : (
-                      <div className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
-                    )}
-                  </div>
-                </div>
-              ))}
+              {msg.commands.map((cmd, cmdIdx) =>
+                renderCommandExecutionCard({
+                  cmd,
+                  cmdIdx,
+                  copyLabel,
+                  copyMessageToClipboard,
+                  successIconSize: 13,
+                }),
+              )}
             </div>
           )}
 
@@ -527,6 +727,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     msg: BirdCoderChatMessage,
     idx: number,
     messageRef?: (element: HTMLDivElement | null) => void,
+    messageRenderKey?: string,
   ) => {
     const environment = environmentRef.current;
     const copyLabel = environment?.t('common.copy') ?? 'Copy';
@@ -535,7 +736,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     return (
       <div
         ref={messageRef}
-        key={msg.id || idx}
+        key={messageRenderKey ?? `${sessionId}\u0001${idx}\u0001${msg.id || 'message'}`}
         className={`flex group w-full ${msg.role === 'user' ? 'py-2' : 'py-2.5'} px-4 md:px-8`}
         style={buildTranscriptSurfaceStyle(msg.role === 'user' ? '160px' : '320px')}
       >
@@ -631,36 +832,19 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                 </div>
               )}
 
+              {renderTaskProgress(msg)}
+
               {msg.commands && msg.commands.length > 0 && (
                 <div className="mt-2 flex flex-col gap-1.5 w-full">
-                  {msg.commands.map((cmd, cmdIdx) => (
-                    <div
-                      key={cmdIdx}
-                      className="group/command flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/30 px-3 py-2 font-mono text-[13px] text-gray-300"
-                    >
-                      <div className="flex min-w-0 items-center gap-3 overflow-hidden">
-                        <span className="text-blue-400 shrink-0">$</span>
-                        <span className="truncate">{cmd.command}</span>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          className="opacity-0 transition-opacity group-hover/command:opacity-100 text-gray-500 hover:text-gray-200 hover:bg-white/10 rounded-md p-1"
-                          title={copyLabel}
-                          onClick={() => copyMessageToClipboard(cmd.command)}
-                        >
-                          <Copy size={12} />
-                        </button>
-                        {cmd.status === 'success' ? (
-                          <CheckCircle2 size={14} className="text-green-500/70 shrink-0" />
-                        ) : cmd.status === 'error' ? (
-                          <span className="shrink-0 text-[11px] text-red-400">Failed</span>
-                        ) : (
-                          <div className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  {msg.commands.map((cmd, cmdIdx) =>
+                    renderCommandExecutionCard({
+                      cmd,
+                      cmdIdx,
+                      copyLabel,
+                      copyMessageToClipboard,
+                      successIconSize: 14,
+                    }),
+                  )}
                 </div>
               )}
 
@@ -757,11 +941,12 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
           ) : null}
           {visibleMessages.map((msg, idx) => {
             const messageIndex = visibleStartIndex + idx;
-            const messageId = msg.id.trim() || `message-${messageIndex}`;
-            const messageRef = registerMessageElement(messageId);
+            const messageMeasurementKey = resolveTranscriptMessageKey(msg, messageIndex);
+            const messageRenderKey = `${sessionId}\u0001${messageMeasurementKey}`;
+            const messageRef = registerMessageElement(messageMeasurementKey);
             return layout === 'sidebar'
-              ? renderSidebarMessage(msg, messageIndex, messageRef)
-              : renderMainMessage(msg, messageIndex, messageRef);
+              ? renderSidebarMessage(msg, messageIndex, messageRef, messageRenderKey)
+              : renderMainMessage(msg, messageIndex, messageRef, messageRenderKey);
           })}
           {paddingBottom > 0 ? (
             <div
@@ -780,8 +965,16 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     previousProps.isActive !== nextProps.isActive ||
     previousProps.layout !== nextProps.layout ||
     previousProps.localeKey !== nextProps.localeKey ||
-    previousProps.messages !== nextProps.messages
+    previousProps.sessionId !== nextProps.sessionId
   ) {
+    return false;
+  }
+
+  if (!nextProps.isActive) {
+    return true;
+  }
+
+  if (previousProps.messages !== nextProps.messages) {
     return false;
   }
 
@@ -794,6 +987,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
 
 export const UniversalChat = memo(function UniversalChat({
   sessionId,
+  sessionScopeKey,
   isActive = true,
   messages,
   inputValue: controlledInputValue,
@@ -828,6 +1022,7 @@ export const UniversalChat = memo(function UniversalChat({
   const [historyPrompts, setHistoryPrompts] = useState<PromptEntry[]>([]);
   const [myPrompts, setMyPrompts] = useState<PromptEntry[]>([]);
   const normalizedSessionId = sessionId?.trim() || '';
+  const normalizedTranscriptScopeKey = sessionScopeKey?.trim() || normalizedSessionId;
   const {
     clearDraftValue: clearSessionDraftValue,
     draftValue: sessionDraftValue,
@@ -891,6 +1086,7 @@ export const UniversalChat = memo(function UniversalChat({
   const [isFocused, setIsFocused] = useState(false);
   const [manualComposerHeight, setManualComposerHeight] = useState<number | null>(null);
   const [isDispatchingMessage, setIsDispatchingMessage] = useState(false);
+  const isDispatchingMessageRef = useRef(false);
   const { addToast } = useToast();
   const { preferences } = useWorkbenchPreferences();
   const modelMenuRef = useRef<HTMLDivElement>(null);
@@ -925,13 +1121,22 @@ export const UniversalChat = memo(function UniversalChat({
       ? currentEngine.label
       : `${currentEngine.label} / ${currentModelLabel}`;
   const isComposerBusy = isBusy || isDispatchingMessage;
-  const lastMessage = messages[messages.length - 1];
+  const normalizedMessages = useMemo(
+    () => resolveVisibleSessionMessages(messages, normalizedSessionId),
+    [messages, normalizedSessionId],
+  );
+  const lastMessage = normalizedMessages[normalizedMessages.length - 1];
   const lastMessageContentLength = lastMessage?.content.length ?? 0;
-  const normalizedMessages = messages.length === 0 ? EMPTY_CHAT_MESSAGES : messages;
   const transcriptEnvironmentRef = useRef<UniversalChatTranscriptEnvironment | null>(null);
+  const activeTranscriptSessionIdRef = useRef(normalizedTranscriptScopeKey);
   const lastScrollSnapshotRef = useRef<ChatScrollSnapshot | null>(null);
   const transcriptScrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldStickTranscriptToBottomRef = useRef(true);
+  const isProgrammaticTranscriptScrollRef = useRef(false);
+  const isUserControllingTranscriptScrollRef = useRef(false);
+  const isTranscriptPointerScrollActiveRef = useRef(false);
+  const lastUserTranscriptScrollAtRef = useRef(0);
+  const userTranscriptScrollSettleTimerRef = useRef<number | null>(null);
 
   transcriptEnvironmentRef.current = {
     addToast,
@@ -981,6 +1186,87 @@ export const UniversalChat = memo(function UniversalChat({
 
     shouldStickTranscriptToBottomRef.current = isTranscriptNearBottom(scrollMetrics);
   }, [readTranscriptScrollMetrics]);
+
+  const scrollTranscriptToBottom = useCallback(() => {
+    const scrollContainer = transcriptScrollContainerRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+
+    const nextScrollTop = computeTranscriptBottomScrollTop({
+      clientHeight: scrollContainer.clientHeight,
+      scrollHeight: scrollContainer.scrollHeight,
+      scrollTop: scrollContainer.scrollTop,
+    });
+    if (Math.abs(scrollContainer.scrollTop - nextScrollTop) <= 1) {
+      shouldStickTranscriptToBottomRef.current = true;
+      return;
+    }
+
+    isProgrammaticTranscriptScrollRef.current = true;
+    scrollContainer.scrollTop = nextScrollTop;
+    shouldStickTranscriptToBottomRef.current = true;
+
+    if (typeof window === 'undefined') {
+      isProgrammaticTranscriptScrollRef.current = false;
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      isProgrammaticTranscriptScrollRef.current = false;
+      updateTranscriptStickiness();
+    });
+  }, [updateTranscriptStickiness]);
+
+  const releaseUserTranscriptScrollControl = useCallback(() => {
+    userTranscriptScrollSettleTimerRef.current = null;
+    if (isTranscriptPointerScrollActiveRef.current) {
+      if (typeof window === 'undefined') {
+        return;
+      }
+
+      userTranscriptScrollSettleTimerRef.current = window.setTimeout(
+        releaseUserTranscriptScrollControl,
+        CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS,
+      );
+      return;
+    }
+
+    isUserControllingTranscriptScrollRef.current = false;
+    updateTranscriptStickiness();
+  }, [updateTranscriptStickiness]);
+
+  const markTranscriptUserScrollIntent = useCallback(() => {
+    lastUserTranscriptScrollAtRef.current = readTranscriptScrollClock();
+    isUserControllingTranscriptScrollRef.current = true;
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (userTranscriptScrollSettleTimerRef.current !== null) {
+      window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
+    }
+
+    userTranscriptScrollSettleTimerRef.current = window.setTimeout(
+      releaseUserTranscriptScrollControl,
+      CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS,
+    );
+  }, [releaseUserTranscriptScrollControl]);
+
+  const markTranscriptPointerScrollIntent = useCallback(() => {
+    isTranscriptPointerScrollActiveRef.current = true;
+    markTranscriptUserScrollIntent();
+  }, [markTranscriptUserScrollIntent]);
+
+  const releaseTranscriptPointerScrollIntent = useCallback(() => {
+    if (!isTranscriptPointerScrollActiveRef.current) {
+      return;
+    }
+
+    isTranscriptPointerScrollActiveRef.current = false;
+    markTranscriptUserScrollIntent();
+  }, [markTranscriptUserScrollIntent]);
 
   useEffect(() => {
     if (!isActive) {
@@ -1091,22 +1377,76 @@ export const UniversalChat = memo(function UniversalChat({
     }
 
     shouldStickTranscriptToBottomRef.current = true;
+    isProgrammaticTranscriptScrollRef.current = false;
+    isUserControllingTranscriptScrollRef.current = false;
+    isTranscriptPointerScrollActiveRef.current = false;
+    lastUserTranscriptScrollAtRef.current = 0;
+    if (userTranscriptScrollSettleTimerRef.current !== null) {
+      window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
+      userTranscriptScrollSettleTimerRef.current = null;
+    }
+
     const scrollContainer = transcriptScrollContainerRef.current;
     if (!scrollContainer) {
       return;
     }
 
     const handleTranscriptScroll = () => {
+      if (isProgrammaticTranscriptScrollRef.current) {
+        return;
+      }
+
+      markTranscriptUserScrollIntent();
       updateTranscriptStickiness();
+    };
+    const handleTranscriptKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key === 'ArrowDown' ||
+        event.key === 'ArrowUp' ||
+        event.key === 'End' ||
+        event.key === 'Home' ||
+        event.key === 'PageDown' ||
+        event.key === 'PageUp' ||
+        event.key === ' '
+      ) {
+        markTranscriptUserScrollIntent();
+      }
     };
 
     updateTranscriptStickiness();
     scrollContainer.addEventListener('scroll', handleTranscriptScroll, { passive: true });
+    scrollContainer.addEventListener('wheel', markTranscriptUserScrollIntent, { passive: true });
+    scrollContainer.addEventListener('touchstart', markTranscriptUserScrollIntent, { passive: true });
+    scrollContainer.addEventListener('touchmove', markTranscriptUserScrollIntent, { passive: true });
+    scrollContainer.addEventListener('pointerdown', markTranscriptPointerScrollIntent, { passive: true });
+    scrollContainer.addEventListener('keydown', handleTranscriptKeyDown);
+    window.addEventListener('pointerup', releaseTranscriptPointerScrollIntent, { passive: true });
+    window.addEventListener('pointercancel', releaseTranscriptPointerScrollIntent, { passive: true });
 
     return () => {
       scrollContainer.removeEventListener('scroll', handleTranscriptScroll);
+      scrollContainer.removeEventListener('wheel', markTranscriptUserScrollIntent);
+      scrollContainer.removeEventListener('touchstart', markTranscriptUserScrollIntent);
+      scrollContainer.removeEventListener('touchmove', markTranscriptUserScrollIntent);
+      scrollContainer.removeEventListener('pointerdown', markTranscriptPointerScrollIntent);
+      scrollContainer.removeEventListener('keydown', handleTranscriptKeyDown);
+      window.removeEventListener('pointerup', releaseTranscriptPointerScrollIntent);
+      window.removeEventListener('pointercancel', releaseTranscriptPointerScrollIntent);
+      if (userTranscriptScrollSettleTimerRef.current !== null) {
+        window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
+        userTranscriptScrollSettleTimerRef.current = null;
+      }
+      isUserControllingTranscriptScrollRef.current = false;
+      isTranscriptPointerScrollActiveRef.current = false;
     };
-  }, [isActive, normalizedSessionId, updateTranscriptStickiness]);
+  }, [
+    isActive,
+    markTranscriptPointerScrollIntent,
+    markTranscriptUserScrollIntent,
+    normalizedSessionId,
+    releaseTranscriptPointerScrollIntent,
+    updateTranscriptStickiness,
+  ]);
 
   const formatTime = (ts: number) => {
     const d = new Date(ts);
@@ -1422,11 +1762,15 @@ export const UniversalChat = memo(function UniversalChat({
   );
 
   const handleSend = async (textOverride?: string) => {
-    const currentInput = textOverride !== undefined ? textOverride.trim() : inputValue.trim();
     if (disabled) {
       return;
     }
 
+    if (isDispatchingMessageRef.current) {
+      return;
+    }
+
+    const currentInput = textOverride !== undefined ? textOverride.trim() : inputValue.trim();
     if (isComposerBusy) {
       if (!currentInput) {
         return;
@@ -1449,6 +1793,7 @@ export const UniversalChat = memo(function UniversalChat({
     setTempInput('');
     clearInputValue();
     setMessageQueue((previousQueue) => (previousQueue.length === 0 ? previousQueue : []));
+    isDispatchingMessageRef.current = true;
     setIsDispatchingMessage(true);
 
     try {
@@ -1476,16 +1821,31 @@ export const UniversalChat = memo(function UniversalChat({
         console.error('Failed to persist prompt history after successful send', error);
       }
     } finally {
+      isDispatchingMessageRef.current = false;
       setIsDispatchingMessage(false);
     }
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isActive) {
       return;
     }
 
-    if (messages.length === 0) {
+    if (activeTranscriptSessionIdRef.current !== normalizedTranscriptScopeKey) {
+      activeTranscriptSessionIdRef.current = normalizedTranscriptScopeKey;
+      lastScrollSnapshotRef.current = null;
+      shouldStickTranscriptToBottomRef.current = true;
+      isProgrammaticTranscriptScrollRef.current = false;
+      isUserControllingTranscriptScrollRef.current = false;
+      isTranscriptPointerScrollActiveRef.current = false;
+      lastUserTranscriptScrollAtRef.current = 0;
+      if (userTranscriptScrollSettleTimerRef.current !== null && typeof window !== 'undefined') {
+        window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
+        userTranscriptScrollSettleTimerRef.current = null;
+      }
+    }
+
+    if (normalizedMessages.length === 0) {
       lastScrollSnapshotRef.current = null;
       shouldStickTranscriptToBottomRef.current = true;
       return;
@@ -1493,34 +1853,50 @@ export const UniversalChat = memo(function UniversalChat({
 
     const nextSnapshot: ChatScrollSnapshot = {
       contentLength: lastMessageContentLength,
-      messageCount: messages.length,
+      messageCount: normalizedMessages.length,
       messageId: lastMessage?.id ?? '',
     };
+    const previousSnapshot = lastScrollSnapshotRef.current;
     const shouldAutoScroll =
-      lastScrollSnapshotRef.current === null ||
+      previousSnapshot === null ||
       shouldStickTranscriptToBottomRef.current;
-    const scrollBehavior = resolveChatScrollBehavior(
-      lastScrollSnapshotRef.current,
-      nextSnapshot,
-    );
+    const shouldDeferAutoScrollForUserIntent =
+      shouldDeferTranscriptAutoScrollForUserIntent({
+        isUserInteracting: isUserControllingTranscriptScrollRef.current,
+        lastUserScrollAt: lastUserTranscriptScrollAtRef.current,
+        now: readTranscriptScrollClock(),
+      });
     lastScrollSnapshotRef.current = nextSnapshot;
 
-    if (typeof window === 'undefined' || !shouldAutoScroll) {
+    if (!shouldAutoScroll || shouldDeferAutoScrollForUserIntent) {
+      return;
+    }
+
+    const scrollTiming = resolveChatScrollTiming(
+      previousSnapshot,
+      nextSnapshot,
+    );
+    if (previousSnapshot === null || scrollTiming === 'layout' || typeof window === 'undefined') {
+      scrollTranscriptToBottom();
       return;
     }
 
     const animationFrame = window.requestAnimationFrame(() => {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: scrollBehavior,
-        block: 'end',
-      });
-      shouldStickTranscriptToBottomRef.current = true;
+      scrollTranscriptToBottom();
     });
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
     };
-  }, [isActive, lastMessage?.createdAt, lastMessage?.id, lastMessageContentLength, messages.length]);
+  }, [
+    isActive,
+    lastMessage?.createdAt,
+    lastMessage?.id,
+    lastMessageContentLength,
+    normalizedMessages.length,
+    normalizedTranscriptScopeKey,
+    scrollTranscriptToBottom,
+  ]);
 
   useEffect(() => {
     if (!isActive) {
@@ -1709,11 +2085,14 @@ export const UniversalChat = memo(function UniversalChat({
           emptyState={emptyState}
           environmentRef={transcriptEnvironmentRef}
           isActive={isActive}
+          isUserControllingScrollRef={isUserControllingTranscriptScrollRef}
           layout={layout}
           localeKey={i18n.resolvedLanguage ?? i18n.language ?? ''}
           messages={normalizedMessages}
           messagesEndRef={messagesEndRef}
           scrollContainerRef={transcriptScrollContainerRef}
+          scrollTranscriptToBottom={scrollTranscriptToBottom}
+          sessionId={normalizedTranscriptScopeKey}
           shouldStickToBottomRef={shouldStickTranscriptToBottomRef}
         />
       </div>

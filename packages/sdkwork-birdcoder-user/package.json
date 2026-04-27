@@ -18,7 +18,7 @@
     "@babel/runtime": "catalog:",
     "@sdkwork/birdcoder-commons": "workspace:*",
     "@sdkwork/birdcoder-core": "workspace:*",
-    "@sdkwork/birdcoder-infrastructure": "workspace:*",
+    "@sdkwork/birdcoder-infrastructure-runtime": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
     "@sdkwork/birdcoder-workbench-state": "workspace:*",
     "@sdkwork/user-center-core-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react",

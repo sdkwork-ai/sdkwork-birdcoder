@@ -5,9 +5,17 @@ import type {
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import {
+  areBirdCoderChatMessagesEquivalent,
+  areBirdCoderChatMessagesLogicallyMatched,
+  buildBirdCoderProjectBusinessCode,
+  buildBirdCoderProjectBusinessName,
   compareBirdCoderProjectsByActivity,
+  compareBirdCoderSessionSortTimestamp,
+  deduplicateBirdCoderComparableChatMessages,
   formatBirdCoderSessionActivityDisplayTime,
-  resolveBirdCoderSessionSortTimestamp,
+  mergeBirdCoderComparableChatMessages,
+  resolveBirdCoderSessionSortTimestampString,
+  stringifyBirdCoderLongInteger,
 } from '@sdkwork/birdcoder-types';
 import type { IProjectSessionMirror } from '../interfaces/IProjectSessionMirror.ts';
 import type {
@@ -20,7 +28,10 @@ import type {
   UpdateCodingSessionOptions,
 } from '../interfaces/IProjectService.ts';
 import type { BirdCoderTableRecordRepository } from '../../storage/dataKernel.ts';
-import type { BirdCoderRepresentativeProjectRecord } from '../../storage/appConsoleRepository.ts';
+import type {
+  BirdCoderProjectContentRecord,
+  BirdCoderRepresentativeProjectRecord,
+} from '../../storage/appConsoleRepository.ts';
 import type { BirdCoderPromptSkillTemplateEvidenceRepositories } from '../../storage/promptSkillTemplateEvidenceRepository.ts';
 import type {
   BirdCoderCodingSessionRepositories,
@@ -32,6 +43,10 @@ import {
   BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
 } from '../../storage/bootstrapConsoleCatalog.ts';
 import { resolveRequiredCodingSessionSelection } from '../codingSessionSelection.ts';
+import {
+  buildBirdCoderProjectContentConfigData,
+  readBirdCoderProjectRootPathFromConfigData,
+} from '../projectContentConfigData.ts';
 
 function createTimestamp(): string {
   return new Date().toISOString();
@@ -104,14 +119,17 @@ function isAbsoluteProjectPath(path: string): boolean {
   return /^[a-zA-Z]:[\\/]/u.test(path) || path.startsWith('\\\\') || path.startsWith('/');
 }
 
-function normalizeRequiredProjectPathForCreate(path: string | null | undefined): string {
+function normalizeRequiredProjectPath(
+  path: string | null | undefined,
+  action: 'create' | 'update',
+): string {
   if (typeof path !== 'string') {
-    throw new Error('Project root path is required to create a project.');
+    throw new Error(`Project root path is required to ${action} a project.`);
   }
 
   const normalizedPath = path.trim();
   if (!normalizedPath) {
-    throw new Error('Project root path is required to create a project.');
+    throw new Error(`Project root path is required to ${action} a project.`);
   }
 
   if (!isAbsoluteProjectPath(normalizedPath)) {
@@ -119,6 +137,38 @@ function normalizeRequiredProjectPathForCreate(path: string | null | undefined):
   }
 
   return normalizedPath;
+}
+
+function normalizeRequiredProjectPathForCreate(path: string | null | undefined): string {
+  return normalizeRequiredProjectPath(path, 'create');
+}
+
+function normalizeProjectPathForUpdate(path: string | null | undefined): string | undefined {
+  return path === undefined ? undefined : normalizeRequiredProjectPath(path, 'update');
+}
+
+function resolveProjectSummaryRootPath(
+  rootPath: string | null | undefined,
+  fallbackRootPath: string | undefined,
+): string | undefined {
+  const normalizedRootPath = rootPath?.trim();
+  if (!normalizedRootPath) {
+    return fallbackRootPath;
+  }
+
+  if (!isAbsoluteProjectPath(normalizedRootPath)) {
+    throw new Error('Project root path must be an absolute path.');
+  }
+
+  return normalizedRootPath;
+}
+
+function omitProjectRootPathShadow(
+  projectRecord: BirdCoderRepresentativeProjectRecord,
+): BirdCoderRepresentativeProjectRecord {
+  const { rootPath, ...projectRecordWithoutRootPath } = projectRecord;
+  void rootPath;
+  return projectRecordWithoutRootPath;
 }
 
 function cloneProjects(value: readonly BirdCoderProject[]): BirdCoderProject[] {
@@ -133,12 +183,31 @@ function cloneChatMessage(value: BirdCoderChatMessage): BirdCoderChatMessage {
   return structuredClone(value);
 }
 
+function sanitizeCodingSessionMessageUpdates(
+  updates: Partial<BirdCoderChatMessage>,
+): Partial<BirdCoderChatMessage> {
+  const {
+    codingSessionId: _codingSessionId,
+    createdAt: _createdAt,
+    id: _id,
+    role: _role,
+    turnId: _turnId,
+    ...editableUpdates
+  } = updates;
+  void _codingSessionId;
+  void _createdAt;
+  void _id;
+  void _role;
+  void _turnId;
+  return editableUpdates;
+}
+
 interface SortableCodingSessionLike {
   id: string;
   updatedAt: string;
   createdAt?: string;
   lastTurnAt?: string;
-  sortTimestamp?: number;
+  sortTimestamp?: string;
   transcriptUpdatedAt?: string | null;
 }
 
@@ -147,8 +216,7 @@ function compareCodingSessionsByActivity<TSession extends SortableCodingSessionL
   right: TSession,
 ): number {
   return (
-    resolveBirdCoderSessionSortTimestamp(right) -
-      resolveBirdCoderSessionSortTimestamp(left) ||
+    compareBirdCoderSessionSortTimestamp(right, left) ||
     right.updatedAt.localeCompare(left.updatedAt) ||
     left.id.localeCompare(right.id)
   );
@@ -196,6 +264,7 @@ function createCodingSession(
   options: CreateCodingSessionOptions,
 ): BirdCoderCodingSession {
   const createdAt = createTimestamp();
+  const sortTimestamp = stringifyBirdCoderLongInteger(Date.parse(createdAt));
   const selection = resolveRequiredCodingSessionSelection(options);
 
   return {
@@ -210,12 +279,12 @@ function createCodingSession(
     createdAt,
     updatedAt: createdAt,
     lastTurnAt: createdAt,
-    sortTimestamp: Date.parse(createdAt),
+    sortTimestamp,
     transcriptUpdatedAt: null,
     displayTime: formatBirdCoderSessionActivityDisplayTime({
       createdAt,
       lastTurnAt: createdAt,
-      sortTimestamp: Date.parse(createdAt),
+      sortTimestamp,
       updatedAt: createdAt,
     }),
     pinned: false,
@@ -254,10 +323,30 @@ function createChatMessage(
   };
 }
 
+function deduplicateCodingSessionMessages(
+  messages: readonly BirdCoderChatMessage[],
+): BirdCoderChatMessage[] {
+  return deduplicateBirdCoderComparableChatMessages(messages).map((message) =>
+    cloneChatMessage(message),
+  );
+}
+
+function findMatchingCodingSessionMessageIndex(
+  messages: readonly BirdCoderChatMessage[],
+  incomingMessage: BirdCoderChatMessage,
+): number {
+  return messages.findIndex(
+    (message) =>
+      areBirdCoderChatMessagesEquivalent(message, incomingMessage) ||
+      areBirdCoderChatMessagesLogicallyMatched(message, incomingMessage),
+  );
+}
+
 export interface ProviderBackedProjectServiceOptions {
   codingSessionRepositories?: BirdCoderCodingSessionRepositories;
   defaultOwnerUserId?: string;
   evidenceRepositories?: BirdCoderPromptSkillTemplateEvidenceRepositories;
+  projectContentRepository: BirdCoderTableRecordRepository<BirdCoderProjectContentRecord>;
   repository: BirdCoderTableRecordRepository<BirdCoderRepresentativeProjectRecord>;
 }
 
@@ -265,6 +354,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   private readonly codingSessionRepositories?: BirdCoderCodingSessionRepositories;
   private readonly defaultOwnerUserId: string;
   private readonly evidenceRepositories?: BirdCoderPromptSkillTemplateEvidenceRepositories;
+  private readonly projectContentRepository: BirdCoderTableRecordRepository<BirdCoderProjectContentRecord>;
   private readonly repository: BirdCoderTableRecordRepository<BirdCoderRepresentativeProjectRecord>;
   private readonly sessionsByProjectId = new Map<string, BirdCoderCodingSession[]>();
 
@@ -272,11 +362,13 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     codingSessionRepositories,
     defaultOwnerUserId = BIRDCODER_DEFAULT_LOCAL_OWNER_USER_ID,
     evidenceRepositories,
+    projectContentRepository,
     repository,
   }: ProviderBackedProjectServiceOptions) {
     this.codingSessionRepositories = codingSessionRepositories;
     this.defaultOwnerUserId = defaultOwnerUserId;
     this.evidenceRepositories = evidenceRepositories;
+    this.projectContentRepository = projectContentRepository;
     this.repository = repository;
   }
 
@@ -284,16 +376,113 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     // Provider-backed project reads are already served from the local authority.
   }
 
+  private async findProjectContentByProjectId(
+    projectId: string,
+  ): Promise<BirdCoderProjectContentRecord | null> {
+    return (
+      (await this.projectContentRepository.list()).find(
+        (content) => content.projectId === projectId,
+      ) ?? null
+    );
+  }
+
+  private async resolveProjectRootPathsById(
+    projectIds: readonly string[],
+  ): Promise<Map<string, string>> {
+    const rootPathsByProjectId = new Map<string, string>();
+    if (projectIds.length === 0) {
+      return rootPathsByProjectId;
+    }
+
+    const projectIdSet = new Set(projectIds);
+    for (const projectContent of await this.projectContentRepository.list()) {
+      if (!projectIdSet.has(projectContent.projectId)) {
+        continue;
+      }
+
+      const rootPath = readBirdCoderProjectRootPathFromConfigData(projectContent.configData);
+      if (rootPath && !rootPathsByProjectId.has(projectContent.projectId)) {
+        rootPathsByProjectId.set(projectContent.projectId, rootPath);
+      }
+    }
+
+    return rootPathsByProjectId;
+  }
+
+  private async hydrateProjectRecords(
+    records: readonly BirdCoderRepresentativeProjectRecord[],
+  ): Promise<BirdCoderRepresentativeProjectRecord[]> {
+    const rootPathsByProjectId = await this.resolveProjectRootPathsById(
+      records.map((record) => record.id),
+    );
+    return records.map((record) => {
+      const projectRecord = omitProjectRootPathShadow(record);
+      const rootPath = rootPathsByProjectId.get(record.id);
+      return rootPath
+        ? {
+            ...projectRecord,
+            rootPath,
+          }
+        : projectRecord;
+    });
+  }
+
+  private async hydrateProjectRecord(
+    record: BirdCoderRepresentativeProjectRecord,
+  ): Promise<BirdCoderRepresentativeProjectRecord> {
+    return (await this.hydrateProjectRecords([record]))[0] ?? record;
+  }
+
+  private async upsertProjectRootPathContent(
+    record: BirdCoderRepresentativeProjectRecord,
+    rootPath: string | undefined,
+  ): Promise<void> {
+    const normalizedRootPath = rootPath?.trim();
+    if (!normalizedRootPath) {
+      return;
+    }
+
+    const existingContent = await this.findProjectContentByProjectId(record.id);
+    await this.projectContentRepository.save({
+      id: existingContent?.id ?? record.id,
+      uuid: existingContent?.uuid ?? createUuid(),
+      tenantId: record.tenantId,
+      organizationId: record.organizationId,
+      dataScope: record.dataScope,
+      userId: record.userId ?? record.createdByUserId ?? record.ownerId,
+      parentId: record.parentId ?? '0',
+      projectId: record.id,
+      projectUuid: record.uuid ?? existingContent?.projectUuid ?? `project-${record.id}`,
+      configData: buildBirdCoderProjectContentConfigData(normalizedRootPath, {
+        existingConfigData: existingContent?.configData,
+      }),
+      contentData: existingContent?.contentData,
+      metadata: existingContent?.metadata,
+      contentVersion: existingContent?.contentVersion ?? '1.0',
+      contentHash: existingContent?.contentHash,
+      createdAt: existingContent?.createdAt ?? record.createdAt,
+      updatedAt: record.updatedAt,
+    });
+  }
+
+  private async deleteProjectRootPathContent(projectId: string): Promise<void> {
+    for (const projectContent of await this.projectContentRepository.list()) {
+      if (projectContent.projectId === projectId) {
+        await this.projectContentRepository.delete(projectContent.id);
+      }
+    }
+  }
+
   async getProjects(workspaceId?: string): Promise<BirdCoderProject[]> {
-    const records = await this.repository.list();
-    const filteredRecords = workspaceId
+    const records = await this.hydrateProjectRecords(await this.repository.list());
+    const hydratedRecords = workspaceId
       ? records.filter((record) => record.workspaceId === workspaceId)
       : records;
 
     const persistedSessionsByProjectId = this.codingSessionRepositories
-      ? await this.loadPersistedCodingSessionsSnapshot(filteredRecords.map((record) => record.id))
+      ? await this.loadPersistedCodingSessionsSnapshot(hydratedRecords.map((record) => record.id))
       : undefined;
-    const projects = filteredRecords.map((record) =>
+    const projects = hydratedRecords.map((record) =>
       this.mapProjectRecord(
         record,
         persistedSessionsByProjectId?.get(record.id) ?? this.sessionsByProjectId.get(record.id) ?? [],
@@ -303,11 +492,12 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   }
 
   async getProjectById(projectId: string): Promise<BirdCoderProject | null> {
-    const record = await this.repository.findById(projectId);
-    if (!record) {
+    const storedRecord = await this.repository.findById(projectId);
+    if (!storedRecord) {
       return null;
     }
 
+    const record = await this.hydrateProjectRecord(storedRecord);
     const sessions = this.codingSessionRepositories
       ? (await this.loadPersistedCodingSessionsSnapshot([record.id])).get(record.id) ??
         this.sessionsByProjectId.get(record.id) ??
@@ -317,7 +507,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   }
 
   async getProjectByPath(workspaceId: string, path: string): Promise<BirdCoderProject | null> {
-    const records = await this.repository.list();
+    const records = await this.hydrateProjectRecords(await this.repository.list());
     const record = findMatchingProjectRecordByPath(records, workspaceId, path);
     if (!record) {
       return null;
@@ -336,11 +526,12 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     const filteredRecords = workspaceId
       ? records.filter((record) => record.workspaceId === workspaceId)
       : records;
+    const hydratedRecords = await this.hydrateProjectRecords(filteredRecords);
 
     const persistedSessionSnapshotsByProjectId = this.codingSessionRepositories
-      ? await this.loadPersistedCodingSessionMirrorSnapshot(filteredRecords.map((record) => record.id))
+      ? await this.loadPersistedCodingSessionMirrorSnapshot(hydratedRecords.map((record) => record.id))
       : undefined;
-    return filteredRecords
+    return hydratedRecords
       .map((record) =>
         this.mapProjectRecordToMirrorSnapshot(
           record,
@@ -376,8 +567,13 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     }
 
     const now = createTimestamp();
-    const record = await this.repository.save({
-      id: createIdentifier('project'),
+    const projectId = createIdentifier('project');
+    const projectBusinessName = buildBirdCoderProjectBusinessName({
+      name: normalizedName,
+      projectId,
+    });
+    const record = await this.repository.save(omitProjectRootPathShadow({
+      id: projectId,
       uuid: createUuid(),
       tenantId: BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
       organizationId: BIRDCODER_DEFAULT_LOCAL_ORGANIZATION_ID,
@@ -387,9 +583,13 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       parentId: '0',
       parentUuid: '0',
       parentMetadata: {},
-      code: normalizedName,
+      code: buildBirdCoderProjectBusinessCode({
+        name: normalizedName,
+        projectId,
+        rootPath: normalizedPath,
+      }),
       title: normalizedName,
-      name: normalizedName,
+      name: projectBusinessName,
       description: options?.description?.trim() || undefined,
       rootPath: normalizedPath,
       ownerId: this.defaultOwnerUserId,
@@ -400,11 +600,24 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       status: 'active',
       createdAt: now,
       updatedAt: now,
-    });
+    }));
 
-    await this.recordTemplateInstantiationEvidence(record, options);
+    await this.recordTemplateInstantiationEvidence(
+      {
+        ...record,
+        rootPath: normalizedPath,
+      },
+      options,
+    );
+    await this.upsertProjectRootPathContent(record, normalizedPath);
     this.sessionsByProjectId.set(record.id, []);
-    return this.mapProjectRecord(record, []);
+    return this.mapProjectRecord(
+      {
+        ...record,
+        rootPath: normalizedPath,
+      },
+      [],
+    );
   }
 
   async recordProjectCreationEvidence(
@@ -430,8 +643,15 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   }
 
   async syncProjectSummary(summary: BirdCoderProjectSummary): Promise<BirdCoderProject> {
-    const existingRecord = await this.repository.findById(summary.id);
-    const record = await this.repository.save({
+    const storedExistingRecord = await this.repository.findById(summary.id);
+    const existingRecord = storedExistingRecord
+      ? await this.hydrateProjectRecord(storedExistingRecord)
+      : null;
+    const nextRootPath = resolveProjectSummaryRootPath(
+      summary.rootPath,
+      existingRecord?.rootPath,
+    );
+    const record = await this.repository.save(omitProjectRootPathShadow({
       id: summary.id,
       uuid: summary.uuid ?? existingRecord?.uuid ?? createUuid(),
       tenantId: summary.tenantId ?? existingRecord?.tenantId,
@@ -449,7 +669,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       description: summary.description?.trim() || existingRecord?.description,
       sitePath: summary.sitePath?.trim() || existingRecord?.sitePath,
       domainPrefix: summary.domainPrefix?.trim() || existingRecord?.domainPrefix,
-      rootPath: summary.rootPath?.trim() || existingRecord?.rootPath,
+      rootPath: nextRootPath,
       ownerId: summary.ownerId?.trim() || existingRecord?.ownerId,
       leaderId: summary.leaderId?.trim() || existingRecord?.leaderId,
       createdByUserId:
@@ -466,40 +686,60 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       status: summary.status,
       createdAt: existingRecord?.createdAt || summary.createdAt || createTimestamp(),
       updatedAt: summary.updatedAt || createTimestamp(),
-    });
+    }));
+    await this.upsertProjectRootPathContent(record, nextRootPath);
     const sessions = await this.readProjectSessions(summary.id, {
       refresh: true,
     });
-    return this.mapProjectRecord(record, sessions);
+    return this.mapProjectRecord(
+      {
+        ...record,
+        rootPath: nextRootPath,
+      },
+      sessions,
+    );
   }
 
   async renameProject(projectId: string, name: string): Promise<void> {
     const record = await this.readProjectRecord(projectId);
-    await this.repository.save({
+    const normalizedName = name.trim();
+    await this.repository.save(omitProjectRootPathShadow({
       ...record,
-      name: name.trim() || record.name,
+      name: normalizedName
+        ? buildBirdCoderProjectBusinessName({
+            name: normalizedName,
+            projectId: record.id,
+          })
+        : record.name,
+      title: normalizedName || record.title,
       updatedAt: createTimestamp(),
-    });
+    }));
   }
 
   async updateProject(projectId: string, updates: Partial<BirdCoderProject>): Promise<void> {
     const record = await this.readProjectRecord(projectId);
+    const nextRootPath = normalizeProjectPathForUpdate(updates.path) ?? record.rootPath;
     const conflictingProject = await this.findProjectByWorkspaceAndPath(
       record.workspaceId,
-      updates.path,
+      nextRootPath,
       projectId,
     );
     if (conflictingProject) {
       throw new Error(
-        `Workspace already contains project "${conflictingProject.name}" for path "${updates.path}".`,
+        `Workspace already contains project "${conflictingProject.name}" for path "${nextRootPath}".`,
       );
     }
 
-    await this.repository.save({
+    const updatedRecord = await this.repository.save(omitProjectRootPathShadow({
       ...record,
-      name: updates.name?.trim() || record.name,
+      name: updates.name?.trim()
+        ? buildBirdCoderProjectBusinessName({
+            name: updates.name.trim(),
+            projectId: record.id,
+          })
+        : record.name,
       code: updates.code?.trim() || record.code,
-      title: updates.title?.trim() || record.title,
+      title: updates.title?.trim() || updates.name?.trim() || record.title,
       description: updates.description ?? record.description,
       dataScope: updates.dataScope ?? record.dataScope,
       userId: updates.userId ?? record.userId,
@@ -508,7 +748,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       parentMetadata: updates.parentMetadata ?? record.parentMetadata,
       sitePath: updates.sitePath?.trim() || record.sitePath,
       domainPrefix: updates.domainPrefix?.trim() || record.domainPrefix,
-      rootPath: updates.path ?? record.rootPath,
+      rootPath: nextRootPath,
       ownerId: updates.ownerId ?? record.ownerId,
       leaderId: updates.leaderId ?? record.leaderId,
       createdByUserId: updates.createdByUserId ?? record.createdByUserId,
@@ -523,11 +763,13 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       isTemplate: updates.isTemplate ?? record.isTemplate,
       status: updates.archived === true ? 'archived' : updates.archived === false ? 'active' : record.status,
       updatedAt: createTimestamp(),
-    });
+    }));
+    await this.upsertProjectRootPathContent(updatedRecord, nextRootPath);
   }
 
   async deleteProject(projectId: string): Promise<void> {
     await this.repository.delete(projectId);
+    await this.deleteProjectRootPathContent(projectId);
     await this.deletePersistedProjectSessions(projectId);
     this.sessionsByProjectId.delete(projectId);
   }
@@ -542,7 +784,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       return null;
     }
 
-    const records = await this.repository.list();
+    const records = await this.hydrateProjectRecords(await this.repository.list());
     return (
       records.find((candidate) => {
         if (candidate.workspaceId !== workspaceId || candidate.id === excludedProjectId) {
@@ -584,13 +826,19 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
         cloneChatMessage(message),
       );
     }
+    nextCodingSession.messages = deduplicateCodingSessionMessages(
+      nextCodingSession.messages,
+    );
 
     this.storeProjectSessions(
       projectId,
       [nextCodingSession, ...sessions.filter((candidate) => candidate.id !== nextCodingSession.id)],
     );
     await this.persistCodingSessionSummary(nextCodingSession);
-    await this.persistCodingSessionMessages(nextCodingSession.messages);
+    await this.replacePersistedCodingSessionMessages(
+      nextCodingSession.id,
+      nextCodingSession.messages,
+    );
   }
 
   async renameCodingSession(
@@ -691,16 +939,58 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     }
 
     const newMessage = createChatMessage(codingSessionId, message);
+    const existingLogicalMessageIndex = findMatchingCodingSessionMessageIndex(
+      codingSession.messages,
+      newMessage,
+    );
+    if (existingLogicalMessageIndex >= 0) {
+      const existingLogicalMessage = codingSession.messages[existingLogicalMessageIndex]!;
+      const mergedMessage = mergeBirdCoderComparableChatMessages(
+        existingLogicalMessage,
+        newMessage,
+      );
+      if (mergedMessage === existingLogicalMessage) {
+        return cloneChatMessage(existingLogicalMessage);
+      }
+
+      const nextCodingSession = this.touchCodingSessionTranscript({
+        ...cloneCodingSession(codingSession),
+        messages: deduplicateCodingSessionMessages(
+          codingSession.messages.map((candidate, index) =>
+            index === existingLogicalMessageIndex
+              ? mergedMessage
+              : cloneChatMessage(candidate),
+          ),
+        ),
+      });
+      this.replaceCachedCodingSession(projectId, nextCodingSession);
+      await this.persistCodingSessionSummary(nextCodingSession);
+      await this.replacePersistedCodingSessionMessages(
+        codingSessionId,
+        nextCodingSession.messages,
+      );
+      const resolvedMessage =
+        nextCodingSession.messages.find(
+          (candidate) =>
+            areBirdCoderChatMessagesEquivalent(candidate, mergedMessage) ||
+            areBirdCoderChatMessagesLogicallyMatched(candidate, mergedMessage),
+        ) ?? mergedMessage;
+      return cloneChatMessage(resolvedMessage);
+    }
+
     const nextCodingSession = this.touchCodingSessionTranscript({
       ...cloneCodingSession(codingSession),
-      messages: [
+      messages: deduplicateCodingSessionMessages([
         ...codingSession.messages.map((candidate) => cloneChatMessage(candidate)),
         newMessage,
-      ],
+      ]),
     });
     this.replaceCachedCodingSession(projectId, nextCodingSession);
     await this.persistCodingSessionSummary(nextCodingSession);
-    await this.persistCodingSessionMessage(newMessage);
+    await this.replacePersistedCodingSessionMessages(
+      codingSessionId,
+      nextCodingSession.messages,
+    );
     await this.recordPromptMessageEvidence(projectId, codingSessionId, newMessage);
     return cloneChatMessage(newMessage);
   }
@@ -719,9 +1009,10 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       throw new Error(`Message ${messageId} not found`);
     }
 
+    const editableUpdates = sanitizeCodingSessionMessageUpdates(updates);
     const nextMessage = {
       ...cloneChatMessage(message),
-      ...updates,
+      ...editableUpdates,
     };
     const nextCodingSession = this.touchCodingSessionTranscript({
       ...cloneCodingSession(codingSession),
@@ -742,6 +1033,11 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     const codingSession = await this.findCodingSession(projectId, codingSessionId, {
       refresh: true,
     });
+    const message = codingSession.messages.find((candidate) => candidate.id === messageId);
+    if (!message) {
+      throw new Error(`Message ${messageId} not found`);
+    }
+
     const nextCodingSession = this.touchCodingSessionTranscript({
       ...cloneCodingSession(codingSession),
       messages: codingSession.messages
@@ -750,13 +1046,14 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     });
     this.replaceCachedCodingSession(projectId, nextCodingSession);
     await this.persistCodingSessionSummary(nextCodingSession);
-    await this.deletePersistedCodingSessionMessage(messageId);
+    await this.deletePersistedCodingSessionMessage(codingSessionId, messageId);
   }
 
   private mapProjectRecord(
     record: BirdCoderRepresentativeProjectRecord,
     sessions: readonly BirdCoderCodingSession[],
   ): BirdCoderProject {
+    const displayName = record.title?.trim() || record.name;
     const normalizedSessions = [...sessions]
       .map((session) => ({
         ...cloneCodingSession(session),
@@ -764,8 +1061,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       }))
       .sort(
         (left, right) =>
-          resolveBirdCoderSessionSortTimestamp(right) -
-            resolveBirdCoderSessionSortTimestamp(left) ||
+          compareBirdCoderSessionSortTimestamp(right, left) ||
           right.updatedAt.localeCompare(left.updatedAt) ||
           left.id.localeCompare(right.id),
       );
@@ -784,7 +1080,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       parentMetadata: record.parentMetadata,
       code: record.code,
       title: record.title,
-      name: record.name,
+      name: displayName,
       description: record.description,
       path: record.rootPath,
       sitePath: record.sitePath,
@@ -821,10 +1117,11 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
         hostMode: session.hostMode,
         engineId: session.engineId,
         modelId: session.modelId,
+        nativeSessionId: session.nativeSessionId,
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
         lastTurnAt: session.lastTurnAt,
-        sortTimestamp: session.sortTimestamp ?? resolveBirdCoderSessionSortTimestamp(session),
+        sortTimestamp: resolveBirdCoderSessionSortTimestampString(session),
         transcriptUpdatedAt:
           session.transcriptUpdatedAt ?? findLatestTranscriptTimestamp(session.messages),
         displayTime: formatBirdCoderSessionActivityDisplayTime({
@@ -840,8 +1137,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       }))
       .sort(
         (left, right) =>
-          resolveBirdCoderSessionSortTimestamp(right) -
-            resolveBirdCoderSessionSortTimestamp(left) ||
+          compareBirdCoderSessionSortTimestamp(right, left) ||
           right.updatedAt.localeCompare(left.updatedAt) ||
           left.id.localeCompare(right.id),
       );
@@ -851,6 +1147,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     record: BirdCoderRepresentativeProjectRecord,
     sessions: readonly BirdCoderCodingSessionMirrorSnapshot[],
   ): BirdCoderProjectMirrorSnapshot {
+    const displayName = record.title?.trim() || record.name;
     return {
       id: record.id,
       uuid: record.uuid,
@@ -865,7 +1162,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       parentMetadata: record.parentMetadata,
       code: record.code,
       title: record.title,
-      name: record.name,
+      name: displayName,
       description: record.description,
       path: record.rootPath,
       sitePath: record.sitePath,
@@ -931,12 +1228,12 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   }
 
   private async readProjectRecord(projectId: string): Promise<BirdCoderRepresentativeProjectRecord> {
-    const record = await this.repository.findById(projectId);
-    if (!record) {
+    const storedRecord = await this.repository.findById(projectId);
+    if (!storedRecord) {
       throw new Error(`Project ${projectId} not found`);
     }
 
-    return record;
+    return this.hydrateProjectRecord(storedRecord);
   }
 
   private applyCodingSessionActivityState(
@@ -951,7 +1248,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     const lastTurnAt = nextState.lastTurnAt ?? codingSession.lastTurnAt;
     const transcriptUpdatedAt =
       nextState.transcriptUpdatedAt ?? codingSession.transcriptUpdatedAt ?? null;
-    const sortTimestamp = resolveBirdCoderSessionSortTimestamp({
+    const sortTimestamp = resolveBirdCoderSessionSortTimestampString({
       ...codingSession,
       updatedAt,
       lastTurnAt,
@@ -1053,8 +1350,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     for (const [projectId, sessions] of sessionsByProjectId) {
       sessions.sort(
         (left, right) =>
-          resolveBirdCoderSessionSortTimestamp(right) -
-            resolveBirdCoderSessionSortTimestamp(left) ||
+          compareBirdCoderSessionSortTimestamp(right, left) ||
           right.updatedAt.localeCompare(left.updatedAt) ||
           left.id.localeCompare(right.id),
       );
@@ -1129,10 +1425,11 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
         hostMode: session.hostMode,
         engineId: session.engineId,
         modelId: session.modelId,
+        nativeSessionId: session.nativeSessionId,
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
         lastTurnAt: session.lastTurnAt,
-        sortTimestamp: session.sortTimestamp ?? resolveBirdCoderSessionSortTimestamp(session),
+        sortTimestamp: resolveBirdCoderSessionSortTimestampString(session),
         transcriptUpdatedAt:
           session.transcriptUpdatedAt ?? metadata?.latestTranscriptUpdatedAt ?? null,
         displayTime: formatBirdCoderSessionActivityDisplayTime({
@@ -1152,8 +1449,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     for (const [projectId, sessions] of sessionsByProjectId) {
       sessions.sort(
         (left, right) =>
-          resolveBirdCoderSessionSortTimestamp(right) -
-            resolveBirdCoderSessionSortTimestamp(left) ||
+          compareBirdCoderSessionSortTimestamp(right, left) ||
           right.updatedAt.localeCompare(left.updatedAt) ||
           left.id.localeCompare(right.id),
       );
@@ -1167,8 +1463,8 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     session: BirdCoderPersistedCodingSessionRecord,
     messagesByCodingSessionId: ReadonlyMap<string, BirdCoderChatMessage[]>,
   ): BirdCoderCodingSession {
-    const messages = (messagesByCodingSessionId.get(session.id) ?? []).map((message) =>
-      cloneChatMessage(message),
+    const messages = deduplicateCodingSessionMessages(
+      messagesByCodingSessionId.get(session.id) ?? [],
     );
 
     return {
@@ -1180,10 +1476,11 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       hostMode: session.hostMode,
       engineId: session.engineId,
       modelId: session.modelId,
+      nativeSessionId: session.nativeSessionId,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
       lastTurnAt: session.lastTurnAt,
-      sortTimestamp: session.sortTimestamp ?? resolveBirdCoderSessionSortTimestamp(session),
+      sortTimestamp: resolveBirdCoderSessionSortTimestampString(session),
       transcriptUpdatedAt:
         session.transcriptUpdatedAt ?? findLatestTranscriptTimestamp(messages),
       displayTime: formatBirdCoderSessionActivityDisplayTime({
@@ -1210,11 +1507,11 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       hostMode: codingSession.hostMode,
       engineId: codingSession.engineId,
       modelId: codingSession.modelId,
+      nativeSessionId: codingSession.nativeSessionId,
       createdAt: codingSession.createdAt,
       updatedAt: codingSession.updatedAt,
       lastTurnAt: codingSession.lastTurnAt,
-      sortTimestamp:
-        codingSession.sortTimestamp ?? resolveBirdCoderSessionSortTimestamp(codingSession),
+      sortTimestamp: resolveBirdCoderSessionSortTimestampString(codingSession),
       transcriptUpdatedAt: codingSession.transcriptUpdatedAt ?? null,
       pinned: codingSession.pinned === true,
       archived: codingSession.archived === true || codingSession.status === 'archived',
@@ -1254,11 +1551,53 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     );
   }
 
-  private async deletePersistedCodingSessionMessage(messageId: string): Promise<void> {
+  private async replacePersistedCodingSessionMessages(
+    codingSessionId: string,
+    messages: readonly BirdCoderChatMessage[],
+  ): Promise<void> {
     if (!this.codingSessionRepositories) {
       return;
     }
 
+    const normalizedCodingSessionId = codingSessionId.trim();
+    const replacementMessages = deduplicateCodingSessionMessages(messages).filter(
+      (message) => message.codingSessionId.trim() === normalizedCodingSessionId,
+    );
+    const replacementMessageIds = new Set(
+      replacementMessages.map((message) => message.id),
+    );
+
+    if (replacementMessages.length > 0) {
+      await this.codingSessionRepositories.messages.saveMany(replacementMessages);
+    }
+
+    const persistedMessages = await this.codingSessionRepositories.messages.list();
+    for (const persistedMessage of persistedMessages) {
+      if (
+        persistedMessage.codingSessionId.trim() !== normalizedCodingSessionId ||
+        replacementMessageIds.has(persistedMessage.id)
+      ) {
+        continue;
+      }
+
+      await this.deletePersistedCodingSessionMessage(
+        normalizedCodingSessionId,
+        persistedMessage.id,
+      );
+    }
+  }
+
+  private async deletePersistedCodingSessionMessage(
+    codingSessionId: string,
+    messageId: string,
+  ): Promise<void> {
+    if (!this.codingSessionRepositories) {
+      return;
+    }
+
+    await this.codingSessionRepositories.messages.delete(
+      JSON.stringify([codingSessionId.trim(), messageId.trim()]),
+    );
     await this.codingSessionRepositories.messages.delete(messageId);
   }
 
@@ -1272,10 +1611,10 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       .filter((message) => message.codingSessionId === codingSessionId)
       .map((message) => message.id);
 
-    await Promise.all([
-      this.codingSessionRepositories.sessions.delete(codingSessionId),
-      ...messageIds.map((messageId) => this.codingSessionRepositories!.messages.delete(messageId)),
-    ]);
+    for (const messageId of messageIds) {
+      await this.deletePersistedCodingSessionMessage(codingSessionId, messageId);
+    }
+    await this.codingSessionRepositories.sessions.delete(codingSessionId);
   }
 
   private async deletePersistedProjectSessions(projectId: string): Promise<void> {
@@ -1284,9 +1623,9 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     }
 
     const persistedSessions = (await this.loadPersistedCodingSessionsSnapshot([projectId])).get(projectId) ?? [];
-    await Promise.all(
-      persistedSessions.map((session) => this.deletePersistedCodingSession(session.id)),
-    );
+    for (const session of persistedSessions) {
+      await this.deletePersistedCodingSession(session.id);
+    }
   }
 
   private async recordPromptMessageEvidence(

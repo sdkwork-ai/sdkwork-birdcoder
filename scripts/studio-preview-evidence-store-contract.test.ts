@@ -57,6 +57,7 @@ const previewSession = resolveHostStudioPreviewSession({
 const firstEvidence = buildStudioPreviewExecutionEvidence(
   previewSession,
   {
+    surface: 'embedded',
     path: '/workspace/demo-project',
     command: 'pnpm dev',
     profileId: 'powershell',
@@ -78,6 +79,7 @@ assert.deepEqual(
 const updatedEvidence = buildStudioPreviewExecutionEvidence(
   previewSession,
   {
+    surface: 'embedded',
     path: '/workspace/demo-project',
     command: 'pnpm dev --host 127.0.0.1 --port 4173',
     profileId: 'powershell',

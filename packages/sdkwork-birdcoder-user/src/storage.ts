@@ -9,7 +9,6 @@ import {
   type BirdCoderVipMembershipSnapshot,
 } from './vip.ts';
 import {
-  DEFAULT_BIRDCODER_VIP_MEMBERSHIP,
   getBirdCoderUserProfileRepository,
   getBirdCoderVipMembershipRepository,
   type BirdCoderUserProfileSnapshot,
@@ -38,16 +37,13 @@ function mapRuntimeMembershipToSnapshot(
   membership: BirdCoderUserCenterMembershipSummary,
 ): BirdCoderVipMembershipSnapshot {
   return {
-    creditsPerMonth: membership.creditsPerMonth,
-    planId:
-      membership.planId === 'free' ||
-      membership.planId === 'pro' ||
-      membership.planId === 'team'
-        ? membership.planId
-        : 'free',
-    planTitle: membership.planTitle,
-    renewAt: membership.renewAt ?? DEFAULT_BIRDCODER_VIP_MEMBERSHIP.renewAt,
-    seats: membership.seats,
+    ...(membership.vipLevelId ? { vipLevelId: membership.vipLevelId } : {}),
+    pointBalance: membership.pointBalance,
+    totalRechargedPoints: membership.totalRechargedPoints,
+    ...(membership.validFrom ? { validFrom: membership.validFrom } : {}),
+    ...(membership.validTo ? { validTo: membership.validTo } : {}),
+    ...(membership.lastActiveTime ? { lastActiveTime: membership.lastActiveTime } : {}),
+    ...(membership.remark ? { remark: membership.remark } : {}),
     status:
       membership.status === 'inactive' ||
       membership.status === 'trialing' ||
@@ -110,11 +106,13 @@ export async function writeBirdCoderVipMembership(
   if (runtimeClient) {
     const updatedMembership = await runtimeClient.updateMembership<BirdCoderUserCenterMembershipSummary>(
       {
-        creditsPerMonth: membership.creditsPerMonth,
-        planId: membership.planId,
-        planTitle: membership.planTitle,
-        renewAt: membership.renewAt,
-        seats: membership.seats,
+        vipLevelId: membership.vipLevelId,
+        pointBalance: membership.pointBalance,
+        totalRechargedPoints: membership.totalRechargedPoints,
+        validFrom: membership.validFrom,
+        validTo: membership.validTo,
+        lastActiveTime: membership.lastActiveTime,
+        remark: membership.remark,
         status: membership.status,
       },
     );

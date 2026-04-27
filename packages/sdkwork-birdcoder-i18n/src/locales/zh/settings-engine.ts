@@ -53,7 +53,7 @@ export default defineLocaleModule('settings/engine', {
       serverReady: 'Rust Server \u5df2\u63a5\u5165',
       serverPlanned: '\u670d\u52a1\u7aef\u5f85\u5b9e\u73b0',
       serverUnavailable:
-        '{{engine}} \u7684 server adapter \u5c1a\u672a\u5b9e\u73b0\u3002BirdCoder \u5f53\u524d\u901a\u8fc7 Rust server \u8def\u7531\u771f\u5b9e\u7684 coding turn\uff0c\u76ee\u524d\u53ea\u542f\u7528 Codex \u548c OpenCode\u3002',
+        '{{engine}} \u7684 server adapter \u5728\u5f53\u524d\u8fd0\u884c\u73af\u5883\u4e0d\u53ef\u7528\u3002\u8bf7\u68c0\u67e5\u5f15\u64ce\u63a5\u5165\u65b9\u6848\uff0c\u5e76\u5b89\u88c5\u6216\u914d\u7f6e\u6240\u9700\u7684 SDK \u6216 CLI runtime \u540e\u518d\u542f\u52a8 coding turn\u3002',
       builtInModel: '\u5185\u7f6e',
       customModel: '\u81ea\u5b9a\u4e49',
       removeCustomModel: '\u79fb\u9664\u81ea\u5b9a\u4e49\u6a21\u578b',

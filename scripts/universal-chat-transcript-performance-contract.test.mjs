@@ -54,8 +54,8 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /const normalizedMessages = messages\.length === 0 \? EMPTY_CHAT_MESSAGES : messages;/,
-  'UniversalChat must normalize empty message collections to a stable shared reference.',
+  /const normalizedMessages = useMemo\(\s*\(\) => resolveVisibleSessionMessages\(messages, normalizedSessionId\),\s*\[messages, normalizedSessionId\],\s*\);/s,
+  'UniversalChat must normalize visible message collections through the active session-aware helper while preserving stable references for clean inputs.',
 );
 
 console.log('universal chat transcript performance contract passed.');

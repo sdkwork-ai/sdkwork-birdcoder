@@ -14,8 +14,8 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /setTerminalRequest\(\{\s*path: normalizedProjectPath \|\| undefined,\s*timestamp: Date\.now\(\),\s*\}\);/,
-  'Code page top bar terminal handler must create a fresh terminal request whose default path is the currently selected project path.',
+  /setTerminalRequest\(\{\s*surface: 'embedded',\s*path: normalizedProjectPath \|\| undefined,\s*timestamp: Date\.now\(\),\s*\}\);/,
+  'Code page top bar terminal handler must create a fresh embedded terminal request whose default path is the currently selected project path.',
 );
 
 assert.match(

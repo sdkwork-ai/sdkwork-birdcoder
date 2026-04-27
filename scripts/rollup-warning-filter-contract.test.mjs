@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 
-import { shouldIgnoreBirdcoderRollupWarning } from './create-birdcoder-vite-plugins.mjs';
+import {
+  onBirdcoderRollupWarning,
+  shouldIgnoreBirdcoderRollupWarning,
+} from './create-birdcoder-vite-plugins.mjs';
 
 function createUseClientWarning(id) {
   return {
@@ -43,6 +46,64 @@ assert.equal(
   }),
   false,
   'BirdCoder Rollup warning filtering must only suppress the known module-level "use client" noise, not real dependency failures.',
+);
+
+assert.equal(
+  shouldIgnoreBirdcoderRollupWarning({
+    code: 'CIRCULAR_DEPENDENCY',
+    message:
+      'Circular dependency: ../../node_modules/.pnpm/smol-toml@1.6.1/node_modules/smol-toml/dist/struct.js -> ../../node_modules/.pnpm/smol-toml@1.6.1/node_modules/smol-toml/dist/extract.js -> ../../node_modules/.pnpm/smol-toml@1.6.1/node_modules/smol-toml/dist/struct.js',
+  }),
+  true,
+  'BirdCoder Rollup warning filtering may suppress the verified third-party smol-toml parser self-cycle used by structured TOML previews.',
+);
+
+for (const staleCircularChunkWarning of [
+  'Circular chunk: birdcoder-shell-runtime -> birdcoder-platform-services -> birdcoder-shell-bootstrap -> birdcoder-shell-runtime. Please adjust the manual chunk logic for these chunks.',
+  'Circular chunk: birdcoder-auth-root -> birdcoder-platform-transport -> birdcoder-auth-root. Please adjust the manual chunk logic for these chunks.',
+  'Circular chunk: birdcoder-shell-runtime -> birdcoder-platform-runtime -> birdcoder-shell-bootstrap -> birdcoder-shell-runtime. Please adjust the manual chunk logic for these chunks.',
+  'Circular chunk: birdcoder-identity-runtime -> birdcoder-platform-runtime -> birdcoder-identity-runtime. Please adjust the manual chunk logic for these chunks.',
+]) {
+  assert.equal(
+    shouldIgnoreBirdcoderRollupWarning({
+      code: 'CYCLIC_CROSS_CHUNK_REEXPORT',
+      message: staleCircularChunkWarning,
+    }),
+    false,
+    `BirdCoder Rollup warning filtering must not suppress stale chunk topology warnings: ${staleCircularChunkWarning}`,
+  );
+}
+
+assert.throws(
+  () =>
+    onBirdcoderRollupWarning(
+      {
+        code: 'CYCLIC_CROSS_CHUNK_REEXPORT',
+        message:
+          'Circular chunk: birdcoder-platform-transport -> birdcoder-platform-provider -> birdcoder-platform-runtime -> birdcoder-platform-transport. Please adjust the manual chunk logic for these chunks.',
+      },
+      () => {
+        throw new Error('unexpected forwarded warning');
+      },
+    ),
+  /BirdCoder Rollup warning is not governed/u,
+  'BirdCoder Rollup warning handling must fail loudly for unresolved circular chunk warnings instead of letting release builds pass with technical debt.',
+);
+
+assert.throws(
+  () =>
+    onBirdcoderRollupWarning(
+      {
+        code: 'PLUGIN_WARNING',
+        message:
+          'D:/repo/packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx is dynamically imported by D:/repo/packages/sdkwork-birdcoder-auth/src/pageLoaders.ts but also statically imported by D:/repo/packages/sdkwork-birdcoder-auth/src/index.ts, dynamic import will not move module into another chunk.',
+      },
+      () => {
+        throw new Error('unexpected forwarded warning');
+      },
+    ),
+  /BirdCoder Rollup warning is not governed/u,
+  'BirdCoder Rollup warning handling must fail loudly when a lazy page is also statically exported through a root barrel.',
 );
 
 console.log('birdcoder rollup warning filter contract passed.');

@@ -275,6 +275,7 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const providerBackedProjectService = new ProviderBackedProjectService({
     codingSessionRepositories,
     evidenceRepositories: promptSkillTemplateEvidenceRepositories,
+    projectContentRepository: repositories.projectContents,
     repository: repositories.projects,
   });
   const resolvedCoreReadClient = options.coreReadClient ?? resolveRuntimeCoreReadClient();

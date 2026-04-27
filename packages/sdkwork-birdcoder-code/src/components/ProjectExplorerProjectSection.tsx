@@ -18,6 +18,11 @@ export interface ProjectExplorerProjectSectionProps {
   toggleSessionExpansionLabel: string;
   defaultNewSessionEngineId: string;
   newSessionInProjectLabel: string;
+  awaitingApprovalSessionLabel: string;
+  awaitingUserSessionLabel: string;
+  executingSessionLabel: string;
+  initializingSessionLabel: string;
+  failedSessionLabel: string;
   moreActionsLabel: string;
   onSelectProject: (projectId: string) => void;
   onToggleProject: (projectId: string, event?: React.MouseEvent) => void;
@@ -56,6 +61,11 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
   toggleSessionExpansionLabel,
   defaultNewSessionEngineId,
   newSessionInProjectLabel,
+  awaitingApprovalSessionLabel,
+  awaitingUserSessionLabel,
+  executingSessionLabel,
+  initializingSessionLabel,
+  failedSessionLabel,
   moreActionsLabel,
   onSelectProject,
   onToggleProject,
@@ -119,10 +129,10 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
             onClick={(event) => event.stopPropagation()}
           />
         ) : (
-          <span className="min-w-0 flex-1 truncate pr-14 font-medium">{project.name}</span>
+          <span className="min-w-0 flex-1 truncate font-medium">{project.name}</span>
         )}
         {!isRenamingProject && (
-          <div className="absolute right-2 flex items-center gap-1 rounded-md bg-[#18181b]/80 px-1 opacity-0 transition-all group-hover:opacity-100">
+          <div className="absolute right-2 pointer-events-none flex items-center gap-1 rounded-md bg-[#18181b]/80 px-1 opacity-0 transition-all group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
             <button
               type="button"
               className="rounded-md p-1 text-gray-500 transition-all hover:bg-white/10 hover:text-white"
@@ -159,6 +169,12 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
                   isRenaming={renamingVisibleSessionId === session.id}
                   renameValue={renamingVisibleSessionId === session.id ? sessionRenameValue : ''}
                   paddingClassName="pl-8 pr-2"
+                  awaitingApprovalSessionLabel={awaitingApprovalSessionLabel}
+                  awaitingUserSessionLabel={awaitingUserSessionLabel}
+                  executingSessionLabel={executingSessionLabel}
+                  initializingSessionLabel={initializingSessionLabel}
+                  failedSessionLabel={failedSessionLabel}
+                  moreActionsLabel={moreActionsLabel}
                   onSelectCodingSession={onSelectCodingSession}
                   onCodingSessionContextMenu={onCodingSessionContextMenu}
                   onRenameValueChange={onSessionRenameValueChange}

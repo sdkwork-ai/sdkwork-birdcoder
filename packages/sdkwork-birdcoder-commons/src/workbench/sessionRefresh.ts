@@ -10,7 +10,6 @@ import {
   type BirdCoderListCodingSessionsRequest,
   type BirdCoderNativeSessionDetail,
   type BirdCoderCodingSessionSummary,
-  isBirdCoderCodingSessionExecuting,
   mergeBirdCoderProjectionMessages,
   resolveBirdCoderCodingSessionRuntimeStatus,
 } from '@sdkwork/birdcoder-types';
@@ -39,6 +38,7 @@ type CodingSessionRefreshCoreReadService =
 
 export interface RefreshProjectSessionsOptions {
   coreReadService?: CodingSessionRefreshCoreReadService;
+  identityScope?: string;
   projectId?: string;
   projectService: IProjectService;
   workspaceId: string;
@@ -47,6 +47,7 @@ export interface RefreshProjectSessionsOptions {
 export interface RefreshCodingSessionMessagesOptions {
   codingSessionId: string;
   coreReadService?: CodingSessionRefreshCoreReadService;
+  identityScope?: string;
   projectService: IProjectService;
   resolvedLocation?: ResolvedCodingSessionLocation;
   workspaceId?: string;
@@ -72,6 +73,12 @@ export interface RefreshCodingSessionMessagesResult {
 }
 
 const inflightRefreshes = new Map<string, Promise<unknown>>();
+
+function normalizeRefreshIdentityScope(identityScope: string | null | undefined): string {
+  const normalizedIdentityScope =
+    typeof identityScope === 'string' ? identityScope.trim() : '';
+  return normalizedIdentityScope || 'anonymous';
+}
 
 function copyMessagesIfNeeded(
   existingMessages: readonly BirdCoderChatMessage[],
@@ -99,10 +106,6 @@ function findLatestTranscriptTimestamp(
   }
 
   return null;
-}
-
-function normalizeComparableTimestamp(value: string | null | undefined): string {
-  return typeof value === 'string' ? value.trim() : '';
 }
 
 function areRefreshMessagesEquivalent(
@@ -162,43 +165,20 @@ function canSkipRefreshedCodingSessionUpsert(
   );
 }
 
-function doesSummaryMatchLocalTranscript(
-  codingSession: BirdCoderCodingSession,
-  summary: BirdCoderCodingSessionSummary,
-): boolean {
+function isMissingProjectPersistenceError(error: unknown, projectId: string): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const normalizedMessage = error.message.trim().toLowerCase();
+  const normalizedProjectId = projectId.trim().toLowerCase();
   return (
-    codingSession.id === summary.id &&
-    codingSession.workspaceId === summary.workspaceId &&
-    codingSession.projectId === summary.projectId &&
-    codingSession.status === summary.status &&
-    normalizeComparableTimestamp(codingSession.transcriptUpdatedAt) ===
-      normalizeComparableTimestamp(summary.transcriptUpdatedAt) &&
-    normalizeComparableTimestamp(codingSession.lastTurnAt) ===
-      normalizeComparableTimestamp(summary.lastTurnAt) &&
-    normalizeComparableTimestamp(codingSession.updatedAt) ===
-      normalizeComparableTimestamp(summary.updatedAt)
+    normalizedProjectId.length > 0 &&
+    (
+      normalizedMessage.includes(`project ${normalizedProjectId} not found`) ||
+      normalizedMessage.includes(`project ${normalizedProjectId} was not found`)
+    )
   );
-}
-
-function canReuseLocalCodingSessionMessages(
-  codingSession: BirdCoderCodingSession,
-  summary: BirdCoderCodingSessionSummary,
-): boolean {
-  if (codingSession.messages.length === 0) {
-    return false;
-  }
-
-  if (!doesSummaryMatchLocalTranscript(codingSession, summary)) {
-    return false;
-  }
-
-  const localRuntimeStatus = codingSession.runtimeStatus ?? null;
-  const summaryRuntimeStatus = summary.runtimeStatus ?? localRuntimeStatus;
-  if (!isBirdCoderCodingSessionExecuting({ runtimeStatus: summaryRuntimeStatus })) {
-    return true;
-  }
-
-  return summaryRuntimeStatus === localRuntimeStatus;
 }
 
 async function persistRefreshedCodingSessionIfNeeded(
@@ -211,7 +191,52 @@ async function persistRefreshedCodingSessionIfNeeded(
     return;
   }
 
-  await projectService.upsertCodingSession(projectId, refreshedSession);
+  try {
+    await projectService.upsertCodingSession(projectId, refreshedSession);
+  } catch (error) {
+    if (isMissingProjectPersistenceError(error, projectId)) {
+      await recoverMissingProjectPersistenceAndRetryUpsert(
+        projectService,
+        projectId,
+        existingSession,
+        refreshedSession,
+      );
+      return;
+    }
+
+    throw error;
+  }
+}
+
+async function recoverMissingProjectPersistenceAndRetryUpsert(
+  projectService: IProjectService & Required<Pick<IProjectService, 'upsertCodingSession'>>,
+  projectId: string,
+  existingSession: BirdCoderCodingSession,
+  refreshedSession: BirdCoderCodingSession,
+): Promise<void> {
+  const workspaceId =
+    refreshedSession.workspaceId.trim() ||
+    existingSession.workspaceId.trim() ||
+    undefined;
+
+  try {
+    await projectService.invalidateProjectReadCache?.({
+      projectId,
+      workspaceId,
+    });
+    const recoveredProject = await projectService.getProjectById(projectId);
+    if (!recoveredProject) {
+      return;
+    }
+
+    await projectService.upsertCodingSession(projectId, refreshedSession);
+  } catch (error) {
+    if (isMissingProjectPersistenceError(error, projectId)) {
+      return;
+    }
+
+    throw error;
+  }
 }
 
 function requireProjectServiceUpsert(
@@ -268,7 +293,7 @@ function mergeCoreVisibleMessages(
     codingSessionId,
     events,
     existingMessages,
-    idPrefix: 'refreshed',
+    idPrefix: 'authoritative',
   });
 }
 
@@ -324,6 +349,27 @@ interface ResolvedCodingSessionLocation {
   summary?: BirdCoderCodingSessionSummary;
 }
 
+async function resolveAuthorityProjectForCodingSession(
+  projectService: IProjectService,
+  summary: BirdCoderCodingSessionSummary,
+): Promise<BirdCoderProject | null> {
+  const projectId = summary.projectId.trim();
+  if (!projectId) {
+    return null;
+  }
+
+  const authorityProject = await projectService.getProjectById(projectId);
+  if (authorityProject || !projectService.invalidateProjectReadCache) {
+    return authorityProject;
+  }
+
+  await projectService.invalidateProjectReadCache({
+    projectId,
+    workspaceId: summary.workspaceId.trim() || undefined,
+  });
+  return projectService.getProjectById(projectId);
+}
+
 async function resolveCodingSessionLocation(
   projectService: IProjectService,
   codingSessionId: string,
@@ -341,10 +387,10 @@ async function resolveCodingSessionLocation(
   if (coreReadService) {
     try {
       const summary = await coreReadService.getCodingSession(normalizedCodingSessionId);
-      const authorityProject =
-        summary.projectId.trim()
-          ? await projectService.getProjectById(summary.projectId)
-          : null;
+      const authorityProject = await resolveAuthorityProjectForCodingSession(
+        projectService,
+        summary,
+      );
 
       if (authorityProject) {
         const authorityCodingSession = authorityProject.codingSessions.find(
@@ -394,8 +440,9 @@ export async function refreshProjectSessions(
 ): Promise<RefreshProjectSessionsResult> {
   const normalizedWorkspaceId = options.workspaceId.trim();
   const normalizedProjectId = options.projectId?.trim() || '';
+  const refreshIdentityScope = normalizeRefreshIdentityScope(options.identityScope);
   return runGuardedRefresh(
-    `project:${normalizedWorkspaceId}:${normalizedProjectId || '*'}`,
+    `project:${refreshIdentityScope}:${normalizedWorkspaceId}:${normalizedProjectId || '*'}`,
     async () => {
     if (!normalizedWorkspaceId) {
       return {
@@ -462,111 +509,109 @@ export async function refreshCodingSessionMessages(
   options: RefreshCodingSessionMessagesOptions,
 ): Promise<RefreshCodingSessionMessagesResult> {
   const normalizedCodingSessionId = options.codingSessionId.trim();
-  const normalizedWorkspaceId = options.workspaceId?.trim();
+  const normalizedWorkspaceId = options.workspaceId?.trim() ?? '';
+  const refreshIdentityScope = normalizeRefreshIdentityScope(options.identityScope);
 
-  return runGuardedRefresh(`session:${normalizedCodingSessionId}`, async () => {
-    if (!normalizedCodingSessionId) {
-      return {
-        codingSessionId: normalizedCodingSessionId,
-        messageCount: 0,
-        projectId: '',
-        source: 'engine',
-        status: 'not-found',
-      } satisfies RefreshCodingSessionMessagesResult;
-    }
-
-    const resolvedLocation =
-      options.resolvedLocation ??
-      (await resolveCodingSessionLocation(
-        options.projectService,
-        normalizedCodingSessionId,
-        normalizedWorkspaceId,
-        options.coreReadService,
-      ));
-    if (!resolvedLocation) {
-      return {
-        codingSessionId: normalizedCodingSessionId,
-        messageCount: 0,
-        projectId: '',
-        source: 'engine',
-        status: 'not-found',
-      } satisfies RefreshCodingSessionMessagesResult;
-    }
-
-    requireProjectServiceUpsert(options.projectService);
-
-    if (!options.coreReadService) {
-      return {
-        codingSessionId: normalizedCodingSessionId,
-        messageCount: resolvedLocation.codingSession.messages.length,
-        projectId: resolvedLocation.project.id,
-        source: 'engine',
-        status: 'unsupported',
-      } satisfies RefreshCodingSessionMessagesResult;
-    }
-
-    const coreReadService = options.coreReadService;
-    const summary =
-      resolvedLocation.summary ??
-      (await coreReadService.getCodingSession(normalizedCodingSessionId));
-    const shouldForceAuthoritativeTranscriptRefresh = isAuthorityBackedNativeSessionId(
-      normalizedCodingSessionId,
-      resolvedLocation.codingSession.engineId,
-    );
-    const refreshedSession =
-      !shouldForceAuthoritativeTranscriptRefresh &&
-      canReuseLocalCodingSessionMessages(resolvedLocation.codingSession, summary)
-        ? buildRefreshedCodingSession(
-            resolvedLocation.codingSession,
-            summary,
-            resolvedLocation.codingSession.messages,
-            summary.runtimeStatus ?? resolvedLocation.codingSession.runtimeStatus,
-          )
-        : await (async () => {
-            const events = await coreReadService.listCodingSessionEvents(
-              normalizedCodingSessionId,
-            );
-            const resolvedRuntimeStatus = resolveBirdCoderCodingSessionRuntimeStatus(
-              events,
-              resolvedLocation.codingSession.runtimeStatus ?? resolvedLocation.summary?.runtimeStatus,
-            );
-            const mergedMessages = mergeCoreVisibleMessages(
-              normalizedCodingSessionId,
-              resolvedLocation.codingSession.messages,
-              events,
-            );
-            return buildRefreshedCodingSession(
-              resolvedLocation.codingSession,
-              summary,
-              mergedMessages,
-              resolvedRuntimeStatus,
-            );
-          })();
-
-    await persistRefreshedCodingSessionIfNeeded(
-      options.projectService,
-      resolvedLocation.project.id,
-      resolvedLocation.codingSession,
-      refreshedSession,
-    );
-
+  if (!normalizedCodingSessionId) {
     return {
       codingSessionId: normalizedCodingSessionId,
-      codingSession: refreshedSession,
-      messageCount: refreshedSession.messages.length,
-      projectId: resolvedLocation.project.id,
-      source: isAuthorityBackedNativeSessionId(
-        normalizedCodingSessionId,
-        resolvedLocation.codingSession.engineId,
-      )
-        ? 'native-engine'
-        : 'core',
-      status: 'refreshed',
-      synchronizationVersion: buildBirdCoderSessionSynchronizationVersion(
-        refreshedSession,
-        refreshedSession.messages.length,
-      ),
-      workspaceId: resolvedLocation.project.workspaceId,
+      messageCount: 0,
+      projectId: '',
+      source: 'engine',
+      status: 'not-found',
     } satisfies RefreshCodingSessionMessagesResult;
-  });
+  }
+
+  const resolvedLocation =
+    options.resolvedLocation ??
+    (await resolveCodingSessionLocation(
+      options.projectService,
+      normalizedCodingSessionId,
+      normalizedWorkspaceId,
+      options.coreReadService,
+    ));
+  if (!resolvedLocation) {
+    return {
+      codingSessionId: normalizedCodingSessionId,
+      messageCount: 0,
+      projectId: '',
+      source: 'engine',
+      status: 'not-found',
+    } satisfies RefreshCodingSessionMessagesResult;
+  }
+
+  const guardWorkspaceId =
+    normalizedWorkspaceId ||
+    resolvedLocation.project.workspaceId.trim() ||
+    resolvedLocation.codingSession.workspaceId.trim();
+  const guardProjectId =
+    resolvedLocation.project.id.trim() ||
+    resolvedLocation.codingSession.projectId.trim();
+
+  return runGuardedRefresh(
+    `session:${refreshIdentityScope}:${guardWorkspaceId}:${guardProjectId}:${normalizedCodingSessionId}`,
+    async () => {
+      requireProjectServiceUpsert(options.projectService);
+
+      if (!options.coreReadService) {
+        return {
+          codingSessionId: normalizedCodingSessionId,
+          messageCount: resolvedLocation.codingSession.messages.length,
+          projectId: resolvedLocation.project.id,
+          source: 'engine',
+          status: 'unsupported',
+        } satisfies RefreshCodingSessionMessagesResult;
+      }
+
+      const coreReadService = options.coreReadService;
+      const summary =
+        resolvedLocation.summary ??
+        (await coreReadService.getCodingSession(normalizedCodingSessionId));
+      const events = await coreReadService.listCodingSessionEvents(
+        normalizedCodingSessionId,
+      );
+      const resolvedRuntimeStatus = resolveBirdCoderCodingSessionRuntimeStatus(
+        events,
+        resolvedLocation.codingSession.runtimeStatus ?? resolvedLocation.summary?.runtimeStatus,
+      );
+      const mergedMessages = mergeCoreVisibleMessages(
+        normalizedCodingSessionId,
+        resolvedLocation.codingSession.messages,
+        events,
+      );
+      const refreshedSession = buildRefreshedCodingSession(
+        resolvedLocation.codingSession,
+        summary,
+        mergedMessages,
+        resolvedRuntimeStatus,
+      );
+
+      await persistRefreshedCodingSessionIfNeeded(
+        options.projectService,
+        resolvedLocation.project.id,
+        resolvedLocation.codingSession,
+        refreshedSession,
+      );
+
+      return {
+        codingSessionId: normalizedCodingSessionId,
+        codingSession: refreshedSession,
+        messageCount: refreshedSession.messages.length,
+        projectId: resolvedLocation.project.id,
+        source: isAuthorityBackedNativeSessionId(
+          normalizedCodingSessionId,
+          resolvedLocation.codingSession.engineId,
+          resolvedLocation.codingSession.nativeSessionId,
+        )
+          ? 'native-engine'
+          : 'core',
+        status: 'refreshed',
+        synchronizationVersion: buildBirdCoderSessionSynchronizationVersion(
+          refreshedSession,
+          refreshedSession.messages.length,
+        ),
+        workspaceId: resolvedLocation.project.workspaceId,
+      } satisfies RefreshCodingSessionMessagesResult;
+    },
+  );
 }

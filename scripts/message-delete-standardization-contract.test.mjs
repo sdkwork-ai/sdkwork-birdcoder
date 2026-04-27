@@ -43,6 +43,12 @@ assert.match(
   'StudioPage and useCodeDeleteConfirmation must reuse deleteWorkbenchCodingSessionMessages instead of reimplementing reverse-order deletion locally.',
 );
 
+assert.match(
+  workbenchSource,
+  /Array\.from\(\s*new Set\(\s*messageIds[\s\S]*\.map\(\(messageId\) => messageId\.trim\(\)\)[\s\S]*\.filter\(\(messageId\) => messageId\.length > 0\)[\s\S]*\)\s*\)/s,
+  'deleteWorkbenchCodingSessionMessages must de-duplicate message ids before deletion so duplicate provider ids do not trigger a second not-found delete.',
+);
+
 assert.doesNotMatch(
   `${studioPageSource}\n${codeDeleteConfirmationSource}`,
   /for \(let messageIndex = messageIds\.length - 1; messageIndex >= 0; messageIndex -= 1\)/,

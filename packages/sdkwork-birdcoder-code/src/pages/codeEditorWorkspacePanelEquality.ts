@@ -16,6 +16,7 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.explorerWidth === right.explorerWidth &&
     left.chatWidth === right.chatWidth &&
     left.selectedCodingSessionId === right.selectedCodingSessionId &&
+    left.selectedCodingSessionScopeKey === right.selectedCodingSessionScopeKey &&
     left.messages === right.messages &&
     left.chatEmptyState === right.chatEmptyState &&
     left.isBusy === right.isBusy &&

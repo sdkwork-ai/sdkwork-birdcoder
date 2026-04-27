@@ -79,6 +79,7 @@ try {
   await Promise.all([
     repositories.workspaces.clear(),
     repositories.projects.clear(),
+    repositories.projectContents.clear(),
     repositories.teams.clear(),
     repositories.releases.clear(),
   ]);
@@ -96,10 +97,20 @@ try {
     workspaceId: 'workspace-core-write-contract',
     name: 'Core Write Contract Project',
     description: 'Project catalog item resolved before remote create.',
-    rootPath: 'D:/workspace/core-write-contract',
     status: 'active',
     createdAt: '2026-04-11T11:31:00.000Z',
     updatedAt: '2026-04-11T11:31:00.000Z',
+  });
+  await repositories.projectContents.save({
+    id: 'project-content-core-write-contract',
+    projectId: 'project-core-write-contract',
+    projectUuid: 'project-project-core-write-contract',
+    configData: JSON.stringify({
+      rootPath: 'D:/workspace/core-write-contract',
+    }),
+    contentVersion: '1.0',
+    createdAt: '2026-04-11T11:31:00.250Z',
+    updatedAt: '2026-04-11T11:31:00.250Z',
   });
 
   const appAdminClient: BirdCoderAppAdminApiClient = createBirdCoderGeneratedAppAdminApiClient({
@@ -159,6 +170,9 @@ try {
       throw new Error('not needed');
     },
     async submitApprovalDecision() {
+      throw new Error('not needed');
+    },
+    async submitUserQuestionAnswer() {
       throw new Error('not needed');
     },
     async deleteCodingSessionMessage() {

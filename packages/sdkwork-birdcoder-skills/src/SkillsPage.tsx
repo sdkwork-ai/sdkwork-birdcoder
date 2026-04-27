@@ -47,17 +47,40 @@ interface SkillsPageProps {
   workspaceId?: string;
 }
 
-function formatCount(value?: number): string {
-  if (!value || value <= 0) {
+function normalizeCountDecimalString(value?: number | string): string | null {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value > 0 ? String(value) : null;
+  }
+
+  const normalizedValue = value?.trim();
+  if (!normalizedValue || !/^\d+$/u.test(normalizedValue)) {
+    return null;
+  }
+
+  return normalizedValue.replace(/^0+(?=\d)/u, '');
+}
+
+function formatCount(value?: number | string): string {
+  const normalizedValue = normalizeCountDecimalString(value);
+  if (!normalizedValue || normalizedValue === '0') {
     return '0';
   }
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1).replace(/\.0$/u, '')}m`;
+
+  const exactValue = BigInt(normalizedValue);
+  for (const [suffix, divisor] of [
+    ['t', 1_000_000_000_000n],
+    ['b', 1_000_000_000n],
+    ['m', 1_000_000n],
+    ['k', 1_000n],
+  ] as const) {
+    if (exactValue >= divisor) {
+      const whole = exactValue / divisor;
+      const decimal = (exactValue % divisor) * 10n / divisor;
+      return decimal > 0n ? `${whole}.${decimal}${suffix}` : `${whole}${suffix}`;
+    }
   }
-  if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(1).replace(/\.0$/u, '')}k`;
-  }
-  return String(value);
+
+  return normalizedValue;
 }
 
 function mapSkill(entry: BirdCoderSkillCatalogEntrySummary): Skill {

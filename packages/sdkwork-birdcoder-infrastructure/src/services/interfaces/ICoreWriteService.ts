@@ -6,7 +6,9 @@ import type {
   BirdCoderCreateCodingSessionRequest,
   BirdCoderCreateCodingSessionTurnRequest,
   BirdCoderSubmitApprovalDecisionRequest,
+  BirdCoderSubmitUserQuestionAnswerRequest,
   BirdCoderUpdateCodingSessionRequest,
+  BirdCoderUserQuestionAnswerResult,
 } from '@sdkwork/birdcoder-types';
 
 export interface ICoreWriteService {
@@ -26,4 +28,8 @@ export interface ICoreWriteService {
     approvalId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ): Promise<BirdCoderApprovalDecisionResult>;
+  submitUserQuestionAnswer(
+    questionId: string,
+    request: BirdCoderSubmitUserQuestionAnswerRequest,
+  ): Promise<BirdCoderUserQuestionAnswerResult>;
 }

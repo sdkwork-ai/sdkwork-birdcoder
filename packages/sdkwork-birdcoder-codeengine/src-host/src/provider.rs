@@ -1,11 +1,10 @@
 use std::{collections::BTreeMap, sync::OnceLock};
 
 use crate::{
-    format_missing_native_session_provider_error, format_unimplemented_native_session_provider_error,
-    lookup_standard_native_session_provider_registration, native_session_prefix_for_engine,
-    resolve_native_session_engine_id, CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord,
-    CodeEngineTurnRequestRecord, CodeEngineTurnResultRecord, NativeSessionDiscoveryMode,
-    NativeSessionProviderRegistration, standard_native_session_provider_registrations,
+    format_missing_native_session_provider_error, native_session_prefix_for_engine,
+    resolve_native_session_engine_id, CodeEngineSessionDetailRecord,
+    CodeEngineSessionSummaryRecord, CodeEngineTurnRequestRecord, CodeEngineTurnResultRecord,
+    CodeEngineTurnStreamEventRecord, NativeSessionDiscoveryMode, NativeSessionProviderRegistration,
 };
 
 pub trait CodeEngineProviderPlugin: Send + Sync {
@@ -13,7 +12,10 @@ pub trait CodeEngineProviderPlugin: Send + Sync {
 
     fn list_sessions(&self) -> Result<Vec<CodeEngineSessionSummaryRecord>, String>;
 
-    fn get_session(&self, session_id: &str) -> Result<Option<CodeEngineSessionDetailRecord>, String>;
+    fn get_session(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<CodeEngineSessionDetailRecord>, String>;
 
     fn get_session_summary(
         &self,
@@ -26,6 +28,22 @@ pub trait CodeEngineProviderPlugin: Send + Sync {
         &self,
         request: &CodeEngineTurnRequestRecord,
     ) -> Result<CodeEngineTurnResultRecord, String>;
+
+    fn execute_turn_with_events(
+        &self,
+        request: &CodeEngineTurnRequestRecord,
+        on_event: &mut dyn FnMut(CodeEngineTurnStreamEventRecord) -> Result<(), String>,
+    ) -> Result<CodeEngineTurnResultRecord, String> {
+        let result = self.execute_turn(request)?;
+        if !result.assistant_content.trim().is_empty() {
+            on_event(CodeEngineTurnStreamEventRecord {
+                role: "assistant".to_owned(),
+                content_delta: result.assistant_content.clone(),
+                native_session_id: result.native_session_id.clone(),
+            })?;
+        }
+        Ok(result)
+    }
 }
 
 pub struct CodeEngineProviderRegistry {
@@ -37,23 +55,28 @@ impl CodeEngineProviderRegistry {
         let mut providers: BTreeMap<String, Box<dyn CodeEngineProviderPlugin>> = BTreeMap::new();
 
         let codex_provider = Box::new(crate::codex_provider::CodexCodeEngineProvider);
-        providers.insert(codex_provider.registration().engine_id.clone(), codex_provider);
+        providers.insert(
+            codex_provider.registration().engine_id.clone(),
+            codex_provider,
+        );
+
+        let claude_code_provider = Box::new(crate::claude_code_provider::ClaudeCodeEngineProvider);
+        providers.insert(
+            claude_code_provider.registration().engine_id.clone(),
+            claude_code_provider,
+        );
+
+        let gemini_provider = Box::new(crate::gemini_provider::GeminiCodeEngineProvider);
+        providers.insert(
+            gemini_provider.registration().engine_id.clone(),
+            gemini_provider,
+        );
 
         let opencode_provider = Box::new(crate::opencode_provider::OpencodeCodeEngineProvider);
         providers.insert(
             opencode_provider.registration().engine_id.clone(),
             opencode_provider,
         );
-
-        for registration in standard_native_session_provider_registrations() {
-            providers
-                .entry(registration.engine_id.clone())
-                .or_insert_with(|| {
-                    Box::new(UnsupportedCodeEngineProvider::new(
-                        registration.engine_id.as_str(),
-                    ))
-                });
-        }
 
         Self { providers }
     }
@@ -119,51 +142,6 @@ pub fn extract_native_lookup_id_for_engine(
         .unwrap_or(normalized)
         .trim()
         .to_owned())
-}
-
-struct UnsupportedCodeEngineProvider {
-    registration: &'static NativeSessionProviderRegistration,
-}
-
-impl UnsupportedCodeEngineProvider {
-    fn new(engine_id: &'static str) -> Self {
-        Self {
-            registration: lookup_standard_native_session_provider_registration(engine_id)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "standard native session provider registration missing for engine {engine_id}"
-                    )
-                }),
-        }
-    }
-
-    fn create_not_implemented_error(&self) -> String {
-        format_unimplemented_native_session_provider_error(self.registration)
-    }
-}
-
-impl CodeEngineProviderPlugin for UnsupportedCodeEngineProvider {
-    fn registration(&self) -> &'static NativeSessionProviderRegistration {
-        self.registration
-    }
-
-    fn list_sessions(&self) -> Result<Vec<CodeEngineSessionSummaryRecord>, String> {
-        Ok(Vec::new())
-    }
-
-    fn get_session(
-        &self,
-        _session_id: &str,
-    ) -> Result<Option<CodeEngineSessionDetailRecord>, String> {
-        Ok(None)
-    }
-
-    fn execute_turn(
-        &self,
-        _request: &CodeEngineTurnRequestRecord,
-    ) -> Result<CodeEngineTurnResultRecord, String> {
-        Err(self.create_not_implemented_error())
-    }
 }
 
 fn normalize_non_empty_string(value: Option<&str>) -> Option<String> {

@@ -45,16 +45,35 @@ try {
   assert.equal(storedProfile.company, 'SDKWork Cloud');
 
   await userStorage.writeBirdCoderVipMembership({
-    creditsPerMonth: 2048,
-    planId: 'pro',
-    planTitle: 'Pro',
-    renewAt: '2026-06-01',
-    seats: 1,
+    vipLevelId: '1',
+    pointBalance: '101777208078558101',
+    totalRechargedPoints: '101777208078558103',
+    validTo: '2026-06-01',
     status: 'active',
   });
   const storedMembership = await userStorage.readBirdCoderVipMembership();
-  assert.equal(storedMembership.planId, 'pro');
-  assert.equal(userStorage.getBirdCoderVipMembershipRepository().binding.entityName, 'vip_subscription');
+  assert.equal(storedMembership.vipLevelId, '1');
+  assert.equal(
+    storedMembership.pointBalance,
+    '101777208078558101',
+    'VIP pointBalance maps to Java Long/BIGINT and must remain an exact decimal string.',
+  );
+  assert.equal(
+    storedMembership.totalRechargedPoints,
+    '101777208078558103',
+    'VIP totalRechargedPoints maps to Java Long/BIGINT and must remain an exact decimal string.',
+  );
+  await assert.rejects(
+    () =>
+      userStorage.writeBirdCoderVipMembership({
+        pointBalance: Number('101777208078558101'),
+        totalRechargedPoints: '0',
+        status: 'active',
+      }),
+    /unsafe JavaScript number/u,
+    'VIP Long/BIGINT fields must reject unsafe JavaScript numbers instead of falling back to zero.',
+  );
+  assert.equal(userStorage.getBirdCoderVipMembershipRepository().binding.entityName, 'vip_user');
 } finally {
   if (originalWindowDescriptor) {
     Object.defineProperty(globalThis, 'window', originalWindowDescriptor);

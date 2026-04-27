@@ -89,6 +89,7 @@ try {
   await Promise.all([
     repositories.workspaces.clear(),
     repositories.projects.clear(),
+    repositories.projectContents.clear(),
     repositories.teams.clear(),
     repositories.releases.clear(),
   ]);
@@ -106,10 +107,20 @@ try {
     workspaceId: 'workspace-summary-cache-contract',
     name: 'Summary Cache Contract Project',
     description: 'Project used to validate coding session summary cache invalidation.',
-    rootPath: 'D:/workspace/summary-cache-contract',
     status: 'active',
     createdAt: '2026-04-20T12:01:00.000Z',
     updatedAt: '2026-04-20T12:01:00.000Z',
+  });
+  await repositories.projectContents.save({
+    id: 'project-content-summary-cache-contract',
+    projectId: 'project-summary-cache-contract',
+    projectUuid: 'project-project-summary-cache-contract',
+    configData: JSON.stringify({
+      rootPath: 'D:/workspace/summary-cache-contract',
+    }),
+    contentVersion: '1.0',
+    createdAt: '2026-04-20T12:01:00.250Z',
+    updatedAt: '2026-04-20T12:01:00.250Z',
   });
 
   const appAdminClient: BirdCoderAppAdminApiClient = createBirdCoderGeneratedAppAdminApiClient({
@@ -221,6 +232,9 @@ try {
     async submitApprovalDecision() {
       throw new Error('not needed');
     },
+    async submitUserQuestionAnswer() {
+      throw new Error('not needed');
+    },
     async deleteCodingSessionMessage() {
       throw new Error('not needed');
     },
@@ -269,6 +283,35 @@ try {
     reloadedProjectsAfterCreate[0]?.codingSessions.map((codingSession) => codingSession.id),
     ['coding-session-summary-cache-contract'],
     'creating a coding session must invalidate authoritative session summaries so reloaded project lists cannot reuse stale empty summaries.',
+  );
+
+  const sameTimestamp = '2026-04-20T12:03:00.000Z';
+  const createdCodingSession = reloadedProjectsAfterCreate[0]?.codingSessions[0];
+  assert.ok(createdCodingSession, 'created coding session must exist for runtime merge assertion.');
+  await services.projectService.upsertCodingSession('project-summary-cache-contract', {
+    ...createdCodingSession,
+    runtimeStatus: 'streaming',
+    updatedAt: sameTimestamp,
+    lastTurnAt: sameTimestamp,
+    transcriptUpdatedAt: sameTimestamp,
+  });
+  remoteCodingSessions = [
+    {
+      ...remoteCodingSessions[0]!,
+      runtimeStatus: 'completed',
+      updatedAt: sameTimestamp,
+      lastTurnAt: sameTimestamp,
+      transcriptUpdatedAt: sameTimestamp,
+    },
+  ];
+  internalReadCache.clear();
+  const reloadedProjectsAfterTerminalSummary = await services.projectService.getProjects(
+    'workspace-summary-cache-contract',
+  );
+  assert.equal(
+    reloadedProjectsAfterTerminalSummary[0]?.codingSessions[0]?.runtimeStatus,
+    'completed',
+    'same-timestamp authoritative terminal summaries must override local streaming state.',
   );
 
   await services.projectService.deleteCodingSession(

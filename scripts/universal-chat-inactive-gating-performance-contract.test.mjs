@@ -24,7 +24,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /useProgressiveTranscriptWindow\(\s*messages,\s*messagesEndRef,\s*isActive,\s*\)/s,
+  /useProgressiveTranscriptWindow\(\s*messages,\s*messagesEndRef,\s*isActive,\s*sessionId,\s*\)/s,
   'UniversalChat transcript rendering must forward the activity flag into the progressive transcript window hook.',
 );
 
@@ -42,7 +42,7 @@ assert.match(
 
 assert.match(
   progressiveTranscriptSource,
-  /export function useProgressiveTranscriptWindow\(\s*messages: readonly BirdCoderChatMessage\[\],\s*messagesEndRef: RefObject<HTMLDivElement \| null>,\s*isActive = true,\s*\)/s,
+  /export function useProgressiveTranscriptWindow\(\s*messages: readonly BirdCoderChatMessage\[\],\s*messagesEndRef: RefObject<HTMLDivElement \| null>,\s*isActive = true,\s*transcriptScopeKey = '',\s*\)/s,
   'useProgressiveTranscriptWindow must accept an activity flag so transcript repair work can be disabled while hidden.',
 );
 

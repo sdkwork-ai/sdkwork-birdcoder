@@ -141,6 +141,19 @@ const client = createBirdCoderGeneratedCoreWriteApiClient({
             },
             'req.core.submit-approval-decision',
           ) as TResponse;
+        case '/api/core/v1/questions/question-generated-write/answer':
+          return createEnvelope(
+            {
+              questionId: 'question-generated-write',
+              codingSessionId: 'coding-session-generated-write',
+              answer: 'Run unit tests',
+              answeredAt: '2026-04-11T11:03:00.000Z',
+              runtimeStatus: 'awaiting_tool',
+              runtimeId: 'runtime-generated-write',
+              turnId: 'coding-turn-generated-write',
+            },
+            'req.core.submit-user-question-answer',
+          ) as TResponse;
         default:
           throw new Error(`Unhandled request: ${request.method} ${request.path}`);
       }
@@ -218,6 +231,15 @@ assert.equal(approvalResult.codingSessionId, 'coding-session-generated-write');
 assert.equal(approvalResult.operationId, 'coding-turn-generated-write:operation');
 assert.equal(approvalResult.decision, 'approved');
 assert.equal(approvalResult.reason, 'Looks safe');
+
+const questionAnswerResult = await client.submitUserQuestionAnswer('question-generated-write', {
+  answer: 'Run unit tests',
+  optionLabel: 'Unit',
+});
+
+assert.equal(questionAnswerResult.questionId, 'question-generated-write');
+assert.equal(questionAnswerResult.codingSessionId, 'coding-session-generated-write');
+assert.equal(questionAnswerResult.answer, 'Run unit tests');
 assert.deepEqual(observedRequests, [
   {
     method: 'POST',
@@ -269,6 +291,14 @@ assert.deepEqual(observedRequests, [
     body: {
       decision: 'approved',
       reason: 'Looks safe',
+    },
+  },
+  {
+    method: 'POST',
+    path: '/api/core/v1/questions/question-generated-write/answer',
+    body: {
+      answer: 'Run unit tests',
+      optionLabel: 'Unit',
     },
   },
 ]);

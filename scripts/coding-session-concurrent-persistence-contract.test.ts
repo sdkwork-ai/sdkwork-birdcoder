@@ -84,6 +84,7 @@ try {
   await Promise.all([
     repositories.workspaces.clear(),
     repositories.projects.clear(),
+    repositories.projectContents.clear(),
     repositories.teams.clear(),
     repositories.releases.clear(),
   ]);
@@ -135,6 +136,9 @@ try {
       throw new Error('not needed');
     },
     async submitApprovalDecision() {
+      throw new Error('not needed');
+    },
+    async submitUserQuestionAnswer() {
       throw new Error('not needed');
     },
     async deleteCodingSessionMessage() {

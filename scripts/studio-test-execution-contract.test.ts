@@ -40,6 +40,7 @@ assert.deepEqual(launch.request, {
   adapterId: STUDIO_TEST_EXECUTION_ADAPTER_ID,
   runConfigurationId: 'test',
   terminalRequest: {
+    surface: 'embedded',
     path: '/workspace/demo-project',
     command: 'npm test',
     profileId: 'powershell',
@@ -60,6 +61,7 @@ assert.deepEqual(launch.request, {
 assert.deepEqual(
   buildStudioTestExecutionEvidence(
     {
+      surface: 'embedded',
       path: '/workspace/demo-project',
       command: 'npm test',
       profileId: 'powershell',

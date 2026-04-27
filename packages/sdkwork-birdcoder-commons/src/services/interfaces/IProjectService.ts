@@ -8,6 +8,7 @@ import type {
 export interface CreateCodingSessionOptions {
   engineId: BirdCoderCodingSession['engineId'];
   modelId: string;
+  workspaceId?: string;
 }
 
 export interface UpdateCodingSessionOptions {

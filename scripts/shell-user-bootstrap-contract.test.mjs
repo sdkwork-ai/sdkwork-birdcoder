@@ -102,7 +102,8 @@ try {
   );
 
   assert.equal(bootstrappedProfile.company, 'SDKWork');
-  assert.equal(bootstrappedMembership.planId, 'free');
+  assert.equal(bootstrappedMembership.status, 'inactive');
+  assert.equal(bootstrappedMembership.pointBalance, '0');
   assert.equal(bootstrappedPreferences.codeEngineId, 'codex');
   assert.equal(bootstrappedRecoverySnapshot.activeTab, 'code');
   assert.equal(bootstrappedRecoverySnapshot.cleanExit, true);

@@ -5,6 +5,14 @@ const sidebarSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx', import.meta.url),
   'utf8',
 );
+const projectContextMenuSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorerProjectContextMenu.tsx', import.meta.url),
+  'utf8',
+);
+const sessionContextMenuSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorerSessionContextMenu.tsx', import.meta.url),
+  'utf8',
+);
 const projectExplorerTypesSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorer.types.ts', import.meta.url),
   'utf8',
@@ -43,21 +51,27 @@ assert.match(
 );
 
 assert.match(
-  sidebarSource,
+  projectContextMenuSource,
   /t\('code\.refreshSessions'\)/,
-  'Code sidebar project UI must surface a refresh sessions action.',
+  'Code project context menu must surface a refresh sessions action.',
 );
 
 assert.match(
-  sidebarSource,
+  sessionContextMenuSource,
   /t\('code\.refreshMessages'\)/,
-  'Code sidebar session UI must surface a refresh messages action.',
+  'Code session context menu must surface a refresh messages action.',
+);
+
+assert.match(
+  sessionContextMenuSource,
+  /t\('code\.refreshingMessages'\)/,
+  'Code session context menu must surface a refreshing messages loading label.',
 );
 
 assert.match(
   sidebarSource,
-  /selectedProjectId && onRefreshProjectSessions/,
-  'Code sidebar header must expose project refresh without changing the current selection.',
+  /const handleRefreshSelectedProject = useCallback\(\(\) => \{[\s\S]*if \(!selectedProjectId \|\| !onRefreshProjectSessions\) \{[\s\S]*return;[\s\S]*\}[\s\S]*void onRefreshProjectSessions\(selectedProjectId\);[\s\S]*\}, \[onRefreshProjectSessions, selectedProjectId\]\);/,
+  'Code sidebar header must expose project refresh through a stable guarded handler without changing the current selection.',
 );
 
 assert.match(

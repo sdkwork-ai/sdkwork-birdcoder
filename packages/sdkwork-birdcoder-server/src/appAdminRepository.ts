@@ -6,6 +6,7 @@ export {
   type BirdCoderRepresentativeAuditRecord,
   type BirdCoderRepresentativeAppAdminRepositories,
   type BirdCoderRepresentativePolicyRecord,
+  type BirdCoderProjectContentRecord,
   type BirdCoderRepresentativeProjectRecord,
   type BirdCoderRepresentativeReleaseRecord,
   type BirdCoderRepresentativeTeamRecord,

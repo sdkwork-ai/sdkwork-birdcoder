@@ -73,6 +73,7 @@ export function useSessionRefreshActions({
     try {
       const result = await refreshProjectSessions({
         coreReadService,
+        identityScope: normalizedUserScope,
         projectId: targetProjectId,
         projectService,
         workspaceId: normalizedWorkspaceId,
@@ -121,6 +122,7 @@ export function useSessionRefreshActions({
       const result = await refreshCodingSessionMessages({
         codingSessionId,
         coreReadService,
+        identityScope: normalizedUserScope,
         projectService,
         workspaceId,
       });

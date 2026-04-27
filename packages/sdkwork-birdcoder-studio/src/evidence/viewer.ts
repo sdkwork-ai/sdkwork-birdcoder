@@ -363,6 +363,7 @@ export function buildUnifiedStudioEvidenceReplayRequest(
   timestamp = Date.now(),
 ): TerminalCommandRequest {
   return {
+    surface: 'embedded',
     path: entry.cwd,
     command: entry.command,
     profileId: normalizeEvidenceProfileId(entry.profileId),

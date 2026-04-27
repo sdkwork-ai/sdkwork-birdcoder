@@ -3,6 +3,7 @@ import type {
   DesktopSessionReplaySnapshot,
   DesktopSessionStreamEvent,
 } from '../../../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/index.ts';
+import { parseBirdCoderApiJson } from '@sdkwork/birdcoder-types';
 
 interface StructuredTerminalWarningPayload {
   code?: unknown;
@@ -26,7 +27,7 @@ export function formatStructuredTerminalWarningPayload(payload: string): string 
   }
 
   try {
-    const parsed = JSON.parse(normalizedPayload) as unknown;
+    const parsed = parseBirdCoderApiJson(normalizedPayload) as unknown;
     if (!isStructuredTerminalWarningPayload(parsed)) {
       return null;
     }

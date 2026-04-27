@@ -12,6 +12,7 @@ import {
   persistBirdCoderCoreSessionRunProjection,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
 import { createProviderBackedBirdCoderCoreSessionProjectionStore } from '../packages/sdkwork-birdcoder-server/src/projectionRepository.ts';
+import { compareBirdCoderCodingSessionEventSequence } from '../packages/sdkwork-birdcoder-types/src/index.ts';
 import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
 
 const tempDirectory = await fs.mkdtemp(
@@ -86,8 +87,14 @@ try {
   assert.deepEqual(snapshot.runtime?.capabilitySnapshot, projection.runtime.capabilitySnapshot);
   assert.deepEqual(snapshot.runtime?.metadata, projection.runtime.metadata);
 
-  const snapshotEvents = [...snapshot.events].sort((left, right) => left.sequence - right.sequence);
-  const projectionEvents = [...projection.events].sort((left, right) => left.sequence - right.sequence);
+  const snapshotEvents = [...snapshot.events].sort(
+    (left, right) =>
+      compareBirdCoderCodingSessionEventSequence(left, right),
+  );
+  const projectionEvents = [...projection.events].sort(
+    (left, right) =>
+      compareBirdCoderCodingSessionEventSequence(left, right),
+  );
   assert.equal(snapshot.events.length, projection.events.length);
   assert.deepEqual(
     snapshotEvents.map((event) => ({

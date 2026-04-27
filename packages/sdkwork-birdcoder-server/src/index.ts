@@ -49,6 +49,7 @@ import type {
   BirdCoderCodingSessionRuntime,
   BirdCoderHostMode,
   BirdCoderAppAdminApiClient,
+  BirdCoderUserQuestionAnswerResult,
 } from '../../sdkwork-birdcoder-types/src/index.ts';
 import {
   BIRDCODER_CODING_SERVER_API_VERSION as BIRDCODER_CODING_SERVER_API_VERSION_VALUE,
@@ -60,6 +61,7 @@ import {
   BIRDCODER_ENGINE_INTEGRATION_CLASSES,
   BIRDCODER_ENGINE_RUNTIME_MODES,
   BIRDCODER_HOST_MODES,
+  stringifyBirdCoderLongInteger,
 } from '../../sdkwork-birdcoder-types/src/index.ts';
 
 export const BIRD_SERVER_DEFAULT_HOST = BIRDCODER_DEFAULT_LOCAL_API_HOST;
@@ -565,6 +567,12 @@ function createOpenApiStringSchema(description?: string): BirdCoderOpenApiSchema
   };
 }
 
+function createOpenApiLongIntegerStringSchema(description?: string): BirdCoderOpenApiSchema {
+  return createOpenApiStringSchema(
+    description ?? 'Java Long/BIGINT value serialized as an exact decimal string.',
+  );
+}
+
 function createOpenApiDateTimeSchema(description?: string): BirdCoderOpenApiSchema {
   return {
     type: 'string',
@@ -808,10 +816,11 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     hostMode: createOpenApiStringEnumSchema(BIRDCODER_HOST_MODES),
     engineId: createOpenApiStringEnumSchema(engineKeys),
     modelId: createOpenApiStringSchema(),
+    nativeSessionId: createOpenApiStringSchema(),
     createdAt: createOpenApiDateTimeSchema(),
     updatedAt: createOpenApiDateTimeSchema(),
     lastTurnAt: createOpenApiDateTimeSchema(),
-    sortTimestamp: createOpenApiNumberSchema(
+    sortTimestamp: createOpenApiLongIntegerStringSchema(
       'Normalized activity timestamp in epoch milliseconds used for sorting.',
     ),
     transcriptUpdatedAt: createOpenApiNullableStringSchema(
@@ -1144,6 +1153,38 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         ],
       },
     ),
+    BirdCoderSubmitUserQuestionAnswerRequest: createOpenApiObjectSchema(
+      {
+        answer: createOpenApiStringSchema(),
+        optionId: createOpenApiStringSchema(),
+        optionLabel: createOpenApiStringSchema(),
+      },
+      {
+        required: ['answer'],
+      },
+    ),
+    BirdCoderUserQuestionAnswerResult: createOpenApiObjectSchema(
+      {
+        questionId: createOpenApiStringSchema(),
+        codingSessionId: createOpenApiStringSchema(),
+        answer: createOpenApiStringSchema(),
+        answeredAt: createOpenApiDateTimeSchema(),
+        optionId: createOpenApiStringSchema(),
+        optionLabel: createOpenApiStringSchema(),
+        runtimeId: createOpenApiStringSchema(),
+        runtimeStatus: createOpenApiStringEnumSchema(BIRDCODER_CODING_SESSION_RUNTIME_STATUSES),
+        turnId: createOpenApiStringSchema(),
+      },
+      {
+        required: [
+          'questionId',
+          'codingSessionId',
+          'answer',
+          'answeredAt',
+          'runtimeStatus',
+        ],
+      },
+    ),
     BirdCoderCoreHealthSummary: createOpenApiObjectSchema(
       {
         status: createOpenApiStringSchema(),
@@ -1198,7 +1239,9 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         turnId: createOpenApiStringSchema(),
         runtimeId: createOpenApiStringSchema(),
         kind: createOpenApiStringEnumSchema(BIRDCODER_CODING_SESSION_EVENT_KINDS),
-        sequence: createOpenApiIntegerSchema(0),
+        sequence: createOpenApiLongIntegerStringSchema(
+          'Event sequence number serialized as an exact decimal string.',
+        ),
         payload: {
           type: 'object',
           additionalProperties: true,
@@ -1257,6 +1300,19 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         command: createOpenApiStringSchema(),
         status: createOpenApiStringEnumSchema(['running', 'success', 'error']),
         output: createOpenApiStringSchema(),
+        kind: createOpenApiStringEnumSchema([
+          'approval',
+          'command',
+          'file_change',
+          'task',
+          'tool',
+          'user_question',
+        ]),
+        toolName: createOpenApiStringSchema(),
+        toolCallId: createOpenApiStringSchema(),
+        runtimeStatus: createOpenApiStringEnumSchema(BIRDCODER_CODING_SESSION_RUNTIME_STATUSES),
+        requiresApproval: createOpenApiBooleanSchema(),
+        requiresReply: createOpenApiBooleanSchema(),
       },
       {
         required: ['command', 'status'],
@@ -1270,6 +1326,34 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         role: createOpenApiStringEnumSchema(BIRDCODER_CODING_SESSION_MESSAGE_ROLES),
         content: createOpenApiStringSchema(),
         commands: createOpenApiArraySchema(createOpenApiSchemaReference('BirdCoderNativeSessionCommand')),
+        tool_calls: createOpenApiArraySchema({
+          type: 'object',
+          additionalProperties: true,
+        }),
+        tool_call_id: createOpenApiStringSchema(),
+        fileChanges: createOpenApiArraySchema(
+          createOpenApiObjectSchema(
+            {
+              path: createOpenApiStringSchema(),
+              additions: createOpenApiIntegerSchema(0),
+              deletions: createOpenApiIntegerSchema(0),
+              content: createOpenApiStringSchema(),
+              originalContent: createOpenApiStringSchema(),
+            },
+            {
+              required: ['path', 'additions', 'deletions'],
+            },
+          ),
+        ),
+        taskProgress: createOpenApiObjectSchema(
+          {
+            total: createOpenApiIntegerSchema(0),
+            completed: createOpenApiIntegerSchema(0),
+          },
+          {
+            required: ['total', 'completed'],
+          },
+        ),
         metadata: {
           type: 'object',
           additionalProperties: {
@@ -1287,7 +1371,7 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         ...codingSessionSummaryProperties,
         kind: createOpenApiStringEnumSchema(['coding']),
         nativeCwd: createOpenApiNullableStringSchema(),
-        sortTimestamp: createOpenApiNumberSchema(
+        sortTimestamp: createOpenApiLongIntegerStringSchema(
           'Normalized activity timestamp in epoch milliseconds used for sorting.',
         ),
         transcriptUpdatedAt: createOpenApiNullableStringSchema(
@@ -1693,35 +1777,37 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         organizationId: createOpenApiStringSchema(),
         createdAt: createOpenApiDateTimeSchema(),
         updatedAt: createOpenApiDateTimeSchema(),
-        creditsPerMonth: createOpenApiNumberSchema(),
         userId: createOpenApiStringSchema(),
-        planId: createOpenApiStringSchema(),
-        planTitle: createOpenApiStringSchema(),
-        renewAt: createOpenApiStringSchema(),
-        seats: createOpenApiNumberSchema(),
+        vipLevelId: createOpenApiStringSchema(),
+        pointBalance: createOpenApiLongIntegerStringSchema(),
+        totalRechargedPoints: createOpenApiLongIntegerStringSchema(),
         status: createOpenApiStringSchema(),
+        validFrom: createOpenApiDateTimeSchema(),
+        validTo: createOpenApiDateTimeSchema(),
+        lastActiveTime: createOpenApiDateTimeSchema(),
+        remark: createOpenApiStringSchema(),
       },
       {
         required: [
           'uuid',
           'createdAt',
           'updatedAt',
-          'creditsPerMonth',
           'userId',
-          'planId',
-          'planTitle',
-          'seats',
+          'pointBalance',
+          'totalRechargedPoints',
           'status',
         ],
       },
     ),
     BirdCoderUpdateCurrentUserMembershipRequest: createOpenApiObjectSchema({
-      creditsPerMonth: createOpenApiNumberSchema(),
-      planId: createOpenApiStringSchema(),
-      planTitle: createOpenApiStringSchema(),
-      renewAt: createOpenApiStringSchema(),
-      seats: createOpenApiNumberSchema(),
+      vipLevelId: createOpenApiStringSchema(),
+      pointBalance: createOpenApiLongIntegerStringSchema(),
+      totalRechargedPoints: createOpenApiLongIntegerStringSchema(),
       status: createOpenApiStringSchema(),
+      validFrom: createOpenApiDateTimeSchema(),
+      validTo: createOpenApiDateTimeSchema(),
+      lastActiveTime: createOpenApiDateTimeSchema(),
+      remark: createOpenApiStringSchema(),
     }),
     BirdCoderWorkspaceSummary: createOpenApiObjectSchema(
       {
@@ -1745,8 +1831,8 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         maxMembers: createOpenApiIntegerSchema(0),
         currentMembers: createOpenApiIntegerSchema(0),
         memberCount: createOpenApiIntegerSchema(0),
-        maxStorage: createOpenApiIntegerSchema(0),
-        usedStorage: createOpenApiIntegerSchema(0),
+        maxStorage: createOpenApiLongIntegerStringSchema(),
+        usedStorage: createOpenApiLongIntegerStringSchema(),
         settings: createOpenApiObjectSchema({}, { additionalProperties: true }),
         isPublic: createOpenApiBooleanSchema(),
         isTemplate: createOpenApiBooleanSchema(),
@@ -1777,8 +1863,8 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         maxMembers: createOpenApiIntegerSchema(0),
         currentMembers: createOpenApiIntegerSchema(0),
         memberCount: createOpenApiIntegerSchema(0),
-        maxStorage: createOpenApiIntegerSchema(0),
-        usedStorage: createOpenApiIntegerSchema(0),
+        maxStorage: createOpenApiLongIntegerStringSchema(),
+        usedStorage: createOpenApiLongIntegerStringSchema(),
         settings: createOpenApiObjectSchema({}, { additionalProperties: true }),
         isPublic: createOpenApiBooleanSchema(),
         isTemplate: createOpenApiBooleanSchema(),
@@ -1804,8 +1890,8 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
       maxMembers: createOpenApiIntegerSchema(0),
       currentMembers: createOpenApiIntegerSchema(0),
       memberCount: createOpenApiIntegerSchema(0),
-      maxStorage: createOpenApiIntegerSchema(0),
-      usedStorage: createOpenApiIntegerSchema(0),
+      maxStorage: createOpenApiLongIntegerStringSchema(),
+      usedStorage: createOpenApiLongIntegerStringSchema(),
       settings: createOpenApiObjectSchema({}, { additionalProperties: true }),
       isPublic: createOpenApiBooleanSchema(),
       isTemplate: createOpenApiBooleanSchema(),
@@ -1841,7 +1927,7 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         type: createOpenApiStringSchema(),
         startTime: createOpenApiStringSchema(),
         endTime: createOpenApiStringSchema(),
-        budgetAmount: createOpenApiIntegerSchema(0),
+        budgetAmount: createOpenApiLongIntegerStringSchema(),
         coverImage: createOpenApiObjectSchema({}, { additionalProperties: true }),
         isTemplate: createOpenApiBooleanSchema(),
         collaboratorCount: createOpenApiIntegerSchema(0),
@@ -2002,7 +2088,7 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         conversationId: createOpenApiStringSchema(),
         startTime: createOpenApiStringSchema(),
         endTime: createOpenApiStringSchema(),
-        budgetAmount: createOpenApiIntegerSchema(0),
+        budgetAmount: createOpenApiLongIntegerStringSchema(),
         coverImage: createOpenApiObjectSchema({}, { additionalProperties: true }),
         isTemplate: createOpenApiBooleanSchema(),
         appTemplateVersionId: createOpenApiStringSchema(),
@@ -2036,7 +2122,7 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
       conversationId: createOpenApiStringSchema(),
       startTime: createOpenApiStringSchema(),
       endTime: createOpenApiStringSchema(),
-      budgetAmount: createOpenApiIntegerSchema(0),
+      budgetAmount: createOpenApiLongIntegerStringSchema(),
       coverImage: createOpenApiObjectSchema({}, { additionalProperties: true }),
       isTemplate: createOpenApiBooleanSchema(),
       status: createOpenApiStringEnumSchema(BIRDCODER_WORKSPACE_RESOURCE_STATUSES),
@@ -2052,7 +2138,7 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         author: createOpenApiStringSchema(),
         versionId: createOpenApiStringSchema(),
         versionLabel: createOpenApiStringSchema(),
-        installCount: createOpenApiIntegerSchema(0),
+        installCount: createOpenApiLongIntegerStringSchema(),
         longDescription: createOpenApiStringSchema(),
         tags: createOpenApiArraySchema(createOpenApiStringSchema()),
         license: createOpenApiStringSchema(),
@@ -2092,7 +2178,7 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         author: createOpenApiStringSchema(),
         versionId: createOpenApiStringSchema(),
         versionLabel: createOpenApiStringSchema(),
-        installCount: createOpenApiIntegerSchema(0),
+        installCount: createOpenApiLongIntegerStringSchema(),
         longDescription: createOpenApiStringSchema(),
         sourceUri: createOpenApiStringSchema(),
         installed: createOpenApiBooleanSchema(),
@@ -2499,6 +2585,9 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     ),
     BirdCoderApprovalDecisionResultEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderApprovalDecisionResult'),
+    ),
+    BirdCoderUserQuestionAnswerResultEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderUserQuestionAnswerResult'),
     ),
     BirdCoderCoreHealthSummaryEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderCoreHealthSummary'),
@@ -2952,6 +3041,26 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         extraResponses: {
           '400': createProblemResponse('Approval decision request is invalid.'),
           '404': createProblemResponse('Approval checkpoint was not found.'),
+        },
+      }),
+    },
+    'core.submitUserQuestionAnswer': {
+      parameters: [
+        createOpenApiPathParameter(
+          'questionId',
+          'User-question request identifier.',
+        ),
+      ],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderSubmitUserQuestionAnswerRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'User-question answer applied successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderUserQuestionAnswerResultEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('User-question answer request is invalid.'),
+          '404': createProblemResponse('User-question checkpoint was not found.'),
         },
       }),
     },
@@ -3676,6 +3785,7 @@ function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
     ['GET /api/core/v1/coding-sessions/:id/artifacts', 'core.listCodingSessionArtifacts'],
     ['GET /api/core/v1/coding-sessions/:id/checkpoints', 'core.listCodingSessionCheckpoints'],
     ['POST /api/core/v1/approvals/:approvalId/decision', 'core.submitApprovalDecision'],
+    ['POST /api/core/v1/questions/:questionId/answer', 'core.submitUserQuestionAnswer'],
     ['GET /api/core/v1/operations/:operationId', 'core.getOperation'],
     ...getBirdCoderUserCenterAppRouteOperationEntries(),
     ...BIRDCODER_USER_CENTER_APP_EXTRA_OPERATION_ENTRIES,
@@ -3831,13 +3941,14 @@ function mapCanonicalEventToCoreEvent(
   artifact: BirdCoderCodingSessionArtifact | null;
 } {
   const createdAt = new Date().toISOString();
+  const sequence = stringifyBirdCoderLongInteger(canonicalEvent.sequence);
   const event: BirdCoderCodingSessionEvent = {
     id: `${request.runtimeId}:${request.turnId}:event:${canonicalEvent.sequence}`,
     codingSessionId: request.sessionId,
     turnId: request.turnId,
     runtimeId: request.runtimeId,
     kind: canonicalEvent.kind,
-    sequence: canonicalEvent.sequence,
+    sequence,
     payload: {
       ...canonicalEvent.payload,
       engineId: request.engineId,
@@ -3858,7 +3969,7 @@ function mapCanonicalEventToCoreEvent(
         metadata: {
           ...canonicalEvent.artifact.metadata,
           sourceEventKind: canonicalEvent.kind,
-          sourceSequence: canonicalEvent.sequence,
+          sourceSequence: sequence,
           runtimeStatus: canonicalEvent.runtimeStatus,
         },
         createdAt,
@@ -3989,6 +4100,13 @@ const CORE_API_CONTRACT: BirdCoderCoreApiContract = {
     'POST',
     '/api/core/v1/approvals/:approvalId/decision',
     'Submit approval decision',
+  ),
+  questions: createRoute(
+    'core',
+    'host',
+    'POST',
+    '/api/core/v1/questions/:questionId/answer',
+    'Submit user-question answer',
   ),
   routes: createRoute('core', 'host', 'GET', BIRDCODER_CODING_SERVER_ROUTE_CATALOG_PATH, 'List unified API routes'),
   runtime: createRoute('core', 'host', 'GET', '/api/core/v1/runtime', 'Get runtime metadata'),
@@ -4617,6 +4735,12 @@ export function createBirdCoderApprovalDecisionEnvelope(
   result: BirdCoderApprovalDecisionResult,
 ): BirdCoderApiEnvelope<BirdCoderApprovalDecisionResult> {
   return createEnvelope(result, result.approvalId);
+}
+
+export function createBirdCoderUserQuestionAnswerEnvelope(
+  result: BirdCoderUserQuestionAnswerResult,
+): BirdCoderApiEnvelope<BirdCoderUserQuestionAnswerResult> {
+  return createEnvelope(result, result.questionId);
 }
 
 export {

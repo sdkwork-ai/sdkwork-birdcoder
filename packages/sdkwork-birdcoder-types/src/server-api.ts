@@ -9,7 +9,11 @@ import type {
   BirdCoderCodingSessionTurn,
   BirdCoderHostMode,
 } from './coding-session.ts';
-import type { BirdCoderCanonicalEntityId, BirdCoderDataScope } from './data.ts';
+import type {
+  BirdCoderCanonicalEntityId,
+  BirdCoderDataScope,
+  BirdCoderLongIntegerString,
+} from './data.ts';
 import type {
   BirdCoderCodeEngineKey,
   BirdCoderEngineCapabilityMatrix,
@@ -138,6 +142,7 @@ export interface BirdCoderWorkspaceRealtimeEvent {
   codingSessionEngineId?: BirdCoderCodingSessionSummary['engineId'];
   codingSessionModelId?: string;
   codingSessionRuntimeStatus?: BirdCoderCodingSessionRuntimeStatus;
+  nativeSessionId?: string;
   turnId?: string;
   occurredAt: string;
   projectUpdatedAt?: string;
@@ -194,6 +199,24 @@ export interface BirdCoderApprovalDecisionResult {
   turnId?: string;
 }
 
+export interface BirdCoderSubmitUserQuestionAnswerRequest {
+  answer: string;
+  optionId?: string;
+  optionLabel?: string;
+}
+
+export interface BirdCoderUserQuestionAnswerResult {
+  questionId: string;
+  codingSessionId: string;
+  answer: string;
+  answeredAt: string;
+  optionId?: string;
+  optionLabel?: string;
+  runtimeId?: string;
+  runtimeStatus: BirdCoderCodingSessionRuntimeStatus;
+  turnId?: string;
+}
+
 export interface BirdCoderWorkspaceSummary {
   id: BirdCoderCanonicalEntityId;
   uuid?: string;
@@ -215,8 +238,8 @@ export interface BirdCoderWorkspaceSummary {
   maxMembers?: number;
   currentMembers?: number;
   memberCount?: number;
-  maxStorage?: number;
-  usedStorage?: number;
+  maxStorage?: BirdCoderLongIntegerString;
+  usedStorage?: BirdCoderLongIntegerString;
   settings?: Record<string, unknown>;
   isPublic?: boolean;
   isTemplate?: boolean;
@@ -243,8 +266,8 @@ export interface BirdCoderCreateWorkspaceRequest {
   maxMembers?: number;
   currentMembers?: number;
   memberCount?: number;
-  maxStorage?: number;
-  usedStorage?: number;
+  maxStorage?: BirdCoderLongIntegerString;
+  usedStorage?: BirdCoderLongIntegerString;
   settings?: Record<string, unknown>;
   isPublic?: boolean;
   isTemplate?: boolean;
@@ -267,8 +290,8 @@ export interface BirdCoderUpdateWorkspaceRequest {
   maxMembers?: number;
   currentMembers?: number;
   memberCount?: number;
-  maxStorage?: number;
-  usedStorage?: number;
+  maxStorage?: BirdCoderLongIntegerString;
+  usedStorage?: BirdCoderLongIntegerString;
   settings?: Record<string, unknown>;
   isPublic?: boolean;
   isTemplate?: boolean;
@@ -305,7 +328,7 @@ export interface BirdCoderProjectSummary {
   coverImage?: Record<string, unknown>;
   startTime?: string;
   endTime?: string;
-  budgetAmount?: number;
+  budgetAmount?: BirdCoderLongIntegerString;
   isTemplate?: boolean;
   collaboratorCount?: number;
   status: 'active' | 'archived';
@@ -395,7 +418,7 @@ export interface BirdCoderSkillCatalogEntrySummary {
   author?: string;
   versionId: string;
   versionLabel: string;
-  installCount?: number;
+  installCount?: BirdCoderLongIntegerString;
   longDescription?: string;
   tags: string[];
   license?: string;
@@ -420,7 +443,7 @@ export interface BirdCoderSkillPackageSummary {
   author?: string;
   versionId: string;
   versionLabel: string;
-  installCount?: number;
+  installCount?: BirdCoderLongIntegerString;
   longDescription?: string;
   sourceUri?: string;
   installed: boolean;
@@ -496,7 +519,7 @@ export interface BirdCoderCreateProjectRequest {
   coverImage?: Record<string, unknown>;
   startTime?: string;
   endTime?: string;
-  budgetAmount?: number;
+  budgetAmount?: BirdCoderLongIntegerString;
   isTemplate?: boolean;
   appTemplateVersionId?: string;
   templatePresetKey?: string;
@@ -527,7 +550,7 @@ export interface BirdCoderUpdateProjectRequest {
   coverImage?: Record<string, unknown>;
   startTime?: string;
   endTime?: string;
-  budgetAmount?: number;
+  budgetAmount?: BirdCoderLongIntegerString;
   isTemplate?: boolean;
   status?: BirdCoderProjectSummary['status'];
 }
@@ -997,22 +1020,26 @@ export interface BirdCoderUserCenterMembershipSummary {
   organizationId?: string;
   createdAt: string;
   updatedAt: string;
-  creditsPerMonth: number;
   userId: string;
-  planId: string;
-  planTitle: string;
-  renewAt?: string;
-  seats: number;
+  vipLevelId?: string;
+  pointBalance: BirdCoderLongIntegerString;
+  totalRechargedPoints: BirdCoderLongIntegerString;
   status: string;
+  validFrom?: string;
+  validTo?: string;
+  lastActiveTime?: string;
+  remark?: string;
 }
 
 export interface BirdCoderUpdateCurrentUserMembershipRequest {
-  creditsPerMonth?: number;
-  planId?: string;
-  planTitle?: string;
-  renewAt?: string;
-  seats?: number;
+  vipLevelId?: string;
+  pointBalance?: BirdCoderLongIntegerString;
+  totalRechargedPoints?: BirdCoderLongIntegerString;
   status?: string;
+  validFrom?: string;
+  validTo?: string;
+  lastActiveTime?: string;
+  remark?: string;
 }
 
 export interface BirdCoderWorkspaceScopedListRequest {
@@ -1162,6 +1189,12 @@ export interface BirdCoderNativeSessionCommand {
   command: string;
   status: 'running' | 'success' | 'error';
   output?: string;
+  kind?: 'approval' | 'command' | 'file_change' | 'task' | 'tool' | 'user_question';
+  toolName?: string;
+  toolCallId?: string;
+  runtimeStatus?: BirdCoderCodingSessionRuntimeStatus;
+  requiresApproval?: boolean;
+  requiresReply?: boolean;
 }
 
 export interface BirdCoderNativeSessionMessage {
@@ -1171,6 +1204,10 @@ export interface BirdCoderNativeSessionMessage {
   role: BirdCoderCodingSessionMessage['role'];
   content: string;
   commands?: BirdCoderNativeSessionCommand[];
+  tool_calls?: unknown[];
+  tool_call_id?: string;
+  fileChanges?: readonly unknown[];
+  taskProgress?: unknown;
   metadata?: Record<string, string>;
   createdAt: string;
 }
@@ -1178,7 +1215,7 @@ export interface BirdCoderNativeSessionMessage {
 export interface BirdCoderNativeSessionSummary extends BirdCoderCodingSessionSummary {
   kind: 'coding';
   nativeCwd?: string | null;
-  sortTimestamp: number;
+  sortTimestamp: BirdCoderLongIntegerString;
   transcriptUpdatedAt?: string | null;
 }
 
@@ -1326,6 +1363,10 @@ export interface BirdCoderCoreWriteApiClient {
     approvalId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ): Promise<BirdCoderApprovalDecisionResult>;
+  submitUserQuestionAnswer(
+    questionId: string,
+    request: BirdCoderSubmitUserQuestionAnswerRequest,
+  ): Promise<BirdCoderUserQuestionAnswerResult>;
 }
 
 export interface CreateBirdCoderGeneratedCoreWriteApiClientOptions {
@@ -1352,6 +1393,7 @@ export const BIRDCODER_SHARED_CORE_FACADE_OPERATION_IDS = [
   'core.deleteCodingSessionMessage',
   'core.createCodingSessionTurn',
   'core.submitApprovalDecision',
+  'core.submitUserQuestionAnswer',
   'core.getCodingSession',
   'core.listCodingSessionEvents',
   'core.listCodingSessionArtifacts',
@@ -1412,6 +1454,7 @@ export interface BirdCoderCoreApiContract {
   nativeSessions: BirdCoderApiRouteDefinition;
   operations: BirdCoderApiRouteDefinition;
   approvals: BirdCoderApiRouteDefinition;
+  questions: BirdCoderApiRouteDefinition;
   routes: BirdCoderApiRouteDefinition;
   runtime: BirdCoderApiRouteDefinition;
   sessions: BirdCoderApiRouteDefinition;
@@ -2577,12 +2620,14 @@ export function createBirdCoderGeneratedUserCenterApiClient({
         'app.updateCurrentUserMembership'
       >('app.updateCurrentUserMembership', {
         body: {
-          creditsPerMonth: request.creditsPerMonth,
-          planId: normalizeOptionalText(request.planId),
-          planTitle: normalizeOptionalText(request.planTitle),
-          renewAt: normalizeOptionalText(request.renewAt),
-          seats: request.seats,
+          vipLevelId: normalizeOptionalText(request.vipLevelId),
+          pointBalance: request.pointBalance,
+          totalRechargedPoints: request.totalRechargedPoints,
           status: normalizeOptionalText(request.status),
+          validFrom: normalizeOptionalText(request.validFrom),
+          validTo: normalizeOptionalText(request.validTo),
+          lastActiveTime: normalizeOptionalText(request.lastActiveTime),
+          remark: normalizeOptionalText(request.remark),
         },
       });
       return response.data;
@@ -2953,6 +2998,33 @@ export function createBirdCoderGeneratedCoreWriteApiClient({
       >('core.submitApprovalDecision', {
         pathParams: {
           approvalId: normalizeRequiredIdentifier(approvalId, 'approvalId'),
+        },
+        body,
+      });
+      return response.data;
+    },
+    async submitUserQuestionAnswer(
+      questionId: string,
+      request: BirdCoderSubmitUserQuestionAnswerRequest,
+    ): Promise<BirdCoderUserQuestionAnswerResult> {
+      const body: Record<string, unknown> = {
+        answer: normalizeRequiredText(request.answer, 'answer'),
+      };
+      const optionId = normalizeOptionalText(request.optionId);
+      const optionLabel = normalizeOptionalText(request.optionLabel);
+      if (optionId) {
+        body.optionId = optionId;
+      }
+      if (optionLabel) {
+        body.optionLabel = optionLabel;
+      }
+
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderUserQuestionAnswerResult>,
+        'core.submitUserQuestionAnswer'
+      >('core.submitUserQuestionAnswer', {
+        pathParams: {
+          questionId: normalizeRequiredIdentifier(questionId, 'questionId'),
         },
         body,
       });
