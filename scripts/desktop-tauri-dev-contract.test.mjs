@@ -542,25 +542,20 @@ const shellExecutePermissionEntry = desktopCapability.permissions.find(
     permissionEntry !== null &&
     permissionEntry.identifier === 'shell:allow-execute',
 );
-assert.ok(
+assert.equal(
   shellExecutePermissionEntry,
-  'Desktop main-window capability must include a scoped shell:allow-execute entry for the command-execution surfaces used by the code workbench.',
-);
-assert.ok(
-  Array.isArray(shellExecutePermissionEntry.allow) &&
-    shellExecutePermissionEntry.allow.some(
-      (scopeEntry) =>
-        scopeEntry &&
-        typeof scopeEntry === 'object' &&
-        scopeEntry.name === 'git' &&
-        scopeEntry.cmd === 'git',
-    ),
-  'Desktop shell execute capability must whitelist the scoped git command used by the BirdCoder git workflow.',
+  undefined,
+  'Desktop main-window capability must not expose Tauri shell execution because workbench Git and terminal actions use typed application bridges instead of plugin-shell Command.create.',
 );
 assert.doesNotMatch(
   codeTopBarSource,
   /Command\.create\('sh'/,
   'Desktop code workbench Git actions must execute git directly instead of shelling through sh -c.',
+);
+assert.doesNotMatch(
+  codeTopBarSource,
+  /Command\.create\(/,
+  'Desktop code workbench Git actions must not use the browser-facing Tauri shell execute API; command execution must stay behind typed service bridges.',
 );
 assert.doesNotMatch(
   codeTopBarSource,
@@ -579,6 +574,7 @@ for (const command of [
   'local_store_set',
   'local_store_delete',
   'local_store_list',
+  'local_sql_execute_plan',
   'terminal_cli_profile_detect',
   'desktop_session_index',
   'desktop_session_replay_slice',
@@ -601,6 +597,26 @@ for (const command of [
     `Desktop application permission manifest must allow the ${command} Rust command.`,
   );
 }
+assert.match(
+  desktopLibRsSource,
+  /const USER_HOME_CONFIG_RELATIVE_ROOT:\s*&str\s*=\s*"\.sdkwork\/birdcoder";/,
+  'Desktop user_home_config bridge must define ~/.sdkwork/birdcoder as the only writable home config root.',
+);
+assert.match(
+  desktopLibRsSource,
+  /normalized_relative_path\.starts_with\(USER_HOME_CONFIG_RELATIVE_ROOT\)/,
+  'Desktop user_home_config bridge must reject relative paths outside ~/.sdkwork/birdcoder before reading or writing.',
+);
+assert.match(
+  desktopLibRsSource,
+  /resolve_user_home_config_path\("\.sdkwork\/birdcoder\/code-engine-models\.json"\)/,
+  'Desktop Rust tests must cover the canonical code-engine model config path under ~/.sdkwork/birdcoder.',
+);
+assert.match(
+  desktopLibRsSource,
+  /resolve_user_home_config_path\("\.ssh\/config"\)\.is_err\(\)/,
+  'Desktop Rust tests must prove user_home_config cannot read or write arbitrary home files such as ~/.ssh/config.',
+);
 for (const forbiddenLegacyCommand of [
   'terminal_session_upsert',
   'terminal_session_delete',

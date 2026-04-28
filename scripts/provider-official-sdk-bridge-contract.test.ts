@@ -357,6 +357,83 @@ assert.equal(
   'Codex official SDK bridge should normalize cumulative agent_message item updates into text deltas so transcripts do not duplicate streamed content',
 );
 
+const codexWebSearchAndStartedItemBridge = createCodexOfficialSdkBridge({
+  Codex: class {
+    startThread() {
+      return {
+        run: async () => ({
+          finalResponse: 'Codex search response',
+          usage: null,
+          items: [
+            {
+              id: 'codex-web-search-1',
+              type: 'web_search',
+              query: 'BirdCoder stream event standard',
+            },
+          ],
+        }),
+        runStreamed: async () => ({
+          events: (async function* () {
+            yield {
+              type: 'item.started',
+              item: {
+                id: 'codex-started-command-1',
+                type: 'command_execution',
+                command: 'pnpm lint',
+                aggregated_output: '',
+                status: 'in_progress',
+              },
+            };
+            yield {
+              type: 'item.completed',
+              item: {
+                id: 'codex-web-search-1',
+                type: 'web_search',
+                query: 'BirdCoder stream event standard',
+              },
+            };
+            yield {
+              type: 'turn.completed',
+            };
+          })(),
+        }),
+      };
+    }
+  },
+});
+const codexWebSearchResponse = await codexWebSearchAndStartedItemBridge!.sendMessage!(messages, {
+  model: 'codex',
+});
+assert.equal(
+  codexWebSearchResponse.choices[0]?.message.tool_calls?.[0]?.function.name,
+  'web_search',
+  'Codex one-shot official SDK bridge must preserve web_search items as canonical tool calls instead of dropping search activity.',
+);
+assert.deepEqual(
+  JSON.parse(codexWebSearchResponse.choices[0]?.message.tool_calls?.[0]?.function.arguments ?? '{}'),
+  {
+    query: 'BirdCoder stream event standard',
+  },
+  'Codex web_search tool calls must carry the provider query as structured arguments.',
+);
+const codexWebSearchAndStartedChunks = await collectStream(
+  codexWebSearchAndStartedItemBridge!.sendMessageStream!(messages, {
+    model: 'codex',
+  }),
+);
+assert.equal(
+  codexWebSearchAndStartedChunks.find((chunk) => chunk.choices[0]?.delta.tool_calls?.[0]?.id === 'codex-started-command-1')
+    ?.choices[0]?.delta.tool_calls?.[0]?.function.name,
+  'run_command',
+  'Codex streamed item.started events must reach the shared tool-call projection so command cards appear immediately.',
+);
+assert.equal(
+  codexWebSearchAndStartedChunks.find((chunk) => chunk.choices[0]?.delta.tool_calls?.[0]?.id === 'codex-web-search-1')
+    ?.choices[0]?.delta.tool_calls?.[0]?.function.name,
+  'web_search',
+  'Codex streamed web_search items must be preserved as canonical tool calls.',
+);
+
 const codexStringMcpArgumentsBridge = createCodexOfficialSdkBridge({
   Codex: class {
     startThread() {

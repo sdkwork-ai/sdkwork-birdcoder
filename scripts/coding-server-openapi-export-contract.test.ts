@@ -34,9 +34,9 @@ try {
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
   assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCatalogPath, '/api/core/v1/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 79);
+  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 82);
   assert.deepEqual(writtenDocument['x-sdkwork-api-gateway']?.routesBySurface, {
-    core: 24,
+    core: 27,
     app: 48,
     admin: 7,
   });
@@ -53,6 +53,14 @@ try {
     'core.getNativeSession',
   );
   assert.equal(
+    writtenDocument.paths['/api/core/v1/model-config']?.get?.operationId,
+    'core.getModelConfig',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/core/v1/model-config']?.put?.operationId,
+    'core.syncModelConfig',
+  );
+  assert.equal(
     writtenDocument.paths['/api/core/v1/coding-sessions/{id}']?.patch?.operationId,
     'core.updateCodingSession',
   );
@@ -63,6 +71,10 @@ try {
   assert.equal(
     writtenDocument.paths['/api/core/v1/coding-sessions/{id}/fork']?.post?.operationId,
     'core.forkCodingSession',
+  );
+  assert.equal(
+    writtenDocument.paths['/api/core/v1/coding-sessions/{id}/messages/{messageId}']?.patch?.operationId,
+    'core.editCodingSessionMessage',
   );
   assert.equal(
     writtenDocument.paths['/api/core/v1/coding-sessions/{id}/messages/{messageId}']?.delete?.operationId,

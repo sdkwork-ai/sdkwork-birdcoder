@@ -1,11 +1,16 @@
-use rusqlite::{params, Connection};
+use rusqlite::{
+    params, params_from_iter,
+    types::{Value as SqlValue, ValueRef},
+    Connection,
+};
 use sdkwork_birdcoder_server::{
     build_app_from_sqlite_file, initialize_sqlite_provider_authority_schema,
     print_coding_server_startup_summary, BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV,
     BIRD_SERVER_DEFAULT_BIND_ADDRESS, BIRD_SERVER_DEFAULT_HOST,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use serde_json::{Map as JsonMap, Number as JsonNumber, Value as JsonValue};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::sync::OnceLock;
@@ -17,13 +22,17 @@ mod terminal_bridge;
 mod window_controls_bridge;
 
 const RESERVED_AUTHORITY_LOCAL_STORE_KEY_PREFIX: &str = "table.sqlite.";
+const DESKTOP_LOCAL_SQLITE_FILE_NAME: &str = "sdkwork-birdcoder-desktop-local.sqlite3";
+const LEGACY_DESKTOP_SQLITE_FILE_NAME: &str = "sdkwork-birdcoder.sqlite3";
 const DEFAULT_BOOTSTRAP_WORKSPACE_ID: &str = "100000000000000101";
 const DEFAULT_BOOTSTRAP_WORKSPACE_NAME: &str = "Default Workspace";
 const DEFAULT_BOOTSTRAP_WORKSPACE_DESCRIPTION: &str = "Primary local workspace for BirdCoder.";
 const DEFAULT_BOOTSTRAP_WORKSPACE_OWNER_USER_ID: &str = "100000000000000001";
+const DEFAULT_DESKTOP_LOCAL_USER_ID: &str = "user-local-default";
 const DEFAULT_BOOTSTRAP_TENANT_ID: &str = "0";
 const DEFAULT_BOOTSTRAP_ORGANIZATION_ID: &str = "0";
 const DEFAULT_PRIVATE_DATA_SCOPE_VALUE: i64 = 1;
+const USER_HOME_CONFIG_RELATIVE_ROOT: &str = ".sdkwork/birdcoder";
 
 static DESKTOP_RUNTIME_CONFIG: OnceLock<DesktopRuntimeConfig> = OnceLock::new();
 
@@ -40,6 +49,35 @@ struct LocalStoreEntry {
     key: String,
     value: String,
     updated_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalSqlPlanStatement {
+    sql: String,
+    #[serde(default)]
+    params: Vec<JsonValue>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalSqlPlan {
+    provider_id: String,
+    #[allow(dead_code)]
+    intent: String,
+    #[serde(default)]
+    meta: Option<JsonValue>,
+    #[serde(default)]
+    statements: Vec<LocalSqlPlanStatement>,
+    transactional: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalSqlExecutionResult {
+    affected_row_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rows: Option<Vec<JsonMap<String, JsonValue>>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -222,6 +260,27 @@ fn resolve_scoped_path(root_path: &str, relative_path: &str) -> Result<PathBuf, 
     let root_directory = resolve_root_directory_path(root_path)?;
     let normalized_relative_path = normalize_relative_path(relative_path)?;
     Ok(root_directory.join(normalized_relative_path))
+}
+
+fn resolve_user_home_config_path(relative_path: &str) -> Result<PathBuf, String> {
+    let normalized_relative_path = normalize_relative_path(relative_path)?;
+    if !normalized_relative_path.starts_with(USER_HOME_CONFIG_RELATIVE_ROOT) {
+        return Err(format!(
+            "user home config path must stay under {USER_HOME_CONFIG_RELATIVE_ROOT}"
+        ));
+    }
+    if normalized_relative_path == Path::new(USER_HOME_CONFIG_RELATIVE_ROOT) {
+        return Err(format!(
+            "user home config path must target a file under {USER_HOME_CONFIG_RELATIVE_ROOT}"
+        ));
+    }
+
+    let home_directory = std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(PathBuf::from)
+        .ok_or_else(|| "failed to resolve user home directory".to_string())?;
+
+    Ok(home_directory.join(normalized_relative_path))
 }
 
 fn build_directory_listing(
@@ -502,6 +561,65 @@ fn backfill_legacy_run_configuration_config_keys(connection: &Connection) -> Res
 }
 
 fn ensure_runtime_schema_backfill(connection: &Connection) -> Result<(), String> {
+    if sqlite_table_exists(connection, "coding_sessions")? {
+        ensure_sqlite_table_column(connection, "coding_sessions", "uuid", "uuid TEXT NULL")?;
+        ensure_sqlite_table_column(
+            connection,
+            "coding_sessions",
+            "host_mode",
+            "host_mode TEXT NOT NULL DEFAULT 'desktop'",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            "coding_sessions",
+            "native_session_id",
+            "native_session_id TEXT NULL",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            "coding_sessions",
+            "sort_timestamp",
+            "sort_timestamp INTEGER NULL",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            "coding_sessions",
+            "transcript_updated_at",
+            "transcript_updated_at TEXT NULL",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            "coding_sessions",
+            "pinned",
+            "pinned INTEGER NOT NULL DEFAULT 0",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            "coding_sessions",
+            "archived",
+            "archived INTEGER NOT NULL DEFAULT 0",
+        )?;
+        ensure_sqlite_table_column(
+            connection,
+            "coding_sessions",
+            "unread",
+            "unread INTEGER NOT NULL DEFAULT 0",
+        )?;
+        connection
+            .execute(
+                r#"
+                UPDATE coding_sessions
+                SET host_mode = 'desktop'
+                WHERE TRIM(COALESCE(host_mode, '')) = ''
+                   OR host_mode = 'server'
+                "#,
+                [],
+            )
+            .map_err(|error| {
+                format!("backfill desktop coding session host mode failed: {error}")
+            })?;
+    }
+
     if sqlite_table_exists(connection, "run_configurations")? {
         ensure_sqlite_table_column(connection, "run_configurations", "uuid", "uuid TEXT NULL")?;
         ensure_sqlite_table_column(
@@ -672,6 +790,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
 
             CREATE TABLE IF NOT EXISTS coding_sessions (
                 id TEXT PRIMARY KEY,
+                uuid TEXT NULL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 version INTEGER NOT NULL DEFAULT 0,
@@ -681,9 +800,37 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 title TEXT NOT NULL,
                 status TEXT NOT NULL,
                 entry_surface TEXT NOT NULL DEFAULT 'code',
+                host_mode TEXT NOT NULL DEFAULT 'desktop',
                 engine_id TEXT NOT NULL,
                 model_id TEXT NOT NULL,
-                last_turn_at TEXT NULL
+                last_turn_at TEXT NULL,
+                native_session_id TEXT NULL,
+                sort_timestamp INTEGER NULL,
+                transcript_updated_at TEXT NULL,
+                pinned INTEGER NOT NULL DEFAULT 0,
+                archived INTEGER NOT NULL DEFAULT 0,
+                unread INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS coding_session_messages (
+                id TEXT PRIMARY KEY,
+                uuid TEXT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                is_deleted INTEGER NOT NULL,
+                coding_session_id TEXT NOT NULL,
+                turn_id TEXT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                metadata_json TEXT NOT NULL,
+                timestamp_ms INTEGER NULL,
+                name TEXT NULL,
+                tool_calls_json TEXT NULL,
+                tool_call_id TEXT NULL,
+                file_changes_json TEXT NULL,
+                commands_json TEXT NULL,
+                task_progress_json TEXT NULL
             );
 
             CREATE TABLE IF NOT EXISTS coding_session_runtimes (
@@ -1225,6 +1372,12 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
             CREATE INDEX IF NOT EXISTS idx_coding_sessions_project_updated
             ON coding_sessions(project_id, updated_at);
 
+            CREATE INDEX IF NOT EXISTS idx_coding_sessions_project_sort
+            ON coding_sessions(project_id, sort_timestamp);
+
+            CREATE INDEX IF NOT EXISTS idx_coding_session_messages_session_created
+            ON coding_session_messages(coding_session_id, created_at);
+
             CREATE INDEX IF NOT EXISTS idx_coding_session_runtimes_session_updated
             ON coding_session_runtimes(coding_session_id, updated_at);
 
@@ -1351,14 +1504,556 @@ fn ensure_bootstrap_workspace_authority(connection: &Connection) -> Result<(), S
     Ok(())
 }
 
+#[derive(Debug)]
+struct PlusWorkspaceIdentity {
+    id: String,
+    uuid: Option<String>,
+}
+
+#[derive(Debug)]
+struct LegacyDesktopLocalProject {
+    legacy_id: String,
+    legacy_workspace_id: String,
+    name: String,
+    title: Option<String>,
+    description: Option<String>,
+    root_path: String,
+    status: String,
+    created_at: String,
+    updated_at: String,
+}
+
+fn is_desktop_local_sqlite_database_path(database_path: &Path) -> bool {
+    database_path
+        .file_name()
+        .and_then(|file_name| file_name.to_str())
+        == Some(DESKTOP_LOCAL_SQLITE_FILE_NAME)
+}
+
+fn legacy_desktop_local_sibling_database_path(database_path: &Path) -> Option<PathBuf> {
+    if !is_desktop_local_sqlite_database_path(database_path) {
+        return None;
+    }
+
+    Some(database_path.with_file_name(LEGACY_DESKTOP_SQLITE_FILE_NAME))
+}
+
+fn is_windows_absolute_project_path(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    bytes.len() >= 3
+        && bytes[1] == b':'
+        && bytes[0].is_ascii_alphabetic()
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+}
+
+fn is_absolute_project_path(path: &str) -> bool {
+    is_windows_absolute_project_path(path) || path.starts_with("\\\\") || path.starts_with('/')
+}
+
+fn collapse_project_path_separators(path: &str) -> String {
+    let preserve_unc_prefix = path.starts_with("//");
+    let mut collapsed = String::with_capacity(path.len());
+    let mut previous_was_separator = false;
+
+    for character in path.chars() {
+        if character == '/' {
+            if preserve_unc_prefix && collapsed.len() < 2 {
+                collapsed.push(character);
+            } else if !previous_was_separator {
+                collapsed.push(character);
+            }
+            previous_was_separator = true;
+            continue;
+        }
+
+        collapsed.push(character);
+        previous_was_separator = false;
+    }
+
+    collapsed
+}
+
+fn normalize_project_root_path_for_comparison(root_path: &str) -> Option<String> {
+    let trimmed_root_path = root_path.trim();
+    if trimmed_root_path.is_empty() || !is_absolute_project_path(trimmed_root_path) {
+        return None;
+    }
+
+    let windows_path =
+        is_windows_absolute_project_path(trimmed_root_path) || trimmed_root_path.contains('\\');
+    let normalized_separators = trimmed_root_path.replace('\\', "/");
+    let collapsed_path = collapse_project_path_separators(&normalized_separators);
+    let without_trailing_separator = if collapsed_path == "/" {
+        collapsed_path
+    } else {
+        collapsed_path.trim_end_matches('/').to_string()
+    };
+
+    Some(if windows_path {
+        without_trailing_separator.to_ascii_lowercase()
+    } else {
+        without_trailing_separator
+    })
+}
+
+fn read_root_path_from_project_config_data(config_data: &str) -> Option<String> {
+    let parsed_config = serde_json::from_str::<JsonValue>(config_data).ok()?;
+    let config_object = parsed_config.as_object()?;
+    for key in ["rootPath", "root_path"] {
+        let root_path = config_object
+            .get(key)
+            .and_then(|value| value.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        if let Some(root_path) = root_path {
+            return Some(root_path.to_string());
+        }
+    }
+
+    None
+}
+
+fn collect_current_plus_project_root_paths(
+    connection: &Connection,
+) -> Result<HashSet<String>, String> {
+    let mut root_paths = HashSet::new();
+
+    if sqlite_table_exists(connection, "plus_project_content")? {
+        let mut statement = connection
+            .prepare("SELECT config_data FROM plus_project_content WHERE config_data IS NOT NULL")
+            .map_err(|error| {
+                format!("prepare plus_project_content root path scan failed: {error}")
+            })?;
+        let rows = statement
+            .query_map([], |row| row.get::<_, Option<String>>(0))
+            .map_err(|error| {
+                format!("query plus_project_content root path scan failed: {error}")
+            })?;
+        for row in rows {
+            let config_data = row.map_err(|error| {
+                format!("read plus_project_content root path row failed: {error}")
+            })?;
+            let Some(config_data) = config_data else {
+                continue;
+            };
+            let Some(root_path) = read_root_path_from_project_config_data(&config_data) else {
+                continue;
+            };
+            if let Some(normalized_root_path) =
+                normalize_project_root_path_for_comparison(&root_path)
+            {
+                root_paths.insert(normalized_root_path);
+            }
+        }
+    }
+
+    if sqlite_table_exists(connection, "plus_project")?
+        && sqlite_column_exists(connection, "plus_project", "root_path")?
+    {
+        let mut statement = connection
+            .prepare(
+                r#"
+                SELECT root_path
+                FROM plus_project
+                WHERE is_deleted = 0
+                  AND root_path IS NOT NULL
+                "#,
+            )
+            .map_err(|error| format!("prepare plus_project root_path scan failed: {error}"))?;
+        let rows = statement
+            .query_map([], |row| row.get::<_, Option<String>>(0))
+            .map_err(|error| format!("query plus_project root_path scan failed: {error}"))?;
+        for row in rows {
+            let root_path =
+                row.map_err(|error| format!("read plus_project root_path row failed: {error}"))?;
+            let Some(root_path) = root_path else {
+                continue;
+            };
+            if let Some(normalized_root_path) =
+                normalize_project_root_path_for_comparison(&root_path)
+            {
+                root_paths.insert(normalized_root_path);
+            }
+        }
+    }
+
+    Ok(root_paths)
+}
+
+fn read_default_plus_workspace_identity(
+    connection: &Connection,
+) -> Result<PlusWorkspaceIdentity, String> {
+    if !sqlite_table_exists(connection, "plus_workspace")? {
+        return Ok(PlusWorkspaceIdentity {
+            id: DEFAULT_BOOTSTRAP_WORKSPACE_ID.to_string(),
+            uuid: Some("workspace-uuid-default".to_string()),
+        });
+    }
+
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT CAST(id AS TEXT), uuid
+            FROM plus_workspace
+            WHERE is_deleted = 0
+            ORDER BY updated_at DESC, id DESC
+            LIMIT 1
+            "#,
+        )
+        .map_err(|error| format!("prepare plus_workspace default lookup failed: {error}"))?;
+    let mut rows = statement
+        .query([])
+        .map_err(|error| format!("query plus_workspace default lookup failed: {error}"))?;
+    if let Some(row) = rows
+        .next()
+        .map_err(|error| format!("read plus_workspace default row failed: {error}"))?
+    {
+        return Ok(PlusWorkspaceIdentity {
+            id: row
+                .get::<_, String>(0)
+                .map_err(|error| format!("read plus_workspace id failed: {error}"))?,
+            uuid: row
+                .get::<_, Option<String>>(1)
+                .map_err(|error| format!("read plus_workspace uuid failed: {error}"))?,
+        });
+    }
+
+    Ok(PlusWorkspaceIdentity {
+        id: DEFAULT_BOOTSTRAP_WORKSPACE_ID.to_string(),
+        uuid: Some("workspace-uuid-default".to_string()),
+    })
+}
+
+fn collect_existing_plus_project_text_values(
+    connection: &Connection,
+    column_name: &str,
+) -> Result<HashSet<String>, String> {
+    let mut values = HashSet::new();
+    if !sqlite_table_exists(connection, "plus_project")?
+        || !sqlite_column_exists(connection, "plus_project", column_name)?
+    {
+        return Ok(values);
+    }
+
+    let sql = format!("SELECT {column_name} FROM plus_project WHERE {column_name} IS NOT NULL");
+    let mut statement = connection
+        .prepare(&sql)
+        .map_err(|error| format!("prepare plus_project {column_name} scan failed: {error}"))?;
+    let rows = statement
+        .query_map([], |row| row.get::<_, Option<String>>(0))
+        .map_err(|error| format!("query plus_project {column_name} scan failed: {error}"))?;
+    for row in rows {
+        let value = row
+            .map_err(|error| format!("read plus_project {column_name} scan row failed: {error}"))?;
+        let Some(value) = value.map(|candidate| candidate.trim().to_string()) else {
+            continue;
+        };
+        if !value.is_empty() {
+            values.insert(value);
+        }
+    }
+
+    Ok(values)
+}
+
+fn reserve_unique_text_value(
+    existing_values: &mut HashSet<String>,
+    base_value: String,
+    suffix_separator: &str,
+) -> String {
+    let normalized_base_value = base_value.trim();
+    let base_value = if normalized_base_value.is_empty() {
+        "legacy-project".to_string()
+    } else {
+        normalized_base_value.to_string()
+    };
+    let mut candidate = base_value.clone();
+    let mut duplicate_index = 2_i64;
+    while existing_values.contains(&candidate) {
+        candidate = format!("{base_value}{suffix_separator}{duplicate_index}");
+        duplicate_index += 1;
+    }
+    existing_values.insert(candidate.clone());
+    candidate
+}
+
+fn stable_legacy_project_suffix(project: &LegacyDesktopLocalProject) -> String {
+    let mut hash = 0xcbf29ce484222325_u64;
+    for byte in format!("{}|{}", project.legacy_id, project.root_path).bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+
+    format!("{hash:016x}").chars().take(12).collect()
+}
+
+fn normalize_legacy_project_status(status: &str) -> &'static str {
+    if status.trim().eq_ignore_ascii_case("archived") {
+        "archived"
+    } else {
+        "active"
+    }
+}
+
+fn normalize_legacy_project_timestamp(timestamp: &str) -> String {
+    let normalized_timestamp = timestamp.trim();
+    if normalized_timestamp.is_empty() {
+        "1970-01-01T00:00:00.000Z".to_string()
+    } else {
+        normalized_timestamp.to_string()
+    }
+}
+
+fn read_legacy_desktop_local_projects(
+    legacy_connection: &Connection,
+) -> Result<Vec<LegacyDesktopLocalProject>, String> {
+    if !sqlite_table_exists(legacy_connection, "projects")? {
+        return Ok(Vec::new());
+    }
+
+    let title_expr = if sqlite_column_exists(legacy_connection, "projects", "title")? {
+        "title"
+    } else {
+        "NULL"
+    };
+    let description_expr = if sqlite_column_exists(legacy_connection, "projects", "description")? {
+        "description"
+    } else {
+        "NULL"
+    };
+    let sql = format!(
+        r#"
+        SELECT
+            id,
+            workspace_id,
+            name,
+            {title_expr} AS title,
+            {description_expr} AS description,
+            root_path,
+            status,
+            created_at,
+            updated_at
+        FROM projects
+        WHERE COALESCE(is_deleted, 0) = 0
+          AND TRIM(COALESCE(root_path, '')) <> ''
+        ORDER BY updated_at ASC, id ASC
+        "#
+    );
+    let mut statement = legacy_connection
+        .prepare(&sql)
+        .map_err(|error| format!("prepare legacy projects scan failed: {error}"))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(LegacyDesktopLocalProject {
+                legacy_id: row.get::<_, String>(0)?,
+                legacy_workspace_id: row.get::<_, String>(1)?,
+                name: row.get::<_, String>(2)?,
+                title: row.get::<_, Option<String>>(3)?,
+                description: row.get::<_, Option<String>>(4)?,
+                root_path: row.get::<_, String>(5)?,
+                status: row.get::<_, String>(6)?,
+                created_at: row.get::<_, String>(7)?,
+                updated_at: row.get::<_, String>(8)?,
+            })
+        })
+        .map_err(|error| format!("query legacy projects scan failed: {error}"))?;
+
+    let mut projects = Vec::new();
+    for row in rows {
+        let project = row.map_err(|error| format!("read legacy project row failed: {error}"))?;
+        if normalize_project_root_path_for_comparison(&project.root_path).is_some() {
+            projects.push(project);
+        }
+    }
+
+    Ok(projects)
+}
+
+fn next_plus_project_id(connection: &Connection) -> Result<i64, String> {
+    connection
+        .query_row(
+            "SELECT COALESCE(MAX(CAST(id AS INTEGER)), 100000000000000200) + 1 FROM plus_project",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| format!("read next plus_project id failed: {error}"))
+}
+
+fn import_legacy_desktop_local_projects_from_sibling(
+    connection: &Connection,
+    database_path: &Path,
+) -> Result<(), String> {
+    let Some(legacy_database_path) = legacy_desktop_local_sibling_database_path(database_path)
+    else {
+        return Ok(());
+    };
+    if !legacy_database_path.exists() || legacy_database_path == database_path {
+        return Ok(());
+    }
+
+    let legacy_connection = Connection::open(&legacy_database_path).map_err(|error| {
+        format!(
+            "failed to open legacy desktop-local sqlite database {}: {error}",
+            legacy_database_path.display()
+        )
+    })?;
+    let legacy_projects = read_legacy_desktop_local_projects(&legacy_connection)?;
+    if legacy_projects.is_empty() {
+        return Ok(());
+    }
+
+    let workspace = read_default_plus_workspace_identity(connection)?;
+    let mut known_root_paths = collect_current_plus_project_root_paths(connection)?;
+    let mut known_names = collect_existing_plus_project_text_values(connection, "name")?;
+    let mut known_codes = collect_existing_plus_project_text_values(connection, "code")?;
+    let mut known_uuids = collect_existing_plus_project_text_values(connection, "uuid")?;
+    let mut next_project_id = next_plus_project_id(connection)?;
+
+    for project in legacy_projects {
+        let Some(normalized_root_path) =
+            normalize_project_root_path_for_comparison(&project.root_path)
+        else {
+            continue;
+        };
+        if known_root_paths.contains(&normalized_root_path) {
+            continue;
+        }
+
+        let suffix = stable_legacy_project_suffix(&project);
+        let display_title = project
+            .title
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| project.name.trim());
+        let display_title = if display_title.is_empty() {
+            format!("Legacy Project {suffix}")
+        } else {
+            display_title.to_string()
+        };
+        let project_name = reserve_unique_text_value(
+            &mut known_names,
+            format!("{display_title} [legacy:{suffix}]"),
+            " ",
+        );
+        let project_code = reserve_unique_text_value(
+            &mut known_codes,
+            format!("LEGACY-{}", suffix.to_ascii_uppercase()),
+            "-",
+        );
+        let project_uuid =
+            reserve_unique_text_value(&mut known_uuids, format!("legacy-project-{suffix}"), "-");
+        let project_content_uuid = format!("legacy-project-content-{suffix}");
+        let project_id = next_project_id;
+        next_project_id += 1;
+        let created_at = normalize_legacy_project_timestamp(&project.created_at);
+        let updated_at = normalize_legacy_project_timestamp(&project.updated_at);
+        let config_data = serde_json::json!({
+            "rootPath": project.root_path,
+        })
+        .to_string();
+        let metadata = serde_json::json!({
+            "source": "legacy-desktop-local-projects",
+            "legacyProjectId": project.legacy_id,
+            "legacyWorkspaceId": project.legacy_workspace_id,
+        })
+        .to_string();
+
+        connection
+            .execute(
+                r#"
+                INSERT INTO plus_project (
+                    id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
+                    parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
+                    author, file_id, code, type, site_path, domain_prefix, description, status,
+                    conversation_id, workspace_id, workspace_uuid, leader_id, start_time, end_time,
+                    budget_amount, is_deleted, is_template
+                )
+                VALUES (
+                    ?1, ?2, ?3, ?4, 0, ?5, ?6, ?7,
+                    0, NULL, NULL, ?8, ?9, ?10, NULL,
+                    ?8, NULL, ?11, 1, NULL, NULL, ?12, ?13,
+                    NULL, ?14, ?15, ?8, NULL, NULL,
+                    NULL, 0, 0
+                )
+                "#,
+                params![
+                    project_id,
+                    &project_uuid,
+                    &created_at,
+                    &updated_at,
+                    DEFAULT_BOOTSTRAP_TENANT_ID,
+                    DEFAULT_BOOTSTRAP_ORGANIZATION_ID,
+                    DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
+                    DEFAULT_DESKTOP_LOCAL_USER_ID,
+                    &project_name,
+                    &display_title,
+                    &project_code,
+                    project.description.as_deref(),
+                    normalize_legacy_project_status(&project.status),
+                    &workspace.id,
+                    workspace.uuid.as_deref(),
+                ],
+            )
+            .map_err(|error| {
+                format!(
+                    "insert imported legacy project {} into plus_project failed: {error}",
+                    project.legacy_id
+                )
+            })?;
+        connection
+            .execute(
+                r#"
+                INSERT INTO plus_project_content (
+                    id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
+                    user_id, parent_id, project_id, project_uuid, config_data, content_data,
+                    metadata, content_version, content_hash
+                )
+                VALUES (
+                    ?1, ?2, ?3, ?4, 0, ?5, ?6, ?7,
+                    ?8, 0, ?1, ?9, ?10, NULL,
+                    ?11, '1.0', NULL
+                )
+                "#,
+                params![
+                    project_id,
+                    &project_content_uuid,
+                    &created_at,
+                    &updated_at,
+                    DEFAULT_BOOTSTRAP_TENANT_ID,
+                    DEFAULT_BOOTSTRAP_ORGANIZATION_ID,
+                    DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
+                    DEFAULT_DESKTOP_LOCAL_USER_ID,
+                    &project_uuid,
+                    &config_data,
+                    &metadata,
+                ],
+            )
+            .map_err(|error| {
+                format!(
+                    "insert imported legacy project {} into plus_project_content failed: {error}",
+                    project.legacy_id
+                )
+            })?;
+        known_root_paths.insert(normalized_root_path);
+    }
+
+    Ok(())
+}
+
 fn open_database(app: &AppHandle) -> Result<Connection, String> {
     let database_path = local_database_path(app)?;
-    let connection = Connection::open(database_path)
+    let connection = Connection::open(&database_path)
         .map_err(|error| format!("failed to open sqlite database: {error}"))?;
 
     initialize_database_schema(&connection)?;
     purge_reserved_authority_local_store_rows(&connection)?;
     ensure_bootstrap_workspace_authority(&connection)?;
+    if let Err(error) =
+        import_legacy_desktop_local_projects_from_sibling(&connection, &database_path)
+    {
+        eprintln!("failed to import legacy desktop-local projects: {error}");
+    }
 
     Ok(connection)
 }
@@ -1477,6 +2172,329 @@ fn desktop_runtime_config() -> Result<DesktopRuntimeConfig, String> {
         .get()
         .cloned()
         .ok_or_else(|| "desktop runtime config is unavailable".to_string())
+}
+
+fn json_value_to_sql_value(value: &JsonValue) -> SqlValue {
+    match value {
+        JsonValue::Null => SqlValue::Null,
+        JsonValue::Bool(value) => SqlValue::Integer(if *value { 1 } else { 0 }),
+        JsonValue::Number(value) => {
+            if let Some(integer_value) = value.as_i64() {
+                SqlValue::Integer(integer_value)
+            } else if let Some(unsigned_value) = value.as_u64() {
+                match i64::try_from(unsigned_value) {
+                    Ok(integer_value) => SqlValue::Integer(integer_value),
+                    Err(_) => SqlValue::Text(unsigned_value.to_string()),
+                }
+            } else if let Some(real_value) = value.as_f64() {
+                SqlValue::Real(real_value)
+            } else {
+                SqlValue::Null
+            }
+        }
+        JsonValue::String(value) => SqlValue::Text(value.clone()),
+        JsonValue::Array(_) | JsonValue::Object(_) => SqlValue::Text(value.to_string()),
+    }
+}
+
+fn sqlite_value_to_json(value: ValueRef<'_>) -> JsonValue {
+    match value {
+        ValueRef::Null => JsonValue::Null,
+        ValueRef::Integer(value) => JsonValue::String(value.to_string()),
+        ValueRef::Real(value) => JsonNumber::from_f64(value)
+            .map(JsonValue::Number)
+            .unwrap_or(JsonValue::Null),
+        ValueRef::Text(value) => JsonValue::String(String::from_utf8_lossy(value).to_string()),
+        ValueRef::Blob(value) => JsonValue::String(String::from_utf8_lossy(value).to_string()),
+    }
+}
+
+fn normalize_local_sql(sql: &str) -> String {
+    sql.trim().trim_end_matches(';').trim().to_string()
+}
+
+fn is_local_sql_read_statement(sql: &str) -> bool {
+    normalize_local_sql(sql)
+        .to_ascii_uppercase()
+        .starts_with("SELECT ")
+}
+
+fn is_safe_local_sql_identifier(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '_')
+}
+
+fn read_local_sql_plan_meta_kind(plan: &LocalSqlPlan) -> Option<&str> {
+    plan.meta
+        .as_ref()
+        .and_then(JsonValue::as_object)
+        .and_then(|meta| meta.get("kind"))
+        .and_then(JsonValue::as_str)
+}
+
+fn read_local_sql_plan_allowed_tables(plan: &LocalSqlPlan) -> Result<Vec<String>, String> {
+    let Some(meta) = plan.meta.as_ref().and_then(JsonValue::as_object) else {
+        return if plan.statements.is_empty() {
+            Ok(Vec::new())
+        } else {
+            Err("local SQL plan metadata is required for non-empty plans".to_string())
+        };
+    };
+
+    let table_names = if read_local_sql_plan_meta_kind(plan) == Some("migration") {
+        meta.get("tableNames")
+            .and_then(JsonValue::as_array)
+            .map(|values| {
+                values
+                    .iter()
+                    .filter_map(JsonValue::as_str)
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    } else {
+        meta.get("tableName")
+            .and_then(JsonValue::as_str)
+            .map(|table_name| vec![table_name.to_string()])
+            .unwrap_or_default()
+    };
+
+    if plan.statements.is_empty() {
+        return Ok(table_names);
+    }
+    if table_names.is_empty() {
+        return Err("local SQL plan metadata must include tableName or tableNames".to_string());
+    }
+    if table_names
+        .iter()
+        .any(|table_name| !is_safe_local_sql_identifier(table_name))
+    {
+        return Err("local SQL plan metadata contains an unsafe table name".to_string());
+    }
+
+    Ok(table_names)
+}
+
+fn normalize_sql_for_table_match(sql: &str) -> String {
+    sql.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_uppercase()
+}
+
+fn local_sql_mentions_allowed_table(sql: &str, allowed_tables: &[String]) -> bool {
+    let normalized_sql = normalize_sql_for_table_match(sql);
+    let padded_sql = format!(" {normalized_sql} ");
+
+    allowed_tables.iter().any(|table_name| {
+        let table_name = table_name.to_ascii_uppercase();
+        [
+            format!(" FROM {table_name} "),
+            format!(" INTO {table_name} "),
+            format!(" UPDATE {table_name} "),
+            format!(" DELETE FROM {table_name} "),
+            format!(" TABLE {table_name} "),
+            format!(" TABLE IF NOT EXISTS {table_name} "),
+            format!(" ON {table_name} "),
+        ]
+        .iter()
+        .any(|pattern| padded_sql.contains(pattern))
+    })
+}
+
+fn validate_local_sql_statement(
+    sql: &str,
+    allowed_tables: &[String],
+    allow_create: bool,
+) -> Result<String, String> {
+    let normalized_sql = normalize_local_sql(sql);
+    if normalized_sql.is_empty() {
+        return Err("local SQL plan contains an empty statement".to_string());
+    }
+    if normalized_sql.contains(';') {
+        return Err("local SQL plan statements must contain exactly one SQL statement".to_string());
+    }
+
+    let upper_sql = normalized_sql.to_ascii_uppercase();
+    let allowed_prefixes = ["SELECT ", "INSERT ", "UPDATE ", "DELETE ", "CREATE "];
+    if !allowed_prefixes
+        .iter()
+        .any(|prefix| upper_sql.starts_with(prefix))
+    {
+        return Err(format!(
+            "local SQL plan statement is not allowed: {}",
+            upper_sql.split_whitespace().next().unwrap_or("<empty>")
+        ));
+    }
+
+    if upper_sql.starts_with("CREATE ") && !allow_create {
+        return Err("local SQL CREATE statements are only allowed for migration plans".to_string());
+    }
+
+    for forbidden_token in ["ATTACH", "DETACH", "DROP", "PRAGMA", "VACUUM"] {
+        if upper_sql
+            .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+            .any(|token| token == forbidden_token)
+        {
+            return Err(format!(
+                "local SQL plan statement contains forbidden token {forbidden_token}"
+            ));
+        }
+    }
+
+    if !local_sql_mentions_allowed_table(&normalized_sql, allowed_tables) {
+        return Err(
+            "local SQL plan statement does not target its declared table metadata".to_string(),
+        );
+    }
+
+    Ok(normalized_sql)
+}
+
+fn execute_local_sql_statement(
+    connection: &Connection,
+    statement: &LocalSqlPlanStatement,
+    allowed_tables: &[String],
+    allow_create: bool,
+) -> Result<(usize, Option<Vec<JsonMap<String, JsonValue>>>), String> {
+    let sql = validate_local_sql_statement(&statement.sql, allowed_tables, allow_create)?;
+    let params: Vec<SqlValue> = statement
+        .params
+        .iter()
+        .map(json_value_to_sql_value)
+        .collect();
+
+    if is_local_sql_read_statement(&sql) {
+        let mut prepared_statement = connection
+            .prepare(&sql)
+            .map_err(|error| format!("failed to prepare local SQL read: {error}"))?;
+        let column_names: Vec<String> = prepared_statement
+            .column_names()
+            .iter()
+            .map(|column_name| column_name.to_string())
+            .collect();
+        let mut rows = prepared_statement
+            .query(params_from_iter(params.iter()))
+            .map_err(|error| format!("failed to query local SQL read: {error}"))?;
+        let mut mapped_rows = Vec::new();
+        while let Some(row) = rows
+            .next()
+            .map_err(|error| format!("failed to read local SQL row: {error}"))?
+        {
+            let mut mapped_row = JsonMap::new();
+            for (column_index, column_name) in column_names.iter().enumerate() {
+                let value = row
+                    .get_ref(column_index)
+                    .map_err(|error| format!("failed to read local SQL column: {error}"))?;
+                mapped_row.insert(column_name.clone(), sqlite_value_to_json(value));
+            }
+            mapped_rows.push(mapped_row);
+        }
+        return Ok((0, Some(mapped_rows)));
+    }
+
+    let affected_row_count = connection
+        .execute(&sql, params_from_iter(params.iter()))
+        .map_err(|error| format!("failed to execute local SQL write: {error}"))?;
+    Ok((affected_row_count, None))
+}
+
+fn execute_local_sql_plan(
+    connection: &mut Connection,
+    plan: &LocalSqlPlan,
+) -> Result<LocalSqlExecutionResult, String> {
+    if plan.provider_id != "sqlite" {
+        return Err(format!(
+            "local SQL bridge only supports sqlite plans, received {}",
+            plan.provider_id
+        ));
+    }
+
+    let allowed_tables = read_local_sql_plan_allowed_tables(plan)?;
+    let allow_create = read_local_sql_plan_meta_kind(plan) == Some("migration");
+    let mut affected_row_count = 0_usize;
+    let mut rows = None;
+
+    if plan.transactional {
+        let transaction = connection
+            .transaction()
+            .map_err(|error| format!("failed to start local SQL transaction: {error}"))?;
+        for statement in &plan.statements {
+            let (statement_affected_row_count, statement_rows) = execute_local_sql_statement(
+                &transaction,
+                statement,
+                &allowed_tables,
+                allow_create,
+            )?;
+            affected_row_count += statement_affected_row_count;
+            if statement_rows.is_some() {
+                rows = statement_rows;
+            }
+        }
+        transaction
+            .commit()
+            .map_err(|error| format!("failed to commit local SQL transaction: {error}"))?;
+    } else {
+        for statement in &plan.statements {
+            let (statement_affected_row_count, statement_rows) =
+                execute_local_sql_statement(connection, statement, &allowed_tables, allow_create)?;
+            affected_row_count += statement_affected_row_count;
+            if statement_rows.is_some() {
+                rows = statement_rows;
+            }
+        }
+    }
+
+    Ok(LocalSqlExecutionResult {
+        affected_row_count,
+        rows,
+    })
+}
+
+#[tauri::command]
+fn local_sql_execute_plan(
+    app: AppHandle,
+    plan: LocalSqlPlan,
+) -> Result<LocalSqlExecutionResult, String> {
+    let mut connection = open_database(&app)?;
+    execute_local_sql_plan(&mut connection, &plan)
+}
+
+#[tauri::command]
+fn user_home_config_read(relative_path: String) -> Result<Option<String>, String> {
+    let path = resolve_user_home_config_path(&relative_path)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    if !path.is_file() {
+        return Err(format!(
+            "user home config path is not a file: {}",
+            path.display()
+        ));
+    }
+
+    fs::read_to_string(&path)
+        .map(Some)
+        .map_err(|error| format!("failed to read user home config {}: {error}", path.display()))
+}
+
+#[tauri::command]
+fn user_home_config_write(relative_path: String, content: String) -> Result<(), String> {
+    let path = resolve_user_home_config_path(&relative_path)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "failed to create user home config directory {}: {error}",
+                parent.display()
+            )
+        })?;
+    }
+
+    fs::write(&path, content)
+        .map_err(|error| format!("failed to write user home config {}: {error}", path.display()))
 }
 
 #[tauri::command]
@@ -2092,6 +3110,9 @@ pub fn run() {
             local_store_set,
             local_store_delete,
             local_store_list,
+            local_sql_execute_plan,
+            user_home_config_read,
+            user_home_config_write,
             fs_list_directory,
             fs_snapshot_folder,
             fs_read_file,
@@ -2133,6 +3154,36 @@ pub fn run() {
 mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn user_home_config_path_is_scoped_to_birdcoder_config_root() {
+        let resolved_path =
+            resolve_user_home_config_path(".sdkwork/birdcoder/code-engine-models.json")
+                .expect("resolve canonical BirdCoder model config path");
+        assert!(
+            resolved_path.ends_with(Path::new(USER_HOME_CONFIG_RELATIVE_ROOT).join("code-engine-models.json")),
+            "canonical model config must resolve under ~/.sdkwork/birdcoder"
+        );
+        assert!(
+            resolve_user_home_config_path(".ssh/config").is_err(),
+            "user_home_config must not resolve arbitrary files under the user's home directory"
+        );
+        assert!(
+            resolve_user_home_config_path(".sdkwork/birdcoder").is_err(),
+            "user_home_config must target a file below ~/.sdkwork/birdcoder, not the config root directory itself"
+        );
+
+        for relative_path in [
+            ".sdkwork/birdcoder2/code-engine-models.json",
+            ".sdkwork/other/code-engine-models.json",
+            "sdkwork/birdcoder/code-engine-models.json",
+        ] {
+            assert!(
+                resolve_user_home_config_path(relative_path).is_err(),
+                "user_home_config must reject paths outside ~/.sdkwork/birdcoder: {relative_path}"
+            );
+        }
+    }
 
     #[test]
     fn bind_embedded_coding_server_listener_falls_back_to_ephemeral_loopback_port_when_preferred_port_is_occupied(
@@ -2199,6 +3250,7 @@ mod tests {
             "run_configurations",
             "terminal_executions",
             "coding_sessions",
+            "coding_session_messages",
             "coding_session_runtimes",
             "coding_session_events",
             "coding_session_artifacts",
@@ -2212,6 +3264,40 @@ mod tests {
             assert!(
                 table_exists(&connection, table_name),
                 "missing table: {table_name}"
+            );
+        }
+
+        for column_name in [
+            "uuid",
+            "host_mode",
+            "native_session_id",
+            "sort_timestamp",
+            "transcript_updated_at",
+            "pinned",
+            "archived",
+            "unread",
+        ] {
+            assert!(
+                column_exists(&connection, "coding_sessions", column_name),
+                "coding_sessions must include {column_name}"
+            );
+        }
+
+        for column_name in [
+            "coding_session_id",
+            "turn_id",
+            "role",
+            "content",
+            "metadata_json",
+            "timestamp_ms",
+            "tool_calls_json",
+            "file_changes_json",
+            "commands_json",
+            "task_progress_json",
+        ] {
+            assert!(
+                column_exists(&connection, "coding_session_messages", column_name),
+                "coding_session_messages must include {column_name}"
             );
         }
 
@@ -2229,6 +3315,137 @@ mod tests {
             )
             .expect("query applied migrations");
         assert_eq!(applied_migration_count, 2);
+    }
+
+    #[test]
+    fn desktop_local_startup_imports_legacy_sibling_projects_into_plus_authority_tables() {
+        let unique_suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("read system time")
+            .as_nanos();
+        let database_dir = std::env::temp_dir().join(format!(
+            "sdkwork-birdcoder-desktop-legacy-project-import-{unique_suffix}"
+        ));
+        std::fs::create_dir_all(&database_dir).expect("create temp sqlite directory");
+        let current_database_path = database_dir.join("sdkwork-birdcoder-desktop-local.sqlite3");
+        let legacy_database_path = database_dir.join("sdkwork-birdcoder.sqlite3");
+
+        let current_connection =
+            Connection::open(&current_database_path).expect("open current desktop-local sqlite");
+        initialize_database_schema(&current_connection).expect("initialize current sqlite schema");
+        ensure_bootstrap_workspace_authority(&current_connection)
+            .expect("ensure current bootstrap workspace");
+
+        let legacy_connection =
+            Connection::open(&legacy_database_path).expect("open legacy sibling sqlite");
+        let legacy_project_seed_sql = format!(
+            r#"
+                CREATE TABLE {legacy_projects_table} (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    workspace_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    title TEXT NULL,
+                    description TEXT NULL,
+                    root_path TEXT NULL,
+                    status TEXT NOT NULL
+                );
+                INSERT INTO {legacy_projects_table} (
+                    id, created_at, updated_at, is_deleted, workspace_id,
+                    name, title, description, root_path, status
+                )
+                VALUES
+                    (
+                        'project-recovered',
+                        '2026-04-17T19:50:45Z',
+                        '2026-04-17T19:53:25Z',
+                        0,
+                        'workspace-default',
+                        'spring-ai-plus',
+                        'spring-ai-plus',
+                        'Recovered legacy project',
+                        'D:/javasource/spring-ai-plus',
+                        'active'
+                    ),
+                    (
+                        'project-deleted',
+                        '2026-04-17T19:50:45Z',
+                        '2026-04-17T19:53:25Z',
+                        1,
+                        'workspace-default',
+                        'deleted-project',
+                        'deleted-project',
+                        'Deleted legacy project',
+                        'D:/deleted-project',
+                        'active'
+                    );
+                "#,
+            legacy_projects_table = "projects",
+        );
+        legacy_connection
+            .execute_batch(&legacy_project_seed_sql)
+            .expect("seed legacy projects");
+        drop(legacy_connection);
+
+        import_legacy_desktop_local_projects_from_sibling(
+            &current_connection,
+            &current_database_path,
+        )
+        .expect("import legacy sibling projects");
+        import_legacy_desktop_local_projects_from_sibling(
+            &current_connection,
+            &current_database_path,
+        )
+        .expect("repeat legacy sibling project import");
+
+        let imported_count = current_connection
+            .query_row(
+                r#"
+                SELECT COUNT(*)
+                FROM plus_project AS project
+                JOIN plus_project_content AS content
+                  ON content.project_id = project.id
+                WHERE project.is_deleted = 0
+                  AND content.config_data LIKE '%D:/javasource/spring-ai-plus%'
+                "#,
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .expect("query imported project count");
+        assert_eq!(
+            imported_count, 1,
+            "legacy project import must be idempotent and skip deleted projects"
+        );
+
+        let (title, workspace_id, config_data) = current_connection
+            .query_row(
+                r#"
+                SELECT project.title, CAST(project.workspace_id AS TEXT), content.config_data
+                FROM plus_project AS project
+                JOIN plus_project_content AS content
+                  ON content.project_id = project.id
+                WHERE content.config_data LIKE '%D:/javasource/spring-ai-plus%'
+                LIMIT 1
+                "#,
+                [],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                },
+            )
+            .expect("query imported project row");
+        assert_eq!(title, "spring-ai-plus");
+        assert_eq!(workspace_id, DEFAULT_BOOTSTRAP_WORKSPACE_ID);
+        assert!(
+            config_data.contains("\"rootPath\":\"D:/javasource/spring-ai-plus\""),
+            "imported legacy project root must be stored in plus_project_content config_data"
+        );
     }
 
     #[test]
@@ -2252,6 +3469,81 @@ mod tests {
         assert!(
             build_result.is_ok(),
             "desktop-initialized authority file should load in embedded server: {build_result:?}"
+        );
+    }
+
+    #[test]
+    fn local_sql_plan_validation_accepts_table_repository_plans_only_for_declared_tables() {
+        let allowed_tables = vec!["plus_project".to_string()];
+
+        assert_eq!(
+            validate_local_sql_statement(
+                "SELECT * FROM plus_project WHERE id = ?1 LIMIT 1;",
+                &allowed_tables,
+                false,
+            )
+            .expect("accept table read"),
+            "SELECT * FROM plus_project WHERE id = ?1 LIMIT 1"
+        );
+        assert!(
+            validate_local_sql_statement(
+                "SELECT * FROM coding_sessions WHERE id = ?1 LIMIT 1;",
+                &allowed_tables,
+                false,
+            )
+            .is_err(),
+            "SQL bridge must reject statements that do not target the declared metadata table"
+        );
+        assert!(
+            validate_local_sql_statement(
+                "CREATE TABLE IF NOT EXISTS plus_project (id TEXT PRIMARY KEY);",
+                &allowed_tables,
+                false,
+            )
+            .is_err(),
+            "SQL bridge must only allow CREATE for migration plans"
+        );
+    }
+
+    #[test]
+    fn local_sql_plan_validation_rejects_unsafe_tokens() {
+        let allowed_tables = vec!["plus_project".to_string()];
+
+        for sql in [
+            "DROP TABLE plus_project",
+            "ATTACH DATABASE 'other.sqlite' AS other",
+            "PRAGMA table_info(plus_project)",
+            "VACUUM",
+        ] {
+            assert!(
+                validate_local_sql_statement(sql, &allowed_tables, true).is_err(),
+                "SQL bridge must reject unsafe statement: {sql}"
+            );
+        }
+    }
+
+    #[test]
+    fn local_sql_plan_metadata_controls_migration_table_scope() {
+        let plan = LocalSqlPlan {
+            provider_id: "sqlite".to_string(),
+            intent: "write".to_string(),
+            meta: Some(serde_json::json!({
+                "kind": "migration",
+                "tableNames": ["plus_project"],
+            })),
+            statements: vec![LocalSqlPlanStatement {
+                sql: "CREATE TABLE IF NOT EXISTS plus_project (id TEXT PRIMARY KEY);".to_string(),
+                params: Vec::new(),
+            }],
+            transactional: true,
+        };
+        let allowed_tables =
+            read_local_sql_plan_allowed_tables(&plan).expect("read migration table scope");
+
+        assert_eq!(allowed_tables, vec!["plus_project".to_string()]);
+        assert!(
+            validate_local_sql_statement(&plan.statements[0].sql, &allowed_tables, true).is_ok(),
+            "migration plans should be allowed to create their declared table"
         );
     }
 

@@ -83,6 +83,39 @@ assert.deepEqual(
   'Workbench active chat selection updates must switch engine/model atomically so a new-session engine change cannot leave a stale model from the previous engine.',
 );
 
+const perEnginePreferences = setWorkbenchActiveChatSelection(
+  setWorkbenchActiveChatSelection(
+    DEFAULT_WORKBENCH_PREFERENCES,
+    'codex',
+    'gpt-5.3-codex',
+  ),
+  'gemini',
+  'gemini-1.5-pro',
+);
+assert.equal(perEnginePreferences.codeEngineId, 'gemini');
+assert.equal(perEnginePreferences.codeModelId, 'gemini-1.5-pro');
+assert.equal(
+  perEnginePreferences.codeEngineSettings.codex?.defaultModelId,
+  'gpt-5.3-codex',
+  'Workbench preferences must preserve the selected model independently for Codex after switching to another engine.',
+);
+assert.equal(
+  perEnginePreferences.codeEngineSettings.gemini?.defaultModelId,
+  'gemini-1.5-pro',
+  'Workbench preferences must preserve the selected model independently for Gemini.',
+);
+assert.deepEqual(
+  resolveWorkbenchChatSelection(
+    { codeEngineId: 'codex', codeModelId: 'gemini-1.5-pro' },
+    perEnginePreferences,
+  ),
+  {
+    codeEngineId: 'codex',
+    codeModelId: 'gpt-5.3-codex',
+  },
+  'Switching back to an engine must restore that engine owned selected model instead of carrying a stale model from another engine.',
+);
+
 const settingsEngineLocalePaths = [
   '../packages/sdkwork-birdcoder-i18n/src/locales/en/settings-engine.ts',
   '../packages/sdkwork-birdcoder-i18n/src/locales/zh/settings-engine.ts',

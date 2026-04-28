@@ -272,6 +272,8 @@ export function useSelectedCodingSessionMessages({
     );
     const selectionRefreshKey =
       `${synchronizationScopeKey}:${selectionRefreshToken}:${executionRefreshTick}`;
+    const hadSynchronizedSessionVersion =
+      synchronizedSessionVersionsByScopeKey.has(synchronizationScopeKey);
     if (
       processedSelectionRefreshKeyByScopeKey.get(synchronizationScopeKey) !== selectionRefreshKey
     ) {
@@ -291,6 +293,12 @@ export function useSelectedCodingSessionMessages({
     const resolvedCodingSession =
       selectedCodingSession?.id === normalizedCodingSessionId ? selectedCodingSession : null;
     const shouldBootstrapFromAuthority = !resolvedProject || !resolvedCodingSession;
+    const shouldShowForegroundLoading =
+      !hadSynchronizedSessionVersion &&
+      (
+        shouldBootstrapFromAuthority ||
+        (resolvedCodingSession !== null && resolvedCodingSession.messages.length === 0)
+      );
 
     const synchronizationVersion =
       resolvedCodingSession && resolvedProject
@@ -315,9 +323,11 @@ export function useSelectedCodingSessionMessages({
       synchronizationVersion,
     );
     activeSynchronizationCountRef.current += 1;
-    setIsSelectedCodingSessionMessagesLoading((previousState) =>
-      previousState ? previousState : true,
-    );
+    if (shouldShowForegroundLoading) {
+      setIsSelectedCodingSessionMessagesLoading((previousState) =>
+        previousState ? previousState : true,
+      );
+    }
     let isDisposed = false;
 
     const synchronizationTask = shouldBootstrapFromAuthority
@@ -382,16 +392,16 @@ export function useSelectedCodingSessionMessages({
               synchronizedProject,
               normalizedUserScope,
             );
-          } else {
-            upsertCodingSessionIntoProjectsStore(
-              result.workspaceId ??
-                resolvedProject?.workspaceId ??
-                result.codingSession.workspaceId,
-              result.projectId,
-              result.codingSession,
-              normalizedUserScope,
-            );
           }
+          upsertCodingSessionIntoProjectsStore(
+            result.workspaceId?.trim() ||
+              synchronizedProject?.workspaceId?.trim() ||
+              resolvedProject?.workspaceId?.trim() ||
+              result.codingSession.workspaceId,
+            result.projectId,
+            result.codingSession,
+            normalizedUserScope,
+          );
         }
         setTrackedScopeValue(
           synchronizedSessionVersionsByScopeKey,

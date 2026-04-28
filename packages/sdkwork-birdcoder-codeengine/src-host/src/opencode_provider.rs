@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
+use crate::opencode::build_opencode_tool_command_arguments;
+
 use crate::{
     build_codeengine_turn_prompt, build_native_session_id, canonicalize_codeengine_tool_name,
     create_opencode_session, extract_native_lookup_id_for_engine, get_opencode_session,
@@ -10,10 +12,14 @@ use crate::{
     lookup_standard_native_session_provider_registration, map_codeengine_session_runtime_status,
     map_codeengine_session_status_from_runtime, map_codeengine_tool_command_status,
     map_codeengine_tool_kind, map_codeengine_tool_runtime_status, prompt_opencode_session,
+    prompt_opencode_session_async, reject_opencode_question_request,
+    reply_opencode_permission_request, reply_opencode_question_request,
     resolve_codeengine_command_interaction_state, resolve_codeengine_command_text,
-    session_id_targets_engine, CodeEngineProviderPlugin, CodeEngineSessionCommandRecord,
-    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord, CodeEngineSessionSummaryRecord,
-    CodeEngineTurnRequestRecord, CodeEngineTurnResultRecord, NativeSessionProviderRegistration,
+    session_id_targets_engine, stream_opencode_session_events, CodeEngineApprovalDecisionRecord,
+    CodeEngineProviderPlugin, CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord,
+    CodeEngineSessionMessageRecord, CodeEngineSessionSummaryRecord, CodeEngineTurnRequestRecord,
+    CodeEngineTurnResultRecord, CodeEngineTurnStreamEventRecord,
+    CodeEngineUserQuestionAnswerRecord, NativeSessionProviderRegistration,
 };
 
 pub struct OpencodeCodeEngineProvider;
@@ -122,24 +128,7 @@ impl CodeEngineProviderPlugin for OpencodeCodeEngineProvider {
             );
         }
 
-        let raw_session_id = if let Some(native_session_id) = request.native_session_id.as_deref() {
-            extract_native_lookup_id_for_engine(native_session_id, OPENCODE_ENGINE_ID)?
-        } else {
-            let working_directory = request
-                .working_directory
-                .as_deref()
-                .filter(|directory| directory.exists())
-                .ok_or_else(|| {
-                    "OpenCode native session requires an existing project directory for session creation."
-                        .to_owned()
-                })?;
-            let create_title = truncate_title(&request.input_summary);
-            let created_session =
-                create_opencode_session(working_directory, Some(create_title.as_str()))?;
-            normalize_value_string(created_session.get("id")).ok_or_else(|| {
-                "OpenCode create session response did not include an id.".to_owned()
-            })?
-        };
+        let raw_session_id = resolve_opencode_turn_session_id(request)?;
 
         let prompt_response = prompt_opencode_session(
             raw_session_id.as_str(),
@@ -185,6 +174,132 @@ impl CodeEngineProviderPlugin for OpencodeCodeEngineProvider {
             },
         })
     }
+
+    fn execute_turn_with_events(
+        &self,
+        request: &CodeEngineTurnRequestRecord,
+        on_event: &mut dyn FnMut(CodeEngineTurnStreamEventRecord) -> Result<(), String>,
+    ) -> Result<CodeEngineTurnResultRecord, String> {
+        if !is_opencode_transport_available() {
+            return Err(
+                "OpenCode native transport is unavailable. Install `opencode` or set `OPENCODE_SERVER_URL` to an existing OpenCode server.".to_owned(),
+            );
+        }
+
+        let raw_session_id = resolve_opencode_turn_session_id(request)?;
+        let prompt_text = build_codeengine_turn_prompt(
+            &request.request_kind,
+            &request.input_summary,
+            request.ide_context.as_ref(),
+        );
+        let mut streamed_content = String::new();
+        stream_opencode_session_events(
+            raw_session_id.as_str(),
+            || {
+                prompt_opencode_session_async(
+                    raw_session_id.as_str(),
+                    prompt_text.as_str(),
+                    Some(request.model_id.as_str()),
+                )
+            },
+            &mut |event| {
+                streamed_content.push_str(event.content_delta.as_str());
+                on_event(event)
+            },
+        )?;
+
+        let messages = get_opencode_session_messages(raw_session_id.as_str())?;
+        let (assistant_content, commands) =
+            extract_latest_opencode_assistant_turn_payload(&messages)
+                .or_else(|| {
+                    Some((
+                        streamed_content.clone(),
+                        Vec::<CodeEngineSessionCommandRecord>::new(),
+                    ))
+                    .filter(|(content, _)| !content.trim().is_empty())
+                })
+                .ok_or_else(|| {
+                    "OpenCode streamed turn completed without an assistant message payload."
+                        .to_owned()
+                })?;
+
+        Ok(CodeEngineTurnResultRecord {
+            assistant_content,
+            native_session_id: Some(build_native_session_id(OPENCODE_ENGINE_ID, &raw_session_id)),
+            commands: if commands.is_empty() {
+                None
+            } else {
+                Some(commands)
+            },
+        })
+    }
+
+    fn supports_live_approval_decision_replies(&self) -> bool {
+        true
+    }
+
+    fn supports_live_user_question_replies(&self) -> bool {
+        true
+    }
+
+    fn submit_approval_decision(
+        &self,
+        decision: &CodeEngineApprovalDecisionRecord,
+    ) -> Result<(), String> {
+        if !is_opencode_transport_available() {
+            return Err(
+                "OpenCode native transport is unavailable. Install `opencode` or set `OPENCODE_SERVER_URL` to an existing OpenCode server.".to_owned(),
+            );
+        }
+
+        reply_opencode_permission_request(
+            decision.approval_id.as_str(),
+            decision.decision.as_str(),
+            decision.reason.as_deref(),
+        )
+    }
+
+    fn submit_user_question_answer(
+        &self,
+        answer: &CodeEngineUserQuestionAnswerRecord,
+    ) -> Result<(), String> {
+        if !is_opencode_transport_available() {
+            return Err(
+                "OpenCode native transport is unavailable. Install `opencode` or set `OPENCODE_SERVER_URL` to an existing OpenCode server.".to_owned(),
+            );
+        }
+
+        if answer.rejected {
+            return reject_opencode_question_request(answer.question_id.as_str());
+        }
+
+        reply_opencode_question_request(
+            answer.question_id.as_str(),
+            answer.answer.as_str(),
+            answer.option_label.as_deref(),
+        )
+    }
+}
+
+fn resolve_opencode_turn_session_id(
+    request: &CodeEngineTurnRequestRecord,
+) -> Result<String, String> {
+    if let Some(native_session_id) = request.native_session_id.as_deref() {
+        return extract_native_lookup_id_for_engine(native_session_id, OPENCODE_ENGINE_ID);
+    }
+
+    let working_directory = request
+        .working_directory
+        .as_deref()
+        .filter(|directory| directory.exists())
+        .ok_or_else(|| {
+            "OpenCode native session requires an existing project directory for session creation."
+                .to_owned()
+        })?;
+    let create_title = truncate_title(&request.input_summary);
+    let created_session = create_opencode_session(working_directory, Some(create_title.as_str()))?;
+    normalize_value_string(created_session.get("id"))
+        .ok_or_else(|| "OpenCode create session response did not include an id.".to_owned())
 }
 
 fn build_opencode_session_summary_record(
@@ -261,6 +376,30 @@ fn build_opencode_message_records(
         .iter()
         .filter_map(|message| build_opencode_message_record(coding_session_id, message))
         .collect()
+}
+
+fn extract_latest_opencode_assistant_turn_payload(
+    messages: &[Value],
+) -> Option<(String, Vec<CodeEngineSessionCommandRecord>)> {
+    messages.iter().rev().find_map(|message| {
+        let info = message.get("info")?;
+        let role = normalize_non_empty_string(info.get("role").and_then(Value::as_str))
+            .unwrap_or_else(|| "assistant".to_owned());
+        if role == "user" {
+            return None;
+        }
+        let parts = message
+            .get("parts")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let commands = extract_opencode_message_commands(&parts);
+        let content = extract_opencode_message_content(&parts, commands.as_slice());
+        if content.trim().is_empty() {
+            return None;
+        }
+        Some((content, commands))
+    })
 }
 
 fn build_opencode_message_record(
@@ -411,55 +550,6 @@ fn extract_opencode_message_commands(parts: &[Value]) -> Vec<CodeEngineSessionCo
             })
         })
         .collect()
-}
-
-fn build_opencode_tool_command_arguments(state: Option<&Value>) -> Option<Value> {
-    let state = state?;
-    let mut arguments = normalize_opencode_tool_input_arguments(state.get("input"));
-    if !arguments.contains_key("title") {
-        if let Some(title) = normalize_value_string(state.get("title")) {
-            arguments.insert("title".to_owned(), Value::String(title));
-        }
-    }
-
-    if arguments.is_empty() {
-        None
-    } else {
-        Some(Value::Object(arguments))
-    }
-}
-
-fn normalize_opencode_tool_input_arguments(
-    input: Option<&Value>,
-) -> serde_json::Map<String, Value> {
-    match input {
-        Some(Value::Object(arguments)) => arguments.clone(),
-        Some(Value::String(value)) => {
-            let trimmed = value.trim();
-            if trimmed.is_empty() {
-                return serde_json::Map::new();
-            }
-            match serde_json::from_str::<Value>(trimmed) {
-                Ok(Value::Object(arguments)) => arguments,
-                Ok(parsed_value) => {
-                    let mut arguments = serde_json::Map::new();
-                    arguments.insert("input".to_owned(), parsed_value);
-                    arguments
-                }
-                Err(_) => {
-                    let mut arguments = serde_json::Map::new();
-                    arguments.insert("input".to_owned(), Value::String(value.to_owned()));
-                    arguments
-                }
-            }
-        }
-        Some(value) => {
-            let mut arguments = serde_json::Map::new();
-            arguments.insert("input".to_owned(), value.clone());
-            arguments
-        }
-        None => serde_json::Map::new(),
-    }
 }
 
 fn build_opencode_message_metadata(info: &Value) -> Option<BTreeMap<String, String>> {

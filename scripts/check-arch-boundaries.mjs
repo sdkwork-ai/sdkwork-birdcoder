@@ -71,6 +71,13 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-types',
   ])],
   ['@sdkwork/birdcoder-infrastructure-runtime', new Set()],
+  ['@sdkwork/birdcoder-multiwindow', new Set([
+    '@sdkwork/birdcoder-codeengine',
+    '@sdkwork/birdcoder-commons',
+    '@sdkwork/birdcoder-types',
+    '@sdkwork/birdcoder-ui-shell',
+    '@sdkwork/birdcoder-ui',
+  ])],
   ['@sdkwork/birdcoder-server', new Set([
     '@sdkwork/birdcoder-chat',
     '@sdkwork/birdcoder-codeengine',
@@ -92,6 +99,7 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-code',
     '@sdkwork/birdcoder-commons',
     '@sdkwork/birdcoder-i18n',
+    '@sdkwork/birdcoder-multiwindow',
     '@sdkwork/birdcoder-settings',
     '@sdkwork/birdcoder-skills',
     '@sdkwork/birdcoder-studio',

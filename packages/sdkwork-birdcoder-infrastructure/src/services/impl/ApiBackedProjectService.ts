@@ -3,6 +3,7 @@ import type {
   BirdCoderChatMessage,
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSession,
+  BirdCoderCodingSessionTurnOptions,
   BirdCoderCodingSessionTurnIdeContext,
   BirdCoderCodingSessionSummary,
   BirdCoderCreateCodingSessionTurnRequest,
@@ -52,11 +53,26 @@ const ZERO_TIMESTAMP = new Date(0).toISOString();
 const PROJECT_LIST_CACHE_TTL_MS = 30_000;
 const PROJECT_DETAIL_CACHE_TTL_MS = 15_000;
 const AUTHORITATIVE_CODING_SESSION_SUMMARY_CACHE_TTL_MS = 15_000;
+const LOCAL_EXECUTING_RUNTIME_STATUS_STALE_MS = 2 * 60 * 1000;
+const LOCAL_ORPHANABLE_EXECUTING_RUNTIME_STATUS_SET = new Set<
+  NonNullable<BirdCoderCodingSession['runtimeStatus']>
+>(['initializing', 'streaming', 'awaiting_tool']);
 
 interface ReadCacheEntry<T> {
   expiresAt: number;
   inflight: Promise<T> | null;
   value?: T;
+}
+
+interface BackgroundRemoteTurnMirrorSyncScope {
+  codingSessionId: string;
+  projectId: string;
+  workspaceId?: string;
+}
+
+interface BackgroundRemoteTurnMirrorSyncEntry {
+  latestScope: BackgroundRemoteTurnMirrorSyncScope;
+  rerunRequested: boolean;
 }
 
 type LocalCodingSessionSnapshot =
@@ -141,10 +157,34 @@ export interface ApiBackedProjectServiceOptions {
   coreReadClient?: BirdCoderCoreReadApiClient;
   coreWriteClient?: BirdCoderCoreWriteApiClient;
   identityProvider?: Pick<IAuthService, 'getCurrentUser'>;
-  projectMirror?: {
-    syncProjectSummary(summary: BirdCoderProjectSummary): Promise<BirdCoderProject>;
-  };
+  projectMirror?: ProjectSummaryMirror;
   writeService: IProjectService;
+}
+
+interface ProjectSummaryMirror {
+  syncProjectSummary(summary: BirdCoderProjectSummary): Promise<BirdCoderProject>;
+}
+
+function isProjectSummaryMirror(value: unknown): value is ProjectSummaryMirror {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as { syncProjectSummary?: unknown }).syncProjectSummary === 'function'
+  );
+}
+
+function collectProjectSummaryMirrors(
+  ...candidates: readonly unknown[]
+): ProjectSummaryMirror[] {
+  const mirrors: ProjectSummaryMirror[] = [];
+  for (const candidate of candidates) {
+    if (!isProjectSummaryMirror(candidate) || mirrors.includes(candidate)) {
+      continue;
+    }
+
+    mirrors.push(candidate);
+  }
+  return mirrors;
 }
 
 function mergeProjectSummary(
@@ -273,6 +313,11 @@ function mergeCodingSessionSummary(
       lastTurnAt,
       updatedAt,
     ) ?? null;
+  const runtimeStatus = resolveMergedCodingSessionRuntimeStatus(
+    summary,
+    localCodingSession,
+    shouldPreferLocalState,
+  );
   const nextCodingSession = {
     id: summary.id,
     workspaceId: summary.workspaceId,
@@ -283,9 +328,7 @@ function mergeCodingSessionSummary(
     engineId: summary.engineId,
     modelId: summary.modelId,
     nativeSessionId: summary.nativeSessionId ?? localCodingSession?.nativeSessionId,
-    runtimeStatus: shouldPreferLocalState
-      ? localCodingSession?.runtimeStatus ?? summary.runtimeStatus
-      : summary.runtimeStatus ?? localCodingSession?.runtimeStatus,
+    runtimeStatus,
     createdAt: summary.createdAt,
     updatedAt,
     lastTurnAt,
@@ -378,6 +421,28 @@ function toProjectCodingSession(
       preserveLocalMessages && 'messages' in localCodingSession
         ? structuredClone(localCodingSession.messages)
         : [],
+  };
+}
+
+function toInventoryProjectCodingSession(
+  localCodingSession: LocalCodingSessionSnapshot,
+  options: CodingSessionProjectionOptions = {},
+): BirdCoderCodingSession {
+  const projectedCodingSession = toProjectCodingSession(localCodingSession, options);
+  return isStaleLocalExecutingCodingSessionRuntimeStatus(projectedCodingSession)
+    ? {
+        ...projectedCodingSession,
+        runtimeStatus: undefined,
+      }
+    : projectedCodingSession;
+}
+
+function normalizeProjectForInventory(project: BirdCoderProject): BirdCoderProject {
+  return {
+    ...project,
+    codingSessions: project.codingSessions.map((codingSession) =>
+      toInventoryProjectCodingSession(codingSession),
+    ),
   };
 }
 
@@ -690,7 +755,7 @@ function mergeAuthoritativeProjectSessions(
   const localProject = localProjects.find((candidate) => candidate.id === projectId);
   if (authoritativeCodingSessions === null) {
     return (localProject?.codingSessions ?? []).map((codingSession) =>
-      toProjectCodingSession(codingSession),
+      toInventoryProjectCodingSession(codingSession),
     );
   }
 
@@ -708,7 +773,7 @@ function mergeAuthoritativeProjectSessions(
   );
   const localOnlySessions = (localProject?.codingSessions ?? [])
     .filter((codingSession) => !authoritativeCodingSessionIds.has(codingSession.id))
-    .map((codingSession) => toProjectCodingSession(codingSession));
+    .map((codingSession) => toInventoryProjectCodingSession(codingSession));
 
   return sortCachedProjectCodingSessions([
     ...authoritativeSessions,
@@ -757,18 +822,16 @@ function shouldPreferLocalCodingSessionState(
     summary.transcriptUpdatedAt ?? summary.lastTurnAt ?? summary.updatedAt,
   );
 
-  if (localActivityTimestamp > authoritativeActivityTimestamp) {
-    return true;
+  if (isTerminalCodingSessionRuntimeStatus(summary.runtimeStatus)) {
+    return false;
   }
 
-  if (
-    localActivityTimestamp === authoritativeActivityTimestamp &&
-    isBirdCoderCodingSessionExecuting({
-      runtimeStatus: localCodingSession.runtimeStatus,
-    }) &&
-    isTerminalCodingSessionRuntimeStatus(summary.runtimeStatus)
-  ) {
+  if (isStaleLocalExecutingCodingSessionRuntimeStatus(localCodingSession)) {
     return false;
+  }
+
+  if (localActivityTimestamp > authoritativeActivityTimestamp) {
+    return true;
   }
 
   return (
@@ -779,6 +842,47 @@ function shouldPreferLocalCodingSessionState(
     !isBirdCoderCodingSessionExecuting({
       runtimeStatus: summary.runtimeStatus,
     })
+  );
+}
+
+function resolveMergedCodingSessionRuntimeStatus(
+  summary: BirdCoderCodingSessionSummary,
+  localCodingSession: LocalCodingSessionSnapshot | undefined,
+  shouldPreferLocalState: boolean,
+): BirdCoderCodingSession['runtimeStatus'] {
+  if (shouldPreferLocalState) {
+    return localCodingSession?.runtimeStatus ?? summary.runtimeStatus;
+  }
+
+  if (summary.runtimeStatus) {
+    return summary.runtimeStatus;
+  }
+
+  return isStaleLocalExecutingCodingSessionRuntimeStatus(localCodingSession)
+    ? undefined
+    : localCodingSession?.runtimeStatus;
+}
+
+function isStaleLocalExecutingCodingSessionRuntimeStatus(
+  localCodingSession: LocalCodingSessionSnapshot | undefined,
+): boolean {
+  if (
+    !localCodingSession?.runtimeStatus ||
+    !LOCAL_ORPHANABLE_EXECUTING_RUNTIME_STATUS_SET.has(
+      localCodingSession.runtimeStatus,
+    )
+  ) {
+    return false;
+  }
+
+  const localActivityTimestamp = resolveComparableTimestamp(
+    localCodingSession.transcriptUpdatedAt ??
+      localCodingSession.lastTurnAt ??
+      localCodingSession.updatedAt,
+  );
+  return (
+    localActivityTimestamp > 0 &&
+    Date.now() - localActivityTimestamp >= LOCAL_EXECUTING_RUNTIME_STATUS_STALE_MS
   );
 }
 
@@ -856,7 +960,7 @@ function sortProjectMirrorSnapshots(
 function toCodingSessionMirrorSnapshot(
   codingSession: LocalCodingSessionSnapshot,
 ): BirdCoderCodingSessionMirrorSnapshot {
-  const projectedCodingSession = toProjectCodingSession(codingSession);
+  const projectedCodingSession = toInventoryProjectCodingSession(codingSession);
   const messages = hasCodingSessionMessages(codingSession)
     ? codingSession.messages
     : [];
@@ -930,6 +1034,15 @@ function toProjectMirrorSnapshot(project: BirdCoderProject): BirdCoderProjectMir
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
     archived: project.archived,
+    codingSessions: project.codingSessions.map(toCodingSessionMirrorSnapshot),
+  };
+}
+
+function normalizeProjectMirrorSnapshotForInventory(
+  project: BirdCoderProjectMirrorSnapshot,
+): BirdCoderProjectMirrorSnapshot {
+  return {
+    ...project,
     codingSessions: project.codingSessions.map(toCodingSessionMirrorSnapshot),
   };
 }
@@ -1068,11 +1181,20 @@ function resolveRemoteCodingSessionTurnRequest(
   }
 
   const ideContext = readRemoteCodingSessionTurnIdeContext(message.metadata);
+  const options = readRemoteCodingSessionTurnOptions(message.metadata);
   return {
     requestKind,
     inputSummary,
+    stream: true,
     ideContext,
+    ...(options ? { options } : {}),
   };
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 function readRemoteCodingSessionTurnIdeContext(
@@ -1134,6 +1256,63 @@ function readRemoteCodingSessionTurnIdeContext(
   };
 }
 
+function normalizeRemoteFiniteNumber(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function normalizeRemotePositiveInteger(
+  value: unknown,
+  maximum: number,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(maximum, Math.max(1, Math.floor(value)));
+}
+
+function readRemoteCodingSessionTurnOptions(
+  metadata: BirdCoderChatMessage['metadata'],
+): BirdCoderCodingSessionTurnOptions | undefined {
+  const metadataRecord = readRecord(metadata);
+  const multiWindowRecord = readRecord(metadataRecord?.multiWindow);
+  if (!multiWindowRecord) {
+    return undefined;
+  }
+
+  const executionProfileRecord = readRecord(multiWindowRecord.executionProfile);
+  const parametersRecord =
+    readRecord(executionProfileRecord?.parameters) ?? readRecord(multiWindowRecord.parameters);
+  if (!parametersRecord) {
+    return undefined;
+  }
+
+  const parameters = {
+    maxOutputTokens: normalizeRemotePositiveInteger(parametersRecord.maxOutputTokens, 128000),
+    temperature: normalizeRemoteFiniteNumber(parametersRecord.temperature, 0, 2),
+    topP: normalizeRemoteFiniteNumber(parametersRecord.topP, 0, 1),
+  };
+  const options: BirdCoderCodingSessionTurnOptions = {
+    maxTokens: parameters.maxOutputTokens,
+    temperature: parameters.temperature,
+    topP: parameters.topP,
+  };
+
+  return options.maxTokens !== undefined ||
+    options.temperature !== undefined ||
+    options.topP !== undefined
+    ? options
+    : undefined;
+}
+
 function isAuthorityBackedNativeSessionId(
   codingSessionId: string,
   engineId?: string,
@@ -1190,30 +1369,6 @@ function mergeAuthoritativeProjectionMessages(
   }).sort(compareCodingSessionMessages);
 }
 
-function findAuthoritativeMessage(
-  codingSession: BirdCoderCodingSession,
-  turnId: string | undefined,
-  role: BirdCoderChatMessage['role'],
-  content: string,
-): BirdCoderChatMessage | undefined {
-  const normalizedContent = content.trim();
-
-  return (
-    codingSession.messages.find(
-      (message) =>
-        message.role === role &&
-        message.turnId === turnId &&
-        message.content.trim() === normalizedContent,
-    ) ??
-    [...codingSession.messages]
-      .reverse()
-      .find(
-        (message) =>
-          message.role === role && message.content.trim() === normalizedContent,
-      )
-  );
-}
-
 function isCodingSessionMissingInProjectError(
   error: unknown,
   projectId: string,
@@ -1225,6 +1380,26 @@ function isCodingSessionMissingInProjectError(
 
   return error.message.includes(
     `Coding session ${codingSessionId} not found in project ${projectId}`,
+  );
+}
+
+function isProjectMissingInSessionMirrorError(
+  error: unknown,
+  projectId: string,
+): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const normalizedProjectId = projectId.trim().toLowerCase();
+  if (!normalizedProjectId) {
+    return false;
+  }
+
+  const normalizedMessage = error.message.trim().toLowerCase();
+  return (
+    normalizedMessage.includes(`project ${normalizedProjectId} not found`) ||
+    normalizedMessage.includes(`project ${normalizedProjectId} was not found`)
   );
 }
 
@@ -1249,16 +1424,63 @@ function isAuthoritativeCodingSessionNotFoundError(
   return mentionsCodingSession && mentionsNotFound && (mentionsProjection || mentionsSessionId);
 }
 
+function buildCodingSessionProjectMirrorSummary(
+  projectId: string,
+  codingSession: BirdCoderCodingSession,
+  authorityProjectSummary?: BirdCoderProjectSummary,
+): BirdCoderProjectSummary | null {
+  const normalizedProjectId =
+    projectId.trim() ||
+    codingSession.projectId?.trim() ||
+    authorityProjectSummary?.id?.trim() ||
+    '';
+  const normalizedWorkspaceId =
+    codingSession.workspaceId?.trim() ||
+    authorityProjectSummary?.workspaceId?.trim() ||
+    '';
+  if (!normalizedProjectId || !normalizedWorkspaceId) {
+    return null;
+  }
+
+  const createdAt =
+    codingSession.createdAt ||
+    authorityProjectSummary?.createdAt ||
+    ZERO_TIMESTAMP;
+  const updatedAt =
+    codingSession.updatedAt ||
+    codingSession.lastTurnAt ||
+    codingSession.transcriptUpdatedAt ||
+    authorityProjectSummary?.updatedAt ||
+    createdAt;
+  const authorityName = authorityProjectSummary?.name?.trim() || '';
+  const authorityTitle = authorityProjectSummary?.title?.trim() || '';
+  const title = authorityTitle || authorityName || `Project ${normalizedProjectId}`;
+  return {
+    ...authorityProjectSummary,
+    id: normalizedProjectId,
+    workspaceId: normalizedWorkspaceId,
+    name: title,
+    title,
+    rootPath: undefined,
+    status: authorityProjectSummary?.status ?? 'active',
+    createdAt,
+    updatedAt,
+  };
+}
+
 export class ApiBackedProjectService implements IProjectService {
   private readonly client: BirdCoderAppAdminApiClient;
   private readonly codingSessionMirror?: IProjectSessionMirror;
   private readonly coreReadClient?: BirdCoderCoreReadApiClient;
   private readonly coreWriteClient?: BirdCoderCoreWriteApiClient;
   private readonly identityProvider?: Pick<IAuthService, 'getCurrentUser'>;
-  private readonly projectMirror?: {
-    syncProjectSummary(summary: BirdCoderProjectSummary): Promise<BirdCoderProject>;
-  };
+  private readonly projectMirror?: ProjectSummaryMirror;
+  private readonly projectSummaryMirrors: readonly ProjectSummaryMirror[];
   private readonly readCache = new Map<string, ReadCacheEntry<unknown>>();
+  private readonly remoteTurnMirrorSyncs = new Map<
+    string,
+    BackgroundRemoteTurnMirrorSyncEntry
+  >();
   private readonly writeService: IProjectService;
 
   constructor({
@@ -1276,6 +1498,11 @@ export class ApiBackedProjectService implements IProjectService {
     this.coreWriteClient = coreWriteClient;
     this.identityProvider = identityProvider;
     this.projectMirror = projectMirror;
+    this.projectSummaryMirrors = collectProjectSummaryMirrors(
+      projectMirror,
+      codingSessionMirror,
+      writeService,
+    );
     this.writeService = writeService;
   }
 
@@ -1769,8 +1996,11 @@ export class ApiBackedProjectService implements IProjectService {
   private async listLocalProjects(
     workspaceId?: string,
   ): Promise<BirdCoderProject[]> {
-    return (await this.writeService.getProjects(workspaceId)).filter(
-      (project) => !shouldHideProjectFromCatalog(project),
+    const normalizedWorkspaceId = workspaceId?.trim() || '';
+    return (await this.writeService.getProjects(normalizedWorkspaceId || undefined)).filter(
+      (project) =>
+        (!normalizedWorkspaceId || project.workspaceId === normalizedWorkspaceId) &&
+        !shouldHideProjectFromCatalog(project),
     );
   }
 
@@ -1778,7 +2008,7 @@ export class ApiBackedProjectService implements IProjectService {
     summary: BirdCoderProjectSummary,
     localProject: LocalProjectSnapshot | undefined,
   ): boolean {
-    if (!this.projectMirror) {
+    if (this.projectSummaryMirrors.length === 0) {
       return false;
     }
 
@@ -1800,6 +2030,9 @@ export class ApiBackedProjectService implements IProjectService {
   private async syncProjectSummaryToMirror(
     summary: BirdCoderProjectSummary,
     localProject: LocalProjectSnapshot | undefined,
+    options: {
+      suppressError?: boolean;
+    } = {},
   ): Promise<BirdCoderProject | null> {
     if (!this.shouldSyncProjectSummaryToMirror(summary, localProject)) {
       return localProject && isBirdCoderProject(localProject)
@@ -1809,20 +2042,34 @@ export class ApiBackedProjectService implements IProjectService {
           : null;
     }
 
-    try {
-      return await this.projectMirror!.syncProjectSummary(summary);
-    } catch (error) {
-      console.error(`Failed to mirror authoritative project summary "${summary.id}" locally`, error);
-      return localProject && isBirdCoderProject(localProject)
-        ? structuredClone(localProject)
-        : localProject
-          ? mergeProjectSummary(summary, localProject)
-          : null;
+    let mirroredProject: BirdCoderProject | null = null;
+    for (const projectSummaryMirror of this.projectSummaryMirrors) {
+      try {
+        const nextMirroredProject = await projectSummaryMirror.syncProjectSummary(summary);
+        mirroredProject ??= nextMirroredProject;
+      } catch (error) {
+        if (!options.suppressError) {
+          console.error(`Failed to mirror authoritative project summary "${summary.id}" locally`, error);
+        }
+      }
     }
+
+    if (mirroredProject) {
+      return structuredClone(mirroredProject);
+    }
+
+    return localProject && isBirdCoderProject(localProject)
+      ? structuredClone(localProject)
+      : localProject
+        ? mergeProjectSummary(summary, localProject)
+        : null;
   }
 
-  private async ensureProjectMirrorForCodingSessionUpsert(projectId: string): Promise<void> {
-    if (!this.projectMirror) {
+  private async ensureProjectMirrorForCodingSessionUpsert(
+    projectId: string,
+    codingSession: BirdCoderCodingSession,
+  ): Promise<void> {
+    if (this.projectSummaryMirrors.length === 0) {
       return;
     }
 
@@ -1839,7 +2086,31 @@ export class ApiBackedProjectService implements IProjectService {
     const projectSummary = await retryBirdCoderTransientApiTask(() =>
       this.client.getProject(normalizedProjectId),
     );
-    await this.syncProjectSummaryToMirror(projectSummary, undefined);
+    await this.syncProjectSummaryToMirror(
+      projectSummary,
+      undefined,
+      { suppressError: true },
+    );
+
+    const synchronizedLocalProject = await this.writeService.getProjectById(normalizedProjectId);
+    if (synchronizedLocalProject) {
+      return;
+    }
+
+    const fallbackSummary = buildCodingSessionProjectMirrorSummary(
+      normalizedProjectId,
+      codingSession,
+      projectSummary,
+    );
+    if (!fallbackSummary) {
+      return;
+    }
+
+    await this.syncProjectSummaryToMirror(
+      fallbackSummary,
+      undefined,
+      { suppressError: false },
+    );
   }
 
   async getProjects(workspaceId?: string): Promise<BirdCoderProject[]> {
@@ -1873,7 +2144,7 @@ export class ApiBackedProjectService implements IProjectService {
               error,
             );
             return sortCachedProjects(
-              userScopedLocalProjects.map((project) => structuredClone(project)),
+              userScopedLocalProjects.map(normalizeProjectForInventory),
             );
           }
           throw error;
@@ -1899,6 +2170,7 @@ export class ApiBackedProjectService implements IProjectService {
 
         let visibleProjectSummaries = projectSummaries.filter(
           (projectSummary) =>
+            localProjectsById.has(projectSummary.id) &&
             !shouldHideProjectFromCatalog(
               projectSummary,
               localProjectsById.get(projectSummary.id),
@@ -1929,6 +2201,7 @@ export class ApiBackedProjectService implements IProjectService {
           );
           visibleProjectSummaries = projectSummaries.filter(
             (projectSummary) =>
+              localProjectsById.has(projectSummary.id) &&
               !shouldHideProjectFromCatalog(
                 projectSummary,
                 localProjectsById.get(projectSummary.id),
@@ -2021,7 +2294,7 @@ export class ApiBackedProjectService implements IProjectService {
               `Falling back to locally mirrored project "${normalizedProjectId}" because the remote project detail API is temporarily unavailable.`,
               error,
             );
-            return structuredClone(userScopedLocalProject);
+            return normalizeProjectForInventory(userScopedLocalProject);
           }
           if (localProject && isBirdCoderTransientApiError(error)) {
             return null;
@@ -2146,7 +2419,7 @@ export class ApiBackedProjectService implements IProjectService {
               `Falling back to locally mirrored project for path "${normalizedPath}" because the remote project lookup API is temporarily unavailable.`,
               error,
             );
-            return structuredClone(userScopedLocalProject);
+            return normalizeProjectForInventory(userScopedLocalProject);
           }
           if (localProject && isBirdCoderTransientApiError(error)) {
             return null;
@@ -2181,7 +2454,9 @@ export class ApiBackedProjectService implements IProjectService {
           // separate session-summary roundtrip.
           codingSessions:
             mergedLocalProject?.codingSessions.map((codingSession) =>
-              toProjectCodingSession(codingSession, { preserveLocalMessages: false }),
+              toInventoryProjectCodingSession(codingSession, {
+                preserveLocalMessages: false,
+              }),
             ) ?? [],
         };
       },
@@ -2196,7 +2471,11 @@ export class ApiBackedProjectService implements IProjectService {
         : this.writeService.getProjects(normalizedWorkspaceId).then((projects) =>
             projects.map(toProjectMirrorSnapshot),
           ))
-    ).filter((project) => !shouldHideProjectFromCatalog(project));
+    ).filter(
+      (project) =>
+        (!normalizedWorkspaceId || project.workspaceId === normalizedWorkspaceId) &&
+        !shouldHideProjectFromCatalog(project),
+    );
     const currentUserId = await this.resolveCurrentUserId();
     const userScopedLocalProjects = filterLocalProjectsForUser(
       localProjects,
@@ -2216,7 +2495,9 @@ export class ApiBackedProjectService implements IProjectService {
           'Falling back to locally mirrored project snapshots because the remote project catalog is temporarily unavailable.',
           error,
         );
-        return sortProjectMirrorSnapshots(structuredClone(userScopedLocalProjects));
+        return sortProjectMirrorSnapshots(
+          userScopedLocalProjects.map(normalizeProjectMirrorSnapshotForInventory),
+        );
       }
       throw error;
     }
@@ -2244,6 +2525,7 @@ export class ApiBackedProjectService implements IProjectService {
     );
     const visibleProjectSummaries = projectSummaries.filter(
       (projectSummary) =>
+        localProjectsById.has(projectSummary.id) &&
         !shouldHideProjectFromCatalog(
           projectSummary,
           localProjectsById.get(projectSummary.id),
@@ -2424,17 +2706,27 @@ export class ApiBackedProjectService implements IProjectService {
   }
 
   async upsertCodingSession(projectId: string, codingSession: BirdCoderCodingSession): Promise<void> {
-    await this.ensureProjectMirrorForCodingSessionUpsert(projectId);
+    const normalizedProjectId = projectId.trim() || codingSession.projectId?.trim() || projectId;
+    await this.ensureProjectMirrorForCodingSessionUpsert(normalizedProjectId, codingSession);
 
     if (this.codingSessionMirror) {
-      await this.codingSessionMirror.upsertCodingSession(projectId, codingSession);
-      this.patchCachedProjectCodingSession(projectId, codingSession);
-      return;
+      try {
+        await this.codingSessionMirror.upsertCodingSession(normalizedProjectId, codingSession);
+        this.patchCachedProjectCodingSession(normalizedProjectId, codingSession);
+        return;
+      } catch (error) {
+        if (
+          !this.writeService.upsertCodingSession ||
+          !isProjectMissingInSessionMirrorError(error, normalizedProjectId)
+        ) {
+          throw error;
+        }
+      }
     }
 
     if (this.writeService.upsertCodingSession) {
-      await this.writeService.upsertCodingSession(projectId, codingSession);
-      this.patchCachedProjectCodingSession(projectId, codingSession);
+      await this.writeService.upsertCodingSession(normalizedProjectId, codingSession);
+      this.patchCachedProjectCodingSession(normalizedProjectId, codingSession);
       return;
     }
 
@@ -2807,61 +3099,16 @@ export class ApiBackedProjectService implements IProjectService {
       return mirroredMessage;
     }
 
-    let synchronizedCodingSession: BirdCoderCodingSession | null = null;
-    try {
-      synchronizedCodingSession = await this.syncRemoteTurnMirror(
-        effectiveProjectId,
-        effectiveCodingSessionId,
-      );
-    } catch (error) {
-      if (!isAuthoritativeCodingSessionNotFoundError(error, effectiveCodingSessionId)) {
-        console.warn(
-          `Failed to synchronize coding session "${effectiveCodingSessionId}" after remote turn creation`,
-          error,
-        );
-      }
-      this.invalidateAuthoritativeCodingSessionSummariesCache({
-        projectId: effectiveProjectId,
-        workspaceId: existingCodingSession?.workspaceId,
-      });
-      return mirroredMessage;
-    }
     this.invalidateAuthoritativeCodingSessionSummariesCache({
       projectId: effectiveProjectId,
-      workspaceId:
-        synchronizedCodingSession?.workspaceId ??
-        existingCodingSession?.workspaceId,
+      workspaceId: existingCodingSession?.workspaceId,
     });
-    if (!synchronizedCodingSession) {
-      return mirroredMessage;
-    }
-
-    const authoritativeMessage = findAuthoritativeMessage(
-      synchronizedCodingSession,
-      createdTurn.id,
-      message.role,
-      message.content,
-    );
-    if (!authoritativeMessage) {
-      this.patchCachedProjectCodingSessionUpdate(
-      effectiveProjectId,
-      effectiveCodingSessionId,
-      (codingSession) => ({
-          ...codingSession,
-          messages: appendCodingSessionMessageIfMissing(
-            codingSession.messages,
-            mirroredMessage,
-          ),
-          runtimeStatus:
-            createdTurn.status === 'running' || createdTurn.status === 'queued'
-              ? 'streaming'
-              : codingSession.runtimeStatus,
-        }),
-      );
-      return mirroredMessage;
-    }
-
-    return authoritativeMessage;
+    this.synchronizeRemoteTurnMirrorInBackground({
+      projectId: effectiveProjectId,
+      codingSessionId: effectiveCodingSessionId,
+      workspaceId: existingCodingSession?.workspaceId,
+    });
+    return mirroredMessage;
   }
 
   async editCodingSessionMessage(
@@ -2870,13 +3117,35 @@ export class ApiBackedProjectService implements IProjectService {
     messageId: string,
     updates: Partial<BirdCoderChatMessage>,
   ): Promise<void> {
-    if (this.coreWriteClient || this.coreReadClient) {
+    const editableUpdates = sanitizeCodingSessionMessageUpdates(updates);
+    if (this.coreReadClient && !this.coreWriteClient) {
       throw new Error(
-        'Authoritative coding session message editing is not implemented yet. TODO: add server-side transcript patch operations instead of mutating the local mirror.',
+        'Authoritative coding session message editing requires a bound core write client.',
       );
     }
 
-    const editableUpdates = sanitizeCodingSessionMessageUpdates(updates);
+    if (this.coreWriteClient) {
+      const content =
+        typeof editableUpdates.content === 'string'
+          ? editableUpdates.content.trim()
+          : '';
+      if (!content) {
+        throw new Error('Coding session message editing requires non-empty content.');
+      }
+      const codingSession = await this.resolveProjectCodingSession(projectId, codingSessionId);
+      await this.coreWriteClient.editCodingSessionMessage(codingSessionId, messageId, {
+        content,
+      });
+      if (this.coreReadClient) {
+        await this.synchronizeAuthoritativeCodingSession(projectId, codingSessionId);
+        this.invalidateAuthoritativeCodingSessionSummariesCache({
+          projectId,
+          workspaceId: codingSession.workspaceId,
+        });
+        return;
+      }
+    }
+
     await this.writeService.editCodingSessionMessage(
       projectId,
       codingSessionId,
@@ -2907,18 +3176,6 @@ export class ApiBackedProjectService implements IProjectService {
   ): Promise<void> {
     if (this.coreWriteClient) {
       const codingSession = await this.resolveProjectCodingSession(projectId, codingSessionId);
-      if (
-        isAuthorityBackedNativeSessionId(
-          codingSessionId,
-          codingSession.engineId,
-          codingSession.nativeSessionId,
-        )
-      ) {
-        throw new Error(
-          'Deleting transcript messages for native engine sessions is not implemented yet. TODO: add native engine transcript mutation support in the Rust server.',
-        );
-      }
-
       await this.coreWriteClient.deleteCodingSessionMessage(codingSessionId, messageId);
       if (this.coreReadClient) {
         await this.synchronizeAuthoritativeCodingSession(projectId, codingSessionId);
@@ -2946,5 +3203,76 @@ export class ApiBackedProjectService implements IProjectService {
     codingSessionId: string,
   ): Promise<BirdCoderCodingSession | null> {
     return this.synchronizeAuthoritativeCodingSession(projectId, codingSessionId);
+  }
+
+  private buildRemoteTurnMirrorSyncKey(scope: BackgroundRemoteTurnMirrorSyncScope): string {
+    return `${scope.projectId.trim()}:${scope.codingSessionId.trim()}`;
+  }
+
+  private updateRemoteTurnMirrorSyncEntry(
+    entry: BackgroundRemoteTurnMirrorSyncEntry,
+    scope: BackgroundRemoteTurnMirrorSyncScope,
+  ): void {
+    entry.latestScope = {
+      codingSessionId: scope.codingSessionId,
+      projectId: scope.projectId,
+      workspaceId: scope.workspaceId ?? entry.latestScope.workspaceId,
+    };
+    entry.rerunRequested = true;
+  }
+
+  private async runRemoteTurnMirrorSync(
+    key: string,
+    entry: BackgroundRemoteTurnMirrorSyncEntry,
+  ): Promise<void> {
+    try {
+      do {
+        entry.rerunRequested = false;
+        const scope = entry.latestScope;
+        try {
+          const synchronizedCodingSession = await this.syncRemoteTurnMirror(
+            scope.projectId,
+            scope.codingSessionId,
+          );
+          this.invalidateAuthoritativeCodingSessionSummariesCache({
+            projectId: scope.projectId,
+            workspaceId: synchronizedCodingSession?.workspaceId ?? scope.workspaceId,
+          });
+        } catch (error) {
+          if (!isAuthoritativeCodingSessionNotFoundError(error, scope.codingSessionId)) {
+            console.warn(
+              `Failed to synchronize coding session "${scope.codingSessionId}" after remote turn creation`,
+              error,
+            );
+          }
+          this.invalidateAuthoritativeCodingSessionSummariesCache({
+            projectId: scope.projectId,
+            workspaceId: scope.workspaceId,
+          });
+        }
+      } while (entry.rerunRequested);
+    } finally {
+      if (this.remoteTurnMirrorSyncs.get(key) === entry) {
+        this.remoteTurnMirrorSyncs.delete(key);
+      }
+    }
+  }
+
+  private synchronizeRemoteTurnMirrorInBackground(
+    scope: BackgroundRemoteTurnMirrorSyncScope,
+  ): void {
+    const key = this.buildRemoteTurnMirrorSyncKey(scope);
+    const existingEntry = this.remoteTurnMirrorSyncs.get(key);
+    if (existingEntry) {
+      this.updateRemoteTurnMirrorSyncEntry(existingEntry, scope);
+      return;
+    }
+
+    const entry: BackgroundRemoteTurnMirrorSyncEntry = {
+      latestScope: scope,
+      rerunRequested: false,
+    };
+    this.remoteTurnMirrorSyncs.set(key, entry);
+    void this.runRemoteTurnMirrorSync(key, entry);
   }
 }

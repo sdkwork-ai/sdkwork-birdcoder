@@ -7,6 +7,8 @@ import {
   parseBirdCoderApiJson,
   stringifyBirdCoderApiJson,
 } from '@sdkwork/birdcoder-types';
+import type { BirdCoderSqlExecutionResult } from './sqlExecutor.ts';
+import type { BirdCoderSqlPlan } from './sqlPlans.ts';
 
 const LOCAL_STORE_NAMESPACE = 'sdkwork-birdcoder';
 const inMemoryStorageFallback = new Map<string, string>();
@@ -79,6 +81,10 @@ function parseLocalStoreKey(value: string): { key: string; scope: string } | nul
   };
 }
 
+function isReservedAuthorityLocalStoreKey(key: string): boolean {
+  return key.startsWith('table.');
+}
+
 export function serializeStoredValue<T>(value: T): string {
   return stringifyBirdCoderApiJson(value);
 }
@@ -95,8 +101,8 @@ export function deserializeStoredValue<T>(rawValue: string | null, fallback: T):
   }
 }
 
-async function resolveTauriInvoke(): Promise<TauriInvoke | null> {
-  if (typeof window === 'undefined' || !window.__TAURI__) {
+function resolveTauriInvokeFromWindow(): TauriInvoke | null {
+  if (typeof window === 'undefined') {
     return null;
   }
 
@@ -106,12 +112,50 @@ async function resolveTauriInvoke(): Promise<TauriInvoke | null> {
   return typeof bridgedInvoke === 'function' ? bridgedInvoke : null;
 }
 
+async function resolveTauriInvoke(): Promise<TauriInvoke | null> {
+  return resolveTauriInvokeFromWindow();
+}
+
+export function hasStoredSqlPlanExecution(): boolean {
+  return Boolean(resolveTauriInvokeFromWindow());
+}
+
+export async function executeStoredSqlPlan(
+  plan: BirdCoderSqlPlan,
+): Promise<BirdCoderSqlExecutionResult> {
+  const invoke = await resolveTauriInvoke();
+  if (!invoke) {
+    throw new Error('BirdCoder SQL plan storage bridge is unavailable outside Tauri.');
+  }
+
+  const result = await invoke<Partial<BirdCoderSqlExecutionResult>>(
+    'local_sql_execute_plan',
+    { plan },
+  );
+  return {
+    affectedRowCount: Number(result?.affectedRowCount ?? 0),
+    rows: Array.isArray(result?.rows)
+      ? (result.rows as NonNullable<BirdCoderSqlExecutionResult['rows']>)
+      : undefined,
+  };
+}
+
 export async function getStoredRawValue(scope: string, key: string): Promise<string | null> {
   const invoke = await resolveTauriInvoke();
   if (invoke) {
-    return await invoke<string | null>('local_store_get', { scope, key });
+    try {
+      return await invoke<string | null>('local_store_get', { scope, key });
+    } catch {
+      return isReservedAuthorityLocalStoreKey(key)
+        ? null
+        : getBrowserStoredRawValue(scope, key);
+    }
   }
 
+  return getBrowserStoredRawValue(scope, key);
+}
+
+function getBrowserStoredRawValue(scope: string, key: string): string | null {
   if (typeof window === 'undefined') {
     return inMemoryStorageFallback.has(buildLocalStoreKey(scope, key))
       ? inMemoryStorageFallback.get(buildLocalStoreKey(scope, key))!
@@ -125,29 +169,26 @@ export async function getStoredRawValue(scope: string, key: string): Promise<str
   }
 }
 
-export async function listStoredRawValues(scope: string): Promise<BirdCoderStoredRawValueEntry[]> {
-  const invoke = await resolveTauriInvoke();
-  if (invoke) {
-    const entries = await invoke<Array<Partial<BirdCoderStoredRawValueEntry>>>('local_store_list', {
-      scope,
-    });
-    return entries
-      .filter(
-        (entry): entry is Partial<BirdCoderStoredRawValueEntry> & { key: string; scope: string; value: string } =>
-          !!entry &&
-          typeof entry.key === 'string' &&
-          typeof entry.scope === 'string' &&
-          typeof entry.value === 'string',
-      )
-      .map((entry) => ({
-        key: entry.key,
-        scope: entry.scope,
-        updatedAt: typeof entry.updatedAt === 'string' ? entry.updatedAt : null,
-        value: entry.value,
-      }));
-  }
-
+function listBrowserStoredRawValues(
+  scope: string,
+  options: {
+    excludeReservedAuthorityKeys?: boolean;
+  } = {},
+): BirdCoderStoredRawValueEntry[] {
   const entries: BirdCoderStoredRawValueEntry[] = [];
+
+  const appendEntry = (key: string, value: string) => {
+    if (options.excludeReservedAuthorityKeys && isReservedAuthorityLocalStoreKey(key)) {
+      return;
+    }
+
+    entries.push({
+      scope,
+      key,
+      value,
+      updatedAt: null,
+    });
+  };
 
   if (typeof window === 'undefined') {
     for (const [storedKey, value] of inMemoryStorageFallback.entries()) {
@@ -156,12 +197,7 @@ export async function listStoredRawValues(scope: string): Promise<BirdCoderStore
         continue;
       }
 
-      entries.push({
-        scope,
-        key: parsedKey.key,
-        value,
-        updatedAt: null,
-      });
+      appendEntry(parsedKey.key, value);
     }
 
     return entries.sort((left, right) => left.key.localeCompare(right.key));
@@ -184,12 +220,7 @@ export async function listStoredRawValues(scope: string): Promise<BirdCoderStore
         continue;
       }
 
-      entries.push({
-        scope,
-        key: parsedKey.key,
-        value,
-        updatedAt: null,
-      });
+      appendEntry(parsedKey.key, value);
     }
   } catch {
     return [];
@@ -198,13 +229,54 @@ export async function listStoredRawValues(scope: string): Promise<BirdCoderStore
   return entries.sort((left, right) => left.key.localeCompare(right.key));
 }
 
+export async function listStoredRawValues(scope: string): Promise<BirdCoderStoredRawValueEntry[]> {
+  const invoke = await resolveTauriInvoke();
+  if (invoke) {
+    try {
+      const entries = await invoke<Array<Partial<BirdCoderStoredRawValueEntry>>>('local_store_list', {
+        scope,
+      });
+      return entries
+        .filter(
+          (entry): entry is Partial<BirdCoderStoredRawValueEntry> & { key: string; scope: string; value: string } =>
+            !!entry &&
+            typeof entry.key === 'string' &&
+            typeof entry.scope === 'string' &&
+            typeof entry.value === 'string',
+        )
+        .map((entry) => ({
+          key: entry.key,
+          scope: entry.scope,
+          updatedAt: typeof entry.updatedAt === 'string' ? entry.updatedAt : null,
+          value: entry.value,
+        }));
+    } catch {
+      return listBrowserStoredRawValues(scope, {
+        excludeReservedAuthorityKeys: true,
+      });
+    }
+  }
+
+  return listBrowserStoredRawValues(scope);
+}
+
 export async function setStoredRawValue(scope: string, key: string, value: string): Promise<void> {
   const invoke = await resolveTauriInvoke();
   if (invoke) {
-    await invoke('local_store_set', { scope, key, value });
+    try {
+      await invoke('local_store_set', { scope, key, value });
+    } catch {
+      if (!isReservedAuthorityLocalStoreKey(key)) {
+        setBrowserStoredRawValue(scope, key, value);
+      }
+    }
     return;
   }
 
+  setBrowserStoredRawValue(scope, key, value);
+}
+
+function setBrowserStoredRawValue(scope: string, key: string, value: string): void {
   if (typeof window === 'undefined') {
     inMemoryStorageFallback.set(buildLocalStoreKey(scope, key), value);
     return;
@@ -220,10 +292,20 @@ export async function setStoredRawValue(scope: string, key: string, value: strin
 export async function removeStoredValue(scope: string, key: string): Promise<void> {
   const invoke = await resolveTauriInvoke();
   if (invoke) {
-    await invoke('local_store_delete', { scope, key });
+    try {
+      await invoke('local_store_delete', { scope, key });
+    } catch {
+      if (!isReservedAuthorityLocalStoreKey(key)) {
+        removeBrowserStoredValue(scope, key);
+      }
+    }
     return;
   }
 
+  removeBrowserStoredValue(scope, key);
+}
+
+function removeBrowserStoredValue(scope: string, key: string): void {
   if (typeof window === 'undefined') {
     inMemoryStorageFallback.delete(buildLocalStoreKey(scope, key));
     return;
@@ -243,6 +325,51 @@ export async function getStoredJson<T>(scope: string, key: string, fallback: T):
 
 export async function setStoredJson<T>(scope: string, key: string, value: T): Promise<void> {
   await setStoredRawValue(scope, key, serializeStoredValue(value));
+}
+
+export async function readUserHomeTextFile(relativePath: string): Promise<string | null> {
+  const normalizedRelativePath = relativePath.trim();
+  if (!normalizedRelativePath) {
+    return null;
+  }
+
+  const invoke = await resolveTauriInvoke();
+  if (invoke) {
+    try {
+      return await invoke<string | null>('user_home_config_read', {
+        relativePath: normalizedRelativePath,
+      });
+    } catch {
+      return getStoredRawValue('user-home-config', normalizedRelativePath);
+    }
+  }
+
+  return getStoredRawValue('user-home-config', normalizedRelativePath);
+}
+
+export async function writeUserHomeTextFile(
+  relativePath: string,
+  content: string,
+): Promise<void> {
+  const normalizedRelativePath = relativePath.trim();
+  if (!normalizedRelativePath) {
+    return;
+  }
+
+  const invoke = await resolveTauriInvoke();
+  if (invoke) {
+    try {
+      await invoke('user_home_config_write', {
+        relativePath: normalizedRelativePath,
+        content,
+      });
+    } catch {
+      await setStoredRawValue('user-home-config', normalizedRelativePath, content);
+    }
+    return;
+  }
+
+  await setStoredRawValue('user-home-config', normalizedRelativePath, content);
 }
 
 function createDefaultStorageAccess(): BirdCoderStorageAccess {

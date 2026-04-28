@@ -45,6 +45,7 @@ declare global {
 export type AppTab =
   | 'code'
   | 'studio'
+  | 'multiwindow'
   | 'terminal'
   | 'settings'
   | 'auth'
@@ -151,6 +152,8 @@ export interface MergeBirdCoderProjectionMessagesOptions {
 interface BuiltProjectionMessages {
   deletedMessageIds: Set<string>;
   deletedMessageKeys: Set<string>;
+  editedMessageContentById: Map<string, string>;
+  editedMessageContentByKey: Map<string, string>;
   messages: BirdCoderChatMessage[];
 }
 
@@ -170,19 +173,12 @@ function readProjectionPayloadString(
 function parseProjectionCommands(
   payload: Record<string, unknown> | undefined,
 ): BirdCoderChatMessage['commands'] | undefined {
-  const rawCommands = readProjectionPayloadString(payload, 'commandsJson');
-  if (!rawCommands) {
-    return undefined;
+  const directCommands = payload?.commands;
+  if (Array.isArray(directCommands)) {
+    return directCommands as BirdCoderChatMessage['commands'];
   }
 
-  try {
-    const parsedCommands = parseBirdCoderApiJson(rawCommands);
-    return Array.isArray(parsedCommands)
-      ? (parsedCommands as BirdCoderChatMessage['commands'])
-      : undefined;
-  } catch {
-    return undefined;
-  }
+  return undefined;
 }
 
 function parseProjectionFileChanges(
@@ -193,19 +189,7 @@ function parseProjectionFileChanges(
     return directFileChanges as BirdCoderChatMessage['fileChanges'];
   }
 
-  const rawFileChanges = readProjectionPayloadString(payload, 'fileChangesJson');
-  if (!rawFileChanges) {
-    return undefined;
-  }
-
-  try {
-    const parsedFileChanges = parseBirdCoderApiJson(rawFileChanges);
-    return Array.isArray(parsedFileChanges)
-      ? (parsedFileChanges as BirdCoderChatMessage['fileChanges'])
-      : undefined;
-  } catch {
-    return undefined;
-  }
+  return undefined;
 }
 
 function parseProjectionToolCalls(
@@ -216,19 +200,7 @@ function parseProjectionToolCalls(
     return directToolCalls as BirdCoderChatMessage['tool_calls'];
   }
 
-  const rawToolCalls = readProjectionPayloadString(payload, 'toolCallsJson');
-  if (!rawToolCalls) {
-    return undefined;
-  }
-
-  try {
-    const parsedToolCalls = parseBirdCoderApiJson(rawToolCalls);
-    return Array.isArray(parsedToolCalls)
-      ? (parsedToolCalls as BirdCoderChatMessage['tool_calls'])
-      : undefined;
-  } catch {
-    return undefined;
-  }
+  return undefined;
 }
 
 function parseProjectionToolCallId(
@@ -247,17 +219,7 @@ function parseProjectionTaskProgress(
     return directTaskProgress;
   }
 
-  const rawTaskProgress = readProjectionPayloadString(payload, 'taskProgressJson');
-  if (!rawTaskProgress) {
-    return undefined;
-  }
-
-  try {
-    const parsedTaskProgress = parseBirdCoderApiJson(rawTaskProgress) as unknown;
-    return normalizeProjectionTaskProgress(parsedTaskProgress);
-  } catch {
-    return undefined;
-  }
+  return undefined;
 }
 
 function normalizeProjectionPayloadString(value: unknown): string | undefined {
@@ -505,21 +467,31 @@ function projectionToolEventToCommand(
   });
   const answer = normalizeProjectionPayloadString(event.payload?.answer) ??
     normalizeProjectionPayloadString(toolArguments.record?.answer);
-  const isUserQuestionAnswerUpdate =
+  const hasSettledUserQuestionStatus = [
+    event.payload?.runtimeStatus,
+    event.payload?.status,
+    event.payload?.state,
+    event.payload?.phase,
+    toolArguments.record?.runtimeStatus,
+    toolArguments.record?.status,
+    toolArguments.record?.state,
+    toolArguments.record?.phase,
+  ].some(isBirdCoderCodeEngineSettledStatus);
+  const isUserQuestionOperationUpdate =
     event.kind === 'operation.updated' &&
-    !!answer &&
-    (!!userQuestionId || !!toolCallId);
+    (!!answer || hasSettledUserQuestionStatus) &&
+    (!!userQuestionId || (!!answer && !!toolCallId));
   if (
     event.kind !== 'tool.call.requested' &&
     event.kind !== 'tool.call.progress' &&
     event.kind !== 'tool.call.completed' &&
-    !isUserQuestionAnswerUpdate
+    !isUserQuestionOperationUpdate
   ) {
     return null;
   }
 
   const rawToolName =
-    (isUserQuestionAnswerUpdate
+    (isUserQuestionOperationUpdate
       ? 'user_question'
       : readProjectionPayloadString(event.payload, 'toolName') ??
         readProjectionPayloadString(event.payload, 'name')) ?? 'tool';
@@ -550,6 +522,9 @@ function projectionToolEventToCommand(
     normalizeProjectionPayloadString(toolArguments.record?.aggregated_output) ??
     normalizeProjectionPayloadString(toolArguments.record?.aggregatedOutput) ??
     normalizeProjectionPayloadString(toolArguments.record?.error) ??
+    (isUserQuestionOperationUpdate
+      ? normalizeProjectionPayloadString(event.payload?.status)
+      : undefined) ??
     stringifyProjectionToolArguments(toolArguments.record, toolArguments.fallback);
 
   return {
@@ -1152,10 +1127,30 @@ function buildAuthoritativeProjectionMessages(
   const deltaMessagesByKey = new Map<string, BirdCoderProjectionDeltaMessage>();
   const deletedMessageIds = new Set<string>();
   const deletedMessageKeys = new Set<string>();
+  const editedMessageContentById = new Map<string, string>();
+  const editedMessageContentByKey = new Map<string, string>();
   const toolCommandsByTurn = buildProjectionToolCommandsByTurn(sortedEvents);
   const fileChangesByTurn = buildProjectionFileChangesByTurn(sortedEvents);
 
   for (const event of sortedEvents) {
+    if (event.kind === 'message.edited') {
+      const editedContent = extractBirdCoderTextContent(event.payload?.content);
+      if (!editedContent) {
+        continue;
+      }
+
+      const editedMessageId = readProjectionPayloadString(event.payload, 'editedMessageId');
+      if (editedMessageId) {
+        editedMessageContentById.set(editedMessageId, editedContent);
+      }
+
+      const role = readProjectionPayloadString(event.payload, 'role');
+      if (isProjectionRole(role) && event.turnId) {
+        editedMessageContentByKey.set(`${event.turnId}:${role}`, editedContent);
+      }
+      continue;
+    }
+
     if (event.kind !== 'message.deleted') {
       continue;
     }
@@ -1226,12 +1221,15 @@ function buildAuthoritativeProjectionMessages(
         continue;
       }
 
+      const editedContent =
+        editedMessageContentById.get(messageId) ??
+        editedMessageContentByKey.get(`${event.turnId ?? event.id}:${role}`);
       authoritativeMessages.push({
         id: messageId,
         codingSessionId,
         turnId: event.turnId,
         role,
-        content,
+        content: editedContent ?? content,
         commands,
         fileChanges,
         taskProgress,
@@ -1345,7 +1343,10 @@ function buildAuthoritativeProjectionMessages(
       codingSessionId,
       turnId: deltaMessage.turnId,
       role: deltaMessage.role,
-      content: deltaMessage.content,
+      content:
+        editedMessageContentById.get(`${codingSessionId}:${idPrefix}:${deltaKey}`) ??
+        editedMessageContentByKey.get(deltaKey) ??
+        deltaMessage.content,
       commands: deltaMessage.commands,
       fileChanges: deltaMessage.fileChanges,
       taskProgress: deltaMessage.taskProgress,
@@ -1360,8 +1361,29 @@ function buildAuthoritativeProjectionMessages(
   return {
     deletedMessageIds,
     deletedMessageKeys,
+    editedMessageContentById,
+    editedMessageContentByKey,
     messages: authoritativeMessages,
   };
+}
+
+function applyProjectionMessageEdit(
+  message: BirdCoderChatMessage,
+  editedMessageContentById: Map<string, string>,
+  editedMessageContentByKey: Map<string, string>,
+): BirdCoderChatMessage {
+  const deletionKey =
+    message.turnId && message.role ? `${message.turnId}:${message.role}` : undefined;
+  const editedContent =
+    editedMessageContentById.get(message.id) ??
+    (deletionKey ? editedMessageContentByKey.get(deletionKey) : undefined);
+
+  return editedContent === undefined
+    ? message
+    : {
+        ...message,
+        content: editedContent,
+      };
 }
 
 export function mergeBirdCoderProjectionMessages({
@@ -1380,20 +1402,30 @@ export function mergeBirdCoderProjectionMessages({
   const {
     deletedMessageIds,
     deletedMessageKeys,
+    editedMessageContentById,
+    editedMessageContentByKey,
     messages: authoritativeMessages,
   } = buildAuthoritativeProjectionMessages(normalizedCodingSessionId, idPrefix, scopedEvents);
   if (authoritativeMessages.length === 0) {
     return deduplicateBirdCoderComparableChatMessages(
-      scopedExistingMessages.filter((existingMessage) => {
-        const deletionKey =
-          existingMessage.turnId && existingMessage.role
-            ? `${existingMessage.turnId}:${existingMessage.role}`
-            : undefined;
-        return (
-          !deletedMessageIds.has(existingMessage.id) &&
-          (!deletionKey || !deletedMessageKeys.has(deletionKey))
-        );
-      }),
+      scopedExistingMessages
+        .filter((existingMessage) => {
+          const deletionKey =
+            existingMessage.turnId && existingMessage.role
+              ? `${existingMessage.turnId}:${existingMessage.role}`
+              : undefined;
+          return (
+            !deletedMessageIds.has(existingMessage.id) &&
+            (!deletionKey || !deletedMessageKeys.has(deletionKey))
+          );
+        })
+        .map((existingMessage) =>
+          applyProjectionMessageEdit(
+            existingMessage,
+            editedMessageContentById,
+            editedMessageContentByKey,
+          ),
+        ),
     ).sort(compareProjectionMessages);
   }
 
@@ -1448,7 +1480,13 @@ export function mergeBirdCoderProjectionMessages({
       continue;
     }
 
-    mergedMessages.push(existingMessage);
+    mergedMessages.push(
+      applyProjectionMessageEdit(
+        existingMessage,
+        editedMessageContentById,
+        editedMessageContentByKey,
+      ),
+    );
   }
 
   return deduplicateBirdCoderComparableChatMessages(mergedMessages).sort(

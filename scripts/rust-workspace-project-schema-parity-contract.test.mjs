@@ -102,6 +102,51 @@ const requiredProjectContentColumns = [
   'content_hash',
 ];
 
+const requiredCodingSessionColumns = [
+  'id',
+  'uuid',
+  'created_at',
+  'updated_at',
+  'version',
+  'is_deleted',
+  'workspace_id',
+  'project_id',
+  'title',
+  'status',
+  'entry_surface',
+  'host_mode',
+  'engine_id',
+  'model_id',
+  'last_turn_at',
+  'native_session_id',
+  'sort_timestamp',
+  'transcript_updated_at',
+  'pinned',
+  'archived',
+  'unread',
+];
+
+const requiredCodingSessionMessageColumns = [
+  'id',
+  'uuid',
+  'created_at',
+  'updated_at',
+  'version',
+  'is_deleted',
+  'coding_session_id',
+  'turn_id',
+  'role',
+  'content',
+  'metadata_json',
+  'timestamp_ms',
+  'name',
+  'tool_calls_json',
+  'tool_call_id',
+  'file_changes_json',
+  'commands_json',
+  'task_progress_json',
+];
+
 const physicalSchemaTargets = [
   {
     tableName: 'plus_workspace',
@@ -166,7 +211,9 @@ function collectCreateTableBodies(source, tableName) {
     `CREATE TABLE(?: IF NOT EXISTS)? ${escapeRegExp(tableName)} \\(([\\s\\S]*?)\\);`,
     'g',
   );
-  return [...source.matchAll(pattern)].map((match) => match[1]);
+  return [...source.matchAll(pattern)]
+    .map((match) => match[1])
+    .filter((body) => body.includes('\n'));
 }
 
 function bodyMatchesColumnType(body, columnName, columnDefinition) {
@@ -230,6 +277,34 @@ for (const { label, path } of sources) {
       );
     }
   }
+
+  const codingSessionBodies = collectCreateTableBodies(rustSource, 'coding_sessions');
+  assert(
+    codingSessionBodies.length > 0,
+    `${label} rust source must declare at least one coding_sessions table.`,
+  );
+  assert(
+    codingSessionBodies.some((codingSessionBody) =>
+      requiredCodingSessionColumns.every((columnName) =>
+        new RegExp(`\\b${escapeRegExp(columnName)}\\b`).test(codingSessionBody),
+      ),
+    ),
+    `${label} coding_sessions schema must include ${requiredCodingSessionColumns.join(', ')}.`,
+  );
+
+  const codingSessionMessageBodies = collectCreateTableBodies(rustSource, 'coding_session_messages');
+  assert(
+    codingSessionMessageBodies.length > 0,
+    `${label} rust source must declare at least one coding_session_messages table.`,
+  );
+  assert(
+    codingSessionMessageBodies.some((codingSessionMessageBody) =>
+      requiredCodingSessionMessageColumns.every((columnName) =>
+        new RegExp(`\\b${escapeRegExp(columnName)}\\b`).test(codingSessionMessageBody),
+      ),
+    ),
+    `${label} coding_session_messages schema must include ${requiredCodingSessionMessageColumns.join(', ')}.`,
+  );
 
   assert.equal(
     collectCreateTableBodies(rustSource, 'workspaces').length,

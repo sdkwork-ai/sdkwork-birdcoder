@@ -1,4 +1,5 @@
 import type {
+  BirdCoderCodingSessionEvent,
   BirdCoderProject,
   BirdCoderWorkspaceRealtimeEvent,
 } from '@sdkwork/birdcoder-types';
@@ -11,7 +12,9 @@ import {
   compareBirdCoderSessionSortTimestamp,
   formatBirdCoderSessionActivityDisplayTime,
   isBirdCoderCodingSessionExecuting,
+  mergeBirdCoderProjectionMessages,
   normalizeBirdCoderCodeEngineRuntimeStatus,
+  resolveBirdCoderCodingSessionRuntimeStatus,
   resolveBirdCoderSessionSortTimestampString,
   stringifyBirdCoderLongInteger,
 } from '@sdkwork/birdcoder-types';
@@ -65,6 +68,49 @@ function resolveRealtimeEventTimestamp(
   return event.codingSessionUpdatedAt ?? event.projectUpdatedAt ?? event.occurredAt;
 }
 
+function buildRealtimeCodingSessionProjectionEvents(
+  codingSessionId: string,
+  event: BirdCoderWorkspaceRealtimeEvent,
+): BirdCoderCodingSessionEvent[] {
+  const genericEventKind = event.codingSessionEventKind;
+  const genericEventPayload = event.codingSessionEventPayload;
+  if (!genericEventKind) {
+    return [];
+  }
+
+  const createdAt = event.codingSessionUpdatedAt ?? event.occurredAt;
+  const projectionEvent: BirdCoderCodingSessionEvent = {
+    id: `${event.eventId}:coding-session-event`,
+    codingSessionId,
+    turnId: event.turnId,
+    kind: genericEventKind,
+    sequence: stringifyBirdCoderLongInteger(resolveTimestamp(createdAt)),
+    payload: genericEventPayload ?? {},
+    createdAt,
+  };
+
+  if (genericEventKind === 'message.delta') {
+    return [projectionEvent];
+  }
+
+  return [
+    projectionEvent,
+    {
+      id: `${event.eventId}:message-delta-anchor`,
+      codingSessionId,
+      turnId: event.turnId,
+      kind: 'message.delta',
+      sequence: stringifyBirdCoderLongInteger(resolveTimestamp(createdAt) + 1),
+      payload: {
+        role: 'assistant',
+        contentDelta: '',
+        runtimeStatus: 'streaming',
+      },
+      createdAt,
+    },
+  ];
+}
+
 function resolveRealtimeCodingSessionActivityTimestamp(
   event: BirdCoderWorkspaceRealtimeEvent,
 ): number {
@@ -115,12 +161,31 @@ function normalizeRealtimeNativeSessionId(value: string | undefined): string | u
   return normalizeBirdCoderCodeEngineNativeSessionId(value) ?? undefined;
 }
 
+function resolveRealtimeCodingSessionEventRuntimeStatus(
+  event: BirdCoderWorkspaceRealtimeEvent,
+): BirdCoderProject['codingSessions'][number]['runtimeStatus'] | null {
+  const genericEventKind = event.codingSessionEventKind?.trim();
+  if (!genericEventKind) {
+    return null;
+  }
+
+  return resolveBirdCoderCodingSessionRuntimeStatus(
+    [
+      {
+        kind: genericEventKind,
+        payload: event.codingSessionEventPayload ?? {},
+      },
+    ],
+  ) ?? null;
+}
+
 function resolveRealtimeCodingSessionRuntimeStatus(
   event: BirdCoderWorkspaceRealtimeEvent,
   fallback?: BirdCoderProject['codingSessions'][number]['runtimeStatus'],
 ): BirdCoderProject['codingSessions'][number]['runtimeStatus'] | undefined {
   return (
     normalizeRealtimeCodingSessionRuntimeStatus(event.codingSessionRuntimeStatus?.trim()) ??
+    resolveRealtimeCodingSessionEventRuntimeStatus(event) ??
     (event.eventKind === 'coding-session.turn.created' ? 'streaming' : fallback)
   );
 }
@@ -421,6 +486,18 @@ function updateCodingSessionTimestamp(
     : resolveRealtimeCodingSessionRuntimeStatus(event, codingSession.runtimeStatus);
   const nextNativeSessionId =
     normalizeRealtimeNativeSessionId(event.nativeSessionId) ?? codingSession.nativeSessionId;
+  const realtimeProjectionEvents = buildRealtimeCodingSessionProjectionEvents(
+    normalizedCodingSessionId,
+    event,
+  );
+  const nextMessages = realtimeProjectionEvents.length > 0
+    ? mergeBirdCoderProjectionMessages({
+        codingSessionId: normalizedCodingSessionId,
+        events: realtimeProjectionEvents,
+        existingMessages: codingSession.messages,
+        idPrefix: 'realtime',
+      })
+    : codingSession.messages;
   if (
     nextActivityAt === codingSession.lastTurnAt &&
     nextUpdatedAt === codingSession.updatedAt &&
@@ -430,7 +507,8 @@ function updateCodingSessionTimestamp(
     nextNativeSessionId === codingSession.nativeSessionId &&
     nextStatus === codingSession.status &&
     nextHostMode === codingSession.hostMode &&
-    nextTitle === codingSession.title
+    nextTitle === codingSession.title &&
+    nextMessages === codingSession.messages
   ) {
     return null;
   }
@@ -442,6 +520,7 @@ function updateCodingSessionTimestamp(
     transcriptUpdatedAt: nextActivityAt,
     runtimeStatus: nextRuntimeStatus,
     nativeSessionId: nextNativeSessionId,
+    messages: nextMessages,
   };
   const nextCodingSessionWithMetadata = {
     ...nextCodingSession,

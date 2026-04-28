@@ -23,16 +23,6 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-unmaximize",
     "core:window:allow-unminimize",
-    "core:window:allow-close",
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "name": "git",
-          "cmd": "git",
-          "args": true
-        }
-      ]
-    }
+    "core:window:allow-close"
   ]
 }

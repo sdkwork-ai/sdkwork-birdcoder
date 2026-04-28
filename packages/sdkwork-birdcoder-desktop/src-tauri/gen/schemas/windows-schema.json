@@ -405,10 +405,10 @@
           "markdownDescription": "Allows mounted project file-system bridge commands.\n#### This permission set includes:\n\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`"
         },
         {
-          "description": "Allows desktop local store bridge commands.\n#### This permission set includes:\n\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-local-store-list`",
+          "description": "Allows desktop local store bridge commands.\n#### This permission set includes:\n\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-local-store-list`\n- `allow-local-sql-execute-plan`\n- `allow-user-home-config-read`\n- `allow-user-home-config-write`",
           "type": "string",
           "const": "allow-local-store",
-          "markdownDescription": "Allows desktop local store bridge commands.\n#### This permission set includes:\n\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-local-store-list`"
+          "markdownDescription": "Allows desktop local store bridge commands.\n#### This permission set includes:\n\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-local-store-list`\n- `allow-local-sql-execute-plan`\n- `allow-user-home-config-read`\n- `allow-user-home-config-write`"
         },
         {
           "description": "Allows sdkwork-terminal runtime bridge commands.\n#### This permission set includes:\n\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`",
@@ -621,6 +621,12 @@
           "markdownDescription": "Enables the host_mode command."
         },
         {
+          "description": "Enables the local_sql_execute_plan command.",
+          "type": "string",
+          "const": "allow-local-sql-execute-plan",
+          "markdownDescription": "Enables the local_sql_execute_plan command."
+        },
+        {
           "description": "Enables the local_store_delete command.",
           "type": "string",
           "const": "allow-local-store-delete",
@@ -649,6 +655,18 @@
           "type": "string",
           "const": "allow-terminal-cli-profile-detect",
           "markdownDescription": "Enables the terminal_cli_profile_detect command."
+        },
+        {
+          "description": "Enables the user_home_config_read command.",
+          "type": "string",
+          "const": "allow-user-home-config-read",
+          "markdownDescription": "Enables the user_home_config_read command."
+        },
+        {
+          "description": "Enables the user_home_config_write command.",
+          "type": "string",
+          "const": "allow-user-home-config-write",
+          "markdownDescription": "Enables the user_home_config_write command."
         },
         {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",

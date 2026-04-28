@@ -19,6 +19,10 @@ import type {
   ICoreReadService,
   ICoreWriteService,
 } from '../packages/sdkwork-birdcoder-infrastructure/src/index.ts';
+import {
+  TEST_CODE_ENGINE_MODEL_CONFIG,
+  buildTestCodeEngineModelConfigSyncResult,
+} from './test-code-engine-model-config-fixture.ts';
 
 const defaultServicesModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
@@ -174,6 +178,9 @@ const coreReadService: ICoreReadService = {
   async getHealth(): Promise<BirdCoderCoreHealthSummary> {
     throw new Error('not needed');
   },
+  async getModelConfig() {
+    return TEST_CODE_ENGINE_MODEL_CONFIG;
+  },
   async getNativeSession() {
     throw new Error('not needed');
   },
@@ -237,6 +244,12 @@ const coreWriteClient: BirdCoderCoreWriteApiClient = {
     return approvalResultFixture;
   },
   async submitUserQuestionAnswer() {
+    throw new Error('not needed');
+  },
+  async syncModelConfig(request) {
+    return buildTestCodeEngineModelConfigSyncResult(request.localConfig);
+  },
+  async editCodingSessionMessage() {
     throw new Error('not needed');
   },
   async deleteCodingSessionMessage() {

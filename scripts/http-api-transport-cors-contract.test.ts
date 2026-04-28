@@ -70,6 +70,12 @@ assert.notEqual(
 );
 const localCorsLayerSource = rustHostLibSource.slice(localCorsLayerStart, localCorsLayerEnd);
 
+assert.match(
+  localCorsLayerSource,
+  /Method::PUT/,
+  'Rust local CORS allow-methods must include PUT because core.syncModelConfig uses PUT /api/core/v1/model-config from browser-hosted clients.',
+);
+
 const rustPreflightTestStart = rustHostLibSource.indexOf(
   'async fn app_routes_accept_loopback_cors_preflight_requests()',
 );
@@ -87,6 +93,17 @@ assert.notEqual(
 const rustPreflightTestSource = rustHostLibSource.slice(
   rustPreflightTestStart,
   rustPreflightTestEnd,
+);
+
+assert.match(
+  rustPreflightTestSource,
+  /\.uri\("\/api\/core\/v1\/model-config"\)/,
+  'Rust browser preflight regression test must cover the core model-config route that is called during startup preference sync.',
+);
+assert.match(
+  rustPreflightTestSource,
+  /\.header\("access-control-request-method", "PUT"\)/,
+  'Rust browser preflight regression test must request PUT so model-config sync cannot regress CORS again.',
 );
 
 for (const [requiredHeader, allowListPattern, preflightPattern] of [

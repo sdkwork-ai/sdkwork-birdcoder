@@ -74,6 +74,159 @@ async function collectStream(
   return chunks;
 }
 
+async function verifyProviderStreamOptionsDefaultToTrue() {
+  const providers = [
+    {
+      engineId: 'codex',
+      createEngine: (streamValues: Array<boolean | undefined>) =>
+        new CodexChatEngine({
+          officialSdkBridgeLoader: {
+            load: async () => ({
+              async *sendMessageStream(_messages, options) {
+                streamValues.push(options?.stream);
+                yield* createSdkStream('codex-stream-default');
+              },
+            }),
+          },
+          cliJsonlTurnExecutor: null,
+        }),
+    },
+    {
+      engineId: 'claude-code',
+      createEngine: (streamValues: Array<boolean | undefined>) =>
+        new ClaudeChatEngine({
+          officialSdkBridgeLoader: {
+            load: async () => ({
+              async *sendMessageStream(_messages, options) {
+                streamValues.push(options?.stream);
+                yield* createSdkStream('claude-stream-default');
+              },
+            }),
+          },
+          claudeCliTurnExecutor: null,
+        }),
+    },
+    {
+      engineId: 'gemini',
+      createEngine: (streamValues: Array<boolean | undefined>) =>
+        new GeminiChatEngine({
+          officialSdkBridgeLoader: {
+            load: async () => ({
+              async *sendMessageStream(_messages, options) {
+                streamValues.push(options?.stream);
+                yield* createSdkStream('gemini-stream-default');
+              },
+            }),
+          },
+        }),
+    },
+    {
+      engineId: 'opencode',
+      createEngine: (streamValues: Array<boolean | undefined>) =>
+        new OpenCodeChatEngine({
+          officialSdkBridgeLoader: {
+            load: async () => ({
+              async *sendMessageStream(_messages, options) {
+                streamValues.push(options?.stream);
+                yield* createSdkStream('opencode-stream-default');
+              },
+            }),
+          },
+        }),
+    },
+  ] as const;
+
+  for (const provider of providers) {
+    const streamValues: Array<boolean | undefined> = [];
+    const engine = provider.createEngine(streamValues);
+    await collectStream(
+      engine.sendMessageStream(messages, {
+        model: provider.engineId,
+      }),
+    );
+    await collectStream(
+      engine.sendMessageStream(messages, {
+        model: provider.engineId,
+        stream: false,
+      }),
+    );
+
+    assert.deepEqual(
+      streamValues,
+      [true, true],
+      `${provider.engineId} sendMessageStream must force ChatOptions.stream=true for official SDK bridges so IDE turns always use streamed echo semantics.`,
+    );
+  }
+}
+
+async function verifyFallbackStreamOptionsDefaultToTrue() {
+  const codexStreamValues: Array<boolean | undefined> = [];
+  const codexEngine = new CodexChatEngine({
+    officialSdkBridgeLoader: {
+      load: async () => null,
+    },
+    cliJsonlTurnExecutor: async (_prompt, options) => {
+      codexStreamValues.push(options?.stream);
+      return [
+        {
+          type: 'item.updated',
+          item: {
+            id: 'codex-cli-stream-default-message',
+            type: 'agent_message',
+            text: 'codex cli stream default response',
+          },
+        },
+        {
+          type: 'turn.completed',
+        },
+      ];
+    },
+  });
+  await collectStream(
+    codexEngine.sendMessageStream(messages, {
+      model: 'codex',
+    }),
+  );
+  await collectStream(
+    codexEngine.sendMessageStream(messages, {
+      model: 'codex',
+      stream: false,
+    }),
+  );
+  assert.deepEqual(
+    codexStreamValues,
+    [true, true],
+    'Codex CLI stream fallback must receive ChatOptions.stream=true from sendMessageStream.',
+  );
+
+  const claudeStreamValues: Array<boolean | undefined> = [];
+  const claudeEngine = new ClaudeChatEngine({
+    officialSdkBridgeLoader: {
+      load: async () => null,
+    },
+    claudeCliTurnExecutor: async (_prompt, options) => {
+      claudeStreamValues.push(options?.stream);
+      return 'claude cli stream default response';
+    },
+  });
+  await collectStream(
+    claudeEngine.sendMessageStream(messages, {
+      model: 'claude-code',
+    }),
+  );
+  await collectStream(
+    claudeEngine.sendMessageStream(messages, {
+      model: 'claude-code',
+      stream: false,
+    }),
+  );
+  assert.deepEqual(
+    claudeStreamValues,
+    [true, true],
+    'Claude CLI stream fallback must receive ChatOptions.stream=true from sendMessageStream.',
+  );
+}
+
 async function verifyClaudeDefaultCliJsonlFallback() {
   const runtimeProcess = globalThis.process as typeof process & {
     getBuiltinModule?: (id: string) => unknown;
@@ -386,6 +539,9 @@ const providers = [
       }),
   },
 ] as const;
+
+await verifyProviderStreamOptionsDefaultToTrue();
+await verifyFallbackStreamOptionsDefaultToTrue();
 
 for (const provider of providers) {
   const sdkEngine = provider.createWithSdk();

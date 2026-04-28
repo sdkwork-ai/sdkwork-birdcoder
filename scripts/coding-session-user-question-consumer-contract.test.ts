@@ -19,6 +19,10 @@ import type {
   ICoreReadService,
   ICoreWriteService,
 } from '../packages/sdkwork-birdcoder-infrastructure/src/index.ts';
+import {
+  TEST_CODE_ENGINE_MODEL_CONFIG,
+  buildTestCodeEngineModelConfigSyncResult,
+} from './test-code-engine-model-config-fixture.ts';
 
 const defaultServicesModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
@@ -202,10 +206,21 @@ const answerResultFixture: BirdCoderUserQuestionAnswerResult = {
   turnId: 'user-question-consumer-contract-turn',
 };
 
+const rejectionResultFixture: BirdCoderUserQuestionAnswerResult = {
+  questionId: 'question-request-reject',
+  codingSessionId: sessionId,
+  rejected: true,
+  answeredAt: '2026-04-22T13:07:00.000Z',
+  runtimeStatus: 'failed',
+  runtimeId: 'user-question-consumer-contract-runtime',
+  turnId: 'user-question-consumer-contract-turn',
+};
+
 const observedAnswers: Array<{
-  answer: string;
+  answer?: string;
   optionLabel?: string;
   questionId: string;
+  rejected?: boolean;
 }> = [];
 
 const coreReadService: ICoreReadService = {
@@ -220,6 +235,9 @@ const coreReadService: ICoreReadService = {
   },
   async getHealth(): Promise<BirdCoderCoreHealthSummary> {
     throw new Error('not needed');
+  },
+  async getModelConfig() {
+    return TEST_CODE_ENGINE_MODEL_CONFIG;
   },
   async getNativeSession() {
     throw new Error('not needed');
@@ -283,11 +301,21 @@ const coreWriteClient: BirdCoderCoreWriteApiClient = {
       questionId: requestQuestionId,
       answer: request.answer,
       optionLabel: request.optionLabel,
+      rejected: request.rejected,
     });
+    if (request.rejected) {
+      return rejectionResultFixture;
+    }
     return answerResultFixture;
   },
   async deleteCodingSessionMessage() {
     throw new Error('not needed');
+  },
+  async editCodingSessionMessage() {
+    throw new Error('not needed');
+  },
+  async syncModelConfig(request) {
+    return buildTestCodeEngineModelConfigSyncResult(request.localConfig);
   },
 };
 
@@ -541,13 +569,29 @@ const answerResult = await projectionModule.submitCodingSessionUserQuestionAnswe
   },
 );
 
+const rejectionResult = await projectionModule.submitCodingSessionUserQuestionAnswer(
+  services.coreWriteService as Pick<ICoreWriteService, 'submitUserQuestionAnswer'>,
+  'question-request-reject',
+  {
+    rejected: true,
+  },
+);
+
 assert.deepEqual(observedAnswers, [
   {
     questionId,
     answer: 'Unit',
     optionLabel: 'Unit',
+    rejected: undefined,
+  },
+  {
+    questionId: 'question-request-reject',
+    answer: undefined,
+    optionLabel: undefined,
+    rejected: true,
   },
 ]);
 assert.deepEqual(answerResult, answerResultFixture);
+assert.deepEqual(rejectionResult, rejectionResultFixture);
 
 console.log('coding session user-question consumer contract passed.');

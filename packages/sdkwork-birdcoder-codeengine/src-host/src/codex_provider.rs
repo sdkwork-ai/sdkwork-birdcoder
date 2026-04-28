@@ -83,7 +83,9 @@ fn execute_codex_provider_turn(
         model_id: request.model_id.clone(),
         native_session_id: request.native_session_id.clone(),
         working_directory: request.working_directory.clone(),
+        approval_policy: request.config.approval_policy.clone(),
         full_auto: request.config.full_auto,
+        sandbox_mode: request.config.sandbox_mode.clone(),
         skip_git_repo_check: request.config.skip_git_repo_check,
         ephemeral: request.config.ephemeral,
     };
@@ -91,13 +93,6 @@ fn execute_codex_provider_turn(
         Some(callback) => execute_codex_cli_turn_with_events(&turn_request, callback)?,
         None => execute_codex_cli_turn(&turn_request)?,
     };
-
-    if request.config.sandbox_mode.is_some() || request.config.approval_policy.is_some() {
-        // TODO: codex exec resume currently does not expose the full interactive sandbox or
-        // approval switch set on every invocation. The standardized turn contract lives in
-        // sdkwork-birdcoder-codeengine now, so future Codex provider upgrades should wire the
-        // missing switches here without touching server callers.
-    }
 
     Ok(CodeEngineTurnResultRecord {
         assistant_content: result.assistant_content,

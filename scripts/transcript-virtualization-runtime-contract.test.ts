@@ -213,6 +213,18 @@ assert.match(
 );
 
 assert.match(
+  universalChatSource,
+  /key=\{`\$\{cmdIdx\}\\u0001\$\{cmd\.toolCallId \?\? cmd\.command\}`\}/,
+  'UniversalChat command cards must include the command row position in React keys so repeated toolCallId snapshots cannot collide.',
+);
+
+assert.doesNotMatch(
+  universalChatSource,
+  /key=\{cmd\.toolCallId \?\?/,
+  'UniversalChat command cards must not use provider toolCallId alone as a React key because providers may repeat it across progress snapshots.',
+);
+
+assert.match(
   virtualizationSource,
   /const prefixHeightsCache = useMemo\(\s*\(\)\s*=>[\s\S]*reconcileTranscriptPrefixHeightsCache\(/s,
   'useVirtualizedTranscriptWindow should reconcile transcript height prefixes through the reusable cache helper.',

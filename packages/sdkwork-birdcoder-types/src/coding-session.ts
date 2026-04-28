@@ -41,6 +41,10 @@ const BIRDCODER_CODING_SESSION_EXECUTING_RUNTIME_STATUS_SET = new Set<
   BirdCoderCodingSessionRuntimeStatus
 >(['initializing', 'streaming', 'awaiting_tool', 'awaiting_approval', 'awaiting_user']);
 
+const BIRDCODER_CODING_SESSION_ENGINE_BUSY_RUNTIME_STATUS_SET = new Set<
+  BirdCoderCodingSessionRuntimeStatus
+>(['initializing', 'streaming']);
+
 function isBirdCoderCodingSessionRuntimeStatus(
   value: unknown,
 ): value is BirdCoderCodingSessionRuntimeStatus {
@@ -54,22 +58,187 @@ interface BirdCoderCodingSessionExecutionLike {
   runtimeStatus?: BirdCoderCodingSessionRuntimeStatus | null;
 }
 
+interface BirdCoderCodingSessionRuntimeStatusEventLike {
+  kind?: string | null | undefined;
+  payload?: Record<string, unknown> | null | undefined;
+  turnId?: string | null | undefined;
+}
+
+function isBirdCoderCodingSessionTerminalReplyRole(role: string): boolean {
+  return (
+    role === 'assistant' ||
+    role === 'planner' ||
+    role === 'reviewer' ||
+    role === 'tool'
+  );
+}
+
 export function resolveBirdCoderCodingSessionRuntimeStatus(
-  events: readonly {
-    payload?: Record<string, unknown> | null | undefined;
-  }[],
+  events: readonly BirdCoderCodingSessionRuntimeStatusEventLike[],
   fallback?: BirdCoderCodingSessionRuntimeStatus | null,
 ): BirdCoderCodingSessionRuntimeStatus | undefined {
+  let latestCandidate: ResolvedBirdCoderCodingSessionRuntimeStatusCandidate | null = null;
+
   for (let index = events.length - 1; index >= 0; index -= 1) {
-    const runtimeStatus = normalizeBirdCoderCodeEngineRuntimeStatus(
-      events[index]?.payload?.runtimeStatus,
+    const event = events[index];
+    const runtimeStatus = resolveBirdCoderCodingSessionEventRuntimeStatus(event);
+    if (!runtimeStatus) {
+      continue;
+    }
+
+    const candidate = buildBirdCoderCodingSessionRuntimeStatusCandidate(
+      event,
+      runtimeStatus,
     );
-    if (runtimeStatus) {
-      return runtimeStatus;
+    if (!latestCandidate) {
+      latestCandidate = candidate;
+      continue;
+    }
+
+    if (
+      canBirdCoderTerminalRuntimeStatusOverrideTrailingProgress(
+        candidate,
+        latestCandidate,
+      )
+    ) {
+      latestCandidate = candidate;
     }
   }
 
-  return normalizeBirdCoderCodeEngineRuntimeStatus(fallback);
+  return latestCandidate?.runtimeStatus ?? normalizeBirdCoderCodeEngineRuntimeStatus(fallback);
+}
+
+interface ResolvedBirdCoderCodingSessionRuntimeStatusCandidate {
+  eventKind: string;
+  runtimeStatus: BirdCoderCodingSessionRuntimeStatus;
+  turnId?: string;
+}
+
+function buildBirdCoderCodingSessionRuntimeStatusCandidate(
+  event: BirdCoderCodingSessionRuntimeStatusEventLike | undefined,
+  runtimeStatus: BirdCoderCodingSessionRuntimeStatus,
+): ResolvedBirdCoderCodingSessionRuntimeStatusCandidate {
+  return {
+    eventKind: typeof event?.kind === 'string' ? event.kind.trim() : '',
+    runtimeStatus,
+    turnId: resolveBirdCoderCodingSessionRuntimeStatusEventTurnId(event),
+  };
+}
+
+function resolveBirdCoderCodingSessionRuntimeStatusEventTurnId(
+  event: BirdCoderCodingSessionRuntimeStatusEventLike | undefined,
+): string | undefined {
+  const eventTurnId = typeof event?.turnId === 'string' ? event.turnId.trim() : '';
+  if (eventTurnId) {
+    return eventTurnId;
+  }
+
+  const payloadTurnId =
+    typeof event?.payload?.turnId === 'string' ? event.payload.turnId.trim() : '';
+  return payloadTurnId || undefined;
+}
+
+function isBirdCoderTerminalCodingSessionRuntimeStatus(
+  runtimeStatus: BirdCoderCodingSessionRuntimeStatus,
+): boolean {
+  return (
+    runtimeStatus === 'completed' ||
+    runtimeStatus === 'failed' ||
+    runtimeStatus === 'terminated'
+  );
+}
+
+function isBirdCoderTrailingProgressRuntimeStatus(
+  runtimeStatus: BirdCoderCodingSessionRuntimeStatus,
+): boolean {
+  return runtimeStatus === 'initializing' || runtimeStatus === 'streaming';
+}
+
+function isBirdCoderProgressEventKind(eventKind: string): boolean {
+  return (
+    eventKind === 'operation.updated' ||
+    eventKind === 'message.delta' ||
+    eventKind === 'artifact.upserted' ||
+    eventKind === 'session.started'
+  );
+}
+
+function canBirdCoderTerminalRuntimeStatusOverrideTrailingProgress(
+  earlierCandidate: ResolvedBirdCoderCodingSessionRuntimeStatusCandidate,
+  laterCandidate: ResolvedBirdCoderCodingSessionRuntimeStatusCandidate,
+): boolean {
+  if (
+    !isBirdCoderTerminalCodingSessionRuntimeStatus(earlierCandidate.runtimeStatus) ||
+    !isBirdCoderTrailingProgressRuntimeStatus(laterCandidate.runtimeStatus) ||
+    !isBirdCoderProgressEventKind(laterCandidate.eventKind)
+  ) {
+    return false;
+  }
+
+  if (earlierCandidate.turnId && laterCandidate.turnId) {
+    return earlierCandidate.turnId === laterCandidate.turnId;
+  }
+
+  return !earlierCandidate.turnId && !laterCandidate.turnId &&
+    laterCandidate.eventKind === 'operation.updated';
+}
+
+function resolveBirdCoderCodingSessionEventRuntimeStatus(
+  event: BirdCoderCodingSessionRuntimeStatusEventLike | undefined,
+): BirdCoderCodingSessionRuntimeStatus | undefined {
+  const runtimeStatus = normalizeBirdCoderCodeEngineRuntimeStatus(
+    event?.payload?.runtimeStatus,
+  );
+  const kind = typeof event?.kind === 'string' ? event.kind.trim() : '';
+
+  switch (kind) {
+    case 'turn.started':
+    case 'message.delta':
+      return 'streaming';
+    case 'approval.required':
+      return runtimeStatus ?? 'awaiting_approval';
+    case 'turn.completed':
+      return 'completed';
+    case 'turn.failed':
+      return 'failed';
+    case 'tool.call.requested':
+    case 'tool.call.progress':
+    case 'tool.call.completed':
+      if (
+        runtimeStatus === 'awaiting_approval' ||
+        runtimeStatus === 'awaiting_user' ||
+        runtimeStatus === 'awaiting_tool' ||
+        runtimeStatus === 'failed' ||
+        runtimeStatus === 'terminated'
+      ) {
+        return runtimeStatus;
+      }
+      if (runtimeStatus === 'streaming' || runtimeStatus === 'initializing') {
+        return 'streaming';
+      }
+      return undefined;
+    case 'operation.updated':
+      return runtimeStatus;
+    case 'message.completed': {
+      const role = typeof event?.payload?.role === 'string'
+        ? event.payload.role.trim()
+        : '';
+      if (role === 'user') {
+        return runtimeStatus === 'completed' ? undefined : runtimeStatus;
+      }
+      if (isBirdCoderCodingSessionTerminalReplyRole(role)) {
+        return runtimeStatus ?? 'completed';
+      }
+      return runtimeStatus;
+    }
+    case 'message.deleted':
+    case 'message.edited':
+    case 'artifact.upserted':
+    case 'session.started':
+      return runtimeStatus;
+    default:
+      return runtimeStatus;
+  }
 }
 
 export function isBirdCoderCodingSessionExecuting(
@@ -80,6 +249,16 @@ export function isBirdCoderCodingSessionExecuting(
   }
 
   return BIRDCODER_CODING_SESSION_EXECUTING_RUNTIME_STATUS_SET.has(session.runtimeStatus);
+}
+
+export function isBirdCoderCodingSessionEngineBusy(
+  session: BirdCoderCodingSessionExecutionLike | null | undefined,
+): boolean {
+  if (!session?.runtimeStatus) {
+    return false;
+  }
+
+  return BIRDCODER_CODING_SESSION_ENGINE_BUSY_RUNTIME_STATUS_SET.has(session.runtimeStatus);
 }
 
 export const BIRDCODER_CODING_SESSION_MESSAGE_ROLES = [
@@ -100,6 +279,7 @@ export const BIRDCODER_CODING_SESSION_EVENT_KINDS = [
   'message.delta',
   'message.completed',
   'message.deleted',
+  'message.edited',
   'tool.call.requested',
   'tool.call.progress',
   'tool.call.completed',

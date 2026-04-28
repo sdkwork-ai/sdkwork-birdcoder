@@ -8,11 +8,12 @@ use sdkwork_birdcoder_codeengine::{
     is_authority_backed_native_session_id as is_standard_authority_backed_native_session_id,
     map_codeengine_session_runtime_status, map_codeengine_session_status_from_runtime,
     resolve_native_session_engine_id as resolve_standard_native_session_engine_id,
-    standard_codeengine_provider_registry, CodeEngineSessionCommandRecord,
-    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord, CodeEngineSessionSummaryRecord,
-    CodeEngineTurnConfigRecord, CodeEngineTurnCurrentFileContextRecord,
-    CodeEngineTurnIdeContextRecord, CodeEngineTurnRequestRecord, CodeEngineTurnResultRecord,
-    CodeEngineTurnStreamEventRecord,
+    standard_codeengine_provider_registry, CodeEngineApprovalDecisionRecord,
+    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    CodeEngineSessionSummaryRecord, CodeEngineTurnConfigRecord,
+    CodeEngineTurnCurrentFileContextRecord, CodeEngineTurnIdeContextRecord,
+    CodeEngineTurnRequestRecord, CodeEngineTurnResultRecord, CodeEngineTurnStreamEventRecord,
+    CodeEngineUserQuestionAnswerRecord,
 };
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -41,6 +42,9 @@ pub(crate) struct NativeSessionTurnConfig {
     pub(crate) full_auto: bool,
     pub(crate) sandbox_mode: Option<String>,
     pub(crate) skip_git_repo_check: bool,
+    pub(crate) temperature: Option<f64>,
+    pub(crate) top_p: Option<f64>,
+    pub(crate) max_tokens: Option<i64>,
 }
 
 #[derive(Clone, Default)]
@@ -79,9 +83,29 @@ pub(crate) struct NativeSessionTurnResult {
 
 #[derive(Clone, Default)]
 pub(crate) struct NativeSessionTurnStreamEvent {
+    pub(crate) kind: String,
     pub(crate) role: String,
     pub(crate) content_delta: String,
+    pub(crate) payload: Option<serde_json::Value>,
     pub(crate) native_session_id: Option<String>,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct NativeSessionApprovalDecision {
+    pub(crate) native_session_id: Option<String>,
+    pub(crate) approval_id: String,
+    pub(crate) decision: String,
+    pub(crate) reason: Option<String>,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct NativeSessionUserQuestionAnswer {
+    pub(crate) native_session_id: Option<String>,
+    pub(crate) question_id: String,
+    pub(crate) answer: String,
+    pub(crate) option_id: Option<String>,
+    pub(crate) option_label: Option<String>,
+    pub(crate) rejected: bool,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
@@ -439,6 +463,50 @@ pub(crate) fn execute_native_session_turn_with_events(
     Ok(map_codeengine_turn_result_record(result))
 }
 
+pub(crate) fn submit_native_session_approval_decision(
+    engine_id: &str,
+    decision: &NativeSessionApprovalDecision,
+) -> Result<bool, String> {
+    let providers = standard_codeengine_provider_registry().resolve_provider(Some(engine_id))?;
+    let provider = providers.into_iter().next().ok_or_else(|| {
+        "Native session provider registry did not resolve an engine provider.".to_owned()
+    })?;
+    if !provider.supports_live_approval_decision_replies() {
+        return Ok(false);
+    }
+
+    provider.submit_approval_decision(&CodeEngineApprovalDecisionRecord {
+        native_session_id: decision.native_session_id.clone(),
+        approval_id: decision.approval_id.clone(),
+        decision: decision.decision.clone(),
+        reason: decision.reason.clone(),
+    })?;
+    Ok(true)
+}
+
+pub(crate) fn submit_native_session_user_question_answer(
+    engine_id: &str,
+    answer: &NativeSessionUserQuestionAnswer,
+) -> Result<bool, String> {
+    let providers = standard_codeengine_provider_registry().resolve_provider(Some(engine_id))?;
+    let provider = providers.into_iter().next().ok_or_else(|| {
+        "Native session provider registry did not resolve an engine provider.".to_owned()
+    })?;
+    if !provider.supports_live_user_question_replies() {
+        return Ok(false);
+    }
+
+    provider.submit_user_question_answer(&CodeEngineUserQuestionAnswerRecord {
+        native_session_id: answer.native_session_id.clone(),
+        question_id: answer.question_id.clone(),
+        answer: answer.answer.clone(),
+        option_id: answer.option_id.clone(),
+        option_label: answer.option_label.clone(),
+        rejected: answer.rejected,
+    })?;
+    Ok(true)
+}
+
 pub(crate) fn build_native_session_id(engine_id: &str, native_session_id: &str) -> String {
     build_standard_native_session_id(engine_id, native_session_id)
 }
@@ -470,6 +538,9 @@ fn map_codeengine_turn_config_record(
         full_auto: config.full_auto,
         sandbox_mode: config.sandbox_mode.clone(),
         skip_git_repo_check: config.skip_git_repo_check,
+        temperature: config.temperature,
+        top_p: config.top_p,
+        max_tokens: config.max_tokens,
     }
 }
 
@@ -516,8 +587,10 @@ fn map_codeengine_turn_stream_event_record(
     event: CodeEngineTurnStreamEventRecord,
 ) -> NativeSessionTurnStreamEvent {
     NativeSessionTurnStreamEvent {
+        kind: event.kind,
         role: event.role,
         content_delta: event.content_delta,
+        payload: event.payload,
         native_session_id: event.native_session_id,
     }
 }

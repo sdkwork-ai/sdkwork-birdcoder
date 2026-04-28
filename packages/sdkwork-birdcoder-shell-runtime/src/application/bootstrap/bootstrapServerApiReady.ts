@@ -35,6 +35,14 @@ function resolveReadinessPaths(paths?: readonly string[]): readonly string[] {
     .filter((path) => path.length > 0);
 }
 
+function buildApiReadyUrl(apiBaseUrl: string, path: string): string {
+  const url = new URL(apiBaseUrl);
+  const normalizedBasePath = url.pathname === '/' ? '' : url.pathname.replace(/\/+$/u, '');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  url.pathname = `${normalizedBasePath}${normalizedPath}`;
+  return url.toString();
+}
+
 function hasFetchSupport(): boolean {
   return typeof globalThis.fetch === 'function';
 }
@@ -61,7 +69,7 @@ export async function waitForBirdCoderApiReady(
     return;
   }
 
-  const readinessUrls = readinessPaths.map((path) => new URL(path, apiBaseUrl).toString());
+  const readinessUrls = readinessPaths.map((path) => buildApiReadyUrl(apiBaseUrl, path));
   const maxAttempts = normalizePositiveInteger(options.maxAttempts, DEFAULT_API_READY_MAX_ATTEMPTS);
   const requestTimeoutMs = normalizePositiveInteger(
     options.requestTimeoutMs,

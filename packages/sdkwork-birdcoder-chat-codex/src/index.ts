@@ -15,6 +15,7 @@ import {
   resolvePackagePresence,
   streamResponseAsChunks,
   stringifyProviderToolArgumentPayload,
+  withStreamEnabledChatOptions,
   type ChatEngineOfficialSdkBridge,
   type ChatEngineOfficialSdkBridgeLoader,
   type ChatMessage,
@@ -300,6 +301,58 @@ function createCodexThread(codexClient: CodexOfficialSdkClient, options?: ChatOp
   });
 }
 
+function normalizeCodexFiniteNumber(
+  value: number | undefined,
+  minimum: number,
+  maximum: number,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function normalizeCodexPositiveInteger(
+  value: number | undefined,
+  maximum: number,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(maximum, Math.max(1, Math.floor(value)));
+}
+
+function normalizeCodexTemperature(value: number | undefined): number | undefined {
+  return normalizeCodexFiniteNumber(value, 0, 2);
+}
+
+function normalizeCodexTopP(value: number | undefined): number | undefined {
+  return normalizeCodexFiniteNumber(value, 0, 1);
+}
+
+function normalizeCodexMaxTokens(value: number | undefined): number | undefined {
+  return normalizeCodexPositiveInteger(value, 128000);
+}
+
+function compactCodexRunOptions(
+  options: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(options).filter(([, value]) => value !== undefined),
+  );
+}
+
+function buildCodexRunOptions(options?: ChatOptions): Record<string, unknown> {
+  return compactCodexRunOptions({
+    signal: options?.signal,
+    temperature: normalizeCodexTemperature(options?.temperature),
+    topP: normalizeCodexTopP(options?.topP),
+    maxTokens: normalizeCodexMaxTokens(options?.maxTokens),
+  });
+}
+
 function createCodexCliCommandSpec(): CodexCliCommandSpec {
   return getRuntimeProcess()?.platform === 'win32'
     ? {
@@ -579,6 +632,21 @@ function toCodexToolCall(item: Record<string, unknown>): ToolCall | null {
           }),
         },
       };
+    case 'web_search':
+      return {
+        id: String(item.id ?? `codex-web-search-${Date.now()}`),
+        type: 'function',
+        function: {
+          name: canonicalizeBirdCoderCodeEngineProviderToolName({
+            fallbackToolName: 'web_search',
+            provider: 'codex',
+            toolName: item.type,
+          }),
+          arguments: stringifyProviderToolArgumentPayload({
+            query: item.query,
+          }),
+        },
+      };
     case 'mcp_tool_call':
       return {
         id: String(item.id ?? `codex-mcp-${Date.now()}`),
@@ -600,7 +668,10 @@ function toCodexToolCall(item: Record<string, unknown>): ToolCall | null {
 }
 
 function extractCodexEventItem(event: Record<string, unknown>): Record<string, unknown> | null {
-  if (event.type !== 'item.updated' && event.type !== 'item.completed') {
+  if (
+    event.type !== 'item.updated' &&
+    event.type !== 'item.completed'
+  ) {
     return null;
   }
 
@@ -650,9 +721,7 @@ export function createCodexOfficialSdkBridge(
     async sendMessage(messages, options) {
       const prompt = buildCodexPrompt(messages);
       const codexThread = createCodexThread(codexClientFactory(), options);
-      const turn = await codexThread.run(prompt, {
-        signal: options?.signal,
-      });
+      const turn = await codexThread.run(prompt, buildCodexRunOptions(options));
       const finalResponse =
         typeof turn.finalResponse === 'string' ? turn.finalResponse : '';
 
@@ -674,13 +743,12 @@ export function createCodexOfficialSdkBridge(
       const model = options?.model || 'codex';
       const prompt = buildCodexPrompt(messages);
       const codexThread = createCodexThread(codexClientFactory(), options);
-      const streamedTurn = await codexThread.runStreamed(prompt, {
-        signal: options?.signal,
-      });
+      const streamedTurn = await codexThread.runStreamed(prompt, buildCodexRunOptions(options));
       const itemContentById = new Map<string, string>();
 
       for await (const event of streamedTurn.events) {
         switch (event.type) {
+          case 'item.started':
           case 'item.updated':
           case 'item.completed': {
             const item = event.item;
@@ -854,14 +922,15 @@ export class CodexChatEngine implements IChatEngine {
     messages: ChatMessage[],
     options?: ChatOptions,
   ): AsyncGenerator<ChatStreamChunk, void, unknown> {
+    const streamOptions = withStreamEnabledChatOptions(options);
     const bridge = await this.officialSdkBridgeLoader?.load();
     if (bridge?.sendMessageStream) {
-      yield* await bridge.sendMessageStream(messages, options);
+      yield* await bridge.sendMessageStream(messages, streamOptions);
       return;
     }
 
     if (bridge?.sendMessage) {
-      const response = await bridge.sendMessage(messages, options);
+      const response = await bridge.sendMessage(messages, streamOptions);
       yield* streamResponseAsChunks(response);
       return;
     }
@@ -873,10 +942,14 @@ export class CodexChatEngine implements IChatEngine {
     if (!this.cliJsonlTurnExecutor) {
       throw new Error(CODEX_CLI_UNAVAILABLE_MESSAGE);
     }
-    const events = await this.cliJsonlTurnExecutor(buildCodexCliPrompt(messages, options), options);
+    const events = await this.cliJsonlTurnExecutor(
+      buildCodexCliPrompt(messages, streamOptions),
+      streamOptions,
+    );
 
     for (const event of events) {
       switch (event.type) {
+        case 'item.started':
         case 'item.updated':
         case 'item.completed': {
           const item = event.item;

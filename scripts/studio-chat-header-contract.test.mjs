@@ -70,15 +70,15 @@ assert.ok(
 
 assert.ok(
   studioChatSidebarSource.includes(
-    'const isExecutingCurrentSession = isBirdCoderCodingSessionExecuting(currentCodingSession);',
+    'const isEngineBusyCurrentSession = isBirdCoderCodingSessionEngineBusy(currentCodingSession);',
   ),
-  'Studio chat sidebar header must derive the current execution state from the selected session runtime state.',
+  'Studio chat sidebar header must derive the spinning indicator from the selected session engine-busy runtime state.',
 );
 
 assert.match(
   studioChatSidebarSource,
-  /const showExecutingCurrentSessionIndicator =\s*isExecutingCurrentSession && Boolean\(selectedCodingSessionId\);/s,
-  'Studio chat sidebar header should collapse execution-state rendering into one session-aware indicator flag.',
+  /const showEngineBusyCurrentSessionIndicator =\s*isEngineBusyCurrentSession && Boolean\(selectedCodingSessionId\);/s,
+  'Studio chat sidebar header should collapse engine-busy rendering into one session-aware indicator flag.',
 );
 
 assert.ok(
@@ -151,14 +151,26 @@ assert.ok(
 
 assert.match(
   studioChatSidebarSource,
-  /const headerRefreshIconClassName =\s*showExecutingCurrentSessionIndicator\s*\?\s*'animate-spin text-emerald-400'\s*:\s*isRefreshingCurrentContext\s*\?\s*'animate-spin text-gray-300'\s*:\s*'text-gray-500';/s,
-  'Studio chat sidebar header should compute one icon treatment for executing and manual refresh states.',
+  /const headerActivityIconClassName =\s*showEngineBusyCurrentSessionIndicator\s*\?\s*'animate-spin text-emerald-400'\s*:\s*isRefreshingCurrentContext\s*\?\s*'animate-spin text-gray-300'\s*:\s*'text-gray-500';/s,
+  'Studio chat sidebar header should compute one icon treatment for engine-busy and manual refresh states.',
 );
 
 assert.match(
   studioChatSidebarSource,
-  /showExecutingCurrentSessionIndicator \? \(\s*<span className="hidden text-xs xl:inline">\s*\{t\('studio\.executingSession'\)\}\s*<\/span>\s*\) : null/s,
-  'Studio chat sidebar header should render the executing label inside the single refresh indicator instead of as a second icon block.',
+  /const refreshActionKey = showEngineBusyCurrentSessionIndicator\s*\?\s*'studio\.executingSession'\s*:/s,
+  'Studio chat sidebar header should title the disabled engine-busy indicator as executing instead of a refresh action.',
+);
+
+assert.match(
+  studioChatSidebarSource,
+  /showEngineBusyCurrentSessionIndicator \? \(\s*<Loader2\s*size=\{14\}\s*className=\{headerActivityIconClassName\}\s*\/>\s*\) : \(\s*<RefreshCw\s*size=\{14\}\s*className=\{headerActivityIconClassName\}\s*\/>\s*\)/s,
+  'Studio chat sidebar header should use Loader2 only for engine-busy execution and reserve RefreshCw for manual refresh.',
+);
+
+assert.match(
+  studioChatSidebarSource,
+  /showEngineBusyCurrentSessionIndicator \? \(\s*<span className="hidden text-xs xl:inline">\s*\{t\('studio\.executingSession'\)\}\s*<\/span>\s*\) : null/s,
+  'Studio chat sidebar header should render the executing label inside the single engine-busy indicator instead of as a second icon block.',
 );
 
 assert.doesNotMatch(
@@ -167,17 +179,35 @@ assert.doesNotMatch(
   'Studio chat sidebar header should not render a second executing indicator block alongside the refresh button.',
 );
 
+assert.doesNotMatch(
+  studioChatSidebarSource,
+  /isBirdCoderCodingSessionExecuting\(currentCodingSession\)/,
+  'Studio chat sidebar header must not spin for approval, tool, or user-reply waits; only engine-busy statuses should animate.',
+);
+
 assert.ok(
   studioChatSidebarSource.includes(
-    'const isExecutingSession = isBirdCoderCodingSessionExecuting(session);',
+    'const isEngineBusySession = isBirdCoderCodingSessionEngineBusy(session);',
   ),
-  'Studio project menu should identify executing sessions from the session runtime state.',
+  'Studio project menu should identify spinner rows from the engine-busy runtime state.',
 );
 
 assert.match(
   studioChatSidebarSource,
-  /isExecutingSession \? \(\s*<RefreshCw size=\{14\} className="animate-spin text-emerald-400 shrink-0" \/>\s*\) : isSelected \? \(\s*<Check size=\{14\} className="text-blue-400 shrink-0" \/>\s*\) : null/s,
-  'Studio project menu should replace the static selected indicator with a spinner for the executing session.',
+  /isEngineBusySession \? \(\s*<Loader2 size=\{14\} className="animate-spin text-emerald-400 shrink-0" \/>\s*\) : isSelected \? \(\s*<Check size=\{14\} className="text-blue-400 shrink-0" \/>\s*\) : null/s,
+  'Studio project menu should replace the static selected indicator with a neutral spinner only while the engine is actively working.',
+);
+
+assert.doesNotMatch(
+  studioChatSidebarSource,
+  /isEngineBusySession \? \(\s*<RefreshCw size=\{14\} className="animate-spin text-emerald-400 shrink-0" \/>\s*\) : isSelected/s,
+  'Studio project menu must not use the refresh icon for execution state because it reads as "refreshing" on startup.',
+);
+
+assert.doesNotMatch(
+  studioChatSidebarSource,
+  /isExecutingSession \? \(\s*<Loader2 size=\{14\} className="animate-spin text-emerald-400 shrink-0" \/>\s*\) : isSelected/s,
+  'Studio project menu must not spin for approval or user-reply waits; those are active sessions but not engine-busy sessions.',
 );
 
 assert.doesNotMatch(

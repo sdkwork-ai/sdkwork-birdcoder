@@ -41,7 +41,7 @@ interface ProjectExplorerHeaderProps {
   allSessionsLabel: string;
   relevantLabel: string;
   filterMenuRef: RefObject<HTMLDivElement | null>;
-  onCreateSession: (engineId: string) => void | Promise<void>;
+  onCreateSession: (engineId: string, modelId: string) => void | Promise<void>;
   onRefreshSelectedProject?: () => void;
   onToggleSearch: () => void;
   onSearchQueryChange?: (query: string) => void;

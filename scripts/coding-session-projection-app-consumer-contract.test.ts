@@ -14,6 +14,7 @@ import type {
   BirdCoderOperationDescriptor,
 } from '@sdkwork/birdcoder-types';
 import { loadCodingSessionProjection } from '../packages/sdkwork-birdcoder-commons/src/hooks/useCodingSessionProjection.ts';
+import { TEST_CODE_ENGINE_MODEL_CONFIG } from './test-code-engine-model-config-fixture.ts';
 
 const sessionId = 'session-projection-consumer-contract';
 
@@ -80,6 +81,9 @@ const coreReadService: ICoreReadService = {
   },
   async getHealth(): Promise<BirdCoderCoreHealthSummary> {
     throw new Error('not needed');
+  },
+  async getModelConfig() {
+    return TEST_CODE_ENGINE_MODEL_CONFIG;
   },
   async getNativeSession() {
     throw new Error('not needed');

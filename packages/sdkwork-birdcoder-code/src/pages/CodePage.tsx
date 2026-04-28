@@ -13,7 +13,6 @@ import {
   regenerateWorkbenchCodingSessionFromLastUserMessage,
   resolveProjectMountRecoverySource,
   restoreWorkbenchCodingSessionMessageFiles,
-  setWorkbenchChatInputDraft,
   type TerminalCommandRequest,
   useCodingSessionActions,
   useCodingSessionEngineModelSelection,
@@ -23,6 +22,7 @@ import {
   useProjects,
   useSelectedCodingSessionMessages,
   useSessionRefreshActions,
+  useWorkbenchCodingSessionMessageEditAction,
   useWorkbenchCodingSessionCreationActions,
   useWorkbenchChatSelection,
   useWorkbenchPreferences,
@@ -30,12 +30,12 @@ import {
   useToast,
 } from '@sdkwork/birdcoder-commons';
 import {
+  isBirdCoderCodingSessionEngineBusy,
   isBirdCoderCodingSessionExecuting,
   type FileChange,
 } from '@sdkwork/birdcoder-types';
 import { useTranslation } from 'react-i18next';
-import { CodeChatEmptyState } from './CodeChatEmptyState';
-import { CodeSessionTranscriptLoadingState, getLanguageFromPath } from './CodePageShared';
+import { createCodeChatEmptyStates, getLanguageFromPath, type CodePageProps } from './CodePageShared';
 import { CodePageSurface } from './CodePageSurface';
 import { useCodeDeleteConfirmation } from './useCodeDeleteConfirmation';
 import { useCodeEditorChatLayout } from './useCodeEditorChatLayout';
@@ -48,15 +48,6 @@ import { useCodePageSurfaceProps } from './useCodePageSurfaceProps';
 import { useCodeRunEntryActions } from './useCodeRunEntryActions';
 import { useCodePageTerminalActions } from './useCodePageTerminalActions';
 import { useCodeWorkbenchCommands } from './useCodeWorkbenchCommands';
-
-interface CodePageProps {
-  isVisible?: boolean;
-  workspaceId?: string;
-  projectId?: string;
-  initialCodingSessionId?: string;
-  onProjectChange?: (projectId: string) => void;
-  onCodingSessionChange?: (codingSessionId: string) => void;
-}
 
 function CodePageComponent({
   isVisible = true,
@@ -85,6 +76,7 @@ function CodePageComponent({
     renameCodingSession,
     updateCodingSession,
     deleteCodingSession,
+    editCodingSessionMessage,
     deleteCodingSessionMessage,
     sendMessage,
     forkCodingSession,
@@ -242,8 +234,10 @@ function CodePageComponent({
     pendingProjectChangeIdRef.current = normalizedNextProjectId;
     onProjectChange(normalizedNextProjectId);
   }, [currentProjectId, onProjectChange]);
-  const isSelectedSessionExecuting = isBirdCoderCodingSessionExecuting(session);
-  const isChatBusy = isSubmittingTurn || isSelectedSessionExecuting || isNewCodingSessionCreating;
+  const isSelectedSessionTurnActive = isBirdCoderCodingSessionExecuting(session);
+  const isSelectedSessionEngineBusy = isBirdCoderCodingSessionEngineBusy(session);
+  const isChatBusy = isSubmittingTurn || isSelectedSessionTurnActive || isNewCodingSessionCreating;
+  const isChatEngineBusy = isSubmittingTurn || isSelectedSessionEngineBusy || isNewCodingSessionCreating;
   const selectSession = useCallback((
     nextCodingSessionId: string,
     options?: { projectId?: string },
@@ -296,16 +290,20 @@ function CodePageComponent({
   const createCodingSessionWithTranscriptReset = useCallback(async (
     projectId: string,
     requestedEngineId?: string,
+    requestedModelId?: string,
   ) => {
     const normalizedProjectId = projectId.trim();
     if (!normalizedProjectId) {
-      return createCodingSessionInProject(projectId, requestedEngineId);
+      return createCodingSessionInProject(projectId, requestedEngineId, {
+        modelId: requestedModelId,
+      });
     }
 
     const pendingRequest = beginPendingNewCodingSessionRequest(normalizedProjectId);
 
     try {
       return await createCodingSessionInProject(normalizedProjectId, requestedEngineId, {
+        modelId: requestedModelId,
         shouldSelectCreatedSession: (_newSession, selectionContext) => {
           const activePendingRequest = pendingNewCodingSessionRequestRef.current;
           return (
@@ -325,14 +323,24 @@ function CodePageComponent({
   ]);
   const createCodingSessionFromCurrentProjectWithTranscriptReset = useCallback(async (
     requestedEngineId?: string,
+    requestedModelId?: string,
   ) => {
-    await createCodingSessionWithTranscriptReset(currentProjectId, requestedEngineId);
+    await createCodingSessionWithTranscriptReset(
+      currentProjectId,
+      requestedEngineId,
+      requestedModelId,
+    );
   }, [createCodingSessionWithTranscriptReset, currentProjectId]);
   const createCodingSessionInProjectWithTranscriptReset = useCallback(async (
     projectId: string,
     requestedEngineId?: string,
+    requestedModelId?: string,
   ) => {
-    await createCodingSessionWithTranscriptReset(projectId, requestedEngineId);
+    await createCodingSessionWithTranscriptReset(
+      projectId,
+      requestedEngineId,
+      requestedModelId,
+    );
   }, [createCodingSessionWithTranscriptReset]);
   const handleSidebarCodingSessionSelect = useCallback((nextCodingSessionId: string | null) => {
     clearPendingNewCodingSessionRequest();
@@ -974,13 +982,12 @@ function CodePageComponent({
     }
   }, [addToast, forkCodingSession, resolveSession, selectSession, t]);
 
-  const handleEditMessage = useCallback((codingSessionId: string, messageId: string) => {
-    const codingSession = resolveSession(codingSessionId)?.codingSession;
-    const msg = codingSession?.messages?.find(m => m.id === messageId);
-    if (msg) {
-      setWorkbenchChatInputDraft(codingSessionId, msg.content);
-    }
-  }, [resolveSession]);
+  const handleEditMessage = useWorkbenchCodingSessionMessageEditAction({
+    editCodingSessionMessage,
+    resolveCodingSessionLocation: resolveSession,
+    sessionUnavailableMessage: t('chat.sendMessageSessionUnavailable'),
+    setSelectionRefreshToken,
+  });
 
   const handleDeleteMessage = useCallback(async (codingSessionId: string, messageIds: string[]) => {
     requestDeleteMessage(codingSessionId, messageIds);
@@ -1056,15 +1063,20 @@ function CodePageComponent({
   }, [addToast, resolveSession, restoreWorkbenchCodingSessionMessageFiles, saveFileContent]);
 
   const handleSendMessage = useCallback(async (text?: string) => {
-    const trimmedContent = typeof text === 'string' ? text.trim() : '';
-    if (!trimmedContent || isChatBusy) return;
+    const trimmedContent = text?.trim() ?? '';
+    if (!trimmedContent) {
+      return;
+    }
+    if (isChatBusy) {
+      throw new Error(t('chat.sendMessageBusy'));
+    }
     const bootstrappedSession = await ensureWorkbenchCodingSessionForMessage({
       createCodingSessionWithSelection,
       currentCodingSessionId: sessionId,
       currentProjectId,
       messageContent: trimmedContent,
       resolveProjectId: async () => {
-        if (projects.length === 0) {
+        if (!projects.length) {
           return handleNewProject();
         }
         return projects[0]?.id;
@@ -1072,7 +1084,7 @@ function CodePageComponent({
       selectCodingSession: selectSession,
     });
     if (!bootstrappedSession) {
-      return;
+      throw new Error(t('chat.sendMessageSessionUnavailable'));
     }
 
     setIsSubmittingTurn(true);
@@ -1116,6 +1128,7 @@ function CodePageComponent({
     selectedFile,
     sendMessage,
     setSelectionRefreshToken,
+    t,
     workspaceId,
   ]);
   const visibleSessionId = isNewCodingSessionCreating ? null : sessionId;
@@ -1154,20 +1167,11 @@ function CodePageComponent({
       selectedCodingSessionMessages.length === 0
     )
   );
-  const mainChatEmptyState = useMemo(
-    () => (
-      isSelectedCodingSessionHydrating
-        ? <CodeSessionTranscriptLoadingState />
-        : <CodeChatEmptyState />
-    ),
-    [isSelectedCodingSessionHydrating],
-  );
-  const editorChatEmptyState = useMemo(
-    () => (
-      isSelectedCodingSessionHydrating
-        ? <CodeSessionTranscriptLoadingState />
-        : undefined
-    ),
+  const {
+    mainChatEmptyState,
+    editorChatEmptyState,
+  } = useMemo(
+    () => createCodeChatEmptyStates(isSelectedCodingSessionHydrating),
     [isSelectedCodingSessionHydrating],
   );
 
@@ -1249,10 +1253,11 @@ function CodePageComponent({
   const handleRejectViewingDiff = useCallback(() => {
     setViewingDiff(null);
   }, []);
-  const handleEditSelectedCodingSessionMessage = useCallback((messageId: string) => {
+  const handleEditSelectedCodingSessionMessage = useCallback((messageId: string, content: string) => {
     if (session) {
-      handleEditMessage(session.id, messageId);
+      return handleEditMessage(session.id, messageId, content);
     }
+    return Promise.resolve();
   }, [handleEditMessage, session]);
   const handleDeleteSelectedCodingSessionMessage = useCallback((messageIds: string[]) => {
     if (session) {
@@ -1314,6 +1319,7 @@ function CodePageComponent({
     files,
     filteredProjects,
     isChatBusy,
+    isChatEngineBusy,
     isDebugConfigVisible,
     isFindVisible,
     isMountRecoveryActionPending,
@@ -1321,7 +1327,7 @@ function CodePageComponent({
     isRunConfigVisible,
     isRunTaskVisible,
     isSearchingFiles,
-    isSelectedSessionExecuting,
+    isSelectedSessionEngineBusy,
     selectedEngineId,
     selectedModelId,
     isSidebarVisible,

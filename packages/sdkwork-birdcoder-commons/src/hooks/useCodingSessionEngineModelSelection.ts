@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { normalizeWorkbenchCodeModelId } from '@sdkwork/birdcoder-codeengine';
+import { resolveWorkbenchCodeEngineSelectedModelId } from '@sdkwork/birdcoder-codeengine';
 
 import type { WorkbenchPreferences } from '../workbench/preferences.ts';
 
@@ -27,9 +27,8 @@ export function useCodingSessionEngineModelSelection({
 
       setSelectedEngineId(engineId);
 
-      const nextModelId = normalizeWorkbenchCodeModelId(
+      const nextModelId = resolveWorkbenchCodeEngineSelectedModelId(
         engineId,
-        selectedModelId,
         preferences,
       );
       if (nextModelId !== selectedModelId) {

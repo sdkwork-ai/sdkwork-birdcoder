@@ -7,6 +7,8 @@ export {
   ensureStoredRunConfigurations,
   saveStoredRunConfigurations,
   upsertStoredRunConfiguration,
+} from '@sdkwork/birdcoder-commons';
+export {
   MIN_WORKBENCH_CODE_EDITOR_CHAT_WIDTH,
   MAX_WORKBENCH_CODE_EDITOR_CHAT_WIDTH,
   DEFAULT_WORKBENCH_CODE_EDITOR_CHAT_WIDTH,
@@ -20,9 +22,12 @@ export {
   setWorkbenchActiveCodeModel,
   upsertWorkbenchCodeEngineCustomModel,
   removeWorkbenchCodeEngineCustomModel,
+  syncWorkbenchCodeEngineModelConfig,
   getWorkbenchPreferencesRepository,
   readWorkbenchPreferences,
   writeWorkbenchPreferences,
+} from '@sdkwork/birdcoder-commons';
+export {
   DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
   normalizeWorkbenchRecoverySnapshot,
   buildWorkbenchRecoverySnapshot,
@@ -44,10 +49,17 @@ export type {
   RunConfigurationCwdMode,
   RunConfigurationGroup,
   RunConfigurationRecord,
+} from '@sdkwork/birdcoder-commons';
+export type {
+  SyncWorkbenchCodeEngineModelConfigOptions,
+  WorkbenchCodeEngineModelConfigCoreReadService,
+  WorkbenchCodeEngineModelConfigCoreWriteService,
   WorkbenchCodeEngineDefinition,
   WorkbenchCodeEngineId,
   WorkbenchCodeEngineSettingsMap,
   WorkbenchPreferences,
+} from '@sdkwork/birdcoder-commons';
+export type {
   WorkbenchRecoverySnapshot,
   ResolveStartupWorkspaceIdOptions,
   ResolveStartupProjectIdOptions,

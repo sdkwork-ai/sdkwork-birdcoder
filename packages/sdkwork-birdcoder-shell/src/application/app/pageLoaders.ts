@@ -12,6 +12,11 @@ export async function loadStudioPage() {
   return { default: module.StudioPage };
 }
 
+export async function loadMultiWindowProgrammingPage() {
+  const module = await import('@sdkwork/birdcoder-multiwindow');
+  return { default: module.MultiWindowProgrammingPage };
+}
+
 export async function loadTerminalDesktopApp(): Promise<{
   default: ComponentType<DesktopTerminalAppProps<TerminalCommandRequest>>;
 }> {

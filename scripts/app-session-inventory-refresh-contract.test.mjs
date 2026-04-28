@@ -14,6 +14,10 @@ const sharedRefreshHookSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-commons/src/hooks/useSessionRefreshActions.ts', import.meta.url),
   'utf8',
 );
+const selectedSessionMessagesHookSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-commons/src/hooks/useSelectedCodingSessionMessages.ts', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   appSource,
@@ -97,6 +101,18 @@ assert.match(
   sharedRefreshHookSource,
   /refreshCodingSessionMessages\(/,
   'Shared refresh hook must call the session message refresh orchestrator.',
+);
+
+assert.match(
+  sharedRefreshHookSource,
+  /if \(synchronizedProject\) \{[\s\S]*upsertProjectIntoProjectsStore\([\s\S]*\);\s*\}\s*upsertCodingSessionIntoProjectsStore\(/,
+  'Manual session refresh must apply the authoritative refreshed session after any synchronized project snapshot so stale project inventory cannot keep a failed row visible.',
+);
+
+assert.match(
+  selectedSessionMessagesHookSource,
+  /if \(synchronizedProject\) \{[\s\S]*upsertProjectIntoProjectsStore\([\s\S]*\);\s*\}\s*upsertCodingSessionIntoProjectsStore\(/,
+  'Selected-session hydration must apply the authoritative refreshed session after any synchronized project snapshot so clicking a successfully loaded transcript clears stale failed status in the sidebar.',
 );
 
 assert.match(

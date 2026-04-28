@@ -3,6 +3,7 @@ import type {
   BirdCoderAppAdminApiClient,
   BirdCoderCoreWriteApiClient,
 } from '@sdkwork/birdcoder-types';
+import { buildTestCodeEngineModelConfigSyncResult } from './test-code-engine-model-config-fixture.ts';
 
 const dataKernelModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts',
@@ -173,6 +174,12 @@ try {
       throw new Error('not needed');
     },
     async submitUserQuestionAnswer() {
+      throw new Error('not needed');
+    },
+    async syncModelConfig(request) {
+      return buildTestCodeEngineModelConfigSyncResult(request.localConfig);
+    },
+    async editCodingSessionMessage() {
       throw new Error('not needed');
     },
     async deleteCodingSessionMessage() {

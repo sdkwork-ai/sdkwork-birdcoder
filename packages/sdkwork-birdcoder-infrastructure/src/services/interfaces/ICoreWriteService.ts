@@ -1,10 +1,15 @@
 import type {
   BirdCoderApprovalDecisionResult,
   BirdCoderDeleteCodingSessionResult,
+  BirdCoderDeleteCodingSessionMessageResult,
+  BirdCoderEditCodingSessionMessageRequest,
+  BirdCoderEditCodingSessionMessageResult,
   BirdCoderCodingSessionSummary,
   BirdCoderCodingSessionTurn,
+  BirdCoderCodeEngineModelConfigSyncResult,
   BirdCoderCreateCodingSessionRequest,
   BirdCoderCreateCodingSessionTurnRequest,
+  BirdCoderSyncCodeEngineModelConfigRequest,
   BirdCoderSubmitApprovalDecisionRequest,
   BirdCoderSubmitUserQuestionAnswerRequest,
   BirdCoderUpdateCodingSessionRequest,
@@ -20,6 +25,15 @@ export interface ICoreWriteService {
     request: BirdCoderUpdateCodingSessionRequest,
   ): Promise<BirdCoderCodingSessionSummary>;
   deleteCodingSession(codingSessionId: string): Promise<BirdCoderDeleteCodingSessionResult>;
+  deleteCodingSessionMessage(
+    codingSessionId: string,
+    messageId: string,
+  ): Promise<BirdCoderDeleteCodingSessionMessageResult>;
+  editCodingSessionMessage(
+    codingSessionId: string,
+    messageId: string,
+    request: BirdCoderEditCodingSessionMessageRequest,
+  ): Promise<BirdCoderEditCodingSessionMessageResult>;
   createCodingSessionTurn(
     codingSessionId: string,
     request: BirdCoderCreateCodingSessionTurnRequest,
@@ -32,4 +46,7 @@ export interface ICoreWriteService {
     questionId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ): Promise<BirdCoderUserQuestionAnswerResult>;
+  syncModelConfig(
+    request: BirdCoderSyncCodeEngineModelConfigRequest,
+  ): Promise<BirdCoderCodeEngineModelConfigSyncResult>;
 }

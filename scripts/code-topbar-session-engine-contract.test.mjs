@@ -23,34 +23,41 @@ const codePageSource = readSource(
   'pages',
   'CodePage.tsx',
 );
+const codePageSurfacePropsSource = readSource(
+  'packages',
+  'sdkwork-birdcoder-code',
+  'src',
+  'pages',
+  'useCodePageSurfaceProps.ts',
+);
 
 assert.match(
-  codePageSource,
-  /projectId:\s*currentProject\?\.id,\s*projectName:\s*currentProject\?\.name,\s*projectPath:\s*currentProject\?\.path,/s,
+  codePageSurfacePropsSource,
+  /const topBarProps = useMemo<TopBarComponentProps>\(\(\) => \(\{[\s\S]*projectId,[\s\S]*projectName,[\s\S]*projectGitOverviewState,/s,
   'Code page must pass only the current project metadata that the top bar actually renders so transcript updates do not rerender the header through a large project object prop.',
 );
 
 assert.match(
-  codePageSource,
-  /selectedSessionTitle:\s*session\?\.title,\s*selectedSessionEngineId:\s*session\?\.engineId,\s*selectedSessionModelId:\s*session\?\.modelId,/s,
+  codePageSurfacePropsSource,
+  /selectedSessionTitle,[\s\S]*selectedSessionEngineId,[\s\S]*selectedSessionModelId,[\s\S]*isSelectedSessionEngineBusy,/s,
   'Code page must pass only the active session title and engine metadata that the top bar renders so message list mutations do not bubble a large session object through the header.',
 );
 
 assert.match(
   codePageSource,
-  /const isSelectedSessionExecuting = isBirdCoderCodingSessionExecuting\(session\);/,
-  'Code page must precompute the selected session execution flag for the top bar so the header does not depend on the full session object.',
+  /const isSelectedSessionEngineBusy = isBirdCoderCodingSessionEngineBusy\(session\);/,
+  'Code page must precompute the selected session engine-busy flag for the top bar so the header does not spin for approval or user-reply waits.',
 );
 
 assert.match(
   codePageSource,
-  /isSelectedSessionExecuting,\s*selectedEngineId,\s*selectedModelId,/s,
+  /isSelectedSessionEngineBusy,\s*selectedEngineId,\s*selectedModelId,/s,
   'Code page must pass the preferred engine and model selection separately from scalar session metadata so the top bar can keep session truth for display and preferences truth for new-session flows.',
 );
 
 assert.match(
   topBarSource,
-  /projectId\?: string;[\s\S]*projectName\?: string;[\s\S]*projectPath\?: string;[\s\S]*selectedSessionTitle\?: string;[\s\S]*selectedSessionEngineId\?: string;[\s\S]*selectedSessionModelId\?: string;[\s\S]*isSelectedSessionExecuting: boolean;/,
+  /projectId\?: string;[\s\S]*projectName\?: string;[\s\S]*projectPath\?: string;[\s\S]*selectedSessionTitle\?: string;[\s\S]*selectedSessionEngineId\?: string;[\s\S]*selectedSessionModelId\?: string;[\s\S]*isSelectedSessionEngineBusy: boolean;/,
   'Code top bar props must be scalar metadata so the header stays insulated from full project and session object churn.',
 );
 

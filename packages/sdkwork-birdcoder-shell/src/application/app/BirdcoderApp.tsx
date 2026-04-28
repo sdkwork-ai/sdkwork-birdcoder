@@ -4,7 +4,7 @@
  */
 
 import React, { Component, lazy, Suspense, startTransition, type ErrorInfo, useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Code2, Sparkles, Terminal, Settings, UserCircle, Shield, Zap, LayoutTemplate, X, AlertTriangle } from 'lucide-react';
+import { Code2, Sparkles, PanelsTopLeft, Terminal, Settings, UserCircle, Shield, Zap, LayoutTemplate, X, AlertTriangle } from 'lucide-react';
 import {
   AuthProvider,
   DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
@@ -21,7 +21,9 @@ import {
   normalizeWorkbenchRecoverySnapshot,
   normalizeWorkbenchRecoveryUserScope,
   openLocalFolder,
+  openTauriShellPath,
   recoverySnapshotsEqual,
+  resolveEffectiveWorkspaceId,
   resolveLocalFolderImportWorkspaceId,
   resolveWorkbenchRecoverySnapshotForUser,
   resolveStartupCodingSessionId,
@@ -72,6 +74,11 @@ const StudioPage = lazy(async () => {
   return loadStudioPage();
 });
 
+const MultiWindowProgrammingPage = lazy(async () => {
+  const { loadMultiWindowProgrammingPage } = await import('./pageLoaders.ts');
+  return loadMultiWindowProgrammingPage();
+});
+
 const TerminalDesktopApp = lazy(async () => {
   const { loadTerminalDesktopApp } = await import('./pageLoaders.ts');
   return loadTerminalDesktopApp();
@@ -107,7 +114,7 @@ const TemplatesPage = lazy(async () => {
   return loadTemplatesPage();
 });
 
-const PRIMARY_PERSISTED_APP_TABS = new Set<AppTab>(['code', 'studio', 'terminal']);
+const PRIMARY_PERSISTED_APP_TABS = new Set<AppTab>(['code', 'studio', 'multiwindow', 'terminal']);
 const GUEST_HOME_APP_TAB: AppTab = 'templates';
 const AUTHENTICATED_DEFAULT_APP_TAB: AppTab = 'code';
 const AUTH_SURFACE_BASE_PATH = '/auth';
@@ -115,6 +122,7 @@ const AUTH_SURFACE_DEFAULT_ROUTE = `${AUTH_SURFACE_BASE_PATH}/login`;
 const AUTH_REQUIRED_APP_TABS = new Set<AppTab>([
   'code',
   'studio',
+  'multiwindow',
   'terminal',
   'user',
   'vip',
@@ -217,6 +225,11 @@ type DesktopWindowHandle = {
 
 const DESKTOP_WINDOW_FRAME_STATE_RECONCILIATION_DELAY_MS = 120;
 const WORKBENCH_RECOVERY_PERSIST_DELAY_MS = 80;
+
+function persistWorkbenchRecoverySnapshot(snapshot: WorkbenchRecoverySnapshot): void {
+  void setStoredJson('workbench', 'recovery-context', snapshot).catch(() => {
+  });
+}
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   declare props: ErrorBoundaryProps;
@@ -573,13 +586,16 @@ const AppMainBody = React.memo(function AppMainBody({
             <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('studio')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'studio' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '50ms' }} title={t('app.studio')}>
               <Sparkles size={22} strokeWidth={1.5} />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('terminal')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'terminal' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '100ms' }} title={t('app.terminal')}>
+            <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('multiwindow')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'multiwindow' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '100ms' }} title={t('multiWindow.title')}>
+              <PanelsTopLeft size={22} strokeWidth={1.5} />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('terminal')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'terminal' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '150ms' }} title={t('app.terminal')}>
               <Terminal size={22} strokeWidth={1.5} />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('skills')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'skills' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '150ms' }} title={t('app.skills')}>
+            <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('skills')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'skills' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '200ms' }} title={t('app.skills')}>
               <Zap size={22} strokeWidth={1.5} />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('templates')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'templates' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '200ms' }} title={t('app.templates')}>
+            <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('templates')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'templates' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '250ms' }} title={t('app.templates')}>
               <LayoutTemplate size={22} strokeWidth={1.5} />
             </Button>
           </div>
@@ -615,6 +631,18 @@ const AppMainBody = React.memo(function AppMainBody({
             <PersistentAppTabPanel isActive={activeTab === 'studio'}>
               <StudioPage
                 isVisible={activeTab === 'studio'}
+                workspaceId={workspaceId}
+                projectId={projectId}
+                initialCodingSessionId={codingSessionId}
+                onProjectChange={onProjectChange}
+                onCodingSessionChange={onCodingSessionChange}
+              />
+            </PersistentAppTabPanel>
+          )}
+          {mountedPrimaryTabs.has('multiwindow') && (
+            <PersistentAppTabPanel isActive={activeTab === 'multiwindow'}>
+              <MultiWindowProgrammingPage
+                isVisible={activeTab === 'multiwindow'}
                 workspaceId={workspaceId}
                 projectId={projectId}
                 initialCodingSessionId={codingSessionId}
@@ -862,6 +890,86 @@ function AppContent() {
   const previousShowWorkspaceMenuRef = useRef(false);
   const projectMountRecoveryIdentityRef = useRef('');
   const projectMountRecoveryActiveSurfaceRef = useRef('');
+  const workspaceBootstrapPromiseRef = useRef<Promise<string> | null>(null);
+
+  useEffect(() => {
+    if (
+      !user ||
+      isAuthLoading ||
+      !isRecoveryHydrated ||
+      !workspacesHasFetched ||
+      workspaceBootstrapPromiseRef.current
+    ) {
+      return;
+    }
+
+    const activeWorkspaceStillExists =
+      scopedActiveWorkspaceId &&
+      workspacesById.has(scopedActiveWorkspaceId);
+    if (activeWorkspaceStillExists) {
+      return;
+    }
+
+    const request = resolveEffectiveWorkspaceId({
+      createWorkspace,
+      currentWorkspaceId: scopedActiveWorkspaceId,
+      recoveryWorkspaceId: normalizedRecoverySnapshot.activeWorkspaceId,
+      refreshWorkspaces,
+      workspaces,
+    });
+    workspaceBootstrapPromiseRef.current = request;
+    let isCancelled = false;
+    void request
+      .then((resolvedWorkspaceId) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setActiveWorkspaceId((currentWorkspaceId) => {
+          const normalizedCurrentWorkspaceId = currentWorkspaceId.trim();
+          return normalizedCurrentWorkspaceId === resolvedWorkspaceId
+            ? currentWorkspaceId
+            : resolvedWorkspaceId;
+        });
+        setMenuActiveWorkspaceId((currentWorkspaceId) => {
+          const normalizedCurrentWorkspaceId = currentWorkspaceId.trim();
+          return normalizedCurrentWorkspaceId === resolvedWorkspaceId
+            ? currentWorkspaceId
+            : resolvedWorkspaceId;
+        });
+
+        if (
+          scopedActiveWorkspaceId &&
+          scopedActiveWorkspaceId !== resolvedWorkspaceId
+        ) {
+          setActiveProjectId('');
+          setActiveCodingSessionId('');
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to initialize workspace selection', error);
+      })
+      .finally(() => {
+        if (workspaceBootstrapPromiseRef.current === request) {
+          workspaceBootstrapPromiseRef.current = null;
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    createWorkspace,
+    isAuthLoading,
+    isRecoveryHydrated,
+    normalizedRecoverySnapshot.activeWorkspaceId,
+    refreshWorkspaces,
+    scopedActiveWorkspaceId,
+    user,
+    workspaces,
+    workspacesById,
+    workspacesHasFetched,
+  ]);
 
   const openAuthenticationSurface = useCallback((targetTab: AppTab) => {
     explicitLogoutRedirectRef.current = false;
@@ -1300,14 +1408,14 @@ function AppContent() {
 
     lastPersistedRecoverySnapshotRef.current = nextRecoverySnapshot;
     if (typeof window === 'undefined') {
-      void setStoredJson('workbench', 'recovery-context', nextRecoverySnapshot);
+      persistWorkbenchRecoverySnapshot(nextRecoverySnapshot);
       return;
     }
 
     clearPendingRecoverySnapshotPersistence();
     recoverySnapshotPersistTimeoutRef.current = window.setTimeout(() => {
       recoverySnapshotPersistTimeoutRef.current = null;
-      void setStoredJson('workbench', 'recovery-context', nextRecoverySnapshot);
+      persistWorkbenchRecoverySnapshot(nextRecoverySnapshot);
     }, WORKBENCH_RECOVERY_PERSIST_DELAY_MS);
   }, [
     activeTab,
@@ -1331,9 +1439,7 @@ function AppContent() {
 
     const handleBeforeUnload = () => {
       clearPendingRecoverySnapshotPersistence();
-      void setStoredJson(
-        'workbench',
-        'recovery-context',
+      persistWorkbenchRecoverySnapshot(
         buildWorkbenchRecoverySnapshot({
           userScope: currentWorkbenchUserScope,
           sessionId:
@@ -1403,9 +1509,7 @@ function AppContent() {
     };
     const handleRevealInExplorer = async (path?: string) => {
       try {
-        if (window.__TAURI__) {
-          const { open } = await import('@tauri-apps/plugin-shell');
-          await open(path || '');
+        if (await openTauriShellPath(path || '')) {
           addToast(t('app.revealedInExplorer', { path: path || 'project' }), 'info');
         } else {
           addToast(t('app.revealedInExplorerMock', { path: path || 'project' }), 'info');

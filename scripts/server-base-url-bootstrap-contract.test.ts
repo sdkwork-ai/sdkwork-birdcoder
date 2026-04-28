@@ -50,6 +50,28 @@ try {
     'bootstrap must read the persisted server Base URL override from the shared settings store.',
   );
 
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      __TAURI_INTERNALS__: {
+        async invoke() {
+          throw new Error('local_store_get bridge is not ready yet');
+        },
+      },
+      localStorage: {
+        getItem(key: string) {
+          return localStore.has(key) ? localStore.get(key)! : null;
+        },
+      },
+    },
+  });
+
+  assert.equal(
+    await readStoredBirdCoderServerBaseUrl(),
+    'https://user.example.com/birdcoder-api',
+    'bootstrap must fall back to browser storage when the desktop local_store bridge is temporarily unavailable.',
+  );
+
   assert.equal(
     resolveBirdCoderBootstrapServerBaseUrl({
       configuredApiBaseUrl: 'https://env.example.com/birdcoder-api',

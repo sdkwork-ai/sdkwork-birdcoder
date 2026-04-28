@@ -81,14 +81,98 @@ assert.match(
 
 assert.match(
   mobilePanelSource,
-  /QRCode\.toDataURL\(/,
-  'Code mobile programming panel must render the QR image from the mobile-coding deep link payload.',
+  /QRCode\.toSvgDataURL\(/,
+  'Code mobile programming panel must render the QR image from the mobile-coding deep link payload without relying on Canvas data URL support.',
 );
 
 assert.match(
   mobilePanelSource,
-  /t\('code\.mobileProgramming\.title'\)/,
-  'Code mobile programming panel must show dedicated copy for the mobile programming experience.',
+  /aria-label=\{t\('code\.mobileProgramming\.simulatorLabel'\)\}/,
+  'Code mobile programming panel must present a phone simulator as the primary mobile programming surface.',
+);
+
+assert.match(
+  mobilePanelSource,
+  /className="relative flex h-\[720px\] w-\[360px\]/,
+  'Code mobile programming phone simulator must be visually dominant with a taller device frame.',
+);
+
+assert.match(
+  mobilePanelSource,
+  /lg:grid-cols-\[360px_minmax\(380px,420px\)\][^"]*lg:gap-6/,
+  'Code mobile programming layout must keep the phone and QR panel close with fixed product-focused columns.',
+);
+
+assert.match(
+  mobilePanelSource,
+  /<aside className="flex min-w-0 flex-col items-center p-2 text-center lg:sticky lg:top-6">/,
+  'Code mobile programming QR side must be a borderless transparent information zone instead of a competing card.',
+);
+
+assert.doesNotMatch(
+  mobilePanelSource,
+  /<aside className="[^"]*border[^"]*bg-\[#17181d\][^"]*shadow/,
+  'Code mobile programming QR side must not render the old dark bordered card shell.',
+);
+
+assert.match(
+  mobilePanelSource,
+  /className="mt-5 flex justify-center rounded-lg bg-white p-4 shadow-\[0_18px_60px_rgba\(0,0,0,0\.38\)\]"/,
+  'Code mobile programming QR code should keep a focused white scan surface without restoring an outer border card.',
+);
+
+assert.match(
+  mobilePanelSource,
+  /className="mt-5 max-w-sm text-xs leading-6 text-emerald-100\/75"/,
+  'Code mobile programming context hint should read as lightweight supporting copy in the borderless QR side.',
+);
+
+assert.match(
+  mobilePanelSource,
+  /className="h-64 w-64 object-contain sm:h-72 sm:w-72"/,
+  'Code mobile programming QR code must be large enough to feel like a primary mobile entry point.',
+);
+
+assert.match(
+  mobilePanelSource,
+  /const \[qrCodeStatus, setQrCodeStatus\] = useState<'idle' \| 'loading' \| 'ready' \| 'error'>\('idle'\);/,
+  'Code mobile programming panel must track QR loading and failure state instead of rendering a blank fallback.',
+);
+
+assert.match(
+  mobilePanelSource,
+  /qrCodeStatus === 'error'\s+\? t\('code\.mobileProgramming\.qrUnavailableTitle'\)\s+:\s+t\('code\.mobileProgramming\.qrLoadingTitle'\)/,
+  'Code mobile programming QR fallback must show visible loading or unavailable copy instead of a blank block.',
+);
+
+assert.doesNotMatch(
+  mobilePanelSource,
+  /animate-pulse rounded bg-slate-200/,
+  'Code mobile programming QR fallback must not regress to a blank-looking light placeholder.',
+);
+
+assert.match(
+  mobilePanelSource,
+  /t\('code\.mobileProgramming\.assistantMessageCode'\)/,
+  'The phone simulator must demonstrate code-assistant conversation content instead of only explaining QR scanning.',
+);
+
+assert.match(
+  mobilePanelSource,
+  /t\('code\.mobileProgramming\.scanTitle'\)[\s\S]*t\('code\.mobileProgramming\.scanCta'\)/,
+  'The QR panel must put the scan instruction below the code with the "scan to start mobile programming" CTA.',
+);
+
+assert.doesNotMatch(
+  mobilePanelSource,
+  /stepDownloadTitle|stepScanTitle|stepContinueTitle/,
+  'Code mobile programming panel must not regress to a documentation-style three-step instruction page.',
+);
+
+assert.doesNotMatch(
+  mobilePanelSource,
+  /t\('code\.mobileProgramming\.title'\)|t\('code\.mobileProgramming\.description'\)|t\('code\.mobileProgramming\.eyebrow'\)/,
+  'Code mobile programming panel must not render a left-side explanatory copy block that competes with the phone simulator.',
 );
 
 console.log('code mobile programming tab contract passed.');

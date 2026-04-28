@@ -169,7 +169,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /if \(isDispatchingMessageRef\.current\) \{\s*return;\s*\}[\s\S]*isDispatchingMessageRef\.current = true;[\s\S]*setIsDispatchingMessage\(true\);[\s\S]*finally \{\s*isDispatchingMessageRef\.current = false;\s*setIsDispatchingMessage\(false\);/s,
+  /if \(isDispatchingMessageRef\.current\) \{\s*return(?: false)?;\s*\}[\s\S]*isDispatchingMessageRef\.current = true;[\s\S]*setIsDispatchingMessage\(true\);[\s\S]*finally \{\s*isDispatchingMessageRef\.current = false;\s*setIsDispatchingMessage\(false\);/s,
   'UniversalChat send handling must acquire and release the synchronous dispatch guard around the awaited send operation.',
 );
 
@@ -185,10 +185,46 @@ assert.match(
   'StudioPage must switch selection to a recovered authoritative session id when send recovery remaps a stale local session.',
 );
 
+assert.doesNotMatch(
+  codePageSource,
+  /if \(!trimmedContent \|\| isChatBusy\) return;/,
+  'CodePage must not silently resolve busy sends because UniversalChat would treat the message as committed and drop the draft or queued item.',
+);
+
+assert.match(
+  codePageSource,
+  /if \(isChatBusy\) \{\s*throw new Error\(t\('chat\.sendMessageBusy'\)\);\s*\}/,
+  'CodePage must reject busy sends so UniversalChat can restore the draft or queued item.',
+);
+
+assert.match(
+  codePageSource,
+  /if \(!bootstrappedSession\) \{\s*throw new Error\(t\('chat\.sendMessageSessionUnavailable'\)\);\s*\}/,
+  'CodePage must reject failed session bootstrap so UniversalChat can restore the draft instead of recording a false success.',
+);
+
+assert.doesNotMatch(
+  studioPageSource,
+  /if \(!trimmedContent \|\| isChatBusy\) return;/,
+  'StudioPage must not silently resolve busy sends because UniversalChat would treat the message as committed and drop the draft or queued item.',
+);
+
+assert.match(
+  studioPageSource,
+  /if \(isChatBusy\) \{\s*throw new Error\(t\('chat\.sendMessageBusy'\)\);\s*\}/,
+  'StudioPage must reject busy sends so UniversalChat can restore the draft or queued item.',
+);
+
+assert.match(
+  studioPageSource,
+  /if \(!bootstrappedSession\) \{\s*throw new Error\(t\('chat\.sendMessageSessionUnavailable'\)\);\s*\}/,
+  'StudioPage must reject failed session bootstrap so UniversalChat can restore the draft instead of recording a false success.',
+);
+
 assert.match(
   useProjectsSource,
-  /if \(previousCodingSession && projectService\.upsertCodingSession\) \{[\s\S]*await projectService\.upsertCodingSession\(projectId, previousCodingSession\);[\s\S]*const newMessage = await projectService\.addCodingSessionMessage\(projectId, codingSessionId,/s,
-  'sendMessage must repair the project-service session mirror from the selected store session before creating the core turn so stale mirror misses do not surface as delayed coding-session-not-found toasts.',
+  /if \(previousCodingSession && projectService\.upsertCodingSession\) \{[\s\S]*const mirrorCodingSession = \{[\s\S]*projectId: previousCodingSession\.projectId\?\.trim\(\) \|\| projectId,[\s\S]*workspaceId:[\s\S]*previousCodingSession\.workspaceId\?\.trim\(\)[\s\S]*previousProject\?\.workspaceId\?\.trim\(\)[\s\S]*normalizedWorkspaceId,[\s\S]*await projectService\.upsertCodingSession\(projectId, mirrorCodingSession\);[\s\S]*const newMessage = await projectService\.addCodingSessionMessage\(projectId, codingSessionId,/s,
+  'sendMessage must repair the project-service session mirror from a selected store session enriched with project/workspace identity before creating the core turn so stale mirror misses do not surface as delayed coding-session-not-found toasts.',
 );
 
 console.log('universal chat send recovery contract passed.');

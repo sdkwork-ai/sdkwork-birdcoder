@@ -13,6 +13,7 @@ import type {
   BirdCoderNativeSessionProviderSummary,
   BirdCoderNativeSessionSummary,
   BirdCoderCoreRuntimeSummary,
+  BirdCoderCodeEngineModelConfig,
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineDescriptor,
   BirdCoderModelCatalogEntry,
@@ -24,6 +25,7 @@ export interface ICoreReadService {
   getDescriptor(): Promise<BirdCoderCodingServerDescriptor>;
   getEngineCapabilities(engineKey: string): Promise<BirdCoderEngineCapabilityMatrix>;
   getHealth(): Promise<BirdCoderCoreHealthSummary>;
+  getModelConfig(): Promise<BirdCoderCodeEngineModelConfig>;
   getNativeSession(
     codingSessionId: string,
     request?: BirdCoderGetNativeSessionRequest,

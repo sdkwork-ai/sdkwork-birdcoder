@@ -41,6 +41,27 @@ export type BirdCoderSqlPlanMeta =
     }
   | {
       excludeDeleted: boolean;
+      kind: 'coding-session-list-by-project-ids';
+      orderBy: readonly BirdCoderSqlPlanOrderBy[];
+      projectIds: readonly string[];
+      tableName: string;
+    }
+  | {
+      codingSessionIds: readonly string[];
+      excludeDeleted: boolean;
+      kind: 'coding-session-messages-by-session-ids';
+      orderBy: readonly BirdCoderSqlPlanOrderBy[];
+      tableName: string;
+    }
+  | {
+      codingSessionIds: readonly string[];
+      excludeDeleted: boolean;
+      kind: 'coding-session-message-metadata-by-session-ids';
+      nativeMessageIdSegment: string;
+      tableName: string;
+    }
+  | {
+      excludeDeleted: boolean;
       kind: 'table-count';
       tableName: string;
     }

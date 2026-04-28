@@ -12,7 +12,10 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   chatEmptyState,
   isActive,
   isBusy,
+  isEngineBusy,
   messages,
+  pendingApprovals,
+  pendingUserQuestions,
   showComposerEngineSelector,
   selectedCodingSessionId,
   selectedCodingSessionScopeKey,
@@ -25,6 +28,8 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   onSelectedEngineIdChange,
   onSelectedModelIdChange,
   onSendMessage,
+  onSubmitApprovalDecision,
+  onSubmitUserQuestionAnswer,
   onViewChanges,
 }: WorkspaceChatProps) {
   return (
@@ -33,8 +38,13 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
       sessionScopeKey={selectedCodingSessionScopeKey || undefined}
       isActive={isActive}
       messages={messages}
+      pendingApprovals={pendingApprovals}
+      pendingUserQuestions={pendingUserQuestions}
       onSendMessage={onSendMessage}
+      onSubmitApprovalDecision={onSubmitApprovalDecision}
+      onSubmitUserQuestionAnswer={onSubmitUserQuestionAnswer}
       isBusy={isBusy}
+      isEngineBusy={isEngineBusy}
       selectedEngineId={selectedEngineId}
       selectedModelId={selectedModelId}
       showEngineHeader={false}
@@ -82,8 +92,11 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   selectedCodingSessionId,
   selectedCodingSessionScopeKey,
   messages,
+  pendingApprovals,
+  pendingUserQuestions,
   chatEmptyState,
   isBusy,
+  isEngineBusy,
   showComposerEngineSelector,
   selectedEngineId,
   selectedModelId,
@@ -103,6 +116,8 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   onSelectedEngineIdChange,
   onSelectedModelIdChange,
   onSendMessage,
+  onSubmitApprovalDecision,
+  onSubmitUserQuestionAnswer,
   onViewChanges,
   onRestoreMessage,
   onEditMessage,
@@ -152,13 +167,18 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
               selectedCodingSessionId={selectedCodingSessionId}
               selectedCodingSessionScopeKey={selectedCodingSessionScopeKey}
               messages={messages}
+              pendingApprovals={pendingApprovals}
+              pendingUserQuestions={pendingUserQuestions}
               chatEmptyState={chatEmptyState}
               isActive={isActive}
               isBusy={isBusy}
+              isEngineBusy={isEngineBusy}
               showComposerEngineSelector={showComposerEngineSelector}
               selectedEngineId={selectedEngineId}
               selectedModelId={selectedModelId}
               onSendMessage={onSendMessage}
+              onSubmitApprovalDecision={onSubmitApprovalDecision}
+              onSubmitUserQuestionAnswer={onSubmitUserQuestionAnswer}
               onSelectedEngineIdChange={onSelectedEngineIdChange}
               onSelectedModelIdChange={onSelectedModelIdChange}
               onViewChanges={onViewChanges}

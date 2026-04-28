@@ -5,6 +5,10 @@ const projectExplorerSessionRowSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorerSessionRow.tsx', import.meta.url),
   'utf8',
 );
+const topBarSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-code/src/components/TopBar.tsx', import.meta.url),
+  'utf8',
+);
 const enLocaleSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-i18n/src/locales/en/code/sidebar.ts', import.meta.url),
   'utf8',
@@ -19,14 +23,38 @@ const legacyExecutionSelectionPattern = new RegExp(
 
 assert.match(
   projectExplorerSessionRowSource,
-  /const isExecutingSession = isBirdCoderCodingSessionExecuting\(session\);/,
-  'Code ProjectExplorer session rows should derive executing rows from the session runtime state.',
+  /const isEngineBusySession = isBirdCoderCodingSessionEngineBusy\(session\);/,
+  'Code ProjectExplorer session rows should derive spinning rows from the engine-busy runtime state.',
 );
 
 assert.match(
   projectExplorerSessionRowSource,
-  /isExecutingSession && <RefreshCw size=\{12\} className="text-emerald-400 shrink-0 animate-spin" \/>/,
-  'Code ProjectExplorer session rows should render a spinning execution icon for an executing session row.',
+  /isEngineBusySession && <Loader2 size=\{12\} className="text-emerald-400 shrink-0 animate-spin" \/>/,
+  'Code ProjectExplorer session rows should render a neutral spinning icon only while the engine is actively working.',
+);
+
+assert.doesNotMatch(
+  projectExplorerSessionRowSource,
+  /isEngineBusySession && <RefreshCw size=\{12\} className="text-emerald-400 shrink-0 animate-spin" \/>/,
+  'Code ProjectExplorer session rows must not use the refresh icon for execution state because it reads as "refreshing" on startup.',
+);
+
+assert.doesNotMatch(
+  projectExplorerSessionRowSource,
+  /isExecutingSession && <Loader2 size=\{12\} className="text-emerald-400 shrink-0 animate-spin" \/>/,
+  'Code ProjectExplorer session rows must not spin for approval or user-reply waits; those states use explicit labels instead.',
+);
+
+assert.match(
+  topBarSource,
+  /isEngineBusyCurrentSession && \(/,
+  'Code top bar should derive its spinner from the engine-busy runtime state, not every executing/waiting state.',
+);
+
+assert.match(
+  topBarSource,
+  /<Loader2 size=\{12\} className="animate-spin" \/>\s*<span>\{t\('code\.executingSession'\)\}<\/span>/,
+  'Code top bar busy state should use Loader2 so active execution is visually distinct from refresh actions.',
 );
 
 assert.ok(
@@ -45,6 +73,11 @@ assert.ok(
 );
 
 assert.ok(
+  enLocaleSource.includes("awaitingToolSession: 'Ready'"),
+  'English Code locale must define a non-spinning settled tool state label.',
+);
+
+assert.ok(
   zhLocaleSource.includes('executingSession:'),
   'Chinese Code locale must define the session executing label.',
 );
@@ -59,6 +92,11 @@ assert.ok(
   'Chinese Code locale must define a distinct user-question waiting session label.',
 );
 
+assert.ok(
+  zhLocaleSource.includes('awaitingToolSession:'),
+  'Chinese Code locale must define a non-spinning settled tool state label.',
+);
+
 assert.match(
   projectExplorerSessionRowSource,
   /session\.runtimeStatus === 'awaiting_approval'\s*\?\s*awaitingApprovalSessionLabel/s,
@@ -69,6 +107,12 @@ assert.match(
   projectExplorerSessionRowSource,
   /session\.runtimeStatus === 'awaiting_user'\s*\?\s*awaitingUserSessionLabel/s,
   'Code ProjectExplorer session rows must show an explicit user-reply waiting label.',
+);
+
+assert.match(
+  projectExplorerSessionRowSource,
+  /session\.runtimeStatus === 'awaiting_tool'\s*\?\s*awaitingToolSessionLabel/s,
+  'Code ProjectExplorer session rows must show awaiting_tool as a settled non-spinning label instead of the generic executing state.',
 );
 
 assert.doesNotMatch(

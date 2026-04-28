@@ -646,6 +646,100 @@ assert.equal(
   'ready',
   'coding session runtime-status resolver must fall back when an event carries an unknown runtime status.',
 );
+assert.equal(
+  resolveBirdCoderCodingSessionRuntimeStatus(
+    [
+      {
+        kind: 'turn.started',
+        payload: {
+          runtimeStatus: 'streaming',
+        },
+      },
+      {
+        kind: 'tool.call.completed',
+        payload: {
+          runtimeStatus: 'completed',
+          toolName: 'run_command',
+        },
+      },
+    ],
+    'streaming',
+  ),
+  'streaming',
+  'coding session runtime-status resolver must not treat a completed tool call as a completed turn.',
+);
+assert.equal(
+  resolveBirdCoderCodingSessionRuntimeStatus(
+    [
+      {
+        kind: 'turn.started',
+        payload: {
+          runtimeStatus: 'streaming',
+        },
+      },
+      {
+        kind: 'message.completed',
+        payload: {
+          role: 'user',
+          runtimeStatus: 'completed',
+        },
+      },
+    ],
+    'streaming',
+  ),
+  'streaming',
+  'coding session runtime-status resolver must not treat the completed user prompt event as a completed assistant turn.',
+);
+assert.equal(
+  resolveBirdCoderCodingSessionRuntimeStatus(
+    [
+      {
+        kind: 'turn.started',
+        payload: {
+          runtimeStatus: 'streaming',
+        },
+      },
+      {
+        kind: 'approval.required',
+        payload: {
+          runtimeStatus: 'awaiting_approval',
+          toolName: 'permission_request',
+        },
+      },
+    ],
+    'streaming',
+  ),
+  'awaiting_approval',
+  'coding session runtime-status resolver must preserve approval waits as session-level waiting states.',
+);
+assert.equal(
+  resolveBirdCoderCodingSessionRuntimeStatus(
+    [
+      {
+        kind: 'turn.started',
+        payload: {
+          runtimeStatus: 'streaming',
+        },
+      },
+      {
+        kind: 'tool.call.completed',
+        payload: {
+          runtimeStatus: 'completed',
+          toolName: 'run_command',
+        },
+      },
+      {
+        kind: 'turn.completed',
+        payload: {
+          runtimeStatus: 'completed',
+        },
+      },
+    ],
+    'streaming',
+  ),
+  'completed',
+  'coding session runtime-status resolver must mark the session completed only from terminal turn or operation events.',
+);
 
 assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('permission asked'), 'awaiting_approval');
 assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('user input required'), 'awaiting_user');

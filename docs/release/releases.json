@@ -3331,6 +3331,26 @@
                                                                             "runtime blockers `vite-host-build-preflight`"
                                                                         ]
                                                 }
+                     },
+                     {
+                         "tag":  "release-2026-04-28-01",
+                         "title":  "SDKWork BirdCoder release-2026-04-28-01",
+                         "date":  "2026-04-28",
+                         "status":  "pending",
+                         "summary":  "Closes the multi-window programming standard by promoting the independent package, concurrent broadcast runtime, per-pane model configuration, turn-options provider propagation, and release writeback into governed quality gates.",
+                         "notesFile":  "release-2026-04-28-01.md",
+                         "carryForward":  [
+                                              "release-2026-04-15-14"
+                                          ],
+                         "stopShipSignals":  [
+                                             ],
+                         "promotionReadiness":  {
+                                                    "currentReleaseKind":  "canary",
+                                                    "currentRolloutStage":  "ring-1",
+                                                    "formalOrGaStatus":  "clear",
+                                                    "stopShipSignals":  [
+                                                                        ]
+                                                }
                      }
                  ]
 }

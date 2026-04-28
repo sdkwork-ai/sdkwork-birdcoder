@@ -18,9 +18,9 @@ assert.deepEqual(descriptor, {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/api/core/v1/routes',
-    routeCount: 79,
+    routeCount: 82,
     routesBySurface: {
-      core: 24,
+      core: 27,
       app: 48,
       admin: 7,
     },
@@ -30,7 +30,7 @@ assert.deepEqual(descriptor, {
         basePath: '/api/core/v1',
         description: 'Core coding runtime, engine catalog, session execution, and operation control.',
         name: 'core',
-        routeCount: 24,
+        routeCount: 27,
       },
       {
         authMode: 'user',
@@ -65,6 +65,7 @@ assert.equal(core.sessions.path, '/api/core/v1/coding-sessions');
 assert.equal(core.codingSession.path, '/api/core/v1/coding-sessions/:id');
 assert.equal(core.updateCodingSession.path, '/api/core/v1/coding-sessions/:id');
 assert.equal(core.deleteCodingSession.path, '/api/core/v1/coding-sessions/:id');
+assert.equal(core.editCodingSessionMessage.path, '/api/core/v1/coding-sessions/:id/messages/:messageId');
 assert.equal(core.deleteCodingSessionMessage.path, '/api/core/v1/coding-sessions/:id/messages/:messageId');
 assert.equal(core.forkCodingSession.path, '/api/core/v1/coding-sessions/:id/fork');
 assert.equal(core.sessionTurns.path, '/api/core/v1/coding-sessions/:id/turns');
@@ -75,6 +76,8 @@ assert.equal(core.approvals.path, '/api/core/v1/approvals/:approvalId/decision')
 assert.equal(core.questions.path, '/api/core/v1/questions/:questionId/answer');
 assert.equal(core.operations.path, '/api/core/v1/operations/:operationId');
 assert.equal(core.models.path, '/api/core/v1/models');
+assert.equal(core.modelConfig.path, '/api/core/v1/model-config');
+assert.equal(core.syncModelConfig.path, '/api/core/v1/model-config');
 assert.equal(core.routes.path, '/api/core/v1/routes');
 
 const app = getBirdCoderAppApiContract();
@@ -162,7 +165,7 @@ assert.equal(admin.releases.path, '/api/admin/v1/releases');
 assert.equal(admin.deployments.path, '/api/admin/v1/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 79, 'coding-server should expose the full core/app/admin route matrix');
+assert.equal(routes.length, 82, 'coding-server should expose the full core/app/admin route matrix');
 assert.equal(
   routes.every((route) => route.path.startsWith('/api/core/v1') || route.path.startsWith('/api/app/v1') || route.path.startsWith('/api/admin/v1')),
   true,
@@ -251,6 +254,18 @@ assert.deepEqual(
     path: '/api/core/v1/coding-sessions/:id',
     surface: 'core',
     summary: 'Delete coding session',
+  },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'core.editCodingSessionMessage'),
+  {
+    authMode: 'host',
+    method: 'PATCH',
+    openApiPath: '/api/core/v1/coding-sessions/{id}/messages/{messageId}',
+    operationId: 'core.editCodingSessionMessage',
+    path: '/api/core/v1/coding-sessions/:id/messages/:messageId',
+    surface: 'core',
+    summary: 'Edit coding session message',
   },
 );
 assert.deepEqual(

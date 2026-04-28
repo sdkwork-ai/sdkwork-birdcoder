@@ -14,6 +14,9 @@ pub struct CodeEngineTurnConfigRecord {
     pub full_auto: bool,
     pub sandbox_mode: Option<String>,
     pub skip_git_repo_check: bool,
+    pub temperature: Option<f64>,
+    pub top_p: Option<f64>,
+    pub max_tokens: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -58,10 +61,38 @@ pub struct CodeEngineTurnResultRecord {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeEngineTurnStreamEventRecord {
+    pub kind: String,
     pub role: String,
     pub content_delta: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub native_session_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeEngineApprovalDecisionRecord {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub native_session_id: Option<String>,
+    pub approval_id: String,
+    pub decision: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeEngineUserQuestionAnswerRecord {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub native_session_id: Option<String>,
+    pub question_id: String,
+    pub answer: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub option_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub option_label: Option<String>,
+    pub rejected: bool,
 }
 
 pub fn build_codeengine_turn_prompt(

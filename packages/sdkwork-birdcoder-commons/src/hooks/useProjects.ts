@@ -100,9 +100,37 @@ interface ScoredProjectCandidate {
 }
 
 type BirdCoderSendMessageContext = BirdCoderCodingSessionTurnIdeContext;
+interface BirdCoderSendMessageOptions {
+  metadata?: Record<string, unknown>;
+}
 const WORKSPACE_REALTIME_EVENT_DEDUP_LIMIT = 256;
 const EMPTY_PROJECT_INVENTORY_MESSAGES: BirdCoderChatMessage[] = [];
 const EMPTY_FILTERED_PROJECT_CODING_SESSIONS: BirdCoderCodingSession[] = [];
+const PROJECTS_FETCH_TIMEOUT_MS = 30_000;
+
+interface ProjectsFetchTimeoutBoundary {
+  clear: () => void;
+  promise: Promise<never>;
+}
+
+function createProjectsFetchTimeoutPromise(timeoutMs: number): ProjectsFetchTimeoutBoundary {
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  const promise = new Promise<never>((_resolve, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(`Timed out loading project inventory after ${timeoutMs} ms.`));
+    }, timeoutMs);
+  });
+
+  return {
+    clear: () => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+    },
+    promise,
+  };
+}
 
 function sanitizeCodingSessionMessageUpdates(
   updates: Partial<BirdCoderChatMessage>,
@@ -358,6 +386,7 @@ function buildOptimisticCodingSessionMessage(
   codingSessionId: string,
   content: string,
   context?: BirdCoderSendMessageContext,
+  options?: BirdCoderSendMessageOptions,
 ): BirdCoderChatMessage {
   const createdAt = new Date().toISOString();
   const randomToken = Math.random().toString(36).slice(2, 10);
@@ -366,10 +395,24 @@ function buildOptimisticCodingSessionMessage(
     codingSessionId,
     role: 'user',
     content,
-    metadata: context ? { ideContext: structuredClone(context) } : undefined,
+    metadata: buildSendMessageMetadata(context, options),
     createdAt,
     timestamp: Date.parse(createdAt),
   };
+}
+
+function buildSendMessageMetadata(
+  context?: BirdCoderSendMessageContext,
+  options?: BirdCoderSendMessageOptions,
+): Record<string, unknown> | undefined {
+  const metadata = options?.metadata
+    ? structuredClone(options.metadata)
+    : {};
+  if (context) {
+    metadata.ideContext = structuredClone(context);
+  }
+
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
 }
 
 function removeCodingSessionMessageById(
@@ -434,6 +477,20 @@ async function readProjectInventoryForWorkspace(
   return projectService.getProjects(workspaceId);
 }
 
+function readProjectInventoryForWorkspaceWithTimeout(
+  workspaceId: string,
+  projectService: ReturnType<typeof useIDEServices>['projectService'],
+  timeoutMs: number = PROJECTS_FETCH_TIMEOUT_MS,
+): Promise<BirdCoderProject[]> {
+  const timeoutBoundary = createProjectsFetchTimeoutPromise(timeoutMs);
+  return Promise.race([
+    readProjectInventoryForWorkspace(workspaceId, projectService),
+    timeoutBoundary.promise,
+  ]).finally(() => {
+    timeoutBoundary.clear();
+  });
+}
+
 async function fetchProjectsForWorkspace(
   store: ProjectsStore,
   workspaceId: string,
@@ -449,7 +506,7 @@ async function fetchProjectsForWorkspace(
     isLoading: true,
   }));
 
-  const request = readProjectInventoryForWorkspace(workspaceId, projectService)
+  const request = readProjectInventoryForWorkspaceWithTimeout(workspaceId, projectService)
     .then((projects) => {
       updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
         error: null,
@@ -1023,6 +1080,26 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     }
   };
 
+  const synchronizeProjectSessionInBackground = (
+    projectId: string,
+    codingSessionId: string,
+    onMissingProject?: () => void,
+  ): void => {
+    void resolveSynchronizedProjectSession(projectId, codingSessionId)
+      .then((synchronizedProjectSession) => {
+        if (synchronizedProjectSession?.project) {
+          upsertProjectIntoProjectsStore(
+            synchronizedProjectSession.project.workspaceId,
+            synchronizedProjectSession.project,
+            normalizedUserScope,
+          );
+          return;
+        }
+
+        onMissingProject?.();
+      });
+  };
+
   const addCodingSessionMessage = async (
     projectId: string,
     codingSessionId: string,
@@ -1139,6 +1216,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     codingSessionId: string,
     content: string,
     context?: BirdCoderSendMessageContext,
+    options?: BirdCoderSendMessageOptions,
   ) => {
     const previousCodingSession = findCodingSessionInCollection(
       storeSnapshot.projects,
@@ -1149,6 +1227,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       codingSessionId,
       content,
       context,
+      options,
     );
     mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
       updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
@@ -1167,7 +1246,18 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     try {
       if (previousCodingSession && projectService.upsertCodingSession) {
         try {
-          await projectService.upsertCodingSession(projectId, previousCodingSession);
+          const previousProject = storeSnapshot.projects.find(
+            (candidateProject) => candidateProject.id === projectId,
+          );
+          const mirrorCodingSession = {
+            ...previousCodingSession,
+            projectId: previousCodingSession.projectId?.trim() || projectId,
+            workspaceId:
+              previousCodingSession.workspaceId?.trim() ||
+              previousProject?.workspaceId?.trim() ||
+              normalizedWorkspaceId,
+          };
+          await projectService.upsertCodingSession(projectId, mirrorCodingSession);
         } catch (error) {
           console.warn(
             `Failed to synchronize coding session "${codingSessionId}" mirror before sending`,
@@ -1179,21 +1269,11 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       const newMessage = await projectService.addCodingSessionMessage(projectId, codingSessionId, {
         role: 'user',
         content,
-        metadata: context ? { ideContext: structuredClone(context) } : undefined,
+        metadata: buildSendMessageMetadata(context, options),
       });
       const effectiveCodingSessionId = newMessage.codingSessionId.trim() || codingSessionId;
       if (effectiveCodingSessionId !== codingSessionId) {
-        const synchronizedProjectSession = await resolveSynchronizedProjectSession(
-          projectId,
-          effectiveCodingSessionId,
-        );
-        if (synchronizedProjectSession?.project) {
-          upsertProjectIntoProjectsStore(
-            synchronizedProjectSession.project.workspaceId,
-            synchronizedProjectSession.project,
-            normalizedUserScope,
-          );
-        } else {
+        synchronizeProjectSessionInBackground(projectId, effectiveCodingSessionId, () => {
           mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
             updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
               ...codingSession,
@@ -1208,7 +1288,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
                 previousCodingSession?.transcriptUpdatedAt ?? codingSession.transcriptUpdatedAt,
             })),
           );
-        }
+        });
         return newMessage;
       }
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>

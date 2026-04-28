@@ -7,6 +7,7 @@ import { refreshCodingSessionMessages } from '../packages/sdkwork-birdcoder-comm
 import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
+  BirdCoderCodingSessionEvent,
   BirdCoderCodingSessionSummary,
   BirdCoderProject,
 } from '../packages/sdkwork-birdcoder-types/src/index.ts';
@@ -520,6 +521,332 @@ assert.deepEqual(
     'The module owns session synchronization.',
   ],
   'selected-session refresh must merge messages that were added to the same session by another CLI or IDE.',
+);
+
+const previouslyFailedCodingSessionId = 'coding-session-previously-failed';
+const previouslyFailedSession: BirdCoderCodingSession = {
+  ...existingSession,
+  id: previouslyFailedCodingSessionId,
+  messages: [],
+  runtimeStatus: 'failed',
+  title: 'Previously failed session',
+};
+const previouslyFailedSummary: BirdCoderCodingSessionSummary = {
+  ...summary,
+  id: previouslyFailedCodingSessionId,
+  runtimeStatus: 'failed',
+  title: previouslyFailedSession.title,
+};
+const previouslyFailedEvents: BirdCoderCodingSessionEvent[] = [
+  {
+    codingSessionId: previouslyFailedCodingSessionId,
+    createdAt: '2026-04-24T00:06:00.000Z',
+    id: 'previously-failed-user-event',
+    kind: 'message.completed',
+    payload: {
+      content: 'Why is this session failed?',
+      role: 'user',
+    },
+    sequence: '1',
+    turnId: 'previously-failed-turn',
+  },
+  {
+    codingSessionId: previouslyFailedCodingSessionId,
+    createdAt: '2026-04-24T00:07:00.000Z',
+    id: 'previously-failed-assistant-event',
+    kind: 'message.completed',
+    payload: {
+      content: 'The transcript loaded successfully.',
+      role: 'assistant',
+    },
+    sequence: '2',
+    turnId: 'previously-failed-turn',
+  },
+];
+let previouslyFailedUpserts = 0;
+const previouslyFailedResult = await refreshCodingSessionMessages({
+  codingSessionId: previouslyFailedCodingSessionId,
+  coreReadService: {
+    ...coreReadService,
+    async getCodingSession() {
+      return previouslyFailedSummary;
+    },
+    async listCodingSessionEvents() {
+      return previouslyFailedEvents;
+    },
+  },
+  projectService: {
+    ...projectService,
+    async upsertCodingSession(candidateProjectId: string, candidateCodingSession: BirdCoderCodingSession) {
+      assert.equal(candidateProjectId, projectId);
+      assert.equal(
+        candidateCodingSession.runtimeStatus,
+        'completed',
+        'a successful assistant message.completed event without an explicit runtimeStatus must clear a stale failed session row.',
+      );
+      previouslyFailedUpserts += 1;
+    },
+  },
+  resolvedLocation: {
+    codingSession: previouslyFailedSession,
+    project: {
+      ...project,
+      codingSessions: [previouslyFailedSession],
+    },
+    summary: previouslyFailedSummary,
+  },
+  workspaceId,
+});
+
+assert.equal(previouslyFailedResult.status, 'refreshed');
+assert.equal(previouslyFailedUpserts, 1);
+assert.equal(
+  previouslyFailedResult.codingSession?.runtimeStatus,
+  'completed',
+  'selected-session refresh must converge the left project session row from failed to completed once the authoritative transcript finishes successfully.',
+);
+
+const failedAfterAssistantEvents: BirdCoderCodingSessionEvent[] = [
+  ...previouslyFailedEvents,
+  {
+    codingSessionId: previouslyFailedCodingSessionId,
+    createdAt: '2026-04-24T00:08:00.000Z',
+    id: 'previously-failed-turn-failed-event',
+    kind: 'turn.failed',
+    payload: {},
+    sequence: '3',
+    turnId: 'previously-failed-turn',
+  },
+];
+const failedAfterAssistantResult = await refreshCodingSessionMessages({
+  codingSessionId: `${previouslyFailedCodingSessionId}-latest-failure`,
+  coreReadService: {
+    ...coreReadService,
+    async getCodingSession() {
+      return {
+        ...previouslyFailedSummary,
+        id: `${previouslyFailedCodingSessionId}-latest-failure`,
+      };
+    },
+    async listCodingSessionEvents() {
+      return failedAfterAssistantEvents.map((event) => ({
+        ...event,
+        codingSessionId: `${previouslyFailedCodingSessionId}-latest-failure`,
+      }));
+    },
+  },
+  projectService: {
+    ...projectService,
+    async upsertCodingSession(candidateProjectId: string, candidateCodingSession: BirdCoderCodingSession) {
+      assert.equal(candidateProjectId, projectId);
+      assert.equal(
+        candidateCodingSession.runtimeStatus,
+        'failed',
+        'a later turn.failed event must still win over an earlier assistant message.completed event.',
+      );
+    },
+  },
+  resolvedLocation: {
+    codingSession: {
+      ...previouslyFailedSession,
+      id: `${previouslyFailedCodingSessionId}-latest-failure`,
+    },
+    project: {
+      ...project,
+      codingSessions: [
+        {
+          ...previouslyFailedSession,
+          id: `${previouslyFailedCodingSessionId}-latest-failure`,
+        },
+      ],
+    },
+    summary: {
+      ...previouslyFailedSummary,
+      id: `${previouslyFailedCodingSessionId}-latest-failure`,
+    },
+  },
+  workspaceId,
+});
+assert.equal(failedAfterAssistantResult.status, 'refreshed');
+assert.equal(failedAfterAssistantResult.codingSession?.runtimeStatus, 'failed');
+
+const staleStreamingCodingSessionId = 'coding-session-stale-streaming-authority';
+const staleStreamingTimestamp = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+const staleStreamingSession: BirdCoderCodingSession = {
+  ...existingSession,
+  id: staleStreamingCodingSessionId,
+  lastTurnAt: staleStreamingTimestamp,
+  messages: [],
+  runtimeStatus: 'streaming',
+  sortTimestamp: String(Date.parse(staleStreamingTimestamp)),
+  title: 'Stale streaming authority session',
+  transcriptUpdatedAt: staleStreamingTimestamp,
+  updatedAt: staleStreamingTimestamp,
+};
+const staleStreamingSummary: BirdCoderCodingSessionSummary = {
+  ...summary,
+  id: staleStreamingCodingSessionId,
+  lastTurnAt: staleStreamingTimestamp,
+  runtimeStatus: 'streaming',
+  sortTimestamp: String(Date.parse(staleStreamingTimestamp)),
+  title: staleStreamingSession.title,
+  transcriptUpdatedAt: staleStreamingTimestamp,
+  updatedAt: staleStreamingTimestamp,
+};
+const staleStreamingEvents: BirdCoderCodingSessionEvent[] = [
+  {
+    codingSessionId: staleStreamingCodingSessionId,
+    createdAt: staleStreamingTimestamp,
+    id: 'stale-streaming-turn-started',
+    kind: 'turn.started',
+    payload: {
+      inputSummary: 'This orphaned turn never finalized.',
+      runtimeStatus: 'streaming',
+    },
+    sequence: '1',
+    turnId: 'stale-streaming-turn',
+  },
+  {
+    codingSessionId: staleStreamingCodingSessionId,
+    createdAt: staleStreamingTimestamp,
+    id: 'stale-streaming-user-message',
+    kind: 'message.completed',
+    payload: {
+      content: 'This orphaned turn never finalized.',
+      role: 'user',
+      runtimeStatus: 'completed',
+    },
+    sequence: '2',
+    turnId: 'stale-streaming-turn',
+  },
+  {
+    codingSessionId: staleStreamingCodingSessionId,
+    createdAt: staleStreamingTimestamp,
+    id: 'stale-streaming-operation',
+    kind: 'operation.updated',
+    payload: {
+      operationId: 'stale-streaming-operation',
+      runtimeStatus: 'streaming',
+      status: 'running',
+    },
+    sequence: '3',
+    turnId: 'stale-streaming-turn',
+  },
+];
+let staleStreamingUpserts = 0;
+const staleStreamingResult = await refreshCodingSessionMessages({
+  codingSessionId: staleStreamingCodingSessionId,
+  coreReadService: {
+    ...coreReadService,
+    async getCodingSession() {
+      return staleStreamingSummary;
+    },
+    async listCodingSessionEvents() {
+      return staleStreamingEvents;
+    },
+  },
+  projectService: {
+    ...projectService,
+    async upsertCodingSession(candidateProjectId: string, candidateCodingSession: BirdCoderCodingSession) {
+      assert.equal(candidateProjectId, projectId);
+      assert.equal(
+        candidateCodingSession.runtimeStatus,
+        'completed',
+        'selected-session refresh must not keep an old orphaned streaming runtime busy forever after the transcript has loaded.',
+      );
+      staleStreamingUpserts += 1;
+    },
+  },
+  resolvedLocation: {
+    codingSession: staleStreamingSession,
+    project: {
+      ...project,
+      codingSessions: [staleStreamingSession],
+    },
+    summary: staleStreamingSummary,
+  },
+  workspaceId,
+});
+assert.equal(staleStreamingResult.status, 'refreshed');
+assert.equal(staleStreamingUpserts, 1);
+assert.equal(
+  staleStreamingResult.codingSession?.runtimeStatus,
+  'completed',
+  'selected-session refresh must converge stale authoritative streaming summaries to a non-busy terminal state so the user can send again.',
+);
+
+const freshStreamingTimestamp = new Date(Date.now() - 60 * 1000).toISOString();
+const freshStreamingCodingSessionId = 'coding-session-fresh-streaming-authority';
+const freshStreamingResult = await refreshCodingSessionMessages({
+  codingSessionId: freshStreamingCodingSessionId,
+  coreReadService: {
+    ...coreReadService,
+    async getCodingSession() {
+      return {
+        ...staleStreamingSummary,
+        id: freshStreamingCodingSessionId,
+        lastTurnAt: freshStreamingTimestamp,
+        transcriptUpdatedAt: freshStreamingTimestamp,
+        updatedAt: freshStreamingTimestamp,
+      };
+    },
+    async listCodingSessionEvents() {
+      return staleStreamingEvents.map((event) => ({
+        ...event,
+        codingSessionId: freshStreamingCodingSessionId,
+        createdAt: freshStreamingTimestamp,
+        id: `fresh-${event.id}`,
+      }));
+    },
+  },
+  projectService: {
+    ...projectService,
+    async upsertCodingSession(candidateProjectId: string, candidateCodingSession: BirdCoderCodingSession) {
+      assert.equal(candidateProjectId, projectId);
+      assert.equal(
+        candidateCodingSession.runtimeStatus,
+        'streaming',
+        'fresh authoritative streaming activity must remain busy while the engine is still plausibly running.',
+      );
+    },
+  },
+  resolvedLocation: {
+    codingSession: {
+      ...staleStreamingSession,
+      id: freshStreamingCodingSessionId,
+      lastTurnAt: freshStreamingTimestamp,
+      runtimeStatus: 'streaming',
+      transcriptUpdatedAt: freshStreamingTimestamp,
+      updatedAt: freshStreamingTimestamp,
+    },
+    project: {
+      ...project,
+      codingSessions: [
+        {
+          ...staleStreamingSession,
+          id: freshStreamingCodingSessionId,
+          lastTurnAt: freshStreamingTimestamp,
+          runtimeStatus: 'streaming',
+          transcriptUpdatedAt: freshStreamingTimestamp,
+          updatedAt: freshStreamingTimestamp,
+        },
+      ],
+    },
+    summary: {
+      ...staleStreamingSummary,
+      id: freshStreamingCodingSessionId,
+      lastTurnAt: freshStreamingTimestamp,
+      transcriptUpdatedAt: freshStreamingTimestamp,
+      updatedAt: freshStreamingTimestamp,
+    },
+  },
+  workspaceId,
+});
+assert.equal(freshStreamingResult.status, 'refreshed');
+assert.equal(
+  freshStreamingResult.codingSession?.runtimeStatus,
+  'streaming',
+  'selected-session refresh must preserve fresh streaming status during the normal send-to-stream handoff window.',
 );
 
 console.log('selected session stale project refresh contract passed.');

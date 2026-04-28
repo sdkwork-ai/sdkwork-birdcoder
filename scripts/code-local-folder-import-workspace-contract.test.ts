@@ -74,6 +74,73 @@ assert.deepEqual(
   'local folder import must create the standardized default workspace fallback.',
 );
 
+const createdAfterRefreshFailureWorkspaceId = await resolveLocalFolderImportWorkspaceId({
+  createWorkspace: async (name: string, description?: string) => {
+    fallbackCalls.push(`refresh-failed:${name}:${description ?? ''}`);
+    return { id: ' workspace-created-after-refresh-failure ' };
+  },
+  effectiveWorkspaceId: '',
+  refreshWorkspaces: async () => {
+    throw new Error('workspace catalog is temporarily unavailable.');
+  },
+});
+
+assert.equal(
+  createdAfterRefreshFailureWorkspaceId,
+  'workspace-created-after-refresh-failure',
+  'local folder import must still create a default workspace when workspace refresh fails transiently.',
+);
+
+let createFailureRefreshAttempt = 0;
+const recoveredAfterCreateFailureWorkspaceId = await resolveLocalFolderImportWorkspaceId({
+  createWorkspace: async () => {
+    throw new Error('default workspace was created by another window.');
+  },
+  effectiveWorkspaceId: '',
+  refreshWorkspaces: async () => {
+    createFailureRefreshAttempt += 1;
+    return createFailureRefreshAttempt === 1
+      ? []
+      : [{ id: ' workspace-recovered-after-create-failure ' }];
+  },
+});
+
+assert.equal(
+  recoveredAfterCreateFailureWorkspaceId,
+  'workspace-recovered-after-create-failure',
+  'local folder import must refresh once after fallback workspace creation fails so multi-window creation races can converge.',
+);
+
+const concurrentFallbackCalls: string[] = [];
+const sharedImportCreateWorkspace = async (name: string, description?: string) => {
+  concurrentFallbackCalls.push(`${name}:${description ?? ''}`);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  return { id: ' workspace-concurrent-import-created ' };
+};
+const concurrentImportWorkspaceIds = await Promise.all([
+  resolveLocalFolderImportWorkspaceId({
+    createWorkspace: sharedImportCreateWorkspace,
+    effectiveWorkspaceId: '',
+    refreshWorkspaces: async () => [],
+  }),
+  resolveLocalFolderImportWorkspaceId({
+    createWorkspace: sharedImportCreateWorkspace,
+    effectiveWorkspaceId: '',
+    refreshWorkspaces: async () => [],
+  }),
+]);
+
+assert.deepEqual(
+  concurrentImportWorkspaceIds,
+  ['workspace-concurrent-import-created', 'workspace-concurrent-import-created'],
+  'local folder import must share concurrent default workspace creation within one workspace service scope.',
+);
+assert.deepEqual(
+  concurrentFallbackCalls,
+  ['Default Workspace:Default workspace for local folder projects.'],
+  'local folder import must not create duplicate default workspaces for concurrent imports in the same scope.',
+);
+
 await assert.rejects(
   () =>
     resolveLocalFolderImportWorkspaceId({

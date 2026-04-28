@@ -3,6 +3,10 @@ import type {
   BirdCoderCoreReadApiClient,
   BirdCoderCoreWriteApiClient,
 } from '@sdkwork/birdcoder-types';
+import {
+  TEST_CODE_ENGINE_MODEL_CONFIG,
+  buildTestCodeEngineModelConfigSyncResult,
+} from './test-code-engine-model-config-fixture.ts';
 
 const dataKernelModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts',
@@ -124,6 +128,7 @@ try {
     inputSummary: string;
     requestKind: string;
     runtimeId?: string;
+    stream?: boolean;
   }> = [];
   const observedRemoteSessionCreates: Array<{
     engineId: string;
@@ -133,7 +138,21 @@ try {
     workspaceId: string;
   }> = [];
   const postTurnSyncLagSessionId = '101777208078558000';
+  const nonBlockingPostTurnSyncSessionId = '101777208078558001';
+  const coalescedPostTurnSyncSessionId = '101777208078558002';
   const postTurnSyncLagReadFailures = new Set<string>();
+  let releaseDelayedPostTurnSync: () => void = () => undefined;
+  let delayedPostTurnSyncStarted = false;
+  const delayedPostTurnSync = new Promise<void>((resolve) => {
+    releaseDelayedPostTurnSync = resolve;
+  });
+  let releaseCoalescedPostTurnSync: () => void = () => undefined;
+  let activeCoalescedPostTurnSyncReads = 0;
+  let coalescedPostTurnSyncReadCount = 0;
+  let maxConcurrentCoalescedPostTurnSyncReads = 0;
+  const coalescedPostTurnSync = new Promise<void>((resolve) => {
+    releaseCoalescedPostTurnSync = resolve;
+  });
 
   const coreWriteClient: BirdCoderCoreWriteApiClient = {
     async createCodingSession(request) {
@@ -199,6 +218,7 @@ try {
         runtimeId: request.runtimeId,
         requestKind: request.requestKind,
         inputSummary: request.inputSummary,
+        stream: request.stream,
       });
 
       return {
@@ -218,6 +238,12 @@ try {
     async submitUserQuestionAnswer() {
       throw new Error('not needed');
     },
+    async syncModelConfig(request) {
+      return buildTestCodeEngineModelConfigSyncResult(request.localConfig);
+    },
+    async editCodingSessionMessage() {
+      throw new Error('not needed');
+    },
     async deleteCodingSessionMessage() {
       throw new Error('not needed');
     },
@@ -226,6 +252,20 @@ try {
     async getCodingSession(codingSessionId) {
       if (postTurnSyncLagReadFailures.has(codingSessionId)) {
         throw new Error(`Coding session ${codingSessionId} not found.`);
+      }
+      if (codingSessionId === nonBlockingPostTurnSyncSessionId) {
+        delayedPostTurnSyncStarted = true;
+        await delayedPostTurnSync;
+      }
+      if (codingSessionId === coalescedPostTurnSyncSessionId) {
+        coalescedPostTurnSyncReadCount += 1;
+        activeCoalescedPostTurnSyncReads += 1;
+        maxConcurrentCoalescedPostTurnSyncReads = Math.max(
+          maxConcurrentCoalescedPostTurnSyncReads,
+          activeCoalescedPostTurnSyncReads,
+        );
+        await coalescedPostTurnSync;
+        activeCoalescedPostTurnSyncReads -= 1;
       }
 
       return {
@@ -241,6 +281,9 @@ try {
         updatedAt: '2026-04-11T12:03:01.000Z',
         lastTurnAt: '2026-04-11T12:03:01.000Z',
       };
+    },
+    async getModelConfig() {
+      return TEST_CODE_ENGINE_MODEL_CONFIG;
     },
     async getDescriptor() {
       throw new Error('not needed');
@@ -365,6 +408,34 @@ try {
     coreWriteClient,
     storageProvider: provider,
   });
+  const readProjectedCodingSession = async (codingSessionId: string) => {
+    const projects = await services.projectService.getProjects('workspace-core-turn-contract');
+    const project = projects.find((candidate) => candidate.id === 'project-core-turn-contract');
+    const codingSession = project?.codingSessions.find(
+      (candidate) => candidate.id === codingSessionId,
+    );
+    return { codingSession, project };
+  };
+  const waitForProjectedAssistantMessage = async (codingSessionId: string) => {
+    let lastCodingSession:
+      | Awaited<ReturnType<typeof readProjectedCodingSession>>['codingSession']
+      | undefined;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const { codingSession } = await readProjectedCodingSession(codingSessionId);
+      lastCodingSession = codingSession;
+      if (
+        codingSession?.messages.some(
+          (message) =>
+            message.role === 'assistant' &&
+            message.turnId === 'coding-turn-server-authoritative',
+        )
+      ) {
+        return codingSession;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    return lastCodingSession;
+  };
 
   const createdSession = await services.projectService.createCodingSession(
     'project-core-turn-contract',
@@ -390,6 +461,7 @@ try {
       runtimeId: undefined,
       requestKind: 'chat',
       inputSummary: 'Implement shared core turn facade.',
+      stream: true,
     },
   ]);
   assert.deepEqual(observedRemoteSessionCreates, [
@@ -402,14 +474,25 @@ try {
     },
   ]);
 
-  const projects = await services.projectService.getProjects('workspace-core-turn-contract');
-  const project = projects.find((candidate) => candidate.id === 'project-core-turn-contract');
-  const codingSession = project?.codingSessions.find(
-    (candidate) => candidate.id === 'coding-session-turn-contract',
+  const { codingSession: immediateCodingSession, project } =
+    await readProjectedCodingSession('coding-session-turn-contract');
+  const codingSession = await waitForProjectedAssistantMessage(
+    'coding-session-turn-contract',
   );
 
   assert.ok(project, 'project catalog must still resolve through the shared app client.');
-  assert.ok(codingSession, 'server-created session must stay visible after local turn mirroring.');
+  assert.ok(
+    immediateCodingSession?.messages.some(
+      (message) =>
+        message.role === 'user' &&
+        message.turnId === 'coding-turn-server-authoritative',
+    ),
+    'remote create-turn adoption must return after the local user turn mirror is accepted.',
+  );
+  assert.ok(
+    codingSession,
+    'server-created session must stay visible after background turn mirroring.',
+  );
   assert.deepEqual(
     codingSession?.messages.map((message) => ({
       id: message.id,
@@ -431,7 +514,7 @@ try {
         turnId: 'coding-turn-server-authoritative',
       },
     ],
-    'remote create-turn adoption must preserve the server-authoritative turn id and mirror completed assistant output back into refreshed project session state.',
+    'remote create-turn adoption must preserve the server-authoritative turn id and converge completed assistant output through background project session hydration.',
   );
 
   const remoteOnlyMessage = await services.projectService.addCodingSessionMessage(
@@ -529,6 +612,123 @@ try {
     'send must not surface a coding-session-not-found toast after the remote turn has already been accepted and the local mirror has been updated.',
   );
   assert.equal(postTurnSyncLagMessage.turnId, 'coding-turn-server-authoritative');
+
+  await services.projectService.upsertCodingSession?.(
+    'project-core-turn-contract',
+    {
+      id: nonBlockingPostTurnSyncSessionId,
+      workspaceId: 'workspace-core-turn-contract',
+      projectId: 'project-core-turn-contract',
+      title: 'Non Blocking Post Turn Sync Session',
+      status: 'active',
+      hostMode: 'server',
+      engineId: 'codex',
+      modelId: 'gpt-5-codex',
+      createdAt: '2026-04-11T12:06:00.000Z',
+      updatedAt: '2026-04-11T12:06:00.000Z',
+      lastTurnAt: '2026-04-11T12:06:00.000Z',
+      transcriptUpdatedAt: null,
+      displayTime: 'Just now',
+      messages: [],
+    },
+  );
+
+  const nonBlockingSendPromise = services.projectService.addCodingSessionMessage(
+    'project-core-turn-contract',
+    nonBlockingPostTurnSyncSessionId,
+    {
+      role: 'user',
+      content: 'Return before delayed post-turn projection hydration finishes.',
+    },
+  );
+  const nonBlockingSendRace = await Promise.race([
+    nonBlockingSendPromise.then((message) => ({ kind: 'sent' as const, message })),
+    new Promise<{ kind: 'blocked' }>((resolve) =>
+      setTimeout(() => resolve({ kind: 'blocked' }), 25),
+    ),
+  ]);
+  releaseDelayedPostTurnSync();
+  const nonBlockingMessage = await nonBlockingSendPromise;
+  for (let attempt = 0; attempt < 20 && !delayedPostTurnSyncStarted; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  assert.equal(
+    nonBlockingSendRace.kind,
+    'sent',
+    'post-turn projection hydration must run in the background so send resolves as soon as the remote turn and local mirror are accepted.',
+  );
+  assert.equal(
+    delayedPostTurnSyncStarted,
+    true,
+    'background post-turn projection hydration should still be scheduled for cache convergence.',
+  );
+  assert.equal(nonBlockingMessage.turnId, 'coding-turn-server-authoritative');
+
+  await services.projectService.upsertCodingSession?.(
+    'project-core-turn-contract',
+    {
+      id: coalescedPostTurnSyncSessionId,
+      workspaceId: 'workspace-core-turn-contract',
+      projectId: 'project-core-turn-contract',
+      title: 'Coalesced Post Turn Sync Session',
+      status: 'active',
+      hostMode: 'server',
+      engineId: 'codex',
+      modelId: 'gpt-5-codex',
+      createdAt: '2026-04-11T12:07:00.000Z',
+      updatedAt: '2026-04-11T12:07:00.000Z',
+      lastTurnAt: '2026-04-11T12:07:00.000Z',
+      transcriptUpdatedAt: null,
+      displayTime: 'Just now',
+      messages: [],
+    },
+  );
+
+  const firstCoalescedSendPromise = services.projectService.addCodingSessionMessage(
+    'project-core-turn-contract',
+    coalescedPostTurnSyncSessionId,
+    {
+      role: 'user',
+      content: 'Start coalesced background projection hydration.',
+    },
+  );
+  await firstCoalescedSendPromise;
+  for (let attempt = 0; attempt < 20 && coalescedPostTurnSyncReadCount === 0; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  const secondCoalescedSendPromise = services.projectService.addCodingSessionMessage(
+    'project-core-turn-contract',
+    coalescedPostTurnSyncSessionId,
+    {
+      role: 'user',
+      content: 'Queue another coalesced background projection hydration.',
+    },
+  );
+  await secondCoalescedSendPromise;
+  for (let attempt = 0; attempt < 20 && coalescedPostTurnSyncReadCount < 2; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  releaseCoalescedPostTurnSync();
+  for (
+    let attempt = 0;
+    attempt < 20 && activeCoalescedPostTurnSyncReads > 0;
+    attempt += 1
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  assert.equal(
+    maxConcurrentCoalescedPostTurnSyncReads,
+    1,
+    'background post-turn projection hydration must coalesce per coding session so rapid sends cannot launch concurrent full transcript hydrations.',
+  );
+  assert.equal(
+    coalescedPostTurnSyncReadCount,
+    2,
+    'coalesced background hydration must still run one follow-up pass after a queued send so the latest turn converges.',
+  );
   assert.deepEqual(
     observedRemoteTurnCreates.map((entry) => entry.codingSessionId),
     [
@@ -536,6 +736,9 @@ try {
       'coding-session-turn-remote-only',
       'coding-session-turn-recovered',
       postTurnSyncLagSessionId,
+      nonBlockingPostTurnSyncSessionId,
+      coalescedPostTurnSyncSessionId,
+      coalescedPostTurnSyncSessionId,
     ],
   );
 } finally {

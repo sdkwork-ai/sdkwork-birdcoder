@@ -72,6 +72,7 @@ export default defineLocaleModule('code/sidebar', {
     "refreshMessages": "\u5237\u65b0\u6d88\u606f",
     "refreshingMessages": "\u6b63\u5728\u5237\u65b0\u6d88\u606f",
     awaitingApprovalSession: '\u7b49\u5f85\u5ba1\u6279',
+    awaitingToolSession: '\u5c31\u7eea',
     awaitingUserSession: '\u7b49\u5f85\u56de\u590d',
     executingSession: '\u6267\u884c\u4e2d',
     initializingSession: '\u521d\u59cb\u5316\u4f1a\u8bdd\u4e2d',

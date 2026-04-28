@@ -1,16 +1,19 @@
 use std::{
     env,
+    ffi::OsString,
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     thread,
 };
 
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::{
-    build_native_session_id, map_codeengine_tool_command_status, CodeEngineSessionCommandRecord,
-    CodeEngineTurnStreamEventRecord,
+    build_native_session_id, canonicalize_codeengine_provider_tool_name,
+    map_codeengine_tool_command_status, map_codeengine_tool_kind,
+    map_codeengine_tool_runtime_status, resolve_codeengine_command_text,
+    CodeEngineSessionCommandRecord, CodeEngineTurnStreamEventRecord,
 };
 
 const CODEX_ENGINE_ID: &str = "codex";
@@ -21,7 +24,9 @@ pub struct CodexCliTurnRequest {
     pub model_id: String,
     pub native_session_id: Option<String>,
     pub working_directory: Option<PathBuf>,
+    pub approval_policy: Option<String>,
     pub full_auto: bool,
+    pub sandbox_mode: Option<String>,
     pub skip_git_repo_check: bool,
     pub ephemeral: bool,
 }
@@ -59,38 +64,17 @@ fn execute_codex_cli_turn_inner(
         .as_deref()
         .map(extract_native_lookup_id_for_codex);
 
-    if native_session_id.is_some() {
-        command.arg("exec").arg("resume");
-    } else {
-        command.arg("exec");
-    }
-
-    command.arg("--json");
-    if request.full_auto {
-        command.arg("--full-auto");
-    }
-    if request.skip_git_repo_check {
-        command.arg("--skip-git-repo-check");
-    }
-    if request.ephemeral {
-        command.arg("--ephemeral");
-    }
-    let model_id = normalize_codex_cli_model_id(Some(request.model_id.as_str()))
-        .ok_or_else(|| "Codex CLI turn requires explicit modelId.".to_owned())?;
-    command.arg("--model").arg(model_id);
+    command.args(build_codex_cli_turn_args(
+        request,
+        native_session_id.as_deref(),
+    )?);
     if native_session_id.is_none() {
         if let Some(directory) = existing_directory(request.working_directory.as_deref()) {
-            command.arg("--cd").arg(directory);
             command.current_dir(directory);
         }
     } else if let Some(directory) = existing_directory(request.working_directory.as_deref()) {
         command.current_dir(directory);
     }
-
-    if let Some(native_session_id) = native_session_id.as_deref() {
-        command.arg(native_session_id);
-    }
-    command.arg("-");
 
     let mut child = command
         .spawn()
@@ -168,6 +152,69 @@ fn execute_codex_cli_turn_inner(
     })
 }
 
+fn build_codex_cli_turn_args(
+    request: &CodexCliTurnRequest,
+    native_session_id: Option<&str>,
+) -> Result<Vec<OsString>, String> {
+    let mut args: Vec<OsString> = vec!["exec".into(), "--json".into()];
+    let sandbox_mode = normalize_codex_cli_sandbox_mode(request.sandbox_mode.as_deref())?;
+    let approval_policy = normalize_codex_cli_approval_policy(request.approval_policy.as_deref())?;
+    let should_expand_full_auto =
+        request.full_auto && (sandbox_mode.is_some() || approval_policy.is_some());
+
+    if request.full_auto && !should_expand_full_auto {
+        args.push("--full-auto".into());
+    }
+    if request.skip_git_repo_check {
+        args.push("--skip-git-repo-check".into());
+    }
+    if request.ephemeral {
+        args.push("--ephemeral".into());
+    }
+
+    let model_id = normalize_codex_cli_model_id(Some(request.model_id.as_str()))
+        .ok_or_else(|| "Codex CLI turn requires explicit modelId.".to_owned())?;
+    args.push("--model".into());
+    args.push(model_id.into());
+
+    if let Some(sandbox_mode) = sandbox_mode.or_else(|| {
+        if should_expand_full_auto {
+            Some("workspace-write".to_owned())
+        } else {
+            None
+        }
+    }) {
+        args.push("--sandbox".into());
+        args.push(sandbox_mode.into());
+    }
+
+    if let Some(approval_policy) = approval_policy.or_else(|| {
+        if should_expand_full_auto {
+            Some("never".to_owned())
+        } else {
+            None
+        }
+    }) {
+        args.push("--config".into());
+        args.push(format!("approval_policy=\"{approval_policy}\"").into());
+    }
+
+    if native_session_id.is_none() {
+        if let Some(directory) = existing_directory(request.working_directory.as_deref()) {
+            args.push("--cd".into());
+            args.push(directory.as_os_str().to_os_string());
+        }
+    }
+
+    if let Some(native_session_id) = native_session_id {
+        args.push("resume".into());
+        args.push(native_session_id.into());
+    }
+    args.push("-".into());
+
+    Ok(args)
+}
+
 fn emit_codex_cli_stream_delta_from_line(
     line: &str,
     streamed_assistant_content: &mut String,
@@ -176,6 +223,7 @@ fn emit_codex_cli_stream_delta_from_line(
 ) -> Result<(), String> {
     let parsed = serde_json::from_str::<Value>(line)
         .map_err(|error| format!("parse codex cli stream event failed: {error}; line: {line}"))?;
+    let event_type = parsed.get("type").and_then(Value::as_str);
 
     if let Some(thread_id) = normalize_value_string(parsed.get("thread_id"))
         .or_else(|| normalize_value_string(parsed.get("threadId")))
@@ -184,22 +232,65 @@ fn emit_codex_cli_stream_delta_from_line(
             Some(build_native_session_id(CODEX_ENGINE_ID, thread_id.as_str()));
     }
 
-    if !matches!(
-        parsed.get("type").and_then(Value::as_str),
-        Some("item.updated") | Some("item.completed")
-    ) {
-        return Ok(());
+    match event_type {
+        Some("item.started" | "item.updated" | "item.completed") => {
+            emit_codex_cli_item_stream_event(
+                event_type.unwrap_or_default(),
+                parsed.get("item"),
+                streamed_assistant_content,
+                streamed_native_session_id,
+                on_event,
+            )?;
+        }
+        Some("turn.failed" | "error") => {
+            if let Some(event) =
+                project_codex_cli_failure_stream_event(&parsed, streamed_native_session_id.clone())
+            {
+                on_event(event)?;
+            }
+        }
+        _ => {}
     }
 
-    let item = parsed.get("item");
+    Ok(())
+}
+
+fn emit_codex_cli_item_stream_event(
+    event_type: &str,
+    item: Option<&Value>,
+    streamed_assistant_content: &mut String,
+    streamed_native_session_id: &Option<String>,
+    on_event: &mut dyn FnMut(CodeEngineTurnStreamEventRecord) -> Result<(), String>,
+) -> Result<(), String> {
     if item
         .and_then(|item| item.get("type"))
         .and_then(Value::as_str)
-        != Some("agent_message")
+        == Some("agent_message")
     {
+        emit_codex_cli_agent_message_delta(
+            item,
+            streamed_assistant_content,
+            streamed_native_session_id,
+            on_event,
+        )?;
         return Ok(());
     }
 
+    if let Some(event) =
+        project_codex_cli_tool_stream_event(event_type, item, streamed_native_session_id.clone())
+    {
+        on_event(event)?;
+    }
+
+    Ok(())
+}
+
+fn emit_codex_cli_agent_message_delta(
+    item: Option<&Value>,
+    streamed_assistant_content: &mut String,
+    streamed_native_session_id: &Option<String>,
+    on_event: &mut dyn FnMut(CodeEngineTurnStreamEventRecord) -> Result<(), String>,
+) -> Result<(), String> {
     let Some(next_content) = item
         .and_then(|item| item.get("text"))
         .and_then(Value::as_str)
@@ -210,7 +301,6 @@ fn emit_codex_cli_stream_delta_from_line(
     if next_content == streamed_assistant_content {
         return Ok(());
     }
-
     if !streamed_assistant_content.is_empty()
         && !next_content.starts_with(streamed_assistant_content.as_str())
     {
@@ -225,9 +315,166 @@ fn emit_codex_cli_stream_delta_from_line(
     }
 
     on_event(CodeEngineTurnStreamEventRecord {
+        kind: "message.delta".to_owned(),
         role: "assistant".to_owned(),
         content_delta: content_delta.to_owned(),
+        payload: None,
         native_session_id: streamed_native_session_id.clone(),
+    })
+}
+
+fn project_codex_cli_tool_stream_event(
+    event_type: &str,
+    item: Option<&Value>,
+    native_session_id: Option<String>,
+) -> Option<CodeEngineTurnStreamEventRecord> {
+    let item = item?;
+    let item_type = item.get("type").and_then(Value::as_str)?;
+    let tool_name = resolve_codex_cli_stream_item_tool_name(item_type, item)?;
+    let kind = map_codeengine_tool_kind(tool_name.as_str());
+    let status_input = normalize_value_string(item.get("status")).or_else(|| match event_type {
+        "item.completed" => Some("completed".to_owned()),
+        "item.started" | "item.updated" => Some("running".to_owned()),
+        _ => None,
+    });
+    let exit_code = normalize_value_string(item.get("exit_code"))
+        .or_else(|| normalize_value_string(item.get("exitCode")));
+    let command_status =
+        map_codeengine_tool_command_status(status_input.as_deref(), exit_code.as_deref());
+    let runtime_status =
+        map_codeengine_tool_runtime_status(kind, status_input.as_deref(), None).to_owned();
+    let event_kind = resolve_codex_cli_tool_stream_event_kind(event_type, runtime_status.as_str());
+
+    let mut payload = Map::new();
+    payload.insert("toolName".to_owned(), Value::String(tool_name));
+    if let Some(tool_call_id) = normalize_value_string(item.get("id")) {
+        payload.insert("toolCallId".to_owned(), Value::String(tool_call_id));
+    }
+    payload.insert(
+        "toolArguments".to_owned(),
+        build_codex_cli_tool_arguments(item),
+    );
+    payload.insert("status".to_owned(), Value::String(command_status));
+    payload.insert("runtimeStatus".to_owned(), Value::String(runtime_status));
+    payload.insert("requiresApproval".to_owned(), Value::Bool(false));
+    payload.insert("requiresReply".to_owned(), Value::Bool(false));
+
+    Some(CodeEngineTurnStreamEventRecord {
+        kind: event_kind.to_owned(),
+        role: "assistant".to_owned(),
+        content_delta: String::new(),
+        payload: Some(Value::Object(payload)),
+        native_session_id,
+    })
+}
+
+fn resolve_codex_cli_stream_item_tool_name(item_type: &str, item: &Value) -> Option<String> {
+    match item_type {
+        "command_execution" => Some("run_command".to_owned()),
+        "file_change" => Some("apply_patch".to_owned()),
+        "mcp_tool_call" => {
+            let raw_tool_name = normalize_value_string(item.get("tool"))
+                .unwrap_or_else(|| "mcp_tool_call".to_owned());
+            Some(canonicalize_codeengine_provider_tool_name(
+                CODEX_ENGINE_ID,
+                raw_tool_name.as_str(),
+                "mcp_tool_call",
+            ))
+        }
+        "web_search" => Some("web_search".to_owned()),
+        "todo_list" => Some("write_todo".to_owned()),
+        "error" => Some("error".to_owned()),
+        _ => None,
+    }
+}
+
+fn resolve_codex_cli_tool_stream_event_kind(
+    event_type: &str,
+    runtime_status: &str,
+) -> &'static str {
+    if matches!(runtime_status, "completed" | "failed" | "terminated")
+        || event_type == "item.completed"
+    {
+        "tool.call.completed"
+    } else if event_type == "item.started" {
+        "tool.call.requested"
+    } else {
+        "tool.call.progress"
+    }
+}
+
+fn build_codex_cli_tool_arguments(item: &Value) -> Value {
+    if item.get("type").and_then(Value::as_str) == Some("mcp_tool_call") {
+        return normalize_codex_mcp_tool_arguments(item.get("arguments"));
+    }
+
+    let Some(object) = item.as_object() else {
+        return Value::Object(Map::new());
+    };
+
+    let mut arguments = Map::new();
+    for (key, value) in object {
+        if key == "id" || key == "type" {
+            continue;
+        }
+        arguments.insert(key.clone(), value.clone());
+    }
+    Value::Object(arguments)
+}
+
+fn normalize_codex_mcp_tool_arguments(value: Option<&Value>) -> Value {
+    match value {
+        Some(Value::String(value)) => serde_json::from_str::<Value>(value)
+            .ok()
+            .filter(|parsed| parsed.is_object())
+            .unwrap_or_else(|| {
+                let mut arguments = Map::new();
+                arguments.insert("input".to_owned(), Value::String(value.to_owned()));
+                Value::Object(arguments)
+            }),
+        Some(Value::Object(_)) => value.cloned().unwrap_or_else(|| Value::Object(Map::new())),
+        Some(value) => {
+            let mut arguments = Map::new();
+            arguments.insert("input".to_owned(), value.clone());
+            Value::Object(arguments)
+        }
+        None => Value::Object(Map::new()),
+    }
+}
+
+fn project_codex_cli_failure_stream_event(
+    parsed: &Value,
+    native_session_id: Option<String>,
+) -> Option<CodeEngineTurnStreamEventRecord> {
+    let message = parsed
+        .get("error")
+        .and_then(|error| error.get("message"))
+        .and_then(Value::as_str)
+        .or_else(|| parsed.get("message").and_then(Value::as_str))
+        .and_then(|value| normalize_non_empty_string(Some(value)))?;
+    let mut payload = Map::new();
+    payload.insert("errorMessage".to_owned(), Value::String(message));
+    payload.insert(
+        "runtimeStatus".to_owned(),
+        Value::String("failed".to_owned()),
+    );
+    payload.insert(
+        "provider".to_owned(),
+        Value::String(CODEX_ENGINE_ID.to_owned()),
+    );
+    if let Some(source_event_type) = parsed.get("type").and_then(Value::as_str) {
+        payload.insert(
+            "sourceEventType".to_owned(),
+            Value::String(source_event_type.to_owned()),
+        );
+    }
+
+    Some(CodeEngineTurnStreamEventRecord {
+        kind: "turn.failed".to_owned(),
+        role: "assistant".to_owned(),
+        content_delta: String::new(),
+        payload: Some(Value::Object(payload)),
+        native_session_id,
     })
 }
 
@@ -279,7 +526,10 @@ fn parse_codex_cli_turn_output(
                             assistant_content = Some(text.to_owned());
                         }
                     }
-                    Some("command_execution") => {
+                    Some(
+                        "command_execution" | "file_change" | "mcp_tool_call" | "todo_list"
+                        | "web_search",
+                    ) => {
                         if let Some(command) = build_codex_command_record(item) {
                             commands.push(command);
                         }
@@ -327,25 +577,63 @@ fn parse_codex_cli_turn_output(
 
 fn build_codex_command_record(item: Option<&Value>) -> Option<CodeEngineSessionCommandRecord> {
     let item = item?;
-    let command = normalize_value_string(item.get("command"))
-        .or_else(|| normalize_value_string(item.get("cmd")))
-        .or_else(|| normalize_value_string(item.get("name")))?;
-    let status = map_codeengine_tool_command_status(
-        normalize_value_string(item.get("status")).as_deref(),
-        normalize_value_string(item.get("exit_code"))
-            .or_else(|| normalize_value_string(item.get("exitCode")))
-            .as_deref(),
-    );
-    let output = normalize_value_string(item.get("aggregated_output"))
-        .or_else(|| normalize_value_string(item.get("output")))
-        .or_else(|| normalize_value_string(item.get("error")));
+    let item_type = item.get("type").and_then(Value::as_str)?;
+    let tool_name = resolve_codex_cli_stream_item_tool_name(item_type, item)?;
+    let tool_arguments = build_codex_cli_tool_arguments(item);
+    let kind = map_codeengine_tool_kind(tool_name.as_str());
+    let command = resolve_codeengine_command_text(tool_name.as_str(), Some(&tool_arguments), None);
+    if command.trim().is_empty() {
+        return None;
+    }
+    let status_input = normalize_value_string(item.get("status")).or_else(|| match item_type {
+        "command_execution" => Some("running".to_owned()),
+        _ => Some("completed".to_owned()),
+    });
+    let exit_code = normalize_value_string(item.get("exit_code"))
+        .or_else(|| normalize_value_string(item.get("exitCode")));
+    let status = map_codeengine_tool_command_status(status_input.as_deref(), exit_code.as_deref());
+    let runtime_status =
+        map_codeengine_tool_runtime_status(kind, status_input.as_deref(), None).to_owned();
+    let output = resolve_codex_command_output(item_type, &tool_arguments);
 
     Some(CodeEngineSessionCommandRecord {
         command,
         status,
         output,
-        ..Default::default()
+        kind: Some(kind.to_owned()),
+        tool_name: Some(tool_name),
+        tool_call_id: normalize_value_string(item.get("id")),
+        runtime_status: Some(runtime_status),
+        requires_approval: Some(false),
+        requires_reply: Some(false),
     })
+}
+
+fn resolve_codex_command_output(item_type: &str, tool_arguments: &Value) -> Option<String> {
+    match item_type {
+        "command_execution" => normalize_value_string(tool_arguments.get("aggregated_output"))
+            .or_else(|| normalize_value_string(tool_arguments.get("output")))
+            .or_else(|| normalize_value_string(tool_arguments.get("error"))),
+        "mcp_tool_call" => normalize_codex_command_output_value(tool_arguments.get("result"))
+            .or_else(|| {
+                tool_arguments
+                    .get("error")
+                    .and_then(|error| normalize_value_string(error.get("message")))
+            })
+            .or_else(|| normalize_codex_command_output_value(Some(tool_arguments))),
+        _ => normalize_codex_command_output_value(Some(tool_arguments)),
+    }
+}
+
+fn normalize_codex_command_output_value(value: Option<&Value>) -> Option<String> {
+    match value? {
+        Value::String(value) => normalize_non_empty_string(Some(value.as_str())),
+        Value::Number(value) => Some(value.to_string()),
+        Value::Bool(value) => Some(value.to_string()),
+        Value::Object(object) if object.is_empty() => None,
+        Value::Array(array) if array.is_empty() => None,
+        value => serde_json::to_string(value).ok(),
+    }
 }
 
 fn create_codex_cli_command() -> Command {
@@ -521,6 +809,48 @@ fn normalize_codex_cli_model_id(value: Option<&str>) -> Option<String> {
     }
 }
 
+fn normalize_codex_cli_config_key(value: &str) -> String {
+    value
+        .trim()
+        .chars()
+        .filter(|character| !matches!(character, '-' | '_' | ' ' | '\t' | '\n' | '\r'))
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+fn normalize_codex_cli_sandbox_mode(value: Option<&str>) -> Result<Option<String>, String> {
+    let Some(normalized) = normalize_non_empty_string(value) else {
+        return Ok(None);
+    };
+
+    match normalize_codex_cli_config_key(normalized.as_str()).as_str() {
+        "readonly" => Ok(Some("read-only".to_owned())),
+        "workspacewrite" => Ok(Some("workspace-write".to_owned())),
+        "dangerfullaccess" | "dangerouslybypassapprovalsandsandbox" | "none" => {
+            Ok(Some("danger-full-access".to_owned()))
+        }
+        _ => Err(format!(
+            "Unsupported Codex CLI sandbox mode \"{normalized}\". Expected read-only, workspace-write, or danger-full-access."
+        )),
+    }
+}
+
+fn normalize_codex_cli_approval_policy(value: Option<&str>) -> Result<Option<String>, String> {
+    let Some(normalized) = normalize_non_empty_string(value) else {
+        return Ok(None);
+    };
+
+    match normalize_codex_cli_config_key(normalized.as_str()).as_str() {
+        "autoallow" | "never" => Ok(Some("never".to_owned())),
+        "onrequest" => Ok(Some("on-request".to_owned())),
+        "restricted" | "untrusted" | "unlesstrusted" => Ok(Some("untrusted".to_owned())),
+        "releaseonly" | "onfailure" => Ok(Some("on-failure".to_owned())),
+        _ => Err(format!(
+            "Unsupported Codex CLI approval policy \"{normalized}\". Expected AutoAllow, OnRequest, Restricted, ReleaseOnly, never, untrusted, on-failure, or on-request."
+        )),
+    }
+}
+
 fn normalize_value_string(value: Option<&Value>) -> Option<String> {
     match value {
         Some(Value::String(value)) => normalize_non_empty_string(Some(value.as_str())),
@@ -532,7 +862,137 @@ fn normalize_value_string(value: Option<&Value>) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_codex_cli_turn_output;
+    use super::{
+        build_codex_cli_turn_args, emit_codex_cli_stream_delta_from_line,
+        parse_codex_cli_turn_output, CodexCliTurnRequest,
+    };
+    use crate::CodeEngineTurnStreamEventRecord;
+
+    fn collect_codex_stream_events(lines: &[&str]) -> Vec<CodeEngineTurnStreamEventRecord> {
+        let mut streamed_assistant_content = String::new();
+        let mut streamed_native_session_id = None;
+        let mut events = Vec::new();
+
+        for line in lines {
+            emit_codex_cli_stream_delta_from_line(
+                line,
+                &mut streamed_assistant_content,
+                &mut streamed_native_session_id,
+                &mut |event| {
+                    events.push(event);
+                    Ok(())
+                },
+            )
+            .expect("project codex stream line");
+        }
+
+        events
+    }
+
+    fn codex_cli_args_to_strings(
+        request: &CodexCliTurnRequest,
+        native_session_id: Option<&str>,
+    ) -> Vec<String> {
+        build_codex_cli_turn_args(request, native_session_id)
+            .expect("build codex cli args")
+            .into_iter()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect()
+    }
+
+    #[test]
+    fn codex_cli_turn_args_preserve_sandbox_and_approval_overrides_on_resume() {
+        let args = codex_cli_args_to_strings(
+            &CodexCliTurnRequest {
+                prompt_text: "continue".to_owned(),
+                model_id: "gpt-5.4".to_owned(),
+                native_session_id: Some("thread-1".to_owned()),
+                working_directory: None,
+                approval_policy: Some("OnRequest".to_owned()),
+                full_auto: true,
+                sandbox_mode: Some("workspace_write".to_owned()),
+                skip_git_repo_check: true,
+                ephemeral: true,
+            },
+            Some("thread-1"),
+        );
+
+        assert_eq!(
+            args,
+            vec![
+                "exec",
+                "--json",
+                "--skip-git-repo-check",
+                "--ephemeral",
+                "--model",
+                "gpt-5.4",
+                "--sandbox",
+                "workspace-write",
+                "--config",
+                "approval_policy=\"on-request\"",
+                "resume",
+                "thread-1",
+                "-",
+            ]
+        );
+    }
+
+    #[test]
+    fn codex_stream_projects_command_execution_lifecycle_events() {
+        let events = collect_codex_stream_events(&[
+            r#"{"type":"item.started","thread_id":"thread-1","item":{"id":"cmd-1","type":"command_execution","command":"pnpm lint","aggregated_output":"","status":"in_progress"}}"#,
+            r#"{"type":"item.updated","thread_id":"thread-1","item":{"id":"cmd-1","type":"command_execution","command":"pnpm lint","aggregated_output":"checking...","status":"in_progress"}}"#,
+            r#"{"type":"item.completed","thread_id":"thread-1","item":{"id":"cmd-1","type":"command_execution","command":"pnpm lint","aggregated_output":"ok","exit_code":0,"status":"completed"}}"#,
+        ]);
+
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[0].kind, "tool.call.requested");
+        assert_eq!(events[1].kind, "tool.call.progress");
+        assert_eq!(events[2].kind, "tool.call.completed");
+
+        let first_payload = events[0].payload.as_ref().expect("first payload");
+        assert_eq!(first_payload["toolName"], "run_command");
+        assert_eq!(first_payload["toolCallId"], "cmd-1");
+        assert_eq!(first_payload["toolArguments"]["command"], "pnpm lint");
+        assert_eq!(first_payload["status"], "running");
+        assert_eq!(first_payload["runtimeStatus"], "streaming");
+        assert_eq!(events[0].native_session_id.as_deref(), Some("thread-1"));
+
+        let completed_payload = events[2].payload.as_ref().expect("completed payload");
+        assert_eq!(
+            completed_payload["toolArguments"]["aggregated_output"],
+            "ok"
+        );
+        assert_eq!(completed_payload["toolArguments"]["exit_code"], 0);
+        assert_eq!(completed_payload["status"], "success");
+        assert_eq!(completed_payload["runtimeStatus"], "completed");
+    }
+
+    #[test]
+    fn codex_stream_projects_turn_failed_and_error_events() {
+        let events = collect_codex_stream_events(&[
+            r#"{"type":"turn.failed","thread_id":"thread-1","error":{"message":"quota exceeded"}}"#,
+            r#"{"type":"error","thread_id":"thread-1","message":"stream crashed"}"#,
+        ]);
+
+        assert_eq!(events.len(), 2);
+        assert!(events.iter().all(|event| event.kind == "turn.failed"));
+        assert_eq!(
+            events[0].payload.as_ref().expect("turn failed payload")["errorMessage"],
+            "quota exceeded"
+        );
+        assert_eq!(
+            events[1].payload.as_ref().expect("error payload")["errorMessage"],
+            "stream crashed"
+        );
+        assert!(events.iter().all(|event| {
+            event
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.get("runtimeStatus"))
+                == Some(&serde_json::json!("failed"))
+        }));
+    }
 
     #[test]
     fn parse_codex_cli_turn_output_preserves_command_execution_items() {
@@ -582,5 +1042,39 @@ mod tests {
                 Some("ok".to_owned())
             )],
         );
+    }
+
+    #[test]
+    fn parse_codex_cli_turn_output_preserves_official_thread_tool_items() {
+        let output = r#"
+{"type":"item.completed","item":{"id":"patch-1","type":"file_change","changes":[{"path":"src/App.tsx","kind":"update"}],"status":"completed"}}
+{"type":"item.completed","item":{"id":"todo-1","type":"todo_list","items":[{"text":"Run regression contracts","status":"completed"}],"status":"completed"}}
+{"type":"item.completed","item":{"id":"mcp-1","type":"mcp_tool_call","tool":"shell-command","arguments":{"command":"pnpm test","requestId":101777208078558035},"status":"completed"}}
+{"type":"item.completed","item":{"id":"search-1","type":"web_search","query":"BirdCoder stream event standard"}}
+"#;
+
+        let result =
+            parse_codex_cli_turn_output(output, None).expect("parse codex thread tool items");
+        let commands = result.commands.expect("commands");
+
+        assert_eq!(commands.len(), 4);
+        assert_eq!(commands[0].command, "apply_patch: src/App.tsx");
+        assert_eq!(commands[0].kind.as_deref(), Some("file_change"));
+        assert_eq!(commands[0].tool_name.as_deref(), Some("apply_patch"));
+        assert_eq!(commands[0].tool_call_id.as_deref(), Some("patch-1"));
+        assert_eq!(commands[0].runtime_status.as_deref(), Some("completed"));
+        assert_eq!(commands[1].command, "write_todo");
+        assert_eq!(commands[1].kind.as_deref(), Some("task"));
+        assert_eq!(commands[1].tool_name.as_deref(), Some("write_todo"));
+        assert_eq!(commands[2].command, "pnpm test");
+        assert_eq!(commands[2].kind.as_deref(), Some("command"));
+        assert_eq!(commands[2].tool_name.as_deref(), Some("run_command"));
+        assert_eq!(
+            commands[2].output.as_deref(),
+            Some(r#"{"command":"pnpm test","requestId":101777208078558035}"#)
+        );
+        assert_eq!(commands[3].command, "BirdCoder stream event standard");
+        assert_eq!(commands[3].kind.as_deref(), Some("tool"));
+        assert_eq!(commands[3].tool_name.as_deref(), Some("web_search"));
     }
 }

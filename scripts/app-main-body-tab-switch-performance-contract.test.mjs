@@ -11,7 +11,7 @@ assert.match(
 
 assert.match(
   appSource,
-  /const PRIMARY_PERSISTED_APP_TABS = new Set<AppTab>\(\['code', 'studio', 'terminal'\]\);/,
+  /const PRIMARY_PERSISTED_APP_TABS = new Set<AppTab>\(\['code', 'studio', 'multiwindow', 'terminal'\]\);/,
   'App must define the primary persisted tab set so heavy workbench surfaces stay mounted after first activation.',
 );
 
@@ -43,6 +43,12 @@ assert.match(
   appSource,
   /<PersistentAppTabPanel isActive=\{activeTab === 'studio'\}>[\s\S]*<StudioPage/s,
   'AppMainBody must render StudioPage inside a persistent activity panel instead of conditionally unmounting it on every tab switch.',
+);
+
+assert.match(
+  appSource,
+  /<PersistentAppTabPanel isActive=\{activeTab === 'multiwindow'\}>[\s\S]*<MultiWindowProgrammingPage/s,
+  'AppMainBody must render MultiWindowProgrammingPage inside a persistent activity panel so parallel coding windows stay warm after first activation.',
 );
 
 assert.match(

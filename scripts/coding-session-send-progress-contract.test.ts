@@ -56,8 +56,20 @@ assert.match(
 
 assert.match(
   apiProjectServiceSource,
-  /runtimeStatus:\s*shouldPreferLocalState\s*\?\s*localCodingSession\?\.runtimeStatus\s*\?\?\s*summary\.runtimeStatus\s*:\s*summary\.runtimeStatus\s*\?\?\s*localCodingSession\?\.runtimeStatus,/s,
+  /function resolveMergedCodingSessionRuntimeStatus\(/,
+  'API-backed project service must centralize merged runtimeStatus resolution so local optimistic progress and stale startup cleanup stay consistent.',
+);
+
+assert.match(
+  apiProjectServiceSource,
+  /if \(shouldPreferLocalState\) \{\s*return localCodingSession\?\.runtimeStatus \?\? summary\.runtimeStatus;\s*\}/s,
   'Coding-session summary merges must preserve the newer local runtimeStatus when the authoritative summary lags behind.',
+);
+
+assert.match(
+  apiProjectServiceSource,
+  /isStaleLocalExecutingCodingSessionRuntimeStatus\(localCodingSession\)\s*\?\s*undefined\s*:\s*localCodingSession\?\.runtimeStatus/s,
+  'Coding-session summary merges must stop preserving old local executing states when authority no longer confirms an active runtime status.',
 );
 
 console.log('coding session send progress contract passed');

@@ -12,28 +12,85 @@ import {
   getBirdCoderVipMembershipRepository,
   getWorkbenchPreferencesRepository,
   normalizeWorkbenchRecoverySnapshot,
+  syncWorkbenchCodeEngineModelConfig,
   type RunConfigurationRecord,
+  type SyncWorkbenchCodeEngineModelConfigOptions,
   type WorkbenchPreferences,
   type WorkbenchRecoverySnapshot,
 } from '@sdkwork/birdcoder-workbench-state';
 
 const WORKBENCH_RECOVERY_SCOPE = 'workbench';
 const WORKBENCH_RECOVERY_KEY = 'recovery-context';
+const SHELL_USER_STATE_BOOTSTRAP_TIMEOUT_MS = 30_000;
+const MODEL_CONFIG_SYNC_BOOTSTRAP_TIMEOUT_MS = 15_000;
+const PROJECT_WORKBENCH_BOOTSTRAP_TIMEOUT_MS = 15_000;
 
-let bootstrapShellUserStatePromise: Promise<void> | null = null;
+let bootstrapShellLocalUserStatePromise: Promise<void> | null = null;
+let modelConfigSyncPromise: Promise<void> | null = null;
+let hasSynchronizedModelConfig = false;
 const projectBootstrapPromises = new Map<string, Promise<RunConfigurationRecord[]>>();
+
+export type BootstrapShellUserStateOptions =
+  Partial<SyncWorkbenchCodeEngineModelConfigOptions>;
+
+interface BootstrapTaskTimeoutBoundary {
+  clear: () => void;
+  promise: Promise<never>;
+}
+
+function createBootstrapTaskTimeoutPromise(
+  operationName: string,
+  timeoutMs: number,
+): BootstrapTaskTimeoutBoundary {
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  const promise = new Promise<never>((_resolve, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(
+        new Error(
+          `Timed out during ${operationName} after ${Math.ceil(timeoutMs / 1000)} seconds.`,
+        ),
+      );
+    }, timeoutMs);
+  });
+
+  return {
+    clear: () => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+    },
+    promise,
+  };
+}
+
+function runBootstrapTaskWithTimeout<T>(
+  operationName: string,
+  task: Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  const timeoutBoundary = createBootstrapTaskTimeoutPromise(operationName, timeoutMs);
+  return Promise.race([
+    task,
+    timeoutBoundary.promise,
+  ]).finally(() => {
+    timeoutBoundary.clear();
+  });
+}
 
 async function ensureJsonRecordRepositoryPersisted<TRecord>(
   repository: BirdCoderJsonRecordRepository<TRecord>,
 ): Promise<TRecord> {
-  const storageKey =
-    repository.binding.storageMode === 'table'
-      ? `${repository.binding.storageMode}.${repository.binding.preferredProvider}.${repository.binding.storageKey}`
-      : repository.binding.storageKey;
   const normalizedValue = await repository.read();
+
+  if (repository.binding.storageMode === 'table') {
+    await repository.write(normalizedValue);
+    return normalizedValue;
+  }
+
   const currentRawValue = await getStoredRawValue(
     repository.binding.storageScope,
-    storageKey,
+    repository.binding.storageKey,
   );
   const nextRawValue = serializeStoredValue(normalizedValue);
 
@@ -62,24 +119,103 @@ async function ensureRecoverySnapshotPersisted(): Promise<WorkbenchRecoverySnaps
   return normalizedValue;
 }
 
-async function performBootstrapShellUserState(): Promise<void> {
-  await Promise.all([
+function hasModelConfigSyncServices(
+  options: BootstrapShellUserStateOptions,
+): options is SyncWorkbenchCodeEngineModelConfigOptions {
+  return Boolean(options.coreReadService && options.coreWriteService);
+}
+
+async function runCodeEngineModelConfigSynchronization(
+  options: SyncWorkbenchCodeEngineModelConfigOptions,
+): Promise<boolean> {
+  try {
+    await runBootstrapTaskWithTimeout(
+      'code engine model config synchronization',
+      syncWorkbenchCodeEngineModelConfig({
+        coreReadService: options.coreReadService,
+        coreWriteService: options.coreWriteService,
+      }),
+      MODEL_CONFIG_SYNC_BOOTSTRAP_TIMEOUT_MS,
+    );
+    return true;
+  } catch {
+    // Startup must remain local-first if a remote model-config authority is unavailable.
+    return false;
+  }
+}
+
+function ensureCodeEngineModelConfigSynchronized(
+  options: BootstrapShellUserStateOptions,
+): Promise<void> {
+  if (hasSynchronizedModelConfig || !hasModelConfigSyncServices(options)) {
+    return Promise.resolve();
+  }
+
+  if (!modelConfigSyncPromise) {
+    modelConfigSyncPromise = runCodeEngineModelConfigSynchronization(options)
+      .then((didSynchronize) => {
+        if (didSynchronize) {
+          hasSynchronizedModelConfig = true;
+        }
+      })
+      .finally(() => {
+        modelConfigSyncPromise = null;
+      });
+  }
+
+  return modelConfigSyncPromise;
+}
+
+function persistLocalUserState(): Promise<void> {
+  return Promise.all([
     ensureJsonRecordRepositoryPersisted(getBirdCoderUserProfileRepository()),
     ensureJsonRecordRepositoryPersisted(getBirdCoderVipMembershipRepository()),
     ensureJsonRecordRepositoryPersisted<WorkbenchPreferences>(getWorkbenchPreferencesRepository()),
     ensureRecoverySnapshotPersisted(),
-  ]);
+  ]).then(() => undefined);
 }
 
-export function bootstrapShellUserState(): Promise<void> {
-  if (!bootstrapShellUserStatePromise) {
-    bootstrapShellUserStatePromise = performBootstrapShellUserState().catch((error) => {
-      bootstrapShellUserStatePromise = null;
+function ensureLocalUserStatePersisted(): Promise<void> {
+  if (!bootstrapShellLocalUserStatePromise) {
+    bootstrapShellLocalUserStatePromise = runBootstrapTaskWithTimeout(
+      'shell local user state bootstrap',
+      persistLocalUserState(),
+      SHELL_USER_STATE_BOOTSTRAP_TIMEOUT_MS,
+    ).catch((error) => {
+      bootstrapShellLocalUserStatePromise = null;
       throw error;
     });
   }
 
-  return bootstrapShellUserStatePromise;
+  return bootstrapShellLocalUserStatePromise;
+}
+
+export function bootstrapShellUserState(
+  options: BootstrapShellUserStateOptions = {},
+): Promise<void> {
+  if (!bootstrapShellLocalUserStatePromise && hasModelConfigSyncServices(options)) {
+    bootstrapShellLocalUserStatePromise = runBootstrapTaskWithTimeout(
+      'shell local user state bootstrap',
+      ensureCodeEngineModelConfigSynchronized(options)
+        .then(() => persistLocalUserState()),
+      SHELL_USER_STATE_BOOTSTRAP_TIMEOUT_MS,
+    )
+      .catch((error) => {
+        bootstrapShellLocalUserStatePromise = null;
+        throw error;
+      });
+
+    return bootstrapShellLocalUserStatePromise;
+  }
+
+  const localUserStatePromise = ensureLocalUserStatePersisted();
+  if (!hasModelConfigSyncServices(options)) {
+    return localUserStatePromise;
+  }
+
+  return localUserStatePromise
+    .then(() => ensureCodeEngineModelConfigSynchronized(options))
+    .then(() => undefined);
 }
 
 export function bootstrapProjectWorkbenchState(
@@ -96,8 +232,14 @@ export function bootstrapProjectWorkbenchState(
   }
 
   const bootstrapPromise: Promise<RunConfigurationRecord[]> =
-    ensureStoredRunConfigurations(normalizedProjectId).finally(() => {
-      projectBootstrapPromises.delete(normalizedProjectId);
+    runBootstrapTaskWithTimeout(
+      'project workbench state bootstrap',
+      ensureStoredRunConfigurations(normalizedProjectId),
+      PROJECT_WORKBENCH_BOOTSTRAP_TIMEOUT_MS,
+    ).finally(() => {
+      if (projectBootstrapPromises.get(normalizedProjectId) === bootstrapPromise) {
+        projectBootstrapPromises.delete(normalizedProjectId);
+      }
     });
 
   projectBootstrapPromises.set(normalizedProjectId, bootstrapPromise);

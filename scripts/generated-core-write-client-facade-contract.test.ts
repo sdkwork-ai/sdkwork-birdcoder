@@ -103,6 +103,16 @@ const client = createBirdCoderGeneratedCoreWriteApiClient({
           }
           break;
         case '/api/core/v1/coding-sessions/coding-session-generated-write/messages/message-generated-write':
+          if (request.method === 'PATCH') {
+            return createEnvelope(
+              {
+                id: 'message-generated-write',
+                codingSessionId: 'coding-session-generated-write',
+                content: 'Edited generated write message',
+              },
+              'req.core.edit-session-message',
+            ) as TResponse;
+          }
           return createEnvelope(
             {
               id: 'message-generated-write',
@@ -154,6 +164,19 @@ const client = createBirdCoderGeneratedCoreWriteApiClient({
             },
             'req.core.submit-user-question-answer',
           ) as TResponse;
+        case '/api/core/v1/questions/question-generated-write-reject/answer':
+          return createEnvelope(
+            {
+              questionId: 'question-generated-write-reject',
+              codingSessionId: 'coding-session-generated-write',
+              rejected: true,
+              answeredAt: '2026-04-11T11:03:30.000Z',
+              runtimeStatus: 'failed',
+              runtimeId: 'runtime-generated-write',
+              turnId: 'coding-turn-generated-write',
+            },
+            'req.core.reject-user-question',
+          ) as TResponse;
         default:
           throw new Error(`Unhandled request: ${request.method} ${request.path}`);
       }
@@ -197,6 +220,18 @@ await assert.rejects(
   /update coding session request must include at least one field\./,
 );
 
+const editedMessage = await client.editCodingSessionMessage(
+  'coding-session-generated-write',
+  'message-generated-write',
+  {
+    content: 'Edited generated write message',
+  },
+);
+
+assert.equal(editedMessage.id, 'message-generated-write');
+assert.equal(editedMessage.codingSessionId, 'coding-session-generated-write');
+assert.equal(editedMessage.content, 'Edited generated write message');
+
 const deletedMessage = await client.deleteCodingSessionMessage(
   'coding-session-generated-write',
   'message-generated-write',
@@ -213,6 +248,7 @@ const createdTurn = await client.createCodingSessionTurn('coding-session-generat
   runtimeId: 'runtime-generated-write',
   requestKind: 'chat',
   inputSummary: 'Implement shared core write turn facade',
+  stream: true,
 });
 
 assert.equal(createdTurn.id, 'coding-turn-generated-write');
@@ -240,6 +276,21 @@ const questionAnswerResult = await client.submitUserQuestionAnswer('question-gen
 assert.equal(questionAnswerResult.questionId, 'question-generated-write');
 assert.equal(questionAnswerResult.codingSessionId, 'coding-session-generated-write');
 assert.equal(questionAnswerResult.answer, 'Run unit tests');
+
+const questionRejectResult = await client.submitUserQuestionAnswer(
+  'question-generated-write-reject',
+  {
+    rejected: true,
+  },
+);
+
+assert.equal(questionRejectResult.questionId, 'question-generated-write-reject');
+assert.equal(questionRejectResult.rejected, true);
+assert.equal(
+  questionRejectResult.answer,
+  undefined,
+  'generated core write client must not fake an empty answer when rejecting a user question.',
+);
 assert.deepEqual(observedRequests, [
   {
     method: 'POST',
@@ -269,6 +320,13 @@ assert.deepEqual(observedRequests, [
     },
   },
   {
+    method: 'PATCH',
+    path: '/api/core/v1/coding-sessions/coding-session-generated-write/messages/message-generated-write',
+    body: {
+      content: 'Edited generated write message',
+    },
+  },
+  {
     method: 'DELETE',
     path: '/api/core/v1/coding-sessions/coding-session-generated-write/messages/message-generated-write',
   },
@@ -283,6 +341,7 @@ assert.deepEqual(observedRequests, [
       runtimeId: 'runtime-generated-write',
       requestKind: 'chat',
       inputSummary: 'Implement shared core write turn facade',
+      stream: true,
     },
   },
   {
@@ -299,6 +358,13 @@ assert.deepEqual(observedRequests, [
     body: {
       answer: 'Run unit tests',
       optionLabel: 'Unit',
+    },
+  },
+  {
+    method: 'POST',
+    path: '/api/core/v1/questions/question-generated-write-reject/answer',
+    body: {
+      rejected: true,
     },
   },
 ]);

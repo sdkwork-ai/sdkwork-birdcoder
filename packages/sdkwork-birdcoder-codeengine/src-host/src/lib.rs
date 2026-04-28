@@ -52,7 +52,9 @@ pub use gemini_provider::GeminiCodeEngineProvider;
 pub use opencode::{
     create_opencode_session, get_opencode_session, get_opencode_session_messages,
     is_opencode_transport_available, list_opencode_session_status_map, list_opencode_sessions,
-    prompt_opencode_session,
+    prompt_opencode_session, prompt_opencode_session_async, reject_opencode_question_request,
+    reply_opencode_permission_request, reply_opencode_question_request,
+    stream_opencode_session_events,
 };
 pub use opencode_provider::OpencodeCodeEngineProvider;
 pub use provider::{
@@ -70,9 +72,10 @@ pub use session_records::{
     CodeEngineSessionSummaryRecord,
 };
 pub use turns::{
-    build_codeengine_turn_prompt, CodeEngineTurnConfigRecord,
+    build_codeengine_turn_prompt, CodeEngineApprovalDecisionRecord, CodeEngineTurnConfigRecord,
     CodeEngineTurnCurrentFileContextRecord, CodeEngineTurnIdeContextRecord,
     CodeEngineTurnRequestRecord, CodeEngineTurnResultRecord, CodeEngineTurnStreamEventRecord,
+    CodeEngineUserQuestionAnswerRecord,
 };
 
 pub const OPENCODE_SERVER_ATTACH_URL_ENV: &str = "OPENCODE_SERVER_URL";

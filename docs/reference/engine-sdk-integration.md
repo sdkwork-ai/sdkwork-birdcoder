@@ -120,6 +120,7 @@ The middle layer must standardize these runtime objects:
 - `message.delta`
 - `message.completed`
 - `message.deleted`
+- `message.edited`
 - `tool.call.requested`
 - `tool.call.progress`
 - `tool.call.completed`

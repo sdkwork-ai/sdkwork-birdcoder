@@ -347,15 +347,18 @@ function reconcileProjectCodingSessionsForStore(
   const existingCodingSessionsById = new Map(
     existingCodingSessions.map((codingSession) => [codingSession.id, codingSession]),
   );
+  const nextCodingSessionsById = new Map<string, BirdCoderCodingSession>();
 
-  return sortCodingSessionsForStore(
-    incomingCodingSessions.map((codingSession) =>
-      cloneCodingSessionForStore(
-        codingSession,
+  incomingCodingSessions.forEach((codingSession) => {
+    const mergedCodingSession = cloneCodingSessionForStore(
+      codingSession,
+      nextCodingSessionsById.get(codingSession.id) ??
         existingCodingSessionsById.get(codingSession.id),
-      ),
-    ),
-  );
+    );
+    nextCodingSessionsById.set(codingSession.id, mergedCodingSession);
+  });
+
+  return sortCodingSessionsForStore(Array.from(nextCodingSessionsById.values()));
 }
 
 function mergeProjectForStore(
@@ -408,13 +411,17 @@ export function mergeProjectsForStore(
   const existingProjectsById = new Map(
     existingProjects.map((project) => [project.id, project]),
   );
+  const nextProjectsById = new Map<string, BirdCoderProject>();
+  incomingProjects.forEach((project) => {
+    const mergedProject = mergeProjectForStore(
+      nextProjectsById.get(project.id) ?? existingProjectsById.get(project.id),
+      project,
+    );
+    nextProjectsById.set(project.id, mergedProject);
+  });
   return reuseProjectCollectionIfUnchanged(
     existingProjects,
-    sortProjectsForStore(
-      incomingProjects.map((project) =>
-        mergeProjectForStore(existingProjectsById.get(project.id), project),
-      ),
-    ),
+    sortProjectsForStore(Array.from(nextProjectsById.values())),
   );
 }
 

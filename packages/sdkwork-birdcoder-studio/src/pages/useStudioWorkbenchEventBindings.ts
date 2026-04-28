@@ -10,6 +10,7 @@ import {
   emitOpenTerminalRequest,
   getDefaultRunConfigurations,
   globalEventBus,
+  openTauriShellPath,
   resolveRunConfigurationTerminalLaunch,
   type RunConfigurationRecord,
   type TerminalCommandRequest,
@@ -117,9 +118,7 @@ export function useStudioWorkbenchEventBindings({
     };
     const handleRevealInExplorer = async (targetPath: string) => {
       try {
-        if (window.__TAURI__) {
-          const { open } = await import('@tauri-apps/plugin-shell');
-          await open(targetPath);
+        if (await openTauriShellPath(targetPath)) {
           return;
         }
 

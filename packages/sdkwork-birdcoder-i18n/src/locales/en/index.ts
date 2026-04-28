@@ -6,6 +6,7 @@ import auth from './auth.ts';
 import settingsExtra from './settings-extra.ts';
 import settingsEngine from './settings-engine.ts';
 import chat from './chat.ts';
+import multiWindow from './multiwindow.ts';
 import appErrors from './app/errors.ts';
 import appMenu from './app/menu.ts';
 import appWorkspace from './app/workspace.ts';
@@ -32,6 +33,7 @@ export const enModules = [
   settingsExtra,
   settingsEngine,
   chat,
+  multiWindow,
   appErrors,
   appMenu,
   appWorkspace,

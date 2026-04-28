@@ -1,5 +1,5 @@
 import { memo, useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronDown, CheckCircle2, Share, Upload, Terminal, X, Copy, Globe, Lock, Loader2, RefreshCw } from 'lucide-react';
+import { ChevronDown, CheckCircle2, Share, Upload, Terminal, X, Copy, Globe, Lock, Loader2 } from 'lucide-react';
 import type {
   BirdCoderDeploymentTargetSummary,
   BirdCoderProjectCollaboratorSummary,
@@ -76,12 +76,12 @@ interface TopBarProps {
   projectName?: string;
   projectPath?: string;
   isProjectGitOverviewDrawerOpen: boolean;
-  onCreateNewSession: (engineId?: string) => void | Promise<void>;
+  onCreateNewSession: (engineId?: string, modelId?: string) => void | Promise<void>;
   onToggleProjectGitOverviewDrawer: () => void;
   selectedSessionTitle?: string;
   selectedSessionEngineId?: string;
   selectedSessionModelId?: string;
-  isSelectedSessionExecuting: boolean;
+  isSelectedSessionEngineBusy: boolean;
   selectedEngineId: string;
   selectedModelId: string;
   projectGitOverviewState?: ProjectGitOverviewViewState;
@@ -100,7 +100,7 @@ function TopBarComponent({
   selectedSessionTitle,
   selectedSessionEngineId,
   selectedSessionModelId,
-  isSelectedSessionExecuting,
+  isSelectedSessionEngineBusy,
   selectedEngineId,
   selectedModelId,
   projectGitOverviewState,
@@ -121,7 +121,7 @@ function TopBarComponent({
         preferences,
       )
     : getWorkbenchCodeEngineSessionSummary(selectedEngineId, selectedModelId, preferences);
-  const isExecutingCurrentSession = isSelectedSessionExecuting;
+  const isEngineBusyCurrentSession = isSelectedSessionEngineBusy;
   const isNewSessionEnabled = !!projectId?.trim();
   const localProjectGitOverviewState = useProjectGitOverview({
     isActive: !projectGitOverviewState,
@@ -453,9 +453,9 @@ function TopBarComponent({
                 {headerEngineSummary}
               </span>
             </div>
-            {isExecutingCurrentSession && (
+            {isEngineBusyCurrentSession && (
               <div className="hidden items-center gap-1.5 text-xs text-emerald-400 xl:flex">
-                <RefreshCw size={12} className="animate-spin" />
+                <Loader2 size={12} className="animate-spin" />
                 <span>{t('code.executingSession')}</span>
               </div>
             )}
@@ -493,8 +493,8 @@ function TopBarComponent({
             selectedEngineId={selectedEngineId}
             selectedModelId={selectedModelId}
             variant="topbar"
-            onCreateSession={(engineId) => {
-              void onCreateNewSession(engineId);
+            onCreateSession={(engineId, modelId) => {
+              void onCreateNewSession(engineId, modelId);
             }}
           />
           <ProjectGitHeaderControls

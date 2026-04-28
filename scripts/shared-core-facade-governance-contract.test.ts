@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 const typesEntryModulePath = new URL(
   '../packages/sdkwork-birdcoder-types/src/index.ts',
@@ -6,6 +7,14 @@ const typesEntryModulePath = new URL(
 );
 const generatedClientModulePath = new URL(
   '../packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts',
+  import.meta.url,
+);
+const coreWriteServiceInterfacePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/ICoreWriteService.ts',
+  import.meta.url,
+);
+const apiBackedCoreWriteServicePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCoreWriteService.ts',
   import.meta.url,
 );
 
@@ -27,6 +36,7 @@ const includedOperationIds = [
   'core.getDescriptor',
   'core.getRuntime',
   'core.getHealth',
+  'core.getModelConfig',
   'core.listRoutes',
   'core.listEngines',
   'core.listNativeSessionProviders',
@@ -40,10 +50,12 @@ const includedOperationIds = [
   'core.forkCodingSession',
   'core.updateCodingSession',
   'core.deleteCodingSession',
+  'core.editCodingSessionMessage',
   'core.deleteCodingSessionMessage',
   'core.createCodingSessionTurn',
   'core.submitApprovalDecision',
   'core.submitUserQuestionAnswer',
+  'core.syncModelConfig',
   'core.getCodingSession',
   'core.listCodingSessionEvents',
   'core.listCodingSessionArtifacts',
@@ -109,6 +121,7 @@ const writeClient = createBirdCoderGeneratedCoreWriteApiClient({
 assert.equal(typeof client.getDescriptor, 'function');
 assert.equal(typeof client.getRuntime, 'function');
 assert.equal(typeof client.getHealth, 'function');
+assert.equal(typeof client.getModelConfig, 'function');
 assert.equal(typeof client.listRoutes, 'function');
 assert.equal(typeof client.listEngines, 'function');
 assert.equal(typeof client.listNativeSessionProviders, 'function');
@@ -124,10 +137,12 @@ assert.equal(typeof writeClient.createCodingSession, 'function');
 assert.equal(typeof writeClient.forkCodingSession, 'function');
 assert.equal(typeof writeClient.updateCodingSession, 'function');
 assert.equal(typeof writeClient.deleteCodingSession, 'function');
+assert.equal(typeof writeClient.editCodingSessionMessage, 'function');
 assert.equal(typeof writeClient.deleteCodingSessionMessage, 'function');
 assert.equal(typeof writeClient.createCodingSessionTurn, 'function');
 assert.equal(typeof writeClient.submitApprovalDecision, 'function');
 assert.equal(typeof writeClient.submitUserQuestionAnswer, 'function');
+assert.equal(typeof writeClient.syncModelConfig, 'function');
 assert.equal(
   'createCodingSession' in client,
   false,
@@ -164,6 +179,11 @@ assert.equal(
   'shared core read facade must stay read-only after submitUserQuestionAnswer is promoted into the typed shared core write facade.',
 );
 assert.equal(
+  'syncModelConfig' in client,
+  false,
+  'shared core read facade must stay read-only after syncModelConfig is promoted into the typed shared core write facade.',
+);
+assert.equal(
   'forkCodingSession' in client,
   false,
   'shared core read facade must stay read-only after forkCodingSession is promoted into the typed shared core write facade.',
@@ -184,6 +204,35 @@ assert.equal(
   'shared core read facade must stay read-only after deleteCodingSessionMessage is promoted into the typed shared core write facade.',
 );
 assert.equal(
+  'editCodingSessionMessage' in client,
+  false,
+  'shared core read facade must stay read-only after editCodingSessionMessage is promoted into the typed shared core write facade.',
+);
+
+const coreWriteServiceInterfaceSource = readFileSync(coreWriteServiceInterfacePath, 'utf8');
+const apiBackedCoreWriteServiceSource = readFileSync(apiBackedCoreWriteServicePath, 'utf8');
+
+assert.match(
+  coreWriteServiceInterfaceSource,
+  /deleteCodingSessionMessage\(\s*codingSessionId:\s*string,\s*messageId:\s*string,\s*\):\s*Promise<\s*BirdCoderDeleteCodingSessionMessageResult\s*>/s,
+  'ICoreWriteService must expose deleteCodingSessionMessage so DI consumers do not lose promoted core write transcript mutation capability.',
+);
+assert.match(
+  coreWriteServiceInterfaceSource,
+  /editCodingSessionMessage\(\s*codingSessionId:\s*string,\s*messageId:\s*string,\s*request:\s*BirdCoderEditCodingSessionMessageRequest,\s*\):\s*Promise<\s*BirdCoderEditCodingSessionMessageResult\s*>/s,
+  'ICoreWriteService must expose editCodingSessionMessage so DI consumers do not lose promoted core write transcript mutation capability.',
+);
+assert.match(
+  apiBackedCoreWriteServiceSource,
+  /async\s+deleteCodingSessionMessage\(\s*codingSessionId:[\s\S]*?return\s+this\.client\.deleteCodingSessionMessage\(codingSessionId,\s*messageId\);/s,
+  'ApiBackedCoreWriteService must delegate deleteCodingSessionMessage through the generated core write client.',
+);
+assert.match(
+  apiBackedCoreWriteServiceSource,
+  /async\s+editCodingSessionMessage\(\s*codingSessionId:[\s\S]*?return\s+this\.client\.editCodingSessionMessage\(codingSessionId,\s*messageId,\s*request\);/s,
+  'ApiBackedCoreWriteService must delegate editCodingSessionMessage through the generated core write client.',
+);
+assert.equal(
   'listRoutes' in client,
   true,
   'shared core high-level facade must publish listRoutes once the unified route catalog is part of the real server surface.',
@@ -197,6 +246,11 @@ assert.equal(
   'listModels' in client,
   true,
   'shared core high-level facade must publish listModels once the route is real and typed.',
+);
+assert.equal(
+  'getModelConfig' in client,
+  true,
+  'shared core high-level facade must publish getModelConfig once model configuration sync is part of the real server surface.',
 );
 
 console.log('shared core facade governance contract passed.');

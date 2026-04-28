@@ -19,17 +19,39 @@ assert.equal(
 
 assert.deepEqual(
   restoreQueuedMessagesAfterSendFailure(
-    ['queued-1', 'queued-2'],
-    ['queued-3'],
+    [
+      { id: 'queued-message-1', text: 'queued-1' },
+      { id: 'queued-message-2', text: 'queued-2' },
+    ],
+    [{ id: 'queued-message-3', text: 'queued-3' }],
   ),
-  ['queued-1', 'queued-2', 'queued-3'],
+  [
+    { id: 'queued-message-1', text: 'queued-1' },
+    { id: 'queued-message-2', text: 'queued-2' },
+    { id: 'queued-message-3', text: 'queued-3' },
+  ],
   'failed sends must restore the dispatched queue ahead of any messages that were queued while the request was inflight',
 );
 
 assert.deepEqual(
-  restoreQueuedMessagesAfterSendFailure([], ['queued-3']),
-  ['queued-3'],
+  restoreQueuedMessagesAfterSendFailure([], [{ id: 'queued-message-3', text: 'queued-3' }]),
+  [{ id: 'queued-message-3', text: 'queued-3' }],
   'queue restoration should stay stable when there was no dispatched queue snapshot to restore',
+);
+
+assert.deepEqual(
+  restoreQueuedMessagesAfterSendFailure(
+    [{ id: 'queued-message-1', text: 'repeat' }],
+    [
+      { id: 'queued-message-1', text: 'repeat' },
+      { id: 'queued-message-2', text: 'repeat' },
+    ],
+  ),
+  [
+    { id: 'queued-message-1', text: 'repeat' },
+    { id: 'queued-message-2', text: 'repeat' },
+  ],
+  'queue restoration must be idempotent by message identity while preserving separately queued duplicate text',
 );
 
 console.log('chat composer recovery contract passed.');

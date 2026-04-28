@@ -563,7 +563,7 @@
   - the next autonomous loop must select a new lowest-score Step from fresh evidence instead of continuing Step `20`
 58. The remaining release-tier contract-tail drift is now also closed:
   - `scripts/ci-flow-contract.test.mjs` and `scripts/quality-gate-matrix-contract.test.mjs` now freeze the same direct web-host `check:quality:standard` chain already used by `build`, `build:prod`, `check:quality:standard`, and governance regression
-  - the 2026-04-13 direct-runner evidence returned `100/100` passed checks with `failedCheckIds: []`
+  - the current direct-runner evidence returns `101/101` passed checks with `failedCheckIds: []`
   - the 2026-04-13 direct-runner quality execution evidence returned `status: passed`, `passedCount: 3`, `failedCount: 0`, `blockedCount: 0`, and `lastExecutedTierId: release`
   - the declared `fast -> standard -> matrix -> release-flow -> ci-flow -> governance` topology remains unchanged; only the last stale contract expectations were realigned to the already-governed command truth
 59. The Step 17 live-docs truth-drift closure is now also closed:
@@ -666,3 +666,8 @@
   - fresh direct outer-shell reruns on `2026-04-15` confirm `pnpm.cmd run build` passes on this host, while `pnpm.cmd check:quality:fast` fails at `check:web-vite-build` with `[vite:define] spawn EPERM`
   - fresh direct `pnpm.cmd check:quality:release` evidence on `2026-04-15` fails for the same reason because `fast` stops first
   - future loops must not misdescribe the direct tier contents as fully green or fully broken on this host; the remaining executable release blocker is the governed Vite-host boundary inside `quality-gate-execution-report.mjs` and `governance-regression-report.mjs`, even though a direct `pnpm.cmd run build` still passes
+80. The multi-window programming standard is now also release-backed:
+  - `@sdkwork/birdcoder-multiwindow` owns the multi-window Studio surface, including 2/3/4/6/8 pane layouts, manual window add and close, one bottom broadcast composer, per-pane session/model/parameter/mode settings, chat/preview comparison modes, retry failed panes, cancelled multi-window batches, manual cancel current batch, quota-safe workspace persistence, stale writeback guards, and `MultiWindowDispatchBatchSummary` batch metrics
+  - `check:multiwindow-standard` now runs package, runtime, page, shell-navigation, turn-options, release-writeback, and package typecheck contracts from the fast quality gate
+  - `codeengine-turn-options-provider` is part of engine governance regression, so multi-window `temperature`, `topP`, and `maxOutputTokens` metadata cannot silently stop reaching provider turn config
+  - `docs/release/release-2026-04-28-01.md` and `docs/release/releases.json` record this as the current registry-backed release writeback; future loops must keep product capability, governance gate, and release note aligned together

@@ -30,6 +30,18 @@ assert.match(
 
 assert.match(
   source,
+  /const projectMirrorReader = projectService\.getProjectMirrorSnapshots\?\.bind\(projectService\);[\s\S]*return projectSnapshots\.map\(materializeProjectInventoryFromMirrorSnapshot\);[\s\S]*return projectService\.getProjects\(workspaceId\);/,
+  'useProjects startup inventory must prefer project mirror snapshots before falling back to full project reads.',
+);
+
+assert.match(
+  source,
+  /messages:\s*EMPTY_PROJECT_INVENTORY_MESSAGES/,
+  'project mirror snapshots must be materialized as summary-only sessions without transcript messages.',
+);
+
+assert.match(
+  source,
   /messages:\s*codingSession\.messages\.length > 0 \? EMPTY_PROJECT_INVENTORY_MESSAGES : codingSession\.messages/s,
   'useProjects inventory normalization must strip transcript payloads from fetched project snapshots while preserving empty-array identity for summaries.',
 );

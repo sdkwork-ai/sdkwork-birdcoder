@@ -473,6 +473,13 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "surface": "core"
   },
   {
+    "method": "PATCH",
+    "operationId": "core.editCodingSessionMessage",
+    "path": "/api/core/v1/coding-sessions/{id}/messages/{messageId}",
+    "summary": "Edit coding session message",
+    "surface": "core"
+  },
+  {
     "method": "DELETE",
     "operationId": "core.deleteCodingSessionMessage",
     "path": "/api/core/v1/coding-sessions/{id}/messages/{messageId}",
@@ -516,6 +523,13 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   },
   {
     "method": "GET",
+    "operationId": "core.getModelConfig",
+    "path": "/api/core/v1/model-config",
+    "summary": "Get code engine model configuration",
+    "surface": "core"
+  },
+  {
+    "method": "GET",
     "operationId": "core.listModels",
     "path": "/api/core/v1/models",
     "summary": "List model catalog",
@@ -554,6 +568,13 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "operationId": "core.submitUserQuestionAnswer",
     "path": "/api/core/v1/questions/{questionId}/answer",
     "summary": "Submit user-question answer",
+    "surface": "core"
+  },
+  {
+    "method": "PUT",
+    "operationId": "core.syncModelConfig",
+    "path": "/api/core/v1/model-config",
+    "summary": "Sync code engine model configuration",
     "surface": "core"
   },
   {

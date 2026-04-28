@@ -4,6 +4,7 @@ import type { IProjectService } from '../services/interfaces/IProjectService.ts'
 import { resolveLatestCodingSessionIdForProject } from './codingSessionSelection.ts';
 
 export interface HydrateImportedProjectFromAuthorityOptions {
+  hydrationTimeoutMs?: number;
   knownProjects?: readonly BirdCoderProject[];
   projectId: string;
   projectService: IProjectService;
@@ -20,6 +21,64 @@ const inflightImportedProjectHydrations = new Map<
   string,
   Promise<HydrateImportedProjectFromAuthorityResult | null>
 >();
+const IMPORTED_PROJECT_HYDRATION_TIMEOUT_MS = 30_000;
+
+interface ImportedProjectHydrationTaskState {
+  abandoned: boolean;
+}
+
+interface ImportedProjectHydrationTimeoutBoundary {
+  clear: () => void;
+  promise: Promise<never>;
+}
+
+function normalizeImportedProjectHydrationTimeoutMs(
+  timeoutMs: number | null | undefined,
+): number {
+  return Number.isFinite(timeoutMs) && typeof timeoutMs === 'number' && timeoutMs > 0
+    ? timeoutMs
+    : IMPORTED_PROJECT_HYDRATION_TIMEOUT_MS;
+}
+
+function createImportedProjectHydrationTimeoutPromise(
+  taskState: ImportedProjectHydrationTaskState,
+  timeoutMs: number,
+): ImportedProjectHydrationTimeoutBoundary {
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  const promise = new Promise<never>((_resolve, reject) => {
+    timeoutHandle = setTimeout(() => {
+      taskState.abandoned = true;
+      reject(new Error(`Timed out hydrating imported project after ${timeoutMs} ms.`));
+    }, timeoutMs);
+  });
+
+  return {
+    clear: () => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+    },
+    promise,
+  };
+}
+
+function runImportedProjectHydrationWithTimeout(
+  taskState: ImportedProjectHydrationTaskState,
+  timeoutMs: number,
+  task: () => Promise<HydrateImportedProjectFromAuthorityResult | null>,
+): Promise<HydrateImportedProjectFromAuthorityResult | null> {
+  const timeoutBoundary = createImportedProjectHydrationTimeoutPromise(
+    taskState,
+    timeoutMs,
+  );
+  return Promise.race([
+    Promise.resolve().then(task),
+    timeoutBoundary.promise,
+  ]).finally(() => {
+    timeoutBoundary.clear();
+  });
+}
 
 function buildImportedProjectHydrationKey(
   userScope: string | null | undefined,
@@ -92,34 +151,47 @@ export async function hydrateImportedProjectFromAuthority(
     return inflightHydration;
   }
 
-  const hydrationTask = (async () => {
-    await options.projectService.invalidateProjectReadCache?.({
-      projectId: normalizedProjectId,
-      workspaceId: normalizedWorkspaceId,
-    });
-    const authoritativeProject = await options.projectService.getProjectById(
-      normalizedProjectId,
-    );
-    if (
-      !authoritativeProject ||
-      authoritativeProject.workspaceId.trim() !== normalizedWorkspaceId
-    ) {
-      return null;
-    }
+  const taskState: ImportedProjectHydrationTaskState = { abandoned: false };
+  const hydrationTask = runImportedProjectHydrationWithTimeout(
+    taskState,
+    normalizeImportedProjectHydrationTimeoutMs(options.hydrationTimeoutMs),
+    async () => {
+      await options.projectService.invalidateProjectReadCache?.({
+        projectId: normalizedProjectId,
+        workspaceId: normalizedWorkspaceId,
+      });
+      if (taskState.abandoned) {
+        return null;
+      }
 
-    upsertProjectIntoProjectsStore(
-      normalizedWorkspaceId,
-      authoritativeProject,
-      options.userScope,
-    );
-    return {
-      latestCodingSessionId: resolveLatestCodingSessionIdForProject(
-        [authoritativeProject],
+      const authoritativeProject = await options.projectService.getProjectById(
         normalizedProjectId,
-      ),
-      project: authoritativeProject,
-    };
-  })().finally(() => {
+      );
+      if (taskState.abandoned) {
+        return null;
+      }
+
+      if (
+        !authoritativeProject ||
+        authoritativeProject.workspaceId.trim() !== normalizedWorkspaceId
+      ) {
+        return null;
+      }
+
+      upsertProjectIntoProjectsStore(
+        normalizedWorkspaceId,
+        authoritativeProject,
+        options.userScope,
+      );
+      return {
+        latestCodingSessionId: resolveLatestCodingSessionIdForProject(
+          [authoritativeProject],
+          normalizedProjectId,
+        ),
+        project: authoritativeProject,
+      };
+    },
+  ).finally(() => {
     if (inflightImportedProjectHydrations.get(hydrationKey) === hydrationTask) {
       inflightImportedProjectHydrations.delete(hydrationKey);
     }

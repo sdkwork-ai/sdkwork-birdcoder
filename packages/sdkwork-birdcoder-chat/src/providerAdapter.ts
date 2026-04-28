@@ -105,7 +105,7 @@ export interface StreamWithOptionalOfficialSdkInput<
   loader?: ChatEngineOfficialSdkBridgeLoader<TBridge> | null;
   messages: ChatMessage[];
   options?: ChatOptions;
-  fallback: () => AsyncGenerator<ChatStreamChunk, void, unknown>;
+  fallback: (options: ChatOptions) => AsyncGenerator<ChatStreamChunk, void, unknown>;
 }
 
 export interface TextChatResponseInput {
@@ -256,6 +256,13 @@ export function readRuntimeEnvValue(
   return typeof value === 'string' && value.trim()
     ? value.trim()
     : undefined;
+}
+
+export function withStreamEnabledChatOptions(options?: ChatOptions): ChatOptions {
+  return {
+    ...(options ?? {}),
+    stream: true,
+  };
 }
 
 function resolveImportSpecifier(
@@ -563,20 +570,21 @@ export async function* streamWithOptionalOfficialSdk<
 >(
   input: StreamWithOptionalOfficialSdkInput<TBridge>,
 ): AsyncGenerator<ChatStreamChunk, void, unknown> {
+  const streamOptions = withStreamEnabledChatOptions(input.options);
   const bridge = await resolveOptionalOfficialSdkBridge(input.loader);
   if (bridge?.sendMessageStream) {
-    yield* await bridge.sendMessageStream(input.messages, input.options);
+    yield* await bridge.sendMessageStream(input.messages, streamOptions);
     return;
   }
 
   if (bridge?.sendMessage) {
     yield* streamResponseAsChunks(
-      await bridge.sendMessage(input.messages, input.options),
+      await bridge.sendMessage(input.messages, streamOptions),
     );
     return;
   }
 
-  yield* input.fallback();
+  yield* input.fallback(streamOptions);
 }
 
 function readPackageVersion(

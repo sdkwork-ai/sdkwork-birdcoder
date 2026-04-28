@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import * as officialSdkBridge from './codeengine-official-sdk-bridge.ts';
 
@@ -20,6 +21,26 @@ const parseOfficialSdkBridgeRequest = (
     parseOfficialSdkBridgeRequest?: (payload: string) => Record<string, unknown>;
   }
 ).parseOfficialSdkBridgeRequest;
+const buildOfficialSdkBridgeFailureOutput = (
+  officialSdkBridge as unknown as {
+    buildOfficialSdkBridgeFailureOutput?: (error: unknown) => string;
+  }
+).buildOfficialSdkBridgeFailureOutput;
+const bridgeSource = readFileSync(
+  new URL('./codeengine-official-sdk-bridge.ts', import.meta.url),
+  'utf8',
+);
+
+assert.match(
+  bridgeSource,
+  /const\s+options\s*=\s*\{[\s\S]*?\bstream:\s*true[\s\S]*?\};/,
+  'codeengine official SDK bridge must default ChatOptions.stream to true before invoking sendMessageStream.',
+);
+assert.match(
+  bridgeSource,
+  /engine\.sendMessageStream\(messages,\s*options\)/,
+  'codeengine official SDK bridge must pass the default stream-enabled options into sendMessageStream.',
+);
 
 async function* createBridgeStream(): AsyncGenerator<ChatStreamChunk, void, unknown> {
   yield {
@@ -584,6 +605,38 @@ async function* createFullSnapshotToolCallBridgeStream(): AsyncGenerator<ChatStr
   };
 }
 
+async function* createDuplicateSnapshotToolCallBridgeStream(): AsyncGenerator<ChatStreamChunk, void, unknown> {
+  for (let index = 0; index < 2; index += 1) {
+    yield {
+      id: 'bridge-duplicate-snapshot-tool-stream-contract',
+      object: 'chat.completion.chunk',
+      created: 1,
+      model: 'opencode',
+      choices: [
+        {
+          index: 0,
+          delta: {
+            tool_calls: [
+              {
+                id: 'tool-duplicate-snapshot-command',
+                type: 'function',
+                function: {
+                  name: 'run_command',
+                  arguments: JSON.stringify({
+                    command: 'pnpm lint',
+                    status: 'running',
+                  }),
+                },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    };
+  }
+}
+
 async function* createLifecycleToolCallBridgeStream(): AsyncGenerator<ChatStreamChunk, void, unknown> {
   yield {
     id: 'bridge-lifecycle-tool-stream-contract',
@@ -644,6 +697,7 @@ async function* createLifecycleToolCallBridgeStream(): AsyncGenerator<ChatStream
 const result = await collectOfficialSdkBridgeStreamResult(createBridgeStream());
 const streamedEvents: Array<{
   contentDelta?: string;
+  payload?: Record<string, unknown>;
   role?: string;
   type: string;
 }> = [];
@@ -686,12 +740,26 @@ assert.deepEqual(
       contentDelta: 'Inspecting ',
     },
     {
+      type: 'tool.call.requested',
+      payload: {
+        toolName: 'run_command',
+        toolCallId: 'tool-run-lint',
+        toolArguments: {
+          command: 'pnpm lint',
+          cwd: 'D:/workspace/demo',
+        },
+        status: 'running',
+        requiresApproval: false,
+        requiresReply: false,
+      },
+    },
+    {
       type: 'message.delta',
       role: 'assistant',
       contentDelta: 'workspace.',
     },
   ],
-  'codeengine official SDK bridge should expose assistant content chunks as message.delta events',
+  'codeengine official SDK bridge should expose assistant content chunks and live tool calls as canonical stream events',
 );
 
 const commandOnlyResult = await collectOfficialSdkBridgeStreamResult(createCommandOnlyBridgeStream());
@@ -830,6 +898,13 @@ assert.deepEqual(
 );
 
 const permissionResult = await collectOfficialSdkBridgeStreamResult(createPermissionBridgeStream());
+const permissionStreamedEvents: Array<{
+  payload?: Record<string, unknown>;
+  type: string;
+}> = [];
+await collectOfficialSdkBridgeStreamResult(createPermissionBridgeStream(), {
+  onEvent: (event) => permissionStreamedEvents.push(event),
+});
 assert.deepEqual(
   permissionResult.commands,
   [
@@ -846,6 +921,46 @@ assert.deepEqual(
     },
   ],
   'official SDK bridge should render cross-engine permission_request tool calls as approval prompts instead of raw provider JSON',
+);
+assert.deepEqual(
+  permissionStreamedEvents,
+  [
+    {
+      type: 'tool.call.requested',
+      payload: {
+        toolName: 'permission_request',
+        toolCallId: 'tool-permission-request',
+        toolArguments: {
+          status: 'awaiting_approval',
+          tool: 'edit_file',
+          permission: 'write',
+          patterns: ['src/**'],
+        },
+        status: 'running',
+        runtimeStatus: 'awaiting_approval',
+        requiresApproval: true,
+        requiresReply: false,
+      },
+    },
+    {
+      type: 'approval.required',
+      payload: {
+        toolName: 'permission_request',
+        toolCallId: 'tool-permission-request',
+        toolArguments: {
+          status: 'awaiting_approval',
+          tool: 'edit_file',
+          permission: 'write',
+          patterns: ['src/**'],
+        },
+        status: 'running',
+        runtimeStatus: 'awaiting_approval',
+        requiresApproval: true,
+        requiresReply: false,
+      },
+    },
+  ],
+  'official SDK bridge must stream approval.required immediately instead of waiting for the final turn response',
 );
 
 const permissionFilePathAliasResult = await collectOfficialSdkBridgeStreamResult(
@@ -966,6 +1081,13 @@ assert.deepEqual(
 );
 
 const fullSnapshotToolCallResult = await collectOfficialSdkBridgeStreamResult(createFullSnapshotToolCallBridgeStream());
+const fullSnapshotToolCallEvents: Array<{
+  payload?: Record<string, unknown>;
+  type: string;
+}> = [];
+await collectOfficialSdkBridgeStreamResult(createFullSnapshotToolCallBridgeStream(), {
+  onEvent: (event) => fullSnapshotToolCallEvents.push(event),
+});
 assert.deepEqual(
   fullSnapshotToolCallResult.commands,
   [
@@ -982,6 +1104,72 @@ assert.deepEqual(
     },
   ],
   'official SDK bridge must replace repeated complete tool-call snapshots instead of concatenating them into invalid native transcript command payloads',
+);
+assert.deepEqual(
+  fullSnapshotToolCallEvents,
+  [
+    {
+      type: 'tool.call.requested',
+      payload: {
+        toolName: 'run_command',
+        toolCallId: 'tool-snapshot-command',
+        toolArguments: {
+          command: 'pnpm test',
+          status: 'running',
+        },
+        status: 'running',
+        runtimeStatus: 'streaming',
+        requiresApproval: false,
+        requiresReply: false,
+      },
+    },
+    {
+      type: 'tool.call.completed',
+      payload: {
+        toolName: 'run_command',
+        toolCallId: 'tool-snapshot-command',
+        toolArguments: {
+          command: 'pnpm test',
+          status: 'completed',
+          output: 'ok',
+        },
+        status: 'success',
+        runtimeStatus: 'completed',
+        requiresApproval: false,
+        requiresReply: false,
+      },
+    },
+  ],
+  'official SDK bridge must stream complete tool-call snapshots immediately so IDE tool cards do not wait for finish_reason or turn completion.',
+);
+
+const duplicateSnapshotToolCallEvents: Array<{
+  payload?: Record<string, unknown>;
+  type: string;
+}> = [];
+await collectOfficialSdkBridgeStreamResult(createDuplicateSnapshotToolCallBridgeStream(), {
+  onEvent: (event) => duplicateSnapshotToolCallEvents.push(event),
+});
+assert.deepEqual(
+  duplicateSnapshotToolCallEvents,
+  [
+    {
+      type: 'tool.call.requested',
+      payload: {
+        toolName: 'run_command',
+        toolCallId: 'tool-duplicate-snapshot-command',
+        toolArguments: {
+          command: 'pnpm lint',
+          status: 'running',
+        },
+        status: 'running',
+        runtimeStatus: 'streaming',
+        requiresApproval: false,
+        requiresReply: false,
+      },
+    },
+  ],
+  'official SDK bridge must deduplicate repeated complete tool-call snapshots so realtime/UI work is not restreamed without a state change.',
 );
 
 const lifecycleToolCallResult = await collectOfficialSdkBridgeStreamResult(createLifecycleToolCallBridgeStream());
@@ -1026,6 +1214,22 @@ assert.equal(
   }),
   '{"response":{"assistantContent":"ok","commands":[{"command":"inspect ticket","status":"success","output":{"requestId":"101777208078558063"}}]},"type":"turn.completed"}',
   'official SDK bridge stdout serialization must preserve Java Long-compatible fields even when an engine adapter returns provider-native bigint values.',
+);
+
+assert.equal(
+  typeof buildOfficialSdkBridgeFailureOutput,
+  'function',
+  'official SDK bridge must expose its canonical failure serializer so stream-mode errors stay on the same JSONL contract as successful events.',
+);
+assert.equal(
+  buildOfficialSdkBridgeFailureOutput!(new Error('Codeengine SDK bridge request requires modelId.')),
+  '{"payload":{"errorMessage":"Codeengine SDK bridge request requires modelId.","runtimeStatus":"failed"},"type":"turn.failed"}',
+  'streaming bridge failures must serialize as a canonical turn.failed event before process exit so realtime projection can finish without waiting for a fallback refresh.',
+);
+assert.match(
+  bridgeSource,
+  /if\s*\(\s*request\.streamEvents\s*\)\s*\{[\s\S]*stdout\.write\(`\$\{buildOfficialSdkBridgeFailureOutput\(error\)\}\\n`/s,
+  'official SDK bridge main must write the canonical failure envelope to stdout when a stream-mode request fails.',
 );
 
 console.log('codeengine official sdk bridge contract passed.');

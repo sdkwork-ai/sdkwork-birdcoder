@@ -6,10 +6,12 @@ export {
   getStoredJson,
   getStoredRawValue,
   listStoredRawValues,
+  readUserHomeTextFile,
   removeStoredValue,
   serializeStoredValue,
   setStoredJson,
   setStoredRawValue,
+  writeUserHomeTextFile,
   type BirdCoderJsonRecordRepository,
   type CreateBirdCoderJsonRecordRepositoryOptions,
 } from '../../../sdkwork-birdcoder-infrastructure/src/storage/runtime.ts';

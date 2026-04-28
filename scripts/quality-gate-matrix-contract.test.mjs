@@ -310,6 +310,7 @@ assert.deepEqual(
     'provider-adapter-browser-safety',
     'engine-official-sdk-error-propagation',
     'provider-official-sdk-bridge',
+    'codeengine-turn-options-provider',
     'opencode-official-sdk-bridge',
     'engine-conformance',
     'tool-protocol',

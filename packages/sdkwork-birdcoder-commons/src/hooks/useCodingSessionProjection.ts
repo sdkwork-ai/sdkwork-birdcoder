@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  compareBirdCoderCodingSessionEventSequence,
   isBirdCoderCodeEngineSettledStatus,
   isBirdCoderCodeEngineUserQuestionToolName,
   parseBirdCoderApiJson,
@@ -77,6 +78,16 @@ export interface BirdCoderCodingSessionUserQuestionState {
   questions: BirdCoderCodingSessionPendingUserQuestion[];
 }
 
+export interface BirdCoderCodingSessionPendingInteractions {
+  approvals: BirdCoderCodingSessionPendingApproval[];
+  questions: BirdCoderCodingSessionPendingUserQuestion[];
+}
+
+export interface BirdCoderCodingSessionPendingInteractionState
+  extends BirdCoderCodingSessionPendingInteractions {
+  isLoading: boolean;
+}
+
 const EMPTY_PROJECTION: BirdCoderCodingSessionProjection = {
   artifacts: [],
   checkpoints: [],
@@ -99,6 +110,123 @@ const INITIAL_USER_QUESTION_STATE: BirdCoderCodingSessionUserQuestionState = {
   questions: EMPTY_USER_QUESTIONS,
   isLoading: false,
 };
+const EMPTY_PENDING_INTERACTIONS: BirdCoderCodingSessionPendingInteractions = {
+  approvals: EMPTY_APPROVALS,
+  questions: EMPTY_USER_QUESTIONS,
+};
+const INITIAL_PENDING_INTERACTION_STATE: BirdCoderCodingSessionPendingInteractionState = {
+  ...EMPTY_PENDING_INTERACTIONS,
+  isLoading: false,
+};
+
+function compareOptionalTimestamp(
+  left: string | undefined,
+  right: string | undefined,
+): number {
+  const leftTimestamp = Date.parse(left ?? '');
+  const rightTimestamp = Date.parse(right ?? '');
+  const hasLeftTimestamp = Number.isFinite(leftTimestamp);
+  const hasRightTimestamp = Number.isFinite(rightTimestamp);
+
+  if (hasLeftTimestamp && hasRightTimestamp && leftTimestamp !== rightTimestamp) {
+    return leftTimestamp - rightTimestamp;
+  }
+  if (hasLeftTimestamp !== hasRightTimestamp) {
+    return hasLeftTimestamp ? 1 : -1;
+  }
+
+  return String(left ?? '').localeCompare(String(right ?? ''));
+}
+
+function compareCodingSessionEventChronology(
+  left: BirdCoderCodingSessionEvent,
+  right: BirdCoderCodingSessionEvent,
+): number {
+  const sequenceComparison = compareBirdCoderCodingSessionEventSequence(left, right);
+  if (sequenceComparison !== 0) {
+    return sequenceComparison;
+  }
+
+  const createdAtComparison = compareOptionalTimestamp(left.createdAt, right.createdAt);
+  if (createdAtComparison !== 0) {
+    return createdAtComparison;
+  }
+
+  return left.id.localeCompare(right.id);
+}
+
+function compareCodingSessionCheckpointChronology(
+  left: BirdCoderCodingSessionCheckpoint,
+  right: BirdCoderCodingSessionCheckpoint,
+): number {
+  const createdAtComparison = compareOptionalTimestamp(left.createdAt, right.createdAt);
+  if (createdAtComparison !== 0) {
+    return createdAtComparison;
+  }
+
+  return left.id.localeCompare(right.id);
+}
+
+function normalizePendingApprovals(
+  approvals: BirdCoderCodingSessionPendingApproval[],
+): BirdCoderCodingSessionPendingApproval[] {
+  if (approvals.length === 0) {
+    return EMPTY_APPROVALS;
+  }
+
+  const pendingByApprovalId = new Map<string, BirdCoderCodingSessionPendingApproval>();
+  for (const approval of approvals) {
+    const approvalId = approval.approvalId.trim();
+    if (!approvalId) {
+      continue;
+    }
+
+    pendingByApprovalId.set(
+      approvalId,
+      approvalId === approval.approvalId ? approval : { ...approval, approvalId },
+    );
+  }
+
+  const normalizedApprovals = [...pendingByApprovalId.values()];
+  return normalizedApprovals.length > 0 ? normalizedApprovals : EMPTY_APPROVALS;
+}
+
+function normalizePendingUserQuestions(
+  questions: BirdCoderCodingSessionPendingUserQuestion[],
+): BirdCoderCodingSessionPendingUserQuestion[] {
+  if (questions.length === 0) {
+    return EMPTY_USER_QUESTIONS;
+  }
+
+  const pendingByQuestionId = new Map<string, BirdCoderCodingSessionPendingUserQuestion>();
+  for (const question of questions) {
+    const questionId = question.questionId.trim();
+    if (!questionId) {
+      continue;
+    }
+
+    pendingByQuestionId.set(
+      questionId,
+      questionId === question.questionId ? question : { ...question, questionId },
+    );
+  }
+
+  const normalizedQuestions = [...pendingByQuestionId.values()];
+  return normalizedQuestions.length > 0 ? normalizedQuestions : EMPTY_USER_QUESTIONS;
+}
+
+function normalizePendingInteractions(
+  pendingInteractions: BirdCoderCodingSessionPendingInteractions,
+): BirdCoderCodingSessionPendingInteractions {
+  const approvals = normalizePendingApprovals(pendingInteractions.approvals);
+  const questions = normalizePendingUserQuestions(pendingInteractions.questions);
+  return approvals.length === 0 && questions.length === 0
+    ? EMPTY_PENDING_INTERACTIONS
+    : {
+        approvals,
+        questions,
+      };
+}
 
 function readStringRecordField(record: Record<string, unknown> | undefined, fieldName: string) {
   const value = record?.[fieldName];
@@ -407,8 +535,12 @@ export function deriveCodingSessionPendingApprovals(
   projection: BirdCoderCodingSessionProjection,
 ): BirdCoderCodingSessionPendingApproval[] {
   const settledApprovalKeys = deriveSettledApprovalKeys(projection.events);
+  const eventsByLatest = [...projection.events]
+    .sort(compareCodingSessionEventChronology)
+    .reverse();
 
-  return projection.checkpoints
+  const approvals = [...projection.checkpoints]
+    .sort(compareCodingSessionCheckpointChronology)
     .filter((checkpoint) => checkpoint.checkpointKind === 'approval' && checkpoint.resumable)
     .map<BirdCoderCodingSessionPendingApproval | null>((checkpoint) => {
       const state = checkpoint.state ?? {};
@@ -425,20 +557,16 @@ export function deriveCodingSessionPendingApprovals(
         return null;
       }
 
-      const approvalEvent = [...projection.events]
-        .reverse()
-        .find(
-          (event) => {
-            const eventApprovalId = resolveBirdCoderCodeEngineApprovalId({
-              payload: event.payload,
-              toolArguments: readEventToolArguments(event),
-            });
-            return (
-              event.kind === 'approval.required' &&
-              (eventApprovalId === approvalId || event.runtimeId === checkpoint.runtimeId)
-            );
-          },
+      const approvalEvent = eventsByLatest.find((event) => {
+        const eventApprovalId = resolveBirdCoderCodeEngineApprovalId({
+          payload: event.payload,
+          toolArguments: readEventToolArguments(event),
+        });
+        return (
+          event.kind === 'approval.required' &&
+          (eventApprovalId === approvalId || event.runtimeId === checkpoint.runtimeId)
         );
+      });
       const runtimeId =
         readStringRecordField(state, 'runtimeId') ??
         checkpoint.runtimeId ??
@@ -475,6 +603,7 @@ export function deriveCodingSessionPendingApprovals(
       } satisfies BirdCoderCodingSessionPendingApproval;
     })
     .filter((approval): approval is BirdCoderCodingSessionPendingApproval => approval !== null);
+  return normalizePendingApprovals(approvals);
 }
 
 export function deriveCodingSessionPendingUserQuestions(
@@ -483,7 +612,9 @@ export function deriveCodingSessionPendingUserQuestions(
   const settledKeys = deriveSettledUserQuestionKeys(projection.events);
   const pendingByQuestionKey = new Map<string, BirdCoderCodingSessionPendingUserQuestion>();
 
-  for (const event of projection.events.filter(isUserQuestionEvent)) {
+  for (const event of [...projection.events]
+    .sort(compareCodingSessionEventChronology)
+    .filter(isUserQuestionEvent)) {
     const args = readEventToolArguments(event);
     const questions = readUserQuestionPrompts(args);
     if (questions.length === 0) {
@@ -514,7 +645,7 @@ export function deriveCodingSessionPendingUserQuestions(
     });
   }
 
-  return [...pendingByQuestionKey.values()];
+  return normalizePendingUserQuestions([...pendingByQuestionKey.values()]);
 }
 
 export async function loadCodingSessionProjection(
@@ -563,6 +694,17 @@ export async function loadCodingSessionUserQuestionState(
   return deriveCodingSessionPendingUserQuestions(projection);
 }
 
+export async function loadCodingSessionPendingInteractionState(
+  coreReadService: BirdCoderCodingSessionApprovalReader,
+  codingSessionId: string,
+): Promise<BirdCoderCodingSessionPendingInteractions> {
+  const projection = await loadCodingSessionProjection(coreReadService, codingSessionId);
+  return normalizePendingInteractions({
+    approvals: deriveCodingSessionPendingApprovals(projection),
+    questions: deriveCodingSessionPendingUserQuestions(projection),
+  });
+}
+
 export async function submitCodingSessionApprovalDecision(
   coreWriteService: Pick<ICoreWriteService, 'submitApprovalDecision'>,
   approvalId: string,
@@ -579,23 +721,38 @@ export async function submitCodingSessionUserQuestionAnswer(
   return coreWriteService.submitUserQuestionAnswer(questionId, request);
 }
 
-export function useCodingSessionProjection(codingSessionId?: string | null) {
+export function useCodingSessionProjection(
+  codingSessionId?: string | null,
+  refreshToken?: string | number | null,
+) {
   const { coreReadService } = useIDEServices();
   const [state, setState] = useState<BirdCoderCodingSessionProjectionState>(INITIAL_STATE);
   const latestRefreshTokenRef = useRef(0);
+  const latestCodingSessionIdRef = useRef<string | null>(null);
 
   const refreshProjection = useCallback(async () => {
     if (!codingSessionId) {
+      latestRefreshTokenRef.current += 1;
+      latestCodingSessionIdRef.current = null;
       setState(INITIAL_STATE);
       return EMPTY_PROJECTION;
     }
+    const didSwitchCodingSession = latestCodingSessionIdRef.current !== codingSessionId;
+    latestCodingSessionIdRef.current = codingSessionId;
     const refreshToken = latestRefreshTokenRef.current + 1;
     latestRefreshTokenRef.current = refreshToken;
 
-    setState((current) => ({
-      ...current,
-      isLoading: true,
-    }));
+    setState((current) => (
+      didSwitchCodingSession
+        ? {
+            ...EMPTY_PROJECTION,
+            isLoading: true,
+          }
+        : {
+            ...current,
+            isLoading: true,
+          }
+    ));
 
     try {
       const projection = await loadCodingSessionProjection(coreReadService, codingSessionId);
@@ -622,31 +779,51 @@ export function useCodingSessionProjection(codingSessionId?: string | null) {
 
   useEffect(() => {
     void refreshProjection();
-  }, [refreshProjection]);
+  }, [refreshProjection, refreshToken]);
+
+  const visibleState =
+    codingSessionId && latestCodingSessionIdRef.current === codingSessionId
+      ? state
+      : INITIAL_STATE;
 
   return {
-    ...state,
+    ...visibleState,
     refreshProjection,
   };
 }
 
-export function useCodingSessionApprovalState(codingSessionId?: string | null) {
+export function useCodingSessionApprovalState(
+  codingSessionId?: string | null,
+  refreshToken?: string | number | null,
+) {
   const { coreReadService, coreWriteService } = useIDEServices();
   const [state, setState] = useState<BirdCoderCodingSessionApprovalState>(INITIAL_APPROVAL_STATE);
   const latestRefreshTokenRef = useRef(0);
+  const latestCodingSessionIdRef = useRef<string | null>(null);
 
   const refreshApprovals = useCallback(async () => {
     if (!codingSessionId) {
+      latestRefreshTokenRef.current += 1;
+      latestCodingSessionIdRef.current = null;
       setState(INITIAL_APPROVAL_STATE);
       return EMPTY_APPROVALS;
     }
+    const didSwitchCodingSession = latestCodingSessionIdRef.current !== codingSessionId;
+    latestCodingSessionIdRef.current = codingSessionId;
     const refreshToken = latestRefreshTokenRef.current + 1;
     latestRefreshTokenRef.current = refreshToken;
 
-    setState((current) => ({
-      ...current,
-      isLoading: true,
-    }));
+    setState((current) => (
+      didSwitchCodingSession
+        ? {
+            approvals: EMPTY_APPROVALS,
+            isLoading: true,
+          }
+        : {
+            ...current,
+            isLoading: true,
+          }
+    ));
 
     try {
       const approvals = await loadCodingSessionApprovalState(coreReadService, codingSessionId);
@@ -680,34 +857,152 @@ export function useCodingSessionApprovalState(codingSessionId?: string | null) {
 
   useEffect(() => {
     void refreshApprovals();
-  }, [refreshApprovals]);
+  }, [refreshApprovals, refreshToken]);
+
+  const visibleState =
+    codingSessionId && latestCodingSessionIdRef.current === codingSessionId
+      ? state
+      : INITIAL_APPROVAL_STATE;
 
   return {
-    ...state,
+    ...visibleState,
     refreshApprovals,
     submitApprovalDecision,
   };
 }
 
-export function useCodingSessionUserQuestionState(codingSessionId?: string | null) {
+export function useCodingSessionPendingInteractionState(
+  codingSessionId?: string | null,
+  refreshToken?: string | number | null,
+) {
+  const { coreReadService, coreWriteService } = useIDEServices();
+  const [state, setState] = useState<BirdCoderCodingSessionPendingInteractionState>(
+    INITIAL_PENDING_INTERACTION_STATE,
+  );
+  const latestRefreshTokenRef = useRef(0);
+  const latestCodingSessionIdRef = useRef<string | null>(null);
+
+  const refreshPendingInteractions = useCallback(async () => {
+    if (!codingSessionId) {
+      latestRefreshTokenRef.current += 1;
+      latestCodingSessionIdRef.current = null;
+      setState(INITIAL_PENDING_INTERACTION_STATE);
+      return EMPTY_PENDING_INTERACTIONS;
+    }
+    const didSwitchCodingSession = latestCodingSessionIdRef.current !== codingSessionId;
+    latestCodingSessionIdRef.current = codingSessionId;
+    const refreshToken = latestRefreshTokenRef.current + 1;
+    latestRefreshTokenRef.current = refreshToken;
+
+    setState((current) => (
+      didSwitchCodingSession
+        ? {
+            ...EMPTY_PENDING_INTERACTIONS,
+            isLoading: true,
+          }
+        : {
+            ...current,
+            isLoading: true,
+          }
+    ));
+
+    try {
+      const pendingInteractions = await loadCodingSessionPendingInteractionState(
+        coreReadService,
+        codingSessionId,
+      );
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState({
+          ...pendingInteractions,
+          isLoading: false,
+        });
+      }
+      return pendingInteractions;
+    } catch (error) {
+      console.error('Failed to load coding session pending interactions', error);
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState((current) => ({
+          ...current,
+          isLoading: false,
+        }));
+      }
+      return EMPTY_PENDING_INTERACTIONS;
+    }
+  }, [codingSessionId, coreReadService]);
+
+  const submitApprovalDecision = useCallback(
+    async (approvalId: string, request: BirdCoderSubmitApprovalDecisionRequest) => {
+      const decision = await submitCodingSessionApprovalDecision(coreWriteService, approvalId, request);
+      await refreshPendingInteractions();
+      return decision;
+    },
+    [coreWriteService, refreshPendingInteractions],
+  );
+
+  const submitUserQuestionAnswer = useCallback(
+    async (questionId: string, request: BirdCoderSubmitUserQuestionAnswerRequest) => {
+      const answer = await submitCodingSessionUserQuestionAnswer(
+        coreWriteService,
+        questionId,
+        request,
+      );
+      await refreshPendingInteractions();
+      return answer;
+    },
+    [coreWriteService, refreshPendingInteractions],
+  );
+
+  useEffect(() => {
+    void refreshPendingInteractions();
+  }, [refreshPendingInteractions, refreshToken]);
+
+  const visibleState =
+    codingSessionId && latestCodingSessionIdRef.current === codingSessionId
+      ? state
+      : INITIAL_PENDING_INTERACTION_STATE;
+
+  return {
+    ...visibleState,
+    refreshPendingInteractions,
+    submitApprovalDecision,
+    submitUserQuestionAnswer,
+  };
+}
+
+export function useCodingSessionUserQuestionState(
+  codingSessionId?: string | null,
+  refreshToken?: string | number | null,
+) {
   const { coreReadService, coreWriteService } = useIDEServices();
   const [state, setState] = useState<BirdCoderCodingSessionUserQuestionState>(
     INITIAL_USER_QUESTION_STATE,
   );
   const latestRefreshTokenRef = useRef(0);
+  const latestCodingSessionIdRef = useRef<string | null>(null);
 
   const refreshQuestions = useCallback(async () => {
     if (!codingSessionId) {
+      latestRefreshTokenRef.current += 1;
+      latestCodingSessionIdRef.current = null;
       setState(INITIAL_USER_QUESTION_STATE);
       return EMPTY_USER_QUESTIONS;
     }
+    const didSwitchCodingSession = latestCodingSessionIdRef.current !== codingSessionId;
+    latestCodingSessionIdRef.current = codingSessionId;
     const refreshToken = latestRefreshTokenRef.current + 1;
     latestRefreshTokenRef.current = refreshToken;
 
-    setState((current) => ({
-      ...current,
-      isLoading: true,
-    }));
+    setState((current) => (
+      didSwitchCodingSession
+        ? {
+            questions: EMPTY_USER_QUESTIONS,
+            isLoading: true,
+          }
+        : {
+            ...current,
+            isLoading: true,
+          }
+    ));
 
     try {
       const questions = await loadCodingSessionUserQuestionState(coreReadService, codingSessionId);
@@ -745,10 +1040,15 @@ export function useCodingSessionUserQuestionState(codingSessionId?: string | nul
 
   useEffect(() => {
     void refreshQuestions();
-  }, [refreshQuestions]);
+  }, [refreshQuestions, refreshToken]);
+
+  const visibleState =
+    codingSessionId && latestCodingSessionIdRef.current === codingSessionId
+      ? state
+      : INITIAL_USER_QUESTION_STATE;
 
   return {
-    ...state,
+    ...visibleState,
     refreshQuestions,
     submitUserQuestionAnswer,
   };

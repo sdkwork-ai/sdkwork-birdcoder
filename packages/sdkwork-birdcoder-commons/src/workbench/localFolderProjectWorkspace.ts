@@ -5,6 +5,10 @@ export type LocalFolderImportWorkspaceIdentity = {
 export const DEFAULT_LOCAL_FOLDER_IMPORT_WORKSPACE_NAME = 'Default Workspace';
 export const DEFAULT_LOCAL_FOLDER_IMPORT_WORKSPACE_DESCRIPTION =
   'Default workspace for local folder projects.';
+const defaultLocalFolderImportWorkspaceCreationPromises = new WeakMap<
+  ResolveLocalFolderImportWorkspaceIdOptions['createWorkspace'],
+  Promise<string>
+>();
 
 export interface ResolveLocalFolderImportWorkspaceIdOptions<
   TWorkspace extends LocalFolderImportWorkspaceIdentity = LocalFolderImportWorkspaceIdentity,
@@ -32,6 +36,62 @@ function resolveFirstWorkspaceId(
     .find((workspaceId) => workspaceId.length > 0) ?? '';
 }
 
+async function refreshWorkspaceCatalog<
+  TWorkspace extends LocalFolderImportWorkspaceIdentity = LocalFolderImportWorkspaceIdentity,
+>(
+  refreshWorkspaces: () => Promise<TWorkspace[]>,
+): Promise<TWorkspace[]> {
+  try {
+    return await refreshWorkspaces();
+  } catch {
+    return [];
+  }
+}
+
+function resolveWorkspaceIdFromCatalog<
+  TWorkspace extends LocalFolderImportWorkspaceIdentity = LocalFolderImportWorkspaceIdentity,
+>(
+  workspaces: readonly TWorkspace[],
+  selectWorkspaceId?: (workspaces: readonly TWorkspace[]) => string | null | undefined,
+): string {
+  const selectedWorkspaceId = normalizeWorkspaceId(selectWorkspaceId?.(workspaces));
+  return selectedWorkspaceId || resolveFirstWorkspaceId(workspaces);
+}
+
+function createDefaultLocalFolderImportWorkspace(
+  createWorkspace: ResolveLocalFolderImportWorkspaceIdOptions['createWorkspace'],
+): Promise<string> {
+  const currentPromise = defaultLocalFolderImportWorkspaceCreationPromises.get(createWorkspace);
+  if (currentPromise) {
+    return currentPromise;
+  }
+
+  const nextPromise = createWorkspace(
+    DEFAULT_LOCAL_FOLDER_IMPORT_WORKSPACE_NAME,
+    DEFAULT_LOCAL_FOLDER_IMPORT_WORKSPACE_DESCRIPTION,
+  )
+    .then((createdWorkspace) => {
+      const createdWorkspaceId = normalizeWorkspaceId(createdWorkspace.id);
+      if (!createdWorkspaceId) {
+        throw new Error(
+          'Default workspace is unavailable. Please wait for workspace initialization to complete.',
+        );
+      }
+
+      return createdWorkspaceId;
+    })
+    .finally(() => {
+      if (
+        defaultLocalFolderImportWorkspaceCreationPromises.get(createWorkspace) === nextPromise
+      ) {
+        defaultLocalFolderImportWorkspaceCreationPromises.delete(createWorkspace);
+      }
+    });
+
+  defaultLocalFolderImportWorkspaceCreationPromises.set(createWorkspace, nextPromise);
+  return nextPromise;
+}
+
 export async function resolveLocalFolderImportWorkspaceId<
   TWorkspace extends LocalFolderImportWorkspaceIdentity = LocalFolderImportWorkspaceIdentity,
 >({
@@ -45,26 +105,27 @@ export async function resolveLocalFolderImportWorkspaceId<
     return immediateWorkspaceId;
   }
 
-  const refreshedWorkspaces = await refreshWorkspaces();
-  const selectedRefreshedWorkspaceId = normalizeWorkspaceId(
-    selectWorkspaceId?.(refreshedWorkspaces),
+  const refreshedWorkspaces = await refreshWorkspaceCatalog(refreshWorkspaces);
+  const refreshedWorkspaceId = resolveWorkspaceIdFromCatalog(
+    refreshedWorkspaces,
+    selectWorkspaceId,
   );
-  const refreshedWorkspaceId =
-    selectedRefreshedWorkspaceId || resolveFirstWorkspaceId(refreshedWorkspaces);
   if (refreshedWorkspaceId) {
     return refreshedWorkspaceId;
   }
 
-  const createdWorkspace = await createWorkspace(
-    DEFAULT_LOCAL_FOLDER_IMPORT_WORKSPACE_NAME,
-    DEFAULT_LOCAL_FOLDER_IMPORT_WORKSPACE_DESCRIPTION,
-  );
-  const createdWorkspaceId = normalizeWorkspaceId(createdWorkspace.id);
-  if (createdWorkspaceId) {
-    return createdWorkspaceId;
-  }
+  try {
+    return await createDefaultLocalFolderImportWorkspace(createWorkspace);
+  } catch (error) {
+    const recoveredWorkspaces = await refreshWorkspaceCatalog(refreshWorkspaces);
+    const recoveredWorkspaceId = resolveWorkspaceIdFromCatalog(
+      recoveredWorkspaces,
+      selectWorkspaceId,
+    );
+    if (recoveredWorkspaceId) {
+      return recoveredWorkspaceId;
+    }
 
-  throw new Error(
-    'Default workspace is unavailable. Please wait for workspace initialization to complete.',
-  );
+    throw error;
+  }
 }

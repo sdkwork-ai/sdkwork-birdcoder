@@ -155,6 +155,7 @@ assert.match(
   /engine-official-sdk-error-propagation-contract\.test\.ts/,
 );
 assert.match(releaseFlowCommandsJoined, /provider-official-sdk-bridge-contract\.test\.ts/);
+assert.match(releaseFlowCommandsJoined, /codeengine-turn-options-provider-contract\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /engine-conformance-contract\.test\.ts/);
 assert.match(releaseFlowCommandsJoined, /tool-protocol-contract\.test\.ts/);
 assert.match(releaseFlowCommandsJoined, /engine-resume-recovery-contract\.test\.ts/);

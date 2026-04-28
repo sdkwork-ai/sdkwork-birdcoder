@@ -278,23 +278,23 @@ const projectedMessages = mergeBirdCoderProjectionMessages({
       payload: {
         role: 'assistant',
         content: 'Tool call completed.',
-        commandsJson: `[
+        commands: [
           {
-            "command": "inspect",
-            "status": "success",
-            "toolCallId": ${unsafeToolCallId}
-          }
-        ]`,
-        toolCallsJson: `[
+            command: 'inspect',
+            status: 'success',
+            toolCallId: unsafeToolCallId,
+          },
+        ],
+        toolCalls: [
           {
-            "id": ${unsafeToolCallId},
-            "type": "function",
-            "function": {
-              "name": "inspect",
-              "arguments": "{\\"projectId\\": ${unsafeProjectId}}"
-            }
-          }
-        ]`,
+            id: unsafeToolCallId,
+            type: 'function',
+            function: {
+              name: 'inspect',
+              arguments: `{"projectId": "${unsafeProjectId}"}`,
+            },
+          },
+        ],
       },
       createdAt: '2026-04-27T10:00:02.000Z',
     },
@@ -304,12 +304,12 @@ const projectedMessages = mergeBirdCoderProjectionMessages({
 assert.equal(
   projectedMessages[0]?.commands?.[0]?.toolCallId,
   unsafeToolCallId,
-  'projection payload JSON strings must preserve nested Long ids while parsing commandsJson.',
+  'projection structured command payloads must preserve nested Long ids as decimal strings.',
 );
 assert.equal(
   projectedMessages[0]?.tool_calls?.[0]?.id,
   unsafeToolCallId,
-  'projection payload JSON strings must preserve nested Long ids while parsing toolCallsJson.',
+  'projection structured tool-call payloads must preserve nested Long ids as decimal strings.',
 );
 assert.notEqual(
   projectedMessages[0]?.tool_calls?.[0]?.id,

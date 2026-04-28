@@ -19,7 +19,7 @@ use axum::{
     },
     http::{header, HeaderMap, HeaderName, HeaderValue, Method, StatusCode},
     response::{Html, Response},
-    routing::{delete, get, patch, post},
+    routing::{get, patch, post},
     Json, Router,
 };
 use rusqlite::{params, types::ValueRef, Connection, OptionalExtension};
@@ -27,8 +27,8 @@ use sdkwork_birdcoder_codeengine::{
     find_codeengine_descriptor, find_native_session_provider_catalog_entry,
     list_codeengine_descriptors, list_codeengine_model_catalog_entries,
     list_native_session_provider_catalog_entries, map_codeengine_tool_kind,
-    resolve_codeengine_approval_id, resolve_codeengine_tool_call_id,
-    resolve_codeengine_user_question_id,
+    normalize_codeengine_runtime_status, resolve_codeengine_approval_id,
+    resolve_codeengine_tool_call_id, resolve_codeengine_user_question_id,
     CodeEngineAccessLaneStatusRecord as EngineAccessLaneStatusPayload,
     CodeEngineCapabilityMatrixRecord as EngineCapabilityMatrixPayload,
     CodeEngineDescriptorRecord as EngineDescriptorPayload,
@@ -151,6 +151,7 @@ const TAURI_WEBVIEW_HTTPS_ORIGIN: &str = "https://tauri.localhost";
 const SQLITE_PROVIDER_AUTHORITY_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS coding_sessions (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -160,9 +161,37 @@ CREATE TABLE IF NOT EXISTS coding_sessions (
     title TEXT NOT NULL,
     status TEXT NOT NULL,
     entry_surface TEXT NOT NULL,
+    host_mode TEXT NOT NULL DEFAULT 'server',
     engine_id TEXT NOT NULL,
     model_id TEXT NOT NULL,
-    last_turn_at TEXT NULL
+    last_turn_at TEXT NULL,
+    native_session_id TEXT NULL,
+    sort_timestamp INTEGER NULL,
+    transcript_updated_at TEXT NULL,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    archived INTEGER NOT NULL DEFAULT 0,
+    unread INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS coding_session_messages (
+    id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    coding_session_id TEXT NOT NULL,
+    turn_id TEXT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    metadata_json TEXT NOT NULL,
+    timestamp_ms INTEGER NULL,
+    name TEXT NULL,
+    tool_calls_json TEXT NULL,
+    tool_call_id TEXT NULL,
+    file_changes_json TEXT NULL,
+    commands_json TEXT NULL,
+    task_progress_json TEXT NULL
 );
 
 CREATE TABLE IF NOT EXISTS coding_session_runtimes (
@@ -265,6 +294,12 @@ CREATE TABLE IF NOT EXISTS coding_session_prompt_entries (
     last_used_at TEXT NOT NULL,
     use_count INTEGER NOT NULL DEFAULT 1
 );
+
+CREATE INDEX IF NOT EXISTS idx_coding_sessions_project_updated
+ON coding_sessions(project_id, updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_coding_session_messages_session_created
+ON coding_session_messages(coding_session_id, created_at);
 
 CREATE INDEX IF NOT EXISTS idx_coding_session_prompt_entries_session_last_used
 ON coding_session_prompt_entries(coding_session_id, last_used_at);
@@ -1249,6 +1284,14 @@ struct DeleteEntityPayload {
     id: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EditCodingSessionMessagePayload {
+    id: String,
+    coding_session_id: String,
+    content: String,
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DocumentPayload {
@@ -1738,6 +1781,16 @@ struct ForkCodingSessionInput {
     title: Option<String>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EditCodingSessionMessageRequest {
+    content: String,
+}
+
+struct EditCodingSessionMessageInput {
+    content: String,
+}
+
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CodingSessionTurnCurrentFileContextPayload {
@@ -1755,13 +1808,23 @@ struct CodingSessionTurnIdeContextPayload {
     current_file: Option<CodingSessionTurnCurrentFileContextPayload>,
 }
 
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CodingSessionTurnOptionsPayload {
+    temperature: Option<f64>,
+    top_p: Option<f64>,
+    max_tokens: Option<i64>,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateCodingSessionTurnRequest {
     runtime_id: Option<String>,
     request_kind: String,
     input_summary: String,
+    stream: Option<bool>,
     ide_context: Option<CodingSessionTurnIdeContextPayload>,
+    options: Option<CodingSessionTurnOptionsPayload>,
 }
 
 #[derive(Deserialize)]
@@ -1786,7 +1849,9 @@ struct CreateCodingSessionTurnInput {
     runtime_id: Option<String>,
     request_kind: String,
     input_summary: String,
+    stream: bool,
     ide_context: Option<CodingSessionTurnIdeContextPayload>,
+    options: Option<CodingSessionTurnOptionsPayload>,
 }
 
 #[derive(Clone)]
@@ -1796,7 +1861,13 @@ struct PendingProjectionTurnExecution {
     operation: OperationPayload,
     native_session_id: Option<String>,
     ide_context: Option<CodingSessionTurnIdeContextPayload>,
+    options: Option<CodingSessionTurnOptionsPayload>,
     working_directory: Option<PathBuf>,
+}
+
+struct FinalizedProjectionTurnExecution {
+    turn: CodingSessionTurnPayload,
+    events: Vec<CodingSessionEventPayload>,
 }
 
 #[derive(Deserialize)]
@@ -1814,15 +1885,17 @@ struct SubmitApprovalDecisionInput {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SubmitUserQuestionAnswerRequest {
-    answer: String,
+    answer: Option<String>,
     option_id: Option<String>,
     option_label: Option<String>,
+    rejected: Option<bool>,
 }
 
 struct SubmitUserQuestionAnswerInput {
-    answer: String,
+    answer: Option<String>,
     option_id: Option<String>,
     option_label: Option<String>,
+    rejected: bool,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -1838,6 +1911,9 @@ struct CodingSessionTurnPayload {
     completed_at: Option<String>,
 }
 
+type CodingSessionEventPayloadMap = BTreeMap<String, serde_json::Value>;
+type CodingSessionCheckpointStateMap = BTreeMap<String, serde_json::Value>;
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CodingSessionEventPayload {
@@ -1851,7 +1927,7 @@ struct CodingSessionEventPayload {
         serialize_with = "serialize_usize_as_decimal_string"
     )]
     sequence: usize,
-    payload: BTreeMap<String, String>,
+    payload: BTreeMap<String, serde_json::Value>,
     created_at: String,
 }
 
@@ -1928,7 +2004,7 @@ struct CodingSessionCheckpointPayload {
     runtime_id: Option<String>,
     checkpoint_kind: String,
     resumable: bool,
-    state: BTreeMap<String, String>,
+    state: BTreeMap<String, serde_json::Value>,
     created_at: String,
 }
 
@@ -1966,13 +2042,20 @@ struct ApprovalDecisionPayload {
 struct UserQuestionAnswerPayload {
     question_id: String,
     coding_session_id: String,
-    answer: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    answer: Option<String>,
     answered_at: String,
     option_id: Option<String>,
     option_label: Option<String>,
+    rejected: bool,
     runtime_id: Option<String>,
     runtime_status: String,
     turn_id: Option<String>,
+}
+
+struct ProjectionMutationEvent<T> {
+    payload: T,
+    event: CodingSessionEventPayload,
 }
 
 #[derive(Clone, Deserialize)]
@@ -2009,6 +2092,7 @@ struct ProjectionAuthorityState {
 #[derive(Clone)]
 struct AppState {
     projections: ProjectionAuthorityState,
+    model_config: Arc<RwLock<CodeEngineModelConfigPayload>>,
     realtime: WorkspaceRealtimeHub,
     user_center: UserCenterState,
     audits: Vec<AuditPayload>,
@@ -2530,6 +2614,30 @@ fn build_demo_metadata(entries: &[(&str, &str)]) -> BTreeMap<String, String> {
         .iter()
         .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
         .collect()
+}
+
+fn build_event_payload_strings<K, V>(entries: &[(K, V)]) -> CodingSessionEventPayloadMap
+where
+    K: AsRef<str>,
+    V: AsRef<str>,
+{
+    entries
+        .iter()
+        .map(|(key, value)| {
+            (
+                key.as_ref().to_owned(),
+                serde_json::Value::String(value.as_ref().to_owned()),
+            )
+        })
+        .collect()
+}
+
+fn build_checkpoint_state_strings<K, V>(entries: &[(K, V)]) -> CodingSessionCheckpointStateMap
+where
+    K: AsRef<str>,
+    V: AsRef<str>,
+{
+    build_event_payload_strings(entries)
 }
 
 fn current_session_timestamp() -> String {
@@ -3179,6 +3287,103 @@ fn build_model_catalog() -> Vec<ModelCatalogEntryPayload> {
     list_codeengine_model_catalog_entries()
 }
 
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CodeEngineModelConfigCustomModelPayload {
+    id: String,
+    label: String,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CodeEngineModelConfigEnginePayload {
+    engine_id: String,
+    default_model_id: String,
+    selected_model_id: String,
+    #[serde(default)]
+    custom_models: Vec<CodeEngineModelConfigCustomModelPayload>,
+    #[serde(default)]
+    models: Vec<ModelCatalogEntryPayload>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CodeEngineModelConfigPayload {
+    schema_version: u8,
+    source: String,
+    version: String,
+    updated_at: String,
+    engines: BTreeMap<String, CodeEngineModelConfigEnginePayload>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SyncModelConfigRequest {
+    local_config: CodeEngineModelConfigPayload,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SyncModelConfigResultPayload {
+    action: String,
+    authoritative_source: String,
+    config: CodeEngineModelConfigPayload,
+    should_write_local: bool,
+    should_write_server: bool,
+}
+
+fn build_model_config() -> CodeEngineModelConfigPayload {
+    let models = build_model_catalog();
+    let updated_at = models
+        .iter()
+        .map(|model| model.updated_at.as_str())
+        .max()
+        .unwrap_or("2026-01-01T00:00:00.000Z")
+        .to_string();
+    let mut models_by_engine: BTreeMap<String, Vec<ModelCatalogEntryPayload>> = BTreeMap::new();
+    for model in models {
+        models_by_engine
+            .entry(model.engine_key.clone())
+            .or_default()
+            .push(model);
+    }
+
+    let engines = build_engine_catalog()
+        .into_iter()
+        .map(|engine| {
+            let engine_models = models_by_engine
+                .remove(&engine.engine_key)
+                .unwrap_or_default();
+            let engine_config = CodeEngineModelConfigEnginePayload {
+                engine_id: engine.engine_key.clone(),
+                default_model_id: engine.default_model_id.clone(),
+                selected_model_id: engine.default_model_id,
+                custom_models: Vec::new(),
+                models: engine_models,
+            };
+            (engine.engine_key, engine_config)
+        })
+        .collect();
+
+    CodeEngineModelConfigPayload {
+        schema_version: 1,
+        source: "server".to_string(),
+        version: CODING_SERVER_API_VERSION.to_string(),
+        updated_at,
+        engines,
+    }
+}
+
+fn compare_model_config_versions(
+    left: &CodeEngineModelConfigPayload,
+    right: &CodeEngineModelConfigPayload,
+) -> std::cmp::Ordering {
+    match left.version.cmp(&right.version) {
+        std::cmp::Ordering::Equal => left.updated_at.cmp(&right.updated_at),
+        ordering => ordering,
+    }
+}
+
 fn build_native_session_provider_catalog() -> Vec<NativeSessionProviderPayload> {
     list_native_session_provider_catalog_entries()
 }
@@ -3439,6 +3644,34 @@ fn normalize_turn_ide_context(
         None
     } else {
         Some(normalized)
+    }
+}
+
+fn normalize_turn_options(
+    value: Option<CodingSessionTurnOptionsPayload>,
+) -> Option<CodingSessionTurnOptionsPayload> {
+    let value = value?;
+    let temperature = value
+        .temperature
+        .filter(|entry| entry.is_finite())
+        .map(|entry| entry.clamp(0.0, 2.0));
+    let top_p = value
+        .top_p
+        .filter(|entry| entry.is_finite())
+        .map(|entry| entry.clamp(0.0, 1.0));
+    let max_tokens = value
+        .max_tokens
+        .filter(|entry| *entry > 0)
+        .map(|entry| entry.min(128_000));
+
+    if temperature.is_none() && top_p.is_none() && max_tokens.is_none() {
+        None
+    } else {
+        Some(CodingSessionTurnOptionsPayload {
+            temperature,
+            top_p,
+            max_tokens,
+        })
     }
 }
 
@@ -4019,6 +4252,16 @@ impl TryFrom<ForkCodingSessionRequest> for ForkCodingSessionInput {
     }
 }
 
+impl TryFrom<EditCodingSessionMessageRequest> for EditCodingSessionMessageInput {
+    type Error = &'static str;
+
+    fn try_from(value: EditCodingSessionMessageRequest) -> Result<Self, Self::Error> {
+        let content = normalize_required_string(value.content).ok_or("content is required.")?;
+
+        Ok(Self { content })
+    }
+}
+
 impl TryFrom<CreateCodingSessionTurnRequest> for CreateCodingSessionTurnInput {
     type Error = &'static str;
 
@@ -4027,6 +4270,7 @@ impl TryFrom<CreateCodingSessionTurnRequest> for CreateCodingSessionTurnInput {
             normalize_required_string(value.request_kind).ok_or("requestKind is required.")?;
         let input_summary =
             normalize_required_string(value.input_summary).ok_or("inputSummary is required.")?;
+        let _requested_stream_hint = value.stream;
 
         if !matches!(
             request_kind.as_str(),
@@ -4039,7 +4283,9 @@ impl TryFrom<CreateCodingSessionTurnRequest> for CreateCodingSessionTurnInput {
             runtime_id: normalize_optional_string(value.runtime_id),
             request_kind,
             input_summary,
+            stream: true,
             ide_context: normalize_turn_ide_context(value.ide_context),
+            options: normalize_turn_options(value.options),
         })
     }
 }
@@ -4065,12 +4311,18 @@ impl TryFrom<SubmitUserQuestionAnswerRequest> for SubmitUserQuestionAnswerInput 
     type Error = &'static str;
 
     fn try_from(value: SubmitUserQuestionAnswerRequest) -> Result<Self, Self::Error> {
-        let answer = normalize_required_string(value.answer).ok_or("answer is required.")?;
+        let rejected = value.rejected.unwrap_or(false);
+        let answer = if rejected {
+            None
+        } else {
+            Some(normalize_optional_string(value.answer).ok_or("answer is required.")?)
+        };
 
         Ok(Self {
             answer,
             option_id: normalize_optional_string(value.option_id),
             option_label: normalize_optional_string(value.option_label),
+            rejected,
         })
     }
 }
@@ -5963,6 +6215,7 @@ fn resolve_projection_transcript_updated_at(
             event.kind == "message.completed"
                 || event.kind == "message.delta"
                 || event.kind == "message.deleted"
+                || event.kind == "message.edited"
         })
         .filter_map(|event| {
             parse_storage_timestamp_millis(event.created_at.as_str())
@@ -6007,7 +6260,57 @@ fn resolve_projection_runtime_status(events: &[CodingSessionEventPayload]) -> Op
     events
         .iter()
         .rev()
-        .find_map(|event| event.payload.get("runtimeStatus").cloned())
+        .find_map(resolve_projection_event_runtime_status)
+        .map(str::to_owned)
+}
+
+fn resolve_projection_event_runtime_status(
+    event: &CodingSessionEventPayload,
+) -> Option<&'static str> {
+    let runtime_status = payload_string_ref(&event.payload, "runtimeStatus")
+        .and_then(normalize_codeengine_runtime_status);
+
+    match event.kind.as_str() {
+        "turn.started" | "message.delta" => Some("streaming"),
+        "approval.required" => runtime_status.or(Some("awaiting_approval")),
+        "turn.completed" => Some("completed"),
+        "turn.failed" => Some("failed"),
+        "tool.call.requested" | "tool.call.progress" | "tool.call.completed" => {
+            match runtime_status {
+                Some(
+                    "awaiting_approval" | "awaiting_user" | "awaiting_tool" | "failed"
+                    | "terminated",
+                ) => runtime_status,
+                Some("streaming" | "initializing") => Some("streaming"),
+                _ => None,
+            }
+        }
+        "operation.updated" => runtime_status,
+        "message.completed" => {
+            let role = event_payload_role(&event.payload);
+            if role == Some("user") {
+                return if runtime_status == Some("completed") {
+                    None
+                } else {
+                    runtime_status
+                };
+            }
+
+            if role.is_some_and(is_terminal_reply_role) {
+                return runtime_status.or(Some("completed"));
+            }
+
+            runtime_status
+        }
+        "message.deleted" | "message.edited" | "artifact.upserted" | "session.started" => {
+            runtime_status
+        }
+        _ => runtime_status,
+    }
+}
+
+fn is_terminal_reply_role(role: &str) -> bool {
+    matches!(role, "assistant" | "planner" | "reviewer" | "tool")
 }
 
 fn sqlite_value_ref_to_string(value: ValueRef<'_>) -> Option<String> {
@@ -7136,6 +7439,31 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
         .map_err(|error| format!("create sqlite provider authority schema failed: {error}"))?;
     ensure_sqlite_provider_authority_integer_identifier_upgrade(connection)?;
 
+    if sqlite_table_exists(connection, "coding_sessions")? {
+        ensure_sqlite_table_columns(
+            connection,
+            "coding_sessions",
+            &[
+                ("uuid", "uuid TEXT NULL"),
+                ("host_mode", "host_mode TEXT NOT NULL DEFAULT 'server'"),
+                ("native_session_id", "native_session_id TEXT NULL"),
+                ("sort_timestamp", "sort_timestamp INTEGER NULL"),
+                ("transcript_updated_at", "transcript_updated_at TEXT NULL"),
+                ("pinned", "pinned INTEGER NOT NULL DEFAULT 0"),
+                ("archived", "archived INTEGER NOT NULL DEFAULT 0"),
+                ("unread", "unread INTEGER NOT NULL DEFAULT 0"),
+            ],
+        )?;
+        connection
+            .execute(
+                r#"
+                CREATE INDEX IF NOT EXISTS idx_coding_sessions_project_sort
+                ON coding_sessions(project_id, sort_timestamp)
+                "#,
+                [],
+            )
+            .map_err(|error| format!("create sqlite coding session sort index failed: {error}"))?;
+    }
     if sqlite_table_exists(connection, PROVIDER_WORKSPACES_TABLE)? {
         ensure_sqlite_table_columns(
             connection,
@@ -7616,6 +7944,22 @@ fn parse_json_object_string_map(
             };
             (key.clone(), normalized)
         })
+        .collect())
+}
+
+fn parse_json_object_value_map(
+    raw: &str,
+    context: &str,
+) -> Result<CodingSessionEventPayloadMap, String> {
+    let parsed: serde_json::Value = serde_json::from_str(raw)
+        .map_err(|error| format!("parse {context} json failed: {error}"))?;
+    let object = parsed
+        .as_object()
+        .ok_or_else(|| format!("{context} json must be an object"))?;
+
+    Ok(object
+        .iter()
+        .map(|(key, value)| (key.clone(), value.clone()))
         .collect())
 }
 
@@ -9807,7 +10151,7 @@ fn load_provider_runtime_row_for_session(
 
 fn resolve_native_session_id_from_snapshot(snapshot: &ProjectionSnapshot) -> Option<String> {
     snapshot.events.iter().rev().find_map(|event| {
-        event.payload.get("nativeSessionId").and_then(|value| {
+        payload_string_ref(&event.payload, "nativeSessionId").and_then(|value| {
             let normalized = value.trim();
             if normalized.is_empty() {
                 None
@@ -9828,8 +10172,37 @@ fn next_event_sequence(snapshot: &ProjectionSnapshot) -> usize {
         .unwrap_or(0)
 }
 
-fn event_payload_role(payload: &BTreeMap<String, String>) -> Option<&str> {
-    payload.get("role").map(String::as_str).and_then(|role| {
+fn payload_string_ref<'a>(payload: &'a CodingSessionEventPayloadMap, key: &str) -> Option<&'a str> {
+    payload.get(key).and_then(serde_json::Value::as_str)
+}
+
+fn payload_string_value(payload: &CodingSessionEventPayloadMap, key: &str) -> Option<String> {
+    payload.get(key).and_then(|value| match value {
+        serde_json::Value::String(value) => Some(value.clone()),
+        serde_json::Value::Bool(value) => Some(value.to_string()),
+        serde_json::Value::Number(value) => Some(value.to_string()),
+        _ => None,
+    })
+}
+
+fn insert_payload_value(
+    payload: &mut CodingSessionEventPayloadMap,
+    key: &str,
+    value: serde_json::Value,
+) {
+    payload.insert(key.to_owned(), value);
+}
+
+fn insert_payload_string(
+    payload: &mut CodingSessionEventPayloadMap,
+    key: &str,
+    value: impl Into<String>,
+) {
+    insert_payload_value(payload, key, serde_json::Value::String(value.into()));
+}
+
+fn event_payload_role(payload: &CodingSessionEventPayloadMap) -> Option<&str> {
+    payload_string_ref(payload, "role").and_then(|role| {
         let normalized = role.trim();
         if normalized.is_empty() {
             None
@@ -9840,12 +10213,31 @@ fn event_payload_role(payload: &BTreeMap<String, String>) -> Option<&str> {
 }
 
 fn attach_native_session_id(
-    payload: &mut BTreeMap<String, String>,
+    payload: &mut CodingSessionEventPayloadMap,
     native_session_id: Option<&str>,
 ) {
     if let Some(native_session_id) = native_session_id {
-        payload.insert("nativeSessionId".to_owned(), native_session_id.to_owned());
+        insert_payload_string(payload, "nativeSessionId", native_session_id);
     }
+}
+
+fn normalize_stream_event_payload_to_json_map(
+    payload: Option<&serde_json::Value>,
+) -> CodingSessionEventPayloadMap {
+    let Some(payload) = payload.and_then(serde_json::Value::as_object) else {
+        return BTreeMap::new();
+    };
+
+    let mut normalized_payload = BTreeMap::new();
+    for (key, value) in payload {
+        if key.trim().is_empty() || value.is_null() {
+            continue;
+        }
+
+        normalized_payload.insert(key.clone(), value.clone());
+    }
+
+    normalized_payload
 }
 
 fn build_projection_turn_event_id(runtime_id: &str, turn_id: &str, sequence: usize) -> String {
@@ -9864,25 +10256,25 @@ fn build_initialized_coding_session_turn_events(
     started_at: &str,
     native_session_id: Option<&str>,
 ) -> Vec<CodingSessionEventPayload> {
-    let mut started_payload = BTreeMap::new();
-    started_payload.insert("engineId".to_owned(), session.engine_id.clone());
-    started_payload.insert("requestKind".to_owned(), request_kind.to_owned());
-    started_payload.insert("inputSummary".to_owned(), input_summary.to_owned());
-    started_payload.insert("operationId".to_owned(), operation_id.to_owned());
-    started_payload.insert("runtimeStatus".to_owned(), "streaming".to_owned());
+    let mut started_payload = CodingSessionEventPayloadMap::new();
+    insert_payload_string(&mut started_payload, "engineId", session.engine_id.clone());
+    insert_payload_string(&mut started_payload, "requestKind", request_kind);
+    insert_payload_string(&mut started_payload, "inputSummary", input_summary);
+    insert_payload_string(&mut started_payload, "operationId", operation_id);
+    insert_payload_string(&mut started_payload, "runtimeStatus", "streaming");
     attach_native_session_id(&mut started_payload, native_session_id);
 
-    let mut message_payload = BTreeMap::new();
-    message_payload.insert("role".to_owned(), "user".to_owned());
-    message_payload.insert("content".to_owned(), input_summary.to_owned());
-    message_payload.insert("operationId".to_owned(), operation_id.to_owned());
-    message_payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
+    let mut message_payload = CodingSessionEventPayloadMap::new();
+    insert_payload_string(&mut message_payload, "role", "user");
+    insert_payload_string(&mut message_payload, "content", input_summary);
+    insert_payload_string(&mut message_payload, "operationId", operation_id);
+    insert_payload_string(&mut message_payload, "runtimeStatus", "completed");
     attach_native_session_id(&mut message_payload, native_session_id);
 
-    let mut operation_payload = BTreeMap::new();
-    operation_payload.insert("operationId".to_owned(), operation_id.to_owned());
-    operation_payload.insert("status".to_owned(), "running".to_owned());
-    operation_payload.insert("runtimeStatus".to_owned(), "streaming".to_owned());
+    let mut operation_payload = CodingSessionEventPayloadMap::new();
+    insert_payload_string(&mut operation_payload, "operationId", operation_id);
+    insert_payload_string(&mut operation_payload, "status", "running");
+    insert_payload_string(&mut operation_payload, "runtimeStatus", "streaming");
     attach_native_session_id(&mut operation_payload, native_session_id);
 
     vec![
@@ -9930,32 +10322,33 @@ fn build_succeeded_coding_session_turn_events(
     completed_at: &str,
     native_session_id: Option<&str>,
 ) -> Vec<CodingSessionEventPayload> {
-    let mut assistant_message_payload = BTreeMap::new();
-    assistant_message_payload.insert("role".to_owned(), "assistant".to_owned());
-    assistant_message_payload.insert("content".to_owned(), assistant_content.to_owned());
-    assistant_message_payload.insert("operationId".to_owned(), operation_id.to_owned());
-    assistant_message_payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
+    let mut assistant_message_payload = CodingSessionEventPayloadMap::new();
+    insert_payload_string(&mut assistant_message_payload, "role", "assistant");
+    insert_payload_string(&mut assistant_message_payload, "content", assistant_content);
+    insert_payload_string(&mut assistant_message_payload, "operationId", operation_id);
+    insert_payload_string(&mut assistant_message_payload, "runtimeStatus", "completed");
     if let Some(commands) = commands {
-        if let Ok(serialized_commands) = serde_json::to_string(commands) {
-            assistant_message_payload.insert("commandsJson".to_owned(), serialized_commands);
+        if let Ok(commands_value) = serde_json::to_value(commands) {
+            insert_payload_value(&mut assistant_message_payload, "commands", commands_value);
         }
     }
     attach_native_session_id(&mut assistant_message_payload, native_session_id);
 
-    let mut operation_payload = BTreeMap::new();
-    operation_payload.insert("operationId".to_owned(), operation_id.to_owned());
-    operation_payload.insert("status".to_owned(), "succeeded".to_owned());
-    operation_payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
+    let mut operation_payload = CodingSessionEventPayloadMap::new();
+    insert_payload_string(&mut operation_payload, "operationId", operation_id);
+    insert_payload_string(&mut operation_payload, "status", "succeeded");
+    insert_payload_string(&mut operation_payload, "runtimeStatus", "completed");
     attach_native_session_id(&mut operation_payload, native_session_id);
 
-    let mut completed_payload = BTreeMap::new();
-    completed_payload.insert("operationId".to_owned(), operation_id.to_owned());
-    completed_payload.insert("finishReason".to_owned(), "stop".to_owned());
-    completed_payload.insert(
-        "contentLength".to_owned(),
-        assistant_content.len().to_string(),
+    let mut completed_payload = CodingSessionEventPayloadMap::new();
+    insert_payload_string(&mut completed_payload, "operationId", operation_id);
+    insert_payload_string(&mut completed_payload, "finishReason", "stop");
+    insert_payload_value(
+        &mut completed_payload,
+        "contentLength",
+        serde_json::json!(assistant_content.len()),
     );
-    completed_payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
+    insert_payload_string(&mut completed_payload, "runtimeStatus", "completed");
     attach_native_session_id(&mut completed_payload, native_session_id);
 
     vec![
@@ -9992,22 +10385,37 @@ fn build_succeeded_coding_session_turn_events(
     ]
 }
 
-fn build_streaming_coding_session_message_delta_event(
+fn build_streaming_coding_session_event(
     coding_session_id: &str,
     runtime_id: &str,
     turn_id: &str,
     operation_id: &str,
+    kind: &str,
     role: &str,
     content_delta: &str,
+    event_payload: Option<&serde_json::Value>,
     sequence: usize,
     created_at: &str,
     native_session_id: Option<&str>,
 ) -> CodingSessionEventPayload {
-    let mut payload = BTreeMap::new();
-    payload.insert("role".to_owned(), role.to_owned());
-    payload.insert("contentDelta".to_owned(), content_delta.to_owned());
-    payload.insert("operationId".to_owned(), operation_id.to_owned());
-    payload.insert("runtimeStatus".to_owned(), "streaming".to_owned());
+    let mut payload = normalize_stream_event_payload_to_json_map(event_payload);
+    if kind == "message.delta" {
+        insert_payload_string(&mut payload, "role", role);
+        insert_payload_string(&mut payload, "contentDelta", content_delta);
+    } else if !content_delta.is_empty() {
+        payload
+            .entry("contentDelta".to_owned())
+            .or_insert_with(|| serde_json::Value::String(content_delta.to_owned()));
+    }
+    payload
+        .entry("role".to_owned())
+        .or_insert_with(|| serde_json::Value::String(role.to_owned()));
+    insert_payload_string(&mut payload, "operationId", operation_id);
+    if kind == "message.delta" {
+        payload
+            .entry("runtimeStatus".to_owned())
+            .or_insert_with(|| serde_json::Value::String("streaming".to_owned()));
+    }
     attach_native_session_id(&mut payload, native_session_id);
 
     CodingSessionEventPayload {
@@ -10015,7 +10423,7 @@ fn build_streaming_coding_session_message_delta_event(
         coding_session_id: coding_session_id.to_owned(),
         turn_id: Some(turn_id.to_owned()),
         runtime_id: Some(runtime_id.to_owned()),
-        kind: "message.delta".to_owned(),
+        kind: kind.to_owned(),
         sequence,
         payload,
         created_at: created_at.to_owned(),
@@ -10031,28 +10439,29 @@ fn build_failed_coding_session_turn_events(
     base_sequence: usize,
     completed_at: &str,
     native_session_id: Option<&str>,
+    include_terminal_failure_event: bool,
 ) -> Vec<CodingSessionEventPayload> {
-    let mut assistant_message_payload = BTreeMap::new();
-    assistant_message_payload.insert("role".to_owned(), "assistant".to_owned());
-    assistant_message_payload.insert("content".to_owned(), error_message.to_owned());
-    assistant_message_payload.insert("operationId".to_owned(), operation_id.to_owned());
-    assistant_message_payload.insert("runtimeStatus".to_owned(), "failed".to_owned());
+    let mut assistant_message_payload = CodingSessionEventPayloadMap::new();
+    insert_payload_string(&mut assistant_message_payload, "role", "assistant");
+    insert_payload_string(&mut assistant_message_payload, "content", error_message);
+    insert_payload_string(&mut assistant_message_payload, "operationId", operation_id);
+    insert_payload_string(&mut assistant_message_payload, "runtimeStatus", "failed");
     attach_native_session_id(&mut assistant_message_payload, native_session_id);
 
-    let mut operation_payload = BTreeMap::new();
-    operation_payload.insert("operationId".to_owned(), operation_id.to_owned());
-    operation_payload.insert("status".to_owned(), "failed".to_owned());
-    operation_payload.insert("runtimeStatus".to_owned(), "failed".to_owned());
-    operation_payload.insert("errorMessage".to_owned(), error_message.to_owned());
+    let mut operation_payload = CodingSessionEventPayloadMap::new();
+    insert_payload_string(&mut operation_payload, "operationId", operation_id);
+    insert_payload_string(&mut operation_payload, "status", "failed");
+    insert_payload_string(&mut operation_payload, "runtimeStatus", "failed");
+    insert_payload_string(&mut operation_payload, "errorMessage", error_message);
     attach_native_session_id(&mut operation_payload, native_session_id);
 
-    let mut failed_payload = BTreeMap::new();
-    failed_payload.insert("operationId".to_owned(), operation_id.to_owned());
-    failed_payload.insert("errorMessage".to_owned(), error_message.to_owned());
-    failed_payload.insert("runtimeStatus".to_owned(), "failed".to_owned());
+    let mut failed_payload = CodingSessionEventPayloadMap::new();
+    insert_payload_string(&mut failed_payload, "operationId", operation_id);
+    insert_payload_string(&mut failed_payload, "errorMessage", error_message);
+    insert_payload_string(&mut failed_payload, "runtimeStatus", "failed");
     attach_native_session_id(&mut failed_payload, native_session_id);
 
-    vec![
+    let mut events = vec![
         CodingSessionEventPayload {
             id: build_projection_turn_event_id(runtime_id, turn_id, base_sequence),
             coding_session_id: coding_session_id.to_owned(),
@@ -10073,7 +10482,10 @@ fn build_failed_coding_session_turn_events(
             payload: operation_payload,
             created_at: completed_at.to_owned(),
         },
-        CodingSessionEventPayload {
+    ];
+
+    if include_terminal_failure_event {
+        events.push(CodingSessionEventPayload {
             id: build_projection_turn_event_id(runtime_id, turn_id, base_sequence + 2),
             coding_session_id: coding_session_id.to_owned(),
             turn_id: Some(turn_id.to_owned()),
@@ -10082,8 +10494,21 @@ fn build_failed_coding_session_turn_events(
             sequence: base_sequence + 2,
             payload: failed_payload,
             created_at: completed_at.to_owned(),
-        },
-    ]
+        });
+    }
+
+    events
+}
+
+fn projection_turn_has_event_kind(
+    snapshot: &ProjectionSnapshot,
+    turn_id: &str,
+    event_kind: &str,
+) -> bool {
+    snapshot
+        .events
+        .iter()
+        .any(|event| event.turn_id.as_deref() == Some(turn_id) && event.kind.as_str() == event_kind)
 }
 
 fn build_forked_coding_session_payload(
@@ -10155,14 +10580,23 @@ fn build_forked_transcript_events(
         let mut payload = source_event.payload.clone();
         payload.remove("nativeSessionId");
 
-        if source_event.kind == "message.deleted" {
+        if source_event.kind == "message.deleted" || source_event.kind == "message.edited" {
             let Some(role) = event_payload_role(&payload).map(str::to_owned) else {
                 continue;
             };
-            payload.insert(
-                "deletedMessageId".to_owned(),
-                format!("{target_coding_session_id}:authoritative:{target_turn_id}:{role}"),
-            );
+            let target_message_id =
+                format!("{target_coding_session_id}:authoritative:{target_turn_id}:{role}");
+            if source_event.kind == "message.deleted" {
+                payload.insert(
+                    "deletedMessageId".to_owned(),
+                    serde_json::Value::String(target_message_id),
+                );
+            } else {
+                payload.insert(
+                    "editedMessageId".to_owned(),
+                    serde_json::Value::String(target_message_id),
+                );
+            }
         }
 
         forked_events.push(CodingSessionEventPayload {
@@ -10291,15 +10725,47 @@ struct UserQuestionContext {
     tool_call_id: Option<String>,
 }
 
+#[derive(Clone)]
+struct LiveProviderInteractionContext {
+    engine_id: String,
+    native_session_id: Option<String>,
+}
+
+fn resolve_live_provider_interaction_context(
+    snapshot: &ProjectionSnapshot,
+) -> Option<LiveProviderInteractionContext> {
+    let session = snapshot.session.as_ref()?;
+    let engine_id = normalize_required_string(session.engine_id.clone())?;
+    let native_session_id = session
+        .native_session_id
+        .clone()
+        .or_else(|| resolve_native_session_id_from_snapshot(snapshot))
+        .and_then(|native_session_id| {
+            normalize_attached_native_session_id(engine_id.as_str(), native_session_id.as_str())
+        });
+
+    Some(LiveProviderInteractionContext {
+        engine_id,
+        native_session_id,
+    })
+}
+
 fn event_tool_arguments_value(event: &CodingSessionEventPayload) -> Option<serde_json::Value> {
     ["toolArguments", "arguments", "input"]
         .iter()
         .find_map(|field_name| {
-            event.payload.get(*field_name).and_then(|value| {
-                serde_json::from_str::<serde_json::Value>(value)
-                    .ok()
-                    .filter(serde_json::Value::is_object)
-            })
+            event
+                .payload
+                .get(*field_name)
+                .and_then(|value| match value {
+                    serde_json::Value::String(value) => {
+                        serde_json::from_str::<serde_json::Value>(value)
+                            .ok()
+                            .filter(serde_json::Value::is_object)
+                    }
+                    serde_json::Value::Object(_) => Some(value.clone()),
+                    _ => None,
+                })
         })
 }
 
@@ -10309,11 +10775,8 @@ fn event_user_question_id(event: &CodingSessionEventPayload) -> Option<String> {
     }
 
     let args = event_tool_arguments_value(event);
-    let tool_name = event
-        .payload
-        .get("toolName")
-        .or_else(|| event.payload.get("name"))
-        .map(String::as_str)
+    let tool_name = payload_string_ref(&event.payload, "toolName")
+        .or_else(|| payload_string_ref(&event.payload, "name"))
         .or_else(|| {
             args.as_ref()
                 .and_then(|value| value.get("toolName").or_else(|| value.get("name")))
@@ -10364,25 +10827,43 @@ fn build_user_question_answer_event(
     answered_at: &str,
     input: &SubmitUserQuestionAnswerInput,
 ) -> CodingSessionEventPayload {
-    let mut payload = BTreeMap::new();
-    payload.insert("questionId".to_owned(), question_id.to_owned());
-    payload.insert("answer".to_owned(), input.answer.clone());
-    payload.insert("runtimeStatus".to_owned(), "awaiting_tool".to_owned());
+    let runtime_status = if input.rejected {
+        "failed"
+    } else {
+        "awaiting_tool"
+    };
+    let status = if input.rejected {
+        "rejected"
+    } else {
+        "completed"
+    };
+    let mut payload = CodingSessionEventPayloadMap::new();
+    insert_payload_string(&mut payload, "questionId", question_id);
+    insert_payload_string(&mut payload, "status", status);
+    insert_payload_string(&mut payload, "runtimeStatus", runtime_status);
+    insert_payload_value(
+        &mut payload,
+        "rejected",
+        serde_json::Value::Bool(input.rejected),
+    );
+    if let Some(answer) = input.answer.as_ref() {
+        insert_payload_string(&mut payload, "answer", answer);
+    }
 
     if let Some(option_id) = input.option_id.as_ref() {
-        payload.insert("optionId".to_owned(), option_id.clone());
+        insert_payload_string(&mut payload, "optionId", option_id);
     }
     if let Some(option_label) = input.option_label.as_ref() {
-        payload.insert("optionLabel".to_owned(), option_label.clone());
+        insert_payload_string(&mut payload, "optionLabel", option_label);
     }
     if let Some(runtime_id) = context.runtime_id.as_ref() {
-        payload.insert("runtimeId".to_owned(), runtime_id.clone());
+        insert_payload_string(&mut payload, "runtimeId", runtime_id);
     }
     if let Some(turn_id) = context.turn_id.as_ref() {
-        payload.insert("turnId".to_owned(), turn_id.clone());
+        insert_payload_string(&mut payload, "turnId", turn_id);
     }
     if let Some(tool_call_id) = context.tool_call_id.as_ref() {
-        payload.insert("toolCallId".to_owned(), tool_call_id.clone());
+        insert_payload_string(&mut payload, "toolCallId", tool_call_id);
     }
 
     CodingSessionEventPayload {
@@ -10408,34 +10889,48 @@ fn apply_user_question_answer_to_snapshot(
     question_id: &str,
     input: &SubmitUserQuestionAnswerInput,
     answered_at: &str,
-) -> UserQuestionAnswerPayload {
+) -> ProjectionMutationEvent<UserQuestionAnswerPayload> {
     let event =
         build_user_question_answer_event(snapshot, context, question_id, answered_at, input);
+    let runtime_status = if input.rejected {
+        "failed"
+    } else {
+        "awaiting_tool"
+    };
+    let turn_status = if input.rejected { "failed" } else { "running" };
 
     if let Some(turn_id) = context.turn_id.as_deref() {
         if let Some(turn) = snapshot.turns.iter_mut().find(|turn| turn.id == turn_id) {
-            turn.status = "running".to_owned();
-            turn.completed_at = None;
+            turn.status = turn_status.to_owned();
+            turn.completed_at = if input.rejected {
+                Some(answered_at.to_owned())
+            } else {
+                None
+            };
         }
     }
 
     if let Some(session) = snapshot.session.as_mut() {
-        session.runtime_status = Some("awaiting_tool".to_owned());
+        session.runtime_status = Some(runtime_status.to_owned());
         session.updated_at = answered_at.to_owned();
     }
 
-    snapshot.events.push(event);
+    snapshot.events.push(event.clone());
 
-    UserQuestionAnswerPayload {
-        question_id: question_id.to_owned(),
-        coding_session_id: context.coding_session_id.clone(),
-        answer: input.answer.clone(),
-        answered_at: answered_at.to_owned(),
-        option_id: input.option_id.clone(),
-        option_label: input.option_label.clone(),
-        runtime_id: context.runtime_id.clone(),
-        runtime_status: "awaiting_tool".to_owned(),
-        turn_id: context.turn_id.clone(),
+    ProjectionMutationEvent {
+        payload: UserQuestionAnswerPayload {
+            question_id: question_id.to_owned(),
+            coding_session_id: context.coding_session_id.clone(),
+            answer: input.answer.clone(),
+            answered_at: answered_at.to_owned(),
+            option_id: input.option_id.clone(),
+            option_label: input.option_label.clone(),
+            rejected: input.rejected,
+            runtime_id: context.runtime_id.clone(),
+            runtime_status: runtime_status.to_owned(),
+            turn_id: context.turn_id.clone(),
+        },
+        event,
     }
 }
 
@@ -10485,7 +10980,8 @@ fn find_approval_context(
             let runtime_id = checkpoint
                 .state
                 .get("runtimeId")
-                .cloned()
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
                 .or_else(|| checkpoint.runtime_id.clone());
             let approval_event = snapshot.events.iter().rev().find(|event| {
                 let event_args = event_tool_arguments_value(event);
@@ -10499,7 +10995,8 @@ fn find_approval_context(
             let turn_id = checkpoint
                 .state
                 .get("turnId")
-                .cloned()
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
                 .or_else(|| approval_event.and_then(|event| event.turn_id.clone()))
                 .or_else(|| {
                     runtime_id.as_deref().and_then(|target_runtime_id| {
@@ -10522,6 +11019,7 @@ fn find_approval_context(
             let operation_index = checkpoint
                 .state
                 .get("operationId")
+                .and_then(serde_json::Value::as_str)
                 .and_then(|operation_id| {
                     snapshot
                         .operations
@@ -10530,7 +11028,7 @@ fn find_approval_context(
                 })
                 .or_else(|| {
                     approval_event.and_then(|event| {
-                        event.payload.get("operationId").and_then(|operation_id| {
+                        payload_string_ref(&event.payload, "operationId").and_then(|operation_id| {
                             snapshot
                                 .operations
                                 .iter()
@@ -10548,9 +11046,11 @@ fn find_approval_context(
             let operation_id = checkpoint
                 .state
                 .get("operationId")
-                .cloned()
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
                 .or_else(|| {
-                    approval_event.and_then(|event| event.payload.get("operationId").cloned())
+                    approval_event
+                        .and_then(|event| payload_string_value(&event.payload, "operationId"))
                 })
                 .or_else(|| {
                     operation_index.and_then(|index| {
@@ -10582,24 +11082,24 @@ fn build_approval_decision_event(
     runtime_status: &str,
     operation_status: &str,
 ) -> CodingSessionEventPayload {
-    let mut payload = BTreeMap::new();
-    payload.insert("approvalId".to_owned(), approval_id.to_owned());
-    payload.insert("approvalDecision".to_owned(), decision.to_owned());
-    payload.insert("runtimeStatus".to_owned(), runtime_status.to_owned());
-    payload.insert("operationStatus".to_owned(), operation_status.to_owned());
-    payload.insert("checkpointId".to_owned(), context.checkpoint_id.clone());
+    let mut payload = CodingSessionEventPayloadMap::new();
+    insert_payload_string(&mut payload, "approvalId", approval_id);
+    insert_payload_string(&mut payload, "approvalDecision", decision);
+    insert_payload_string(&mut payload, "runtimeStatus", runtime_status);
+    insert_payload_string(&mut payload, "operationStatus", operation_status);
+    insert_payload_string(&mut payload, "checkpointId", context.checkpoint_id.clone());
 
     if let Some(reason) = reason {
-        payload.insert("decisionReason".to_owned(), reason.to_owned());
+        insert_payload_string(&mut payload, "decisionReason", reason);
     }
     if let Some(runtime_id) = context.runtime_id.as_ref() {
-        payload.insert("runtimeId".to_owned(), runtime_id.clone());
+        insert_payload_string(&mut payload, "runtimeId", runtime_id);
     }
     if let Some(turn_id) = context.turn_id.as_ref() {
-        payload.insert("turnId".to_owned(), turn_id.clone());
+        insert_payload_string(&mut payload, "turnId", turn_id);
     }
     if let Some(operation_id) = context.operation_id.as_ref() {
-        payload.insert("operationId".to_owned(), operation_id.clone());
+        insert_payload_string(&mut payload, "operationId", operation_id);
     }
 
     CodingSessionEventPayload {
@@ -10629,7 +11129,7 @@ fn apply_approval_decision_to_snapshot(
     approval_id: &str,
     input: &SubmitApprovalDecisionInput,
     decided_at: &str,
-) -> Result<ApprovalDecisionPayload, String> {
+) -> Result<ProjectionMutationEvent<ApprovalDecisionPayload>, String> {
     let current_operation_status = context
         .operation_index
         .and_then(|index| snapshot.operations.get(index))
@@ -10666,40 +11166,30 @@ fn apply_approval_decision_to_snapshot(
             )
         })?;
     checkpoint.resumable = false;
-    checkpoint
-        .state
-        .insert("approvalId".to_owned(), approval_id.to_owned());
-    checkpoint
-        .state
-        .insert("decision".to_owned(), input.decision.clone());
-    checkpoint
-        .state
-        .insert("decidedAt".to_owned(), decided_at.to_owned());
-    checkpoint
-        .state
-        .insert("runtimeStatus".to_owned(), runtime_status.clone());
-    checkpoint
-        .state
-        .insert("operationStatus".to_owned(), operation_status.clone());
+    insert_payload_string(&mut checkpoint.state, "approvalId", approval_id);
+    insert_payload_string(&mut checkpoint.state, "decision", input.decision.clone());
+    insert_payload_string(&mut checkpoint.state, "decidedAt", decided_at);
+    insert_payload_string(
+        &mut checkpoint.state,
+        "runtimeStatus",
+        runtime_status.clone(),
+    );
+    insert_payload_string(
+        &mut checkpoint.state,
+        "operationStatus",
+        operation_status.clone(),
+    );
     if let Some(reason) = input.reason.as_ref() {
-        checkpoint
-            .state
-            .insert("decisionReason".to_owned(), reason.clone());
+        insert_payload_string(&mut checkpoint.state, "decisionReason", reason);
     }
     if let Some(runtime_id) = context.runtime_id.as_ref() {
-        checkpoint
-            .state
-            .insert("runtimeId".to_owned(), runtime_id.clone());
+        insert_payload_string(&mut checkpoint.state, "runtimeId", runtime_id);
     }
     if let Some(turn_id) = context.turn_id.as_ref() {
-        checkpoint
-            .state
-            .insert("turnId".to_owned(), turn_id.clone());
+        insert_payload_string(&mut checkpoint.state, "turnId", turn_id);
     }
     if let Some(operation_id) = context.operation_id.as_ref() {
-        checkpoint
-            .state
-            .insert("operationId".to_owned(), operation_id.clone());
+        insert_payload_string(&mut checkpoint.state, "operationId", operation_id);
     }
 
     if let Some(turn_id) = context.turn_id.as_deref() {
@@ -10721,24 +11211,27 @@ fn apply_approval_decision_to_snapshot(
         session.updated_at = decided_at.to_owned();
     }
 
-    snapshot.events.push(event);
+    snapshot.events.push(event.clone());
 
-    Ok(ApprovalDecisionPayload {
-        approval_id: approval_id.to_owned(),
-        checkpoint_id: context.checkpoint_id.clone(),
-        coding_session_id: snapshot
-            .session
-            .as_ref()
-            .map(|session| session.id.clone())
-            .unwrap_or_default(),
-        runtime_id: context.runtime_id.clone(),
-        turn_id: context.turn_id.clone(),
-        operation_id: context.operation_id.clone(),
-        decision: input.decision.clone(),
-        reason: input.reason.clone(),
-        decided_at: decided_at.to_owned(),
-        runtime_status,
-        operation_status,
+    Ok(ProjectionMutationEvent {
+        payload: ApprovalDecisionPayload {
+            approval_id: approval_id.to_owned(),
+            checkpoint_id: context.checkpoint_id.clone(),
+            coding_session_id: snapshot
+                .session
+                .as_ref()
+                .map(|session| session.id.clone())
+                .unwrap_or_default(),
+            runtime_id: context.runtime_id.clone(),
+            turn_id: context.turn_id.clone(),
+            operation_id: context.operation_id.clone(),
+            decision: input.decision.clone(),
+            reason: input.reason.clone(),
+            decided_at: decided_at.to_owned(),
+            runtime_status,
+            operation_status,
+        },
+        event,
     })
 }
 
@@ -10840,7 +11333,285 @@ fn persist_created_coding_session_to_provider(
 }
 
 fn should_retry_coding_session_runtime_initialization(status: Option<&str>) -> bool {
-    matches!(status, Some("initializing") | Some("failed"))
+    matches!(status, Some("initializing"))
+}
+
+const INTERRUPTED_CODING_SESSION_TURN_ERROR_MESSAGE: &str =
+    "Coding session turn was interrupted because the coding server restarted before it completed.";
+
+fn load_interrupted_provider_turn_for_runtime(
+    connection: &Connection,
+    runtime_row: &CodingSessionRuntimeRow,
+) -> Result<Option<CodingSessionTurnPayload>, String> {
+    connection
+        .query_row(
+            r#"
+            SELECT id, coding_session_id, runtime_id, request_kind, status, input_summary, started_at, completed_at
+            FROM coding_session_turns
+            WHERE is_deleted = 0
+              AND coding_session_id = ?1
+              AND runtime_id = ?2
+              AND status IN ('queued', 'running')
+              AND completed_at IS NULL
+            ORDER BY COALESCE(started_at, updated_at, created_at) DESC, id DESC
+            LIMIT 1
+            "#,
+            params![runtime_row.coding_session_id.as_str(), runtime_row.id.as_str()],
+            |row| {
+                Ok(CodingSessionTurnPayload {
+                    id: row.get(0)?,
+                    coding_session_id: row.get(1)?,
+                    runtime_id: Some(row.get(2)?),
+                    request_kind: row.get(3)?,
+                    status: row.get(4)?,
+                    input_summary: row.get(5)?,
+                    started_at: row.get(6)?,
+                    completed_at: row.get(7)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(|error| {
+            format!(
+                "read interrupted coding_session turn for runtime {} failed: {error}",
+                runtime_row.id
+            )
+        })
+}
+
+fn next_provider_event_sequence_for_session(
+    connection: &Connection,
+    coding_session_id: &str,
+) -> Result<usize, String> {
+    let next_sequence: i64 = connection
+        .query_row(
+            r#"
+            SELECT COALESCE(MAX(sequence_no), -1) + 1
+            FROM coding_session_events
+            WHERE coding_session_id = ?1 AND is_deleted = 0
+            "#,
+            params![coding_session_id],
+            |row| row.get(0),
+        )
+        .map_err(|error| {
+            format!(
+                "read next coding_session event sequence for {coding_session_id} failed: {error}"
+            )
+        })?;
+    usize::try_from(next_sequence).map_err(|error| {
+        format!(
+            "convert next coding_session event sequence {next_sequence} for {coding_session_id} failed: {error}"
+        )
+    })
+}
+
+fn recover_interrupted_provider_streaming_runtime_on_boot(
+    connection: &mut Connection,
+    runtime_row: &CodingSessionRuntimeRow,
+) -> Result<(), String> {
+    let interrupted_turn = load_interrupted_provider_turn_for_runtime(connection, runtime_row)?;
+    let recovered_at = resolve_latest_storage_timestamp_from_candidates(&[
+        interrupted_turn
+            .as_ref()
+            .and_then(|turn| turn.started_at.as_deref()),
+        Some(runtime_row.updated_at.as_str()),
+        Some(runtime_row.created_at.as_str()),
+    ])
+    .unwrap_or_else(current_storage_timestamp);
+    let transaction = connection.transaction().map_err(|error| {
+        format!(
+            "open interrupted coding_session runtime recovery transaction for {} failed: {error}",
+            runtime_row.id
+        )
+    })?;
+
+    let updated_runtimes = transaction
+        .execute(
+            r#"
+            UPDATE coding_session_runtimes
+            SET updated_at = ?2, status = 'failed'
+            WHERE id = ?1
+              AND coding_session_id = ?3
+              AND status = ?4
+              AND is_deleted = 0
+            "#,
+            params![
+                runtime_row.id.as_str(),
+                recovered_at.as_str(),
+                runtime_row.coding_session_id.as_str(),
+                runtime_row.status.as_str(),
+            ],
+        )
+        .map_err(|error| {
+            format!(
+                "recover interrupted coding_session runtime {} failed: {error}",
+                runtime_row.id
+            )
+        })?;
+    if updated_runtimes == 0 {
+        transaction.commit().map_err(|error| {
+            format!(
+                "commit skipped interrupted runtime recovery for {} failed: {error}",
+                runtime_row.id
+            )
+        })?;
+        return Ok(());
+    }
+
+    transaction
+        .execute(
+            r#"
+            UPDATE coding_sessions
+            SET updated_at = ?2
+            WHERE id = ?1 AND is_deleted = 0
+            "#,
+            params![
+                runtime_row.coding_session_id.as_str(),
+                recovered_at.as_str()
+            ],
+        )
+        .map_err(|error| {
+            format!(
+                "recover interrupted coding_session {} timestamp failed: {error}",
+                runtime_row.coding_session_id
+            )
+        })?;
+
+    if let Some(turn) = interrupted_turn.as_ref() {
+        transaction
+            .execute(
+                r#"
+                UPDATE coding_session_turns
+                SET updated_at = ?2, status = 'failed', completed_at = ?2
+                WHERE id = ?1 AND coding_session_id = ?3 AND is_deleted = 0
+                "#,
+                params![
+                    turn.id.as_str(),
+                    recovered_at.as_str(),
+                    runtime_row.coding_session_id.as_str(),
+                ],
+            )
+            .map_err(|error| {
+                format!(
+                    "recover interrupted coding_session turn {} failed: {error}",
+                    turn.id
+                )
+            })?;
+
+        transaction
+            .execute(
+                r#"
+                UPDATE coding_session_operations
+                SET updated_at = ?2, status = 'failed'
+                WHERE coding_session_id = ?1 AND turn_id = ?3 AND is_deleted = 0
+                "#,
+                params![
+                    runtime_row.coding_session_id.as_str(),
+                    recovered_at.as_str(),
+                    turn.id.as_str(),
+                ],
+            )
+            .map_err(|error| {
+                format!(
+                    "recover interrupted coding_session operations for turn {} failed: {error}",
+                    turn.id
+                )
+            })?;
+
+        let sequence = next_provider_event_sequence_for_session(
+            &transaction,
+            runtime_row.coding_session_id.as_str(),
+        )?;
+        let payload_json = serde_json::to_string(&build_event_payload_strings(&[
+            ("engineId", runtime_row.engine_id.as_str()),
+            ("runtimeStatus", "failed"),
+            (
+                "errorMessage",
+                INTERRUPTED_CODING_SESSION_TURN_ERROR_MESSAGE,
+            ),
+            ("recoveryReason", "server_startup"),
+        ]))
+        .map_err(|error| {
+            format!(
+                "serialize interrupted coding_session turn recovery event for {} failed: {error}",
+                turn.id
+            )
+        })?;
+
+        transaction
+            .execute(
+                r#"
+                INSERT INTO coding_session_events (
+                    id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
+                )
+                VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                "#,
+                params![
+                    format!(
+                        "{}:{}:event:{}:server-startup-recovery",
+                        runtime_row.id, turn.id, sequence
+                    ),
+                    recovered_at.as_str(),
+                    0_i64,
+                    0_i64,
+                    runtime_row.coding_session_id.as_str(),
+                    turn.id.as_str(),
+                    runtime_row.id.as_str(),
+                    "turn.failed",
+                    sequence as i64,
+                    payload_json,
+                ],
+            )
+            .map_err(|error| {
+                format!(
+                    "insert interrupted coding_session turn recovery event for {} failed: {error}",
+                    turn.id
+                )
+            })?;
+    }
+
+    transaction.commit().map_err(|error| {
+        format!(
+            "commit interrupted coding_session runtime recovery for {} failed: {error}",
+            runtime_row.id
+        )
+    })?;
+
+    Ok(())
+}
+
+fn recover_sqlite_provider_coding_session_runtimes_on_boot(
+    connection: &mut Connection,
+) -> Result<(), String> {
+    let runtime_rows = load_provider_runtime_rows(connection)?;
+    for runtime_row in runtime_rows {
+        match normalize_codeengine_runtime_status(runtime_row.status.as_str()) {
+            Some("initializing") => {
+                let initialization_result = resolve_authoritative_engine_runtime_profile(
+                    runtime_row.engine_id.as_str(),
+                    runtime_row.host_mode.as_str(),
+                );
+                let (runtime_status, runtime_profile, initialization_error) =
+                    match initialization_result {
+                        Ok(runtime_profile) => ("ready", Some(runtime_profile), None),
+                        Err(error) => ("failed", None, Some(error)),
+                    };
+                let _did_update = persist_coding_session_runtime_initialization_result_to_provider(
+                    connection,
+                    runtime_row.coding_session_id.as_str(),
+                    runtime_status,
+                    runtime_profile.as_ref(),
+                    initialization_error.as_deref(),
+                )?;
+            }
+            Some("streaming") => {
+                recover_interrupted_provider_streaming_runtime_on_boot(connection, &runtime_row)?;
+            }
+            _ => {}
+        }
+    }
+
+    Ok(())
 }
 
 fn persist_coding_session_runtime_initialization_result_to_provider(
@@ -11261,6 +12032,106 @@ fn persist_deleted_coding_session_message_to_provider(
     Ok(())
 }
 
+fn persist_edited_coding_session_message_to_provider(
+    connection: &mut Connection,
+    snapshot: &ProjectionSnapshot,
+    coding_session_id: &str,
+    message_id: &str,
+    content: &str,
+) -> Result<(), String> {
+    let (turn_locator, role) = parse_authoritative_message_locator(coding_session_id, message_id)
+        .ok_or_else(|| {
+        format!("coding session message {message_id} is not an authoritative projection message")
+    })?;
+    let has_matching_message = snapshot.events.iter().any(|event| {
+        event.turn_id.as_deref() == Some(turn_locator.as_str())
+            && matches!(event.kind.as_str(), "message.completed" | "message.delta")
+            && event_payload_role(&event.payload) == Some(role.as_str())
+    });
+    if !has_matching_message {
+        return Err(format!(
+            "coding session message {message_id} was not found in coding session {coding_session_id}"
+        ));
+    }
+
+    let edited_at = current_session_timestamp();
+    let runtime_id = snapshot
+        .events
+        .iter()
+        .rev()
+        .find(|event| {
+            event.turn_id.as_deref() == Some(turn_locator.as_str())
+                && matches!(event.kind.as_str(), "message.completed" | "message.delta")
+                && event_payload_role(&event.payload) == Some(role.as_str())
+        })
+        .and_then(|event| event.runtime_id.clone());
+    let sequence_no = next_event_sequence(snapshot);
+    let event_id =
+        format!("{coding_session_id}:{turn_locator}:event:{sequence_no}:message-edited");
+    let event_payload_json = serde_json::to_string(&json!({
+        "role": role,
+        "editedMessageId": message_id,
+        "content": content,
+        "runtimeStatus": "completed",
+    }))
+    .map_err(|error| {
+        format!("serialize edited coding session message event for {message_id} failed: {error}")
+    })?;
+    let transaction = connection.transaction().map_err(|error| {
+        format!("open edit coding session message transaction failed: {error}")
+    })?;
+
+    let updated_sessions = transaction
+        .execute(
+            r#"
+            UPDATE coding_sessions
+            SET updated_at = ?2
+            WHERE id = ?1 AND is_deleted = 0
+            "#,
+            params![coding_session_id, edited_at],
+        )
+        .map_err(|error| {
+            format!("update coding_session {coding_session_id} for message edit failed: {error}")
+        })?;
+    if updated_sessions == 0 {
+        return Err(format!(
+            "coding_session {coding_session_id} was not found while editing message {message_id}"
+        ));
+    }
+
+    transaction
+        .execute(
+            r#"
+            INSERT INTO coding_session_events (
+                id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+            "#,
+            params![
+                event_id,
+                edited_at,
+                edited_at,
+                0_i64,
+                0_i64,
+                coding_session_id,
+                turn_locator,
+                runtime_id,
+                "message.edited",
+                sequence_no as i64,
+                event_payload_json,
+            ],
+        )
+        .map_err(|error| {
+            format!("insert edited coding session message event for {message_id} failed: {error}")
+        })?;
+
+    transaction.commit().map_err(|error| {
+        format!("commit edit coding session message transaction failed: {error}")
+    })?;
+
+    Ok(())
+}
+
 fn persist_initialized_coding_session_turn_to_provider(
     connection: &mut Connection,
     turn: &CodingSessionTurnPayload,
@@ -11439,7 +12310,7 @@ fn persist_initialized_coding_session_turn_to_provider(
     Ok(())
 }
 
-fn persist_streaming_coding_session_message_delta_to_provider(
+fn persist_streaming_coding_session_event_to_provider(
     connection: &mut Connection,
     event: &CodingSessionEventPayload,
     native_session_id: Option<&str>,
@@ -11447,17 +12318,18 @@ fn persist_streaming_coding_session_message_delta_to_provider(
     let runtime_id = event
         .runtime_id
         .clone()
-        .ok_or("coding session delta runtimeId is required.")?;
+        .ok_or("coding session event runtimeId is required.")?;
     let turn_id = event
         .turn_id
         .clone()
-        .ok_or("coding session delta turnId is required.")?;
+        .ok_or("coding session event turnId is required.")?;
     let payload_json = serde_json::to_string(&event.payload).map_err(|error| {
         format!(
             "serialize streaming event {} payload failed: {error}",
             event.id
         )
     })?;
+    let runtime_status = resolve_projection_event_runtime_status(event).unwrap_or("streaming");
     let transaction = connection.transaction().map_err(|error| {
         format!("open streaming coding_session event transaction failed: {error}")
     })?;
@@ -11494,7 +12366,7 @@ fn persist_streaming_coding_session_message_delta_to_provider(
             params![
                 runtime_id.as_str(),
                 event.created_at.as_str(),
-                "streaming",
+                runtime_status,
                 event.coding_session_id.as_str(),
                 native_session_id,
             ],
@@ -11708,7 +12580,7 @@ fn persist_approval_decision_to_provider(
     approval_id: &str,
     input: &SubmitApprovalDecisionInput,
     decided_at: &str,
-) -> Result<ApprovalDecisionPayload, String> {
+) -> Result<ProjectionMutationEvent<ApprovalDecisionPayload>, String> {
     let snapshot = state
         .session_snapshot(coding_session_id)
         .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
@@ -11747,22 +12619,30 @@ fn persist_approval_decision_to_provider(
         })?
         .state
         .clone();
-    checkpoint_state.insert("approvalId".to_owned(), approval_id.to_owned());
-    checkpoint_state.insert("decision".to_owned(), input.decision.clone());
-    checkpoint_state.insert("decidedAt".to_owned(), decided_at.to_owned());
-    checkpoint_state.insert("runtimeStatus".to_owned(), runtime_status.clone());
-    checkpoint_state.insert("operationStatus".to_owned(), operation_status.clone());
+    insert_payload_string(&mut checkpoint_state, "approvalId", approval_id);
+    insert_payload_string(&mut checkpoint_state, "decision", input.decision.clone());
+    insert_payload_string(&mut checkpoint_state, "decidedAt", decided_at);
+    insert_payload_string(
+        &mut checkpoint_state,
+        "runtimeStatus",
+        runtime_status.clone(),
+    );
+    insert_payload_string(
+        &mut checkpoint_state,
+        "operationStatus",
+        operation_status.clone(),
+    );
     if let Some(reason) = input.reason.as_ref() {
-        checkpoint_state.insert("decisionReason".to_owned(), reason.clone());
+        insert_payload_string(&mut checkpoint_state, "decisionReason", reason);
     }
     if let Some(runtime_id) = context.runtime_id.as_ref() {
-        checkpoint_state.insert("runtimeId".to_owned(), runtime_id.clone());
+        insert_payload_string(&mut checkpoint_state, "runtimeId", runtime_id);
     }
     if let Some(turn_id) = context.turn_id.as_ref() {
-        checkpoint_state.insert("turnId".to_owned(), turn_id.clone());
+        insert_payload_string(&mut checkpoint_state, "turnId", turn_id);
     }
     if let Some(operation_id) = context.operation_id.as_ref() {
-        checkpoint_state.insert("operationId".to_owned(), operation_id.clone());
+        insert_payload_string(&mut checkpoint_state, "operationId", operation_id);
     }
 
     let checkpoint_state_json = serde_json::to_string(&checkpoint_state).map_err(|error| {
@@ -11916,18 +12796,21 @@ fn persist_approval_decision_to_provider(
         .commit()
         .map_err(|error| format!("commit approval decision transaction failed: {error}"))?;
 
-    Ok(ApprovalDecisionPayload {
-        approval_id: approval_id.to_owned(),
-        checkpoint_id: context.checkpoint_id.clone(),
-        coding_session_id: coding_session_id.to_owned(),
-        runtime_id: context.runtime_id.clone(),
-        turn_id: context.turn_id.clone(),
-        operation_id: context.operation_id.clone(),
-        decision: input.decision.clone(),
-        reason: input.reason.clone(),
-        decided_at: decided_at.to_owned(),
-        runtime_status,
-        operation_status,
+    Ok(ProjectionMutationEvent {
+        payload: ApprovalDecisionPayload {
+            approval_id: approval_id.to_owned(),
+            checkpoint_id: context.checkpoint_id.clone(),
+            coding_session_id: coding_session_id.to_owned(),
+            runtime_id: context.runtime_id.clone(),
+            turn_id: context.turn_id.clone(),
+            operation_id: context.operation_id.clone(),
+            decision: input.decision.clone(),
+            reason: input.reason.clone(),
+            decided_at: decided_at.to_owned(),
+            runtime_status,
+            operation_status,
+        },
+        event,
     })
 }
 
@@ -11939,10 +12822,16 @@ fn persist_user_question_answer_to_provider(
     question_id: &str,
     input: &SubmitUserQuestionAnswerInput,
     answered_at: &str,
-) -> Result<UserQuestionAnswerPayload, String> {
+) -> Result<ProjectionMutationEvent<UserQuestionAnswerPayload>, String> {
     let snapshot = state
         .session_snapshot(coding_session_id)
         .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
+    let runtime_status = if input.rejected {
+        "failed"
+    } else {
+        "awaiting_tool"
+    };
+    let turn_status = if input.rejected { "failed" } else { "running" };
     let event =
         build_user_question_answer_event(snapshot, context, question_id, answered_at, input);
     let event_payload_json = serde_json::to_string(&event.payload).map_err(|error| {
@@ -11979,7 +12868,7 @@ fn persist_user_question_answer_to_provider(
                 SET updated_at = ?2, status = ?3
                 WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
                 "#,
-                params![runtime_id, answered_at, "awaiting_tool", coding_session_id],
+                params![runtime_id, answered_at, runtime_status, coding_session_id],
             )
             .map_err(|error| {
                 format!(
@@ -11994,10 +12883,20 @@ fn persist_user_question_answer_to_provider(
             .execute(
                 r#"
                 UPDATE coding_session_turns
-                SET updated_at = ?2, status = ?3, completed_at = NULL
-                WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
+                SET updated_at = ?2, status = ?3, completed_at = ?4
+                WHERE id = ?1 AND coding_session_id = ?5 AND is_deleted = 0
                 "#,
-                params![turn_id, answered_at, "running", coding_session_id],
+                params![
+                    turn_id,
+                    answered_at,
+                    turn_status,
+                    if input.rejected {
+                        Some(answered_at.to_owned())
+                    } else {
+                        None::<String>
+                    },
+                    coding_session_id
+                ],
             )
             .map_err(|error| {
                 format!(
@@ -12040,16 +12939,20 @@ fn persist_user_question_answer_to_provider(
         .commit()
         .map_err(|error| format!("commit user question answer transaction failed: {error}"))?;
 
-    Ok(UserQuestionAnswerPayload {
-        question_id: question_id.to_owned(),
-        coding_session_id: coding_session_id.to_owned(),
-        answer: input.answer.clone(),
-        answered_at: answered_at.to_owned(),
-        option_id: input.option_id.clone(),
-        option_label: input.option_label.clone(),
-        runtime_id: context.runtime_id.clone(),
-        runtime_status: "awaiting_tool".to_owned(),
-        turn_id: context.turn_id.clone(),
+    Ok(ProjectionMutationEvent {
+        payload: UserQuestionAnswerPayload {
+            question_id: question_id.to_owned(),
+            coding_session_id: coding_session_id.to_owned(),
+            answer: input.answer.clone(),
+            answered_at: answered_at.to_owned(),
+            option_id: input.option_id.clone(),
+            option_label: input.option_label.clone(),
+            rejected: input.rejected,
+            runtime_id: context.runtime_id.clone(),
+            runtime_status: runtime_status.to_owned(),
+            turn_id: context.turn_id.clone(),
+        },
+        event,
     })
 }
 
@@ -13342,7 +14245,10 @@ impl ProjectionReadState {
                 runtime_id: Some("demo-runtime".to_owned()),
                 kind: "session.started".to_owned(),
                 sequence: 0,
-                payload: build_demo_metadata(&[("engineId", "codex"), ("runtimeStatus", "ready")]),
+                payload: build_event_payload_strings(&[
+                    ("engineId", "codex"),
+                    ("runtimeStatus", "ready"),
+                ]),
                 created_at: "2026-04-10T00:00:00Z".to_owned(),
             },
             CodingSessionEventPayload {
@@ -13352,7 +14258,10 @@ impl ProjectionReadState {
                 runtime_id: Some("demo-runtime".to_owned()),
                 kind: "turn.started".to_owned(),
                 sequence: 1,
-                payload: build_demo_metadata(&[("engineId", "codex"), ("requestKind", "chat")]),
+                payload: build_event_payload_strings(&[
+                    ("engineId", "codex"),
+                    ("requestKind", "chat"),
+                ]),
                 created_at: "2026-04-10T00:00:01Z".to_owned(),
             },
             CodingSessionEventPayload {
@@ -13362,7 +14271,7 @@ impl ProjectionReadState {
                 runtime_id: Some("demo-runtime".to_owned()),
                 kind: "artifact.upserted".to_owned(),
                 sequence: 2,
-                payload: build_demo_metadata(&[
+                payload: build_event_payload_strings(&[
                     ("artifactId", "demo-turn:artifact:1"),
                     ("runtimeStatus", "streaming"),
                 ]),
@@ -13390,7 +14299,7 @@ impl ProjectionReadState {
             runtime_id: Some("demo-runtime".to_owned()),
             checkpoint_kind: "approval".to_owned(),
             resumable: true,
-            state: build_demo_metadata(&[
+            state: build_checkpoint_state_strings(&[
                 ("approvalId", "demo-approval-1"),
                 ("reason", "Review generated patch"),
             ]),
@@ -13516,7 +14425,7 @@ impl ProjectionReadState {
 
         for event in load_provider_event_rows(connection)? {
             let coding_session_id = event.coding_session_id.clone();
-            let payload = parse_json_object_string_map(
+            let payload = parse_json_object_value_map(
                 &event.payload_json,
                 "coding_session_events.payload_json",
             )?;
@@ -13568,7 +14477,7 @@ impl ProjectionReadState {
 
         for checkpoint in load_provider_checkpoint_rows(connection)? {
             let coding_session_id = checkpoint.coding_session_id.clone();
-            let state = parse_json_object_string_map(
+            let state = parse_json_object_value_map(
                 &checkpoint.state_json,
                 "coding_session_checkpoints.state_json",
             )?;
@@ -13625,6 +14534,7 @@ impl ProjectionReadState {
             )
         })?;
         ensure_sqlite_provider_authority(&mut connection, path)?;
+        recover_sqlite_provider_coding_session_runtimes_on_boot(&mut connection)?;
         Self::from_sqlite_provider_connection(&connection)
     }
 
@@ -13706,6 +14616,16 @@ impl ProjectionReadState {
             })
     }
 
+    fn approval_live_provider_context(
+        &self,
+        approval_id: &str,
+    ) -> Option<LiveProviderInteractionContext> {
+        self.sessions.values().find_map(|snapshot| {
+            find_approval_context(snapshot, approval_id)?;
+            resolve_live_provider_interaction_context(snapshot)
+        })
+    }
+
     fn user_question_context(&self, question_id: &str) -> Option<(String, UserQuestionContext)> {
         self.sessions
             .iter()
@@ -13713,6 +14633,16 @@ impl ProjectionReadState {
                 find_user_question_context(snapshot, question_id)
                     .map(|context| (coding_session_id.clone(), context))
             })
+    }
+
+    fn user_question_live_provider_context(
+        &self,
+        question_id: &str,
+    ) -> Option<LiveProviderInteractionContext> {
+        self.sessions.values().find_map(|snapshot| {
+            find_user_question_context(snapshot, question_id)?;
+            resolve_live_provider_interaction_context(snapshot)
+        })
     }
 }
 
@@ -13767,6 +14697,26 @@ impl ProjectionAuthorityState {
             .expect("read projection authority state")
             .user_question_context(question_id)
             .is_some()
+    }
+
+    fn approval_live_provider_context(
+        &self,
+        approval_id: &str,
+    ) -> Option<LiveProviderInteractionContext> {
+        self.state
+            .read()
+            .expect("read projection authority state")
+            .approval_live_provider_context(approval_id)
+    }
+
+    fn user_question_live_provider_context(
+        &self,
+        question_id: &str,
+    ) -> Option<LiveProviderInteractionContext> {
+        self.state
+            .read()
+            .expect("read projection authority state")
+            .user_question_live_provider_context(question_id)
     }
 
     fn create_coding_session(
@@ -13892,12 +14842,12 @@ impl ProjectionAuthorityState {
             session.runtime_status = Some(runtime_status.to_owned());
             session.updated_at = updated_at.clone();
         }
-        let mut payload = build_demo_metadata(&[
+        let mut payload = build_event_payload_strings(&[
             ("engineId", session.engine_id.as_str()),
             ("runtimeStatus", runtime_status),
         ]);
         if let Some(error) = initialization_error.as_deref() {
-            payload.insert("error".to_owned(), error.to_owned());
+            insert_payload_string(&mut payload, "error", error);
         }
         snapshot.events.push(CodingSessionEventPayload {
             id: format!(
@@ -14162,12 +15112,106 @@ impl ProjectionAuthorityState {
             runtime_id,
             kind: "message.deleted".to_owned(),
             sequence: next_sequence,
-            payload: build_demo_metadata(&[
+            payload: build_event_payload_strings(&[
                 ("role", role.as_str()),
                 ("deletedMessageId", message_id),
                 ("runtimeStatus", "completed"),
             ]),
             created_at: deleted_at,
+        });
+
+        Ok(())
+    }
+
+    fn edit_coding_session_message(
+        &self,
+        coding_session_id: &str,
+        message_id: &str,
+        input: EditCodingSessionMessageInput,
+    ) -> Result<(), String> {
+        let snapshot = self
+            .session_snapshot(coding_session_id)
+            .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
+        let (turn_locator, role) =
+            parse_authoritative_message_locator(coding_session_id, message_id).ok_or_else(
+                || {
+                    format!(
+                    "coding session message {message_id} is not an authoritative projection message"
+                )
+                },
+            )?;
+        let has_matching_message = snapshot.events.iter().any(|event| {
+            event.turn_id.as_deref() == Some(turn_locator.as_str())
+                && matches!(event.kind.as_str(), "message.completed" | "message.delta")
+                && event_payload_role(&event.payload) == Some(role.as_str())
+        });
+        if !has_matching_message {
+            return Err(format!(
+                "coding session message {message_id} was not found in coding session {coding_session_id}"
+            ));
+        }
+
+        if let Some(sqlite_file) = self.sqlite_file.as_deref() {
+            let mut connection = Connection::open(sqlite_file).map_err(|error| {
+                format!(
+                    "open sqlite coding-session message edit authority {} failed: {error}",
+                    sqlite_file.display()
+                )
+            })?;
+            ensure_sqlite_provider_authority(&mut connection, sqlite_file)?;
+            persist_edited_coding_session_message_to_provider(
+                &mut connection,
+                &snapshot,
+                coding_session_id,
+                message_id,
+                input.content.as_str(),
+            )?;
+            let reloaded_state = ProjectionReadState::from_sqlite_provider_connection(&connection)?;
+            *self
+                .state
+                .write()
+                .expect("write projection authority state") = reloaded_state;
+            return Ok(());
+        }
+
+        let edited_at = current_session_timestamp();
+        let mut state = self
+            .state
+            .write()
+            .expect("write projection authority state");
+        let snapshot = state
+            .sessions
+            .get_mut(coding_session_id)
+            .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
+        if let Some(session) = snapshot.session.as_mut() {
+            session.updated_at = edited_at.clone();
+        }
+        let next_sequence = next_event_sequence(snapshot);
+        let runtime_id = snapshot
+            .events
+            .iter()
+            .rev()
+            .find(|event| {
+                event.turn_id.as_deref() == Some(turn_locator.as_str())
+                    && matches!(event.kind.as_str(), "message.completed" | "message.delta")
+                    && event_payload_role(&event.payload) == Some(role.as_str())
+            })
+            .and_then(|event| event.runtime_id.clone());
+        let turn_id = turn_locator.clone();
+        snapshot.events.push(CodingSessionEventPayload {
+            id: format!("{coding_session_id}:{turn_id}:event:{next_sequence}:message-edited"),
+            coding_session_id: coding_session_id.to_owned(),
+            turn_id: Some(turn_id),
+            runtime_id,
+            kind: "message.edited".to_owned(),
+            sequence: next_sequence,
+            payload: build_event_payload_strings(&[
+                ("role", role.as_str()),
+                ("editedMessageId", message_id),
+                ("content", input.content.as_str()),
+                ("runtimeStatus", "completed"),
+            ]),
+            created_at: edited_at,
         });
 
         Ok(())
@@ -14298,20 +15342,36 @@ impl ProjectionAuthorityState {
             operation,
             native_session_id,
             ide_context: input.ide_context,
+            options: input.options,
             working_directory: working_directory.map(FsPath::to_path_buf),
         })
     }
 
-    fn append_coding_session_message_delta(
+    fn append_coding_session_stream_event(
         &self,
         pending: &PendingProjectionTurnExecution,
+        kind: &str,
         role: &str,
         content_delta: &str,
+        payload: Option<&serde_json::Value>,
         native_session_id: Option<&str>,
-    ) -> Result<Option<String>, String> {
+    ) -> Result<Option<CodingSessionEventPayload>, String> {
+        let normalized_kind = kind.trim();
         let normalized_role = role.trim();
         let normalized_content_delta = content_delta;
-        if normalized_role.is_empty() || normalized_content_delta.is_empty() {
+        if normalized_kind.is_empty() || normalized_role.is_empty() {
+            return Ok(None);
+        }
+        if normalized_kind == "message.delta" && normalized_content_delta.is_empty() {
+            return Ok(None);
+        }
+        if normalized_kind != "message.delta"
+            && normalized_content_delta.is_empty()
+            && payload
+                .and_then(serde_json::Value::as_object)
+                .map(serde_json::Map::is_empty)
+                .unwrap_or(true)
+        {
             return Ok(None);
         }
 
@@ -14335,18 +15395,20 @@ impl ProjectionAuthorityState {
             let snapshot = provider_state
                 .session_snapshot(coding_session_id)
                 .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
-            let event = build_streaming_coding_session_message_delta_event(
+            let event = build_streaming_coding_session_event(
                 coding_session_id,
                 runtime_id,
                 pending.turn.id.as_str(),
                 pending.operation.operation_id.as_str(),
+                normalized_kind,
                 normalized_role,
                 normalized_content_delta,
+                payload,
                 next_event_sequence(&snapshot),
                 created_at.as_str(),
                 native_session_id,
             );
-            persist_streaming_coding_session_message_delta_to_provider(
+            persist_streaming_coding_session_event_to_provider(
                 &mut connection,
                 &event,
                 native_session_id,
@@ -14356,7 +15418,7 @@ impl ProjectionAuthorityState {
                 .state
                 .write()
                 .expect("write projection authority state") = reloaded_state;
-            return Ok(Some(created_at));
+            return Ok(Some(event));
         }
 
         let mut state = self
@@ -14367,13 +15429,15 @@ impl ProjectionAuthorityState {
             .sessions
             .get_mut(coding_session_id)
             .ok_or_else(|| format!("coding session {coding_session_id} was not found"))?;
-        let event = build_streaming_coding_session_message_delta_event(
+        let event = build_streaming_coding_session_event(
             coding_session_id,
             runtime_id,
             pending.turn.id.as_str(),
             pending.operation.operation_id.as_str(),
+            normalized_kind,
             normalized_role,
             normalized_content_delta,
+            payload,
             next_event_sequence(snapshot),
             created_at.as_str(),
             native_session_id,
@@ -14384,7 +15448,7 @@ impl ProjectionAuthorityState {
         }
         snapshot.events.push(event);
 
-        Ok(Some(created_at))
+        Ok(snapshot.events.last().cloned())
     }
 
     fn complete_coding_session_turn(
@@ -14393,7 +15457,7 @@ impl ProjectionAuthorityState {
         assistant_content: &str,
         commands: Option<&[native_sessions::NativeSessionCommandPayload]>,
         resolved_native_session_id: Option<&str>,
-    ) -> Result<CodingSessionTurnPayload, String> {
+    ) -> Result<FinalizedProjectionTurnExecution, String> {
         let completed_at = current_session_timestamp();
         let mut completed_turn = pending.turn.clone();
         completed_turn.status = "completed".to_owned();
@@ -14447,7 +15511,10 @@ impl ProjectionAuthorityState {
                 .state
                 .write()
                 .expect("write projection authority state") = reloaded_state;
-            return Ok(completed_turn);
+            return Ok(FinalizedProjectionTurnExecution {
+                turn: completed_turn,
+                events: completion_events,
+            });
         }
 
         let mut state = self
@@ -14481,9 +15548,12 @@ impl ProjectionAuthorityState {
         {
             *operation = completed_operation;
         }
-        snapshot.events.extend(completion_events);
+        snapshot.events.extend(completion_events.clone());
 
-        Ok(completed_turn)
+        Ok(FinalizedProjectionTurnExecution {
+            turn: completed_turn,
+            events: completion_events,
+        })
     }
 
     fn fail_coding_session_turn(
@@ -14491,7 +15561,7 @@ impl ProjectionAuthorityState {
         pending: &PendingProjectionTurnExecution,
         error_message: &str,
         resolved_native_session_id: Option<&str>,
-    ) -> Result<CodingSessionTurnPayload, String> {
+    ) -> Result<FinalizedProjectionTurnExecution, String> {
         let completed_at = current_session_timestamp();
         let mut failed_turn = pending.turn.clone();
         failed_turn.status = "failed".to_owned();
@@ -14512,6 +15582,8 @@ impl ProjectionAuthorityState {
             .runtime_id
             .as_deref()
             .ok_or("coding session turn runtimeId is required.")?;
+        let include_terminal_failure_event =
+            !projection_turn_has_event_kind(&snapshot, failed_turn.id.as_str(), "turn.failed");
         let failure_events = build_failed_coding_session_turn_events(
             failed_turn.coding_session_id.as_str(),
             runtime_id,
@@ -14521,6 +15593,7 @@ impl ProjectionAuthorityState {
             next_event_sequence(&snapshot),
             completed_at.as_str(),
             resolved_native_session_id,
+            include_terminal_failure_event,
         );
 
         if let Some(sqlite_file) = self.sqlite_file.as_deref() {
@@ -14544,7 +15617,10 @@ impl ProjectionAuthorityState {
                 .state
                 .write()
                 .expect("write projection authority state") = reloaded_state;
-            return Ok(failed_turn);
+            return Ok(FinalizedProjectionTurnExecution {
+                turn: failed_turn,
+                events: failure_events,
+            });
         }
 
         let mut state = self
@@ -14578,16 +15654,19 @@ impl ProjectionAuthorityState {
         {
             *operation = failed_operation;
         }
-        snapshot.events.extend(failure_events);
+        snapshot.events.extend(failure_events.clone());
 
-        Ok(failed_turn)
+        Ok(FinalizedProjectionTurnExecution {
+            turn: failed_turn,
+            events: failure_events,
+        })
     }
 
     fn submit_approval_decision(
         &self,
         approval_id: &str,
         input: SubmitApprovalDecisionInput,
-    ) -> Result<ApprovalDecisionPayload, String> {
+    ) -> Result<ProjectionMutationEvent<ApprovalDecisionPayload>, String> {
         let decided_at = current_session_timestamp();
 
         if let Some(sqlite_file) = self.sqlite_file.as_deref() {
@@ -14638,7 +15717,7 @@ impl ProjectionAuthorityState {
         &self,
         question_id: &str,
         input: SubmitUserQuestionAnswerInput,
-    ) -> Result<UserQuestionAnswerPayload, String> {
+    ) -> Result<ProjectionMutationEvent<UserQuestionAnswerPayload>, String> {
         let answered_at = current_session_timestamp();
 
         if let Some(sqlite_file) = self.sqlite_file.as_deref() {
@@ -14764,6 +15843,61 @@ impl AppState {
             .unwrap_or_else(|| self.cached_app_admin_read_state())
     }
 
+    fn submit_live_provider_approval_decision(
+        &self,
+        approval_id: &str,
+        input: &SubmitApprovalDecisionInput,
+    ) -> Result<(), String> {
+        let Some(context) = self.projections.approval_live_provider_context(approval_id) else {
+            return Ok(());
+        };
+        if context.native_session_id.is_none() {
+            return Ok(());
+        }
+
+        let _submitted = native_sessions::submit_native_session_approval_decision(
+            context.engine_id.as_str(),
+            &native_sessions::NativeSessionApprovalDecision {
+                native_session_id: context.native_session_id.clone(),
+                approval_id: approval_id.to_owned(),
+                decision: input.decision.clone(),
+                reason: input.reason.clone(),
+            },
+        )?;
+
+        Ok(())
+    }
+
+    fn submit_live_provider_user_question_answer(
+        &self,
+        question_id: &str,
+        input: &SubmitUserQuestionAnswerInput,
+    ) -> Result<(), String> {
+        let Some(context) = self
+            .projections
+            .user_question_live_provider_context(question_id)
+        else {
+            return Ok(());
+        };
+        if context.native_session_id.is_none() {
+            return Ok(());
+        }
+
+        let _submitted = native_sessions::submit_native_session_user_question_answer(
+            context.engine_id.as_str(),
+            &native_sessions::NativeSessionUserQuestionAnswer {
+                native_session_id: context.native_session_id.clone(),
+                question_id: question_id.to_owned(),
+                answer: input.answer.clone().unwrap_or_default(),
+                option_id: input.option_id.clone(),
+                option_label: input.option_label.clone(),
+                rejected: input.rejected,
+            },
+        )?;
+
+        Ok(())
+    }
+
     fn open_authority_connection_for_write(&self) -> Result<Connection, String> {
         let Some(sqlite_file) = self.projections.sqlite_file.as_deref() else {
             return Err(
@@ -14808,6 +15942,51 @@ impl AppState {
         coding_session_updated_at: Option<String>,
         turn_id: Option<String>,
     ) {
+        self.publish_workspace_realtime_event_with_coding_session_event(
+            event_kind,
+            source_surface,
+            workspace_id,
+            project_id,
+            project_name,
+            project_root_path,
+            project_updated_at,
+            coding_session_id,
+            coding_session_title,
+            coding_session_status,
+            coding_session_host_mode,
+            coding_session_engine_id,
+            coding_session_model_id,
+            coding_session_runtime_status,
+            native_session_id,
+            coding_session_updated_at,
+            turn_id,
+            None,
+            None,
+        );
+    }
+
+    fn publish_workspace_realtime_event_with_coding_session_event(
+        &self,
+        event_kind: &str,
+        source_surface: &str,
+        workspace_id: String,
+        project_id: Option<String>,
+        project_name: Option<String>,
+        project_root_path: Option<String>,
+        project_updated_at: Option<String>,
+        coding_session_id: Option<String>,
+        coding_session_title: Option<String>,
+        coding_session_status: Option<String>,
+        coding_session_host_mode: Option<String>,
+        coding_session_engine_id: Option<String>,
+        coding_session_model_id: Option<String>,
+        coding_session_runtime_status: Option<String>,
+        native_session_id: Option<String>,
+        coding_session_updated_at: Option<String>,
+        turn_id: Option<String>,
+        coding_session_event_kind: Option<String>,
+        coding_session_event_payload: Option<serde_json::Value>,
+    ) {
         self.realtime.publish(WorkspaceRealtimeEventPayload {
             event_id: format!("realtime-{}", Uuid::new_v4()),
             event_kind: event_kind.to_owned(),
@@ -14824,6 +16003,8 @@ impl AppState {
             coding_session_runtime_status,
             native_session_id,
             turn_id,
+            coding_session_event_kind,
+            coding_session_event_payload,
             occurred_at: current_storage_timestamp(),
             project_updated_at,
             coding_session_updated_at,
@@ -14890,36 +16071,140 @@ impl AppState {
         );
     }
 
-    fn publish_streaming_coding_session_delta_realtime_event(
+    fn publish_streaming_coding_session_event_realtime_event(
         &self,
         pending: &PendingProjectionTurnExecution,
-        updated_at: String,
+        event: &CodingSessionEventPayload,
     ) {
-        self.publish_coding_session_realtime_event(CodingSessionRealtimeEventInput {
-            event_kind: "coding-session.updated",
-            source_surface: "core",
-            workspace_id: pending.session.workspace_id.clone(),
-            project_id: pending.session.project_id.clone(),
-            project_root_path: pending
-                .working_directory
-                .as_ref()
-                .map(|path| path.to_string_lossy().to_string()),
-            coding_session_id: pending.session.id.clone(),
-            coding_session_title: pending.session.title.clone(),
-            coding_session_status: pending.session.status.clone(),
-            coding_session_host_mode: pending.session.host_mode.clone(),
-            coding_session_engine_id: pending.session.engine_id.clone(),
-            coding_session_model_id: pending.session.model_id.clone(),
-            coding_session_runtime_status: Some("streaming".to_owned()),
-            native_session_id: pending.session.native_session_id.clone(),
-            coding_session_updated_at: Some(updated_at),
-            turn_id: Some(pending.turn.id.clone()),
-        });
+        let project_id = pending.session.project_id.clone();
+        let (project_name, project_root_path, project_updated_at) = self
+            .resolve_workspace_realtime_project_metadata(
+                project_id.as_str(),
+                pending
+                    .working_directory
+                    .as_ref()
+                    .map(|path| path.to_string_lossy().to_string()),
+            );
+
+        self.publish_workspace_realtime_event_with_coding_session_event(
+            "coding-session.updated",
+            "core",
+            pending.session.workspace_id.clone(),
+            Some(project_id),
+            project_name,
+            project_root_path,
+            project_updated_at,
+            Some(pending.session.id.clone()),
+            Some(pending.session.title.clone()),
+            Some(pending.session.status.clone()),
+            Some(pending.session.host_mode.clone()),
+            Some(pending.session.engine_id.clone()),
+            Some(pending.session.model_id.clone()),
+            resolve_projection_event_runtime_status(event)
+                .map(str::to_owned)
+                .or_else(|| Some("streaming".to_owned())),
+            payload_string_value(&event.payload, "nativeSessionId")
+                .or_else(|| pending.native_session_id.clone())
+                .or_else(|| pending.session.native_session_id.clone()),
+            Some(event.created_at.clone()),
+            Some(pending.turn.id.clone()),
+            Some(event.kind.clone()),
+            Some(serde_json::to_value(&event.payload).unwrap_or_else(|_| serde_json::json!({}))),
+        );
+    }
+
+    fn publish_finalized_coding_session_event_realtime_event(
+        &self,
+        pending: &PendingProjectionTurnExecution,
+        session: &CodingSessionPayload,
+        event: &CodingSessionEventPayload,
+    ) {
+        let project_id = session.project_id.clone();
+        let (project_name, project_root_path, project_updated_at) = self
+            .resolve_workspace_realtime_project_metadata(
+                project_id.as_str(),
+                pending
+                    .working_directory
+                    .as_ref()
+                    .map(|path| path.to_string_lossy().to_string()),
+            );
+        let runtime_status = payload_string_value(&event.payload, "runtimeStatus")
+            .or_else(|| session.runtime_status.clone());
+        let native_session_id = payload_string_value(&event.payload, "nativeSessionId")
+            .or_else(|| session.native_session_id.clone())
+            .or_else(|| pending.native_session_id.clone());
+
+        self.publish_workspace_realtime_event_with_coding_session_event(
+            "coding-session.updated",
+            "core",
+            session.workspace_id.clone(),
+            Some(project_id),
+            project_name,
+            project_root_path,
+            project_updated_at,
+            Some(session.id.clone()),
+            Some(session.title.clone()),
+            Some(session.status.clone()),
+            Some(session.host_mode.clone()),
+            Some(session.engine_id.clone()),
+            Some(session.model_id.clone()),
+            runtime_status,
+            native_session_id,
+            Some(event.created_at.clone()),
+            Some(
+                event
+                    .turn_id
+                    .clone()
+                    .unwrap_or_else(|| pending.turn.id.clone()),
+            ),
+            Some(event.kind.clone()),
+            Some(serde_json::to_value(&event.payload).unwrap_or_else(|_| serde_json::json!({}))),
+        );
+    }
+
+    fn publish_projection_coding_session_event_realtime_event(
+        &self,
+        coding_session_id: &str,
+        event: &CodingSessionEventPayload,
+    ) {
+        let Some(session) = self.projections.session(coding_session_id) else {
+            return;
+        };
+        let project_id = session.project_id.clone();
+        let (project_name, project_root_path, project_updated_at) =
+            self.resolve_workspace_realtime_project_metadata(project_id.as_str(), None);
+        let runtime_status = payload_string_value(&event.payload, "runtimeStatus")
+            .or_else(|| session.runtime_status.clone());
+        let native_session_id = payload_string_value(&event.payload, "nativeSessionId")
+            .or_else(|| session.native_session_id.clone());
+
+        self.publish_workspace_realtime_event_with_coding_session_event(
+            "coding-session.updated",
+            "core",
+            session.workspace_id.clone(),
+            Some(project_id),
+            project_name,
+            project_root_path,
+            project_updated_at,
+            Some(session.id.clone()),
+            Some(session.title.clone()),
+            Some(session.status.clone()),
+            Some(session.host_mode.clone()),
+            Some(session.engine_id.clone()),
+            Some(session.model_id.clone()),
+            runtime_status,
+            native_session_id,
+            Some(event.created_at.clone()),
+            event.turn_id.clone(),
+            Some(event.kind.clone()),
+            Some(serde_json::to_value(&event.payload).unwrap_or_else(|_| serde_json::json!({}))),
+        );
     }
 
     fn demo() -> Self {
         Self {
             projections: ProjectionAuthorityState::new(ProjectionReadState::demo(), None),
+            model_config: Arc::new(RwLock::new(build_model_config())),
             realtime: WorkspaceRealtimeHub::new(),
             user_center: UserCenterState::from_env(),
             audits: vec![AuditPayload {
@@ -15160,12 +16445,14 @@ impl AppState {
                 )
             })?;
             ensure_sqlite_provider_authority(&mut connection, path)?;
+            recover_sqlite_provider_coding_session_runtimes_on_boot(&mut connection)?;
 
             return Ok(Self {
                 projections: ProjectionAuthorityState::new(
                     ProjectionReadState::from_sqlite_provider_connection(&connection)?,
                     Some(path.to_path_buf()),
                 ),
+                model_config: Arc::new(RwLock::new(build_model_config())),
                 realtime: WorkspaceRealtimeHub::new(),
                 user_center: UserCenterState::from_env(),
                 audits: load_provider_audit_payloads(&connection)?,
@@ -15186,6 +16473,7 @@ impl AppState {
         let demo = Self::demo();
         Ok(Self {
             projections: ProjectionAuthorityState::new(ProjectionReadState::load(bootstrap)?, None),
+            model_config: Arc::new(RwLock::new(build_model_config())),
             realtime: WorkspaceRealtimeHub::new(),
             user_center: UserCenterState::from_env(),
             audits: demo.audits,
@@ -15259,7 +16547,7 @@ fn schedule_coding_session_runtime_initialization_if_needed(
     });
 }
 
-const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 77] = [
+const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 80] = [
     RouteSpec {
         method: "get",
         operation_id: "core.getDescriptor",
@@ -15318,6 +16606,20 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 77] = [
     },
     RouteSpec {
         method: "get",
+        operation_id: "core.getModelConfig",
+        path: "/api/core/v1/model-config",
+        summary: "Get code engine model configuration",
+        tag: "core",
+    },
+    RouteSpec {
+        method: "put",
+        operation_id: "core.syncModelConfig",
+        path: "/api/core/v1/model-config",
+        summary: "Sync code engine model configuration",
+        tag: "core",
+    },
+    RouteSpec {
+        method: "get",
         operation_id: "core.getRuntime",
         path: "/api/core/v1/runtime",
         summary: "Get runtime metadata",
@@ -15363,6 +16665,13 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 77] = [
         operation_id: "core.deleteCodingSession",
         path: "/api/core/v1/coding-sessions/:id",
         summary: "Delete coding session",
+        tag: "core",
+    },
+    RouteSpec {
+        method: "patch",
+        operation_id: "core.editCodingSessionMessage",
+        path: "/api/core/v1/coding-sessions/:id/messages/:messageId",
+        summary: "Edit coding session message",
         tag: "core",
     },
     RouteSpec {
@@ -16015,6 +17324,59 @@ async fn core_models() -> Json<ApiListEnvelope<ModelCatalogEntryPayload>> {
     Json(create_list_envelope("core-models", build_model_catalog()))
 }
 
+async fn core_model_config(
+    State(state): State<AppState>,
+) -> Json<ApiEnvelope<CodeEngineModelConfigPayload>> {
+    let config = state
+        .model_config
+        .read()
+        .map(|guard| guard.clone())
+        .unwrap_or_else(|_| build_model_config());
+    Json(create_envelope("core-model-config", config))
+}
+
+async fn core_sync_model_config(
+    State(state): State<AppState>,
+    Json(request): Json<SyncModelConfigRequest>,
+) -> Json<ApiEnvelope<SyncModelConfigResultPayload>> {
+    let server_config = state
+        .model_config
+        .read()
+        .map(|guard| guard.clone())
+        .unwrap_or_else(|_| build_model_config());
+    let comparison = compare_model_config_versions(&request.local_config, &server_config);
+    let result = match comparison {
+        std::cmp::Ordering::Greater => {
+            if let Ok(mut guard) = state.model_config.write() {
+                *guard = request.local_config.clone();
+            }
+            SyncModelConfigResultPayload {
+                action: "push-local".to_string(),
+                authoritative_source: "local".to_string(),
+                config: request.local_config,
+                should_write_local: false,
+                should_write_server: true,
+            }
+        }
+        std::cmp::Ordering::Equal => SyncModelConfigResultPayload {
+            action: "noop".to_string(),
+            authoritative_source: "equal".to_string(),
+            config: request.local_config,
+            should_write_local: false,
+            should_write_server: false,
+        },
+        std::cmp::Ordering::Less => SyncModelConfigResultPayload {
+            action: "overwrite-local".to_string(),
+            authoritative_source: "server".to_string(),
+            config: server_config,
+            should_write_local: true,
+            should_write_server: false,
+        },
+    };
+
+    Json(create_envelope("core-sync-model-config", result))
+}
+
 async fn core_native_session_providers() -> Json<ApiListEnvelope<NativeSessionProviderPayload>> {
     Json(create_list_envelope(
         "core-native-session-providers",
@@ -16058,6 +17420,10 @@ struct WorkspaceRealtimeEventPayload {
     native_session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     turn_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    coding_session_event_kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    coding_session_event_payload: Option<serde_json::Value>,
     occurred_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     project_updated_at: Option<String>,
@@ -21435,10 +22801,149 @@ fn build_coding_session_payload_from_native_summary(
     }
 }
 
+fn normalize_optional_runtime_status(status: Option<&str>) -> Option<String> {
+    status
+        .map(str::trim)
+        .filter(|status| !status.is_empty())
+        .map(|status| {
+            normalize_codeengine_runtime_status(status)
+                .unwrap_or(status)
+                .to_owned()
+        })
+}
+
+fn is_engine_busy_runtime_status(status: &str) -> bool {
+    matches!(
+        normalize_codeengine_runtime_status(status),
+        Some("initializing" | "streaming")
+    )
+}
+
+fn resolve_latest_timestamp_millis_from_candidates(
+    explicit_timestamps: &[i64],
+    candidates: &[Option<&str>],
+) -> Option<i64> {
+    explicit_timestamps
+        .iter()
+        .copied()
+        .filter(|timestamp| *timestamp > 0)
+        .chain(
+            candidates
+                .iter()
+                .filter_map(|candidate| candidate.and_then(parse_storage_timestamp_millis)),
+        )
+        .max()
+}
+
+fn resolve_projection_session_activity_millis(session: &CodingSessionPayload) -> Option<i64> {
+    resolve_latest_timestamp_millis_from_candidates(
+        &[session.sort_timestamp],
+        &[
+            session.transcript_updated_at.as_deref(),
+            session.last_turn_at.as_deref(),
+            Some(session.updated_at.as_str()),
+            Some(session.created_at.as_str()),
+        ],
+    )
+}
+
+fn resolve_native_summary_activity_millis(
+    native_summary: &native_sessions::NativeSessionSummaryPayload,
+) -> Option<i64> {
+    resolve_latest_timestamp_millis_from_candidates(
+        &[native_summary.sort_timestamp],
+        &[
+            native_summary.transcript_updated_at.as_deref(),
+            native_summary.last_turn_at.as_deref(),
+            Some(native_summary.updated_at.as_str()),
+            Some(native_summary.created_at.as_str()),
+        ],
+    )
+}
+
+fn resolve_overlay_runtime_status(
+    session: &CodingSessionPayload,
+    native_summary: &native_sessions::NativeSessionSummaryPayload,
+) -> Option<String> {
+    let projection_status = normalize_optional_runtime_status(session.runtime_status.as_deref());
+    let native_status = normalize_optional_runtime_status(native_summary.runtime_status.as_deref());
+    let Some(projection_status_value) = projection_status.as_deref() else {
+        return native_status;
+    };
+    let Some(native_status_value) = native_status.as_deref() else {
+        return projection_status;
+    };
+
+    let projection_activity = resolve_projection_session_activity_millis(session);
+    let native_activity = resolve_native_summary_activity_millis(native_summary);
+    match (projection_activity, native_activity) {
+        (Some(projection_activity), Some(native_activity))
+            if native_activity > projection_activity =>
+        {
+            return native_status;
+        }
+        (Some(projection_activity), Some(native_activity))
+            if projection_activity > native_activity =>
+        {
+            return projection_status;
+        }
+        _ => {}
+    }
+
+    if is_engine_busy_runtime_status(projection_status_value)
+        && !is_engine_busy_runtime_status(native_status_value)
+    {
+        native_status
+    } else {
+        projection_status
+    }
+}
+
+fn resolve_overlay_sort_timestamp(
+    session: &CodingSessionPayload,
+    native_summary: &native_sessions::NativeSessionSummaryPayload,
+    last_turn_at: Option<&str>,
+    transcript_updated_at: Option<&str>,
+    updated_at: &str,
+) -> i64 {
+    resolve_latest_timestamp_millis_from_candidates(
+        &[session.sort_timestamp, native_summary.sort_timestamp],
+        &[
+            transcript_updated_at,
+            last_turn_at,
+            Some(updated_at),
+            Some(session.created_at.as_str()),
+            Some(native_summary.created_at.as_str()),
+        ],
+    )
+    .unwrap_or_default()
+}
+
 fn overlay_projection_session_with_native_summary(
     session: &CodingSessionPayload,
     native_summary: &native_sessions::NativeSessionSummaryPayload,
 ) -> CodingSessionPayload {
+    let updated_at = resolve_latest_storage_timestamp_from_candidates(&[
+        Some(session.updated_at.as_str()),
+        Some(native_summary.updated_at.as_str()),
+    ])
+    .unwrap_or_else(|| native_summary.updated_at.clone());
+    let last_turn_at = resolve_latest_storage_timestamp_from_candidates(&[
+        session.last_turn_at.as_deref(),
+        native_summary.last_turn_at.as_deref(),
+    ]);
+    let transcript_updated_at = resolve_latest_storage_timestamp_from_candidates(&[
+        session.transcript_updated_at.as_deref(),
+        native_summary.transcript_updated_at.as_deref(),
+    ]);
+    let sort_timestamp = resolve_overlay_sort_timestamp(
+        session,
+        native_summary,
+        last_turn_at.as_deref(),
+        transcript_updated_at.as_deref(),
+        updated_at.as_str(),
+    );
+
     CodingSessionPayload {
         id: session.id.clone(),
         workspace_id: native_summary.workspace_id.clone(),
@@ -21450,20 +22955,11 @@ fn overlay_projection_session_with_native_summary(
         model_id: native_summary.model_id.clone(),
         native_session_id: Some(native_summary.id.clone()),
         created_at: native_summary.created_at.clone(),
-        updated_at: native_summary.updated_at.clone(),
-        last_turn_at: native_summary
-            .last_turn_at
-            .clone()
-            .or_else(|| session.last_turn_at.clone()),
-        runtime_status: session
-            .runtime_status
-            .clone()
-            .or_else(|| native_summary.runtime_status.clone()),
-        sort_timestamp: native_summary.sort_timestamp,
-        transcript_updated_at: native_summary
-            .transcript_updated_at
-            .clone()
-            .or_else(|| session.transcript_updated_at.clone()),
+        updated_at,
+        last_turn_at,
+        runtime_status: resolve_overlay_runtime_status(session, native_summary),
+        sort_timestamp,
+        transcript_updated_at,
     }
 }
 
@@ -21483,6 +22979,19 @@ fn to_native_session_turn_ide_context(
             }
         }),
     })
+}
+
+fn build_native_session_turn_config(
+    options: Option<&CodingSessionTurnOptionsPayload>,
+) -> native_sessions::NativeSessionTurnConfig {
+    native_sessions::NativeSessionTurnConfig {
+        full_auto: true,
+        skip_git_repo_check: true,
+        temperature: options.and_then(|entry| entry.temperature),
+        top_p: options.and_then(|entry| entry.top_p),
+        max_tokens: options.and_then(|entry| entry.max_tokens),
+        ..Default::default()
+    }
 }
 
 async fn list_native_sessions_async(
@@ -21699,33 +23208,35 @@ fn build_native_session_events_for_coding_session(
         .iter()
         .enumerate()
         .map(|(index, message)| {
-            let mut payload = BTreeMap::new();
-            payload.insert("role".to_owned(), message.role.clone());
-            payload.insert("content".to_owned(), message.content.clone());
-            payload.insert("runtimeStatus".to_owned(), "completed".to_owned());
-            payload.insert("nativeSessionId".to_owned(), detail.summary.id.clone());
+            let mut payload = CodingSessionEventPayloadMap::new();
+            insert_payload_string(&mut payload, "role", message.role.clone());
+            insert_payload_string(&mut payload, "content", message.content.clone());
+            insert_payload_string(&mut payload, "runtimeStatus", "completed");
+            insert_payload_string(&mut payload, "nativeSessionId", detail.summary.id.clone());
             if let Some(commands) = message.commands.as_ref() {
-                if let Ok(serialized_commands) = serde_json::to_string(commands) {
-                    payload.insert("commandsJson".to_owned(), serialized_commands);
+                if let Ok(commands_value) = serde_json::to_value(commands) {
+                    insert_payload_value(&mut payload, "commands", commands_value);
                 }
             }
             if let Some(tool_calls) = message.tool_calls.as_ref() {
-                if let Ok(serialized_tool_calls) = serde_json::to_string(tool_calls) {
-                    payload.insert("toolCallsJson".to_owned(), serialized_tool_calls);
-                }
+                insert_payload_value(
+                    &mut payload,
+                    "toolCalls",
+                    serde_json::Value::Array(tool_calls.clone()),
+                );
             }
             if let Some(tool_call_id) = message.tool_call_id.as_ref() {
-                payload.insert("toolCallId".to_owned(), tool_call_id.clone());
+                insert_payload_string(&mut payload, "toolCallId", tool_call_id);
             }
             if let Some(file_changes) = message.file_changes.as_ref() {
-                if let Ok(serialized_file_changes) = serde_json::to_string(file_changes) {
-                    payload.insert("fileChangesJson".to_owned(), serialized_file_changes);
-                }
+                insert_payload_value(
+                    &mut payload,
+                    "fileChanges",
+                    serde_json::Value::Array(file_changes.clone()),
+                );
             }
             if let Some(task_progress) = message.task_progress.as_ref() {
-                if let Ok(serialized_task_progress) = serde_json::to_string(task_progress) {
-                    payload.insert("taskProgressJson".to_owned(), serialized_task_progress);
-                }
+                insert_payload_value(&mut payload, "taskProgress", task_progress.clone());
             }
 
             CodingSessionEventPayload {
@@ -21829,7 +23340,8 @@ fn read_message_event_overlay_content(event: &CodingSessionEventPayload) -> Opti
         .payload
         .get("content")
         .or_else(|| event.payload.get("contentDelta"))
-        .and_then(|content| normalize_projection_overlay_message_content(content.as_str()))
+        .and_then(serde_json::Value::as_str)
+        .and_then(normalize_projection_overlay_message_content)
 }
 
 fn read_message_event_overlay_raw_content(event: &CodingSessionEventPayload) -> Option<&str> {
@@ -21841,7 +23353,7 @@ fn read_message_event_overlay_raw_content(event: &CodingSessionEventPayload) -> 
         .payload
         .get("content")
         .or_else(|| event.payload.get("contentDelta"))
-        .map(String::as_str)
+        .and_then(serde_json::Value::as_str)
 }
 
 fn message_overlay_timestamps_are_near(
@@ -22096,11 +23608,7 @@ fn create_native_coding_session_turn(
                 &before_detail,
                 &app_admin_state.projects,
             ),
-            config: native_sessions::NativeSessionTurnConfig {
-                full_auto: true,
-                skip_git_repo_check: true,
-                ..Default::default()
-            },
+            config: build_native_session_turn_config(input.options.as_ref()),
         })?;
 
     let after_detail = native_sessions::get_native_session(
@@ -22734,6 +24242,97 @@ async fn core_delete_session_message(
     )))
 }
 
+async fn core_edit_session_message(
+    State(state): State<AppState>,
+    AxumPath((coding_session_id, message_id)): AxumPath<(String, String)>,
+    Json(request): Json<EditCodingSessionMessageRequest>,
+) -> Result<
+    Json<ApiEnvelope<EditCodingSessionMessagePayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let input = EditCodingSessionMessageInput::try_from(request).map_err(|message| {
+        problem_response(
+            "edit-coding-session-message-invalid",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            message,
+        )
+    })?;
+    let edited_content = input.content.clone();
+    let normalized_coding_session_id =
+        normalize_required_string(coding_session_id).ok_or_else(|| {
+            problem_response(
+                "edit-coding-session-message-invalid-session-id",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                "codingSessionId is required.",
+            )
+        })?;
+    let normalized_message_id = normalize_required_string(message_id).ok_or_else(|| {
+        problem_response(
+            "edit-coding-session-message-invalid-message-id",
+            StatusCode::BAD_REQUEST,
+            "argument_invalid",
+            "messageId is required.",
+        )
+    })?;
+
+    let existing_session = state
+        .projections
+        .session(&normalized_coding_session_id)
+        .ok_or_else(|| {
+            problem_response(
+                "edit-coding-session-message-not-found",
+                StatusCode::NOT_FOUND,
+                "not_found",
+                "Coding session projection was not found.",
+            )
+        })?;
+
+    state
+        .projections
+        .edit_coding_session_message(&normalized_coding_session_id, &normalized_message_id, input)
+        .map_err(|error| {
+            problem_response(
+                "edit-coding-session-message-failed",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "system_error",
+                format!("Failed to edit coding session message: {error}"),
+            )
+        })?;
+
+    let updated_session = state
+        .projections
+        .session(&normalized_coding_session_id)
+        .unwrap_or(existing_session.clone());
+    state.publish_coding_session_realtime_event(CodingSessionRealtimeEventInput {
+        event_kind: "coding-session.updated",
+        source_surface: "core",
+        workspace_id: updated_session.workspace_id.clone(),
+        project_id: updated_session.project_id.clone(),
+        project_root_path: None,
+        coding_session_id: updated_session.id.clone(),
+        coding_session_title: updated_session.title.clone(),
+        coding_session_status: updated_session.status.clone(),
+        coding_session_host_mode: updated_session.host_mode.clone(),
+        coding_session_engine_id: updated_session.engine_id.clone(),
+        coding_session_model_id: updated_session.model_id.clone(),
+        coding_session_runtime_status: updated_session.runtime_status.clone(),
+        native_session_id: updated_session.native_session_id.clone(),
+        coding_session_updated_at: Some(updated_session.updated_at.clone()),
+        turn_id: None,
+    });
+
+    Ok(Json(create_envelope(
+        "core-edit-session-message",
+        EditCodingSessionMessagePayload {
+            id: normalized_message_id,
+            coding_session_id: normalized_coding_session_id,
+            content: edited_content,
+        },
+    )))
+}
+
 async fn core_create_turn(
     State(state): State<AppState>,
     AxumPath(coding_session_id): AxumPath<String>,
@@ -22859,6 +24458,8 @@ async fn core_create_turn(
                 .map(FsPath::to_path_buf)
         });
 
+    let _requested_stream_hint = input.stream;
+    let should_stream_turn = true;
     let pending_turn = state
         .projections
         .create_coding_session_turn(&coding_session_id, input, project_root_path.as_deref())
@@ -22884,7 +24485,10 @@ async fn core_create_turn(
         coding_session_engine_id: pending_turn.session.engine_id.clone(),
         coding_session_model_id: pending_turn.session.model_id.clone(),
         coding_session_runtime_status: Some("streaming".to_owned()),
-        native_session_id: pending_turn.session.native_session_id.clone(),
+        native_session_id: pending_turn
+            .native_session_id
+            .clone()
+            .or_else(|| pending_turn.session.native_session_id.clone()),
         coding_session_updated_at: Some(
             pending_turn
                 .turn
@@ -22906,33 +24510,35 @@ async fn core_create_turn(
             input_summary: background_turn.turn.input_summary.clone(),
             ide_context: to_native_session_turn_ide_context(background_turn.ide_context.as_ref()),
             working_directory: background_turn.working_directory.clone(),
-            config: native_sessions::NativeSessionTurnConfig {
-                full_auto: true,
-                skip_git_repo_check: true,
-                ..Default::default()
-            },
+            config: build_native_session_turn_config(background_turn.options.as_ref()),
         };
 
         let streaming_state = background_state.clone();
         let streaming_turn = background_turn.clone();
         let completion_result = match tokio::task::spawn_blocking(move || {
+            if !should_stream_turn {
+                return native_sessions::execute_native_session_turn(&turn_request);
+            }
+
             native_sessions::execute_native_session_turn_with_events(&turn_request, |event| {
                 let resolved_native_session_id = event
                     .native_session_id
                     .as_deref()
                     .or(streaming_turn.native_session_id.as_deref());
-                let delta_created_at = streaming_state
+                let stream_event = streaming_state
                     .projections
-                    .append_coding_session_message_delta(
+                    .append_coding_session_stream_event(
                         &streaming_turn,
+                        event.kind.as_str(),
                         event.role.as_str(),
                         event.content_delta.as_str(),
+                        event.payload.as_ref(),
                         resolved_native_session_id,
                     )?;
-                if let Some(delta_created_at) = delta_created_at {
-                    streaming_state.publish_streaming_coding_session_delta_realtime_event(
+                if let Some(stream_event) = stream_event {
+                    streaming_state.publish_streaming_coding_session_event_realtime_event(
                         &streaming_turn,
-                        delta_created_at,
+                        &stream_event,
                     );
                 }
                 Ok(())
@@ -22965,30 +24571,18 @@ async fn core_create_turn(
         };
 
         match completion_result {
-            Ok(completed_turn) => {
+            Ok(finalized_turn) => {
                 if let Some(updated_session) = background_state
                     .projections
-                    .session(completed_turn.coding_session_id.as_str())
+                    .session(finalized_turn.turn.coding_session_id.as_str())
                 {
-                    background_state.publish_coding_session_realtime_event(
-                        CodingSessionRealtimeEventInput {
-                            event_kind: "coding-session.updated",
-                            source_surface: "core",
-                            workspace_id: updated_session.workspace_id.clone(),
-                            project_id: updated_session.project_id.clone(),
-                            project_root_path: None,
-                            coding_session_id: updated_session.id.clone(),
-                            coding_session_title: updated_session.title.clone(),
-                            coding_session_status: updated_session.status.clone(),
-                            coding_session_host_mode: updated_session.host_mode.clone(),
-                            coding_session_engine_id: updated_session.engine_id.clone(),
-                            coding_session_model_id: updated_session.model_id.clone(),
-                            coding_session_runtime_status: updated_session.runtime_status.clone(),
-                            native_session_id: updated_session.native_session_id.clone(),
-                            coding_session_updated_at: Some(updated_session.updated_at.clone()),
-                            turn_id: Some(completed_turn.id.clone()),
-                        },
-                    );
+                    for event in &finalized_turn.events {
+                        background_state.publish_finalized_coding_session_event_realtime_event(
+                            &background_turn,
+                            &updated_session,
+                            event,
+                        );
+                    }
                 }
             }
             Err(error) => {
@@ -23032,6 +24626,17 @@ async fn core_submit_approval_decision(
         ));
     }
 
+    state
+        .submit_live_provider_approval_decision(&approval_id, &input)
+        .map_err(|error| {
+            problem_response(
+                "submit-approval-decision-provider-reply-failed",
+                StatusCode::BAD_GATEWAY,
+                "provider_reply_failed",
+                format!("Failed to submit live provider approval decision: {error}"),
+            )
+        })?;
+
     let approval = state
         .projections
         .submit_approval_decision(&approval_id, input)
@@ -23043,8 +24648,15 @@ async fn core_submit_approval_decision(
                 format!("Failed to persist approval authority: {error}"),
             )
         })?;
+    state.publish_projection_coding_session_event_realtime_event(
+        approval.payload.coding_session_id.as_str(),
+        &approval.event,
+    );
 
-    Ok(Json(create_envelope("core-approval-decision", approval)))
+    Ok(Json(create_envelope(
+        "core-approval-decision",
+        approval.payload,
+    )))
 }
 
 async fn core_submit_user_question_answer(
@@ -23073,6 +24685,17 @@ async fn core_submit_user_question_answer(
         ));
     }
 
+    state
+        .submit_live_provider_user_question_answer(&question_id, &input)
+        .map_err(|error| {
+            problem_response(
+                "submit-user-question-answer-provider-reply-failed",
+                StatusCode::BAD_GATEWAY,
+                "provider_reply_failed",
+                format!("Failed to submit live provider user question answer: {error}"),
+            )
+        })?;
+
     let answer = state
         .projections
         .submit_user_question_answer(&question_id, input)
@@ -23093,8 +24716,15 @@ async fn core_submit_user_question_answer(
                 format!("Failed to persist user question authority: {error}"),
             )
         })?;
+    state.publish_projection_coding_session_event_realtime_event(
+        answer.payload.coding_session_id.as_str(),
+        &answer.event,
+    );
 
-    Ok(Json(create_envelope("core-user-question-answer", answer)))
+    Ok(Json(create_envelope(
+        "core-user-question-answer",
+        answer.payload,
+    )))
 }
 
 async fn core_session_events(
@@ -23380,6 +25010,10 @@ fn build_app_with_state(state: AppState) -> Router {
         )
         .route("/api/core/v1/models", get(core_models))
         .route(
+            "/api/core/v1/model-config",
+            get(core_model_config).put(core_sync_model_config),
+        )
+        .route(
             "/api/core/v1/coding-sessions",
             get(core_sessions).post(core_create_session),
         )
@@ -23391,7 +25025,7 @@ fn build_app_with_state(state: AppState) -> Router {
         )
         .route(
             "/api/core/v1/coding-sessions/{id}/messages/{message_id}",
-            delete(core_delete_session_message),
+            patch(core_edit_session_message).delete(core_delete_session_message),
         )
         .route(
             "/api/core/v1/coding-sessions/{id}/fork",
@@ -23627,6 +25261,7 @@ fn build_local_cors_layer() -> CorsLayer {
         .allow_methods([
             Method::GET,
             Method::POST,
+            Method::PUT,
             Method::PATCH,
             Method::DELETE,
             Method::OPTIONS,
@@ -23753,15 +25388,11 @@ mod tests {
         );
 
         assert_eq!(events[0].kind, "message.completed");
-        let commands_json = events[0]
-            .payload
-            .get("commandsJson")
-            .expect("message.completed includes commandsJson");
-        let parsed_commands = serde_json::from_str::<
-            Vec<native_sessions::NativeSessionCommandPayload>,
-        >(commands_json)
-        .expect("commandsJson is valid command payload JSON");
-        assert_eq!(parsed_commands, commands);
+        assert_eq!(
+            events[0].payload.get("commands"),
+            Some(&serde_json::to_value(&commands).expect("commands serialize to JSON value"))
+        );
+        assert_eq!(events[0].payload.get("commandsJson"), None);
     }
 
     fn insert_plus_project_fixture(
@@ -23978,6 +25609,18 @@ mod tests {
             }
         }
 
+        fn install_failure(directory_name: &str, stderr_message: &str) -> Self {
+            let fake_codex_path =
+                write_fake_codex_cli_failure_fixture(directory_name, stderr_message);
+            Self::install_from_path(fake_codex_path)
+        }
+
+        fn install_stream_failure(directory_name: &str, error_message: &str) -> Self {
+            let fake_codex_path =
+                write_fake_codex_cli_stream_failure_fixture(directory_name, error_message);
+            Self::install_from_path(fake_codex_path)
+        }
+
         fn project_root(&self) -> &FsPath {
             &self.fixture_directory
         }
@@ -24050,6 +25693,52 @@ mod tests {
         }
 
         panic!("timed out waiting for provider turn completion");
+    }
+
+    async fn wait_for_failed_projection_turn_finalization(
+        app: Router,
+        coding_session_id: &str,
+        turn_id: &str,
+    ) -> serde_json::Value {
+        for _ in 0..80 {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!(
+                            "/api/core/v1/coding-sessions/{coding_session_id}/events"
+                        ))
+                        .body(Body::empty())
+                        .expect("build get coding session events request"),
+                )
+                .await
+                .expect("serve get coding session events request");
+            let body = to_bytes(response.into_body(), usize::MAX)
+                .await
+                .expect("read get coding session events body");
+            let json: serde_json::Value =
+                serde_json::from_slice(&body).expect("parse get coding session events response");
+            let turn_events = json["items"]
+                .as_array()
+                .expect("events items")
+                .iter()
+                .filter(|event| event["turnId"] == turn_id)
+                .collect::<Vec<_>>();
+            let has_failed_message = turn_events.iter().any(|event| {
+                event["kind"] == "message.completed"
+                    && event["payload"]["runtimeStatus"] == "failed"
+            });
+            let has_failed_operation = turn_events.iter().any(|event| {
+                event["kind"] == "operation.updated"
+                    && event["payload"]["runtimeStatus"] == "failed"
+            });
+            if has_failed_message && has_failed_operation {
+                return json;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+
+        panic!("timed out waiting for projection turn failure finalization");
     }
 
     impl Drop for FakeCodexCliGuard {
@@ -24267,7 +25956,7 @@ mod tests {
                     runtime_id: Some("coding-session-demo:runtime".to_owned()),
                     kind: "turn.completed".to_owned(),
                     sequence: 0,
-                    payload: BTreeMap::from([
+                    payload: build_event_payload_strings(&[
                         ("finishReason".to_owned(), "stop".to_owned()),
                         ("runtimeStatus".to_owned(), "completed".to_owned()),
                     ]),
@@ -24280,7 +25969,7 @@ mod tests {
                     runtime_id: Some("coding-session-demo:runtime".to_owned()),
                     kind: "message.completed".to_owned(),
                     sequence: 1,
-                    payload: BTreeMap::from([
+                    payload: build_event_payload_strings(&[
                         (
                             "content".to_owned(),
                             "Explain why the transcript is empty.".to_owned(),
@@ -24370,12 +26059,12 @@ mod tests {
 
         assert_eq!(user_messages.len(), 1);
         assert_eq!(
-            user_messages[0].payload.get("content").map(String::as_str),
+            payload_string_ref(&user_messages[0].payload, "content"),
             Some("Explain why the transcript is empty.")
         );
         assert_eq!(assistant_messages.len(), 1);
         assert_eq!(
-            assistant_messages[0].payload.get("content").map(String::as_str),
+            payload_string_ref(&assistant_messages[0].payload, "content"),
             Some(
                 "The transcript was empty because the visible user message was replaced by the engine prompt."
             )
@@ -24396,7 +26085,7 @@ mod tests {
                     runtime_id: Some("runtime-demo".to_owned()),
                     kind: "message.completed".to_owned(),
                     sequence: 1,
-                    payload: BTreeMap::from([
+                    payload: build_event_payload_strings(&[
                         ("content".to_owned(), "Run lint".to_owned()),
                         ("role".to_owned(), "user".to_owned()),
                         ("runtimeStatus".to_owned(), "completed".to_owned()),
@@ -24410,7 +26099,7 @@ mod tests {
                     runtime_id: Some("runtime-demo".to_owned()),
                     kind: "message.completed".to_owned(),
                     sequence: 2,
-                    payload: BTreeMap::from([
+                    payload: build_event_payload_strings(&[
                         ("content".to_owned(), "Lint completed.".to_owned()),
                         ("role".to_owned(), "assistant".to_owned()),
                         ("runtimeStatus".to_owned(), "completed".to_owned()),
@@ -24515,7 +26204,7 @@ mod tests {
                     event_payload_role(&event.payload)
                         .unwrap_or_default()
                         .to_owned(),
-                    event.payload.get("content").cloned().unwrap_or_default(),
+                    payload_string_value(&event.payload, "content").unwrap_or_default(),
                 )
             })
             .collect::<Vec<_>>();
@@ -24546,7 +26235,7 @@ mod tests {
                     runtime_id: Some("runtime-demo".to_owned()),
                     kind: "message.delta".to_owned(),
                     sequence: 1,
-                    payload: BTreeMap::from([
+                    payload: build_event_payload_strings(&[
                         ("contentDelta".to_owned(), "Lint ".to_owned()),
                         ("role".to_owned(), "assistant".to_owned()),
                         ("runtimeStatus".to_owned(), "streaming".to_owned()),
@@ -24560,7 +26249,7 @@ mod tests {
                     runtime_id: Some("runtime-demo".to_owned()),
                     kind: "message.delta".to_owned(),
                     sequence: 2,
-                    payload: BTreeMap::from([
+                    payload: build_event_payload_strings(&[
                         ("contentDelta".to_owned(), "completed.".to_owned()),
                         ("role".to_owned(), "assistant".to_owned()),
                         ("runtimeStatus".to_owned(), "streaming".to_owned()),
@@ -24717,29 +26406,49 @@ mod tests {
             .expect("tool event");
 
         assert_eq!(
-            assistant_event.payload.get("commandsJson").map(String::as_str),
-            Some("[{\"command\":\"pnpm test\",\"status\":\"success\",\"output\":\"ok\",\"kind\":\"command\",\"toolName\":\"run_command\",\"toolCallId\":\"tool-run-tests\",\"runtimeStatus\":\"completed\",\"requiresApproval\":false,\"requiresReply\":false}]")
+            assistant_event.payload.get("commands"),
+            Some(
+                &serde_json::to_value(
+                    detail.messages[0]
+                        .commands
+                        .as_ref()
+                        .expect("assistant commands fixture")
+                )
+                .expect("commands serialize to JSON value")
+            )
         );
         assert_eq!(
-            assistant_event.payload.get("toolCallsJson").map(String::as_str),
-            Some("[{\"function\":{\"arguments\":\"{\\\"command\\\":\\\"pnpm test\\\"}\",\"name\":\"run_command\"},\"id\":\"tool-run-tests\",\"type\":\"function\"}]")
+            assistant_event.payload.get("toolCalls"),
+            Some(&serde_json::json!([{
+                "function": {
+                    "arguments": "{\"command\":\"pnpm test\"}",
+                    "name": "run_command"
+                },
+                "id": "tool-run-tests",
+                "type": "function"
+            }]))
         );
         assert_eq!(
-            assistant_event
-                .payload
-                .get("fileChangesJson")
-                .map(String::as_str),
-            Some("[{\"additions\":1,\"deletions\":1,\"path\":\"src/App.tsx\"}]")
+            assistant_event.payload.get("fileChanges"),
+            Some(&serde_json::json!([{
+                "additions": 1,
+                "deletions": 1,
+                "path": "src/App.tsx"
+            }]))
         );
         assert_eq!(
-            assistant_event
-                .payload
-                .get("taskProgressJson")
-                .map(String::as_str),
-            Some("{\"completed\":2,\"total\":2}")
+            assistant_event.payload.get("taskProgress"),
+            Some(&serde_json::json!({
+                "completed": 2,
+                "total": 2
+            }))
         );
+        assert_eq!(assistant_event.payload.get("commandsJson"), None);
+        assert_eq!(assistant_event.payload.get("toolCallsJson"), None);
+        assert_eq!(assistant_event.payload.get("fileChangesJson"), None);
+        assert_eq!(assistant_event.payload.get("taskProgressJson"), None);
         assert_eq!(
-            tool_event.payload.get("toolCallId").map(String::as_str),
+            payload_string_ref(&tool_event.payload, "toolCallId"),
             Some("tool-run-tests")
         );
     }
@@ -24830,6 +26539,108 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             permissions.set_mode(0o755);
             fs::set_permissions(&script_path, permissions)
                 .expect("set fake codex fixture permissions");
+        }
+
+        script_path
+    }
+
+    fn write_fake_codex_cli_failure_fixture(
+        directory_name: &str,
+        stderr_message: &str,
+    ) -> std::path::PathBuf {
+        let mut directory = std::env::temp_dir();
+        directory.push(directory_name);
+
+        if directory.exists() {
+            fs::remove_dir_all(&directory).expect("remove existing fake codex failure fixture");
+        }
+        fs::create_dir_all(&directory).expect("create fake codex failure fixture");
+
+        let script_name = if cfg!(windows) { "codex.cmd" } else { "codex" };
+        let script_path = directory.join(script_name);
+        let encoded_stderr_message =
+            serde_json::to_string(stderr_message).expect("encode fake codex stderr message");
+
+        let script_body = if cfg!(windows) {
+            format!(
+                "@echo off\r\n\
+setlocal\r\n\
+powershell -NoProfile -Command \"[Console]::Error.WriteLine({encoded_stderr_message})\"\r\n\
+exit /b 7\r\n"
+            )
+        } else {
+            format!(
+                "#!/bin/sh\n\
+printf '%s\\n' {encoded_stderr_message} >&2\n\
+exit 7\n"
+            )
+        };
+
+        fs::write(&script_path, script_body).expect("write fake codex failure fixture script");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let mut permissions = fs::metadata(&script_path)
+                .expect("read fake codex failure fixture metadata")
+                .permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&script_path, permissions)
+                .expect("set fake codex failure fixture permissions");
+        }
+
+        script_path
+    }
+
+    fn write_fake_codex_cli_stream_failure_fixture(
+        directory_name: &str,
+        error_message: &str,
+    ) -> std::path::PathBuf {
+        let mut directory = std::env::temp_dir();
+        directory.push(directory_name);
+
+        if directory.exists() {
+            fs::remove_dir_all(&directory)
+                .expect("remove existing fake codex stream failure fixture");
+        }
+        fs::create_dir_all(&directory).expect("create fake codex stream failure fixture");
+
+        let script_name = if cfg!(windows) { "codex.cmd" } else { "codex" };
+        let script_path = directory.join(script_name);
+        let encoded_error_message =
+            serde_json::to_string(error_message).expect("encode fake codex stream error message");
+
+        let script_body = if cfg!(windows) {
+            format!(
+                "@echo off\r\n\
+setlocal\r\n\
+echo {{\"type\":\"thread.started\",\"thread_id\":\"fake-codex-failed-thread\"}}\r\n\
+echo {{\"type\":\"turn.failed\",\"thread_id\":\"fake-codex-failed-thread\",\"error\":{{\"message\":{encoded_error_message}}}}}\r\n\
+exit /b 1\r\n"
+            )
+        } else {
+            format!(
+                "#!/bin/sh\n\
+printf '%s\\n' '{{\"type\":\"thread.started\",\"thread_id\":\"fake-codex-failed-thread\"}}'\n\
+printf '%s\\n' '{{\"type\":\"turn.failed\",\"thread_id\":\"fake-codex-failed-thread\",\"error\":{{\"message\":{encoded_error_message}}}}}'\n\
+exit 1\n"
+            )
+        };
+
+        fs::write(&script_path, script_body)
+            .expect("write fake codex stream failure fixture script");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let mut permissions = fs::metadata(&script_path)
+                .expect("read fake codex stream failure fixture metadata")
+                .permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&script_path, permissions)
+                .expect("set fake codex stream failure fixture permissions");
         }
 
         script_path
@@ -27673,6 +29484,734 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
     }
 
     #[tokio::test]
+    async fn edit_coding_session_message_route_appends_message_edited_event() {
+        let state = AppState::demo();
+        {
+            let mut projection_state = state
+                .projections
+                .state
+                .write()
+                .expect("write projection test state");
+            let snapshot = projection_state
+                .sessions
+                .get_mut("demo-coding-session")
+                .expect("demo coding session snapshot");
+            snapshot.events.push(CodingSessionEventPayload {
+                id: "demo-runtime:demo-turn:event:3".to_owned(),
+                coding_session_id: "demo-coding-session".to_owned(),
+                turn_id: Some("demo-turn".to_owned()),
+                runtime_id: Some("demo-runtime".to_owned()),
+                kind: "message.completed".to_owned(),
+                sequence: 3,
+                payload: build_event_payload_strings(&[
+                    ("role", "user"),
+                    ("content", "Original user prompt"),
+                    ("runtimeStatus", "completed"),
+                ]),
+                created_at: "2026-04-10T00:00:05Z".to_owned(),
+            });
+        }
+
+        let app = build_app_with_state(state);
+        let message_id = "demo-coding-session:authoritative:demo-turn:user";
+        let request_body = serde_json::json!({
+            "content": "Edited user prompt",
+        });
+
+        let edit_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri(format!(
+                        "/api/core/v1/coding-sessions/demo-coding-session/messages/{message_id}"
+                    ))
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build edit coding session message request"),
+            )
+            .await
+            .expect("serve edit coding session message request");
+
+        assert_eq!(edit_response.status(), StatusCode::OK);
+        let edit_body = to_bytes(edit_response.into_body(), usize::MAX)
+            .await
+            .expect("read edit coding session message body");
+        let edit_json: serde_json::Value =
+            serde_json::from_slice(&edit_body).expect("parse edit response");
+        assert_eq!(edit_json["data"]["id"], message_id);
+        assert_eq!(edit_json["data"]["content"], "Edited user prompt");
+
+        let events_response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/core/v1/coding-sessions/demo-coding-session/events")
+                    .body(Body::empty())
+                    .expect("build events request"),
+            )
+            .await
+            .expect("serve events request");
+        assert_eq!(events_response.status(), StatusCode::OK);
+        let events_body = to_bytes(events_response.into_body(), usize::MAX)
+            .await
+            .expect("read events body");
+        let events_json: serde_json::Value =
+            serde_json::from_slice(&events_body).expect("parse events response");
+        let edited_event = events_json["items"]
+            .as_array()
+            .expect("events items")
+            .iter()
+            .find(|event| event["kind"] == "message.edited")
+            .expect("message.edited event");
+        assert_eq!(edited_event["payload"]["editedMessageId"], message_id);
+        assert_eq!(edited_event["payload"]["content"], "Edited user prompt");
+        assert_eq!(edited_event["payload"]["runtimeStatus"], "completed");
+    }
+
+    #[tokio::test]
+    async fn streaming_coding_session_realtime_preserves_event_runtime_status() {
+        let state = AppState::demo();
+        let mut realtime_receiver = state.realtime.subscribe();
+        let snapshot = state
+            .projections
+            .session_snapshot("demo-coding-session")
+            .expect("demo coding session snapshot");
+        let pending = PendingProjectionTurnExecution {
+            session: snapshot.session.expect("demo coding session payload"),
+            turn: snapshot
+                .turns
+                .first()
+                .expect("demo coding session turn")
+                .clone(),
+            operation: snapshot
+                .operations
+                .first()
+                .expect("demo coding session operation")
+                .clone(),
+            native_session_id: Some("native-session-awaiting-approval".to_owned()),
+            ide_context: None,
+            options: None,
+            working_directory: None,
+        };
+        let event = CodingSessionEventPayload {
+            id: "demo-runtime:demo-turn:event:approval-required".to_owned(),
+            coding_session_id: pending.session.id.clone(),
+            turn_id: Some(pending.turn.id.clone()),
+            runtime_id: pending.turn.runtime_id.clone(),
+            kind: "approval.required".to_owned(),
+            sequence: 3,
+            payload: build_event_payload_strings(&[
+                ("operationId", pending.operation.operation_id.as_str()),
+                ("runtimeStatus", "awaiting_approval"),
+            ]),
+            created_at: "2026-04-10T00:00:04Z".to_owned(),
+        };
+
+        state.publish_streaming_coding_session_event_realtime_event(&pending, &event);
+
+        let realtime_event = tokio::time::timeout(Duration::from_secs(2), realtime_receiver.recv())
+            .await
+            .expect("receive streaming coding session realtime event")
+            .expect("streaming coding session realtime event is published");
+        assert_eq!(realtime_event.event_kind, "coding-session.updated");
+        assert_eq!(
+            realtime_event.coding_session_event_kind.as_deref(),
+            Some("approval.required")
+        );
+        assert_eq!(
+            realtime_event.coding_session_runtime_status.as_deref(),
+            Some("awaiting_approval"),
+            "streaming realtime must preserve code engine waiting states so the UI does not keep showing a generic spinner"
+        );
+        assert_eq!(
+            realtime_event.native_session_id.as_deref(),
+            Some("native-session-awaiting-approval")
+        );
+        assert_eq!(
+            realtime_event
+                .coding_session_event_payload
+                .as_ref()
+                .and_then(|payload| payload.get("runtimeStatus"))
+                .and_then(serde_json::Value::as_str),
+            Some("awaiting_approval")
+        );
+    }
+
+    #[test]
+    fn projection_runtime_status_ignores_completed_tool_lifecycle_events_until_turn_terminal() {
+        let events = vec![
+            CodingSessionEventPayload {
+                id: "runtime-contract-turn-started".to_owned(),
+                coding_session_id: "runtime-contract-session".to_owned(),
+                turn_id: Some("runtime-contract-turn".to_owned()),
+                runtime_id: Some("runtime-contract-runtime".to_owned()),
+                kind: "turn.started".to_owned(),
+                sequence: 1,
+                payload: build_event_payload_strings(&[("runtimeStatus", "streaming")]),
+                created_at: "2026-04-10T00:00:01Z".to_owned(),
+            },
+            CodingSessionEventPayload {
+                id: "runtime-contract-tool-completed".to_owned(),
+                coding_session_id: "runtime-contract-session".to_owned(),
+                turn_id: Some("runtime-contract-turn".to_owned()),
+                runtime_id: Some("runtime-contract-runtime".to_owned()),
+                kind: "tool.call.completed".to_owned(),
+                sequence: 2,
+                payload: build_event_payload_strings(&[
+                    ("runtimeStatus", "completed"),
+                    ("toolName", "run_command"),
+                ]),
+                created_at: "2026-04-10T00:00:02Z".to_owned(),
+            },
+        ];
+
+        assert_eq!(
+            resolve_projection_runtime_status(events.as_slice()).as_deref(),
+            Some("streaming"),
+            "completed tool lifecycle events must not mark the whole coding-session turn completed"
+        );
+
+        let user_message_events = vec![
+            CodingSessionEventPayload {
+                id: "runtime-contract-user-turn-started".to_owned(),
+                coding_session_id: "runtime-contract-session".to_owned(),
+                turn_id: Some("runtime-contract-turn".to_owned()),
+                runtime_id: Some("runtime-contract-runtime".to_owned()),
+                kind: "turn.started".to_owned(),
+                sequence: 1,
+                payload: build_event_payload_strings(&[("runtimeStatus", "streaming")]),
+                created_at: "2026-04-10T00:00:01Z".to_owned(),
+            },
+            CodingSessionEventPayload {
+                id: "runtime-contract-user-message-completed".to_owned(),
+                coding_session_id: "runtime-contract-session".to_owned(),
+                turn_id: Some("runtime-contract-turn".to_owned()),
+                runtime_id: Some("runtime-contract-runtime".to_owned()),
+                kind: "message.completed".to_owned(),
+                sequence: 2,
+                payload: build_event_payload_strings(&[
+                    ("role", "user"),
+                    ("runtimeStatus", "completed"),
+                ]),
+                created_at: "2026-04-10T00:00:02Z".to_owned(),
+            },
+        ];
+        assert_eq!(
+            resolve_projection_runtime_status(user_message_events.as_slice()).as_deref(),
+            Some("streaming"),
+            "completed user prompt events must not mark the assistant turn completed"
+        );
+
+        let assistant_message_events = vec![
+            CodingSessionEventPayload {
+                id: "runtime-contract-assistant-turn-started".to_owned(),
+                coding_session_id: "runtime-contract-session".to_owned(),
+                turn_id: Some("runtime-contract-turn".to_owned()),
+                runtime_id: Some("runtime-contract-runtime".to_owned()),
+                kind: "turn.started".to_owned(),
+                sequence: 1,
+                payload: build_event_payload_strings(&[("runtimeStatus", "streaming")]),
+                created_at: "2026-04-10T00:00:01Z".to_owned(),
+            },
+            CodingSessionEventPayload {
+                id: "runtime-contract-assistant-message-completed".to_owned(),
+                coding_session_id: "runtime-contract-session".to_owned(),
+                turn_id: Some("runtime-contract-turn".to_owned()),
+                runtime_id: Some("runtime-contract-runtime".to_owned()),
+                kind: "message.completed".to_owned(),
+                sequence: 2,
+                payload: build_event_payload_strings(&[
+                    ("role", "assistant"),
+                    ("content", "Assistant reply completed without an explicit runtime hint."),
+                ]),
+                created_at: "2026-04-10T00:00:02Z".to_owned(),
+            },
+        ];
+        assert_eq!(
+            resolve_projection_runtime_status(assistant_message_events.as_slice()).as_deref(),
+            Some("completed"),
+            "completed assistant events must settle the coding-session runtime even when older providers omit runtimeStatus"
+        );
+
+        let mut approval_events = events.clone();
+        approval_events.push(CodingSessionEventPayload {
+            id: "runtime-contract-approval-required".to_owned(),
+            coding_session_id: "runtime-contract-session".to_owned(),
+            turn_id: Some("runtime-contract-turn".to_owned()),
+            runtime_id: Some("runtime-contract-runtime".to_owned()),
+            kind: "approval.required".to_owned(),
+            sequence: 3,
+            payload: build_event_payload_strings(&[
+                ("runtimeStatus", "awaiting_approval"),
+                ("toolName", "permission_request"),
+            ]),
+            created_at: "2026-04-10T00:00:03Z".to_owned(),
+        });
+        assert_eq!(
+            resolve_projection_runtime_status(approval_events.as_slice()).as_deref(),
+            Some("awaiting_approval"),
+            "approval waits are session-level runtime states and must survive hydration"
+        );
+
+        let mut completed_events = events;
+        completed_events.push(CodingSessionEventPayload {
+            id: "runtime-contract-turn-completed".to_owned(),
+            coding_session_id: "runtime-contract-session".to_owned(),
+            turn_id: Some("runtime-contract-turn".to_owned()),
+            runtime_id: Some("runtime-contract-runtime".to_owned()),
+            kind: "turn.completed".to_owned(),
+            sequence: 3,
+            payload: build_event_payload_strings(&[("runtimeStatus", "completed")]),
+            created_at: "2026-04-10T00:00:04Z".to_owned(),
+        });
+        assert_eq!(
+            resolve_projection_runtime_status(completed_events.as_slice()).as_deref(),
+            Some("completed"),
+            "terminal turn events must still close the session runtime"
+        );
+    }
+
+    #[test]
+    fn failed_runtime_status_is_terminal_and_not_an_initialization_retry() {
+        assert!(
+            should_retry_coding_session_runtime_initialization(Some("initializing")),
+            "initializing runtimes are allowed to finish startup initialization"
+        );
+        assert!(
+            !should_retry_coding_session_runtime_initialization(Some("failed")),
+            "failed runtime status is also used by failed turns and must not be retried as runtime initialization"
+        );
+    }
+
+    #[test]
+    fn overlay_projection_session_runtime_status_uses_fresher_native_summary() {
+        let projection_session = CodingSessionPayload {
+            id: "projection-overlay-session".to_owned(),
+            workspace_id: "workspace-projection-overlay".to_owned(),
+            project_id: "project-projection-overlay".to_owned(),
+            title: "Projection overlay session".to_owned(),
+            status: "active".to_owned(),
+            host_mode: "server".to_owned(),
+            engine_id: "codex".to_owned(),
+            model_id: "gpt-5-codex".to_owned(),
+            native_session_id: Some("native-projection-overlay-session".to_owned()),
+            created_at: "2026-04-27T10:00:00Z".to_owned(),
+            updated_at: "2026-04-27T10:01:00Z".to_owned(),
+            last_turn_at: Some("2026-04-27T10:01:00Z".to_owned()),
+            runtime_status: Some("streaming".to_owned()),
+            sort_timestamp: parse_storage_timestamp_millis("2026-04-27T10:01:00Z")
+                .unwrap_or_default(),
+            transcript_updated_at: Some("2026-04-27T10:01:00Z".to_owned()),
+        };
+        let newer_native_summary = native_sessions::NativeSessionSummaryPayload {
+            id: "native-projection-overlay-session".to_owned(),
+            workspace_id: "workspace-projection-overlay".to_owned(),
+            project_id: "project-projection-overlay".to_owned(),
+            title: "Projection overlay session".to_owned(),
+            status: "completed".to_owned(),
+            host_mode: "server".to_owned(),
+            engine_id: "codex".to_owned(),
+            model_id: "gpt-5-codex".to_owned(),
+            created_at: "2026-04-27T10:00:00Z".to_owned(),
+            updated_at: "2026-04-27T10:02:00Z".to_owned(),
+            last_turn_at: Some("2026-04-27T10:02:00Z".to_owned()),
+            runtime_status: Some("completed".to_owned()),
+            kind: "session".to_owned(),
+            native_cwd: None,
+            sort_timestamp: parse_storage_timestamp_millis("2026-04-27T10:02:00Z")
+                .unwrap_or_default(),
+            transcript_updated_at: Some("2026-04-27T10:02:00Z".to_owned()),
+        };
+        let older_native_summary = native_sessions::NativeSessionSummaryPayload {
+            updated_at: "2026-04-27T10:00:30Z".to_owned(),
+            last_turn_at: Some("2026-04-27T10:00:30Z".to_owned()),
+            runtime_status: Some("completed".to_owned()),
+            sort_timestamp: parse_storage_timestamp_millis("2026-04-27T10:00:30Z")
+                .unwrap_or_default(),
+            transcript_updated_at: Some("2026-04-27T10:00:30Z".to_owned()),
+            ..newer_native_summary.clone()
+        };
+
+        let settled_overlay = overlay_projection_session_with_native_summary(
+            &projection_session,
+            &newer_native_summary,
+        );
+        assert_eq!(
+            settled_overlay.runtime_status.as_deref(),
+            Some("completed"),
+            "a newer native terminal summary must settle stale projection streaming state so startup rows do not keep spinning"
+        );
+
+        let active_overlay = overlay_projection_session_with_native_summary(
+            &projection_session,
+            &older_native_summary,
+        );
+        assert_eq!(
+            active_overlay.runtime_status.as_deref(),
+            Some("streaming"),
+            "a newer projection turn must keep its active streaming state when the native summary still describes an older turn"
+        );
+    }
+
+    #[test]
+    fn app_state_load_recovers_interrupted_sqlite_streaming_turns() {
+        let sqlite_path = write_sqlite_provider_authority_fixture(
+            "birdcoder-provider-interrupted-streaming-turn.sqlite",
+        );
+        let connection = Connection::open(&sqlite_path).expect("open provider authority sqlite");
+        connection
+            .execute(
+                r#"
+                UPDATE coding_session_runtimes
+                SET status = 'streaming', updated_at = '2026-04-27T11:00:03Z'
+                WHERE id = 'provider-runtime'
+                "#,
+                [],
+            )
+            .expect("mark provider runtime streaming");
+        connection
+            .execute(
+                r#"
+                UPDATE coding_session_turns
+                SET status = 'running', completed_at = NULL, updated_at = '2026-04-27T11:00:02Z'
+                WHERE id = 'provider-turn'
+                "#,
+                [],
+            )
+            .expect("mark provider turn running");
+        connection
+            .execute(
+                r#"
+                UPDATE coding_session_operations
+                SET status = 'running', updated_at = '2026-04-27T11:00:02Z'
+                WHERE id = 'provider-turn:operation'
+                "#,
+                [],
+            )
+            .expect("mark provider operation running");
+        connection
+            .execute(
+                r#"
+                UPDATE coding_session_events
+                SET event_kind = 'message.delta',
+                    payload_json = '{"engineId":"codex","role":"assistant","contentDelta":"still running","runtimeStatus":"streaming"}',
+                    created_at = '2026-04-27T11:00:03Z',
+                    updated_at = '2026-04-27T11:00:03Z'
+                WHERE id = 'provider-runtime:provider-turn:event:0'
+                "#,
+                [],
+            )
+            .expect("mark provider event streaming");
+        drop(connection);
+
+        let state = AppState::load(&AuthorityBootstrapConfig {
+            sqlite_file: Some(sqlite_path.clone()),
+            snapshot_file: None,
+        })
+        .expect("load provider-backed app state");
+        let session = state
+            .projections
+            .session("provider-session")
+            .expect("provider session should load");
+        assert_eq!(
+            session.runtime_status.as_deref(),
+            Some("failed"),
+            "startup must not leave interrupted persisted streaming turns in an engine-busy state"
+        );
+
+        let connection = Connection::open(&sqlite_path).expect("reopen provider authority sqlite");
+        let persisted_runtime_status: String = connection
+            .query_row(
+                "SELECT status FROM coding_session_runtimes WHERE id = 'provider-runtime'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read recovered runtime status");
+        let persisted_turn: (String, Option<String>) = connection
+            .query_row(
+                "SELECT status, completed_at FROM coding_session_turns WHERE id = 'provider-turn'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("read recovered turn status");
+        let terminal_event_count: i64 = connection
+            .query_row(
+                r#"
+                SELECT COUNT(*)
+                FROM coding_session_events
+                WHERE coding_session_id = 'provider-session'
+                  AND turn_id = 'provider-turn'
+                  AND event_kind = 'turn.failed'
+                "#,
+                [],
+                |row| row.get(0),
+            )
+            .expect("read recovered terminal event count");
+
+        assert_eq!(persisted_runtime_status, "failed");
+        assert_eq!(persisted_turn.0, "failed");
+        assert!(persisted_turn.1.is_some());
+        assert_eq!(terminal_event_count, 1);
+
+        drop(connection);
+        fs::remove_file(sqlite_path).expect("remove provider authority fixture");
+    }
+
+    #[tokio::test]
+    async fn create_coding_session_turn_route_publishes_pending_native_session_id() {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let fake_codex = FakeCodexCliGuard::install_with_delay(
+            "birdcoder-fake-codex-cli-pending-native-turn-created",
+            "Codex CLI executed with an existing native session id.",
+            250,
+        );
+        let mut state = AppState::demo();
+        override_project_root_path(&mut state, "demo-project", fake_codex.project_root());
+        {
+            let mut projection_state = state
+                .projections
+                .state
+                .write()
+                .expect("write projection state");
+            let snapshot = projection_state
+                .sessions
+                .get_mut("demo-coding-session")
+                .expect("demo coding session snapshot");
+            snapshot.events.push(CodingSessionEventPayload {
+                id: "demo-runtime:demo-turn:event:native-session".to_owned(),
+                coding_session_id: "demo-coding-session".to_owned(),
+                turn_id: Some("demo-turn".to_owned()),
+                runtime_id: Some("demo-runtime".to_owned()),
+                kind: "session.updated".to_owned(),
+                sequence: 3,
+                payload: build_event_payload_strings(&[
+                    ("nativeSessionId", "native-session-from-pending-turn"),
+                    ("runtimeStatus", "completed"),
+                ]),
+                created_at: "2026-04-10T00:00:05Z".to_owned(),
+            });
+        }
+        let mut realtime_receiver = state.realtime.subscribe();
+        let app = build_app_with_state(state);
+        let request_body = serde_json::json!({
+            "requestKind": "chat",
+            "inputSummary": "Continue the existing native session id",
+        });
+
+        let create_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/core/v1/coding-sessions/demo-coding-session/turns")
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build create coding session turn request"),
+            )
+            .await
+            .expect("serve create coding session turn request");
+
+        assert_eq!(create_response.status(), StatusCode::CREATED);
+        let create_body = to_bytes(create_response.into_body(), usize::MAX)
+            .await
+            .expect("read create coding session turn body");
+        let create_json: serde_json::Value = serde_json::from_slice(&create_body)
+            .expect("parse create coding session turn response");
+        let created_turn_id = create_json["data"]["id"]
+            .as_str()
+            .expect("created turn id")
+            .to_owned();
+
+        let mut created_turn_event = None;
+        for _ in 0..12 {
+            let Ok(Ok(realtime_event)) =
+                tokio::time::timeout(Duration::from_millis(250), realtime_receiver.recv()).await
+            else {
+                continue;
+            };
+            if realtime_event.event_kind == "coding-session.turn.created"
+                && realtime_event.turn_id.as_deref() == Some(created_turn_id.as_str())
+            {
+                created_turn_event = Some(realtime_event);
+                break;
+            }
+        }
+
+        let created_turn_event = created_turn_event
+            .expect("create turn route must publish coding-session.turn.created realtime event");
+        assert_eq!(
+            created_turn_event.native_session_id.as_deref(),
+            Some("native-session-from-pending-turn"),
+            "turn.created realtime must publish the native session id resolved for the pending turn, even before the session summary is refreshed"
+        );
+    }
+
+    #[tokio::test]
+    async fn create_coding_session_turn_route_publishes_final_failed_turn_realtime_event() {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let fake_codex = FakeCodexCliGuard::install_failure(
+            "birdcoder-fake-codex-cli-final-failure-realtime",
+            "Simulated Codex CLI transport failure.",
+        );
+        let mut state = AppState::demo();
+        override_project_root_path(&mut state, "demo-project", fake_codex.project_root());
+        let mut realtime_receiver = state.realtime.subscribe();
+        let app = build_app_with_state(state);
+        let request_body = serde_json::json!({
+            "requestKind": "chat",
+            "inputSummary": "Expose the final failure through realtime",
+        });
+
+        let create_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/core/v1/coding-sessions/demo-coding-session/turns")
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build create coding session turn request"),
+            )
+            .await
+            .expect("serve create coding session turn request");
+
+        assert_eq!(create_response.status(), StatusCode::CREATED);
+        let create_body = to_bytes(create_response.into_body(), usize::MAX)
+            .await
+            .expect("read create coding session turn body");
+        let create_json: serde_json::Value = serde_json::from_slice(&create_body)
+            .expect("parse create coding session turn response");
+        let created_turn_id = create_json["data"]["id"]
+            .as_str()
+            .expect("created turn id")
+            .to_owned();
+
+        let events_json = wait_for_projection_turn_events(
+            app.clone(),
+            "demo-coding-session",
+            created_turn_id.as_str(),
+        )
+        .await;
+        assert!(
+            events_json["items"]
+                .as_array()
+                .expect("events items")
+                .iter()
+                .any(|event| {
+                    event["turnId"] == created_turn_id
+                        && event["kind"] == "turn.failed"
+                        && event["payload"]["runtimeStatus"] == "failed"
+                }),
+            "failed native turns must persist a canonical turn.failed event"
+        );
+
+        let mut failure_event = None;
+        for _ in 0..12 {
+            let Ok(Ok(realtime_event)) =
+                tokio::time::timeout(Duration::from_millis(250), realtime_receiver.recv()).await
+            else {
+                continue;
+            };
+            if realtime_event.turn_id.as_deref() == Some(created_turn_id.as_str())
+                && realtime_event.coding_session_event_kind.as_deref() == Some("turn.failed")
+            {
+                failure_event = Some(realtime_event);
+                break;
+            }
+        }
+
+        let failure_event = failure_event.expect(
+            "failed native turns must publish the final turn.failed realtime event payload",
+        );
+        assert_eq!(
+            failure_event.coding_session_runtime_status.as_deref(),
+            Some("failed")
+        );
+        assert_eq!(
+            failure_event
+                .coding_session_event_payload
+                .as_ref()
+                .and_then(|payload| payload.get("runtimeStatus"))
+                .and_then(serde_json::Value::as_str),
+            Some("failed")
+        );
+        assert!(
+            failure_event
+                .coding_session_event_payload
+                .as_ref()
+                .and_then(|payload| payload.get("errorMessage"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .contains("Codex CLI did not return an assistant response"),
+            "realtime turn.failed payload must include the canonical failure message"
+        );
+    }
+
+    #[tokio::test]
+    async fn create_coding_session_turn_route_deduplicates_streamed_terminal_failure_events() {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let fake_codex = FakeCodexCliGuard::install_stream_failure(
+            "birdcoder-fake-codex-cli-stream-failure-dedup",
+            "Simulated streamed Codex failure.",
+        );
+        let mut state = AppState::demo();
+        override_project_root_path(&mut state, "demo-project", fake_codex.project_root());
+        let app = build_app_with_state(state);
+        let request_body = serde_json::json!({
+            "requestKind": "chat",
+            "inputSummary": "Deduplicate streamed terminal failures",
+        });
+
+        let create_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/core/v1/coding-sessions/demo-coding-session/turns")
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build create coding session turn request"),
+            )
+            .await
+            .expect("serve create coding session turn request");
+
+        assert_eq!(create_response.status(), StatusCode::CREATED);
+        let create_body = to_bytes(create_response.into_body(), usize::MAX)
+            .await
+            .expect("read create coding session turn body");
+        let create_json: serde_json::Value = serde_json::from_slice(&create_body)
+            .expect("parse create coding session turn response");
+        let created_turn_id = create_json["data"]["id"]
+            .as_str()
+            .expect("created turn id")
+            .to_owned();
+
+        let events_json = wait_for_failed_projection_turn_finalization(
+            app,
+            "demo-coding-session",
+            created_turn_id.as_str(),
+        )
+        .await;
+        let turn_failed_events = events_json["items"]
+            .as_array()
+            .expect("events items")
+            .iter()
+            .filter(|event| event["turnId"] == created_turn_id && event["kind"] == "turn.failed")
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            turn_failed_events.len(),
+            1,
+            "server finalization must not append a second turn.failed when the provider already streamed a terminal failure"
+        );
+        assert_eq!(
+            turn_failed_events[0]["payload"]["errorMessage"],
+            "Simulated streamed Codex failure."
+        );
+        assert_eq!(turn_failed_events[0]["payload"]["runtimeStatus"], "failed");
+    }
+
+    #[tokio::test]
     async fn native_only_coding_session_turn_realtime_does_not_publish_streaming_after_completion()
     {
         let _guard = ENV_LOCK.lock().expect("lock env");
@@ -27952,7 +30491,9 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
 
     #[tokio::test]
     async fn submit_approval_decision_route_updates_demo_projection_authority() {
-        let app = build_app();
+        let state = AppState::demo();
+        let mut realtime_receiver = state.realtime.subscribe();
+        let app = build_app_with_state(state);
         let request_body = serde_json::json!({
             "decision": "approved",
             "reason": "Looks safe",
@@ -28086,6 +30627,33 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             serde_json::from_slice(&operation_body).expect("parse operation response");
 
         assert_eq!(operation_json["data"]["status"], "running");
+
+        let realtime_event = tokio::time::timeout(Duration::from_secs(2), realtime_receiver.recv())
+            .await
+            .expect("receive approval decision realtime event")
+            .expect("approval decision realtime event is published");
+        assert_eq!(realtime_event.event_kind, "coding-session.updated");
+        assert_eq!(
+            realtime_event.coding_session_id.as_deref(),
+            Some("demo-coding-session")
+        );
+        assert_eq!(
+            realtime_event.coding_session_event_kind.as_deref(),
+            Some("operation.updated")
+        );
+        assert_eq!(
+            realtime_event.coding_session_runtime_status.as_deref(),
+            Some("awaiting_tool")
+        );
+        assert_eq!(realtime_event.turn_id.as_deref(), Some("demo-turn"));
+        assert_eq!(
+            realtime_event
+                .coding_session_event_payload
+                .as_ref()
+                .and_then(|payload| payload.get("approvalDecision"))
+                .and_then(serde_json::Value::as_str),
+            Some("approved")
+        );
     }
 
     #[tokio::test]
@@ -28145,13 +30713,13 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
   }
 }"#,
         );
-        let app = build_app_with_state(
-            AppState::load(&AuthorityBootstrapConfig {
-                sqlite_file: None,
-                snapshot_file: Some(snapshot_path.clone()),
-            })
-            .expect("load user question snapshot authority"),
-        );
+        let state = AppState::load(&AuthorityBootstrapConfig {
+            sqlite_file: None,
+            snapshot_file: Some(snapshot_path.clone()),
+        })
+        .expect("load user question snapshot authority");
+        let mut realtime_receiver = state.realtime.subscribe();
+        let app = build_app_with_state(state);
         let request_body = serde_json::json!({
             "answer": "Use the streaming adapter path",
             "optionId": "streaming-adapter",
@@ -28250,7 +30818,225 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             "awaiting_tool"
         );
 
+        let realtime_event = tokio::time::timeout(Duration::from_secs(2), realtime_receiver.recv())
+            .await
+            .expect("receive user question answer realtime event")
+            .expect("user question answer realtime event is published");
+        assert_eq!(realtime_event.event_kind, "coding-session.updated");
+        assert_eq!(
+            realtime_event.coding_session_id.as_deref(),
+            Some("question-session")
+        );
+        assert_eq!(
+            realtime_event.coding_session_event_kind.as_deref(),
+            Some("operation.updated")
+        );
+        assert_eq!(
+            realtime_event.coding_session_runtime_status.as_deref(),
+            Some("awaiting_tool")
+        );
+        assert_eq!(realtime_event.turn_id.as_deref(), Some("question-turn"));
+        assert_eq!(
+            realtime_event
+                .coding_session_event_payload
+                .as_ref()
+                .and_then(|payload| payload.get("answer"))
+                .and_then(serde_json::Value::as_str),
+            Some("Use the streaming adapter path")
+        );
+
         fs::remove_file(snapshot_path).expect("remove user question snapshot fixture");
+    }
+
+    #[tokio::test]
+    async fn submit_user_question_reject_route_settles_snapshot_projection_authority() {
+        let snapshot_path = write_snapshot_fixture(
+            "birdcoder-user-question-reject-snapshot.json",
+            r#"{
+  "sessions": {
+    "question-reject-session": {
+      "session": {
+        "id": "question-reject-session",
+        "workspaceId": "workspace-question",
+        "projectId": "project-question",
+        "title": "Question reject session",
+        "status": "active",
+        "hostMode": "server",
+        "engineId": "claude-code",
+        "modelId": "claude-sonnet-4-5",
+        "createdAt": "2026-04-10T14:00:00Z",
+        "updatedAt": "2026-04-10T14:00:01Z",
+        "lastTurnAt": "2026-04-10T14:00:01Z",
+        "runtimeStatus": "awaiting_user"
+      },
+      "turns": [
+        {
+          "id": "question-reject-turn",
+          "codingSessionId": "question-reject-session",
+          "runtimeId": "question-reject-runtime",
+          "requestKind": "chat",
+          "status": "waiting",
+          "inputSummary": "Choose implementation path",
+          "startedAt": "2026-04-10T14:00:01Z",
+          "completedAt": null
+        }
+      ],
+      "events": [
+        {
+          "id": "question-reject-runtime:question-reject-turn:event:0",
+          "codingSessionId": "question-reject-session",
+          "turnId": "question-reject-turn",
+          "runtimeId": "question-reject-runtime",
+          "kind": "tool.call.requested",
+          "sequence": 0,
+          "payload": {
+            "toolName": "user_question",
+            "toolCallId": "tool-call-question-reject-1",
+            "runtimeStatus": "awaiting_user",
+            "toolArguments": "{\"questionId\":\"question-reject-1\",\"prompt\":\"Choose implementation path\"}"
+          },
+          "createdAt": "2026-04-10T14:00:02Z"
+        }
+      ],
+      "operations": [],
+      "artifacts": [],
+      "checkpoints": []
+    }
+  }
+}"#,
+        );
+        let state = AppState::load(&AuthorityBootstrapConfig {
+            sqlite_file: None,
+            snapshot_file: Some(snapshot_path.clone()),
+        })
+        .expect("load user question reject snapshot authority");
+        let mut realtime_receiver = state.realtime.subscribe();
+        let app = build_app_with_state(state);
+        let request_body = serde_json::json!({
+            "rejected": true,
+        });
+
+        let answer_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/core/v1/questions/question-reject-1/answer")
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build reject user question request"),
+            )
+            .await
+            .expect("serve reject user question request");
+
+        assert_eq!(answer_response.status(), StatusCode::OK);
+
+        let answer_body = to_bytes(answer_response.into_body(), usize::MAX)
+            .await
+            .expect("read reject user question body");
+        let answer_json: serde_json::Value =
+            serde_json::from_slice(&answer_body).expect("parse reject user question response");
+
+        assert_eq!(answer_json["data"]["questionId"], "question-reject-1");
+        assert_eq!(
+            answer_json["data"]["codingSessionId"],
+            "question-reject-session"
+        );
+        assert!(answer_json["data"].get("answer").is_none());
+        assert_eq!(answer_json["data"]["rejected"], true);
+        assert_eq!(answer_json["data"]["runtimeId"], "question-reject-runtime");
+        assert_eq!(answer_json["data"]["runtimeStatus"], "failed");
+        assert_eq!(answer_json["data"]["turnId"], "question-reject-turn");
+
+        let session_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/core/v1/coding-sessions/question-reject-session")
+                    .body(Body::empty())
+                    .expect("build reject question session request"),
+            )
+            .await
+            .expect("serve reject question session request");
+
+        assert_eq!(session_response.status(), StatusCode::OK);
+
+        let session_body = to_bytes(session_response.into_body(), usize::MAX)
+            .await
+            .expect("read reject question session body");
+        let session_json: serde_json::Value =
+            serde_json::from_slice(&session_body).expect("parse reject question session response");
+
+        assert_eq!(session_json["data"]["runtimeStatus"], "failed");
+
+        let events_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/core/v1/coding-sessions/question-reject-session/events")
+                    .body(Body::empty())
+                    .expect("build reject question events request"),
+            )
+            .await
+            .expect("serve reject question events request");
+
+        assert_eq!(events_response.status(), StatusCode::OK);
+
+        let events_body = to_bytes(events_response.into_body(), usize::MAX)
+            .await
+            .expect("read reject question events body");
+        let events_json: serde_json::Value =
+            serde_json::from_slice(&events_body).expect("parse reject question events response");
+
+        assert_eq!(events_json["meta"]["total"], 2);
+        assert_eq!(events_json["items"][1]["kind"], "operation.updated");
+        assert_eq!(
+            events_json["items"][1]["payload"]["questionId"],
+            "question-reject-1"
+        );
+        assert!(events_json["items"][1]["payload"].get("answer").is_none());
+        assert_eq!(events_json["items"][1]["payload"]["status"], "rejected");
+        assert_eq!(events_json["items"][1]["payload"]["rejected"], true);
+        assert_eq!(
+            events_json["items"][1]["payload"]["toolCallId"],
+            "tool-call-question-reject-1"
+        );
+        assert_eq!(
+            events_json["items"][1]["payload"]["runtimeStatus"],
+            "failed"
+        );
+
+        let realtime_event = tokio::time::timeout(Duration::from_secs(2), realtime_receiver.recv())
+            .await
+            .expect("receive user question reject realtime event")
+            .expect("user question reject realtime event is published");
+        assert_eq!(realtime_event.event_kind, "coding-session.updated");
+        assert_eq!(
+            realtime_event.coding_session_id.as_deref(),
+            Some("question-reject-session")
+        );
+        assert_eq!(
+            realtime_event.coding_session_event_kind.as_deref(),
+            Some("operation.updated")
+        );
+        assert_eq!(
+            realtime_event.coding_session_runtime_status.as_deref(),
+            Some("failed")
+        );
+        assert_eq!(
+            realtime_event.turn_id.as_deref(),
+            Some("question-reject-turn")
+        );
+        assert_eq!(
+            realtime_event
+                .coding_session_event_payload
+                .as_ref()
+                .and_then(|payload| payload.get("rejected"))
+                .and_then(serde_json::Value::as_bool),
+            Some(true)
+        );
+
+        fs::remove_file(snapshot_path).expect("remove user question reject snapshot fixture");
     }
 
     #[tokio::test]
@@ -28385,6 +31171,141 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
 
         drop(connection);
         fs::remove_file(sqlite_path).expect("remove provider user question authority fixture");
+    }
+
+    #[tokio::test]
+    async fn submit_user_question_reject_route_persists_into_sqlite_provider_authority() {
+        let sqlite_path = write_sqlite_provider_authority_fixture(
+            "birdcoder-reject-user-question-provider-authority.sqlite",
+        );
+        {
+            let connection =
+                Connection::open(&sqlite_path).expect("open provider user question reject sqlite");
+            connection
+                .execute(
+                    r#"
+                    UPDATE coding_session_runtimes
+                    SET status = ?2
+                    WHERE id = ?1
+                    "#,
+                    params!["provider-runtime", "awaiting_user"],
+                )
+                .expect("mark provider runtime awaiting user question reject");
+            connection
+                .execute(
+                    r#"
+                    INSERT INTO coding_session_events (
+                        id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
+                    )
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                    "#,
+                    params![
+                        "provider-runtime:provider-turn:event:question-reject",
+                        "2026-04-10T13:00:04Z",
+                        "2026-04-10T13:00:04Z",
+                        0_i64,
+                        0_i64,
+                        "provider-session",
+                        "provider-turn",
+                        "provider-runtime",
+                        "tool.call.requested",
+                        1_i64,
+                        r#"{"toolName":"user_question","toolCallId":"provider-tool-call-question-reject-1","runtimeStatus":"awaiting_user","toolArguments":"{\"questionId\":\"provider-question-reject-1\",\"prompt\":\"Choose provider path\"}"}"#,
+                    ],
+                )
+                .expect("insert provider user question reject event");
+        }
+        let app = build_app_with_state(
+            AppState::load(&AuthorityBootstrapConfig {
+                sqlite_file: Some(sqlite_path.clone()),
+                snapshot_file: None,
+            })
+            .expect("load provider-backed app state for user question reject"),
+        );
+        let request_body = serde_json::json!({
+            "rejected": true,
+        });
+
+        let answer_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/core/v1/questions/provider-question-reject-1/answer")
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build provider user question reject request"),
+            )
+            .await
+            .expect("serve provider user question reject request");
+
+        assert_eq!(answer_response.status(), StatusCode::OK);
+
+        let answer_body = to_bytes(answer_response.into_body(), usize::MAX)
+            .await
+            .expect("read provider user question reject body");
+        let answer_json: serde_json::Value = serde_json::from_slice(&answer_body)
+            .expect("parse provider user question reject response");
+
+        assert_eq!(
+            answer_json["data"]["questionId"],
+            "provider-question-reject-1"
+        );
+        assert_eq!(answer_json["data"]["codingSessionId"], "provider-session");
+        assert!(answer_json["data"].get("answer").is_none());
+        assert_eq!(answer_json["data"]["rejected"], true);
+        assert_eq!(answer_json["data"]["runtimeId"], "provider-runtime");
+        assert_eq!(answer_json["data"]["runtimeStatus"], "failed");
+        assert_eq!(answer_json["data"]["turnId"], "provider-turn");
+
+        let connection = Connection::open(&sqlite_path)
+            .expect("open provider user question reject sqlite after answer");
+        let persisted_runtime_status: String = connection
+            .query_row(
+                "SELECT status FROM coding_session_runtimes WHERE id = ?1",
+                params!["provider-runtime"],
+                |row| row.get(0),
+            )
+            .expect("query provider user question reject runtime status");
+        let persisted_turn: (String, Option<String>) = connection
+            .query_row(
+                "SELECT status, completed_at FROM coding_session_turns WHERE id = ?1",
+                params!["provider-turn"],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("query provider user question reject turn");
+        let persisted_answer_payload: String = connection
+            .query_row(
+                r#"
+                SELECT payload_json
+                FROM coding_session_events
+                WHERE event_kind = 'operation.updated'
+                ORDER BY sequence_no DESC
+                LIMIT 1
+                "#,
+                [],
+                |row| row.get(0),
+            )
+            .expect("query persisted user question reject event");
+        let persisted_answer: serde_json::Value = serde_json::from_str(&persisted_answer_payload)
+            .expect("parse persisted user question reject event");
+
+        assert_eq!(persisted_runtime_status, "failed");
+        assert_eq!(persisted_turn.0, "failed");
+        assert!(persisted_turn.1.is_some());
+        assert_eq!(persisted_answer["questionId"], "provider-question-reject-1");
+        assert!(persisted_answer.get("answer").is_none());
+        assert_eq!(persisted_answer["status"], "rejected");
+        assert_eq!(persisted_answer["rejected"], true);
+        assert_eq!(
+            persisted_answer["toolCallId"],
+            "provider-tool-call-question-reject-1"
+        );
+        assert_eq!(persisted_answer["runtimeStatus"], "failed");
+
+        drop(connection);
+        fs::remove_file(sqlite_path)
+            .expect("remove provider user question reject authority fixture");
     }
 
     #[tokio::test]
@@ -30905,9 +33826,9 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             .oneshot(
                 Request::builder()
                     .method("OPTIONS")
-                    .uri("/api/app/v1/workspaces")
+                    .uri("/api/core/v1/model-config")
                     .header("origin", "http://127.0.0.1:1520")
-                    .header("access-control-request-method", "GET")
+                    .header("access-control-request-method", "PUT")
                     .header(
                         "access-control-request-headers",
                         [
@@ -30944,6 +33865,16 @@ printf '%s\\n' '{{\"type\":\"turn.completed\",\"usage\":{{\"input_tokens\":1,\"c
             response.headers().get("access-control-allow-methods").is_some(),
             true,
             "preflight responses must advertise the allowed methods so local web/desktop shells can call app APIs.",
+        );
+        let allowed_methods = response
+            .headers()
+            .get("access-control-allow-methods")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default()
+            .to_ascii_uppercase();
+        assert!(
+            allowed_methods.contains("PUT"),
+            "preflight responses must allow PUT so browser-hosted local clients can sync /api/core/v1/model-config.",
         );
         let allowed_headers = response
             .headers()

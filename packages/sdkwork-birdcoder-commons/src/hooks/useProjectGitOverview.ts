@@ -44,7 +44,56 @@ const EMPTY_SNAPSHOT: ProjectGitOverviewSnapshot = Object.freeze({
   overview: null,
 });
 
+const PROJECT_GIT_OVERVIEW_LOAD_TIMEOUT_MS = 30_000;
 const projectGitOverviewCache = new Map<string, ProjectGitOverviewCacheEntry>();
+
+interface ProjectGitOverviewLoadTimeoutBoundary {
+  clear: () => void;
+  promise: Promise<never>;
+}
+
+function createProjectGitOverviewLoadTimeoutPromise(
+  projectId: string,
+  timeoutMs: number,
+): ProjectGitOverviewLoadTimeoutBoundary {
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  const promise = new Promise<never>((_resolve, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(
+        new Error(
+          `Timed out loading project Git overview for "${projectId}" after ${timeoutMs} ms.`,
+        ),
+      );
+    }, timeoutMs);
+  });
+
+  return {
+    clear: () => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+    },
+    promise,
+  };
+}
+
+function loadProjectGitOverviewWithTimeout(
+  gitService: ReturnType<typeof useIDEServices>['gitService'],
+  projectId: string,
+  timeoutMs: number = PROJECT_GIT_OVERVIEW_LOAD_TIMEOUT_MS,
+): Promise<BirdCoderProjectGitOverview> {
+  const timeoutBoundary = createProjectGitOverviewLoadTimeoutPromise(
+    projectId,
+    timeoutMs,
+  );
+  return Promise.race([
+    gitService.getProjectGitOverview(projectId),
+    timeoutBoundary.promise,
+  ]).finally(() => {
+    timeoutBoundary.clear();
+  });
+}
 
 function peekProjectGitOverviewCacheEntry(projectId: string): ProjectGitOverviewCacheEntry | undefined {
   return projectGitOverviewCache.get(projectId);
@@ -171,7 +220,10 @@ export function useProjectGitOverview({
 
     const request = (async () => {
       try {
-        const nextOverview = await gitService.getProjectGitOverview(normalizedProjectId);
+        const nextOverview = await loadProjectGitOverviewWithTimeout(
+          gitService,
+          normalizedProjectId,
+        );
         if (entry.requestVersion !== requestVersion) {
           return entry.snapshot.overview;
         }

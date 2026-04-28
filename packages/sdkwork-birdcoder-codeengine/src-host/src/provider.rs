@@ -2,9 +2,11 @@ use std::{collections::BTreeMap, sync::OnceLock};
 
 use crate::{
     format_missing_native_session_provider_error, native_session_prefix_for_engine,
-    resolve_native_session_engine_id, CodeEngineSessionDetailRecord,
-    CodeEngineSessionSummaryRecord, CodeEngineTurnRequestRecord, CodeEngineTurnResultRecord,
-    CodeEngineTurnStreamEventRecord, NativeSessionDiscoveryMode, NativeSessionProviderRegistration,
+    resolve_native_session_engine_id, CodeEngineApprovalDecisionRecord,
+    CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord, CodeEngineTurnRequestRecord,
+    CodeEngineTurnResultRecord, CodeEngineTurnStreamEventRecord,
+    CodeEngineUserQuestionAnswerRecord, NativeSessionDiscoveryMode,
+    NativeSessionProviderRegistration,
 };
 
 pub trait CodeEngineProviderPlugin: Send + Sync {
@@ -37,12 +39,44 @@ pub trait CodeEngineProviderPlugin: Send + Sync {
         let result = self.execute_turn(request)?;
         if !result.assistant_content.trim().is_empty() {
             on_event(CodeEngineTurnStreamEventRecord {
+                kind: "message.delta".to_owned(),
                 role: "assistant".to_owned(),
                 content_delta: result.assistant_content.clone(),
+                payload: None,
                 native_session_id: result.native_session_id.clone(),
             })?;
         }
         Ok(result)
+    }
+
+    fn supports_live_approval_decision_replies(&self) -> bool {
+        false
+    }
+
+    fn supports_live_user_question_replies(&self) -> bool {
+        false
+    }
+
+    fn submit_approval_decision(
+        &self,
+        decision: &CodeEngineApprovalDecisionRecord,
+    ) -> Result<(), String> {
+        Err(format!(
+            "Native code engine provider \"{}\" does not support live approval decision replies for approval {}.",
+            self.registration().engine_id,
+            decision.approval_id
+        ))
+    }
+
+    fn submit_user_question_answer(
+        &self,
+        answer: &CodeEngineUserQuestionAnswerRecord,
+    ) -> Result<(), String> {
+        Err(format!(
+            "Native code engine provider \"{}\" does not support live user-question replies for question {}.",
+            self.registration().engine_id,
+            answer.question_id
+        ))
     }
 }
 

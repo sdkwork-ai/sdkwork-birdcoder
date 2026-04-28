@@ -230,6 +230,14 @@ export class ApiBackedCoreReadService implements ICoreReadService {
     );
   }
 
+  async getModelConfig() {
+    return this.readThroughCache(
+      this.buildCacheKey('getModelConfig'),
+      STATIC_CATALOG_TTL_MS,
+      () => this.client.getModelConfig(),
+    );
+  }
+
   async listNativeSessionProviders() {
     return this.readThroughCache(
       this.buildCacheKey('listNativeSessionProviders'),

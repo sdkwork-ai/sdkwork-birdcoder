@@ -17,8 +17,10 @@ export interface ProjectExplorerProjectSectionProps {
   noSessionsLabel: string;
   toggleSessionExpansionLabel: string;
   defaultNewSessionEngineId: string;
+  defaultNewSessionModelId: string;
   newSessionInProjectLabel: string;
   awaitingApprovalSessionLabel: string;
+  awaitingToolSessionLabel: string;
   awaitingUserSessionLabel: string;
   executingSessionLabel: string;
   initializingSessionLabel: string;
@@ -31,7 +33,7 @@ export interface ProjectExplorerProjectSectionProps {
     event: React.MouseEvent<HTMLButtonElement>,
     projectId: string,
   ) => void;
-  onNewCodingSessionInProject: (projectId: string, engineId?: string) => void;
+  onNewCodingSessionInProject: (projectId: string, engineId?: string, modelId?: string) => void;
   onSelectCodingSession: (codingSessionId: string) => void;
   onCodingSessionContextMenu: (event: React.MouseEvent, codingSessionId: string) => void;
   onProjectRenameValueChange: (value: string) => void;
@@ -60,8 +62,10 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
   noSessionsLabel,
   toggleSessionExpansionLabel,
   defaultNewSessionEngineId,
+  defaultNewSessionModelId,
   newSessionInProjectLabel,
   awaitingApprovalSessionLabel,
+  awaitingToolSessionLabel,
   awaitingUserSessionLabel,
   executingSessionLabel,
   initializingSessionLabel,
@@ -139,7 +143,11 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
               title={newSessionInProjectLabel}
               onClick={(event) => {
                 event.stopPropagation();
-                onNewCodingSessionInProject(project.id, defaultNewSessionEngineId);
+                onNewCodingSessionInProject(
+                  project.id,
+                  defaultNewSessionEngineId,
+                  defaultNewSessionModelId,
+                );
               }}
             >
               <Plus size={12} />
@@ -170,6 +178,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
                   renameValue={renamingVisibleSessionId === session.id ? sessionRenameValue : ''}
                   paddingClassName="pl-8 pr-2"
                   awaitingApprovalSessionLabel={awaitingApprovalSessionLabel}
+                  awaitingToolSessionLabel={awaitingToolSessionLabel}
                   awaitingUserSessionLabel={awaitingUserSessionLabel}
                   executingSessionLabel={executingSessionLabel}
                   initializingSessionLabel={initializingSessionLabel}

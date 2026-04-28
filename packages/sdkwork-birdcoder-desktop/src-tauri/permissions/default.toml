@@ -18,6 +18,9 @@ permissions = [
   "allow-local-store-set",
   "allow-local-store-delete",
   "allow-local-store-list",
+  "allow-local-sql-execute-plan",
+  "allow-user-home-config-read",
+  "allow-user-home-config-write",
 ]
 
 [[set]]
@@ -103,6 +106,21 @@ commands.allow = ["local_store_delete"]
 identifier = "allow-local-store-list"
 description = "Enables the local_store_list command."
 commands.allow = ["local_store_list"]
+
+[[permission]]
+identifier = "allow-local-sql-execute-plan"
+description = "Enables the local_sql_execute_plan command."
+commands.allow = ["local_sql_execute_plan"]
+
+[[permission]]
+identifier = "allow-user-home-config-read"
+description = "Enables the user_home_config_read command."
+commands.allow = ["user_home_config_read"]
+
+[[permission]]
+identifier = "allow-user-home-config-write"
+description = "Enables the user_home_config_write command."
+commands.allow = ["user_home_config_write"]
 
 [[permission]]
 identifier = "allow-fs-list-directory"

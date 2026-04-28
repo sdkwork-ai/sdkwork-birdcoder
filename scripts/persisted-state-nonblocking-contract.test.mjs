@@ -22,6 +22,12 @@ assert.doesNotMatch(
   'usePersistedState must not write storage inside setState updaters.',
 );
 
+assert.match(
+  persistedStateSource,
+  /void setStoredJson\(scope, key, state\)\.catch\(\(\) => \{\s*\}\);/m,
+  'usePersistedState must explicitly swallow persistence failures so quota or native storage errors never create unhandled rejections.',
+);
+
 assert.doesNotMatch(
   appSource,
   /setRecoverySnapshot\(nextRecoverySnapshot\)/,
@@ -30,8 +36,14 @@ assert.doesNotMatch(
 
 assert.match(
   appSource,
-  /window\.setTimeout\(\(\) => \{\s*recoverySnapshotPersistTimeoutRef\.current = null;\s*void setStoredJson\('workbench', 'recovery-context', nextRecoverySnapshot\);/m,
+  /window\.setTimeout\(\(\) => \{\s*recoverySnapshotPersistTimeoutRef\.current = null;\s*persistWorkbenchRecoverySnapshot\(nextRecoverySnapshot\);/m,
   'App must defer recovery snapshot persistence so rapid workspace and session changes do not synchronously block the main thread.',
+);
+
+assert.match(
+  appSource,
+  /function persistWorkbenchRecoverySnapshot\(snapshot: WorkbenchRecoverySnapshot\): void \{\s*void setStoredJson\('workbench', 'recovery-context', snapshot\)\.catch\(\(\) => \{\s*\}\);\s*\}/m,
+  'App recovery snapshot persistence must explicitly swallow storage failures so startup recovery never becomes an unhandled rejection.',
 );
 
 console.log('persisted state nonblocking contract passed.');

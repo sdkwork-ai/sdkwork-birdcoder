@@ -1,5 +1,7 @@
 import {
   assertWorkbenchServerImplementedEngineId,
+  buildDefaultBirdCoderCodeEngineModelConfig,
+  createBirdCoderCodeEngineModelConfigSyncPlan,
   listBirdCoderCodeEngineDescriptors,
   listBirdCoderCodeEngineModels,
   listBirdCoderCodeEngineNativeSessionProviders,
@@ -30,12 +32,15 @@ import {
   type BirdCoderCodingSessionRuntimeStatus,
   type BirdCoderCodingSessionSummary,
   type BirdCoderCodingSessionTurn,
+  type BirdCoderCodeEngineModelConfig,
   type BirdCoderCoreHealthSummary,
   type BirdCoderCoreRuntimeSummary,
   type BirdCoderCreateCodingSessionRequest,
   type BirdCoderCreateCodingSessionTurnRequest,
   type BirdCoderDeleteCodingSessionResult,
   type BirdCoderDeleteCodingSessionMessageResult,
+  type BirdCoderEditCodingSessionMessageRequest,
+  type BirdCoderEditCodingSessionMessageResult,
   type BirdCoderForkCodingSessionRequest,
   type BirdCoderHostMode,
   type BirdCoderListCodingSessionsRequest,
@@ -61,6 +66,7 @@ export interface CreateBirdCoderInProcessCoreApiTransportOptions {
     | 'createCodingSession'
     | 'deleteCodingSession'
     | 'deleteCodingSessionMessage'
+    | 'editCodingSessionMessage'
     | 'forkCodingSession'
     | 'getProjectById'
     | 'getProjects'
@@ -85,6 +91,21 @@ const DEFAULT_RUNTIME_SUMMARY: BirdCoderCoreRuntimeSummary = {
   port: 0,
   configFileName: 'birdcoder.in-process.json',
 };
+
+function buildInProcessCodeEngineModelConfig(): BirdCoderCodeEngineModelConfig {
+  const models = listBirdCoderCodeEngineModels();
+  const updatedAt =
+    models
+      .map((model) => Date.parse(model.updatedAt))
+      .filter((timestamp) => Number.isFinite(timestamp))
+      .sort((left, right) => right - left)[0] ?? Date.parse('2026-01-01T00:00:00.000Z');
+  return buildDefaultBirdCoderCodeEngineModelConfig({
+    models,
+    source: 'server',
+    updatedAt: new Date(updatedAt).toISOString(),
+    version: BIRDCODER_CODING_SERVER_API_VERSION,
+  });
+}
 
 const ROUTE_SURFACE_DESCRIPTIONS: Record<BirdCoderApiSurface, string> = {
   core: 'Core coding runtime, engine catalog, session execution, and operation control.',
@@ -404,19 +425,19 @@ function buildProjectionEvents(
       runtimeStatus: 'completed' satisfies BirdCoderCodingSessionRuntimeStatus,
     };
     if (message.commands && message.commands.length > 0) {
-      payload.commandsJson = stringifyBirdCoderApiJson(message.commands);
+      payload.commands = message.commands;
     }
     if (message.tool_calls && message.tool_calls.length > 0) {
-      payload.toolCallsJson = stringifyBirdCoderApiJson(message.tool_calls);
+      payload.toolCalls = message.tool_calls;
     }
     if (message.tool_call_id) {
       payload.toolCallId = message.tool_call_id;
     }
     if (message.fileChanges && message.fileChanges.length > 0) {
-      payload.fileChangesJson = stringifyBirdCoderApiJson(message.fileChanges);
+      payload.fileChanges = message.fileChanges;
     }
     if (message.taskProgress) {
-      payload.taskProgressJson = stringifyBirdCoderApiJson(message.taskProgress);
+      payload.taskProgress = message.taskProgress;
     }
 
     events.push({
@@ -722,6 +743,7 @@ export function createBirdCoderInProcessCoreApiTransport({
     { projectId: string; workspaceId: string }
   >();
   const knownWorkspaceIds = new Set<string>();
+  let serverModelConfig = buildInProcessCodeEngineModelConfig();
 
   return {
     async request<TResponse>(request: BirdCoderApiTransportRequest): Promise<TResponse> {
@@ -750,6 +772,21 @@ export function createBirdCoderInProcessCoreApiTransport({
           return createListEnvelope(listBirdCoderCodeEngineDescriptors()) as TResponse;
         case 'core.listModels':
           return createListEnvelope(listBirdCoderCodeEngineModels()) as TResponse;
+        case 'core.getModelConfig':
+          return createEnvelope(serverModelConfig) as TResponse;
+        case 'core.syncModelConfig': {
+          const syncPlan = createBirdCoderCodeEngineModelConfigSyncPlan({
+            localConfig:
+              request.body && typeof request.body === 'object' && 'localConfig' in request.body
+                ? (request.body.localConfig as BirdCoderCodeEngineModelConfig)
+                : null,
+            serverConfig: serverModelConfig,
+          });
+          if (syncPlan.shouldWriteServer) {
+            serverModelConfig = syncPlan.config;
+          }
+          return createEnvelope(syncPlan) as TResponse;
+        }
         case 'core.listNativeSessionProviders':
           return createListEnvelope<BirdCoderNativeSessionProviderSummary>(
             listBirdCoderCodeEngineNativeSessionProviders(),
@@ -954,6 +991,29 @@ export function createBirdCoderInProcessCoreApiTransport({
             codingSessionId,
           }) as TResponse;
         }
+        case 'core.editCodingSessionMessage': {
+          const codingSessionId = resolvedOperation.pathParams.id;
+          const messageId = resolvedOperation.pathParams.messageId;
+          const body = readRequestBody<BirdCoderEditCodingSessionMessageRequest>(request);
+          const content = normalizeText(body.content);
+          if (!content) {
+            throw new Error('edit coding session message request must include content.');
+          }
+          const projectId = await resolveProjectIdForCodingSession(
+            projectService,
+            codingSessionProjectIndex,
+            knownWorkspaceIds,
+            codingSessionId,
+          );
+          await projectService.editCodingSessionMessage(projectId, codingSessionId, messageId, {
+            content,
+          });
+          return createEnvelope<BirdCoderEditCodingSessionMessageResult>({
+            id: messageId,
+            codingSessionId,
+            content,
+          }) as TResponse;
+        }
         case 'core.createCodingSessionTurn': {
           const codingSessionId = resolvedOperation.pathParams.id;
           const body = readRequestBody<BirdCoderCreateCodingSessionTurnRequest>(request);
@@ -1019,15 +1079,17 @@ export function createBirdCoderInProcessCoreApiTransport({
         case 'core.submitUserQuestionAnswer': {
           const questionId = resolvedOperation.pathParams.questionId;
           const body = readRequestBody<BirdCoderSubmitUserQuestionAnswerRequest>(request);
+          const rejected = body.rejected === true;
           const result: BirdCoderUserQuestionAnswerResult = {
             questionId,
             codingSessionId: '',
-            answer: body.answer,
+            ...(rejected ? {} : { answer: body.answer }),
             answeredAt: new Date().toISOString(),
             optionId: normalizeText(body.optionId),
             optionLabel: normalizeText(body.optionLabel),
+            rejected,
             runtimeId: '',
-            runtimeStatus: 'completed',
+            runtimeStatus: rejected ? 'failed' : 'completed',
             turnId: '',
           };
           return createEnvelope(result) as TResponse;

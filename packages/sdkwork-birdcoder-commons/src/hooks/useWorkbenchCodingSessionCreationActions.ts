@@ -33,6 +33,7 @@ export function useWorkbenchCodingSessionCreationActions({
       projectId: string,
       requestedEngineId?: string,
       options?: {
+        modelId?: string;
         shouldSelectCreatedSession?: ShouldSelectWorkbenchCodingSession;
       },
     ) => {
@@ -47,6 +48,7 @@ export function useWorkbenchCodingSessionCreationActions({
           createCodingSessionWithSelection,
           projectId: normalizedProjectId,
           requestedEngineId,
+          requestedModelId: options?.modelId,
           selectCodingSession,
           shouldSelectCreatedSession: options?.shouldSelectCreatedSession,
         });
@@ -76,7 +78,9 @@ export function useWorkbenchCodingSessionCreationActions({
         return;
       }
 
-      void createCodingSessionInProject(targetProjectId, request?.engineId);
+      void createCodingSessionInProject(targetProjectId, request?.engineId, {
+        modelId: request?.modelId,
+      });
     },
     [
       addToast,
@@ -87,8 +91,11 @@ export function useWorkbenchCodingSessionCreationActions({
   );
 
   const createCodingSessionFromCurrentProject = useCallback(
-    (requestedEngineId?: string) => {
-      createCodingSessionFromRequest({ engineId: requestedEngineId });
+    (requestedEngineId?: string, requestedModelId?: string) => {
+      createCodingSessionFromRequest({
+        engineId: requestedEngineId,
+        modelId: requestedModelId,
+      });
     },
     [createCodingSessionFromRequest],
   );

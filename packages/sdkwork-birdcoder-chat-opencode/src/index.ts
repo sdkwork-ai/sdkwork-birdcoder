@@ -777,7 +777,7 @@ export class OpenCodeChatEngine implements IChatEngine {
       loader: this.officialSdkBridgeLoader,
       messages,
       options,
-      fallback: async function* fallbackStream() {
+      fallback: async function* fallbackStream(_streamOptions) {
         throw createUnavailableOpenCodeSdkError();
       },
     });

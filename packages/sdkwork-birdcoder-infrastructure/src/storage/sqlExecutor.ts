@@ -73,6 +73,24 @@ function sortRows(
   });
 }
 
+function isRowSoftDeleted(row: BirdCoderSqlRow): boolean {
+  return row.is_deleted === true || row.is_deleted === 1 || row.is_deleted === '1';
+}
+
+function normalizeNullableTimestamp(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  return Number.isNaN(Date.parse(value)) ? null : value;
+}
+
+function compareTimestamps(left: string | null, right: string | null): number {
+  const leftValue = left ? Date.parse(left) : Number.NEGATIVE_INFINITY;
+  const rightValue = right ? Date.parse(right) : Number.NEGATIVE_INFINITY;
+  return leftValue - rightValue;
+}
+
 class InMemorySqlExecutorImpl implements BirdCoderInMemorySqlExecutor, BirdCoderSqlExecutorTransaction {
   readonly history: BirdCoderSqlPlan[] = [];
   readonly providerId: BirdCoderDatabaseProviderId;
@@ -145,16 +163,86 @@ class InMemorySqlExecutorImpl implements BirdCoderInMemorySqlExecutor, BirdCoder
       case 'table-list': {
         const table = this.ensureTable(meta.tableName);
         const rows = Array.from(table.values()).filter((row) =>
-          meta.excludeDeleted ? !Boolean(row.is_deleted) : true,
+          meta.excludeDeleted ? !isRowSoftDeleted(row) : true,
         );
         return {
           rows: sortRows(rows, meta.orderBy),
         };
       }
+      case 'coding-session-list-by-project-ids': {
+        const table = this.ensureTable(meta.tableName);
+        const projectIdSet = new Set(meta.projectIds);
+        const rows = Array.from(table.values()).filter((row) =>
+          projectIdSet.has(String(row.project_id)) &&
+          (meta.excludeDeleted ? !isRowSoftDeleted(row) : true),
+        );
+        return {
+          rows: sortRows(rows, meta.orderBy),
+        };
+      }
+      case 'coding-session-messages-by-session-ids': {
+        const table = this.ensureTable(meta.tableName);
+        const codingSessionIdSet = new Set(meta.codingSessionIds);
+        const rows = Array.from(table.values()).filter((row) =>
+          codingSessionIdSet.has(String(row.coding_session_id)) &&
+          (meta.excludeDeleted ? !isRowSoftDeleted(row) : true),
+        );
+        return {
+          rows: sortRows(rows, meta.orderBy),
+        };
+      }
+      case 'coding-session-message-metadata-by-session-ids': {
+        const table = this.ensureTable(meta.tableName);
+        const codingSessionIdSet = new Set(meta.codingSessionIds);
+        const metadataByCodingSessionId = new Map<
+          string,
+          {
+            coding_session_id: string;
+            latest_transcript_updated_at: string | null;
+            message_count: number;
+            native_transcript_updated_at: string | null;
+          }
+        >();
+
+        for (const row of table.values()) {
+          const codingSessionId = String(row.coding_session_id ?? '');
+          if (
+            !codingSessionIdSet.has(codingSessionId) ||
+            (meta.excludeDeleted && isRowSoftDeleted(row))
+          ) {
+            continue;
+          }
+
+          const currentMetadata = metadataByCodingSessionId.get(codingSessionId) ?? {
+            coding_session_id: codingSessionId,
+            latest_transcript_updated_at: null,
+            message_count: 0,
+            native_transcript_updated_at: null,
+          };
+          const createdAt = normalizeNullableTimestamp(row.created_at);
+          currentMetadata.message_count += 1;
+          if (compareTimestamps(createdAt, currentMetadata.latest_transcript_updated_at) > 0) {
+            currentMetadata.latest_transcript_updated_at = createdAt;
+          }
+          if (
+            String(row.id ?? '').includes(meta.nativeMessageIdSegment) &&
+            compareTimestamps(createdAt, currentMetadata.native_transcript_updated_at) > 0
+          ) {
+            currentMetadata.native_transcript_updated_at = createdAt;
+          }
+          metadataByCodingSessionId.set(codingSessionId, currentMetadata);
+        }
+
+        return {
+          rows: Array.from(metadataByCodingSessionId.values()).sort((left, right) =>
+            left.coding_session_id.localeCompare(right.coding_session_id),
+          ),
+        };
+      }
       case 'table-count': {
         const table = this.ensureTable(meta.tableName);
         const total = Array.from(table.values()).filter((row) =>
-          meta.excludeDeleted ? !Boolean(row.is_deleted) : true,
+          meta.excludeDeleted ? !isRowSoftDeleted(row) : true,
         ).length;
         return {
           rows: [{ total }],
@@ -169,7 +257,7 @@ class InMemorySqlExecutorImpl implements BirdCoderInMemorySqlExecutor, BirdCoder
           };
         }
 
-        if (meta.excludeDeleted && Boolean(row.is_deleted)) {
+        if (meta.excludeDeleted && isRowSoftDeleted(row)) {
           return {
             rows: [],
           };

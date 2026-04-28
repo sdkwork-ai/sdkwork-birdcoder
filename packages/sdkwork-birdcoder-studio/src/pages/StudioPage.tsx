@@ -14,11 +14,11 @@ import {
   resolveLatestCodingSessionIdForProject,
   resolveProjectMountRecoverySource,
   restoreWorkbenchCodingSessionMessageFiles,
-  setWorkbenchChatInputDraft,
   type RunConfigurationRecord,
   type TerminalCommandRequest,
   useCodingSessionActions,
   useCodingSessionEngineModelSelection,
+  useCodingSessionPendingInteractionState,
   useFileSystem,
   useIDEServices,
   useProjects,
@@ -26,6 +26,7 @@ import {
   useProjectRunConfigurations,
   useSelectedCodingSessionMessages,
   useSessionRefreshActions,
+  useWorkbenchCodingSessionMessageEditAction,
   ensureWorkbenchCodingSessionForMessage,
   regenerateWorkbenchCodingSessionFromLastUserMessage,
   useWorkbenchCodingSessionCreationActions,
@@ -34,9 +35,14 @@ import {
   useAuth,
   useToast,
 } from '@sdkwork/birdcoder-commons';
-import { FileChange, isBirdCoderCodingSessionExecuting, type BirdCoderChatMessage } from '@sdkwork/birdcoder-types';
+import {
+  FileChange,
+  isBirdCoderCodingSessionEngineBusy,
+  isBirdCoderCodingSessionExecuting,
+  type BirdCoderSubmitApprovalDecisionRequest,
+  type BirdCoderSubmitUserQuestionAnswerRequest,
+} from '@sdkwork/birdcoder-types';
 import { ProjectGitOverviewDrawer } from '@sdkwork/birdcoder-ui';
-import { SessionTranscriptLoadingState } from '@sdkwork/birdcoder-ui-shell';
 import { useTranslation } from 'react-i18next';
 import { StudioPreviewPanel } from '../preview/StudioPreviewPanel';
 import { StudioStageHeader } from '../preview/StudioStageHeader';
@@ -51,29 +57,15 @@ import { StudioChatSidebar } from './StudioChatSidebar';
 import { useStudioCodingSessionSync } from './useStudioCodingSessionSync';
 import { StudioTerminalIntegrationPanel } from './StudioTerminalIntegrationPanel';
 import { StudioWorkspaceOverlays } from './StudioWorkspaceOverlays';
+import { StudioSessionTranscriptLoadingState } from './StudioSessionTranscriptLoadingState';
 import { useStudioCollaboration } from './useStudioCollaboration';
 import { useStudioExecutionActions } from './useStudioExecutionActions';
 import { useStudioWorkbenchEventBindings } from './useStudioWorkbenchEventBindings';
-
-interface StudioPageProps {
-  isVisible?: boolean;
-  workspaceId?: string;
-  projectId?: string;
-  initialCodingSessionId?: string;
-  onProjectChange?: (projectId: string) => void;
-  onCodingSessionChange?: (codingSessionId: string) => void;
-}
-
-function StudioSessionTranscriptLoadingState() {
-  return (
-    <SessionTranscriptLoadingState
-      title="Loading conversation"
-      description="Fetching the selected session transcript."
-    />
-  );
-}
-
-const EMPTY_STUDIO_CHAT_MESSAGES: BirdCoderChatMessage[] = [];
+import {
+  EMPTY_STUDIO_CHAT_MESSAGES,
+  getLanguageFromPath,
+  type StudioPageProps,
+} from './StudioPage.shared';
 
 function StudioPageComponent({
   isVisible = true,
@@ -101,6 +93,7 @@ function StudioPageComponent({
     createProject,
     createCodingSession,
     updateProject,
+    editCodingSessionMessage,
     deleteCodingSessionMessage,
   } = useProjects(workspaceId, {
     isActive: isVisible,
@@ -246,6 +239,11 @@ function StudioPageComponent({
       noProjectSelected: t('studio.pleaseSelectProject'),
     },
   });
+  const createStudioCodingSessionInProject = useCallback(
+    (projectId: string, engineId?: string, modelId?: string) =>
+      createCodingSessionInProject(projectId, engineId, { modelId }),
+    [createCodingSessionInProject],
+  );
   const projectsRef = useRef(projects);
   const selectedCodingSessionIdRef = useRef(sessionId);
   const currentProjectIdRef = useRef(currentProjectId);
@@ -385,8 +383,10 @@ function StudioPageComponent({
     () => selectedSession?.messages ?? EMPTY_STUDIO_CHAT_MESSAGES,
     [selectedSession?.messages],
   );
-  const isSelectedSessionExecuting = isBirdCoderCodingSessionExecuting(selectedSession);
-  const isChatBusy = isSubmittingTurn || isSelectedSessionExecuting;
+  const isSelectedSessionTurnActive = isBirdCoderCodingSessionExecuting(selectedSession);
+  const isSelectedSessionEngineBusy = isBirdCoderCodingSessionEngineBusy(selectedSession);
+  const isChatBusy = isSubmittingTurn || isSelectedSessionTurnActive;
+  const isChatEngineBusy = isSubmittingTurn || isSelectedSessionEngineBusy;
   const currentProject =
     selectedCodingSessionLocation?.project ??
     resolveProjectById(currentProjectId);
@@ -658,6 +658,37 @@ function StudioPageComponent({
     restoreSelectionAfterRefresh,
     workspaceId,
   });
+  const pendingInteractionRefreshToken = useMemo(() => [
+    selectedSession?.id ?? '',
+    selectedSession?.runtimeStatus ?? '',
+    selectedSession?.updatedAt ?? '',
+    selectedSession?.lastTurnAt ?? '',
+    selectedSession?.transcriptUpdatedAt ?? '',
+  ].join('\u0001'), [selectedSession]);
+  const {
+    approvals: pendingApprovals,
+    questions: pendingUserQuestions,
+    submitApprovalDecision,
+    submitUserQuestionAnswer,
+  } = useCodingSessionPendingInteractionState(sessionId || null, pendingInteractionRefreshToken);
+  const handleSubmitApprovalDecision = useCallback(async (
+    approvalId: string,
+    request: BirdCoderSubmitApprovalDecisionRequest,
+  ) => {
+    await submitApprovalDecision(approvalId, request);
+    if (sessionId) {
+      await handleRefreshCodingSessionMessages(sessionId);
+    }
+  }, [handleRefreshCodingSessionMessages, sessionId, submitApprovalDecision]);
+  const handleSubmitUserQuestionAnswer = useCallback(async (
+    questionId: string,
+    request: BirdCoderSubmitUserQuestionAnswerRequest,
+  ) => {
+    await submitUserQuestionAnswer(questionId, request);
+    if (sessionId) {
+      await handleRefreshCodingSessionMessages(sessionId);
+    }
+  }, [handleRefreshCodingSessionMessages, sessionId, submitUserQuestionAnswer]);
 
   useEffect(() => {
     if (!isRunConfigVisible) {
@@ -708,22 +739,12 @@ function StudioPageComponent({
     setIsAnalyzeModalVisible(true);
   }, [fileContent, selectedFile]);
 
-  const getLanguageFromPath = useCallback((path: string) => {
-    if (path.endsWith('.ts') || path.endsWith('.tsx')) return 'typescript';
-    if (path.endsWith('.js') || path.endsWith('.jsx')) return 'javascript';
-    if (path.endsWith('.json')) return 'json';
-    if (path.endsWith('.html')) return 'html';
-    if (path.endsWith('.css')) return 'css';
-    return 'plaintext';
-  }, []);
-
-  const handleEditMessage = useCallback((codingSessionId: string, messageId: string) => {
-    const codingSession = resolveCodingSessionLocation(codingSessionId)?.codingSession;
-    const msg = codingSession?.messages?.find(m => m.id === messageId);
-    if (msg) {
-      setWorkbenchChatInputDraft(codingSessionId, msg.content);
-    }
-  }, [resolveCodingSessionLocation]);
+  const handleEditMessage = useWorkbenchCodingSessionMessageEditAction({
+    editCodingSessionMessage,
+    resolveCodingSessionLocation,
+    sessionUnavailableMessage: t('chat.sendMessageSessionUnavailable'),
+    setSelectionRefreshToken,
+  });
 
   const handleDeleteMessage = useCallback(async (codingSessionId: string, messageIds: string[]) => {
     const normalizedMessageIds = messageIds
@@ -801,7 +822,6 @@ function StudioPageComponent({
   }, [
     deleteCodingSessionMessage,
     fileContent,
-    getLanguageFromPath,
     isChatBusy,
     buildWorkbenchCodingSessionTurnContext,
     regenerateWorkbenchCodingSessionFromLastUserMessage,
@@ -839,7 +859,12 @@ function StudioPageComponent({
 
   const handleSendMessage = useCallback(async (text?: string) => {
     const trimmedContent = typeof text === 'string' ? text.trim() : '';
-    if (!trimmedContent || isChatBusy) return;
+    if (!trimmedContent) {
+      return;
+    }
+    if (isChatBusy) {
+      throw new Error(t('chat.sendMessageBusy'));
+    }
     const bootstrappedSession = await ensureWorkbenchCodingSessionForMessage({
       createCodingSessionWithSelection,
       currentCodingSessionId: sessionId,
@@ -861,7 +886,7 @@ function StudioPageComponent({
       selectCodingSession,
     });
     if (!bootstrappedSession) {
-      return;
+      throw new Error(t('chat.sendMessageSessionUnavailable'));
     }
 
     setIsSubmittingTurn(true);
@@ -896,7 +921,6 @@ function StudioPageComponent({
     createCodingSessionWithSelection,
     currentProjectId,
     fileContent,
-    getLanguageFromPath,
     isChatBusy,
     onProjectChange,
     projects,
@@ -1074,10 +1098,11 @@ function StudioPageComponent({
     setViewingDiff(file);
     handleActiveTabChange('code');
   }, [handleActiveTabChange]);
-  const handleStudioEditMessage = useCallback((messageId: string) => {
+  const handleStudioEditMessage = useCallback((messageId: string, content: string) => {
     if (sessionId) {
-      handleEditMessage(sessionId, messageId);
+      return handleEditMessage(sessionId, messageId, content);
     }
+    return Promise.resolve();
   }, [handleEditMessage, sessionId]);
   const handleStudioDeleteMessage = useCallback((messageIds: string[]) => {
     if (sessionId) {
@@ -1157,8 +1182,11 @@ function StudioPageComponent({
         menuActiveProjectId={menuActiveProjectId}
         projectSearchQuery={projectSearchQuery}
         messages={selectedSessionMessages}
+        pendingApprovals={pendingApprovals}
+        pendingUserQuestions={pendingUserQuestions}
         emptyState={studioChatEmptyState}
         isBusy={isChatBusy}
+        isEngineBusy={isChatEngineBusy}
         selectedEngineId={selectedEngineId}
         selectedModelId={selectedModelId}
         disabled={!currentProjectId}
@@ -1168,10 +1196,12 @@ function StudioPageComponent({
         onSelectedEngineIdChange={handleSelectedEngineChange}
         onSelectedModelIdChange={handleSelectedModelChange}
         onSendMessage={handleSendMessage}
+        onSubmitApprovalDecision={handleSubmitApprovalDecision}
+        onSubmitUserQuestionAnswer={handleSubmitUserQuestionAnswer}
         onSelectCodingSession={handleSelectCodingSession}
         onCreateProject={handleCreateSidebarProject}
         onOpenFolder={handleOpenSidebarFolder}
-        onCreateCodingSession={createCodingSessionInProject}
+        onCreateCodingSession={createStudioCodingSessionInProject}
         onRefreshProjectSessions={handleRefreshProjectSessions}
         onRefreshCodingSessionMessages={handleRefreshCodingSessionMessages}
         refreshingProjectId={refreshingProjectId}

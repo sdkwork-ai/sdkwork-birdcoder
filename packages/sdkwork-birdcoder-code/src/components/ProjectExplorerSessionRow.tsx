@@ -1,9 +1,9 @@
 import React from 'react';
-import { Archive, MoreHorizontal, Pin, RefreshCw } from 'lucide-react';
+import { Archive, Loader2, MoreHorizontal, Pin } from 'lucide-react';
 import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-types';
 import {
   formatBirdCoderSessionActivityDisplayTime,
-  isBirdCoderCodingSessionExecuting,
+  isBirdCoderCodingSessionEngineBusy,
 } from '@sdkwork/birdcoder-types';
 import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-ui-shell';
 import { buildProjectExplorerSurfaceStyle } from './ProjectExplorer.shared';
@@ -16,6 +16,7 @@ export interface ProjectExplorerSessionRowProps {
   renameValue: string;
   paddingClassName: string;
   awaitingApprovalSessionLabel: string;
+  awaitingToolSessionLabel: string;
   awaitingUserSessionLabel: string;
   executingSessionLabel: string;
   initializingSessionLabel: string;
@@ -36,6 +37,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
   renameValue,
   paddingClassName,
   awaitingApprovalSessionLabel,
+  awaitingToolSessionLabel,
   awaitingUserSessionLabel,
   executingSessionLabel,
   initializingSessionLabel,
@@ -47,7 +49,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
   onRenameSubmit,
   onRenameCancel,
 }: ProjectExplorerSessionRowProps) {
-  const isExecutingSession = isBirdCoderCodingSessionExecuting(session);
+  const isEngineBusySession = isBirdCoderCodingSessionEngineBusy(session);
   const runtimeStatusLabel =
     session.runtimeStatus === 'initializing'
       ? initializingSessionLabel
@@ -55,11 +57,13 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
         ? awaitingApprovalSessionLabel
         : session.runtimeStatus === 'awaiting_user'
           ? awaitingUserSessionLabel
-          : session.runtimeStatus === 'awaiting_tool' || session.runtimeStatus === 'streaming'
-            ? executingSessionLabel
-            : session.runtimeStatus === 'failed'
-              ? failedSessionLabel
-              : null;
+          : session.runtimeStatus === 'awaiting_tool'
+            ? awaitingToolSessionLabel
+            : session.runtimeStatus === 'streaming'
+              ? executingSessionLabel
+              : session.runtimeStatus === 'failed'
+                ? failedSessionLabel
+                : null;
 
   return (
     <div
@@ -72,7 +76,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
     >
       <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
         <WorkbenchCodeEngineIcon engineId={session.engineId} />
-        {isExecutingSession && <RefreshCw size={12} className="text-emerald-400 shrink-0 animate-spin" />}
+        {isEngineBusySession && <Loader2 size={12} className="text-emerald-400 shrink-0 animate-spin" />}
         {session.pinned && <Pin size={12} className="text-blue-400 shrink-0" />}
         {session.unread && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
         {session.archived && <Archive size={12} className="text-gray-500 shrink-0" />}

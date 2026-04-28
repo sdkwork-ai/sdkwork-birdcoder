@@ -355,6 +355,56 @@ function createGeminiPermissionRequestCall(value: unknown): ToolCall {
   };
 }
 
+function normalizeGeminiFiniteNumber(
+  value: number | undefined,
+  minimum: number,
+  maximum: number,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function normalizeGeminiPositiveInteger(
+  value: number | undefined,
+  maximum: number,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(maximum, Math.max(1, Math.floor(value)));
+}
+
+function normalizeGeminiTemperature(value: number | undefined): number | undefined {
+  return normalizeGeminiFiniteNumber(value, 0, 2);
+}
+
+function normalizeGeminiTopP(value: number | undefined): number | undefined {
+  return normalizeGeminiFiniteNumber(value, 0, 1);
+}
+
+function normalizeGeminiMaxTokens(value: number | undefined): number | undefined {
+  return normalizeGeminiPositiveInteger(value, 128000);
+}
+
+function compactGeminiGenerationConfig(
+  config: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  const compactConfig = compactGeminiRecord(config);
+  return Object.keys(compactConfig).length > 0 ? compactConfig : undefined;
+}
+
+function buildGeminiGenerationConfig(options?: ChatOptions): Record<string, unknown> | undefined {
+  return compactGeminiGenerationConfig({
+    temperature: normalizeGeminiTemperature(options?.temperature),
+    topP: normalizeGeminiTopP(options?.topP),
+    maxOutputTokens: normalizeGeminiMaxTokens(options?.maxTokens),
+  });
+}
+
 export function createGeminiOfficialSdkBridge(
   moduleNamespace: Record<string, unknown>,
 ): ChatEngineOfficialSdkBridge | null {
@@ -380,6 +430,7 @@ export function createGeminiOfficialSdkBridge(
         instructions: buildGeminiInstructions(messages),
         model: model ?? undefined,
         cwd: options?.context?.workspaceRoot ?? resolveRuntimeWorkingDirectory(),
+        generationConfig: buildGeminiGenerationConfig(options),
       });
       const session = agent.session();
       const prompt = buildGeminiPrompt(messages);
@@ -428,6 +479,7 @@ export function createGeminiOfficialSdkBridge(
         instructions: buildGeminiInstructions(messages),
         model: sdkModel ?? undefined,
         cwd: options?.context?.workspaceRoot ?? resolveRuntimeWorkingDirectory(),
+        generationConfig: buildGeminiGenerationConfig(options),
       });
       const session = agent.session();
       const prompt = buildGeminiPrompt(messages);
@@ -565,7 +617,7 @@ export class GeminiChatEngine implements IChatEngine {
       loader: this.officialSdkBridgeLoader,
       messages,
       options,
-      fallback: async function* fallbackStream() {
+      fallback: async function* fallbackStream(_streamOptions) {
         throw createUnavailableGeminiSdkError();
       },
     });

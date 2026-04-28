@@ -30,6 +30,7 @@
     "@sdkwork/birdcoder-host-core": "workspace:*",
     "@sdkwork/birdcoder-shell": "workspace:*",
     "@sdkwork/birdcoder-shell-runtime": "workspace:*",
+    "qrcode": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-router": "catalog:",

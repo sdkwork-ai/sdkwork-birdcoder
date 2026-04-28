@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { buildBirdCoderCodingServerOpenApiDocumentSeed } from '../packages/sdkwork-birdcoder-server/src/index.ts';
 
 const documentSeed = buildBirdCoderCodingServerOpenApiDocumentSeed();
+const rustServerSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-server/src-host/src/lib.rs', import.meta.url),
+  'utf8',
+);
 
 assert.equal(documentSeed.openapi, '3.1.0');
 assert.equal(documentSeed.info.title, 'SDKWork BirdCoder Coding Server API');
@@ -55,6 +60,10 @@ assert.equal(documentSeed.paths['/api/core/v1/native-sessions/{id}']?.get?.opera
 assert.equal(documentSeed.paths['/api/core/v1/coding-sessions']?.post?.operationId, 'core.createCodingSession');
 assert.equal(documentSeed.paths['/api/core/v1/coding-sessions/{id}']?.patch?.operationId, 'core.updateCodingSession');
 assert.equal(documentSeed.paths['/api/core/v1/coding-sessions/{id}']?.delete?.operationId, 'core.deleteCodingSession');
+assert.equal(
+  documentSeed.paths['/api/core/v1/coding-sessions/{id}/messages/{messageId}']?.patch?.operationId,
+  'core.editCodingSessionMessage',
+);
 assert.equal(
   documentSeed.paths['/api/core/v1/coding-sessions/{id}/messages/{messageId}']?.delete?.operationId,
   'core.deleteCodingSessionMessage',
@@ -209,6 +218,8 @@ const codingSessionSummaryProperties = documentSeed.components.schemas.BirdCoder
   .properties as Record<string, { type?: string }>;
 const codingSessionEventProperties = documentSeed.components.schemas.BirdCoderCodingSessionEvent
   .properties as Record<string, { type?: string }>;
+const createCodingSessionTurnRequestProperties = documentSeed.components.schemas
+  .BirdCoderCreateCodingSessionTurnRequest.properties as Record<string, { type?: string }>;
 const nativeSessionSummaryProperties = documentSeed.components.schemas.BirdCoderNativeSessionSummary
   .properties as Record<string, { type?: string }>;
 const createProjectRequestProperties = documentSeed.components.schemas.BirdCoderCreateProjectRequest
@@ -264,6 +275,36 @@ assert.equal(
   codingSessionEventProperties.sequence?.type,
   'string',
   'BirdCoderCodingSessionEvent.sequence must be a string because coding_session_events.sequence_no is a BIGINT field.',
+);
+assert.equal(
+  createCodingSessionTurnRequestProperties.stream?.type,
+  'boolean',
+  'create coding session turn request schema must expose stream as a compatibility hint while the server standard always executes streamed turns.',
+);
+assert.match(
+  rustServerSource,
+  /struct CreateCodingSessionTurnRequest \{[\s\S]*stream:\s*Option<bool>/,
+  'Rust create-turn request payload must accept the optional stream flag instead of dropping the client default.',
+);
+assert.match(
+  rustServerSource,
+  /struct CreateCodingSessionTurnInput \{[\s\S]*stream:\s*bool/,
+  'Rust create-turn input must normalize stream into an explicit boolean so turn execution has a stable default.',
+);
+assert.match(
+  rustServerSource,
+  /stream:\s*true,/,
+  'Rust create-turn input must normalize stream to true so stream:false cannot downgrade IDE turns out of live event mode.',
+);
+assert.match(
+  rustServerSource,
+  /let\s+should_stream_turn\s*=\s*true;/,
+  'Rust create-turn route must always execute provider turns through execute_native_session_turn_with_events.',
+);
+assert.doesNotMatch(
+  rustServerSource,
+  /let\s+should_stream_turn\s*=\s*input\.stream;/,
+  'Rust create-turn route must not let request.stream=false bypass streamed provider execution.',
 );
 for (const [schemaName, properties] of [
   ['BirdCoderSkillCatalogEntrySummary', skillCatalogEntryProperties],

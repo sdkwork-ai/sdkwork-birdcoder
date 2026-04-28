@@ -33,6 +33,12 @@ pub struct OfficialSdkBridgeTurnRequest<'a> {
     pub working_directory: Option<&'a Path>,
     pub request_kind: &'a str,
     pub ide_context: Option<&'a CodeEngineTurnIdeContextRecord>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -58,6 +64,7 @@ struct OfficialSdkBridgeStreamEnvelope {
     event_type: String,
     role: Option<String>,
     content_delta: Option<String>,
+    payload: Option<serde_json::Value>,
     response: Option<OfficialSdkBridgeTurnResponse>,
 }
 
@@ -255,8 +262,10 @@ pub fn execute_official_sdk_bridge_turn_with_events(
                     if let Some(content_delta) = envelope.content_delta {
                         if !content_delta.is_empty() {
                             on_event(CodeEngineTurnStreamEventRecord {
+                                kind: "message.delta".to_owned(),
                                 role: envelope.role.unwrap_or_else(|| "assistant".to_owned()),
                                 content_delta,
+                                payload: envelope.payload,
                                 native_session_id: None,
                             })?;
                         }
@@ -264,6 +273,15 @@ pub fn execute_official_sdk_bridge_turn_with_events(
                 }
                 "turn.completed" => {
                     bridge_response = envelope.response;
+                }
+                _ if is_bridge_coding_session_stream_event_kind(envelope.event_type.as_str()) => {
+                    on_event(CodeEngineTurnStreamEventRecord {
+                        kind: envelope.event_type,
+                        role: envelope.role.unwrap_or_else(|| "assistant".to_owned()),
+                        content_delta: envelope.content_delta.unwrap_or_default(),
+                        payload: envelope.payload,
+                        native_session_id: None,
+                    })?;
                 }
                 _ => {}
             }
@@ -321,6 +339,19 @@ fn serialize_official_sdk_bridge_request(
         stream_events,
     })
     .map_err(|error| format!("serialize codeengine SDK bridge request failed: {error}"))
+}
+
+fn is_bridge_coding_session_stream_event_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "tool.call.requested"
+            | "tool.call.progress"
+            | "tool.call.completed"
+            | "approval.required"
+            | "operation.updated"
+            | "artifact.upserted"
+            | "turn.failed"
+    )
 }
 
 pub fn list_sdk_bridge_session_summaries(

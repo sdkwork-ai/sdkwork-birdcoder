@@ -29,6 +29,21 @@ export class ApiBackedCoreWriteService implements ICoreWriteService {
     return this.client.deleteCodingSession(codingSessionId);
   }
 
+  async deleteCodingSessionMessage(
+    codingSessionId: Parameters<BirdCoderCoreWriteApiClient['deleteCodingSessionMessage']>[0],
+    messageId: Parameters<BirdCoderCoreWriteApiClient['deleteCodingSessionMessage']>[1],
+  ) {
+    return this.client.deleteCodingSessionMessage(codingSessionId, messageId);
+  }
+
+  async editCodingSessionMessage(
+    codingSessionId: Parameters<BirdCoderCoreWriteApiClient['editCodingSessionMessage']>[0],
+    messageId: Parameters<BirdCoderCoreWriteApiClient['editCodingSessionMessage']>[1],
+    request: Parameters<BirdCoderCoreWriteApiClient['editCodingSessionMessage']>[2],
+  ) {
+    return this.client.editCodingSessionMessage(codingSessionId, messageId, request);
+  }
+
   async createCodingSessionTurn(
     codingSessionId: Parameters<BirdCoderCoreWriteApiClient['createCodingSessionTurn']>[0],
     request: Parameters<BirdCoderCoreWriteApiClient['createCodingSessionTurn']>[1],
@@ -48,5 +63,11 @@ export class ApiBackedCoreWriteService implements ICoreWriteService {
     request: Parameters<BirdCoderCoreWriteApiClient['submitUserQuestionAnswer']>[1],
   ) {
     return this.client.submitUserQuestionAnswer(questionId, request);
+  }
+
+  async syncModelConfig(
+    request: Parameters<BirdCoderCoreWriteApiClient['syncModelConfig']>[0],
+  ) {
+    return this.client.syncModelConfig(request);
   }
 }

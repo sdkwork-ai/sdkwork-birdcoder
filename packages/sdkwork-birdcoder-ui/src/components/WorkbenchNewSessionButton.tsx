@@ -1,7 +1,11 @@
 import { Check, ChevronDown } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-commons';
-import { resolveWorkbenchNewSessionEngineCatalog } from '@sdkwork/birdcoder-codeengine';
+import {
+  getWorkbenchCodeModelLabel,
+  resolveWorkbenchCodeEngineSelectedModelId,
+  resolveWorkbenchNewSessionEngineCatalog,
+} from '@sdkwork/birdcoder-codeengine';
 import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-ui-shell';
 
 type WorkbenchNewSessionButtonVariant = 'topbar' | 'studio' | 'sidebar';
@@ -16,7 +20,7 @@ interface WorkbenchNewSessionButtonProps {
   selectedEngineId: string;
   selectedModelId: string;
   variant: WorkbenchNewSessionButtonVariant;
-  onCreateSession: (engineId: string) => void | Promise<void>;
+  onCreateSession: (engineId: string, modelId: string) => void | Promise<void>;
 }
 
 interface WorkbenchNewSessionButtonVariantStyle {
@@ -135,8 +139,13 @@ function WorkbenchNewSessionButtonComponent({
     }
 
     setIsOpen(false);
-    void onCreateSession(preferredSelection.engine.id);
-  }, [disabled, onCreateSession, preferredSelection.engine.id]);
+    void onCreateSession(preferredSelection.engine.id, preferredSelection.modelId);
+  }, [
+    disabled,
+    onCreateSession,
+    preferredSelection.engine.id,
+    preferredSelection.modelId,
+  ]);
 
   const handleToggleMenu = useCallback(() => {
     if (disabled) {
@@ -214,25 +223,40 @@ function WorkbenchNewSessionButtonComponent({
           <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
             {resolvedMenuLabel}
           </div>
-          {availableEngines.map((engine) => (
-            <button
-              key={`new-session-engine-${variant}-${engine.id}`}
-              type="button"
-              className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-white/10 hover:text-white"
-              onClick={() => {
-                setIsOpen(false);
-                void onCreateSession(engine.id);
-              }}
-            >
-              <div className="flex min-w-0 items-center gap-2">
-                <WorkbenchCodeEngineIcon engineId={engine.id} />
-                <span className="truncate">{engine.label}</span>
-              </div>
-              {engine.id === preferredSelection.engine.id ? (
-                <Check size={14} className="shrink-0 text-blue-400" />
-              ) : null}
-            </button>
-          ))}
+          {availableEngines.map((engine) => {
+            const engineModelId = resolveWorkbenchCodeEngineSelectedModelId(
+              engine.id,
+              preferences,
+            );
+            const engineModelLabel =
+              getWorkbenchCodeModelLabel(engine.id, engineModelId, preferences) ||
+              engineModelId;
+
+            return (
+              <button
+                key={`new-session-engine-${variant}-${engine.id}`}
+                type="button"
+                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-white/10 hover:text-white"
+                onClick={() => {
+                  setIsOpen(false);
+                  void onCreateSession(engine.id, engineModelId);
+                }}
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <WorkbenchCodeEngineIcon engineId={engine.id} />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate">{engine.label}</span>
+                    <span className="truncate text-[11px] text-gray-500">
+                      {engineModelLabel}
+                    </span>
+                  </span>
+                </div>
+                {engine.id === preferredSelection.engine.id ? (
+                  <Check size={14} className="shrink-0 text-blue-400" />
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       ) : null}
     </div>

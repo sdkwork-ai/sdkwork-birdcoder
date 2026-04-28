@@ -17,6 +17,7 @@ import type {
 } from '@sdkwork/birdcoder-types';
 import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
 import { ApiBackedCoreReadService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCoreReadService.ts';
+import { TEST_CODE_ENGINE_MODEL_CONFIG } from './test-code-engine-model-config-fixture.ts';
 
 const routeFixture: BirdCoderApiRouteCatalogEntry = {
   authMode: 'host',
@@ -224,6 +225,10 @@ const coreReadClient: BirdCoderCoreReadApiClient = {
   async getHealth() {
     calls.push('getHealth');
     return healthFixture;
+  },
+  async getModelConfig() {
+    calls.push('getModelConfig');
+    return TEST_CODE_ENGINE_MODEL_CONFIG;
   },
   async getNativeSession() {
     calls.push('getNativeSession');

@@ -6,9 +6,12 @@ import {
 } from '@sdkwork/birdcoder-types';
 import {
   listWorkbenchCliEngines,
+  resolveWorkbenchCodeEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
 } from '@sdkwork/birdcoder-codeengine';
 import {
+  deduplicateBirdCoderCodingSessionsForRender,
+  deduplicateBirdCoderProjectsForRender,
   useToast,
   useWorkbenchPreferences,
 } from '@sdkwork/birdcoder-commons';
@@ -198,6 +201,10 @@ export const Sidebar = React.memo(function Sidebar({
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const scrollRegionRef = useRef<HTMLDivElement>(null);
   const relativeTimeNow = useRelativeMinuteNow({ isEnabled: isVisible });
+  const renderProjects = useMemo(
+    () => deduplicateBirdCoderProjectsForRender(projects),
+    [projects],
+  );
 
   const closeFloatingMenus = useCallback(() => {
     setShowFilterMenu(false);
@@ -263,7 +270,7 @@ export const Sidebar = React.memo(function Sidebar({
       setExpandedProjects(prev => {
         const newExpanded = { ...prev };
         let changed = false;
-        projects.forEach(p => {
+        renderProjects.forEach(p => {
           if (newExpanded[p.id] === undefined) {
             newExpanded[p.id] = true;
             changed = true;
@@ -272,7 +279,7 @@ export const Sidebar = React.memo(function Sidebar({
         return changed ? newExpanded : prev;
       });
     }
-  }, [deferredSearchQuery, projects]);
+  }, [deferredSearchQuery, renderProjects]);
 
   // When the search query changes, expand all projects that have matching sessions.
   useEffect(() => {
@@ -280,7 +287,7 @@ export const Sidebar = React.memo(function Sidebar({
       setExpandedProjects((previousExpandedProjects) => {
         let changed = false;
         const nextExpandedProjects = { ...previousExpandedProjects };
-        projects.forEach((project) => {
+        renderProjects.forEach((project) => {
           if (project.codingSessions.length > 0 && nextExpandedProjects[project.id] !== true) {
             nextExpandedProjects[project.id] = true;
             changed = true;
@@ -289,14 +296,14 @@ export const Sidebar = React.memo(function Sidebar({
         return changed ? nextExpandedProjects : previousExpandedProjects;
       });
     }
-  }, [deferredSearchQuery, projects]);
+  }, [deferredSearchQuery, renderProjects]);
 
   useEffect(() => {
     setVisibleSessionCountByProjectId((previousState) => {
       let changed = false;
       const nextState: Record<string, number> = {};
 
-      for (const project of projects) {
+      for (const project of renderProjects) {
         const existingCount = previousState[project.id];
         nextState[project.id] =
           typeof existingCount === 'number' ? existingCount : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
@@ -311,7 +318,7 @@ export const Sidebar = React.memo(function Sidebar({
 
       return changed ? nextState : previousState;
     });
-  }, [projects]);
+  }, [renderProjects]);
 
   const toggleProject = useCallback((projectId: string, event?: React.MouseEvent) => {
     event?.stopPropagation();
@@ -394,23 +401,23 @@ export const Sidebar = React.memo(function Sidebar({
   const codingSessionLookup = useMemo(
     () =>
       new Map(
-        projects.flatMap((project) =>
+        renderProjects.flatMap((project) =>
           project.codingSessions.map(
             (codingSession) =>
               [codingSession.id, codingSession] satisfies [string, BirdCoderCodingSession],
           ),
         ),
       ),
-    [projects],
+    [renderProjects],
   );
   const projectLookup = useMemo(
     () =>
       new Map(
-        projects.map(
+        renderProjects.map(
           (project) => [project.id, project] satisfies [string, BirdCoderProject],
         ),
       ),
-    [projects],
+    [renderProjects],
   );
   const selectedContextMenuSession = useMemo(
     () =>
@@ -449,9 +456,10 @@ export const Sidebar = React.memo(function Sidebar({
       newSessionEngineCatalog.availableEngines.map((engine) => ({
         id: engine.id,
         label: engine.label,
+        modelId: resolveWorkbenchCodeEngineSelectedModelId(engine.id, preferences),
         terminalProfileId: engine.terminalProfileId ?? null,
       })),
-    [newSessionEngineCatalog.availableEngines],
+    [newSessionEngineCatalog.availableEngines, preferences],
   );
   const terminalEngineOptions = useMemo<readonly ProjectExplorerEngineOption[]>(
     () =>
@@ -510,11 +518,11 @@ export const Sidebar = React.memo(function Sidebar({
   const handleCodingSessionRenameCancel = useCallback(() => {
     setRenamingCodingSessionId(null);
   }, []);
-  const handleCreateEngineSession = useCallback((engineId: string) => {
+  const handleCreateEngineSession = useCallback((engineId: string, modelId: string) => {
     if (!selectedProjectId) {
       return;
     }
-    onNewCodingSessionInProject(selectedProjectId, engineId);
+    onNewCodingSessionInProject(selectedProjectId, engineId, modelId);
   }, [onNewCodingSessionInProject, selectedProjectId]);
   const handleToggleSearch = useCallback(() => {
     setShowSearch((previousState) => {
@@ -546,6 +554,7 @@ export const Sidebar = React.memo(function Sidebar({
       onNewCodingSessionInProject(
         selectedProjectId,
         newSessionEngineCatalog.preferredSelection.engineId,
+        newSessionEngineCatalog.preferredSelection.modelId,
       );
       return;
     }
@@ -554,6 +563,7 @@ export const Sidebar = React.memo(function Sidebar({
   }, [
     addToast,
     newSessionEngineCatalog.preferredSelection.engineId,
+    newSessionEngineCatalog.preferredSelection.modelId,
     onNewCodingSessionInProject,
     selectedProjectId,
     t,
@@ -617,7 +627,7 @@ export const Sidebar = React.memo(function Sidebar({
   );
   const filteredProjectSessions = useMemo<SidebarFilteredProjectSessionsEntry[]>(
     () =>
-      projects
+      renderProjects
         .filter((project) => showArchived || !project.archived)
         .map((project) => ({
           project,
@@ -637,23 +647,25 @@ export const Sidebar = React.memo(function Sidebar({
     [
       buildSortedCodingSessions,
       normalizedSearchQuery,
-      projects,
+      renderProjects,
       showArchived,
     ],
   );
   const chronologicalSessions = useMemo(
     () =>
       buildSortedCodingSessions(
-        projects
-          .flatMap((project) => project.codingSessions)
-          .filter((codingSession) => showArchived || !codingSession.archived)
-          .filter(
-            (codingSession) =>
-              !normalizedSearchQuery ||
-              codingSession.title.toLowerCase().includes(normalizedSearchQuery),
-          ),
+        deduplicateBirdCoderCodingSessionsForRender(
+          renderProjects
+            .flatMap((project) => project.codingSessions)
+            .filter((codingSession) => showArchived || !codingSession.archived)
+            .filter(
+              (codingSession) =>
+                !normalizedSearchQuery ||
+                codingSession.title.toLowerCase().includes(normalizedSearchQuery),
+            ),
+        ),
       ),
-    [buildSortedCodingSessions, normalizedSearchQuery, projects, showArchived],
+    [buildSortedCodingSessions, normalizedSearchQuery, renderProjects, showArchived],
   );
   const projectEntries = useMemo<SidebarProjectEntry[]>(
     () =>
@@ -797,8 +809,10 @@ export const Sidebar = React.memo(function Sidebar({
                       : t('code.collapseSessions')
                   }
                   defaultNewSessionEngineId={newSessionEngineCatalog.preferredSelection.engineId}
+                  defaultNewSessionModelId={newSessionEngineCatalog.preferredSelection.modelId}
                   newSessionInProjectLabel={t('code.newSessionInProject')}
                   awaitingApprovalSessionLabel={t('code.awaitingApprovalSession')}
+                  awaitingToolSessionLabel={t('code.awaitingToolSession')}
                   awaitingUserSessionLabel={t('code.awaitingUserSession')}
                   executingSessionLabel={t('code.executingSession')}
                   initializingSessionLabel={t('code.initializingSession')}
@@ -837,6 +851,7 @@ export const Sidebar = React.memo(function Sidebar({
                     renameValue={renamingCodingSessionId === session.id ? renameValue : ''}
                     paddingClassName="px-2"
                     awaitingApprovalSessionLabel={t('code.awaitingApprovalSession')}
+                    awaitingToolSessionLabel={t('code.awaitingToolSession')}
                     awaitingUserSessionLabel={t('code.awaitingUserSession')}
                     executingSessionLabel={t('code.executingSession')}
                     initializingSessionLabel={t('code.initializingSession')}

@@ -29,6 +29,8 @@ export { DeferredRunConfigurationDialog, DeferredRunTaskDialog } from './compone
 
 export { UniversalChat } from './components/UniversalChat';
 export type { ChatSkill, UniversalChatProps } from './components/UniversalChat';
+export { UniversalChatComposerChrome } from './components/UniversalChatComposerChrome';
+export type { UniversalChatComposerChromeProps } from './components/UniversalChatComposerChrome';
 
 export {
   buildHtmlPreviewDocument,

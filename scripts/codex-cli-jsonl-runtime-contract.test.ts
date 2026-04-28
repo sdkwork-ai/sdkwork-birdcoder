@@ -57,6 +57,16 @@ const fakeCliJsonlEvents = [
     },
   },
   {
+    type: 'item.started',
+    item: {
+      id: 'fake-codex-started-command',
+      type: 'command_execution',
+      command: 'pnpm test',
+      aggregated_output: '',
+      status: 'in_progress',
+    },
+  },
+  {
     type: 'item.completed',
     item: {
       id: 'fake-codex-command',
@@ -143,6 +153,12 @@ assert.equal(
   chunks[0]?.choices[0]?.delta.content,
   'Codex CLI bridge response.',
   'Codex streaming fallback must forward assistant text from the CLI JSONL lane.',
+);
+assert.equal(
+  chunks.find((chunk) => chunk.choices[0]?.delta.tool_calls?.[0]?.id === 'fake-codex-started-command')
+    ?.choices[0]?.delta.tool_calls?.[0]?.function.name,
+  'run_command',
+  'Codex streaming CLI JSONL fallback must preserve item.started command snapshots so command cards appear immediately.',
 );
 assert.equal(
   chunks.find((chunk) => chunk.choices[0]?.delta.tool_calls?.length)?.choices[0]?.delta.tool_calls?.[0]?.function.name,

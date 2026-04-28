@@ -16,11 +16,14 @@ import type {
 } from './data.ts';
 import type {
   BirdCoderCodeEngineKey,
+  BirdCoderCodeEngineModelConfig,
+  BirdCoderCodeEngineModelConfigSyncResult,
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineBindingSummary,
   BirdCoderEngineDescriptor,
   BirdCoderEngineTransportKind,
   BirdCoderModelCatalogEntry,
+  BirdCoderSyncCodeEngineModelConfigRequest,
 } from './engine.ts';
 import type { BirdcoderApprovalPolicy } from './governance.ts';
 import {
@@ -144,6 +147,8 @@ export interface BirdCoderWorkspaceRealtimeEvent {
   codingSessionRuntimeStatus?: BirdCoderCodingSessionRuntimeStatus;
   nativeSessionId?: string;
   turnId?: string;
+  codingSessionEventKind?: BirdCoderCodingSessionEvent['kind'];
+  codingSessionEventPayload?: BirdCoderCodingSessionEvent['payload'];
   occurredAt: string;
   projectUpdatedAt?: string;
   codingSessionUpdatedAt?: string;
@@ -200,18 +205,20 @@ export interface BirdCoderApprovalDecisionResult {
 }
 
 export interface BirdCoderSubmitUserQuestionAnswerRequest {
-  answer: string;
+  answer?: string;
   optionId?: string;
   optionLabel?: string;
+  rejected?: boolean;
 }
 
 export interface BirdCoderUserQuestionAnswerResult {
   questionId: string;
   codingSessionId: string;
-  answer: string;
+  answer?: string;
   answeredAt: string;
   optionId?: string;
   optionLabel?: string;
+  rejected?: boolean;
   runtimeId?: string;
   runtimeStatus: BirdCoderCodingSessionRuntimeStatus;
   turnId?: string;
@@ -1263,6 +1270,7 @@ export interface BirdCoderCoreReadApiClient {
   getDescriptor(): Promise<BirdCoderCodingServerDescriptor>;
   getEngineCapabilities(engineKey: string): Promise<BirdCoderEngineCapabilityMatrix>;
   getHealth(): Promise<BirdCoderCoreHealthSummary>;
+  getModelConfig(): Promise<BirdCoderCodeEngineModelConfig>;
   getNativeSession(
     codingSessionId: string,
     request?: BirdCoderGetNativeSessionRequest,
@@ -1318,6 +1326,16 @@ export interface BirdCoderDeleteCodingSessionMessageResult {
   codingSessionId: string;
 }
 
+export interface BirdCoderEditCodingSessionMessageRequest {
+  content: string;
+}
+
+export interface BirdCoderEditCodingSessionMessageResult {
+  id: string;
+  codingSessionId: string;
+  content: string;
+}
+
 export interface BirdCoderCodingSessionTurnCurrentFileContext {
   path: string;
   content?: string;
@@ -1331,11 +1349,19 @@ export interface BirdCoderCodingSessionTurnIdeContext {
   currentFile?: BirdCoderCodingSessionTurnCurrentFileContext;
 }
 
+export interface BirdCoderCodingSessionTurnOptions {
+  temperature?: number;
+  topP?: number;
+  maxTokens?: number;
+}
+
 export interface BirdCoderCreateCodingSessionTurnRequest {
   runtimeId?: string;
   requestKind: BirdCoderCodingSessionTurn['requestKind'];
   inputSummary: string;
+  stream?: boolean;
   ideContext?: BirdCoderCodingSessionTurnIdeContext;
+  options?: BirdCoderCodingSessionTurnOptions;
 }
 
 export interface BirdCoderCoreWriteApiClient {
@@ -1351,6 +1377,11 @@ export interface BirdCoderCoreWriteApiClient {
     request: BirdCoderUpdateCodingSessionRequest,
   ): Promise<BirdCoderCodingSessionSummary>;
   deleteCodingSession(codingSessionId: string): Promise<BirdCoderDeleteCodingSessionResult>;
+  editCodingSessionMessage(
+    codingSessionId: string,
+    messageId: string,
+    request: BirdCoderEditCodingSessionMessageRequest,
+  ): Promise<BirdCoderEditCodingSessionMessageResult>;
   deleteCodingSessionMessage(
     codingSessionId: string,
     messageId: string,
@@ -1367,6 +1398,9 @@ export interface BirdCoderCoreWriteApiClient {
     questionId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ): Promise<BirdCoderUserQuestionAnswerResult>;
+  syncModelConfig(
+    request: BirdCoderSyncCodeEngineModelConfigRequest,
+  ): Promise<BirdCoderCodeEngineModelConfigSyncResult>;
 }
 
 export interface CreateBirdCoderGeneratedCoreWriteApiClientOptions {
@@ -1377,6 +1411,7 @@ export const BIRDCODER_SHARED_CORE_FACADE_OPERATION_IDS = [
   'core.getDescriptor',
   'core.getRuntime',
   'core.getHealth',
+  'core.getModelConfig',
   'core.listRoutes',
   'core.listEngines',
   'core.listNativeSessionProviders',
@@ -1390,10 +1425,12 @@ export const BIRDCODER_SHARED_CORE_FACADE_OPERATION_IDS = [
   'core.forkCodingSession',
   'core.updateCodingSession',
   'core.deleteCodingSession',
+  'core.editCodingSessionMessage',
   'core.deleteCodingSessionMessage',
   'core.createCodingSessionTurn',
   'core.submitApprovalDecision',
   'core.submitUserQuestionAnswer',
+  'core.syncModelConfig',
   'core.getCodingSession',
   'core.listCodingSessionEvents',
   'core.listCodingSessionArtifacts',
@@ -1443,11 +1480,13 @@ export interface BirdCoderCoreApiContract {
   deleteCodingSession: BirdCoderApiRouteDefinition;
   deleteCodingSessionMessage: BirdCoderApiRouteDefinition;
   descriptor: BirdCoderApiRouteDefinition;
+  editCodingSessionMessage: BirdCoderApiRouteDefinition;
   engineCapabilities: BirdCoderApiRouteDefinition;
   engines: BirdCoderApiRouteDefinition;
   events: BirdCoderApiRouteDefinition;
   forkCodingSession: BirdCoderApiRouteDefinition;
   health: BirdCoderApiRouteDefinition;
+  modelConfig: BirdCoderApiRouteDefinition;
   models: BirdCoderApiRouteDefinition;
   nativeSession: BirdCoderApiRouteDefinition;
   nativeSessionProviders: BirdCoderApiRouteDefinition;
@@ -1461,6 +1500,7 @@ export interface BirdCoderCoreApiContract {
   sessionArtifacts: BirdCoderApiRouteDefinition;
   sessionCheckpoints: BirdCoderApiRouteDefinition;
   sessionTurns: BirdCoderApiRouteDefinition;
+  syncModelConfig: BirdCoderApiRouteDefinition;
   updateCodingSession: BirdCoderApiRouteDefinition;
 }
 
@@ -1610,6 +1650,50 @@ function normalizeOptionalText(value?: string): string | undefined {
 
   const normalizedValue = value.trim();
   return normalizedValue.length > 0 ? normalizedValue : undefined;
+}
+
+function normalizeOptionalFiniteNumber(
+  value: number | undefined,
+  minimum: number,
+  maximum: number,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function normalizeOptionalPositiveInteger(
+  value: number | undefined,
+  maximum: number,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(maximum, Math.max(1, Math.floor(value)));
+}
+
+function buildBirdCoderCodingSessionTurnOptionsBody(
+  options: BirdCoderCodingSessionTurnOptions,
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  const temperature = normalizeOptionalFiniteNumber(options.temperature, 0, 2);
+  const topP = normalizeOptionalFiniteNumber(options.topP, 0, 1);
+  const maxTokens = normalizeOptionalPositiveInteger(options.maxTokens, 128000);
+
+  if (temperature !== undefined) {
+    body.temperature = temperature;
+  }
+  if (topP !== undefined) {
+    body.topP = topP;
+  }
+  if (maxTokens !== undefined) {
+    body.maxTokens = maxTokens;
+  }
+
+  return body;
 }
 
 function normalizeCollaborationUserReference(
@@ -2677,6 +2761,13 @@ export function createBirdCoderGeneratedCoreReadApiClient({
       >('core.getHealth');
       return response.data;
     },
+    async getModelConfig(): Promise<BirdCoderCodeEngineModelConfig> {
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderCodeEngineModelConfig>,
+        'core.getModelConfig'
+      >('core.getModelConfig');
+      return response.data;
+    },
     async getNativeSession(
       codingSessionId: string,
       request: BirdCoderGetNativeSessionRequest = {},
@@ -2916,6 +3007,26 @@ export function createBirdCoderGeneratedCoreWriteApiClient({
       });
       return response.data;
     },
+    async editCodingSessionMessage(
+      codingSessionId: string,
+      messageId: string,
+      request: BirdCoderEditCodingSessionMessageRequest,
+    ): Promise<BirdCoderEditCodingSessionMessageResult> {
+      const body = {
+        content: normalizeRequiredIdentifier(request.content, 'content'),
+      };
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderEditCodingSessionMessageResult>,
+        'core.editCodingSessionMessage'
+      >('core.editCodingSessionMessage', {
+        pathParams: {
+          id: normalizeRequiredIdentifier(codingSessionId, 'codingSessionId'),
+          messageId: normalizeRequiredIdentifier(messageId, 'messageId'),
+        },
+        body,
+      });
+      return response.data;
+    },
     async deleteCodingSessionMessage(
       codingSessionId: string,
       messageId: string,
@@ -2968,6 +3079,12 @@ export function createBirdCoderGeneratedCoreWriteApiClient({
             : {}),
         };
       }
+      if (typeof request.stream === 'boolean') {
+        body.stream = request.stream;
+      }
+      if (request.options) {
+        body.options = buildBirdCoderCodingSessionTurnOptionsBody(request.options);
+      }
 
       const response = await client.request<
         BirdCoderApiEnvelope<BirdCoderCodingSessionTurn>,
@@ -3007,9 +3124,10 @@ export function createBirdCoderGeneratedCoreWriteApiClient({
       questionId: string,
       request: BirdCoderSubmitUserQuestionAnswerRequest,
     ): Promise<BirdCoderUserQuestionAnswerResult> {
-      const body: Record<string, unknown> = {
-        answer: normalizeRequiredText(request.answer, 'answer'),
-      };
+      const rejected = request.rejected === true;
+      const body: Record<string, unknown> = rejected
+        ? { rejected: true }
+        : { answer: normalizeRequiredText(request.answer, 'answer') };
       const optionId = normalizeOptionalText(request.optionId);
       const optionLabel = normalizeOptionalText(request.optionLabel);
       if (optionId) {
@@ -3027,6 +3145,19 @@ export function createBirdCoderGeneratedCoreWriteApiClient({
           questionId: normalizeRequiredIdentifier(questionId, 'questionId'),
         },
         body,
+      });
+      return response.data;
+    },
+    async syncModelConfig(
+      request: BirdCoderSyncCodeEngineModelConfigRequest,
+    ): Promise<BirdCoderCodeEngineModelConfigSyncResult> {
+      const response = await client.request<
+        BirdCoderApiEnvelope<BirdCoderCodeEngineModelConfigSyncResult>,
+        'core.syncModelConfig'
+      >('core.syncModelConfig', {
+        body: {
+          localConfig: request.localConfig,
+        },
       });
       return response.data;
     },

@@ -18,11 +18,22 @@ const projectSummary: BirdCoderProjectSummary = {
   id: projectId,
   workspaceId,
   name: 'Authority Mirrored Project',
-  description: 'Remote project must be persisted into the local mirror during inventory reads.',
+  description: 'Imported project mirrors must be synchronized with authority during inventory reads.',
   rootPath: 'D:/workspace/authority-mirrored-project',
   status: 'active',
   createdAt: '2026-04-25T00:00:00.000Z',
   updatedAt: '2026-04-25T00:01:00.000Z',
+};
+
+const localProject: BirdCoderProject = {
+  id: projectId,
+  workspaceId,
+  name: 'Stale Imported Project Name',
+  description: 'Local imported project mirror before authority synchronization.',
+  path: 'D:/workspace/authority-mirrored-project',
+  createdAt: '2026-04-25T00:00:00.000Z',
+  updatedAt: '2026-04-25T00:00:00.000Z',
+  codingSessions: [],
 };
 
 const authoritativeCodingSession: BirdCoderCodingSessionSummary = {
@@ -109,7 +120,12 @@ const writeService = {
     return null;
   },
   async getProjectMirrorSnapshots() {
-    return [];
+    return [
+      {
+        ...localProject,
+        codingSessions: [],
+      },
+    ];
   },
 } as unknown as IProjectService;
 
@@ -126,7 +142,7 @@ const snapshots = await service.getProjectMirrorSnapshots(workspaceId);
 assert.equal(
   syncedProjectSummary?.id,
   projectId,
-  'project mirror snapshot reads must persist authority project summaries before exposing their sessions to UI selection.',
+  'project mirror snapshot reads must synchronize imported project summaries before exposing their sessions to UI selection.',
 );
 assert.equal(snapshots.length, 1);
 assert.equal(snapshots[0]?.id, projectId);

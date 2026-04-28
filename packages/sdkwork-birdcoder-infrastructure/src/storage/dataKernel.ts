@@ -25,7 +25,9 @@ import {
 } from './sqlPlans.ts';
 import {
   deserializeStoredValue,
+  executeStoredSqlPlan,
   getStoredRawValue,
+  hasStoredSqlPlanExecution,
   removeStoredValue,
   serializeStoredValue,
   setStoredRawValue,
@@ -132,10 +134,16 @@ function buildProviderMigrationHistoryKey(providerId: BirdCoderDatabaseProviderI
 }
 
 function createDefaultStorageAccess(
-): BirdCoderStorageAccess {
+): BirdCoderStorageAccess & BirdCoderSqlPlanStorageAccess {
   return {
+    get sqlPlanExecutionEnabled() {
+      return hasStoredSqlPlanExecution();
+    },
     async readRawValue(scope, key) {
       return getStoredRawValue(scope, key);
+    },
+    async executeSqlPlan(plan) {
+      return executeStoredSqlPlan(plan);
     },
     async setRawValue(scope, key, value) {
       await setStoredRawValue(scope, key, value);
@@ -148,7 +156,6 @@ function createDefaultStorageAccess(
 
 class LocalBirdCoderTransactionalUnitOfWork implements BirdCoderTransactionalUnitOfWork {
   readonly providerId: BirdCoderDatabaseProviderId;
-  readonly sqlPlanExecutionEnabled: boolean;
 
   #state: 'active' | 'committed' | 'rolled_back' = 'active';
   #stagedMutations = new Map<string, BirdCoderUnitOfWorkMutation>();
@@ -162,7 +169,10 @@ class LocalBirdCoderTransactionalUnitOfWork implements BirdCoderTransactionalUni
     this.storageProvider = storageProvider;
     this.providerId = storageProvider.providerId;
     this.sqlExecutorTransaction = sqlExecutorTransaction;
-    this.sqlPlanExecutionEnabled = Boolean(sqlExecutorTransaction);
+  }
+
+  get sqlPlanExecutionEnabled(): boolean {
+    return Boolean(this.sqlExecutorTransaction) || this.storageProvider.sqlPlanExecutionEnabled;
   }
 
   async commit(): Promise<void> {
@@ -247,13 +257,11 @@ class LocalBirdCoderTransactionalUnitOfWork implements BirdCoderTransactionalUni
   async executeSqlPlan(plan: BirdCoderSqlPlan): Promise<BirdCoderSqlExecutionResult> {
     this.assertActive('execute SQL plans against');
 
-    if (!this.sqlExecutorTransaction) {
-      throw new Error(
-        `BirdCoder unit of work for ${this.providerId} does not have SQL executor transaction support.`,
-      );
+    if (this.sqlExecutorTransaction) {
+      return this.sqlExecutorTransaction.execute(plan);
     }
 
-    return this.sqlExecutorTransaction.execute(plan);
+    return this.storageProvider.executeSqlPlan(plan);
   }
 
   private assertActive(action: string): void {
@@ -268,7 +276,6 @@ class LocalBirdCoderTransactionalUnitOfWork implements BirdCoderTransactionalUni
 class LocalBirdCoderStorageProvider implements BirdCoderTransactionalStorageProvider {
   readonly dialect;
   readonly providerId: BirdCoderDatabaseProviderId;
-  readonly sqlPlanExecutionEnabled: boolean;
 
   #isClosed = false;
   #isOpen = false;
@@ -281,13 +288,16 @@ class LocalBirdCoderStorageProvider implements BirdCoderTransactionalStorageProv
     this.providerId = providerId;
     this.dialect = createBirdCoderStorageDialect(providerId);
     this.sqlExecutor = options.sqlExecutor;
-    this.sqlPlanExecutionEnabled = Boolean(options.sqlExecutor);
 
     if (this.sqlExecutor && this.sqlExecutor.providerId !== providerId) {
       throw new Error(
         `BirdCoder storage provider ${providerId} cannot bind SQL executor ${this.sqlExecutor.providerId}.`,
       );
     }
+  }
+
+  get sqlPlanExecutionEnabled(): boolean {
+    return Boolean(this.sqlExecutor) || hasStoredSqlPlanExecution();
   }
 
   async beginUnitOfWork(): Promise<BirdCoderTransactionalUnitOfWork> {
@@ -337,13 +347,17 @@ class LocalBirdCoderStorageProvider implements BirdCoderTransactionalStorageProv
   async executeSqlPlan(plan: BirdCoderSqlPlan): Promise<BirdCoderSqlExecutionResult> {
     await this.ensureOpen();
 
-    if (!this.sqlExecutor) {
-      throw new Error(
-        `BirdCoder storage provider ${this.providerId} does not have a bound SQL executor.`,
-      );
+    if (this.sqlExecutor) {
+      return this.sqlExecutor.execute(plan);
     }
 
-    return this.sqlExecutor.execute(plan);
+    if (hasStoredSqlPlanExecution()) {
+      return executeStoredSqlPlan(plan);
+    }
+
+    throw new Error(
+      `BirdCoder storage provider ${this.providerId} does not have a bound SQL executor.`,
+    );
   }
 
   async removeRawValue(scope: string, key: string): Promise<void> {
@@ -508,12 +522,48 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
     definition,
     providerId,
   });
-  const useSqlExecutorPath = supportsSqlPlanExecution(storageAccess) && typeof toRow === 'function';
+  let shouldUseVolatileTableFallback = false;
+  let volatileTableRecords: TRecord[] | null = null;
+
+  function resolveVolatileTableRecords(): TRecord[] {
+    return volatileTableRecords ?? [];
+  }
+
+  function enterVolatileTableFallback(records: readonly TRecord[] = []): TRecord[] {
+    shouldUseVolatileTableFallback = true;
+    volatileTableRecords = normalizeStoredTableRecords(records, normalize, sort);
+    return volatileTableRecords;
+  }
+
+  function resolveSqlExecutorPath():
+    | {
+        storage: BirdCoderSqlPlanStorageAccess;
+        toRow: (value: TRecord) => BirdCoderSqlRow;
+      }
+    | null {
+    return !shouldUseVolatileTableFallback &&
+      supportsSqlPlanExecution(storageAccess) &&
+      typeof toRow === 'function'
+      ? {
+          storage: storageAccess,
+          toRow,
+        }
+      : null;
+  }
 
   async function readRecords(): Promise<TRecord[]> {
-    if (useSqlExecutorPath) {
-      const result = await storageAccess.executeSqlPlan(sqlPlanner.buildListPlan());
-      return normalizeStoredTableRecords(result.rows ?? [], normalize, sort);
+    if (shouldUseVolatileTableFallback) {
+      return resolveVolatileTableRecords();
+    }
+
+    const sqlExecutorPath = resolveSqlExecutorPath();
+    if (sqlExecutorPath) {
+      try {
+        const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildListPlan());
+        return normalizeStoredTableRecords(result.rows ?? [], normalize, sort);
+      } catch {
+        return enterVolatileTableFallback();
+      }
     }
 
     const rawRecords = deserializeStoredValue<unknown[]>(
@@ -526,10 +576,20 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
   async function writeRecords(records: readonly TRecord[]): Promise<TRecord[]> {
     const normalizedRecords = normalizeStoredTableRecords(records, normalize, sort);
 
-    if (useSqlExecutorPath) {
-      await storageAccess.executeSqlPlan(
-        sqlPlanner.buildUpsertPlan(normalizedRecords.map((record) => toRow(record))),
-      );
+    if (shouldUseVolatileTableFallback) {
+      volatileTableRecords = normalizedRecords;
+      return normalizedRecords;
+    }
+
+    const sqlExecutorPath = resolveSqlExecutorPath();
+    if (sqlExecutorPath) {
+      try {
+        await sqlExecutorPath.storage.executeSqlPlan(
+          sqlPlanner.buildUpsertPlan(normalizedRecords.map((record) => sqlExecutorPath.toRow(record))),
+        );
+      } catch {
+        enterVolatileTableFallback(normalizedRecords);
+      }
       return normalizedRecords;
     }
 
@@ -549,27 +609,42 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
       return readRecords();
     },
     async count() {
-      if (useSqlExecutorPath) {
-        const result = await storageAccess.executeSqlPlan(sqlPlanner.buildCountPlan());
-        return Number(result.rows?.[0]?.total ?? 0);
+      const sqlExecutorPath = resolveSqlExecutorPath();
+      if (sqlExecutorPath) {
+        try {
+          const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildCountPlan());
+          return Number(result.rows?.[0]?.total ?? 0);
+        } catch {
+          enterVolatileTableFallback(resolveVolatileTableRecords());
+        }
       }
 
       const records = await readRecords();
       return records.length;
     },
     async findById(id) {
-      if (useSqlExecutorPath) {
-        const result = await storageAccess.executeSqlPlan(sqlPlanner.buildFindByIdPlan(id));
-        return normalizeStoredTableRecords(result.rows ?? [], normalize, sort)[0] ?? null;
+      const sqlExecutorPath = resolveSqlExecutorPath();
+      if (sqlExecutorPath) {
+        try {
+          const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildFindByIdPlan(id));
+          return normalizeStoredTableRecords(result.rows ?? [], normalize, sort)[0] ?? null;
+        } catch {
+          enterVolatileTableFallback(resolveVolatileTableRecords());
+        }
       }
 
       const records = await readRecords();
       return records.find((record) => identify(record) === id) ?? null;
     },
     async delete(id) {
-      if (useSqlExecutorPath) {
-        await storageAccess.executeSqlPlan(sqlPlanner.buildDeletePlan(id));
-        return;
+      const sqlExecutorPath = resolveSqlExecutorPath();
+      if (sqlExecutorPath) {
+        try {
+          await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildDeletePlan(id));
+          return;
+        } catch {
+          enterVolatileTableFallback(resolveVolatileTableRecords());
+        }
       }
 
       const records = await readRecords();
@@ -609,9 +684,20 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
       return normalizeStoredTableRecords(values, normalize, sort);
     },
     async clear() {
-      if (useSqlExecutorPath) {
-        await storageAccess.executeSqlPlan(sqlPlanner.buildClearPlan());
+      if (shouldUseVolatileTableFallback) {
+        volatileTableRecords = [];
         return;
+      }
+
+      const sqlExecutorPath = resolveSqlExecutorPath();
+      if (sqlExecutorPath) {
+        try {
+          await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildClearPlan());
+          return;
+        } catch {
+          enterVolatileTableFallback();
+          return;
+        }
       }
 
       await storageAccess.removeRawValue(binding.storageScope, storageKey);

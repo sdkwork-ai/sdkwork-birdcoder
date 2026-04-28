@@ -99,6 +99,7 @@ export const RELEASE_FLOW_CHECK_COMMANDS = [
   'node scripts/provider-adapter-browser-safety-contract.test.mjs',
   'node --experimental-strip-types scripts/engine-official-sdk-error-propagation-contract.test.ts',
   'node --experimental-strip-types scripts/provider-official-sdk-bridge-contract.test.ts',
+  'node scripts/codeengine-turn-options-provider-contract.test.mjs',
   'node --experimental-strip-types scripts/opencode-official-sdk-bridge-contract.test.ts',
   'node --experimental-strip-types scripts/engine-conformance-contract.test.ts',
   'node --experimental-strip-types scripts/tool-protocol-contract.test.ts',

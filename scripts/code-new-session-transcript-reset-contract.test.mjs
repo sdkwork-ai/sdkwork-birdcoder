@@ -80,14 +80,14 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /const createCodingSessionFromCurrentProjectWithTranscriptReset = useCallback\(async \([\s\S]*\) => \{[\s\S]*await createCodingSessionWithTranscriptReset\(currentProjectId, requestedEngineId\);[\s\S]*\}/s,
-  'CodePage current-project new-session action must remain awaitable so event-driven callers can observe the whole pending lifecycle.',
+  /const createCodingSessionFromCurrentProjectWithTranscriptReset = useCallback\(async \([\s\S]*requestedEngineId\?: string,[\s\S]*requestedModelId\?: string,[\s\S]*\) => \{[\s\S]*await createCodingSessionWithTranscriptReset\([\s\S]*currentProjectId,[\s\S]*requestedEngineId,[\s\S]*requestedModelId,[\s\S]*\);[\s\S]*\}/s,
+  'CodePage current-project new-session action must remain awaitable and preserve the requested engine/model so event-driven callers can observe the whole pending lifecycle.',
 );
 
 assert.match(
   codePageSource,
-  /const createCodingSessionInProjectWithTranscriptReset = useCallback\(async \([\s\S]*\) => \{[\s\S]*await createCodingSessionWithTranscriptReset\(projectId, requestedEngineId\);[\s\S]*\}/s,
-  'CodePage project-scoped new-session action must remain awaitable so global create-session events do not detach from page-level UI orchestration.',
+  /const createCodingSessionInProjectWithTranscriptReset = useCallback\(async \([\s\S]*projectId: string,[\s\S]*requestedEngineId\?: string,[\s\S]*requestedModelId\?: string,[\s\S]*\) => \{[\s\S]*await createCodingSessionWithTranscriptReset\([\s\S]*projectId,[\s\S]*requestedEngineId,[\s\S]*requestedModelId,[\s\S]*\);[\s\S]*\}/s,
+  'CodePage project-scoped new-session action must remain awaitable and preserve the requested engine/model so global create-session events do not detach from page-level UI orchestration.',
 );
 
 assert.match(

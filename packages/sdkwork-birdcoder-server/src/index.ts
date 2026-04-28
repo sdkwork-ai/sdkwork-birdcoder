@@ -4,6 +4,8 @@ import type {
   ChatOptions,
 } from '../../sdkwork-birdcoder-chat/src/index.ts';
 import {
+  buildDefaultBirdCoderCodeEngineModelConfig,
+  createBirdCoderCodeEngineModelConfigSyncPlan,
   createWorkbenchServerSessionEngineBinding,
   getBirdCoderCodeEngineCapabilities,
   getBirdCoderCodeEngineDescriptor,
@@ -40,6 +42,8 @@ import type {
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineDescriptor,
   BirdCoderCodingServerDescriptor,
+  BirdCoderCodeEngineModelConfig,
+  BirdCoderCodeEngineModelConfigSyncResult,
   BirdCoderCoreApiContract,
   BirdCoderModelCatalogEntry,
   BirdCoderNativeSessionProviderSummary,
@@ -1106,6 +1110,82 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         ],
       },
     ),
+    BirdCoderCodeEngineModelConfigCustomModel: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        label: createOpenApiStringSchema(),
+      },
+      {
+        required: ['id', 'label'],
+      },
+    ),
+    BirdCoderCodeEngineModelConfigEngine: createOpenApiObjectSchema(
+      {
+        engineId: createOpenApiStringEnumSchema(engineKeys),
+        defaultModelId: createOpenApiStringSchema(),
+        selectedModelId: createOpenApiStringSchema(),
+        customModels: createOpenApiArraySchema(
+          createOpenApiSchemaReference('BirdCoderCodeEngineModelConfigCustomModel'),
+        ),
+        models: createOpenApiArraySchema(
+          createOpenApiSchemaReference('BirdCoderModelCatalogEntry'),
+        ),
+      },
+      {
+        required: [
+          'engineId',
+          'defaultModelId',
+          'selectedModelId',
+          'customModels',
+          'models',
+        ],
+      },
+    ),
+    BirdCoderCodeEngineModelConfig: createOpenApiObjectSchema(
+      {
+        schemaVersion: createOpenApiIntegerSchema(1),
+        source: createOpenApiStringSchema(),
+        version: createOpenApiStringSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
+        engines: createOpenApiObjectSchema(
+          {},
+          {
+            additionalProperties: createOpenApiSchemaReference(
+              'BirdCoderCodeEngineModelConfigEngine',
+            ),
+          },
+        ),
+      },
+      {
+        required: ['schemaVersion', 'source', 'version', 'updatedAt', 'engines'],
+      },
+    ),
+    BirdCoderSyncCodeEngineModelConfigRequest: createOpenApiObjectSchema(
+      {
+        localConfig: createOpenApiSchemaReference('BirdCoderCodeEngineModelConfig'),
+      },
+      {
+        required: ['localConfig'],
+      },
+    ),
+    BirdCoderCodeEngineModelConfigSyncResult: createOpenApiObjectSchema(
+      {
+        action: createOpenApiStringEnumSchema(['noop', 'overwrite-local', 'push-local']),
+        authoritativeSource: createOpenApiStringEnumSchema(['equal', 'local', 'server']),
+        config: createOpenApiSchemaReference('BirdCoderCodeEngineModelConfig'),
+        shouldWriteLocal: createOpenApiBooleanSchema(),
+        shouldWriteServer: createOpenApiBooleanSchema(),
+      },
+      {
+        required: [
+          'action',
+          'authoritativeSource',
+          'config',
+          'shouldWriteLocal',
+          'shouldWriteServer',
+        ],
+      },
+    ),
     BirdCoderOperationDescriptor: createOpenApiObjectSchema(
       {
         operationId: createOpenApiStringSchema(),
@@ -1158,9 +1238,7 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         answer: createOpenApiStringSchema(),
         optionId: createOpenApiStringSchema(),
         optionLabel: createOpenApiStringSchema(),
-      },
-      {
-        required: ['answer'],
+        rejected: createOpenApiBooleanSchema(),
       },
     ),
     BirdCoderUserQuestionAnswerResult: createOpenApiObjectSchema(
@@ -1171,6 +1249,7 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         answeredAt: createOpenApiDateTimeSchema(),
         optionId: createOpenApiStringSchema(),
         optionLabel: createOpenApiStringSchema(),
+        rejected: createOpenApiBooleanSchema(),
         runtimeId: createOpenApiStringSchema(),
         runtimeStatus: createOpenApiStringEnumSchema(BIRDCODER_CODING_SESSION_RUNTIME_STATUSES),
         turnId: createOpenApiStringSchema(),
@@ -1179,8 +1258,8 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         required: [
           'questionId',
           'codingSessionId',
-          'answer',
           'answeredAt',
+          'rejected',
           'runtimeStatus',
         ],
       },
@@ -1442,6 +1521,15 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
       sessionId: createOpenApiStringSchema(),
       currentFile: createOpenApiSchemaReference('BirdCoderCodingSessionTurnCurrentFileContext'),
     }),
+    BirdCoderCodingSessionTurnOptions: createOpenApiObjectSchema({
+      temperature: createOpenApiNumberSchema(
+        'Sampling temperature. Values are sanitized by the runtime boundary.',
+      ),
+      topP: createOpenApiNumberSchema(
+        'Nucleus sampling value. Values are sanitized by the runtime boundary.',
+      ),
+      maxTokens: createOpenApiIntegerSchema(1),
+    }),
     BirdCoderCreateCodingSessionRequest: createOpenApiObjectSchema(
       {
         workspaceId: createOpenApiStringSchema(),
@@ -1463,12 +1551,24 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderForkCodingSessionRequest: createOpenApiObjectSchema({
       title: createOpenApiStringSchema(),
     }),
+    BirdCoderEditCodingSessionMessageRequest: createOpenApiObjectSchema(
+      {
+        content: createOpenApiStringSchema(),
+      },
+      {
+        required: ['content'],
+      },
+    ),
     BirdCoderCreateCodingSessionTurnRequest: createOpenApiObjectSchema(
       {
         runtimeId: createOpenApiStringSchema(),
         requestKind: createOpenApiStringEnumSchema(BIRDCODER_CODING_SESSION_TURN_REQUEST_KINDS),
         inputSummary: createOpenApiStringSchema(),
+        stream: createOpenApiBooleanSchema(
+          'Whether the turn should stream message.delta events. Defaults to true.',
+        ),
         ideContext: createOpenApiSchemaReference('BirdCoderCodingSessionTurnIdeContext'),
+        options: createOpenApiSchemaReference('BirdCoderCodingSessionTurnOptions'),
       },
       {
         required: ['requestKind', 'inputSummary'],
@@ -1489,6 +1589,16 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
       },
       {
         required: ['id', 'codingSessionId'],
+      },
+    ),
+    BirdCoderEditCodingSessionMessageResult: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        codingSessionId: createOpenApiStringSchema(),
+        content: createOpenApiStringSchema(),
+      },
+      {
+        required: ['id', 'codingSessionId', 'content'],
       },
     ),
     BirdCoderBooleanSuccessResult: createOpenApiObjectSchema(
@@ -2580,6 +2690,12 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderModelCatalogEntryListEnvelope: createOpenApiListEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderModelCatalogEntry'),
     ),
+    BirdCoderCodeEngineModelConfigEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCodeEngineModelConfig'),
+    ),
+    BirdCoderCodeEngineModelConfigSyncResultEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCodeEngineModelConfigSyncResult'),
+    ),
     BirdCoderOperationDescriptorEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderOperationDescriptor'),
     ),
@@ -2600,6 +2716,9 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     ),
     BirdCoderDeleteCodingSessionMessageResultEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderDeleteCodingSessionMessageResult'),
+    ),
+    BirdCoderEditCodingSessionMessageResultEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderEditCodingSessionMessageResult'),
     ),
     BirdCoderBooleanSuccessEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderBooleanSuccessResult'),
@@ -2879,6 +2998,24 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
+    'core.editCodingSessionMessage': {
+      parameters: [codingSessionIdPathParameter, messageIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderEditCodingSessionMessageRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Coding session message edited successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderEditCodingSessionMessageResultEnvelope',
+        ),
+        extraResponses: {
+          '400': createProblemResponse('Coding session message edit request is invalid.'),
+          '404': createProblemResponse('Coding session message was not found.'),
+          '500': createProblemResponse('Coding session message could not be edited.'),
+        },
+      }),
+    },
     'core.deleteCodingSessionMessage': {
       parameters: [codingSessionIdPathParameter, messageIdPathParameter],
       responses: buildOpenApiResponses({
@@ -3002,6 +3139,25 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successStatus: '200',
         successDescription: 'Model catalog returned successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderModelCatalogEntryListEnvelope'),
+      }),
+    },
+    'core.getModelConfig': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Code engine model configuration returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCodeEngineModelConfigEnvelope'),
+      }),
+    },
+    'core.syncModelConfig': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderSyncCodeEngineModelConfigRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Code engine model configuration synchronized successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderCodeEngineModelConfigSyncResultEnvelope',
+        ),
       }),
     },
     'core.getRuntime': {
@@ -3771,6 +3927,8 @@ function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
     ['GET /api/core/v1/native-sessions/:id', 'core.getNativeSession'],
     ['GET /api/core/v1/engines/:engineKey/capabilities', 'core.getEngineCapabilities'],
     ['GET /api/core/v1/models', 'core.listModels'],
+    ['GET /api/core/v1/model-config', 'core.getModelConfig'],
+    ['PUT /api/core/v1/model-config', 'core.syncModelConfig'],
     ['GET /api/core/v1/runtime', 'core.getRuntime'],
     ['GET /api/core/v1/health', 'core.getHealth'],
     ['GET /api/core/v1/coding-sessions', 'core.listCodingSessions'],
@@ -3778,6 +3936,7 @@ function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
     ['GET /api/core/v1/coding-sessions/:id', 'core.getCodingSession'],
     ['PATCH /api/core/v1/coding-sessions/:id', 'core.updateCodingSession'],
     ['DELETE /api/core/v1/coding-sessions/:id', 'core.deleteCodingSession'],
+    ['PATCH /api/core/v1/coding-sessions/:id/messages/:messageId', 'core.editCodingSessionMessage'],
     ['DELETE /api/core/v1/coding-sessions/:id/messages/:messageId', 'core.deleteCodingSessionMessage'],
     ['POST /api/core/v1/coding-sessions/:id/fork', 'core.forkCodingSession'],
     ['POST /api/core/v1/coding-sessions/:id/turns', 'core.createCodingSessionTurn'],
@@ -3982,6 +4141,51 @@ function mapCanonicalEventToCoreEvent(
   };
 }
 
+function resolveCoreSessionRunFailureMessage(error: unknown): string {
+  return String(error);
+}
+
+function resolveNextCanonicalFailureSequence(
+  events: readonly BirdCoderCodingSessionEvent[],
+): string {
+  const latestSequence = events
+    .map((event) => Number.parseInt(String(event.sequence), 10))
+    .filter((sequence) => Number.isFinite(sequence))
+    .reduce((latest, sequence) => Math.max(latest, sequence), 0);
+  return stringifyBirdCoderLongInteger(latestSequence + 1);
+}
+
+function createCanonicalFailureEvent(
+  sequence: string,
+  error: unknown,
+): ChatCanonicalEvent {
+  return {
+    kind: 'turn.failed',
+    sequence,
+    runtimeStatus: 'failed',
+    payload: {
+      errorMessage: resolveCoreSessionRunFailureMessage(error),
+    },
+  };
+}
+
+function appendCoreSessionRunFailureEvent(
+  request: BirdCoderCoreSessionRunRequest,
+  events: BirdCoderCodingSessionEvent[],
+  error: unknown,
+): BirdCoderCodingSessionEvent | null {
+  if (events.at(-1)?.kind === 'turn.failed') {
+    return null;
+  }
+
+  const { event } = mapCanonicalEventToCoreEvent(
+    request,
+    createCanonicalFailureEvent(resolveNextCanonicalFailureSequence(events), error),
+  );
+  events.push(event);
+  return event;
+}
+
 function resolveRequiredRuntimeModelId(
   request: BirdCoderCoreSessionRunRequest,
 ): string {
@@ -4086,6 +4290,13 @@ const CORE_API_CONTRACT: BirdCoderCoreApiContract = {
     'Replay or subscribe to coding session events',
   ),
   health: createRoute('core', 'host', 'GET', '/api/core/v1/health', 'Get coding-server health'),
+  modelConfig: createRoute(
+    'core',
+    'host',
+    'GET',
+    '/api/core/v1/model-config',
+    'Get code engine model configuration',
+  ),
   models: createRoute('core', 'host', 'GET', '/api/core/v1/models', 'List model catalog'),
   operations: createRoute(
     'core',
@@ -4145,12 +4356,26 @@ const CORE_API_CONTRACT: BirdCoderCoreApiContract = {
     '/api/core/v1/coding-sessions/:id/messages/:messageId',
     'Delete coding session message',
   ),
+  editCodingSessionMessage: createRoute(
+    'core',
+    'host',
+    'PATCH',
+    '/api/core/v1/coding-sessions/:id/messages/:messageId',
+    'Edit coding session message',
+  ),
   sessionTurns: createRoute(
     'core',
     'host',
     'POST',
     '/api/core/v1/coding-sessions/:id/turns',
     'Create coding session turn',
+  ),
+  syncModelConfig: createRoute(
+    'core',
+    'host',
+    'PUT',
+    '/api/core/v1/model-config',
+    'Sync code engine model configuration',
   ),
   updateCodingSession: createRoute(
     'core',
@@ -4461,6 +4686,30 @@ export function listBirdCoderCodingServerModels(): ReadonlyArray<BirdCoderModelC
   return listBirdCoderCodeEngineModels();
 }
 
+export function getBirdCoderCodingServerModelConfig(): BirdCoderCodeEngineModelConfig {
+  const models = listBirdCoderCodeEngineModels();
+  const updatedAt =
+    models
+      .map((model) => Date.parse(model.updatedAt))
+      .filter((timestamp) => Number.isFinite(timestamp))
+      .sort((left, right) => right - left)[0] ?? Date.parse('2026-01-01T00:00:00.000Z');
+  return buildDefaultBirdCoderCodeEngineModelConfig({
+    models,
+    source: 'server',
+    updatedAt: new Date(updatedAt).toISOString(),
+    version: BIRDCODER_CODING_SERVER_API_VERSION,
+  });
+}
+
+export function syncBirdCoderCodingServerModelConfig(
+  localConfig: BirdCoderCodeEngineModelConfig,
+): BirdCoderCodeEngineModelConfigSyncResult {
+  return createBirdCoderCodeEngineModelConfigSyncPlan({
+    localConfig,
+    serverConfig: getBirdCoderCodingServerModelConfig(),
+  });
+}
+
 export function listBirdCoderCodingServerNativeSessionProviders(): ReadonlyArray<BirdCoderNativeSessionProviderSummary> {
   return listBirdCoderCodeEngineNativeSessionProviders();
 }
@@ -4617,24 +4866,30 @@ export async function executeBirdCoderCoreSessionRun(
   const events: BirdCoderCodingSessionEvent[] = [];
   const artifacts: BirdCoderCodingSessionArtifact[] = [];
 
-  for await (const canonicalEvent of chatEngine.sendCanonicalEvents?.(
-    request.messages,
-    {
-      ...request.options,
-      model: resolvedModelId,
-    },
-  ) ?? []) {
-    const projection = mapCanonicalEventToCoreEvent(
+  const resolvedRequest = {
+    ...request,
+    modelId: resolvedModelId,
+  };
+
+  try {
+    for await (const canonicalEvent of chatEngine.sendCanonicalEvents?.(
+      request.messages,
       {
-        ...request,
-        modelId: resolvedModelId,
+        ...request.options,
+        model: resolvedModelId,
       },
-      canonicalEvent,
-    );
-    events.push(projection.event);
-    if (projection.artifact) {
-      artifacts.push(projection.artifact);
+    ) ?? []) {
+      const projection = mapCanonicalEventToCoreEvent(
+        resolvedRequest,
+        canonicalEvent,
+      );
+      events.push(projection.event);
+      if (projection.artifact) {
+        artifacts.push(projection.artifact);
+      }
     }
+  } catch (error) {
+    appendCoreSessionRunFailureEvent(resolvedRequest, events, error);
   }
 
   const runtime: BirdCoderCodingSessionRuntime = {
@@ -4725,9 +4980,34 @@ export async function persistBirdCoderCoreSessionRunProjection(
 export async function* streamBirdCoderCoreSessionEventEnvelopes(
   request: BirdCoderCoreSessionRunRequest,
 ): AsyncGenerator<BirdCoderApiEnvelope<BirdCoderCodingSessionEvent>, void, unknown> {
-  const projection = await executeBirdCoderCoreSessionRun(request);
-  for (const event of projection.events) {
-    yield createEnvelope(event, event.id);
+  const resolvedModelId = resolveRequiredRuntimeModelId(request);
+  const { chatEngine } = createWorkbenchServerSessionEngineBinding(request.engineId);
+  const resolvedRequest = {
+    ...request,
+    modelId: resolvedModelId,
+  };
+  const events: BirdCoderCodingSessionEvent[] = [];
+
+  try {
+    for await (const canonicalEvent of chatEngine.sendCanonicalEvents?.(
+      request.messages,
+      {
+        ...request.options,
+        model: resolvedModelId,
+      },
+    ) ?? []) {
+      const { event } = mapCanonicalEventToCoreEvent(
+        resolvedRequest,
+        canonicalEvent,
+      );
+      events.push(event);
+      yield createEnvelope(event, event.id);
+    }
+  } catch (error) {
+    const appendedFailureEvent = appendCoreSessionRunFailureEvent(resolvedRequest, events, error);
+    if (appendedFailureEvent) {
+      yield createEnvelope(appendedFailureEvent, appendedFailureEvent.id);
+    }
   }
 }
 

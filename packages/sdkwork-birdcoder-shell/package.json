@@ -18,6 +18,7 @@
     "@sdkwork/birdcoder-settings": "workspace:*",
     "@sdkwork/birdcoder-skills": "workspace:*",
     "@sdkwork/birdcoder-studio": "workspace:*",
+    "@sdkwork/birdcoder-multiwindow": "workspace:*",
     "@sdkwork/birdcoder-templates": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
     "@sdkwork/birdcoder-ui-shell": "workspace:*",

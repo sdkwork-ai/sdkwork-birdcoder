@@ -6,6 +6,45 @@ type DirectoryPickerWindow = Window &
     showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
   };
 
+type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
+
+type TauriDialogWindow = Window &
+  typeof globalThis & {
+    __TAURI_INTERNALS__?: {
+      invoke?: TauriInvoke;
+    };
+  };
+
+type TauriDirectoryDialogResult = string | string[] | null;
+
+async function resolveTauriInvoke(): Promise<TauriInvoke> {
+  const tauriWindow =
+    typeof window === 'undefined' ? null : (window as TauriDialogWindow);
+  const directInvoke = tauriWindow?.__TAURI_INTERNALS__?.invoke;
+  if (typeof directInvoke === 'function') {
+    return directInvoke;
+  }
+
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke;
+}
+
+async function openTauriDirectoryDialog(): Promise<string | null> {
+  const invoke = await resolveTauriInvoke();
+  const selectedPath = await invoke<TauriDirectoryDialogResult>('plugin:dialog|open', {
+    options: {
+      directory: true,
+      multiple: false,
+    },
+  });
+
+  if (Array.isArray(selectedPath)) {
+    return selectedPath.find((path) => typeof path === 'string' && path.length > 0) ?? null;
+  }
+
+  return typeof selectedPath === 'string' && selectedPath.length > 0 ? selectedPath : null;
+}
+
 export async function openLocalFolder(): Promise<LocalFolderMountSource | null> {
   const directoryPickerWindow = window as DirectoryPickerWindow;
 
@@ -13,13 +52,9 @@ export async function openLocalFolder(): Promise<LocalFolderMountSource | null> 
   // the browser File System Access permission prompt path.
   if (await isBirdCoderTauriRuntime()) {
     try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const selectedPath = await open({
-        directory: true,
-        multiple: false,
-      });
+      const selectedPath = await openTauriDirectoryDialog();
       if (selectedPath) {
-        return { type: 'tauri', path: selectedPath as string };
+        return { type: 'tauri', path: selectedPath };
       }
 
       return null;

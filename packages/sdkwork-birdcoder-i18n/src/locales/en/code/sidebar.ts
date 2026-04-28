@@ -71,6 +71,7 @@ export default defineLocaleModule('code/sidebar', {
     "refreshMessages": "Refresh Messages",
     "refreshingMessages": "Refreshing Messages",
     awaitingApprovalSession: 'Needs approval',
+    awaitingToolSession: 'Ready',
     awaitingUserSession: 'Needs reply',
     executingSession: 'Executing',
     initializingSession: 'Initializing',

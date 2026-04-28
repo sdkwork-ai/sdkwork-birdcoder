@@ -80,7 +80,11 @@ function resolveBootstrapTauriInvoke(): TauriInvoke | null {
 async function readBootstrapStoredRawValue(scope: string, key: string): Promise<string | null> {
   const invoke = resolveBootstrapTauriInvoke();
   if (invoke) {
-    return await invoke<string | null>('local_store_get', { scope, key });
+    try {
+      return await invoke<string | null>('local_store_get', { scope, key });
+    } catch {
+      // Keep the earliest bootstrap path local-first when the desktop bridge is not ready yet.
+    }
   }
 
   if (typeof window === 'undefined') {

@@ -396,13 +396,59 @@ function createClaudeToolProgressCall(
   };
 }
 
+function normalizeClaudeFiniteNumber(
+  value: number | undefined,
+  minimum: number,
+  maximum: number,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function normalizeClaudePositiveInteger(
+  value: number | undefined,
+  maximum: number,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(maximum, Math.max(1, Math.floor(value)));
+}
+
+function normalizeClaudeTemperature(value: number | undefined): number | undefined {
+  return normalizeClaudeFiniteNumber(value, 0, 2);
+}
+
+function normalizeClaudeTopP(value: number | undefined): number | undefined {
+  return normalizeClaudeFiniteNumber(value, 0, 1);
+}
+
+function normalizeClaudeMaxTokens(value: number | undefined): number | undefined {
+  return normalizeClaudePositiveInteger(value, 128000);
+}
+
+function compactClaudeSdkOptions(
+  options: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(options).filter(([, value]) => value !== undefined),
+  );
+}
+
 function createClaudeSdkOptions(options?: ChatOptions): Record<string, unknown> {
   const model = normalizeClaudeRequestedModel(options?.model);
-  return {
-    ...(model ? { model } : {}),
-    ...(options?.context?.workspaceRoot ? { cwd: options.context.workspaceRoot } : {}),
-    ...(options?.signal ? { signal: options.signal } : {}),
-  };
+  return compactClaudeSdkOptions({
+    model: model || undefined,
+    cwd: options?.context?.workspaceRoot || undefined,
+    signal: options?.signal,
+    temperature: normalizeClaudeTemperature(options?.temperature),
+    topP: normalizeClaudeTopP(options?.topP),
+    maxTokens: normalizeClaudeMaxTokens(options?.maxTokens),
+  });
 }
 
 function mergeClaudeQueryResultText(
@@ -817,14 +863,15 @@ export class ClaudeChatEngine implements IChatEngine {
     messages: ChatMessage[],
     options?: ChatOptions,
   ): AsyncGenerator<ChatStreamChunk, void, unknown> {
-    const sendMessageViaClaudeCli = () => this.sendMessageViaClaudeCli(messages, options);
+    const sendMessageViaClaudeCli = (streamOptions: ChatOptions) =>
+      this.sendMessageViaClaudeCli(messages, streamOptions);
     yield* streamWithOptionalOfficialSdk({
       loader: this.officialSdkBridgeLoader,
       messages,
       options,
-      fallback: async function* fallbackStream() {
+      fallback: async function* fallbackStream(streamOptions) {
         yield* streamResponseAsChunks(
-          await sendMessageViaClaudeCli(),
+          await sendMessageViaClaudeCli(streamOptions),
         );
       },
     });

@@ -148,14 +148,16 @@ export function useSessionRefreshActions({
             synchronizedProject,
             normalizedUserScope,
           );
-        } else {
-          upsertCodingSessionIntoProjectsStore(
-            result.workspaceId ?? workspaceId?.trim() ?? result.codingSession.workspaceId,
-            result.projectId,
-            result.codingSession,
-            normalizedUserScope,
-          );
         }
+        upsertCodingSessionIntoProjectsStore(
+          result.workspaceId?.trim() ||
+            synchronizedProject?.workspaceId?.trim() ||
+            workspaceId?.trim() ||
+            result.codingSession.workspaceId,
+          result.projectId,
+          result.codingSession,
+          normalizedUserScope,
+        );
       }
 
       restoreSelectionAfterRefresh(

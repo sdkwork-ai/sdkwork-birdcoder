@@ -13,7 +13,7 @@ export interface ProjectExplorerProps {
   onDeleteProject: (id: string) => void;
   onNewProject: () => Promise<string | undefined>;
   onOpenFolder?: () => void;
-  onNewCodingSessionInProject: (projectId: string, engineId?: string) => void;
+  onNewCodingSessionInProject: (projectId: string, engineId?: string, modelId?: string) => void;
   onRefreshProjectSessions?: (id: string) => Promise<void> | void;
   onRefreshCodingSessionMessages?: (id: string) => Promise<void> | void;
   onArchiveProject?: (id: string) => void;

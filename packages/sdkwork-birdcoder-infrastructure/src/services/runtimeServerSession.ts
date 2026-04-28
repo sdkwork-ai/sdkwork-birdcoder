@@ -239,32 +239,50 @@ function persistRuntimeServerTokenBundleToStorage(
 
 export function createRuntimeServerTokenStore(): UserCenterTokenStore {
   let memoryBundle: UserCenterTokenBundle = {};
+  let shouldPreserveMemoryBundleWhenStorageIsEmpty = false;
+  let shouldIgnoreStorageBundleAfterFailedClear = false;
 
   function readCurrentBundle(): UserCenterTokenBundle {
     const localStorage = resolveRuntimeServerLocalStorage();
-    if (!localStorage) {
+    if (!localStorage || shouldIgnoreStorageBundleAfterFailedClear) {
       return {
         ...memoryBundle,
       };
     }
 
     const storageBundle = readRuntimeServerTokenBundleFromStorage(localStorage);
-    memoryBundle = storageBundle;
+    if (!hasRuntimeServerTokenBundleValues(storageBundle)) {
+      if (!shouldPreserveMemoryBundleWhenStorageIsEmpty) {
+        memoryBundle = {};
+      }
+
+      return {
+        ...memoryBundle,
+      };
+    }
+
+    memoryBundle = shouldPreserveMemoryBundleWhenStorageIsEmpty
+      ? mergeRuntimeServerTokenBundles(memoryBundle, storageBundle)
+      : storageBundle;
     return {
-      ...storageBundle,
+      ...memoryBundle,
     };
   }
 
   return {
     clearTokenBundle() {
       const localStorage = resolveRuntimeServerLocalStorage();
+      let didClearStorage = true;
       if (localStorage) {
         for (const key of RUNTIME_SERVER_TOKEN_STORAGE_KEYS) {
-          removeRuntimeServerStorageToken(localStorage, key);
+          didClearStorage = removeRuntimeServerStorageToken(localStorage, key)
+            && didClearStorage;
         }
       }
 
       memoryBundle = {};
+      shouldPreserveMemoryBundleWhenStorageIsEmpty = false;
+      shouldIgnoreStorageBundleAfterFailedClear = localStorage ? !didClearStorage : false;
     },
 
     persistTokenBundle(bundle) {
@@ -281,13 +299,22 @@ export function createRuntimeServerTokenStore(): UserCenterTokenStore {
 
       const localStorage = resolveRuntimeServerLocalStorage();
       if (!localStorage) {
+        shouldPreserveMemoryBundleWhenStorageIsEmpty = false;
         return false;
       }
 
-      return persistRuntimeServerTokenBundleToStorage(
+      const didPersistToStorage = persistRuntimeServerTokenBundleToStorage(
         localStorage,
         mergedBundle,
       );
+      if (didPersistToStorage) {
+        shouldPreserveMemoryBundleWhenStorageIsEmpty = false;
+        shouldIgnoreStorageBundleAfterFailedClear = false;
+      } else {
+        shouldPreserveMemoryBundleWhenStorageIsEmpty = true;
+      }
+
+      return didPersistToStorage;
     },
 
     readTokenBundle() {

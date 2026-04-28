@@ -53,6 +53,7 @@ export const QUALITY_FAST_CHECK_COMMANDS = [
   'node scripts/run-workspace-package-script.mjs . check:project-inventory-standard',
   'node scripts/run-workspace-package-script.mjs . check:project-session-index-performance',
   'node scripts/run-workspace-package-script.mjs . check:code-session-standard',
+  'node scripts/run-workspace-package-script.mjs . check:multiwindow-standard',
   'node scripts/run-workspace-package-script.mjs . check:data-kernel',
   'node scripts/run-workspace-package-script.mjs . check:local-store-browser-fallback',
   'node scripts/run-workspace-package-script.mjs . check:package-governance',

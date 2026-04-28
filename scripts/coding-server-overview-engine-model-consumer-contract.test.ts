@@ -11,6 +11,7 @@ import type {
 } from '@sdkwork/birdcoder-types';
 import type { ICoreReadService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/ICoreReadService.ts';
 import { loadCodingServerOverview } from '../packages/sdkwork-birdcoder-commons/src/hooks/useCodingServerOverview.ts';
+import { TEST_CODE_ENGINE_MODEL_CONFIG } from './test-code-engine-model-config-fixture.ts';
 
 const descriptorFixture: BirdCoderCodingServerDescriptor = {
   apiVersion: 'v1',
@@ -189,6 +190,9 @@ const coreReadService: ICoreReadService = {
   async getHealth() {
     callLog.push('getHealth');
     return healthFixture;
+  },
+  async getModelConfig() {
+    return TEST_CODE_ENGINE_MODEL_CONFIG;
   },
   async getNativeSession() {
     throw new Error('not needed');

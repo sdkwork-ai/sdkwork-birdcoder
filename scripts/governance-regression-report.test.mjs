@@ -186,6 +186,7 @@ assert.deepEqual(
     'provider-adapter-browser-safety',
     'engine-official-sdk-error-propagation',
     'provider-official-sdk-bridge',
+    'codeengine-turn-options-provider',
     'opencode-official-sdk-bridge',
     'engine-conformance',
     'tool-protocol',
@@ -253,8 +254,8 @@ assert.deepEqual(
 assert.deepEqual(executedChecks, GOVERNANCE_REGRESSION_CHECKS.map((check) => check.id));
 assert.equal(passedReport.status, 'passed');
 assert.equal(passedReport.generatedAt, '2026-04-08T15:30:00.000Z');
-assert.equal(passedReport.summary.totalChecks, 100);
-assert.equal(passedReport.summary.passedCount, 100);
+assert.equal(passedReport.summary.totalChecks, 101);
+assert.equal(passedReport.summary.passedCount, 101);
 assert.equal(passedReport.summary.blockedCount, 0);
 assert.equal(passedReport.summary.failedCount, 0);
 assert.deepEqual(passedReport.summary.blockedCheckIds, []);
@@ -304,6 +305,7 @@ assert.deepEqual(
     'pnpm run test:provider-adapter-browser-safety-contract',
     'pnpm run test:engine-official-sdk-error-propagation-contract',
     'pnpm run test:provider-official-sdk-bridge-contract',
+    'pnpm run test:codeengine-turn-options-provider-contract',
     'pnpm run test:opencode-official-sdk-bridge-contract',
     'pnpm run test:engine-conformance',
     'pnpm run test:tool-protocol-contract',
@@ -420,7 +422,7 @@ const blockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(blockedReport.status, 'blocked');
-assert.equal(blockedReport.summary.passedCount, 99);
+assert.equal(blockedReport.summary.passedCount, 100);
 assert.equal(blockedReport.summary.blockedCount, 1);
 assert.equal(blockedReport.summary.failedCount, 0);
 assert.deepEqual(blockedReport.summary.blockedCheckIds, ['web-bundle-budget']);
@@ -479,7 +481,7 @@ const runnerBlockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(runnerBlockedReport.status, 'blocked');
-assert.equal(runnerBlockedReport.summary.passedCount, 99);
+assert.equal(runnerBlockedReport.summary.passedCount, 100);
 assert.equal(runnerBlockedReport.summary.blockedCount, 1);
 assert.equal(runnerBlockedReport.summary.failedCount, 0);
 assert.deepEqual(runnerBlockedReport.summary.blockedCheckIds, ['web-bundle-budget']);

@@ -295,8 +295,8 @@ try {
   );
   assert.match(
     bootstrapImplSource,
-    /await bootstrapShellUserState\(\);/u,
-    'shell runtime bootstrap must continue to initialize persisted shell user state.',
+    /const \[coreReadService, coreWriteService\] = await Promise\.all\(\[[\s\S]*loadDefaultBirdCoderIdeService\('coreReadService'\),[\s\S]*loadDefaultBirdCoderIdeService\('coreWriteService'\),[\s\S]*\]\);[\s\S]*await bootstrapShellUserState\(\{[\s\S]*coreReadService,[\s\S]*coreWriteService,[\s\S]*\}\);/u,
+    'shell runtime bootstrap must initialize persisted shell user state with bound core services so model-config synchronization uses the same runtime authority.',
   );
 
   bindDefaultBirdCoderIdeServicesRuntime({

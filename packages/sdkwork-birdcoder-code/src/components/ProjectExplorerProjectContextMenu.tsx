@@ -18,7 +18,7 @@ interface ProjectExplorerProjectContextMenuProps {
   isRefreshing: boolean;
   onClose: () => void;
   onRefresh?: (id: string) => Promise<void> | void;
-  onCreateEngineSession: (projectId: string, engineId: string) => void;
+  onCreateEngineSession: (projectId: string, engineId: string, modelId: string) => void;
   onStartRename: (projectId: string, name: string) => void;
   onArchive?: (projectId: string) => void;
   onCopyWorkingDirectory?: (projectId: string) => void;
@@ -80,7 +80,7 @@ export function ProjectExplorerProjectContextMenu({
           type="button"
           className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
           onClick={() => {
-            onCreateEngineSession(projectId, engine.id);
+            onCreateEngineSession(projectId, engine.id, engine.modelId ?? engine.id);
             onClose();
           }}
         >

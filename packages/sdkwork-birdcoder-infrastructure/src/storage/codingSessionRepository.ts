@@ -20,14 +20,16 @@ import { normalizeBirdCoderCodeEngineNativeSessionId } from '@sdkwork/birdcoder-
 import {
   createBirdCoderTableRecordRepository,
   type BirdCoderStorageAccess,
+  type BirdCoderSqlPlanStorageAccess,
   type BirdCoderTableRecordRepository,
 } from './dataKernel.ts';
+import { createBirdCoderStorageDialect } from './providers.ts';
 import {
   createBirdCoderCodingSessionPromptHistoryRepository,
   type BirdCoderCodingSessionPromptHistoryRepository,
 } from './codingSessionPromptEntryRepository.ts';
 import { coerceBirdCoderSqlEntityRow } from './sqlRowCodec.ts';
-import type { BirdCoderSqlRow } from './sqlPlans.ts';
+import type { BirdCoderSqlPlan, BirdCoderSqlRow } from './sqlPlans.ts';
 
 const ZERO_TIMESTAMP = new Date(0).toISOString();
 const CODING_SESSION_STATUS_SET = new Set<string>(BIRDCODER_CODING_SESSION_STATUSES);
@@ -140,9 +142,25 @@ export interface BirdCoderPersistedCodingSessionRecord {
 
 export type BirdCoderPersistedCodingSessionMessageRecord = BirdCoderChatMessage;
 
+export interface BirdCoderPersistedCodingSessionMessageMetadata {
+  codingSessionId: string;
+  latestTranscriptUpdatedAt: string | null;
+  messageCount: number;
+  nativeTranscriptUpdatedAt: string | null;
+}
+
 export interface BirdCoderCodingSessionRepositories {
+  listMessagesByCodingSessionIds(
+    codingSessionIds: readonly string[],
+  ): Promise<BirdCoderPersistedCodingSessionMessageRecord[]>;
+  listSessionsByProjectIds(
+    projectIds: readonly string[],
+  ): Promise<BirdCoderPersistedCodingSessionRecord[]>;
   messages: BirdCoderTableRecordRepository<BirdCoderPersistedCodingSessionMessageRecord>;
   promptEntries: BirdCoderCodingSessionPromptHistoryRepository;
+  readMessageMetadataByCodingSessionIds(
+    codingSessionIds: readonly string[],
+  ): Promise<Map<string, BirdCoderPersistedCodingSessionMessageMetadata>>;
   sessions: BirdCoderTableRecordRepository<BirdCoderPersistedCodingSessionRecord>;
 }
 
@@ -153,6 +171,7 @@ export interface CreateBirdCoderCodingSessionRepositoriesOptions {
 
 const BIRDCODER_PERSISTED_MESSAGE_ID_METADATA_KEY =
   '__sdkworkBirdCoderTranscriptMessageId';
+const CODEX_NATIVE_MESSAGE_ID_SEGMENT = ':native-message:';
 
 function buildCodingSessionMessageStorageId(
   value: Pick<BirdCoderChatMessage, 'codingSessionId' | 'id'>,
@@ -400,7 +419,7 @@ function toCodingSessionStorageRow(
     project_id: value.projectId,
     title: value.title,
     status: value.status,
-    entry_surface: null,
+    entry_surface: 'code',
     host_mode: value.hostMode,
     engine_id: value.engineId,
     model_id: value.modelId,
@@ -438,6 +457,249 @@ function toCodingSessionMessageStorageRow(
   };
 }
 
+function supportsSqlPlanExecution(
+  storage: BirdCoderStorageAccess,
+): storage is BirdCoderStorageAccess & BirdCoderSqlPlanStorageAccess {
+  return (
+    'sqlPlanExecutionEnabled' in storage &&
+    storage.sqlPlanExecutionEnabled === true &&
+    'executeSqlPlan' in storage &&
+    typeof storage.executeSqlPlan === 'function'
+  );
+}
+
+function normalizeBatchIds(values: readonly string[]): string[] {
+  const ids: string[] = [];
+  const seenIds = new Set<string>();
+  for (const value of values) {
+    const id = value.trim();
+    if (!id || seenIds.has(id)) {
+      continue;
+    }
+    seenIds.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
+function buildPlaceholderList(
+  providerId: BirdCoderDatabaseProviderId,
+  startIndex: number,
+  count: number,
+): string {
+  const dialect = createBirdCoderStorageDialect(providerId);
+  return Array.from({ length: count }, (_, index) =>
+    dialect.buildPlaceholder(startIndex + index),
+  ).join(', ');
+}
+
+function defaultSoftDeleteValue(providerId: BirdCoderDatabaseProviderId): boolean | number {
+  return providerId === 'sqlite' ? 0 : false;
+}
+
+function normalizeCodingSessionRows(
+  values: readonly unknown[],
+): BirdCoderPersistedCodingSessionRecord[] {
+  return values
+    .map(normalizeCodingSessionStorageRecord)
+    .filter((record): record is BirdCoderPersistedCodingSessionRecord => record !== null)
+    .sort(sortByUpdatedAtDescending);
+}
+
+function normalizeCodingSessionMessageRows(
+  values: readonly unknown[],
+): BirdCoderPersistedCodingSessionMessageRecord[] {
+  return values
+    .map(normalizeCodingSessionMessageStorageRecord)
+    .filter((record): record is BirdCoderPersistedCodingSessionMessageRecord => record !== null)
+    .sort(sortByCreatedAtAscending);
+}
+
+function normalizeNullableMetadataTimestamp(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  return Number.isNaN(Date.parse(value)) ? null : value;
+}
+
+function normalizeMetadataCount(value: unknown): number {
+  const numericValue = typeof value === 'bigint' ? Number(value) : Number(value ?? 0);
+  return Number.isFinite(numericValue) && numericValue > 0 ? Math.floor(numericValue) : 0;
+}
+
+function readMessageMetadataRowCodingSessionId(value: Record<string, unknown>): string {
+  const codingSessionId = value.coding_session_id ?? value.codingSessionId;
+  return typeof codingSessionId === 'string' ? codingSessionId.trim() : '';
+}
+
+function normalizeMessageMetadataRows(
+  values: readonly unknown[],
+): Map<string, BirdCoderPersistedCodingSessionMessageMetadata> {
+  const metadataByCodingSessionId = new Map<
+    string,
+    BirdCoderPersistedCodingSessionMessageMetadata
+  >();
+  for (const value of values) {
+    if (!isRecord(value)) {
+      continue;
+    }
+
+    const codingSessionId = readMessageMetadataRowCodingSessionId(value);
+    if (!codingSessionId) {
+      continue;
+    }
+
+    metadataByCodingSessionId.set(codingSessionId, {
+      codingSessionId,
+      latestTranscriptUpdatedAt: normalizeNullableMetadataTimestamp(
+        value.latest_transcript_updated_at ?? value.latestTranscriptUpdatedAt,
+      ),
+      messageCount: normalizeMetadataCount(value.message_count ?? value.messageCount),
+      nativeTranscriptUpdatedAt: normalizeNullableMetadataTimestamp(
+        value.native_transcript_updated_at ?? value.nativeTranscriptUpdatedAt,
+      ),
+    });
+  }
+  return metadataByCodingSessionId;
+}
+
+function buildCodingSessionListByProjectIdsPlan(
+  providerId: BirdCoderDatabaseProviderId,
+  projectIds: readonly string[],
+): BirdCoderSqlPlan {
+  const dialect = createBirdCoderStorageDialect(providerId);
+  return {
+    intent: 'read',
+    meta: {
+      excludeDeleted: true,
+      kind: 'coding-session-list-by-project-ids',
+      orderBy: [
+        { column: 'updated_at', direction: 'desc' },
+        { column: 'id', direction: 'asc' },
+      ],
+      projectIds,
+      tableName: 'coding_sessions',
+    },
+    providerId,
+    statements: [
+      {
+        params: [defaultSoftDeleteValue(providerId), ...projectIds],
+        sql:
+          `SELECT * FROM coding_sessions ` +
+          `WHERE is_deleted = ${dialect.buildPlaceholder(1)} ` +
+          `AND project_id IN (${buildPlaceholderList(providerId, 2, projectIds.length)}) ` +
+          `ORDER BY updated_at DESC, id ASC;`,
+      },
+    ],
+    transactional: false,
+  };
+}
+
+function buildCodingSessionMessagesBySessionIdsPlan(
+  providerId: BirdCoderDatabaseProviderId,
+  codingSessionIds: readonly string[],
+): BirdCoderSqlPlan {
+  const dialect = createBirdCoderStorageDialect(providerId);
+  return {
+    intent: 'read',
+    meta: {
+      codingSessionIds,
+      excludeDeleted: true,
+      kind: 'coding-session-messages-by-session-ids',
+      orderBy: [
+        { column: 'created_at', direction: 'asc' },
+        { column: 'id', direction: 'asc' },
+      ],
+      tableName: 'coding_session_messages',
+    },
+    providerId,
+    statements: [
+      {
+        params: [defaultSoftDeleteValue(providerId), ...codingSessionIds],
+        sql:
+          `SELECT * FROM coding_session_messages ` +
+          `WHERE is_deleted = ${dialect.buildPlaceholder(1)} ` +
+          `AND coding_session_id IN (${buildPlaceholderList(providerId, 2, codingSessionIds.length)}) ` +
+          `ORDER BY created_at ASC, id ASC;`,
+      },
+    ],
+    transactional: false,
+  };
+}
+
+function buildCodingSessionMessageMetadataBySessionIdsPlan(
+  providerId: BirdCoderDatabaseProviderId,
+  codingSessionIds: readonly string[],
+): BirdCoderSqlPlan {
+  const dialect = createBirdCoderStorageDialect(providerId);
+  return {
+    intent: 'read',
+    meta: {
+      codingSessionIds,
+      excludeDeleted: true,
+      kind: 'coding-session-message-metadata-by-session-ids',
+      nativeMessageIdSegment: CODEX_NATIVE_MESSAGE_ID_SEGMENT,
+      tableName: 'coding_session_messages',
+    },
+    providerId,
+    statements: [
+      {
+        params: [
+          `%${CODEX_NATIVE_MESSAGE_ID_SEGMENT}%`,
+          defaultSoftDeleteValue(providerId),
+          ...codingSessionIds,
+        ],
+        sql:
+          `SELECT coding_session_id, ` +
+          `COUNT(id) AS message_count, ` +
+          `MAX(created_at) AS latest_transcript_updated_at, ` +
+          `MAX(CASE WHEN id LIKE ${dialect.buildPlaceholder(1)} THEN created_at ELSE NULL END) AS native_transcript_updated_at ` +
+          `FROM coding_session_messages ` +
+          `WHERE is_deleted = ${dialect.buildPlaceholder(2)} ` +
+          `AND coding_session_id IN (${buildPlaceholderList(providerId, 3, codingSessionIds.length)}) ` +
+          `GROUP BY coding_session_id ` +
+          `ORDER BY coding_session_id ASC;`,
+      },
+    ],
+    transactional: false,
+  };
+}
+
+function accumulateMessageMetadata(
+  metadataByCodingSessionId: Map<string, BirdCoderPersistedCodingSessionMessageMetadata>,
+  message: BirdCoderPersistedCodingSessionMessageRecord,
+): void {
+  const metadata = metadataByCodingSessionId.get(message.codingSessionId) ?? {
+    codingSessionId: message.codingSessionId,
+    latestTranscriptUpdatedAt: null,
+    messageCount: 0,
+    nativeTranscriptUpdatedAt: null,
+  };
+  const createdAt = normalizeNullableMetadataTimestamp(message.createdAt);
+  metadata.messageCount += 1;
+  if (
+    createdAt &&
+    (
+      metadata.latestTranscriptUpdatedAt === null ||
+      Date.parse(createdAt) > Date.parse(metadata.latestTranscriptUpdatedAt)
+    )
+  ) {
+    metadata.latestTranscriptUpdatedAt = createdAt;
+  }
+  if (
+    message.id.includes(CODEX_NATIVE_MESSAGE_ID_SEGMENT) &&
+    createdAt &&
+    (
+      metadata.nativeTranscriptUpdatedAt === null ||
+      Date.parse(createdAt) > Date.parse(metadata.nativeTranscriptUpdatedAt)
+    )
+  ) {
+    metadata.nativeTranscriptUpdatedAt = createdAt;
+  }
+  metadataByCodingSessionId.set(message.codingSessionId, metadata);
+}
+
 function createCodingSessionRepository<TEntity>({
   binding,
   identify,
@@ -471,32 +733,108 @@ export function createBirdCoderCodingSessionRepositories({
   providerId,
   storage,
 }: CreateBirdCoderCodingSessionRepositoriesOptions): BirdCoderCodingSessionRepositories {
+  const sessions = createCodingSessionRepository({
+    binding: BIRDCODER_CODING_SESSION_STORAGE_BINDING,
+    providerId,
+    storage,
+    identify(value) {
+      return value.id;
+    },
+    normalize: normalizeCodingSessionStorageRecord,
+    sort: sortByUpdatedAtDescending,
+    toRow: toCodingSessionStorageRow,
+  });
+  const promptEntries = createBirdCoderCodingSessionPromptHistoryRepository({
+    providerId,
+    storage,
+  });
+  const messages = createCodingSessionRepository({
+    binding: BIRDCODER_CODING_SESSION_MESSAGE_STORAGE_BINDING,
+    providerId,
+    storage,
+    identify(value) {
+      return buildCodingSessionMessageStorageId(value);
+    },
+    normalize: normalizeCodingSessionMessageStorageRecord,
+    sort: sortByCreatedAtAscending,
+    toRow: toCodingSessionMessageStorageRow,
+  });
+
   return {
-    sessions: createCodingSessionRepository({
-      binding: BIRDCODER_CODING_SESSION_STORAGE_BINDING,
-      providerId,
-      storage,
-      identify(value) {
-        return value.id;
-      },
-      normalize: normalizeCodingSessionStorageRecord,
-      sort: sortByUpdatedAtDescending,
-      toRow: toCodingSessionStorageRow,
-    }),
-    promptEntries: createBirdCoderCodingSessionPromptHistoryRepository({
-      providerId,
-      storage,
-    }),
-    messages: createCodingSessionRepository({
-      binding: BIRDCODER_CODING_SESSION_MESSAGE_STORAGE_BINDING,
-      providerId,
-      storage,
-      identify(value) {
-        return buildCodingSessionMessageStorageId(value);
-      },
-      normalize: normalizeCodingSessionMessageStorageRecord,
-      sort: sortByCreatedAtAscending,
-      toRow: toCodingSessionMessageStorageRow,
-    }),
+    async listMessagesByCodingSessionIds(codingSessionIds) {
+      const normalizedCodingSessionIds = normalizeBatchIds(codingSessionIds);
+      if (normalizedCodingSessionIds.length === 0) {
+        return [];
+      }
+
+      if (supportsSqlPlanExecution(storage)) {
+        try {
+          const result = await storage.executeSqlPlan(
+            buildCodingSessionMessagesBySessionIdsPlan(providerId, normalizedCodingSessionIds),
+          );
+          return normalizeCodingSessionMessageRows(result.rows ?? []);
+        } catch {
+        }
+      }
+
+      const codingSessionIdSet = new Set(normalizedCodingSessionIds);
+      return (await messages.list()).filter((message) =>
+        codingSessionIdSet.has(message.codingSessionId),
+      );
+    },
+    async listSessionsByProjectIds(projectIds) {
+      const normalizedProjectIds = normalizeBatchIds(projectIds);
+      if (normalizedProjectIds.length === 0) {
+        return [];
+      }
+
+      if (supportsSqlPlanExecution(storage)) {
+        try {
+          const result = await storage.executeSqlPlan(
+            buildCodingSessionListByProjectIdsPlan(providerId, normalizedProjectIds),
+          );
+          return normalizeCodingSessionRows(result.rows ?? []);
+        } catch {
+        }
+      }
+
+      const projectIdSet = new Set(normalizedProjectIds);
+      return (await sessions.list()).filter((session) => projectIdSet.has(session.projectId));
+    },
+    messages,
+    promptEntries,
+    async readMessageMetadataByCodingSessionIds(codingSessionIds) {
+      const normalizedCodingSessionIds = normalizeBatchIds(codingSessionIds);
+      if (normalizedCodingSessionIds.length === 0) {
+        return new Map();
+      }
+
+      if (supportsSqlPlanExecution(storage)) {
+        try {
+          const result = await storage.executeSqlPlan(
+            buildCodingSessionMessageMetadataBySessionIdsPlan(
+              providerId,
+              normalizedCodingSessionIds,
+            ),
+          );
+          return normalizeMessageMetadataRows(result.rows ?? []);
+        } catch {
+        }
+      }
+
+      const codingSessionIdSet = new Set(normalizedCodingSessionIds);
+      const metadataByCodingSessionId = new Map<
+        string,
+        BirdCoderPersistedCodingSessionMessageMetadata
+      >();
+      for (const message of await messages.list()) {
+        if (!codingSessionIdSet.has(message.codingSessionId)) {
+          continue;
+        }
+        accumulateMessageMetadata(metadataByCodingSessionId, message);
+      }
+      return metadataByCodingSessionId;
+    },
+    sessions,
   };
 }

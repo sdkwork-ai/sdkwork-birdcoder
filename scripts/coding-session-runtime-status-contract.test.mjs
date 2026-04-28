@@ -21,6 +21,10 @@ const workspaceRealtimeSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-commons/src/stores/workspaceRealtime.ts', import.meta.url),
   'utf8',
 );
+const rustServerSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-server/src-host/src/lib.rs', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   typesSource,
@@ -42,6 +46,12 @@ assert.match(
 
 assert.match(
   typesSource,
+  /export function isBirdCoderCodingSessionEngineBusy\(/,
+  'Coding session types must expose a separate engine-busy helper so UI spinners do not imply that approval or user-reply waits are still loading.',
+);
+
+assert.match(
+  typesSource,
   /'awaiting_user'/,
   'Coding session runtime statuses must distinguish user-question waits from approval and tool-execution waits.',
 );
@@ -53,9 +63,15 @@ assert.match(
 );
 
 assert.match(
+  typesSource,
+  /\['initializing', 'streaming'\]/,
+  'Coding session engine-busy helper must not spin for settled awaiting_tool states; only initializing and streaming mean the engine is actively working.',
+);
+
+assert.match(
   sessionRefreshSource,
-  /const resolvedRuntimeStatus = resolveBirdCoderCodingSessionRuntimeStatus\(\s*events,\s*resolvedLocation\.codingSession\.runtimeStatus \?\? resolvedLocation\.summary\?\.runtimeStatus,\s*\);/s,
-  'Refreshing a selected coding session must derive runtimeStatus from authoritative session events.',
+  /const resolvedRuntimeStatus = resolveBirdCoderCodingSessionRuntimeStatus\(\s*events,\s*summary\.runtimeStatus \?\? resolvedLocation\.codingSession\.runtimeStatus,\s*\);/s,
+  'Refreshing a selected coding session must derive runtimeStatus from authoritative session events and prefer summary state over stale local fallback.',
 );
 
 assert.match(
@@ -96,6 +112,12 @@ assert.match(
 
 assert.match(
   workspaceRealtimeSource,
+  /resolveBirdCoderCodingSessionRuntimeStatus\(/,
+  'Workspace realtime runtime-status normalization must derive status from canonical codingSessionEventKind/codingSessionEventPayload when a top-level runtimeStatus hint is absent.',
+);
+
+assert.match(
+  workspaceRealtimeSource,
   /shouldPreferLocalCodingSessionMetadata\(codingSession, event\)\s*\|\|\s*shouldPreferLocalCodingSessionRuntimeStatus\(codingSession, event\)/s,
   'Workspace realtime event satisfaction must treat newer local session state as already satisfying stale events.',
 );
@@ -104,6 +126,24 @@ assert.match(
   workspaceRealtimeSource,
   /return !requiredRuntimeStatus \|\| codingSession\.runtimeStatus === requiredRuntimeStatus;/,
   'Workspace realtime event satisfaction must still account for runtimeStatus when timestamps alone do not settle the event.',
+);
+
+assert.match(
+  apiProjectServiceSource,
+  /resolveBirdCoderCodingSessionRuntimeStatus\(/,
+  'API-backed project hydration must use the shared TypeScript runtime-status resolver.',
+);
+
+assert.match(
+  rustServerSource,
+  /fn is_terminal_reply_role\(/,
+  'Rust server projection summaries must explicitly classify assistant/planner/reviewer/tool replies as terminal reply roles.',
+);
+
+assert.match(
+  rustServerSource,
+  /role\.is_some_and\(is_terminal_reply_role\)[\s\S]*runtime_status\.or\(Some\("completed"\)\)/,
+  'Rust server projection summaries must settle assistant message.completed events to completed even when older providers omit runtimeStatus.',
 );
 
 console.log('coding session runtime status contract passed.');

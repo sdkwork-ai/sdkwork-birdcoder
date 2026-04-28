@@ -1,18 +1,26 @@
 import {
   coerceBirdCoderSqlEntityRow,
   createBirdCoderTableRecordRepository,
+  deserializeStoredValue,
   type BirdCoderJsonRecordRepository,
   type BirdCoderTableRecordRepository,
+  readUserHomeTextFile,
+  serializeStoredValue,
+  writeUserHomeTextFile,
 } from '../storage/dataKernel.ts';
 import { getTerminalProfile, type TerminalProfileId } from '../terminal/profiles.ts';
 import {
   DEFAULT_WORKBENCH_CHAT_SELECTION,
+  BIRDCODER_CODE_ENGINE_MODEL_CONFIG_HOME_RELATIVE_PATH,
   WORKBENCH_ENGINE_KERNELS,
+  createBirdCoderCodeEngineModelConfigSyncPlan,
   findWorkbenchCodeEngineDefinition,
+  modelConfigToWorkbenchCodeEngineSettingsMap,
   normalizeWorkbenchCodeEngineSettingsMap,
   normalizeWorkbenchCodeModelId,
   normalizeWorkbenchServerImplementedCodeEngineId,
   resolveWorkbenchChatSelection,
+  workbenchCodeEngineSettingsMapToModelConfig,
   type WorkbenchChatSelection,
   type WorkbenchCodeEngineSettingsMap,
   type WorkbenchCodeEngineId,
@@ -21,6 +29,9 @@ import {
 import {
   BIRDCODER_WORKBENCH_PREFERENCES_STORAGE_BINDING,
   getBirdCoderEntityDefinition,
+  type BirdCoderCodeEngineModelConfig,
+  type BirdCoderCodeEngineModelConfigSyncResult,
+  type BirdCoderSyncCodeEngineModelConfigRequest,
 } from '@sdkwork/birdcoder-types';
 
 export interface WorkbenchPreferences extends WorkbenchChatSelection {
@@ -56,6 +67,21 @@ interface PersistedWorkbenchPreferencesRecord {
     defaultWorkingDirectory?: string | null;
     codeEditorChatWidth?: number | null;
   };
+}
+
+export interface WorkbenchCodeEngineModelConfigCoreReadService {
+  getModelConfig(): Promise<BirdCoderCodeEngineModelConfig>;
+}
+
+export interface WorkbenchCodeEngineModelConfigCoreWriteService {
+  syncModelConfig(
+    request: BirdCoderSyncCodeEngineModelConfigRequest,
+  ): Promise<BirdCoderCodeEngineModelConfigSyncResult>;
+}
+
+export interface SyncWorkbenchCodeEngineModelConfigOptions {
+  coreReadService: WorkbenchCodeEngineModelConfigCoreReadService;
+  coreWriteService: WorkbenchCodeEngineModelConfigCoreWriteService;
 }
 
 const DEFAULT_TERMINAL_PROFILE_ID: TerminalProfileId = 'powershell';
@@ -336,6 +362,90 @@ function toWorkbenchPreferences(
   });
 }
 
+async function readWorkbenchCodeEngineModelConfigSettings(): Promise<
+  WorkbenchCodeEngineSettingsMap | null
+> {
+  const rawConfig = await readUserHomeTextFile(
+    BIRDCODER_CODE_ENGINE_MODEL_CONFIG_HOME_RELATIVE_PATH,
+  );
+  if (!rawConfig) {
+    return null;
+  }
+
+  const parsedConfig = deserializeStoredValue<BirdCoderCodeEngineModelConfig | null>(
+    rawConfig,
+    null,
+  );
+  if (!parsedConfig) {
+    return null;
+  }
+
+  return modelConfigToWorkbenchCodeEngineSettingsMap(parsedConfig);
+}
+
+async function writeWorkbenchCodeEngineModelConfigSettings(
+  settings: WorkbenchCodeEngineSettingsMap,
+  existingConfig?: BirdCoderCodeEngineModelConfig | null,
+): Promise<void> {
+  const modelConfig = workbenchCodeEngineSettingsMapToModelConfig(settings, {
+    source: 'home-file',
+    updatedAt: new Date().toISOString(),
+    version: existingConfig?.version ?? 'v1',
+  });
+  await writeUserHomeTextFile(
+    BIRDCODER_CODE_ENGINE_MODEL_CONFIG_HOME_RELATIVE_PATH,
+    serializeStoredValue(modelConfig),
+  );
+}
+
+async function writeWorkbenchCodeEngineModelConfig(
+  modelConfig: BirdCoderCodeEngineModelConfig,
+): Promise<void> {
+  await writeUserHomeTextFile(
+    BIRDCODER_CODE_ENGINE_MODEL_CONFIG_HOME_RELATIVE_PATH,
+    serializeStoredValue(modelConfig),
+  );
+}
+
+async function readWorkbenchCodeEngineModelConfig(): Promise<
+  BirdCoderCodeEngineModelConfig | null
+> {
+  const rawConfig = await readUserHomeTextFile(
+    BIRDCODER_CODE_ENGINE_MODEL_CONFIG_HOME_RELATIVE_PATH,
+  );
+  if (!rawConfig) {
+    return null;
+  }
+
+  return deserializeStoredValue<BirdCoderCodeEngineModelConfig | null>(rawConfig, null);
+}
+
+export async function syncWorkbenchCodeEngineModelConfig({
+  coreReadService,
+  coreWriteService,
+}: SyncWorkbenchCodeEngineModelConfigOptions): Promise<BirdCoderCodeEngineModelConfigSyncResult> {
+  const localConfig = await readWorkbenchCodeEngineModelConfig();
+  if (!localConfig) {
+    const serverConfig = await coreReadService.getModelConfig();
+    const syncPlan = createBirdCoderCodeEngineModelConfigSyncPlan({
+      localConfig: null,
+      serverConfig,
+    });
+    if (syncPlan.shouldWriteLocal) {
+      await writeWorkbenchCodeEngineModelConfig(syncPlan.config);
+    }
+
+    return syncPlan;
+  }
+
+  const syncResult = await coreWriteService.syncModelConfig({ localConfig });
+  if (syncResult.shouldWriteLocal) {
+    await writeWorkbenchCodeEngineModelConfig(syncResult.config);
+  }
+
+  return syncResult;
+}
+
 function toWorkbenchPreferencesStorageRow(
   value: PersistedWorkbenchPreferencesRecord,
 ): Record<string, unknown> {
@@ -435,16 +545,26 @@ export function setWorkbenchActiveChatSelection(
       normalizedPreferences.codeEngineId,
     normalizedPreferences,
   );
+  const resolvedSelection = resolveWorkbenchChatSelection(
+    {
+      codeEngineId: resolvedEngineId,
+      codeModelId: modelId,
+    },
+    normalizedPreferences,
+  );
+  const existingEntry = normalizedPreferences.codeEngineSettings[resolvedEngineId];
+  const nextSettings = normalizeWorkbenchCodeEngineSettingsMap({
+    ...normalizedPreferences.codeEngineSettings,
+    [resolvedEngineId]: {
+      defaultModelId: resolvedSelection.codeModelId,
+      customModels: existingEntry?.customModels ?? [],
+    },
+  });
 
   return normalizeWorkbenchPreferences({
     ...normalizedPreferences,
-    ...resolveWorkbenchChatSelection(
-      {
-        codeEngineId: resolvedEngineId,
-        codeModelId: modelId,
-      },
-      normalizedPreferences,
-    ),
+    ...resolvedSelection,
+    codeEngineSettings: nextSettings,
   });
 }
 
@@ -556,7 +676,22 @@ const workbenchPreferencesRepository: BirdCoderJsonRecordRepository<WorkbenchPre
     const record = await workbenchPreferencesTableRepository.findById(
       WORKBENCH_PREFERENCES_STORAGE_ID,
     );
-    return toWorkbenchPreferences(record);
+    const storedPreferences = toWorkbenchPreferences(record);
+    const modelConfigSettings = await readWorkbenchCodeEngineModelConfigSettings();
+    if (!modelConfigSettings) {
+      await writeWorkbenchCodeEngineModelConfigSettings(
+        storedPreferences.codeEngineSettings,
+      );
+      return storedPreferences;
+    }
+
+    return normalizeWorkbenchPreferences({
+      ...storedPreferences,
+      codeEngineSettings: {
+        ...storedPreferences.codeEngineSettings,
+        ...modelConfigSettings,
+      },
+    });
   },
   async write(value) {
     const normalizedValue = normalizeWorkbenchPreferences(
@@ -568,6 +703,11 @@ const workbenchPreferencesRepository: BirdCoderJsonRecordRepository<WorkbenchPre
     const persistedRecord = createPersistedWorkbenchPreferencesRecord(
       normalizedValue,
       existingRecord,
+    );
+    const existingModelConfig = await readWorkbenchCodeEngineModelConfig();
+    await writeWorkbenchCodeEngineModelConfigSettings(
+      normalizedValue.codeEngineSettings,
+      existingModelConfig,
     );
     await workbenchPreferencesTableRepository.save(persistedRecord);
     return normalizedValue;

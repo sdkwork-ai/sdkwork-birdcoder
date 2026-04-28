@@ -1,6 +1,7 @@
 import {
   createCapabilitySnapshot,
   resolveTransportKindForRuntimeMode,
+  withStreamEnabledChatOptions,
 } from '@sdkwork/birdcoder-chat';
 import {
   canonicalizeBirdCoderCodeEngineToolName,
@@ -9,9 +10,11 @@ import {
   normalizeBirdCoderCodeEngineExitCode,
   normalizeBirdCoderCodeEngineToolLifecycleStatus,
   parseBirdCoderApiJson,
+  resolveBirdCoderCodeEngineCommandInteractionState,
   resolveBirdCoderCodeEngineArtifactKind,
   resolveBirdCoderCodeEngineRiskLevel,
   resolveBirdCoderCodeEngineToolKind,
+  stringifyBirdCoderApiJson,
   stringifyBirdCoderLongInteger,
 } from '@sdkwork/birdcoder-types';
 import type {
@@ -20,6 +23,7 @@ import type {
   ChatCanonicalRuntimeDescriptor,
   ChatMessage,
   ChatOptions,
+  ChatStreamChunk,
   IChatEngine,
   ToolCall,
 } from '@sdkwork/birdcoder-chat';
@@ -58,6 +62,16 @@ interface CanonicalToolLifecycleProjection {
   runtimeStatus: BirdCoderCodingSessionRuntimeStatus;
   status: BirdCoderCodeEngineToolLifecycleStatus | null;
   emitApproval: boolean;
+}
+
+function isPendingInteractionRuntimeStatus(
+  runtimeStatus: BirdCoderCodingSessionRuntimeStatus,
+): boolean {
+  const interactionState = resolveBirdCoderCodeEngineCommandInteractionState({
+    runtimeStatus,
+    status: 'running',
+  });
+  return interactionState.requiresApproval || interactionState.requiresReply;
 }
 
 function resolveRuntimeModelId(
@@ -150,6 +164,61 @@ function parseCanonicalToolArgumentsRecord(
   } catch {
     return null;
   }
+}
+
+function isCanonicalToolCallProjectable(
+  toolCall: BirdCoderCodeEnginePendingToolCallDelta,
+): boolean {
+  if (!toolCall.function.name.trim()) {
+    return false;
+  }
+
+  const normalizedArguments = toolCall.function.arguments.trim();
+  if (!normalizedArguments) {
+    return false;
+  }
+
+  if (parseCanonicalToolArgumentsRecord(toolCall)) {
+    return true;
+  }
+
+  return !/^[{[]/u.test(normalizedArguments);
+}
+
+function drainProjectableCanonicalToolCallDeltas(
+  pendingToolCallOrder: string[],
+  pendingToolCalls: Map<string, BirdCoderCodeEnginePendingToolCallDelta>,
+): BirdCoderCodeEnginePendingToolCallDelta[] {
+  const projectableToolCalls: BirdCoderCodeEnginePendingToolCallDelta[] = [];
+  const retainedOrder: string[] = [];
+
+  for (const key of pendingToolCallOrder) {
+    const toolCall = pendingToolCalls.get(key);
+    if (!toolCall) {
+      continue;
+    }
+
+    if (isCanonicalToolCallProjectable(toolCall)) {
+      projectableToolCalls.push(toolCall);
+      pendingToolCalls.delete(key);
+      continue;
+    }
+
+    retainedOrder.push(key);
+  }
+
+  pendingToolCallOrder.splice(0, pendingToolCallOrder.length, ...retainedOrder);
+  return projectableToolCalls;
+}
+
+function canonicalToolCallSnapshotKey(
+  toolCall: BirdCoderCodeEnginePendingToolCallDelta,
+): string {
+  return stringifyBirdCoderApiJson({
+    arguments: toolCall.function.arguments,
+    name: canonicalizeBirdCoderCodeEngineToolName(toolCall.function.name),
+    toolCallId: toolCall.id,
+  });
 }
 
 function resolveCanonicalToolLifecycleStatus(
@@ -396,7 +465,12 @@ export function createWorkbenchCanonicalChatEngine(
   binding: WorkbenchCanonicalRuntimeBinding,
 ): IChatEngine {
   const sendMessage = engine.sendMessage.bind(engine);
-  const sendMessageStream = engine.sendMessageStream.bind(engine);
+  const providerSendMessageStream = engine.sendMessageStream.bind(engine);
+  const sendMessageStream = (
+    messages: ChatMessage[],
+    options?: ChatOptions,
+  ): AsyncGenerator<ChatStreamChunk, void, unknown> =>
+    providerSendMessageStream(messages, withStreamEnabledChatOptions(options));
 
   return {
     name: engine.name,
@@ -436,10 +510,41 @@ export function createWorkbenchCanonicalChatEngine(
       let sequence = 0;
       let combinedContent = '';
       let sawToolCall = false;
+      let sawNonToolTerminalFinishReason = false;
       let finalRuntimeStatus: BirdCoderCodingSessionRuntimeStatus = 'streaming';
       const pendingToolCalls = new Map<string, BirdCoderCodeEnginePendingToolCallDelta>();
       const pendingToolCallOrder: string[] = [];
       const requestedToolCallIds = new Set<string>();
+      const projectedToolCallSnapshotKeys = new Map<string, string>();
+
+      const projectToolCalls = function* (
+        toolCalls: readonly BirdCoderCodeEnginePendingToolCallDelta[],
+      ): Generator<ChatCanonicalEvent, void, unknown> {
+        for (const toolCall of toolCalls) {
+          const snapshotKey = canonicalToolCallSnapshotKey(toolCall);
+          if (projectedToolCallSnapshotKeys.get(toolCall.id) === snapshotKey) {
+            continue;
+          }
+          projectedToolCallSnapshotKeys.set(toolCall.id, snapshotKey);
+          sawToolCall = true;
+          const wasRequested = requestedToolCallIds.has(toolCall.id);
+          for (const eventInput of projectToolCallToCanonicalEventInputs(
+            toolCall,
+            runtime.approvalPolicy,
+            wasRequested,
+          )) {
+            finalRuntimeStatus = eventInput.runtimeStatus;
+            yield createCanonicalEvent(
+              ++sequence,
+              eventInput.kind,
+              eventInput.runtimeStatus,
+              eventInput.payload,
+              eventInput.artifact,
+            );
+          }
+          requestedToolCallIds.add(toolCall.id);
+        }
+      };
 
       yield createCanonicalEvent(++sequence, 'session.started', 'ready', {
         engineId: runtime.engineId,
@@ -478,39 +583,34 @@ export function createWorkbenchCanonicalChatEngine(
             });
           }
 
+          for (const event of projectToolCalls(
+            drainProjectableCanonicalToolCallDeltas(
+              pendingToolCallOrder,
+              pendingToolCalls,
+            ),
+          )) {
+            yield event;
+          }
+
           if (choice.finish_reason === 'tool_calls') {
             const toolCalls = flushBirdCoderCodeEngineToolCallDeltas({
               pendingToolCallOrder,
               pendingToolCalls,
             });
-            for (const toolCall of toolCalls) {
-              sawToolCall = true;
-              const wasRequested = requestedToolCallIds.has(toolCall.id);
-              for (const eventInput of projectToolCallToCanonicalEventInputs(
-                toolCall,
-                runtime.approvalPolicy,
-                wasRequested,
-              )) {
-                finalRuntimeStatus = eventInput.runtimeStatus;
-                yield createCanonicalEvent(
-                  ++sequence,
-                  eventInput.kind,
-                  eventInput.runtimeStatus,
-                  eventInput.payload,
-                  eventInput.artifact,
-                );
-              }
-              requestedToolCallIds.add(toolCall.id);
+            for (const event of projectToolCalls(toolCalls)) {
+              yield event;
             }
             yield createCanonicalEvent(++sequence, 'operation.updated', finalRuntimeStatus, {
               finishReason: choice.finish_reason,
               status: finalRuntimeStatus,
             });
+          } else if (choice.finish_reason) {
+            sawNonToolTerminalFinishReason = true;
           }
         }
       } catch (error) {
         yield createCanonicalEvent(++sequence, 'turn.failed', 'failed', {
-          error: String(error),
+          errorMessage: String(error),
         });
         throw error;
       }
@@ -520,24 +620,8 @@ export function createWorkbenchCanonicalChatEngine(
         pendingToolCalls,
       });
       if (remainingToolCalls.length > 0) {
-        for (const toolCall of remainingToolCalls) {
-          sawToolCall = true;
-          const wasRequested = requestedToolCallIds.has(toolCall.id);
-          for (const eventInput of projectToolCallToCanonicalEventInputs(
-            toolCall,
-            runtime.approvalPolicy,
-            wasRequested,
-          )) {
-            finalRuntimeStatus = eventInput.runtimeStatus;
-            yield createCanonicalEvent(
-              ++sequence,
-              eventInput.kind,
-              eventInput.runtimeStatus,
-              eventInput.payload,
-              eventInput.artifact,
-            );
-          }
-          requestedToolCallIds.add(toolCall.id);
+        for (const event of projectToolCalls(remainingToolCalls)) {
+          yield event;
         }
         yield createCanonicalEvent(++sequence, 'operation.updated', finalRuntimeStatus, {
           status: finalRuntimeStatus,
@@ -545,7 +629,18 @@ export function createWorkbenchCanonicalChatEngine(
         });
       }
 
-      const completionRuntimeStatus = sawToolCall ? finalRuntimeStatus : 'completed';
+      if (
+        isPendingInteractionRuntimeStatus(finalRuntimeStatus) &&
+        !sawNonToolTerminalFinishReason
+      ) {
+        yield createCanonicalEvent(++sequence, 'operation.updated', finalRuntimeStatus, {
+          status: finalRuntimeStatus,
+          toolCallsDetected: sawToolCall,
+        });
+        return;
+      }
+
+      const completionRuntimeStatus: BirdCoderCodingSessionRuntimeStatus = 'completed';
 
       yield createCanonicalEvent(++sequence, 'message.completed', completionRuntimeStatus, {
         role: 'assistant',

@@ -18,8 +18,11 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.selectedCodingSessionId === right.selectedCodingSessionId &&
     left.selectedCodingSessionScopeKey === right.selectedCodingSessionScopeKey &&
     left.messages === right.messages &&
+    left.pendingApprovals === right.pendingApprovals &&
+    left.pendingUserQuestions === right.pendingUserQuestions &&
     left.chatEmptyState === right.chatEmptyState &&
     left.isBusy === right.isBusy &&
+    left.isEngineBusy === right.isEngineBusy &&
     left.showComposerEngineSelector === right.showComposerEngineSelector &&
     left.selectedEngineId === right.selectedEngineId &&
     left.selectedModelId === right.selectedModelId &&
@@ -39,6 +42,8 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.onSelectedEngineIdChange === right.onSelectedEngineIdChange &&
     left.onSelectedModelIdChange === right.onSelectedModelIdChange &&
     left.onSendMessage === right.onSendMessage &&
+    left.onSubmitApprovalDecision === right.onSubmitApprovalDecision &&
+    left.onSubmitUserQuestionAnswer === right.onSubmitUserQuestionAnswer &&
     left.onViewChanges === right.onViewChanges &&
     left.onRestoreMessage === right.onRestoreMessage &&
     left.onEditMessage === right.onEditMessage &&

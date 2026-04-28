@@ -588,6 +588,120 @@ for (const engine of listWorkbenchCliEngines()) {
   }
 }
 
+const streamOptionValues: Array<boolean | undefined> = [];
+const streamDefaultRuntime = createWorkbenchCanonicalChatEngine(
+  {
+    name: 'Stream Default Runtime',
+    version: 'test',
+    async sendMessage() {
+      throw new Error('stream default runtime contract should use streaming');
+    },
+    async *sendMessageStream(_messages, options) {
+      streamOptionValues.push(options?.stream);
+      yield {
+        id: 'stream-default-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              role: 'assistant',
+              content: 'stream defaults stay enabled',
+            },
+            finish_reason: 'stop',
+          },
+        ],
+      };
+    },
+  } satisfies IChatEngine,
+  {
+    defaultModelId: 'test-model',
+    descriptor: listWorkbenchCliEngines()[0].descriptor,
+  },
+);
+
+for await (const _event of streamDefaultRuntime.sendCanonicalEvents?.(messages, {
+  model: 'test-model',
+}) ?? []) {
+  // Consume the stream to capture underlying options.
+}
+for await (const _event of streamDefaultRuntime.sendCanonicalEvents?.(messages, {
+  model: 'test-model',
+  stream: false,
+}) ?? []) {
+  // Consume the stream to capture underlying options.
+}
+assert.deepEqual(
+  streamOptionValues,
+  [true, true],
+  'canonical runtime adapter must force ChatOptions.stream=true before calling provider sendMessageStream so canonical IDE turns cannot accidentally downgrade out of stream mode.',
+);
+
+const failingStreamRuntime = createWorkbenchCanonicalChatEngine(
+  {
+    name: 'Failing Stream Runtime',
+    version: 'test',
+    async sendMessage() {
+      throw new Error('failing stream runtime contract should use streaming');
+    },
+    async *sendMessageStream() {
+      yield {
+        id: 'failing-stream-runtime-stream',
+        object: 'chat.completion.chunk',
+        created: 1,
+        model: 'test-model',
+        choices: [
+          {
+            index: 0,
+            delta: {
+              role: 'assistant',
+              content: 'partial response before failure',
+            },
+            finish_reason: null,
+          },
+        ],
+      };
+      throw new Error('provider stream disconnected');
+    },
+  } satisfies IChatEngine,
+  {
+    defaultModelId: 'test-model',
+    descriptor: listWorkbenchCliEngines()[0].descriptor,
+  },
+);
+
+const failingStreamEvents = [];
+await assert.rejects(
+  async () => {
+    for await (const event of failingStreamRuntime.sendCanonicalEvents?.(messages, {
+      model: 'test-model',
+    }) ?? []) {
+      failingStreamEvents.push(event);
+    }
+  },
+  /provider stream disconnected/u,
+);
+const failingStreamTurnFailedEvent = failingStreamEvents.find(
+  (event) => event.kind === 'turn.failed',
+);
+assert.equal(
+  failingStreamTurnFailedEvent?.runtimeStatus,
+  'failed',
+  'canonical runtime adapter must emit a failed runtime status before rethrowing provider stream errors',
+);
+assert.equal(
+  failingStreamTurnFailedEvent?.payload.errorMessage,
+  'Error: provider stream disconnected',
+  'canonical runtime adapter turn.failed payloads must use the shared errorMessage field used by native/server projections',
+);
+assert.equal(
+  Object.hasOwn(failingStreamTurnFailedEvent?.payload ?? {}, 'error'),
+  false,
+  'canonical runtime adapter turn.failed payloads must not expose a competing error field beside errorMessage',
+);
+
 const chunkedToolCallRuntime = createWorkbenchCanonicalChatEngine(
   {
     name: 'Chunked Tool Runtime',
@@ -759,6 +873,18 @@ for await (const event of fullSnapshotToolRuntime.sendCanonicalEvents?.(messages
 }) ?? []) {
   fullSnapshotToolEvents.push(event);
 }
+assert.deepEqual(
+  fullSnapshotToolEvents
+    .filter((event) => event.payload.toolCallId === 'tool-run-command')
+    .map((event) => event.kind),
+  [
+    'tool.call.progress',
+    'artifact.upserted',
+    'tool.call.completed',
+    'artifact.upserted',
+  ],
+  'canonical runtime adapter must stream complete tool-call snapshots as soon as they are projectable instead of waiting for finish_reason or turn completion',
+);
 const fullSnapshotToolProjectedEvent = fullSnapshotToolEvents.find(
   (event) => event.kind === 'tool.call.requested' || event.kind === 'tool.call.completed',
 );
@@ -866,6 +992,68 @@ assert.equal(
   toolLifecycleSnapshotEvents.filter((event) => event.kind === 'approval.required').length,
   1,
   'canonical runtime adapter must not ask for approval again when a later snapshot reports the already-requested tool result',
+);
+
+const duplicateSnapshotToolRuntime = createWorkbenchCanonicalChatEngine(
+  {
+    name: 'Duplicate Snapshot Tool Runtime',
+    version: 'test',
+    async sendMessage() {
+      throw new Error('duplicate snapshot tool runtime contract should use streaming');
+    },
+    async *sendMessageStream() {
+      for (let index = 0; index < 2; index += 1) {
+        yield {
+          id: 'duplicate-snapshot-tool-runtime-stream',
+          object: 'chat.completion.chunk',
+          created: 1,
+          model: 'test-model',
+          choices: [
+            {
+              index: 0,
+              delta: {
+                tool_calls: [
+                  {
+                    id: 'tool-duplicate-command',
+                    type: 'function',
+                    function: {
+                      name: 'run_command',
+                      arguments: JSON.stringify({
+                        command: 'pnpm lint',
+                        status: 'running',
+                      }),
+                    },
+                  },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        };
+      }
+    },
+  } satisfies IChatEngine,
+  {
+    defaultModelId: 'test-model',
+    descriptor: listWorkbenchCliEngines()[0].descriptor,
+  },
+);
+
+const duplicateSnapshotToolEvents = [];
+for await (const event of duplicateSnapshotToolRuntime.sendCanonicalEvents?.(messages, {
+  model: 'test-model',
+}) ?? []) {
+  duplicateSnapshotToolEvents.push(event);
+}
+assert.deepEqual(
+  duplicateSnapshotToolEvents
+    .filter((event) => event.payload.toolCallId === 'tool-duplicate-command')
+    .map((event) => event.kind),
+  [
+    'tool.call.progress',
+    'artifact.upserted',
+  ],
+  'canonical runtime adapter must deduplicate repeated complete tool-call snapshots so realtime projections do not churn without state changes',
 );
 
 const completedOnlyToolRuntime = createWorkbenchCanonicalChatEngine(
@@ -1005,6 +1193,11 @@ assert.equal(
   false,
   'running native tool snapshots must not ask for BirdCoder approval after the engine has started the command',
 );
+assert.equal(
+  runningOnlyToolEvents.find((event) => event.kind === 'turn.completed')?.runtimeStatus,
+  'completed',
+  'canonical runtime adapter must publish terminal turn.completed events as completed even when the last streamed tool snapshot was running, otherwise session lists keep showing an executing spinner after the provider stream ends',
+);
 
 const userQuestionRuntime = createWorkbenchCanonicalChatEngine(
   {
@@ -1090,6 +1283,16 @@ assert.equal(
   'user_question',
   'canonical runtime adapter must normalize question aliases before publishing tool.call events',
 );
+assert.equal(
+  userQuestionEvents.some((event) => event.kind === 'turn.completed'),
+  false,
+  'canonical runtime adapter must not publish turn.completed after a user_question prompt because the provider turn is awaiting a user answer.',
+);
+assert.equal(
+  userQuestionEvents.at(-1)?.runtimeStatus,
+  'awaiting_user',
+  'canonical runtime adapter must leave user_question streams in awaiting_user state instead of overwriting them with completed.',
+);
 
 const approvalAliasRuntime = createWorkbenchCanonicalChatEngine(
   {
@@ -1150,6 +1353,16 @@ assert.equal(
   approvalAliasEvents.find((event) => event.kind === 'approval.required')?.payload.toolName,
   'permission_request',
   'canonical runtime adapter must normalize approval_request aliases before publishing approval.required events',
+);
+assert.equal(
+  approvalAliasEvents.some((event) => event.kind === 'turn.completed'),
+  false,
+  'canonical runtime adapter must not publish turn.completed after an approval request because the provider turn is awaiting a decision.',
+);
+assert.equal(
+  approvalAliasEvents.at(-1)?.runtimeStatus,
+  'awaiting_approval',
+  'canonical runtime adapter must leave approval streams in awaiting_approval state instead of overwriting them with completed.',
 );
 
 const dialectAliasRuntime = createWorkbenchCanonicalChatEngine(

@@ -93,6 +93,12 @@ export const ENGINE_GOVERNANCE_REGRESSION_CHECKS = Object.freeze([
     command: 'pnpm run test:provider-official-sdk-bridge-contract',
   },
   {
+    id: 'codeengine-turn-options-provider',
+    label: 'Codeengine turn options provider contract',
+    scriptPath: 'scripts/codeengine-turn-options-provider-contract.test.mjs',
+    command: 'pnpm run test:codeengine-turn-options-provider-contract',
+  },
+  {
     id: 'opencode-official-sdk-bridge',
     label: 'OpenCode official SDK bridge contract',
     scriptPath: 'scripts/opencode-official-sdk-bridge-contract.test.ts',

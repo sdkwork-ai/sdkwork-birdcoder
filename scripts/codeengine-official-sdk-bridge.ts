@@ -5,6 +5,7 @@ import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/s
 import type {
   ChatContext,
   ChatMessage,
+  ChatOptions,
   ChatResponse,
   ChatStreamChunk,
   ToolCall,
@@ -40,6 +41,9 @@ interface CodeEngineSdkBridgeRequest {
   streamEvents?: boolean;
   workingDirectory?: string | null;
   requestKind?: string;
+  temperature?: number;
+  topP?: number;
+  maxTokens?: number;
   ideContext?: {
     workspaceId?: string | null;
     projectId?: string | null;
@@ -83,10 +87,19 @@ type CodeEngineSdkBridgeRuntimeStatus =
   | 'failed'
   | 'terminated';
 
+type CodeEngineSdkBridgeStreamEventType =
+  | 'message.delta'
+  | 'tool.call.requested'
+  | 'tool.call.progress'
+  | 'tool.call.completed'
+  | 'approval.required'
+  | 'turn.failed';
+
 interface CodeEngineSdkBridgeStreamEvent {
-  type: 'message.delta';
-  role: string;
-  contentDelta: string;
+  type: CodeEngineSdkBridgeStreamEventType;
+  payload?: Record<string, unknown>;
+  role?: string;
+  contentDelta?: string;
 }
 
 interface CodeEngineSdkBridgeCommandEntry {
@@ -96,6 +109,41 @@ interface CodeEngineSdkBridgeCommandEntry {
 
 function normalizeNonEmptyString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function normalizeBridgeFiniteNumber(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function normalizeBridgePositiveInteger(
+  value: unknown,
+  maximum: number,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(maximum, Math.max(1, Math.floor(value)));
+}
+
+function normalizeBridgeTemperature(value: unknown): number | undefined {
+  return normalizeBridgeFiniteNumber(value, 0, 2);
+}
+
+function normalizeBridgeTopP(value: unknown): number | undefined {
+  return normalizeBridgeFiniteNumber(value, 0, 1);
+}
+
+function normalizeBridgeMaxTokens(value: unknown): number | undefined {
+  return normalizeBridgePositiveInteger(value, 128000);
 }
 
 async function readStdin(): Promise<string> {
@@ -208,6 +256,20 @@ function stringifyToolCallArguments(value: Record<string, unknown> | null, fallb
 
 export function serializeOfficialSdkBridgeOutput(value: unknown): string {
   return stringifyBirdCoderApiJson(value);
+}
+
+function resolveOfficialSdkBridgeErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function buildOfficialSdkBridgeFailureOutput(error: unknown): string {
+  return serializeOfficialSdkBridgeOutput({
+    payload: {
+      errorMessage: resolveOfficialSdkBridgeErrorMessage(error),
+      runtimeStatus: 'failed',
+    },
+    type: 'turn.failed',
+  });
 }
 
 function readBridgeRecordString(
@@ -365,23 +427,98 @@ function projectToolCallDeltasToBridgeCommandEntries(
   }));
 }
 
+function bridgeCommandSnapshotsAreEquivalent(
+  left: CodeEngineSdkBridgeCommand,
+  right: CodeEngineSdkBridgeCommand,
+): boolean {
+  return serializeOfficialSdkBridgeOutput(left) === serializeOfficialSdkBridgeOutput(right);
+}
+
 function upsertBridgeCommandEntries(
   commandOrder: string[],
   commandsByKey: Map<string, CodeEngineSdkBridgeCommand>,
   entries: readonly CodeEngineSdkBridgeCommandEntry[],
+  onEvent?: (event: CodeEngineSdkBridgeStreamEvent) => void,
 ): void {
   for (const entry of entries) {
     const existingCommand = commandsByKey.get(entry.key);
+    const nextCommand = existingCommand
+      ? mergeBridgeCommandSnapshot(existingCommand, entry.command)
+      : entry.command;
+    if (
+      existingCommand &&
+      bridgeCommandSnapshotsAreEquivalent(existingCommand, nextCommand)
+    ) {
+      continue;
+    }
     if (!existingCommand) {
       commandOrder.push(entry.key);
     }
-    commandsByKey.set(
-      entry.key,
-      existingCommand
-        ? mergeBridgeCommandSnapshot(existingCommand, entry.command)
-        : entry.command,
-    );
+    commandsByKey.set(entry.key, nextCommand);
+    emitBridgeCommandStreamEvents(nextCommand, existingCommand, onEvent);
   }
+}
+
+function bridgeToolCallDeltaIsProjectable(
+  toolCall: BirdCoderCodeEnginePendingToolCallDelta,
+): boolean {
+  if (!normalizeNonEmptyString(toolCall.function.name)) {
+    return false;
+  }
+
+  const normalizedArguments = normalizeNonEmptyString(toolCall.function.arguments);
+  if (!normalizedArguments) {
+    return false;
+  }
+
+  if (parseToolCallArguments(normalizedArguments)) {
+    return true;
+  }
+
+  return !/^[{[]/u.test(normalizedArguments);
+}
+
+function drainProjectableBridgeToolCallDeltas(
+  pendingToolCallOrder: string[],
+  pendingToolCalls: Map<string, BirdCoderCodeEnginePendingToolCallDelta>,
+): BirdCoderCodeEnginePendingToolCallDelta[] {
+  const projectableToolCalls: BirdCoderCodeEnginePendingToolCallDelta[] = [];
+  const retainedOrder: string[] = [];
+
+  for (const key of pendingToolCallOrder) {
+    const toolCall = pendingToolCalls.get(key);
+    if (!toolCall) {
+      continue;
+    }
+
+    if (bridgeToolCallDeltaIsProjectable(toolCall)) {
+      projectableToolCalls.push(toolCall);
+      pendingToolCalls.delete(key);
+      continue;
+    }
+
+    retainedOrder.push(key);
+  }
+
+  pendingToolCallOrder.splice(0, pendingToolCallOrder.length, ...retainedOrder);
+  return projectableToolCalls;
+}
+
+function upsertProjectableBridgeToolCallDeltas(
+  commandOrder: string[],
+  commandsByKey: Map<string, CodeEngineSdkBridgeCommand>,
+  pendingToolCallOrder: string[],
+  pendingToolCalls: Map<string, BirdCoderCodeEnginePendingToolCallDelta>,
+  onEvent?: (event: CodeEngineSdkBridgeStreamEvent) => void,
+): void {
+  upsertBridgeCommandEntries(
+    commandOrder,
+    commandsByKey,
+    projectToolCallDeltasToBridgeCommandEntries(
+      drainProjectableBridgeToolCallDeltas(pendingToolCallOrder, pendingToolCalls),
+    ),
+    onEvent,
+  );
 }
 
 function mergeBridgeCommandSnapshot(
@@ -389,6 +526,77 @@ function mergeBridgeCommandSnapshot(
   nextCommand: CodeEngineSdkBridgeCommand,
 ): CodeEngineSdkBridgeCommand {
   return mergeBirdCoderCodeEngineCommandSnapshot(existingCommand, nextCommand);
+}
+
+function resolveBridgeCommandStreamEventType(
+  command: CodeEngineSdkBridgeCommand,
+  existingCommand: CodeEngineSdkBridgeCommand | undefined,
+): CodeEngineSdkBridgeStreamEventType {
+  if (
+    command.status === 'success' ||
+    command.status === 'error' ||
+    command.runtimeStatus === 'completed' ||
+    command.runtimeStatus === 'failed' ||
+    command.runtimeStatus === 'terminated' ||
+    command.runtimeStatus === 'awaiting_tool'
+  ) {
+    return 'tool.call.completed';
+  }
+
+  return existingCommand ? 'tool.call.progress' : 'tool.call.requested';
+}
+
+function bridgeCommandToStreamEventPayload(
+  command: CodeEngineSdkBridgeCommand,
+): Record<string, unknown> {
+  const toolArguments = parseBridgeCommandStreamToolArguments(command.output);
+  return {
+    ...(command.toolName ? { toolName: command.toolName } : {}),
+    ...(command.toolCallId ? { toolCallId: command.toolCallId } : {}),
+    ...(toolArguments === undefined ? {} : { toolArguments }),
+    status: command.status,
+    ...(command.runtimeStatus ? { runtimeStatus: command.runtimeStatus } : {}),
+    requiresApproval: command.requiresApproval,
+    requiresReply: command.requiresReply,
+  };
+}
+
+function parseBridgeCommandStreamToolArguments(
+  value: string | undefined,
+): unknown {
+  if (typeof value !== 'string' || !value.trim()) {
+    return undefined;
+  }
+
+  try {
+    const parsed = parseBirdCoderApiJson(value) as unknown;
+    return parsed && typeof parsed === 'object' ? parsed : value;
+  } catch {
+    return value;
+  }
+}
+
+function emitBridgeCommandStreamEvents(
+  command: CodeEngineSdkBridgeCommand,
+  existingCommand: CodeEngineSdkBridgeCommand | undefined,
+  onEvent: ((event: CodeEngineSdkBridgeStreamEvent) => void) | undefined,
+): void {
+  if (!onEvent) {
+    return;
+  }
+
+  const payload = bridgeCommandToStreamEventPayload(command);
+  onEvent({
+    type: resolveBridgeCommandStreamEventType(command, existingCommand),
+    payload,
+  });
+
+  if (command.requiresApproval === true) {
+    onEvent({
+      type: 'approval.required',
+      payload,
+    });
+  }
 }
 
 export async function collectOfficialSdkBridgeStreamResult(
@@ -429,6 +637,14 @@ export async function collectOfficialSdkBridgeStreamResult(
       });
     }
 
+    upsertProjectableBridgeToolCallDeltas(
+      commandOrder,
+      commandsByKey,
+      pendingToolCallOrder,
+      pendingToolCalls,
+      options.onEvent,
+    );
+
     if (choice.finish_reason === 'tool_calls') {
       upsertBridgeCommandEntries(
         commandOrder,
@@ -439,6 +655,7 @@ export async function collectOfficialSdkBridgeStreamResult(
             pendingToolCalls,
           }),
         ),
+        options.onEvent,
       );
     }
   }
@@ -451,6 +668,7 @@ export async function collectOfficialSdkBridgeStreamResult(
         pendingToolCalls,
       }),
     ),
+    options.onEvent,
   );
   const commands = commandOrder.flatMap((key) => {
     const command = commandsByKey.get(key);
@@ -480,7 +698,11 @@ async function executeOfficialSdkBridgeRequest(
   const options = {
     model: modelId,
     context: buildChatContext(request),
-  };
+    stream: true,
+    temperature: normalizeBridgeTemperature(request.temperature),
+    topP: normalizeBridgeTopP(request.topP),
+    maxTokens: normalizeBridgeMaxTokens(request.maxTokens),
+  } satisfies ChatOptions;
 
   const streamResult = await collectOfficialSdkBridgeStreamResult(
     engine.sendMessageStream(messages, options),
@@ -508,26 +730,33 @@ async function executeOfficialSdkBridgeRequest(
 
 export async function main() {
   const request = parseOfficialSdkBridgeRequest(await readStdin());
-  const bridgeResponse = await executeOfficialSdkBridgeRequest(request);
-  if (isOfficialSdkBridgeResponseEmpty(bridgeResponse)) {
-    throw new Error(
-      `Codeengine SDK bridge for ${normalizeNonEmptyString(request.engineId) ?? 'unknown'} returned an empty assistant response.`,
-    );
-  }
+  try {
+    const bridgeResponse = await executeOfficialSdkBridgeRequest(request);
+    if (isOfficialSdkBridgeResponseEmpty(bridgeResponse)) {
+      throw new Error(
+        `Codeengine SDK bridge for ${normalizeNonEmptyString(request.engineId) ?? 'unknown'} returned an empty assistant response.`,
+      );
+    }
 
-  if (request.streamEvents) {
-    stdout.write(
-      `${serializeOfficialSdkBridgeOutput({ type: 'turn.completed', response: bridgeResponse })}\n`,
-    );
-    return;
-  }
+    if (request.streamEvents) {
+      stdout.write(
+        `${serializeOfficialSdkBridgeOutput({ type: 'turn.completed', response: bridgeResponse })}\n`,
+      );
+      return;
+    }
 
-  stdout.write(`${serializeOfficialSdkBridgeOutput(bridgeResponse)}\n`);
+    stdout.write(`${serializeOfficialSdkBridgeOutput(bridgeResponse)}\n`);
+  } catch (error: unknown) {
+    if (request.streamEvents) {
+      stdout.write(`${buildOfficialSdkBridgeFailureOutput(error)}\n`);
+    }
+    throw error;
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error: unknown) => {
-    stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    stderr.write(`${resolveOfficialSdkBridgeErrorMessage(error)}\n`);
     process.exitCode = 1;
   });
 }

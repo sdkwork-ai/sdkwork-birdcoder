@@ -156,4 +156,57 @@ await providerRepository.clear();
 assert.equal(await providerRepository.count(), 0);
 assert.equal(await providerRepository.findById(runtime.id), null);
 
+let degradedSqlExecutionAttempts = 0;
+const degradedRepository = dataKernelModule.createBirdCoderTableRecordRepository({
+  binding: typesModule.BIRDCODER_CODING_SESSION_RUNTIME_STORAGE_BINDING,
+  definition: typesModule.getBirdCoderEntityDefinition('coding_session_runtime'),
+  identify(value) {
+    return value.id;
+  },
+  normalize(value) {
+    return runtimeFromRow(value);
+  },
+  providerId: 'sqlite',
+  storage: {
+    sqlPlanExecutionEnabled: true,
+    async executeSqlPlan() {
+      degradedSqlExecutionAttempts += 1;
+      throw new Error('Tauri SQL bridge is not ready during startup.');
+    },
+    async readRawValue() {
+      throw new Error('degraded table repositories must not read table snapshots through raw local storage.');
+    },
+    async removeRawValue() {
+      throw new Error('degraded table repositories must not remove table snapshots through raw local storage.');
+    },
+    async setRawValue() {
+      throw new Error('degraded table repositories must not write table snapshots through raw local storage.');
+    },
+  },
+  toRow: runtimeToRow,
+});
+
+assert.equal(
+  await degradedRepository.count(),
+  0,
+  'A table repository must degrade to an empty volatile table when the startup SQL bridge rejects.',
+);
+assert.equal(
+  degradedSqlExecutionAttempts,
+  1,
+  'A table repository should only probe the failing SQL bridge once before entering volatile degraded mode.',
+);
+await degradedRepository.save(runtime);
+assert.equal(
+  await degradedRepository.count(),
+  1,
+  'A degraded table repository must remain usable in memory so startup state can hydrate without crashing.',
+);
+assert.equal((await degradedRepository.findById(runtime.id))?.id, runtime.id);
+await degradedRepository.delete(runtime.id);
+assert.equal(await degradedRepository.list().then((records) => records.length), 0);
+await degradedRepository.saveMany([runtime]);
+await degradedRepository.clear();
+assert.equal(await degradedRepository.count(), 0);
+
 console.log('sql executor table repository contract passed.');

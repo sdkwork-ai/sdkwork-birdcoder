@@ -13,6 +13,7 @@ import { CodeTerminalIntegrationPanel } from './CodeTerminalIntegrationPanel';
 import { CodeWorkspaceOverlays } from './CodeWorkspaceOverlays';
 import { getLanguageFromPath } from './CodePageShared';
 import type { CodeEditorWorkspacePanelProps } from './codeEditorWorkspacePanel.types';
+import { useCodePendingInteractions } from './useCodePendingInteractions';
 
 type CodePageTab = 'ai' | 'editor' | 'mobile';
 
@@ -55,6 +56,7 @@ interface UseCodePageSurfacePropsOptions {
   files: FileNode[];
   filteredProjects: BirdCoderProject[];
   isChatBusy: boolean;
+  isChatEngineBusy: boolean;
   isDebugConfigVisible: boolean;
   isFindVisible: boolean;
   isMountRecoveryActionPending: boolean;
@@ -62,7 +64,7 @@ interface UseCodePageSurfacePropsOptions {
   isRunConfigVisible: boolean;
   isRunTaskVisible: boolean;
   isSearchingFiles: boolean;
-  isSelectedSessionExecuting: boolean;
+  isSelectedSessionEngineBusy: boolean;
   isSidebarVisible: boolean;
   isTerminalOpen: boolean;
   isVisible: boolean;
@@ -184,6 +186,7 @@ export function useCodePageSurfaceProps({
   files,
   filteredProjects,
   isChatBusy,
+  isChatEngineBusy,
   isDebugConfigVisible,
   isFindVisible,
   isMountRecoveryActionPending,
@@ -191,7 +194,7 @@ export function useCodePageSurfaceProps({
   isRunConfigVisible,
   isRunTaskVisible,
   isSearchingFiles,
-  isSelectedSessionExecuting,
+  isSelectedSessionEngineBusy,
   isSidebarVisible,
   isTerminalOpen,
   isVisible,
@@ -298,6 +301,27 @@ export function useCodePageSurfaceProps({
     workspaceId && currentProjectId && sessionId
       ? `${workspaceId}\u0001${currentProjectId}\u0001${sessionId}`
       : sessionId || undefined;
+  const pendingInteractionRefreshToken = useMemo(() => {
+    const lastMessage = selectedCodingSessionMessages[selectedCodingSessionMessages.length - 1];
+    return [
+      sessionId ?? '',
+      isChatBusy ? 'busy' : 'idle',
+      selectedCodingSessionMessages.length,
+      lastMessage?.id ?? '',
+      lastMessage?.content.length ?? 0,
+      lastMessage?.commands?.length ?? 0,
+    ].join('\u0001');
+  }, [isChatBusy, selectedCodingSessionMessages, sessionId]);
+  const {
+    onSubmitApprovalDecision,
+    onSubmitUserQuestionAnswer,
+    pendingApprovals,
+    pendingUserQuestions,
+  } = useCodePendingInteractions({
+    onRefreshCodingSessionMessages,
+    refreshToken: pendingInteractionRefreshToken,
+    sessionId,
+  });
 
   const projectExplorerProps = useMemo<ProjectExplorerProps>(() => ({
     isVisible: isVisible && isSidebarVisible,
@@ -448,7 +472,7 @@ export function useCodePageSurfaceProps({
     selectedSessionTitle,
     selectedSessionEngineId,
     selectedSessionModelId,
-    isSelectedSessionExecuting,
+    isSelectedSessionEngineBusy,
     selectedEngineId,
     selectedModelId,
     activeTab,
@@ -457,7 +481,7 @@ export function useCodePageSurfaceProps({
     setIsTerminalOpen: onSetIsTerminalOpen,
   }), [
     activeTab,
-    isSelectedSessionExecuting,
+    isSelectedSessionEngineBusy,
     isTerminalOpen,
     onCreateNewSession,
     onToggleProjectGitOverviewDrawer,
@@ -478,8 +502,13 @@ export function useCodePageSurfaceProps({
     sessionId: activeTab === 'ai' ? (sessionId || undefined) : undefined,
     sessionScopeKey: activeTab === 'ai' ? transcriptSessionScopeKey : undefined,
     messages: mainChatMessages,
+    pendingApprovals: activeTab === 'ai' ? pendingApprovals : [],
+    pendingUserQuestions: activeTab === 'ai' ? pendingUserQuestions : [],
     onSendMessage,
+    onSubmitApprovalDecision,
+    onSubmitUserQuestionAnswer,
     isBusy: isChatBusy,
+    isEngineBusy: isChatEngineBusy,
     selectedEngineId: selectedSessionEngineId ?? selectedEngineId,
     selectedModelId: selectedSessionModelId ?? selectedModelId,
     showEngineHeader: false,
@@ -495,9 +524,12 @@ export function useCodePageSurfaceProps({
     emptyState: mainChatEmptyState,
   }), [
     activeTab,
+    isChatEngineBusy,
     isChatBusy,
     mainChatEmptyState,
     mainChatMessages,
+    onSubmitApprovalDecision,
+    onSubmitUserQuestionAnswer,
     onDeleteMessage,
     onEditMessage,
     onRegenerateMessage,
@@ -506,6 +538,8 @@ export function useCodePageSurfaceProps({
     onSelectedModelIdChange,
     onSendMessage,
     onViewChangesAndOpenEditor,
+    pendingApprovals,
+    pendingUserQuestions,
     selectedEngineId,
     selectedModelId,
     selectedSessionEngineId,
@@ -529,8 +563,11 @@ export function useCodePageSurfaceProps({
     selectedCodingSessionId: activeTab === 'editor' ? sessionId : undefined,
     selectedCodingSessionScopeKey: activeTab === 'editor' ? transcriptSessionScopeKey : undefined,
     messages: editorChatMessages,
+    pendingApprovals: activeTab === 'editor' ? pendingApprovals : [],
+    pendingUserQuestions: activeTab === 'editor' ? pendingUserQuestions : [],
     chatEmptyState: editorChatEmptyState,
     isBusy: isChatBusy,
+    isEngineBusy: isChatEngineBusy,
     showComposerEngineSelector,
     selectedEngineId: selectedSessionEngineId ?? selectedEngineId,
     selectedModelId: selectedSessionModelId ?? selectedModelId,
@@ -550,6 +587,8 @@ export function useCodePageSurfaceProps({
     onSelectedEngineIdChange,
     onSelectedModelIdChange,
     onSendMessage,
+    onSubmitApprovalDecision,
+    onSubmitUserQuestionAnswer,
     onViewChanges,
     onRestoreMessage,
     onEditMessage,
@@ -566,6 +605,7 @@ export function useCodePageSurfaceProps({
     chatWidth,
     fileContent,
     files,
+    isChatEngineBusy,
     isChatBusy,
     loadingDirectoryPaths,
     onAcceptDiff,
@@ -589,8 +629,12 @@ export function useCodePageSurfaceProps({
     onSelectedEngineIdChange,
     onSelectedModelIdChange,
     onSendMessage,
+    onSubmitApprovalDecision,
+    onSubmitUserQuestionAnswer,
     onViewChanges,
     openFiles,
+    pendingApprovals,
+    pendingUserQuestions,
     projectPath,
     selectedEngineId,
     selectedFile,

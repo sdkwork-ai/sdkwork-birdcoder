@@ -191,6 +191,55 @@ export interface BirdCoderModelCatalogEntry extends BirdCoderEngineCatalogEntity
   capabilityMatrix: Partial<BirdCoderEngineCapabilityMatrix>;
 }
 
+export type BirdCoderCodeEngineModelConfigSource =
+  | 'local-default'
+  | 'home-file'
+  | 'server'
+  | (string & {});
+
+export interface BirdCoderCodeEngineModelConfigCustomModel {
+  id: string;
+  label: string;
+}
+
+export interface BirdCoderCodeEngineModelConfigEngine {
+  engineId: BirdCoderCodeEngineKey;
+  defaultModelId: string;
+  selectedModelId: string;
+  customModels: readonly BirdCoderCodeEngineModelConfigCustomModel[];
+  models: readonly BirdCoderModelCatalogEntry[];
+}
+
+export interface BirdCoderCodeEngineModelConfig {
+  schemaVersion: 1;
+  source: BirdCoderCodeEngineModelConfigSource;
+  version: string;
+  updatedAt: string;
+  engines: Readonly<Record<string, BirdCoderCodeEngineModelConfigEngine>>;
+}
+
+export interface BirdCoderSyncCodeEngineModelConfigRequest {
+  localConfig: BirdCoderCodeEngineModelConfig;
+}
+
+export type BirdCoderCodeEngineModelConfigSyncAction =
+  | 'noop'
+  | 'overwrite-local'
+  | 'push-local';
+
+export type BirdCoderCodeEngineModelConfigSyncAuthoritativeSource =
+  | 'equal'
+  | 'local'
+  | 'server';
+
+export interface BirdCoderCodeEngineModelConfigSyncResult {
+  action: BirdCoderCodeEngineModelConfigSyncAction;
+  authoritativeSource: BirdCoderCodeEngineModelConfigSyncAuthoritativeSource;
+  config: BirdCoderCodeEngineModelConfig;
+  shouldWriteLocal: boolean;
+  shouldWriteServer: boolean;
+}
+
 export interface BirdCoderEngineBindingSummary extends BirdCoderEngineCatalogEntitySummary {
   scopeType: 'global' | 'workspace' | 'project';
   scopeId: string;

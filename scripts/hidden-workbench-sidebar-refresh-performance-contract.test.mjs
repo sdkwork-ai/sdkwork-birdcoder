@@ -6,6 +6,10 @@ const codePageSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx', import.meta.url),
   'utf8',
 );
+const codePageSharedSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-code/src/pages/CodePageShared.tsx', import.meta.url),
+  'utf8',
+);
 const sidebarSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx', import.meta.url),
   'utf8',
@@ -26,6 +30,10 @@ const studioPageSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
+const studioPageSharedSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.shared.ts', import.meta.url),
+  'utf8',
+);
 const studioChatSidebarSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioChatSidebar.tsx', import.meta.url),
   'utf8',
@@ -44,7 +52,7 @@ assert.match(
 );
 
 assert.match(
-  codePageSource,
+  codePageSharedSource,
   /interface CodePageProps \{[\s\S]*isVisible\?: boolean;/s,
   'CodePage must accept an isVisible flag from the app shell.',
 );
@@ -89,7 +97,7 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  studioPageSource,
+  studioPageSharedSource,
   /interface StudioPageProps \{[\s\S]*isVisible\?: boolean;/s,
   'StudioPage must accept an isVisible flag from the app shell.',
 );

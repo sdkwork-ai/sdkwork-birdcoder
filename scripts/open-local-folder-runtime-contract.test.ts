@@ -1,8 +1,47 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 const openLocalFolderModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/platform/openLocalFolder.ts',
   import.meta.url,
+);
+const rootPackageJsonPath = new URL('../package.json', import.meta.url);
+const infrastructurePackageJsonPath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/package.json',
+  import.meta.url,
+);
+const workspaceCatalogPath = new URL('../pnpm-workspace.yaml', import.meta.url);
+const openLocalFolderSource = fs.readFileSync(openLocalFolderModulePath, 'utf8');
+const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, 'utf8'));
+const infrastructurePackageJson = JSON.parse(
+  fs.readFileSync(infrastructurePackageJsonPath, 'utf8'),
+);
+const workspaceCatalogSource = fs.readFileSync(workspaceCatalogPath, 'utf8');
+
+assert.doesNotMatch(
+  openLocalFolderSource,
+  /@tauri-apps\/plugin-dialog/u,
+  'openLocalFolder must not import @tauri-apps/plugin-dialog because Vite statically resolves literal dynamic imports and broken local package contents block startup before the Tauri runtime branch executes.',
+);
+assert.match(
+  openLocalFolderSource,
+  /plugin:dialog\|open/u,
+  'openLocalFolder must call the registered Tauri dialog plugin command directly through the stable core invoke bridge.',
+);
+assert.equal(
+  rootPackageJson.dependencies?.['@tauri-apps/plugin-dialog'],
+  undefined,
+  'The root package must not depend on @tauri-apps/plugin-dialog once folder-open uses the stable @tauri-apps/api/core invoke bridge directly.',
+);
+assert.equal(
+  infrastructurePackageJson.dependencies?.['@tauri-apps/plugin-dialog'],
+  undefined,
+  'The infrastructure package must not depend on @tauri-apps/plugin-dialog once folder-open uses the stable @tauri-apps/api/core invoke bridge directly.',
+);
+assert.doesNotMatch(
+  workspaceCatalogSource,
+  /'@tauri-apps\/plugin-dialog':/u,
+  'The workspace catalog must not retain @tauri-apps/plugin-dialog after the frontend no longer imports the package entry.',
 );
 
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');

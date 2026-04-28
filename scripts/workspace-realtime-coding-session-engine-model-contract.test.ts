@@ -349,6 +349,109 @@ assert.equal(
   'workspace realtime must not let stale updates regress a newer local runtime status.',
 );
 
+const previouslyFailedRealtimeProjects: BirdCoderProject[] = [
+  {
+    ...baseProject,
+    codingSessions: [
+      {
+        ...createdProjects![0]!.codingSessions[0]!,
+        messages: [],
+        runtimeStatus: 'failed',
+      },
+    ],
+  },
+];
+const assistantCompletedRealtimeProjects = applyWorkspaceRealtimeEventToProjects(
+  previouslyFailedRealtimeProjects,
+  createRealtimeEvent({
+    eventId: 'event-realtime-contract-assistant-completed-runtime',
+    eventKind: 'coding-session.updated',
+    codingSessionEventKind: 'message.completed',
+    codingSessionEventPayload: {
+      content: 'The transcript loaded successfully.',
+      role: 'assistant',
+    },
+    occurredAt: '2026-04-20T10:03:30.000Z',
+    projectUpdatedAt: '2026-04-20T10:03:30.000Z',
+    codingSessionUpdatedAt: '2026-04-20T10:03:30.000Z',
+    turnId: 'turn-realtime-assistant-completed-runtime',
+  }),
+);
+assert.equal(
+  assistantCompletedRealtimeProjects?.[0]?.codingSessions[0]?.runtimeStatus,
+  'completed',
+  'workspace realtime must derive session runtimeStatus from canonical codingSessionEventKind/payload when the top-level runtimeStatus hint is absent.',
+);
+assert.equal(
+  assistantCompletedRealtimeProjects?.[0]?.codingSessions[0]?.messages.at(-1)?.content,
+  'The transcript loaded successfully.',
+  'workspace realtime must still merge the completed assistant message while converging the left session row runtime status.',
+);
+
+const deltaAppliedProjects = applyWorkspaceRealtimeEventToProjects(
+  createdProjects ?? [baseProject],
+  createRealtimeEvent({
+    eventId: 'event-realtime-contract-message-delta',
+    eventKind: 'coding-session.updated',
+    codingSessionRuntimeStatus: 'streaming',
+    codingSessionEventKind: 'message.delta',
+    codingSessionEventPayload: {
+      role: 'assistant',
+      contentDelta: 'Streaming response chunk.',
+      runtimeStatus: 'streaming',
+    },
+    turnId: 'turn-realtime-streaming',
+    occurredAt: '2026-04-20T10:04:00.000Z',
+    projectUpdatedAt: '2026-04-20T10:04:00.000Z',
+    codingSessionUpdatedAt: '2026-04-20T10:04:00.000Z',
+  }),
+);
+assert.equal(
+  deltaAppliedProjects?.[0]?.codingSessions[0]?.messages.at(-1)?.content,
+  'Streaming response chunk.',
+  'workspace realtime must merge message.delta chunks directly into cached session messages so the selected transcript can echo through the stream instead of waiting for a refresh.',
+);
+
+const liveToolAppliedProjects = applyWorkspaceRealtimeEventToProjects(
+  createdProjects ?? [baseProject],
+  createRealtimeEvent({
+    eventId: 'event-realtime-contract-tool-call',
+    eventKind: 'coding-session.updated',
+    codingSessionRuntimeStatus: 'streaming',
+    codingSessionEventKind: 'tool.call.requested',
+    codingSessionEventPayload: {
+      toolName: 'run_command',
+      toolCallId: 'tool-run-lint',
+      toolArguments: {
+        command: 'pnpm lint',
+        cwd: 'D:/workspace/demo',
+      },
+      status: 'running',
+      requiresApproval: false,
+      requiresReply: false,
+    },
+    turnId: 'turn-realtime-streaming-tool',
+    occurredAt: '2026-04-20T10:04:01.000Z',
+    projectUpdatedAt: '2026-04-20T10:04:01.000Z',
+    codingSessionUpdatedAt: '2026-04-20T10:04:01.000Z',
+  }),
+);
+assert.deepEqual(
+  liveToolAppliedProjects?.[0]?.codingSessions[0]?.messages.at(-1)?.commands?.[0],
+  {
+    command: 'pnpm lint',
+    status: 'running',
+    output: '{"command":"pnpm lint","cwd":"D:/workspace/demo"}',
+    kind: 'command',
+    toolName: 'run_command',
+    toolCallId: 'tool-run-lint',
+    runtimeStatus: 'streaming',
+    requiresApproval: false,
+    requiresReply: false,
+  },
+  'workspace realtime must merge streamed tool.call events directly into cached session command cards instead of waiting for final message.completed commandsJson.',
+);
+
 const serverHostSource = readFileSync(
   new URL('../packages/sdkwork-birdcoder-server/src-host/src/lib.rs', import.meta.url),
   'utf8',
@@ -373,10 +476,60 @@ assert.match(
   /native_session_id,\s*\n\s*turn_id,/,
   'Rust workspace realtime payloads must expose nativeSessionId to the frontend.',
 );
+assert.match(
+  serverHostSource,
+  /coding_session_event_kind:\s*Option<String>/,
+  'Rust workspace realtime payloads must carry generic coding-session event kinds so tool and approval streams are not text-only.',
+);
+assert.match(
+  serverHostSource,
+  /coding_session_event_payload:\s*Option<serde_json::Value>/,
+  'Rust workspace realtime payloads must carry generic coding-session event payloads so streamed tool cards can render without a refresh.',
+);
+assert.match(
+  serverHostSource,
+  /payload:\s*BTreeMap<String,\s*serde_json::Value>/,
+  'Rust coding-session event payloads must be modeled as JSON values so persisted events do not coerce booleans, arrays, or objects into strings.',
+);
+assert.match(
+  serverHostSource,
+  /parse_json_object_value_map\(/,
+  'Rust coding-session event loaders must parse payload_json as a JSON object instead of a string-only map.',
+);
 assert.doesNotMatch(
   serverHostSource,
   /\.\s*publish_workspace_realtime_event\(\s*"coding-session\.(?:created|updated|deleted|turn\.created)"/,
   'Rust host must not publish raw coding-session realtime events without the standardized project metadata helper.',
+);
+assert.doesNotMatch(
+  serverHostSource,
+  /coding_session_message_(?:event_kind|role|content_delta)/,
+  'Rust workspace realtime payloads must not keep a legacy text-only message delta side channel.',
+);
+assert.doesNotMatch(
+  serverHostSource,
+  /coerce_stream_event_payload_to_string_map/,
+  'Rust stream event persistence must not flatten JSON event payload values into string maps.',
+);
+
+const serverApiSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-types/src/server-api.ts', import.meta.url),
+  'utf8',
+);
+assert.doesNotMatch(
+  serverApiSource,
+  /codingSessionMessage(?:EventKind|Role|ContentDelta)/,
+  'TypeScript workspace realtime API types must expose stream events only through codingSessionEventKind/codingSessionEventPayload.',
+);
+
+const workspaceRealtimeStoreSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-commons/src/stores/workspaceRealtime.ts', import.meta.url),
+  'utf8',
+);
+assert.doesNotMatch(
+  workspaceRealtimeStoreSource,
+  /buildRealtimeMessageDeltaProjectionEvent/,
+  'Workspace realtime projection must not keep the legacy message-delta helper after canonical stream events are available.',
 );
 
 console.log('workspace realtime coding session engine/model contract passed.');

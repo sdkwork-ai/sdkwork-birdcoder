@@ -44,7 +44,8 @@ export function usePersistedState<T>(
     }
 
     lastPersistedStateRef.current = state;
-    void setStoredJson(scope, key, state);
+    void setStoredJson(scope, key, state).catch(() => {
+    });
   }, [isHydrated, key, scope, state]);
 
   const setPersistedState = useCallback(

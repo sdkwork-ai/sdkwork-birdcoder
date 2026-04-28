@@ -6,7 +6,7 @@ use sdkwork_birdcoder_codeengine::{
     map_codeengine_tool_command_status, map_codeengine_tool_kind,
     map_codeengine_tool_runtime_status, normalize_codeengine_dialect_key,
     resolve_codeengine_approval_id, resolve_codeengine_approval_runtime_status,
-    resolve_codeengine_command_interaction_runtime_status,
+    resolve_codeengine_checkpoint_id, resolve_codeengine_command_interaction_runtime_status,
     resolve_codeengine_command_interaction_state, resolve_codeengine_command_text,
     resolve_codeengine_tool_call_id, resolve_codeengine_user_question_id,
     resolve_codeengine_user_question_runtime_status, CodeEngineCommandInteractionState,
@@ -230,7 +230,7 @@ fn codeengine_dialect_standardizes_tool_aliases_and_lifecycle_statuses() {
         "error"
     );
     let generic_id_payload =
-        std::collections::BTreeMap::from([("id".to_owned(), "generic-payload-id".to_owned())]);
+        std::collections::BTreeMap::from([("id".to_owned(), json!("generic-payload-id"))]);
     let provider_identity_args = json!({
         "toolCallId": "specific-tool-argument-id",
         "requestID": "question-provider-1",
@@ -263,6 +263,18 @@ fn codeengine_dialect_standardizes_tool_aliases_and_lifecycle_statuses() {
         )
         .as_deref(),
         Some("permission-provider-1")
+    );
+    let checkpoint_identity_state = std::collections::BTreeMap::from([
+        ("permissionId".to_owned(), json!("permission-checkpoint-1")),
+        ("checkpointID".to_owned(), json!(9007199254740991_i64)),
+    ]);
+    assert_eq!(
+        resolve_codeengine_approval_id(None, None, Some(&checkpoint_identity_state)).as_deref(),
+        Some("permission-checkpoint-1")
+    );
+    assert_eq!(
+        resolve_codeengine_checkpoint_id(None, None, Some(&checkpoint_identity_state)).as_deref(),
+        Some("9007199254740991")
     );
     assert_eq!(
         map_codeengine_tool_command_status(None, Some("0")),

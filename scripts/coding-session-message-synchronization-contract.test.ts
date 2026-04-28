@@ -182,6 +182,49 @@ assert.deepEqual(
   'task progress payloads should upgrade an existing logical message',
 );
 
+const directCommandPayloadProjectionMessages = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'coding-session-direct-command-payload',
+  existingMessages: [],
+  idPrefix: 'direct-command',
+  events: [
+    {
+      id: 'direct-command:event:1',
+      codingSessionId: 'coding-session-direct-command-payload',
+      turnId: 'turn-direct-command',
+      runtimeId: 'runtime-direct-command',
+      kind: 'message.completed',
+      sequence: '1',
+      payload: {
+        role: 'assistant',
+        content: 'Ran the verification.',
+        runtimeStatus: 'completed',
+        commands: [
+          {
+            command: 'pnpm test',
+            status: 'success',
+            output: 'ok',
+            requiresApproval: false,
+          },
+        ],
+      },
+      createdAt: '2026-04-20T10:00:01.000Z',
+    },
+  ],
+});
+
+assert.deepEqual(
+  directCommandPayloadProjectionMessages[0]?.commands,
+  [
+    {
+      command: 'pnpm test',
+      status: 'success',
+      output: 'ok',
+      requiresApproval: false,
+    },
+  ],
+  'projection should restore direct JSON command payload arrays without requiring commandsJson string fallback',
+);
+
 const projectedMessages = mergeBirdCoderProjectionMessages({
   codingSessionId: 'coding-session-1',
   existingMessages: [
@@ -385,6 +428,51 @@ assert.deepEqual(
   'completed projection messages must replace same-turn streaming deltas so a single assistant reply cannot render multiple times after refresh',
 );
 
+const duplicateCompletedProjectedMessages = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'coding-session-1',
+  existingMessages: [],
+  idPrefix: 'refreshed',
+  events: [
+    {
+      id: 'duplicate-completed-stream-final',
+      codingSessionId: 'coding-session-1',
+      kind: 'message.completed',
+      payload: {
+        role: 'assistant',
+        content: 'Partial final streamed content.',
+      },
+      sequence: '1',
+      createdAt: '2026-04-20T10:00:04.000Z',
+      turnId: 'duplicate-completed-turn',
+    },
+    {
+      id: 'duplicate-completed-authority-final',
+      codingSessionId: 'coding-session-1',
+      kind: 'message.completed',
+      payload: {
+        role: 'assistant',
+        content: 'Authoritative completed content.',
+      },
+      sequence: '2',
+      createdAt: '2026-04-20T10:00:05.000Z',
+      turnId: 'duplicate-completed-turn',
+    },
+  ],
+});
+assert.deepEqual(
+  duplicateCompletedProjectedMessages.map((message) => ({
+    id: message.id,
+    content: message.content,
+  })),
+  [
+    {
+      id: 'coding-session-1:refreshed:duplicate-completed-turn:assistant',
+      content: 'Authoritative completed content.',
+    },
+  ],
+  'projection refresh must collapse duplicate same-turn completed messages so streamed/finalized replies cannot create duplicate React keys.',
+);
+
 const streamingOnlyProjectedMessages = mergeBirdCoderProjectionMessages({
   codingSessionId: 'coding-session-1',
   existingMessages: [],
@@ -420,6 +508,83 @@ assert.equal(
   streamingOnlyProjectedMessages[0]?.content,
   'I will inspect the provider first.',
   'streaming projection must preserve contentDelta whitespace while assembling an in-flight assistant reply',
+);
+
+const editedProjectionMessageId =
+  'coding-session-1:authoritative:edited-projection-turn:user';
+const editedProjectionMessages = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'coding-session-1',
+  existingMessages: [],
+  idPrefix: 'authoritative',
+  events: [
+    {
+      id: 'edited-projection-completed',
+      codingSessionId: 'coding-session-1',
+      kind: 'message.completed',
+      payload: {
+        role: 'user',
+        content: 'Old user request',
+      },
+      sequence: '1',
+      createdAt: '2026-04-20T10:00:02.000Z',
+      turnId: 'edited-projection-turn',
+    },
+    {
+      id: 'edited-projection-edit',
+      codingSessionId: 'coding-session-1',
+      kind: 'message.edited',
+      payload: {
+        role: 'user',
+        editedMessageId: editedProjectionMessageId,
+        content: 'Refined user request',
+        runtimeStatus: 'completed',
+      },
+      sequence: '2',
+      createdAt: '2026-04-20T10:00:03.000Z',
+      turnId: 'edited-projection-turn',
+    },
+  ],
+});
+assert.deepEqual(
+  editedProjectionMessages.map((message) => [message.id, message.role, message.content]),
+  [[editedProjectionMessageId, 'user', 'Refined user request']],
+  'message.edited projection events must override the visible authoritative transcript content without mutating historical completed events.',
+);
+
+const localMirrorEditedMessages = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'coding-session-1',
+  existingMessages: [
+    {
+      id: editedProjectionMessageId,
+      codingSessionId: 'coding-session-1',
+      turnId: 'edited-projection-turn',
+      role: 'user',
+      content: 'Old mirrored user request',
+      createdAt: '2026-04-20T10:00:02.000Z',
+    },
+  ],
+  idPrefix: 'authoritative',
+  events: [
+    {
+      id: 'edited-projection-edit-only',
+      codingSessionId: 'coding-session-1',
+      kind: 'message.edited',
+      payload: {
+        role: 'user',
+        editedMessageId: editedProjectionMessageId,
+        content: 'Refined mirrored user request',
+        runtimeStatus: 'completed',
+      },
+      sequence: '3',
+      createdAt: '2026-04-20T10:00:04.000Z',
+      turnId: 'edited-projection-turn',
+    },
+  ],
+});
+assert.equal(
+  localMirrorEditedMessages[0]?.content,
+  'Refined mirrored user request',
+  'message.edited projection events must also patch an existing local mirror when the replay window only contains the edit event.',
 );
 
 const mixedSessionProjectedMessages = mergeBirdCoderProjectionMessages({
@@ -528,13 +693,13 @@ const commandOnlyProjectedMessages = mergeBirdCoderProjectionMessages({
       payload: {
         role: 'assistant',
         content: '',
-        commandsJson: JSON.stringify([
+        commands: [
           {
             command: 'pnpm lint',
             status: 'success',
             output: 'ok',
           },
-        ]),
+        ],
       },
       sequence: '1',
       createdAt: '2026-04-20T10:00:05.000Z',
@@ -561,7 +726,39 @@ assert.deepEqual(
       ],
     },
   ],
-  'projection refresh must preserve command-only assistant messages emitted by native code-engine adapters',
+  'projection refresh must preserve command-only assistant messages emitted by native code-engine adapters through structured payload.commands arrays',
+);
+
+const legacyStringPayloadProjectedMessages = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'coding-session-legacy-string-payload',
+  existingMessages: [],
+  idPrefix: 'refreshed',
+  events: [
+    {
+      id: 'legacy-string-payload-completed',
+      codingSessionId: 'coding-session-legacy-string-payload',
+      kind: 'message.completed',
+      payload: {
+        role: 'assistant',
+        content: 'Legacy string payload should not become a command card.',
+        commandsJson: JSON.stringify([
+          {
+            command: 'pnpm lint',
+            status: 'success',
+            output: 'ok',
+          },
+        ]),
+      },
+      sequence: '1',
+      createdAt: '2026-04-20T10:00:06.000Z',
+      turnId: 'legacy-string-payload-turn',
+    },
+  ],
+});
+assert.equal(
+  legacyStringPayloadProjectedMessages[0]?.commands,
+  undefined,
+  'projection refresh must ignore commandsJson string fallback payloads; command cards require structured payload.commands arrays',
 );
 
 const canonicalToolEventProjectedMessages = mergeBirdCoderProjectionMessages({
@@ -918,6 +1115,76 @@ assert.deepEqual(
     requiresReply: false,
   },
   'answered user_question operation updates must settle the existing question card instead of leaving it in Needs reply state',
+);
+
+const rejectedUserQuestionProjectedMessages = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'coding-session-1',
+  existingMessages: [],
+  idPrefix: 'refreshed',
+  events: [
+    {
+      id: 'rejected-user-question-tool-call',
+      codingSessionId: 'coding-session-1',
+      kind: 'tool.call.requested',
+      payload: {
+        toolCallId: 'tool-user-question-reject',
+        toolName: 'question',
+        toolArguments: JSON.stringify({
+          requestId: 'question-request-reject-1',
+          questions: [
+            {
+              question: 'Should I continue?',
+            },
+          ],
+        }),
+      },
+      sequence: '1',
+      createdAt: '2026-04-20T10:00:11.500Z',
+      turnId: 'rejected-user-question-turn',
+    },
+    {
+      id: 'rejected-user-question-answer',
+      codingSessionId: 'coding-session-1',
+      kind: 'operation.updated',
+      payload: {
+        questionId: 'question-request-reject-1',
+        toolCallId: 'tool-user-question-reject',
+        status: 'rejected',
+        rejected: true,
+        runtimeStatus: 'failed',
+      },
+      sequence: '2',
+      createdAt: '2026-04-20T10:00:11.550Z',
+      turnId: 'rejected-user-question-turn',
+    },
+    {
+      id: 'rejected-user-question-assistant-message',
+      codingSessionId: 'coding-session-1',
+      kind: 'message.completed',
+      payload: {
+        role: 'assistant',
+        content: 'Stopping because the question was rejected.',
+      },
+      sequence: '3',
+      createdAt: '2026-04-20T10:00:11.600Z',
+      turnId: 'rejected-user-question-turn',
+    },
+  ],
+});
+assert.deepEqual(
+  rejectedUserQuestionProjectedMessages[0]?.commands?.[0],
+  {
+    command: 'Should I continue?',
+    status: 'error',
+    output: 'rejected',
+    kind: 'user_question',
+    toolName: 'user_question',
+    toolCallId: 'tool-user-question-reject',
+    runtimeStatus: 'failed',
+    requiresApproval: false,
+    requiresReply: false,
+  },
+  'rejected user_question operation updates must settle the existing question card as failed instead of leaving it in Needs reply state',
 );
 
 const providerAliasAnsweredUserQuestionProjectedMessages = mergeBirdCoderProjectionMessages({
@@ -1583,24 +1850,44 @@ const richReplayAssistantEvent = richReplayEvents.find(
   (event) => event.kind === 'message.completed' && event.payload.role === 'assistant',
 );
 assert.equal(
-  typeof richReplayAssistantEvent?.payload.commandsJson,
-  'string',
+  Array.isArray(richReplayAssistantEvent?.payload.commands),
+  true,
   'in-process core replay should preserve command payloads on message.completed events',
 );
 assert.equal(
-  typeof richReplayAssistantEvent?.payload.fileChangesJson,
-  'string',
+  Array.isArray(richReplayAssistantEvent?.payload.fileChanges),
+  true,
   'in-process core replay should preserve fileChanges payloads on message.completed events so all engine sessions render the same file cards',
 );
 assert.equal(
-  typeof richReplayAssistantEvent?.payload.taskProgressJson,
-  'string',
+  typeof richReplayAssistantEvent?.payload.taskProgress,
+  'object',
   'in-process core replay should preserve taskProgress payloads on message.completed events so planner/reviewer progress survives refresh',
 );
 assert.equal(
-  typeof richReplayAssistantEvent?.payload.toolCallsJson,
-  'string',
+  Array.isArray(richReplayAssistantEvent?.payload.toolCalls),
+  true,
   'in-process core replay should preserve assistant tool_calls on message.completed events for OpenAI-compatible history adapters',
+);
+assert.equal(
+  'commandsJson' in (richReplayAssistantEvent?.payload ?? {}),
+  false,
+  'in-process core replay must not emit commandsJson string fallbacks for new message.completed events',
+);
+assert.equal(
+  'fileChangesJson' in (richReplayAssistantEvent?.payload ?? {}),
+  false,
+  'in-process core replay must not emit fileChangesJson string fallbacks for new message.completed events',
+);
+assert.equal(
+  'taskProgressJson' in (richReplayAssistantEvent?.payload ?? {}),
+  false,
+  'in-process core replay must not emit taskProgressJson string fallbacks for new message.completed events',
+);
+assert.equal(
+  'toolCallsJson' in (richReplayAssistantEvent?.payload ?? {}),
+  false,
+  'in-process core replay must not emit toolCallsJson string fallbacks for new message.completed events',
 );
 const richReplayToolEvent = richReplayEvents.find(
   (event) => event.kind === 'message.completed' && event.payload.role === 'tool',

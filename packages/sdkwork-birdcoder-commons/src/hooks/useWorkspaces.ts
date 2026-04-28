@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { IWorkspace } from '@sdkwork/birdcoder-types';
+import {
+  stringifyBirdCoderApiJson,
+  type IWorkspace,
+} from '@sdkwork/birdcoder-types';
 import { useAuth } from '../context/AuthContext.ts';
 import { useIDEServices } from '../context/IDEContext.ts';
+
+const WORKSPACES_FETCH_TIMEOUT_MS = 30_000;
 
 interface WorkspacesStoreSnapshot {
   hasFetched: boolean;
@@ -62,6 +67,48 @@ function compareWorkspaces(left: IWorkspace, right: IWorkspace): number {
   return left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
 }
 
+function areWorkspaceScalarsEqual(left: IWorkspace, right: IWorkspace): boolean {
+  return (
+    left.id === right.id &&
+    left.uuid === right.uuid &&
+    left.tenantId === right.tenantId &&
+    left.organizationId === right.organizationId &&
+    left.dataScope === right.dataScope &&
+    left.code === right.code &&
+    left.title === right.title &&
+    left.name === right.name &&
+    left.description === right.description &&
+    left.icon === right.icon &&
+    left.color === right.color &&
+    left.ownerId === right.ownerId &&
+    left.leaderId === right.leaderId &&
+    left.createdByUserId === right.createdByUserId &&
+    left.type === right.type &&
+    left.status === right.status &&
+    left.startTime === right.startTime &&
+    left.endTime === right.endTime &&
+    left.maxMembers === right.maxMembers &&
+    left.currentMembers === right.currentMembers &&
+    left.memberCount === right.memberCount &&
+    left.maxStorage === right.maxStorage &&
+    left.usedStorage === right.usedStorage &&
+    stringifyBirdCoderApiJson(left.settings ?? null) ===
+      stringifyBirdCoderApiJson(right.settings ?? null) &&
+    left.isPublic === right.isPublic &&
+    left.isTemplate === right.isTemplate &&
+    left.viewerRole === right.viewerRole
+  );
+}
+
+function mergeWorkspaceForStore(
+  existingWorkspace: IWorkspace | undefined,
+  incomingWorkspace: IWorkspace,
+): IWorkspace {
+  return existingWorkspace && areWorkspaceScalarsEqual(existingWorkspace, incomingWorkspace)
+    ? existingWorkspace
+    : incomingWorkspace;
+}
+
 function sortWorkspaces(
   workspaces: readonly IWorkspace[],
 ): IWorkspace[] {
@@ -78,7 +125,66 @@ function sortWorkspaces(
   return workspaces as IWorkspace[];
 }
 
+export function mergeWorkspacesForStore(
+  existingWorkspaces: readonly IWorkspace[],
+  incomingWorkspaces: readonly IWorkspace[],
+): IWorkspace[] {
+  const existingWorkspacesById = new Map(
+    existingWorkspaces.map((workspace) => [workspace.id, workspace]),
+  );
+  const nextWorkspacesById = new Map<string, IWorkspace>();
+  incomingWorkspaces.forEach((workspace) => {
+    const mergedWorkspace = mergeWorkspaceForStore(
+      nextWorkspacesById.get(workspace.id) ?? existingWorkspacesById.get(workspace.id),
+      workspace,
+    );
+    nextWorkspacesById.set(workspace.id, mergedWorkspace);
+  });
+
+  return reuseWorkspaceCollectionIfUnchanged(
+    existingWorkspaces,
+    sortWorkspaces(Array.from(nextWorkspacesById.values())),
+  );
+}
+
 const workspacesStoresByScopeKey = new Map<string, WorkspacesStore>();
+
+interface WorkspaceFetchTimeoutBoundary {
+  clear: () => void;
+  promise: Promise<never>;
+}
+
+function createWorkspaceFetchTimeoutPromise(timeoutMs: number): WorkspaceFetchTimeoutBoundary {
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  const promise = new Promise<never>((_resolve, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(`Timed out loading workspaces after ${timeoutMs} ms.`));
+    }, timeoutMs);
+  });
+
+  return {
+    clear: () => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+    },
+    promise,
+  };
+}
+
+function runWorkspaceFetchWithTimeout(
+  workspaceService: ReturnType<typeof useIDEServices>['workspaceService'],
+  timeoutMs: number = WORKSPACES_FETCH_TIMEOUT_MS,
+): Promise<IWorkspace[]> {
+  const timeoutBoundary = createWorkspaceFetchTimeoutPromise(timeoutMs);
+  return Promise.race([
+    workspaceService.getWorkspaces(),
+    timeoutBoundary.promise,
+  ]).finally(() => {
+    timeoutBoundary.clear();
+  });
+}
 
 function normalizeWorkspacesStoreUserScope(userId: string | null | undefined): string {
   const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
@@ -133,10 +239,9 @@ async function fetchWorkspaces(
     isLoading: true,
   }));
 
-  const request = workspaceService
-    .getWorkspaces()
+  const request = runWorkspaceFetchWithTimeout(workspaceService)
     .then((workspaces) => {
-      const nextWorkspaces = sortWorkspaces(workspaces);
+      const nextWorkspaces = mergeWorkspacesForStore(store.snapshot.workspaces, workspaces);
       updateWorkspacesStoreSnapshot(store, (previousSnapshot) => ({
         hasFetched: true,
         isLoading: false,
@@ -172,7 +277,10 @@ function mutateWorkspacesStore(
 ): void {
   const store = getWorkspacesStore(userScope);
   updateWorkspacesStoreSnapshot(store, (previousSnapshot) => {
-    const nextWorkspaces = sortWorkspaces(updater(previousSnapshot.workspaces));
+    const nextWorkspaces = mergeWorkspacesForStore(
+      previousSnapshot.workspaces,
+      updater(previousSnapshot.workspaces),
+    );
     if (
       previousSnapshot.hasFetched &&
       areWorkspaceCollectionsReferentiallyEqual(

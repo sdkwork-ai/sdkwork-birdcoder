@@ -16,7 +16,7 @@ interface ProjectExplorerRootContextMenuProps {
   onCreateProject: () => Promise<void> | void;
   onOpenFolder?: () => void;
   onCreateDefaultSession: () => void;
-  onCreateEngineSession: (engineId: string) => void;
+  onCreateEngineSession: (engineId: string, modelId: string) => void;
 }
 
 export function ProjectExplorerRootContextMenu({
@@ -80,7 +80,7 @@ export function ProjectExplorerRootContextMenu({
               type="button"
               className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
               onClick={() => {
-                onCreateEngineSession(engine.id);
+                onCreateEngineSession(engine.id, engine.modelId ?? engine.id);
                 onClose();
               }}
             >

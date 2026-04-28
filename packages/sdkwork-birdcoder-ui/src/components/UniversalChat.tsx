@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, memo, useCallback, useMemo, useRef, useEffect, useLayoutEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, ChevronDown, ChevronUp, GripVertical, Check, Mic, ArrowUp, Edit, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, FileUp, FolderUp, Image as ImageIcon, Lightbulb, BookOpen, List, Loader2, CircleHelp, ShieldAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Button, ResizeHandle, WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-ui-shell';
+import { Button, WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-ui-shell';
 import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-types';
 import type { BirdCoderChatMessage, CommandExecution, FileChange } from '@sdkwork/birdcoder-types';
 import {
@@ -12,6 +12,7 @@ import {
   listWorkbenchServerImplementedCodeEngines,
   normalizeWorkbenchServerImplementedCodeEngineId,
   normalizeWorkbenchCodeModelId,
+  resolveWorkbenchCodeEngineSelectedModelId,
   resolveWorkbenchServerEngineSupportState,
 } from '@sdkwork/birdcoder-codeengine';
 import {
@@ -21,12 +22,27 @@ import {
   hasRestorableFileChanges,
   listSavedPrompts,
   listSessionPromptHistory,
+  canFlushWorkbenchChatQueuedMessages,
+  createWorkbenchChatQueueFlushGateState,
+  markWorkbenchChatQueuedTurnDispatchStarted,
+  observeWorkbenchChatQueuedTurnBusyState,
   saveSavedPrompt,
   saveSessionPromptHistoryEntry,
+  settleWorkbenchChatQueuedTurnDispatch,
   useToast,
   useWorkbenchChatInputDraft,
+  useWorkbenchChatMessageQueue,
   useWorkbenchPreferences,
 } from '@sdkwork/birdcoder-commons';
+import type {
+  BirdCoderCodingSessionPendingApproval,
+  BirdCoderCodingSessionPendingUserQuestion,
+  WorkbenchChatQueuedMessage,
+} from '@sdkwork/birdcoder-commons';
+import type {
+  BirdCoderSubmitApprovalDecisionRequest,
+  BirdCoderSubmitUserQuestionAnswerRequest,
+} from '@sdkwork/birdcoder-types';
 import {
   resolveComposerInputAfterSendFailure,
   restoreQueuedMessagesAfterSendFailure,
@@ -40,6 +56,8 @@ import {
   type TranscriptScrollMetrics,
 } from './chatScrollBehavior';
 import { resolveTranscriptMessageKey } from './transcriptVirtualization';
+import { UniversalChatComposerChrome } from './UniversalChatComposerChrome';
+import { UniversalChatPendingInteractions } from './UniversalChatPendingInteractions';
 import { useProgressiveTranscriptWindow } from './useProgressiveTranscriptWindow';
 import { useVirtualizedTranscriptWindow } from './useVirtualizedTranscriptWindow';
 
@@ -62,16 +80,28 @@ const FOLDER_UPLOAD_YIELD_INTERVAL = 8;
 const MAX_FOLDER_UPLOAD_FILE_CHARACTERS = 4000;
 const MAX_FOLDER_UPLOAD_INPUT_CHARACTERS = 64000;
 const MAX_FOLDER_UPLOAD_TEXT_FILES = 24;
+const QUEUED_TURN_DISPATCH_SETTLEMENT_CHECK_DELAY_MS = 750;
 
 export interface UniversalChatProps {
   sessionId?: string;
   sessionScopeKey?: string;
   isActive?: boolean;
   messages: BirdCoderChatMessage[];
+  pendingApprovals?: BirdCoderCodingSessionPendingApproval[];
+  pendingUserQuestions?: BirdCoderCodingSessionPendingUserQuestion[];
   inputValue?: string;
   setInputValue?: Dispatch<SetStateAction<string>>;
   onSendMessage: (text?: string) => void | Promise<void>;
+  onSubmitApprovalDecision?: (
+    approvalId: string,
+    request: BirdCoderSubmitApprovalDecisionRequest,
+  ) => void | Promise<void>;
+  onSubmitUserQuestionAnswer?: (
+    questionId: string,
+    request: BirdCoderSubmitUserQuestionAnswerRequest,
+  ) => void | Promise<void>;
   isBusy?: boolean;
+  isEngineBusy?: boolean;
   selectedEngineId?: string;
   selectedModelId?: string;
   setSelectedEngineId?: (engineId: string) => void;
@@ -79,8 +109,9 @@ export interface UniversalChatProps {
   header?: React.ReactNode;
   showEngineHeader?: boolean;
   showComposerEngineSelector?: boolean;
+  hideComposer?: boolean;
   layout?: 'sidebar' | 'main';
-  onEditMessage?: (messageId: string) => void;
+  onEditMessage?: (messageId: string, content: string) => void | Promise<void>;
   onDeleteMessage?: (messageIds: string[]) => void;
   onRegenerateMessage?: () => void;
   onViewChanges?: (file: FileChange) => void;
@@ -175,8 +206,8 @@ type UniversalChatTranslate = ReturnType<typeof useTranslation>['t'];
 
 interface UniversalChatTranscriptEnvironment {
   addToast: ReturnType<typeof useToast>['addToast'];
+  beginEditingMessage?: (messageId: string, content: string) => void;
   onDeleteMessage?: (messageIds: string[]) => void;
-  onEditMessage?: (messageId: string) => void;
   onRegenerateMessage?: () => void;
   onRestore?: (msgId: string) => void;
   onViewChanges?: (file: FileChange) => void;
@@ -340,7 +371,7 @@ function renderCommandExecutionCard({
   const tone = resolveCommandExecutionTone(cmd);
   return (
     <div
-      key={cmd.toolCallId ?? `${cmdIdx}:${cmd.command}`}
+      key={`${cmdIdx}\u0001${cmd.toolCallId ?? cmd.command}`}
       className={`group/command flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-[13px] text-gray-300 ${tone.borderClassName} ${tone.backgroundClassName}`}
     >
       <div className="flex min-w-0 items-center gap-3 overflow-hidden">
@@ -575,27 +606,29 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     const copyLabel = environment?.t('common.copy') ?? 'Copy';
     const actionTarget = messageActionTargets[idx];
     const showMessageActions = !!actionTarget && actionTarget.endIndex === idx;
-    return (
-      <div
-        ref={messageRef}
-        key={messageRenderKey ?? `${sessionId}\u0001${idx}\u0001${msg.id || 'message'}`}
-        className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start w-full'} group`}
-        style={buildTranscriptSurfaceStyle('180px')}
-      >
-        <div className={`${msg.role === 'user' ? 'max-w-[90%] bg-white/5 text-gray-200 rounded-2xl rounded-tr-sm px-4 py-3' : 'text-gray-300 w-full'}`}>
-          <div className="prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1rem] prose-h2:text-[0.95rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-li:my-0.5 prose-li:text-[13px] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[13px] w-full">
-            {renderMarkdownContent(msg.content)}
+    if (msg.role === 'user') {
+      return (
+        <div
+          ref={messageRef}
+          key={messageRenderKey ?? `${sessionId}\u0001${idx}\u0001${msg.id || 'message'}`}
+          className="group flex flex-col items-end"
+          style={buildTranscriptSurfaceStyle('180px')}
+        >
+          <div className="max-w-[90%] bg-white/5 text-gray-200 rounded-xl rounded-tr-md px-4 py-3">
+            <div className="prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1rem] prose-h2:text-[0.95rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-li:my-0.5 prose-li:text-[13px] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[13px] w-full">
+              {renderMarkdownContent(msg.content)}
+            </div>
           </div>
 
-          {msg.role === 'user' && showMessageActions && (
-            <div className="mt-1.5 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {environment?.onEditMessage && (
+          {showMessageActions && (
+            <div className="mt-1.5 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity pr-1">
+              {environment?.beginEditingMessage && (
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-5 w-5 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
                   title="Edit"
-                  onClick={() => environment.onEditMessage?.(msg.id)}
+                  onClick={() => environment.beginEditingMessage?.(msg.id, msg.content)}
                 >
                   <Edit2 size={10} />
                 </Button>
@@ -622,6 +655,21 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
               )}
             </div>
           )}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        ref={messageRef}
+        key={messageRenderKey ?? `${sessionId}\u0001${idx}\u0001${msg.id || 'message'}`}
+        className="flex flex-col items-start w-full group"
+        style={buildTranscriptSurfaceStyle('180px')}
+      >
+        <div className="text-gray-300 w-full">
+          <div className="prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1rem] prose-h2:text-[0.95rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-li:my-0.5 prose-li:text-[13px] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[13px] w-full">
+            {renderMarkdownContent(msg.content)}
+          </div>
 
           {msg.fileChanges && msg.fileChanges.length > 0 && (
             <div className="mt-3 flex flex-col gap-2 w-full">
@@ -744,7 +792,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
 
           {msg.role === 'user' ? (
             <div className="flex w-full flex-col items-end">
-              <div className="max-w-[85%] bg-white/5 text-gray-200 px-4 py-2.5 rounded-3xl text-[14px] whitespace-pre-wrap leading-relaxed">
+              <div className="max-w-[85%] bg-white/5 text-gray-200 px-4 py-2.5 rounded-xl rounded-tr-md text-[14px] whitespace-pre-wrap leading-relaxed">
                 <div className="prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1rem] prose-h2:text-[0.95rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-p:first:mt-0 prose-p:last:mb-0 prose-li:my-0.5 prose-li:text-[14px] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none text-[14px]">
                   {renderMarkdownContent(msg.content, 'basic')}
                 </div>
@@ -752,13 +800,13 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
 
               {showMessageActions ? (
                 <div className="mt-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pr-2">
-                  {environment?.onEditMessage && (
+                  {environment?.beginEditingMessage && (
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
                       title="Edit"
-                      onClick={() => environment.onEditMessage?.(msg.id)}
+                      onClick={() => environment.beginEditingMessage?.(msg.id, msg.content)}
                     >
                       <Edit2 size={12} />
                     </Button>
@@ -990,10 +1038,15 @@ export const UniversalChat = memo(function UniversalChat({
   sessionScopeKey,
   isActive = true,
   messages,
+  pendingApprovals = [],
+  pendingUserQuestions = [],
   inputValue: controlledInputValue,
   setInputValue: controlledSetInputValue,
   onSendMessage,
+  onSubmitApprovalDecision,
+  onSubmitUserQuestionAnswer,
   isBusy = false,
+  isEngineBusy = isBusy,
   selectedEngineId,
   selectedModelId,
   setSelectedEngineId,
@@ -1001,6 +1054,7 @@ export const UniversalChat = memo(function UniversalChat({
   header,
   showEngineHeader = true,
   showComposerEngineSelector = true,
+  hideComposer = false,
   layout = 'sidebar',
   onEditMessage,
   onDeleteMessage,
@@ -1023,6 +1077,7 @@ export const UniversalChat = memo(function UniversalChat({
   const [myPrompts, setMyPrompts] = useState<PromptEntry[]>([]);
   const normalizedSessionId = sessionId?.trim() || '';
   const normalizedTranscriptScopeKey = sessionScopeKey?.trim() || normalizedSessionId;
+  const normalizedQueueScopeKey = normalizedTranscriptScopeKey;
   const {
     clearDraftValue: clearSessionDraftValue,
     draftValue: sessionDraftValue,
@@ -1078,8 +1133,20 @@ export const UniversalChat = memo(function UniversalChat({
   const pendingPromptHistoryEntriesRef = useRef<string[]>([]);
   const inputValueRef = useRef(inputValue);
   const hydratedSessionPromptHistoryIdRef = useRef<string | null>(null);
+  const [editingMessage, setEditingMessage] = useState<{
+    messageId: string;
+    originalContent: string;
+    previousDraft: string;
+    scopeKey: string;
+  } | null>(null);
   const [autoSendPrompt, setAutoSendPrompt] = useState(true);
-  const [messageQueue, setMessageQueue] = useState<string[]>([]);
+  const {
+    dequeueQueuedMessage,
+    enqueueQueuedMessage,
+    queuedMessages: messageQueue,
+    restoreQueuedMessagesToFront,
+    setQueuedMessages: setMessageQueue,
+  } = useWorkbenchChatMessageQueue(normalizedQueueScopeKey);
   const [isQueueExpanded, setIsQueueExpanded] = useState(false);
   const [editingQueueIndex, setEditingQueueIndex] = useState(-1);
   const [editingQueueText, setEditingQueueText] = useState('');
@@ -1087,6 +1154,11 @@ export const UniversalChat = memo(function UniversalChat({
   const [manualComposerHeight, setManualComposerHeight] = useState<number | null>(null);
   const [isDispatchingMessage, setIsDispatchingMessage] = useState(false);
   const isDispatchingMessageRef = useRef(false);
+  const [pendingInteractionSubmissionId, setPendingInteractionSubmissionId] = useState<string | null>(null);
+  const pendingInteractionSubmissionIdRef = useRef<string | null>(null);
+  const queuedTurnFlushGateRef = useRef(createWorkbenchChatQueueFlushGateState());
+  const queuedTurnDispatchSettlementTimerRef = useRef<number | null>(null);
+  const [queuedTurnFlushGateVersion, setQueuedTurnFlushGateVersion] = useState(0);
   const { addToast } = useToast();
   const { preferences } = useWorkbenchPreferences();
   const modelMenuRef = useRef<HTMLDivElement>(null);
@@ -1120,7 +1192,15 @@ export const UniversalChat = memo(function UniversalChat({
     currentModelLabel.trim().toLowerCase() === currentEngine.label.trim().toLowerCase()
       ? currentEngine.label
       : `${currentEngine.label} / ${currentModelLabel}`;
-  const isComposerBusy = isBusy || isDispatchingMessage;
+  const firstPendingUserQuestion = pendingUserQuestions.find(
+    (question) => question.questionId.trim().length > 0,
+  );
+  const hasPendingUserQuestionReplyTarget =
+    Boolean(firstPendingUserQuestion && onSubmitUserQuestionAnswer);
+  const isSubmittingPendingInteraction = pendingInteractionSubmissionId !== null;
+  const isComposerTurnBlocked = isBusy || isDispatchingMessage || isSubmittingPendingInteraction;
+  const isComposerProcessing = isEngineBusy || isDispatchingMessage || isSubmittingPendingInteraction;
+  const isComposerTurnBlockedRef = useRef(isComposerTurnBlocked);
   const normalizedMessages = useMemo(
     () => resolveVisibleSessionMessages(messages, normalizedSessionId),
     [messages, normalizedSessionId],
@@ -1138,16 +1218,248 @@ export const UniversalChat = memo(function UniversalChat({
   const lastUserTranscriptScrollAtRef = useRef(0);
   const userTranscriptScrollSettleTimerRef = useRef<number | null>(null);
 
+  const beginEditingMessage = useCallback((messageId: string, content: string) => {
+    if (disabled || !onEditMessage) {
+      return;
+    }
+
+    setEditingMessage({
+      messageId,
+      originalContent: content,
+      previousDraft: inputValueRef.current,
+      scopeKey: normalizedTranscriptScopeKey,
+    });
+    setHistoryIndex(-1);
+    setTempInput('');
+    setInputValue(content);
+    textareaRef.current?.focus();
+  }, [disabled, normalizedTranscriptScopeKey, onEditMessage, setInputValue]);
+
+  const cancelEditingMessage = useCallback(() => {
+    if (!editingMessage) {
+      return;
+    }
+
+    setEditingMessage(null);
+    setInputValue(editingMessage.previousDraft);
+    textareaRef.current?.focus();
+  }, [editingMessage, setInputValue]);
+
+  useEffect(() => {
+    if (!editingMessage || editingMessage.scopeKey === normalizedTranscriptScopeKey) {
+      return;
+    }
+
+    setEditingMessage(null);
+  }, [editingMessage, normalizedTranscriptScopeKey]);
+
   transcriptEnvironmentRef.current = {
     addToast,
+    beginEditingMessage,
     onDeleteMessage,
-    onEditMessage,
     onRegenerateMessage,
     onRestore,
     onViewChanges,
     skills,
     t,
   };
+  isComposerTurnBlockedRef.current = isComposerTurnBlocked;
+
+  const setQueuedTurnFlushGate = useCallback((
+    resolveNextState: (
+      previousState: ReturnType<typeof createWorkbenchChatQueueFlushGateState>,
+    ) => ReturnType<typeof createWorkbenchChatQueueFlushGateState>,
+  ) => {
+    const previousState = queuedTurnFlushGateRef.current;
+    const nextState = resolveNextState(previousState);
+    if (
+      nextState.awaitingTurnSettlement === previousState.awaitingTurnSettlement &&
+      nextState.observedBusySinceDispatch === previousState.observedBusySinceDispatch
+    ) {
+      return;
+    }
+
+    queuedTurnFlushGateRef.current = nextState;
+    setQueuedTurnFlushGateVersion((previousVersion) => previousVersion + 1);
+  }, []);
+
+  const clearQueuedTurnDispatchSettlementTimer = useCallback(() => {
+    if (queuedTurnDispatchSettlementTimerRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(queuedTurnDispatchSettlementTimerRef.current);
+    queuedTurnDispatchSettlementTimerRef.current = null;
+  }, []);
+
+  const settleQueuedTurnDispatchIfIdle = useCallback(() => {
+    const isTurnStillBusy =
+      isComposerTurnBlockedRef.current ||
+      isDispatchingMessageRef.current ||
+      pendingInteractionSubmissionIdRef.current !== null;
+
+    setQueuedTurnFlushGate((previousState) =>
+      isTurnStillBusy
+        ? observeWorkbenchChatQueuedTurnBusyState(previousState, true)
+        : settleWorkbenchChatQueuedTurnDispatch(previousState),
+    );
+  }, [setQueuedTurnFlushGate]);
+
+  const scheduleQueuedTurnDispatchSettlementCheck = useCallback(() => {
+    clearQueuedTurnDispatchSettlementTimer();
+    queuedTurnDispatchSettlementTimerRef.current = window.setTimeout(() => {
+      queuedTurnDispatchSettlementTimerRef.current = null;
+      settleQueuedTurnDispatchIfIdle();
+    }, QUEUED_TURN_DISPATCH_SETTLEMENT_CHECK_DELAY_MS);
+  }, [clearQueuedTurnDispatchSettlementTimer, settleQueuedTurnDispatchIfIdle]);
+
+  const markQueuedTurnDispatchStarted = useCallback(() => {
+    const isTurnDispatchBusy =
+      isBusy ||
+      isDispatchingMessageRef.current ||
+      pendingInteractionSubmissionIdRef.current !== null;
+    setQueuedTurnFlushGate((previousState) =>
+      markWorkbenchChatQueuedTurnDispatchStarted(previousState, isTurnDispatchBusy),
+    );
+  }, [isBusy, setQueuedTurnFlushGate]);
+
+  const beginPendingInteractionSubmission = useCallback((interactionId: string): boolean => {
+    if (pendingInteractionSubmissionIdRef.current) {
+      return false;
+    }
+
+    pendingInteractionSubmissionIdRef.current = interactionId;
+    setPendingInteractionSubmissionId(interactionId);
+    return true;
+  }, []);
+
+  const finishPendingInteractionSubmission = useCallback((interactionId: string) => {
+    if (pendingInteractionSubmissionIdRef.current !== interactionId) {
+      return;
+    }
+
+    pendingInteractionSubmissionIdRef.current = null;
+    setPendingInteractionSubmissionId(null);
+  }, []);
+
+  const submitPendingUserQuestionAnswer = useCallback(async (
+    questionId: string,
+    request: BirdCoderSubmitUserQuestionAnswerRequest,
+  ): Promise<boolean> => {
+    if (disabled || !onSubmitUserQuestionAnswer) {
+      return false;
+    }
+
+    const interactionId = `question:${questionId}`;
+    if (!beginPendingInteractionSubmission(interactionId)) {
+      return false;
+    }
+
+    let didMarkQueuedTurnDispatch = false;
+
+    try {
+      await Promise.resolve(onSubmitUserQuestionAnswer(questionId, request));
+      markQueuedTurnDispatchStarted();
+      didMarkQueuedTurnDispatch = true;
+      return true;
+    } catch (error) {
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : t('chat.submitUserQuestionAnswerFailed'),
+        'error',
+      );
+      return false;
+    } finally {
+      finishPendingInteractionSubmission(interactionId);
+      if (didMarkQueuedTurnDispatch) {
+        scheduleQueuedTurnDispatchSettlementCheck();
+      }
+    }
+  }, [
+    addToast,
+    beginPendingInteractionSubmission,
+    disabled,
+    finishPendingInteractionSubmission,
+    markQueuedTurnDispatchStarted,
+    onSubmitUserQuestionAnswer,
+    scheduleQueuedTurnDispatchSettlementCheck,
+    t,
+  ]);
+
+  const submitPendingUserQuestionAnswerFromComposer = useCallback(async (
+    answerSnapshot: string,
+  ): Promise<boolean> => {
+    const pendingQuestion = pendingUserQuestions.find(
+      (question) => question.questionId.trim().length > 0,
+    );
+    if (!pendingQuestion) {
+      return false;
+    }
+
+    return submitPendingUserQuestionAnswer(pendingQuestion.questionId, {
+      answer: answerSnapshot.trim(),
+    });
+  }, [pendingUserQuestions, submitPendingUserQuestionAnswer]);
+
+  const handleSubmitPendingUserQuestionAnswer = useCallback(async (
+    questionId: string,
+    request: BirdCoderSubmitUserQuestionAnswerRequest,
+  ): Promise<void> => {
+    await submitPendingUserQuestionAnswer(questionId, request);
+  }, [submitPendingUserQuestionAnswer]);
+
+  const submitPendingApprovalDecision = useCallback(async (
+    approvalId: string,
+    request: BirdCoderSubmitApprovalDecisionRequest,
+  ): Promise<boolean> => {
+    if (disabled || !onSubmitApprovalDecision) {
+      return false;
+    }
+
+    const interactionId = `approval:${approvalId}`;
+    if (!beginPendingInteractionSubmission(interactionId)) {
+      return false;
+    }
+
+    let didMarkQueuedTurnDispatch = false;
+
+    try {
+      await Promise.resolve(onSubmitApprovalDecision(approvalId, request));
+      markQueuedTurnDispatchStarted();
+      didMarkQueuedTurnDispatch = true;
+      return true;
+    } catch (error) {
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : t('chat.submitApprovalDecisionFailed'),
+        'error',
+      );
+      return false;
+    } finally {
+      finishPendingInteractionSubmission(interactionId);
+      if (didMarkQueuedTurnDispatch) {
+        scheduleQueuedTurnDispatchSettlementCheck();
+      }
+    }
+  }, [
+    addToast,
+    beginPendingInteractionSubmission,
+    disabled,
+    finishPendingInteractionSubmission,
+    markQueuedTurnDispatchStarted,
+    onSubmitApprovalDecision,
+    scheduleQueuedTurnDispatchSettlementCheck,
+    t,
+  ]);
+
+  const handleSubmitPendingApprovalDecision = useCallback(async (
+    approvalId: string,
+    request: BirdCoderSubmitApprovalDecisionRequest,
+  ): Promise<void> => {
+    await submitPendingApprovalDecision(approvalId, request);
+  }, [submitPendingApprovalDecision]);
 
   const syncHistoryPrompts = (nextPrompts: PromptEntry[]) => {
     setHistoryPrompts((previousPrompts) =>
@@ -1164,6 +1476,26 @@ export const UniversalChat = memo(function UniversalChat({
   useEffect(() => {
     inputValueRef.current = inputValue;
   }, [inputValue]);
+
+  useEffect(
+    () => clearQueuedTurnDispatchSettlementTimer,
+    [clearQueuedTurnDispatchSettlementTimer],
+  );
+
+  useEffect(() => {
+    setQueuedTurnFlushGate((previousState) =>
+      observeWorkbenchChatQueuedTurnBusyState(previousState, isComposerTurnBlocked),
+    );
+  }, [isComposerTurnBlocked, setQueuedTurnFlushGate]);
+
+  useEffect(() => {
+    setIsQueueExpanded(false);
+    setEditingQueueIndex(-1);
+    setEditingQueueText('');
+    clearQueuedTurnDispatchSettlementTimer();
+    queuedTurnFlushGateRef.current = createWorkbenchChatQueueFlushGateState();
+    setQueuedTurnFlushGateVersion((previousVersion) => previousVersion + 1);
+  }, [clearQueuedTurnDispatchSettlementTimer, normalizedQueueScopeKey]);
 
   const readTranscriptScrollMetrics = useCallback((): TranscriptScrollMetrics | null => {
     const scrollContainer = transcriptScrollContainerRef.current;
@@ -1732,6 +2064,11 @@ export const UniversalChat = memo(function UniversalChat({
     selectedProvider,
     preferences,
   );
+  const selectedProviderModelId = resolveWorkbenchCodeEngineSelectedModelId(
+    selectedProvider,
+    preferences,
+    selectedProvider === resolvedSelectedEngineId ? currentModelId : undefined,
+  );
 
   useEffect(() => {
     setSelectedProvider((previousProvider) =>
@@ -1761,47 +2098,35 @@ export const UniversalChat = memo(function UniversalChat({
     [normalizedSessionId],
   );
 
-  const handleSend = async (textOverride?: string) => {
+  const dispatchDraftMessage = useCallback(async (
+    submittedTextSnapshot: string,
+    queuedMessagesSnapshot: readonly WorkbenchChatQueuedMessage[] = [],
+  ): Promise<boolean> => {
     if (disabled) {
-      return;
+      return false;
     }
 
     if (isDispatchingMessageRef.current) {
-      return;
+      return false;
     }
 
-    const currentInput = textOverride !== undefined ? textOverride.trim() : inputValue.trim();
-    if (isComposerBusy) {
-      if (!currentInput) {
-        return;
-      }
-
-      setMessageQueue((previousQueue) => [...previousQueue, currentInput]);
-      clearInputValue();
-      addToast(t('chat.messageQueued'), 'success');
-      return;
-    }
-
-    const fullText = [...messageQueue, currentInput].filter(Boolean).join('\n\n');
+    const fullText = submittedTextSnapshot.trim();
     if (!fullText) {
-      return;
+      return false;
     }
 
-    const queuedMessagesSnapshot = [...messageQueue];
-    const currentInputSnapshot = currentInput;
     setHistoryIndex(-1);
     setTempInput('');
-    clearInputValue();
-    setMessageQueue((previousQueue) => (previousQueue.length === 0 ? previousQueue : []));
     isDispatchingMessageRef.current = true;
     setIsDispatchingMessage(true);
+    let didMarkQueuedTurnDispatch = false;
 
     try {
       try {
         await Promise.resolve(onSendMessage(fullText));
       } catch (error) {
         setInputValue((previousInputValue) =>
-          resolveComposerInputAfterSendFailure(currentInputSnapshot, previousInputValue),
+          resolveComposerInputAfterSendFailure(submittedTextSnapshot, previousInputValue),
         );
         setMessageQueue((previousQueue) =>
           restoreQueuedMessagesAfterSendFailure(queuedMessagesSnapshot, previousQueue),
@@ -1812,19 +2137,270 @@ export const UniversalChat = memo(function UniversalChat({
             : t('chat.sendMessageFailed'),
           'error',
         );
-        return;
+        return false;
       }
+
+      markQueuedTurnDispatchStarted();
+      didMarkQueuedTurnDispatch = true;
 
       try {
         await persistSubmittedPromptHistory(fullText);
       } catch (error) {
         console.error('Failed to persist prompt history after successful send', error);
       }
+      return true;
+    } finally {
+      isDispatchingMessageRef.current = false;
+      setIsDispatchingMessage(false);
+      if (didMarkQueuedTurnDispatch) {
+        scheduleQueuedTurnDispatchSettlementCheck();
+      }
+    }
+  }, [
+    addToast,
+    disabled,
+    markQueuedTurnDispatchStarted,
+    onSendMessage,
+    persistSubmittedPromptHistory,
+    scheduleQueuedTurnDispatchSettlementCheck,
+    setInputValue,
+    setMessageQueue,
+    t,
+  ]);
+
+  const dispatchQueuedMessage = useCallback(async (
+    submittedQueuedMessage: WorkbenchChatQueuedMessage,
+  ): Promise<boolean> => {
+    if (disabled) {
+      return false;
+    }
+
+    if (isDispatchingMessageRef.current) {
+      return false;
+    }
+
+    const fullText = submittedQueuedMessage.text.trim();
+    if (!fullText) {
+      return false;
+    }
+
+    setHistoryIndex(-1);
+    setTempInput('');
+    isDispatchingMessageRef.current = true;
+    setIsDispatchingMessage(true);
+    let didMarkQueuedTurnDispatch = false;
+
+    try {
+      try {
+        await Promise.resolve(onSendMessage(fullText));
+      } catch (error) {
+        restoreQueuedMessagesToFront([submittedQueuedMessage]);
+        addToast(
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : t('chat.sendMessageFailed'),
+          'error',
+        );
+        return false;
+      }
+
+      markQueuedTurnDispatchStarted();
+      didMarkQueuedTurnDispatch = true;
+
+      try {
+        await persistSubmittedPromptHistory(fullText);
+      } catch (error) {
+        console.error('Failed to persist prompt history after successful queued send', error);
+      }
+      return true;
+    } finally {
+      isDispatchingMessageRef.current = false;
+      setIsDispatchingMessage(false);
+      if (didMarkQueuedTurnDispatch) {
+        scheduleQueuedTurnDispatchSettlementCheck();
+      }
+    }
+  }, [
+    addToast,
+    disabled,
+    markQueuedTurnDispatchStarted,
+    onSendMessage,
+    persistSubmittedPromptHistory,
+    restoreQueuedMessagesToFront,
+    scheduleQueuedTurnDispatchSettlementCheck,
+    t,
+  ]);
+
+  const submitEditedMessage = useCallback(async (nextContent: string): Promise<boolean> => {
+    if (disabled || !editingMessage || !onEditMessage) {
+      return false;
+    }
+
+    if (isDispatchingMessageRef.current) {
+      return false;
+    }
+
+    const trimmedContent = nextContent.trim();
+    if (!trimmedContent) {
+      return false;
+    }
+
+    isDispatchingMessageRef.current = true;
+    setIsDispatchingMessage(true);
+
+    try {
+      try {
+        await Promise.resolve(onEditMessage(editingMessage.messageId, nextContent));
+      } catch (error) {
+        addToast(
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : t('chat.editMessageFailed'),
+          'error',
+        );
+        return false;
+      }
+
+      setEditingMessage(null);
+      setHistoryIndex(-1);
+      setTempInput('');
+      return true;
     } finally {
       isDispatchingMessageRef.current = false;
       setIsDispatchingMessage(false);
     }
+  }, [
+    addToast,
+    disabled,
+    editingMessage,
+    onEditMessage,
+    t,
+  ]);
+
+  const handleSend = async (textOverride?: string) => {
+    if (disabled) {
+      return;
+    }
+
+    if (isDispatchingMessageRef.current) {
+      return;
+    }
+
+    const currentInput = textOverride !== undefined ? textOverride.trim() : inputValue.trim();
+    const isAwaitingQueuedTurnSettlement =
+      queuedTurnFlushGateRef.current.awaitingTurnSettlement;
+    if (editingMessage) {
+      if (!currentInput) {
+        return;
+      }
+
+      if (isComposerTurnBlocked || isAwaitingQueuedTurnSettlement || messageQueue.length > 0) {
+        addToast(t('chat.editMessageWaitForIdle'), 'error');
+        return;
+      }
+
+      clearInputValue();
+      const didSubmitEdit = await submitEditedMessage(currentInput);
+      if (!didSubmitEdit) {
+        setInputValue((previousInputValue) =>
+          resolveComposerInputAfterSendFailure(currentInput, previousInputValue),
+        );
+      }
+      return;
+    }
+
+    if (hasPendingUserQuestionReplyTarget && currentInput) {
+      clearInputValue();
+      const didSubmitAnswer = await submitPendingUserQuestionAnswerFromComposer(currentInput);
+      if (!didSubmitAnswer) {
+        setInputValue((previousInputValue) =>
+          resolveComposerInputAfterSendFailure(currentInput, previousInputValue),
+        );
+      }
+      return;
+    }
+
+    if (isComposerTurnBlocked || isAwaitingQueuedTurnSettlement) {
+      if (!currentInput) {
+        return;
+      }
+
+      enqueueQueuedMessage(currentInput);
+      clearInputValue();
+      addToast(t('chat.messageQueued'), 'success');
+      return;
+    }
+
+    if (messageQueue.length > 0) {
+      const canFlushQueuedMessageFromUserAction = canFlushWorkbenchChatQueuedMessages(
+        queuedTurnFlushGateRef.current,
+        {
+          disabled,
+          editingQueueIndex,
+          isActive,
+          isComposerBusy: isComposerTurnBlocked,
+          isQueueExpanded,
+          queueLength: messageQueue.length,
+        },
+      );
+
+      if (currentInput) {
+        enqueueQueuedMessage(currentInput);
+        clearInputValue();
+        addToast(t('chat.messageQueued'), 'success');
+      }
+
+      if (!canFlushQueuedMessageFromUserAction) {
+        return;
+      }
+
+      const nextQueuedMessage = dequeueQueuedMessage();
+      if (nextQueuedMessage) {
+        void dispatchQueuedMessage(nextQueuedMessage);
+      }
+      return;
+    }
+
+    if (!currentInput) {
+      return;
+    }
+
+    clearInputValue();
+    void dispatchDraftMessage(currentInput);
   };
+
+  useEffect(() => {
+    if (
+      isDispatchingMessageRef.current ||
+      !canFlushWorkbenchChatQueuedMessages(queuedTurnFlushGateRef.current, {
+        disabled,
+        editingQueueIndex,
+        isActive,
+        isComposerBusy: isComposerTurnBlocked,
+        isQueueExpanded,
+        queueLength: messageQueue.length,
+      })
+    ) {
+      return;
+    }
+
+    const nextQueuedMessage = dequeueQueuedMessage();
+    if (!nextQueuedMessage) {
+      return;
+    }
+
+    void dispatchQueuedMessage(nextQueuedMessage);
+  }, [
+    dequeueQueuedMessage,
+    disabled,
+    dispatchQueuedMessage,
+    editingQueueIndex,
+    isActive,
+    isComposerTurnBlocked,
+    isQueueExpanded,
+    messageQueue.length,
+    queuedTurnFlushGateVersion,
+  ]);
 
   useLayoutEffect(() => {
     if (!isActive) {
@@ -2015,8 +2591,40 @@ export const UniversalChat = memo(function UniversalChat({
     }
   };
 
+  const hasTypedComposerInput = inputValue.trim().length > 0;
+  const isAwaitingQueuedTurnSettlement =
+    queuedTurnFlushGateRef.current.awaitingTurnSettlement;
+  const canSubmitEditedMessage =
+    !disabled &&
+    Boolean(editingMessage && onEditMessage) &&
+    !isDispatchingMessage &&
+    !isSubmittingPendingInteraction &&
+    hasTypedComposerInput;
+  const canSubmitPendingUserQuestionAnswer =
+    !disabled &&
+    !isDispatchingMessage &&
+    !isSubmittingPendingInteraction &&
+    !editingMessage &&
+    hasPendingUserQuestionReplyTarget &&
+    hasTypedComposerInput;
+  const canQueueTypedMessage =
+    !disabled &&
+    (isBusy || isAwaitingQueuedTurnSettlement) &&
+    !isDispatchingMessage &&
+    !isSubmittingPendingInteraction &&
+    !editingMessage &&
+    !hasPendingUserQuestionReplyTarget &&
+    hasTypedComposerInput;
   const canSendQueuedOrTypedMessage =
-    !disabled && (inputValue.trim().length > 0 || messageQueue.length > 0);
+    !disabled &&
+    !isDispatchingMessage &&
+    !isSubmittingPendingInteraction &&
+    !editingMessage &&
+    (hasTypedComposerInput || messageQueue.length > 0);
+  const canSubmitComposerMessage =
+    canSubmitEditedMessage ||
+    canSubmitPendingUserQuestionAnswer ||
+    ((isComposerTurnBlocked || isAwaitingQueuedTurnSettlement) ? canQueueTypedMessage : canSendQueuedOrTypedMessage);
   const handleComposerResize = useCallback((delta: number) => {
     const textareaElement = textareaRef.current;
     const measuredHeight = textareaElement
@@ -2097,22 +2705,23 @@ export const UniversalChat = memo(function UniversalChat({
         />
       </div>
 
+      {!hideComposer && (
+        <>
       {/* Input Area */}
       <div className={`shrink-0 ${layout === 'sidebar' ? 'px-4 pb-4 pt-3' : 'px-5 pb-5 pt-4'} bg-transparent`}>
         <div className={`mx-auto ${layout === 'main' ? 'max-w-3xl' : 'w-full'}`}>
-          <div className="group/composer relative">
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center opacity-0 transition-opacity duration-150 group-hover/composer:opacity-100 group-focus-within/composer:opacity-100">
-              <div className="mt-[1px] h-1 w-16 rounded-full bg-blue-400/55 shadow-[0_0_14px_rgba(96,165,250,0.35)]" />
-            </div>
-            <ResizeHandle
-              className="absolute left-4 right-4 top-0 z-20 opacity-0 transition-opacity duration-150 group-hover/composer:opacity-100 group-focus-within/composer:opacity-100 bg-transparent hover:bg-blue-400/75"
-              direction="vertical"
-              onResize={handleComposerResize}
-            />
-            <div 
-              className={`bg-[#18181b]/88 backdrop-blur-xl rounded-2xl border p-3 flex flex-col gap-2 shadow-lg transition-all duration-300 ${isFocused ? 'border-white/20 shadow-white/5' : 'border-white/10'}`}
-              style={{ animationDelay: '150ms' }}
-            >
+          <UniversalChatPendingInteractions
+            disabled={disabled}
+            isSubmitting={isSubmittingPendingInteraction}
+            pendingUserQuestions={pendingUserQuestions}
+            pendingApprovals={pendingApprovals}
+            onSubmitUserQuestionAnswer={handleSubmitPendingUserQuestionAnswer}
+            onSubmitApprovalDecision={handleSubmitPendingApprovalDecision}
+          />
+          <UniversalChatComposerChrome
+            isFocused={isFocused}
+            onResize={handleComposerResize}
+          >
             <div className="relative flex-1">
               {messageQueue.length > 0 && (
                 <div className="relative mb-2">
@@ -2124,7 +2733,7 @@ export const UniversalChat = memo(function UniversalChat({
                       <div className="flex items-center gap-2 overflow-hidden">
                         <List size={14} className="text-blue-400 shrink-0" />
                         <span className="text-xs text-blue-300 truncate font-medium">
-                          {messageQueue[0]}
+                          {messageQueue[0]?.text}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
@@ -2141,7 +2750,9 @@ export const UniversalChat = memo(function UniversalChat({
                       <div className="flex items-center justify-between px-3 py-2 border-b border-white/5 bg-white/5">
                         <div className="flex items-center gap-2">
                           <List size={14} className="text-gray-400" />
-                          <span className="text-xs font-medium text-gray-300">Queued Messages ({messageQueue.length})</span>
+                          <span className="text-xs font-medium text-gray-300">
+                            {t('chat.queuedMessages', { count: messageQueue.length })}
+                          </span>
                         </div>
                         <button 
                           className="text-gray-400 hover:text-white p-1 rounded-md hover:bg-white/10 transition-colors"
@@ -2151,8 +2762,8 @@ export const UniversalChat = memo(function UniversalChat({
                         </button>
                       </div>
                       <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
-                        {messageQueue.map((msg, idx) => (
-                          <div key={idx} className="group flex items-start gap-2 p-2 hover:bg-white/5 rounded-lg transition-colors">
+                        {messageQueue.map((queuedMessage, idx) => (
+                          <div key={queuedMessage.id} className="group flex items-start gap-2 p-2 hover:bg-white/5 rounded-lg transition-colors">
                             <div className="mt-1 text-gray-600">
                               <GripVertical size={14} />
                             </div>
@@ -2171,32 +2782,37 @@ export const UniversalChat = memo(function UniversalChat({
                                       className="text-[10px] px-2 py-1 text-gray-400 hover:text-white transition-colors"
                                       onClick={() => setEditingQueueIndex(-1)}
                                     >
-                                      Cancel
+                                      {t('chat.cancelQueueEdit')}
                                     </button>
                                     <button 
                                       className="text-[10px] px-2 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
                                       onClick={() => {
                                         setMessageQueue((previousQueue) => {
+                                          const currentQueuedMessage = previousQueue[idx];
                                           if (
                                             idx < 0 ||
                                             idx >= previousQueue.length ||
-                                            previousQueue[idx] === editingQueueText
+                                            !currentQueuedMessage ||
+                                            currentQueuedMessage.text === editingQueueText
                                           ) {
                                             return previousQueue;
                                           }
                                           const nextQueue = [...previousQueue];
-                                          nextQueue[idx] = editingQueueText;
+                                          nextQueue[idx] = {
+                                            ...currentQueuedMessage,
+                                            text: editingQueueText,
+                                          };
                                           return nextQueue;
                                         });
                                         setEditingQueueIndex(-1);
                                       }}
                                     >
-                                      Save
+                                      {t('chat.saveQueueEdit')}
                                     </button>
                                   </div>
                                 </div>
                               ) : (
-                                <p className="text-xs text-gray-300 whitespace-pre-wrap break-words">{msg}</p>
+                                <p className="text-xs text-gray-300 whitespace-pre-wrap break-words">{queuedMessage.text}</p>
                               )}
                             </div>
                             {editingQueueIndex !== idx && (
@@ -2219,17 +2835,17 @@ export const UniversalChat = memo(function UniversalChat({
                                     }
                                   }}
                                   disabled={idx === 0}
-                                  title="Move up"
+                                  title={t('chat.moveQueuedMessageUp')}
                                 >
                                   <ArrowUp size={12} className={idx === 0 ? 'opacity-30' : ''} />
                                 </button>
                                 <button 
                                   className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors"
                                   onClick={() => {
-                                    setEditingQueueText(msg);
+                                    setEditingQueueText(queuedMessage.text);
                                     setEditingQueueIndex(idx);
                                   }}
-                                  title="Edit queued message"
+                                  title={t('chat.editQueuedMessage')}
                                 >
                                   <Edit2 size={12} />
                                 </button>
@@ -2247,7 +2863,7 @@ export const UniversalChat = memo(function UniversalChat({
                                       return nextQueue;
                                     });
                                   }}
-                                  title="Remove from queue"
+                                  title={t('chat.removeQueuedMessage')}
                                 >
                                   <Trash2 size={12} />
                                 </button>
@@ -2260,6 +2876,22 @@ export const UniversalChat = memo(function UniversalChat({
                   )}
                 </div>
               )}
+              {editingMessage ? (
+                <div className="mb-2 flex items-center justify-between gap-3 rounded-md border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-100">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Edit2 size={13} className="shrink-0 text-blue-300" />
+                    <span className="truncate">{t('chat.editingMessage')}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-md p-1 text-blue-200 transition-colors hover:bg-white/10 hover:text-white"
+                    onClick={cancelEditingMessage}
+                    title={t('chat.cancelEditMessage')}
+                  >
+                    <Plus size={14} className="rotate-45" />
+                  </button>
+                </div>
+              ) : null}
               <textarea 
                 ref={textareaRef}
               value={inputValue}
@@ -2389,7 +3021,7 @@ export const UniversalChat = memo(function UniversalChat({
                             selectedProviderEngine.modelCatalog.map((model) => (
                               <div 
                                 key={model.id}
-                                className={`px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center justify-between gap-3 mx-1 rounded-md transition-colors text-xs ${currentModelId === model.id ? 'text-blue-400 font-medium bg-blue-500/10' : 'text-gray-300'}`}
+                                className={`px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center justify-between gap-3 mx-1 rounded-md transition-colors text-xs ${selectedProviderModelId === model.id ? 'text-blue-400 font-medium bg-blue-500/10' : 'text-gray-300'}`}
                                 onClick={() => {
                                   setSelectedModelId?.(model.id, selectedProvider);
                                   setShowModelMenu(false);
@@ -2403,7 +3035,7 @@ export const UniversalChat = memo(function UniversalChat({
                                     </span>
                                   ) : null}
                                 </div>
-                                {currentModelId === model.id && <Check size={14} className="text-blue-400" />}
+                                {selectedProviderModelId === model.id && <Check size={14} className="text-blue-400" />}
                               </div>
                             ))
                           ) : (
@@ -2436,7 +3068,7 @@ export const UniversalChat = memo(function UniversalChat({
                 >
                   <Mic size={16} className={isListening ? "animate-pulse" : ""} />
                 </Button>
-                {isComposerBusy ? (
+                {isComposerProcessing && !editingMessage && !canQueueTypedMessage && !canSubmitPendingUserQuestionAnswer ? (
                   <Button
                     size="icon"
                     className="h-8 w-8 rounded-full transition-all duration-200 bg-white/5 text-gray-400"
@@ -2448,20 +3080,25 @@ export const UniversalChat = memo(function UniversalChat({
                 ) : (
                   <Button 
                     size="icon"
-                    className={`h-8 w-8 rounded-full transition-all duration-200 ${canSendQueuedOrTypedMessage ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-white/5 text-gray-500'}`}
+                    className={`h-8 w-8 rounded-full transition-all duration-200 ${canSubmitComposerMessage ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-white/5 text-gray-500'}`}
                     onClick={() => {
                       void handleSend();
                     }}
-                    disabled={!canSendQueuedOrTypedMessage}
-                    title={t('chat.sendMessage')}
+                    disabled={!canSubmitComposerMessage}
+                    title={
+                      editingMessage ? t('chat.saveEditedMessage') : canSubmitPendingUserQuestionAnswer
+                        ? t('chat.submitAnswer')
+                        : isComposerTurnBlocked || isAwaitingQueuedTurnSettlement
+                          ? t('chat.queueMessage')
+                          : t('chat.sendMessage')
+                    }
                   >
-                    <ArrowUp size={16} />
+                    {editingMessage ? <Check size={16} /> : <ArrowUp size={16} />}
                   </Button>
                 )}
               </div>
               </div>
-            </div>
-          </div>
+          </UniversalChatComposerChrome>
         </div>
       </div>
 
@@ -2577,6 +3214,8 @@ export const UniversalChat = memo(function UniversalChat({
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

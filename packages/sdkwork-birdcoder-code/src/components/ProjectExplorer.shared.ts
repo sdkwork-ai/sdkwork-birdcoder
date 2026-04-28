@@ -17,6 +17,7 @@ export type ProjectExplorerSortBy = 'created' | 'updated';
 export interface ProjectExplorerEngineOption {
   id: string;
   label: string;
+  modelId?: string | null;
   terminalProfileId?: string | null;
 }
 

@@ -266,11 +266,11 @@ fn normalize_codeengine_string_identifier(value: Option<&str>) -> Option<String>
     }
 }
 
-fn read_codeengine_map_identifier(
-    record: Option<&BTreeMap<String, String>>,
+fn read_codeengine_payload_identifier(
+    record: Option<&BTreeMap<String, Value>>,
     field_name: &str,
 ) -> Option<String> {
-    normalize_codeengine_string_identifier(record?.get(field_name).map(String::as_str))
+    normalize_codeengine_identifier_value(record?.get(field_name))
 }
 
 fn read_codeengine_value_identifier(record: Option<&Value>, field_name: &str) -> Option<String> {
@@ -279,12 +279,12 @@ fn read_codeengine_value_identifier(record: Option<&Value>, field_name: &str) ->
 
 fn read_codeengine_identity_from_records(
     field_names: &[&str],
-    map_records: &[Option<&BTreeMap<String, String>>],
+    payload_records: &[Option<&BTreeMap<String, Value>>],
     value_records: &[Option<&Value>],
 ) -> Option<String> {
     for field_name in field_names {
-        for record in map_records {
-            if let Some(value) = read_codeengine_map_identifier(*record, field_name) {
+        for record in payload_records {
+            if let Some(value) = read_codeengine_payload_identifier(*record, field_name) {
                 return Some(value);
             }
         }
@@ -299,9 +299,9 @@ fn read_codeengine_identity_from_records(
 }
 
 pub fn resolve_codeengine_tool_call_id(
-    payload: Option<&BTreeMap<String, String>>,
+    payload: Option<&BTreeMap<String, Value>>,
     tool_arguments: Option<&Value>,
-    checkpoint_state: Option<&BTreeMap<String, String>>,
+    checkpoint_state: Option<&BTreeMap<String, Value>>,
 ) -> Option<String> {
     read_codeengine_identity_from_records(
         CODEENGINE_TOOL_CALL_ID_KEYS,
@@ -311,24 +311,30 @@ pub fn resolve_codeengine_tool_call_id(
 }
 
 pub fn resolve_codeengine_user_question_id(
-    payload: Option<&BTreeMap<String, String>>,
+    payload: Option<&BTreeMap<String, Value>>,
     tool_arguments: Option<&Value>,
-    checkpoint_state: Option<&BTreeMap<String, String>>,
+    checkpoint_state: Option<&BTreeMap<String, Value>>,
     tool_call_id: Option<&str>,
 ) -> Option<String> {
-    read_codeengine_identity_from_records(
-        CODEENGINE_USER_QUESTION_ID_KEYS,
-        &[payload, checkpoint_state],
-        &[tool_arguments],
-    )
-    .or_else(|| normalize_codeengine_string_identifier(tool_call_id))
-    .or_else(|| resolve_codeengine_tool_call_id(payload, tool_arguments, checkpoint_state))
+    read_codeengine_identity_from_records(CODEENGINE_USER_QUESTION_ID_KEYS, &[], &[tool_arguments])
+        .or_else(|| {
+            read_codeengine_identity_from_records(CODEENGINE_USER_QUESTION_ID_KEYS, &[payload], &[])
+        })
+        .or_else(|| {
+            read_codeengine_identity_from_records(
+                CODEENGINE_USER_QUESTION_ID_KEYS,
+                &[checkpoint_state],
+                &[],
+            )
+        })
+        .or_else(|| normalize_codeengine_string_identifier(tool_call_id))
+        .or_else(|| resolve_codeengine_tool_call_id(payload, tool_arguments, checkpoint_state))
 }
 
 pub fn resolve_codeengine_approval_id(
-    payload: Option<&BTreeMap<String, String>>,
+    payload: Option<&BTreeMap<String, Value>>,
     tool_arguments: Option<&Value>,
-    checkpoint_state: Option<&BTreeMap<String, String>>,
+    checkpoint_state: Option<&BTreeMap<String, Value>>,
 ) -> Option<String> {
     read_codeengine_identity_from_records(
         CODEENGINE_APPROVAL_ID_KEYS,
@@ -338,9 +344,9 @@ pub fn resolve_codeengine_approval_id(
 }
 
 pub fn resolve_codeengine_checkpoint_id(
-    payload: Option<&BTreeMap<String, String>>,
+    payload: Option<&BTreeMap<String, Value>>,
     tool_arguments: Option<&Value>,
-    checkpoint_state: Option<&BTreeMap<String, String>>,
+    checkpoint_state: Option<&BTreeMap<String, Value>>,
 ) -> Option<String> {
     read_codeengine_identity_from_records(
         CODEENGINE_CHECKPOINT_ID_KEYS,
@@ -758,7 +764,7 @@ mod tests {
 
     #[test]
     fn codeengine_identity_resolvers_prefer_specific_provider_fields_over_generic_ids() {
-        let payload = BTreeMap::from([("id".to_owned(), "generic-payload-id".to_owned())]);
+        let payload = BTreeMap::from([("id".to_owned(), json!("generic-payload-id"))]);
         let tool_arguments = json!({
             "toolCallId": "specific-tool-argument-id",
             "requestID": "question-provider-1",

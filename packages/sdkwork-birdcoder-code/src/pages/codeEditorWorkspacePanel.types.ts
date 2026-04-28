@@ -1,5 +1,13 @@
 import type { ReactNode } from 'react';
+import type {
+  BirdCoderCodingSessionPendingApproval,
+  BirdCoderCodingSessionPendingUserQuestion,
+} from '@sdkwork/birdcoder-commons';
 import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-types';
+import type {
+  BirdCoderSubmitApprovalDecisionRequest,
+  BirdCoderSubmitUserQuestionAnswerRequest,
+} from '@sdkwork/birdcoder-types';
 import type { FileNode } from '@sdkwork/birdcoder-ui';
 
 export interface CodeEditorWorkspacePanelProps {
@@ -17,8 +25,11 @@ export interface CodeEditorWorkspacePanelProps {
   selectedCodingSessionId?: string | null;
   selectedCodingSessionScopeKey?: string | null;
   messages: BirdCoderChatMessage[];
+  pendingApprovals?: BirdCoderCodingSessionPendingApproval[];
+  pendingUserQuestions?: BirdCoderCodingSessionPendingUserQuestion[];
   chatEmptyState?: ReactNode;
   isBusy: boolean;
+  isEngineBusy: boolean;
   showComposerEngineSelector: boolean;
   selectedEngineId: string;
   selectedModelId: string;
@@ -38,9 +49,17 @@ export interface CodeEditorWorkspacePanelProps {
   onSelectedEngineIdChange: (engineId: string) => void;
   onSelectedModelIdChange: (modelId: string, engineId?: string) => void;
   onSendMessage: (text?: string) => void | Promise<void>;
+  onSubmitApprovalDecision: (
+    approvalId: string,
+    request: BirdCoderSubmitApprovalDecisionRequest,
+  ) => void | Promise<void>;
+  onSubmitUserQuestionAnswer: (
+    questionId: string,
+    request: BirdCoderSubmitUserQuestionAnswerRequest,
+  ) => void | Promise<void>;
   onViewChanges: (file: FileChange) => void;
   onRestoreMessage: (messageId: string) => void;
-  onEditMessage: (messageId: string) => void;
+  onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onDeleteMessage: (messageIds: string[]) => void;
   onRegenerateMessage: () => void;
   onCreateRootFile: () => void;
@@ -51,18 +70,29 @@ export interface WorkspaceChatProps {
   chatEmptyState?: ReactNode;
   isActive: boolean;
   isBusy: boolean;
+  isEngineBusy: boolean;
   messages: BirdCoderChatMessage[];
   showComposerEngineSelector: boolean;
   selectedCodingSessionId?: string | null;
   selectedCodingSessionScopeKey?: string | null;
   selectedEngineId: string;
   selectedModelId: string;
+  pendingApprovals?: BirdCoderCodingSessionPendingApproval[];
+  pendingUserQuestions?: BirdCoderCodingSessionPendingUserQuestion[];
   onDeleteMessage: (messageIds: string[]) => void;
-  onEditMessage: (messageId: string) => void;
+  onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onRegenerateMessage: () => void;
   onRestoreMessage: (messageId: string) => void;
   onSelectedEngineIdChange: (engineId: string) => void;
   onSelectedModelIdChange: (modelId: string, engineId?: string) => void;
   onSendMessage: (text?: string) => void | Promise<void>;
+  onSubmitApprovalDecision: (
+    approvalId: string,
+    request: BirdCoderSubmitApprovalDecisionRequest,
+  ) => void | Promise<void>;
+  onSubmitUserQuestionAnswer: (
+    questionId: string,
+    request: BirdCoderSubmitUserQuestionAnswerRequest,
+  ) => void | Promise<void>;
   onViewChanges: (file: FileChange) => void;
 }

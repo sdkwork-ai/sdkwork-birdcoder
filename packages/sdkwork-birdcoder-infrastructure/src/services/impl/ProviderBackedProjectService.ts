@@ -35,6 +35,7 @@ import type {
 import type { BirdCoderPromptSkillTemplateEvidenceRepositories } from '../../storage/promptSkillTemplateEvidenceRepository.ts';
 import type {
   BirdCoderCodingSessionRepositories,
+  BirdCoderPersistedCodingSessionMessageMetadata,
   BirdCoderPersistedCodingSessionRecord,
 } from '../../storage/codingSessionRepository.ts';
 import {
@@ -1316,11 +1317,18 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       return new Map();
     }
 
-    const [persistedSessions, persistedMessages] = await Promise.all([
-      this.codingSessionRepositories.sessions.list(),
-      this.codingSessionRepositories.messages.list(),
-    ]);
     const projectIdSet = new Set(projectIds);
+    const persistedSessions = await this.codingSessionRepositories.listSessionsByProjectIds(
+      projectIds,
+    );
+    const relevantSessions = persistedSessions.filter((session) =>
+      projectIdSet.has(session.projectId),
+    );
+    const codingSessionIdSet = new Set(relevantSessions.map((session) => session.id));
+    const persistedMessages =
+      await this.codingSessionRepositories.listMessagesByCodingSessionIds(
+        [...codingSessionIdSet],
+      );
     const messagesByCodingSessionId = new Map<string, BirdCoderChatMessage[]>();
     const sessionsByProjectId = new Map<string, BirdCoderCodingSession[]>();
 
@@ -1333,7 +1341,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       }
     }
 
-    for (const session of persistedSessions) {
+    for (const session of relevantSessions) {
       if (!projectIdSet.has(session.projectId)) {
         continue;
       }
@@ -1367,54 +1375,17 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       return new Map();
     }
 
-    const persistedSessions = await this.codingSessionRepositories.sessions.list();
-    const projectIdSet = new Set(projectIds);
-    const relevantSessions = persistedSessions.filter((session) => projectIdSet.has(session.projectId));
-    const codingSessionIdSet = new Set(relevantSessions.map((session) => session.id));
-    const messageMetadataByCodingSessionId = new Map<string, {
-      latestTranscriptUpdatedAt: string | null;
-      messageCount: number;
-      nativeTranscriptUpdatedAt: string | null;
-    }>();
-
-    for (const message of await this.codingSessionRepositories.messages.list()) {
-      if (!codingSessionIdSet.has(message.codingSessionId)) {
-        continue;
-      }
-
-      const existingMetadata = messageMetadataByCodingSessionId.get(message.codingSessionId) ?? {
-        latestTranscriptUpdatedAt: null,
-        messageCount: 0,
-        nativeTranscriptUpdatedAt: null,
-      };
-      existingMetadata.messageCount += 1;
-      if (
-        typeof message.createdAt === 'string' &&
-        !Number.isNaN(Date.parse(message.createdAt)) &&
-        (
-          existingMetadata.latestTranscriptUpdatedAt === null ||
-          Date.parse(message.createdAt) > Date.parse(existingMetadata.latestTranscriptUpdatedAt)
-        )
-      ) {
-        existingMetadata.latestTranscriptUpdatedAt = message.createdAt;
-      }
-      if (
-        message.id.includes(CODEX_NATIVE_MESSAGE_ID_SEGMENT) &&
-        typeof message.createdAt === 'string' &&
-        !Number.isNaN(Date.parse(message.createdAt)) &&
-        (
-          existingMetadata.nativeTranscriptUpdatedAt === null ||
-          Date.parse(message.createdAt) > Date.parse(existingMetadata.nativeTranscriptUpdatedAt)
-        )
-      ) {
-        existingMetadata.nativeTranscriptUpdatedAt = message.createdAt;
-      }
-      messageMetadataByCodingSessionId.set(message.codingSessionId, existingMetadata);
-    }
+    const relevantSessions =
+      await this.codingSessionRepositories.listSessionsByProjectIds(projectIds);
+    const messageMetadataByCodingSessionId =
+      await this.codingSessionRepositories.readMessageMetadataByCodingSessionIds(
+        relevantSessions.map((session) => session.id),
+      );
 
     const sessionsByProjectId = new Map<string, BirdCoderCodingSessionMirrorSnapshot[]>();
     for (const session of relevantSessions) {
-      const metadata = messageMetadataByCodingSessionId.get(session.id);
+      const metadata: BirdCoderPersistedCodingSessionMessageMetadata | undefined =
+        messageMetadataByCodingSessionId.get(session.id);
       const projectSessions = sessionsByProjectId.get(session.projectId) ?? [];
       projectSessions.push({
         id: session.id,

@@ -70,6 +70,9 @@ fn execute_gemini_provider_turn(
         working_directory: request.working_directory.as_deref(),
         request_kind: request.request_kind.as_str(),
         ide_context: request.ide_context.as_ref(),
+        temperature: request.config.temperature,
+        top_p: request.config.top_p,
+        max_tokens: request.config.max_tokens,
     };
     let bridge_result = match on_event {
         Some(callback) => execute_official_sdk_bridge_turn_with_events(&turn_request, callback)?,

@@ -532,6 +532,17 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Delete coding session message",
       "surface": "core"
     },
+  "core.editCodingSessionMessage":     {
+      "method": "PATCH",
+      "operationId": "core.editCodingSessionMessage",
+      "path": "/api/core/v1/coding-sessions/{id}/messages/{messageId}",
+      "pathParamNames": [
+        "id",
+        "messageId"
+      ],
+      "summary": "Edit coding session message",
+      "surface": "core"
+    },
   "core.forkCodingSession":     {
       "method": "POST",
       "operationId": "core.forkCodingSession",
@@ -576,6 +587,14 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "path": "/api/core/v1/health",
       "pathParamNames": [],
       "summary": "Get coding-server health",
+      "surface": "core"
+    },
+  "core.getModelConfig":     {
+      "method": "GET",
+      "operationId": "core.getModelConfig",
+      "path": "/api/core/v1/model-config",
+      "pathParamNames": [],
+      "summary": "Get code engine model configuration",
       "surface": "core"
     },
   "core.getNativeSession":     {
@@ -704,6 +723,14 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Submit user-question answer",
       "surface": "core"
     },
+  "core.syncModelConfig":     {
+      "method": "PUT",
+      "operationId": "core.syncModelConfig",
+      "path": "/api/core/v1/model-config",
+      "pathParamNames": [],
+      "summary": "Sync code engine model configuration",
+      "surface": "core"
+    },
   "core.updateCodingSession":     {
       "method": "PATCH",
       "operationId": "core.updateCodingSession",
@@ -779,11 +806,13 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "core.createCodingSessionTurn": { id: string };
   "core.deleteCodingSession": { id: string };
   "core.deleteCodingSessionMessage": { id: string; messageId: string };
+  "core.editCodingSessionMessage": { id: string; messageId: string };
   "core.forkCodingSession": { id: string };
   "core.getCodingSession": { id: string };
   "core.getDescriptor": {};
   "core.getEngineCapabilities": { engineKey: string };
   "core.getHealth": {};
+  "core.getModelConfig": {};
   "core.getNativeSession": { id: string };
   "core.getOperation": { operationId: string };
   "core.getRuntime": {};
@@ -798,6 +827,7 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "core.listRoutes": {};
   "core.submitApprovalDecision": { approvalId: string };
   "core.submitUserQuestionAnswer": { questionId: string };
+  "core.syncModelConfig": {};
   "core.updateCodingSession": { id: string };
 }
 

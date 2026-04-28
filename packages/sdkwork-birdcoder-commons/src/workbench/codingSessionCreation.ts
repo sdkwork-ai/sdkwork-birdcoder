@@ -9,6 +9,7 @@ import { buildFileChangeRestorePlan } from './fileChangeRestore.ts';
 
 export interface CreateNewCodingSessionRequest {
   engineId?: string;
+  modelId?: string;
   projectId?: string;
 }
 
@@ -33,6 +34,7 @@ export type SelectWorkbenchCodingSession = (
 export interface WorkbenchCodingSessionSelectionContext {
   projectId: string;
   requestedEngineId?: string;
+  requestedModelId?: string;
   title?: string;
 }
 
@@ -51,6 +53,15 @@ export type DeleteWorkbenchCodingSessionMessage = (
   projectId: string,
   codingSessionId: string,
   messageId: string,
+) => Promise<void>;
+
+export type EditWorkbenchCodingSessionMessage = (
+  projectId: string,
+  codingSessionId: string,
+  messageId: string,
+  updates: {
+    content: string;
+  },
 ) => Promise<void>;
 
 export type SendWorkbenchCodingSessionMessage = (
@@ -89,6 +100,7 @@ export async function createWorkbenchCodingSessionInProject({
   createCodingSessionWithSelection,
   projectId,
   requestedEngineId,
+  requestedModelId,
   selectCodingSession,
   shouldSelectCreatedSession,
   title,
@@ -96,6 +108,7 @@ export async function createWorkbenchCodingSessionInProject({
   createCodingSessionWithSelection: CreateWorkbenchCodingSessionWithSelection;
   projectId: string;
   requestedEngineId?: string;
+  requestedModelId?: string;
   selectCodingSession: SelectWorkbenchCodingSession;
   shouldSelectCreatedSession?: ShouldSelectWorkbenchCodingSession;
   title?: string;
@@ -103,13 +116,14 @@ export async function createWorkbenchCodingSessionInProject({
   const newSession = await createCodingSessionWithSelection(
     projectId,
     title,
-    requestedEngineId
-      ? { engineId: requestedEngineId }
+    requestedEngineId || requestedModelId
+      ? { engineId: requestedEngineId, modelId: requestedModelId }
       : undefined,
   );
   const selectionContext: WorkbenchCodingSessionSelectionContext = {
     projectId,
     ...(requestedEngineId ? { requestedEngineId } : {}),
+    ...(requestedModelId ? { requestedModelId } : {}),
     ...(title ? { title } : {}),
   };
   if (shouldSelectCreatedSession?.(newSession, selectionContext) !== false) {
@@ -305,6 +319,33 @@ export async function deleteWorkbenchCodingSessionMessages({
   }
 
   return normalizedMessageIds.length;
+}
+
+export async function editWorkbenchCodingSessionMessage({
+  codingSessionId,
+  content,
+  editCodingSessionMessage,
+  messageId,
+  projectId,
+}: {
+  codingSessionId: string;
+  content: string;
+  editCodingSessionMessage: EditWorkbenchCodingSessionMessage;
+  messageId: string;
+  projectId: string;
+}): Promise<boolean> {
+  const trimmedContent = content.trim();
+  if (!trimmedContent) {
+    return false;
+  }
+
+  await editCodingSessionMessage(
+    projectId,
+    codingSessionId,
+    messageId,
+    { content: trimmedContent },
+  );
+  return true;
 }
 
 export async function restoreWorkbenchCodingSessionMessageFiles({

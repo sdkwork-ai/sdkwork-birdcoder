@@ -3,6 +3,7 @@ import {
   buildProjectCodingSessionIndex,
   emitOpenTerminalRequest,
   globalEventBus,
+  openTauriShellPath,
   type TerminalCommandRequest,
   type ToastType,
 } from '@sdkwork/birdcoder-commons';
@@ -181,9 +182,7 @@ export function useCodeWorkbenchCommands({
 
     const handleRevealInExplorer = async (targetPath: string) => {
       try {
-        if (window.__TAURI__) {
-          const { open } = await import('@tauri-apps/plugin-shell');
-          await open(targetPath);
+        if (await openTauriShellPath(targetPath)) {
           return;
         }
 

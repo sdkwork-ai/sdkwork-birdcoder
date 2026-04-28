@@ -1,3 +1,5 @@
+import type { WorkbenchChatQueuedMessage } from '@sdkwork/birdcoder-commons';
+
 export function resolveComposerInputAfterSendFailure(
   submittedInput: string,
   currentInput: string,
@@ -6,12 +8,18 @@ export function resolveComposerInputAfterSendFailure(
 }
 
 export function restoreQueuedMessagesAfterSendFailure(
-  dispatchedQueue: readonly string[],
-  currentQueue: readonly string[],
-): string[] {
+  dispatchedQueue: readonly WorkbenchChatQueuedMessage[],
+  currentQueue: readonly WorkbenchChatQueuedMessage[],
+): WorkbenchChatQueuedMessage[] {
   if (dispatchedQueue.length === 0) {
-    return currentQueue as string[];
+    return [...currentQueue];
   }
 
-  return [...dispatchedQueue, ...currentQueue];
+  const dispatchedMessageIds = new Set(
+    dispatchedQueue.map((message) => message.id.trim()).filter(Boolean),
+  );
+  return [
+    ...dispatchedQueue,
+    ...currentQueue.filter((message) => !dispatchedMessageIds.has(message.id)),
+  ];
 }
