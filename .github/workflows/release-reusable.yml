@@ -15,6 +15,13 @@ on:
         description: Git ref to build; defaults to refs/tags/<release_tag>
         required: false
         type: string
+    secrets:
+      SDKWORK_SHARED_SDK_GITHUB_TOKEN:
+        description: Optional token with read access to private shared SDK GitHub repositories
+        required: false
+      SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY:
+        description: SSH private key with read access to private shared SDK GitHub repositories
+        required: true
 
 permissions:
   contents: write
@@ -29,6 +36,7 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   SDKWORK_SHARED_SDK_MODE: git
+  SDKWORK_SHARED_SDK_GIT_PROTOCOL: ssh
   SDKWORK_SHARED_SDK_GITHUB_TOKEN: ${{ secrets.SDKWORK_SHARED_SDK_GITHUB_TOKEN || github.token }}
 
 jobs:
@@ -120,6 +128,11 @@ jobs:
             rpm \
             patchelf
 
+      - name: Setup shared SDK SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY }}
+
       - name: Prepare shared SDK sources
         run: node scripts/prepare-shared-sdk-git-sources.mjs
 
@@ -195,6 +208,11 @@ jobs:
             rpm \
             patchelf \
             xvfb
+
+      - name: Setup shared SDK SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY }}
 
       - name: Prepare shared SDK sources
         run: node scripts/prepare-shared-sdk-git-sources.mjs
@@ -295,6 +313,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
+      - name: Setup shared SDK SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY }}
+
       - name: Prepare shared SDK sources
         run: node scripts/prepare-shared-sdk-git-sources.mjs
 
@@ -363,6 +386,11 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
+      - name: Setup shared SDK SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY }}
+
       - name: Prepare shared SDK sources
         run: node scripts/prepare-shared-sdk-git-sources.mjs
 
@@ -430,6 +458,11 @@ jobs:
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
+
+      - name: Setup shared SDK SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY }}
 
       - name: Prepare shared SDK sources
         run: node scripts/prepare-shared-sdk-git-sources.mjs

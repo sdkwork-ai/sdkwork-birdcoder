@@ -189,6 +189,102 @@ function createGitCloneSpawn({
   };
 }
 
+function createGitSshCloneSpawn({
+  requiredPathsByRepoRoot,
+}) {
+  const repoStates = new Map();
+  const cloneCalls = [];
+
+  return {
+    cloneCalls,
+    spawnSyncImpl(command, args, options = {}) {
+      assert.match(String(command), /git(?:\.exe)?$/iu);
+      assert.equal(options.encoding, 'utf8');
+      assert.equal(options.shell, false);
+
+      if (args[0] === 'clone') {
+        const repoUrl = String(args[1]);
+        const repoRoot = path.resolve(String(args[2]));
+        cloneCalls.push({ repoUrl, repoRoot, env: options.env });
+
+        assert.match(
+          repoUrl,
+          /^git@github\.com:Sdkwork-Cloud\/sdkwork-(?:appbase|core|ui|terminal)\.git$/u,
+          'shared SDK SSH mode must clone governed GitHub sources through the passwordless SSH remote.',
+        );
+        assert.equal(
+          repoUrl.startsWith('https://'),
+          false,
+          'shared SDK SSH mode must not fall back to HTTPS for private sibling repositories.',
+        );
+        assert.equal(
+          options.env?.SDKWORK_SHARED_SDK_GITHUB_TOKEN,
+          undefined,
+          'shared SDK SSH clones must not forward raw GitHub tokens into the git child environment.',
+        );
+        assert.ok(
+          options.env?.GIT_CONFIG_GLOBAL,
+          'shared SDK SSH clones must ignore runner-level git URL rewrites that can force git@github.com remotes back to HTTPS.',
+        );
+        assert.match(
+          String(options.env?.GIT_SSH_COMMAND ?? ''),
+          /StrictHostKeyChecking=accept-new/u,
+          'shared SDK SSH clones must be able to trust the GitHub host key on fresh hosted runners.',
+        );
+
+        fs.mkdirSync(repoRoot, { recursive: true });
+        createRequiredFiles(repoRoot, requiredPathsByRepoRoot.get(repoRoot) ?? []);
+        repoStates.set(repoRoot, {
+          topLevel: repoRoot,
+          originUrl: repoUrl,
+          head: FAKE_HEADS[path.basename(repoRoot)] ?? '5555555555555555555555555555555555555555',
+          branch: 'main',
+          dirty: false,
+        });
+
+        return {
+          status: 0,
+          stdout: '',
+          stderr: '',
+        };
+      }
+
+      if (args[0] !== '-C') {
+        throw new Error(`unexpected git command: ${args.join(' ')}`);
+      }
+
+      const repoRoot = path.resolve(String(args[1]));
+      const repoState = repoStates.get(repoRoot);
+      if (!repoState) {
+        return {
+          status: 1,
+          stdout: '',
+          stderr: `unknown repo: ${repoRoot}`,
+        };
+      }
+
+      const commandKey = args.slice(2).join('\u0000');
+      switch (commandKey) {
+        case 'checkout\u0000--force\u0000main':
+          repoState.branch = 'main';
+          return {
+            status: 0,
+            stdout: '',
+            stderr: '',
+          };
+        case 'rev-parse\u0000--show-toplevel':
+          return {
+            status: 0,
+            stdout: `${repoState.topLevel}\n`,
+            stderr: '',
+          };
+        default:
+          throw new Error(`unexpected git command: ${args.join(' ')}`);
+      }
+    },
+  };
+}
+
 function createTempWorkspace() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-shared-sdk-'));
   const workspaceRootDir = path.join(tempRoot, 'sdkwork-birdcoder');
@@ -403,6 +499,48 @@ test('git mode authenticates GitHub HTTPS clones without embedding tokens in clo
     assert.ok(
       cloneCalls.every((call) => call.repoUrl.startsWith('https://github.com/Sdkwork-Cloud/')),
       'all governed shared SDK repositories should clone from configured GitHub HTTPS URLs',
+    );
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('git mode can materialize GitHub release sources over SSH without rewriting release config', () => {
+  const { tempRoot, workspaceRootDir } = createTempWorkspace();
+
+  try {
+    const specs = createSharedSdkSourceSpecs(workspaceRootDir);
+    const requiredPathsByRepoRoot = new Map(
+      specs.map((spec) => [spec.repoRoot, spec.requiredPaths]),
+    );
+    createReleaseConfig(workspaceRootDir, Object.fromEntries(
+      specs.map((spec) => [
+        spec.id,
+        {
+          repoUrl: `https://github.com/Sdkwork-Cloud/${spec.id}.git`,
+          ref: 'main',
+        },
+      ]),
+    ));
+    const { cloneCalls, spawnSyncImpl } = createGitSshCloneSpawn({
+      requiredPathsByRepoRoot,
+    });
+
+    const result = ensureSharedSdkGitSources({
+      workspaceRootDir,
+      env: {
+        SDKWORK_SHARED_SDK_MODE: 'git',
+        SDKWORK_SHARED_SDK_GIT_PROTOCOL: 'ssh',
+      },
+      spawnSyncImpl,
+    });
+
+    assert.equal(result.status, 'ready');
+    assert.equal(result.changed, true);
+    assert.equal(cloneCalls.length, 4);
+    assert.ok(
+      cloneCalls.every((call) => call.repoUrl.startsWith('git@github.com:Sdkwork-Cloud/')),
+      'all governed shared SDK repositories should clone from GitHub over SSH when SSH transport is requested.',
     );
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });

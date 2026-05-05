@@ -35,9 +35,25 @@ function assertPrepareSharedSdkStepsUseGithubToken(workflowSource, workflowName)
     /SDKWORK_SHARED_SDK_GITHUB_TOKEN:\s*\$\{\{\s*secrets\.SDKWORK_SHARED_SDK_GITHUB_TOKEN\s*\|\|\s*github\.token\s*\}\}/u,
     `${workflowName} must expose a shared SDK GitHub token env with an org secret fallback before private SDK repository clones run.`,
   );
+  assert.match(
+    workflowSource,
+    /SDKWORK_SHARED_SDK_GIT_PROTOCOL:\s*ssh/u,
+    `${workflowName} must request SSH transport for private shared SDK release sources.`,
+  );
 
   const prepareSteps = extractWorkflowStepBlocks(workflowSource, 'Prepare shared SDK sources');
   assert.ok(prepareSteps.length > 0, `${workflowName} must prepare shared SDK sources.`);
+
+  assert.match(
+    workflowSource,
+    /webfactory\/ssh-agent@v[0-9]+/u,
+    `${workflowName} must configure ssh-agent before preparing private shared SDK sources.`,
+  );
+  assert.match(
+    workflowSource,
+    /SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY/u,
+    `${workflowName} must use the shared SDK SSH deploy key secret for passwordless private repository clones.`,
+  );
 
   for (const prepareStep of prepareSteps) {
     assert.match(

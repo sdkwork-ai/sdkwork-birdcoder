@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
@@ -14,6 +15,7 @@ const defaultWorkspaceRootDir = path.resolve(__dirname, '..');
 
 export const SHARED_SDK_GIT_REF_ENV_VAR = 'SDKWORK_SHARED_SDK_GIT_REF';
 export const SHARED_SDK_GIT_FORCE_SYNC_ENV_VAR = 'SDKWORK_SHARED_SDK_GIT_FORCE_SYNC';
+export const SHARED_SDK_GIT_PROTOCOL_ENV_VAR = 'SDKWORK_SHARED_SDK_GIT_PROTOCOL';
 export const SHARED_SDK_RELEASE_CONFIG_PATH_ENV_VAR = 'SDKWORK_SHARED_SDK_RELEASE_CONFIG_PATH';
 export const SHARED_SDK_GITHUB_TOKEN_ENV_VAR = 'SDKWORK_SHARED_SDK_GITHUB_TOKEN';
 
@@ -198,6 +200,41 @@ function isGithubHttpsRepoUrl(repoUrl) {
   }
 }
 
+function isGithubSshRepoUrl(repoUrl) {
+  const normalizedRepoUrl = String(repoUrl ?? '').trim();
+  return /^git@github\.com:.+$/iu.test(normalizedRepoUrl)
+    || /^ssh:\/\/git@github\.com\/.+$/iu.test(normalizedRepoUrl);
+}
+
+function resolveSharedSdkGitProtocol(env = process.env) {
+  const protocol = typeof env?.[SHARED_SDK_GIT_PROTOCOL_ENV_VAR] === 'string'
+    ? env[SHARED_SDK_GIT_PROTOCOL_ENV_VAR].trim().toLowerCase()
+    : '';
+  return protocol === 'ssh' ? 'ssh' : 'https';
+}
+
+function toGithubSshRepoUrl(repoUrl) {
+  if (!isGithubHttpsRepoUrl(repoUrl)) {
+    return repoUrl;
+  }
+
+  const parsedUrl = new URL(String(repoUrl).trim());
+  const repoPath = parsedUrl.pathname.replace(/^\/+/u, '');
+  return `git@github.com:${repoPath}`;
+}
+
+function resolveTransportRepoUrl(repoUrl, env = process.env) {
+  if (resolveSharedSdkGitProtocol(env) !== 'ssh') {
+    return repoUrl;
+  }
+
+  return toGithubSshRepoUrl(repoUrl);
+}
+
+function resolveEmptyGitConfigPath(env = process.env) {
+  return os.devNull;
+}
+
 function resolveSharedSdkGithubToken(env = process.env) {
   for (const tokenEnvVar of SHARED_SDK_AUTH_TOKEN_ENV_VARS) {
     const token = typeof env?.[tokenEnvVar] === 'string' ? env[tokenEnvVar].trim() : '';
@@ -230,6 +267,17 @@ export function createGithubAuthGitEnv(repoUrl, env = process.env) {
     [`GIT_CONFIG_KEY_${nextConfigIndex}`]: 'http.https://github.com/.extraheader',
     [`GIT_CONFIG_VALUE_${nextConfigIndex}`]: `AUTHORIZATION: basic ${authHeader}`,
   };
+}
+
+function createSharedSdkGitEnv(repoUrl, env = process.env) {
+  if (isGithubSshRepoUrl(repoUrl)) {
+    return {
+      GIT_CONFIG_GLOBAL: resolveEmptyGitConfigPath(env),
+      GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=accept-new',
+    };
+  }
+
+  return createGithubAuthGitEnv(repoUrl, env);
 }
 
 export function createSharedSdkSourceSpecs(workspaceRootDir = defaultWorkspaceRootDir) {
@@ -454,18 +502,20 @@ function checkoutMatchesTargetRef(repoRoot, targetRef, { spawnSyncImpl } = {}) {
 }
 
 function cloneSourceRepo({ repoRoot, repoUrl, targetRef, env, spawnSyncImpl }) {
+  const transportRepoUrl = resolveTransportRepoUrl(repoUrl, env);
   fs.mkdirSync(path.dirname(repoRoot), { recursive: true });
-  run('git', ['clone', repoUrl, repoRoot], {
-    env: createGithubAuthGitEnv(repoUrl, env),
+  run('git', ['clone', transportRepoUrl, repoRoot], {
+    env: createSharedSdkGitEnv(transportRepoUrl, env),
     spawnSyncImpl,
   });
   run('git', ['-C', repoRoot, 'checkout', '--force', targetRef], { spawnSyncImpl });
 }
 
 function syncExistingSourceRepo({ repoRoot, repoUrl, targetRef, env, spawnSyncImpl }) {
-  run('git', ['-C', repoRoot, 'remote', 'set-url', 'origin', repoUrl], { spawnSyncImpl });
+  const transportRepoUrl = resolveTransportRepoUrl(repoUrl, env);
+  run('git', ['-C', repoRoot, 'remote', 'set-url', 'origin', transportRepoUrl], { spawnSyncImpl });
   run('git', ['-C', repoRoot, 'fetch', '--tags', '--prune', 'origin'], {
-    env: createGithubAuthGitEnv(repoUrl, env),
+    env: createSharedSdkGitEnv(transportRepoUrl, env),
     spawnSyncImpl,
   });
   run('git', ['-C', repoRoot, 'checkout', '--force', targetRef], { spawnSyncImpl });
