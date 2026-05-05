@@ -925,6 +925,46 @@ importers:
 
   packages/sdkwork-birdcoder-infrastructure-runtime: {}
 
+  packages/sdkwork-birdcoder-multiwindow:
+    dependencies:
+      '@sdkwork/birdcoder-codeengine':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-codeengine
+      '@sdkwork/birdcoder-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-commons
+      '@sdkwork/birdcoder-types':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-types
+      '@sdkwork/birdcoder-ui':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-ui
+      '@sdkwork/birdcoder-ui-shell':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-ui-shell
+      lucide-react:
+        specifier: 'catalog:'
+        version: 0.546.0(react@19.2.4)
+      react:
+        specifier: 'catalog:'
+        version: 19.2.4
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.4(react@19.2.4)
+      react-i18next:
+        specifier: 'catalog:'
+        version: 17.0.2(i18next@26.0.3(typescript@5.8.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.8.3)
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.8.3
+
   packages/sdkwork-birdcoder-server:
     dependencies:
       '@sdkwork/birdcoder-chat':
@@ -995,6 +1035,9 @@ importers:
       '@sdkwork/birdcoder-i18n':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-i18n
+      '@sdkwork/birdcoder-multiwindow':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-multiwindow
       '@sdkwork/birdcoder-settings':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-settings
