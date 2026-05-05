@@ -17,11 +17,13 @@ const FAKE_HEADS = Object.freeze({
   'sdkwork-core': '2222222222222222222222222222222222222222',
   'sdkwork-ui': '3333333333333333333333333333333333333333',
   'sdkwork-terminal': '4444444444444444444444444444444444444444',
+  'sdkwork-sdk-app': '5555555555555555555555555555555555555555',
+  'sdkwork-sdk-commons': '6666666666666666666666666666666666666666',
 });
 
 function createTempWorkspace() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-shared-sdk-packages-'));
-  const workspaceRootDir = path.join(tempRoot, 'sdkwork-birdcoder');
+  const workspaceRootDir = path.join(tempRoot, 'apps', 'sdkwork-birdcoder');
   fs.mkdirSync(workspaceRootDir, { recursive: true });
   fs.writeFileSync(
     path.join(workspaceRootDir, 'package.json'),
@@ -204,7 +206,7 @@ test('prepareSharedSdkPackages delegates to governed git-source preparation in g
     assert.equal(gitResult.prepared, true);
     assert.equal(gitResult.workspaceRoot, workspaceRootDir);
     assert.equal(Array.isArray(gitResult.sources), true);
-    assert.equal(gitResult.sources.length, 4);
+    assert.equal(gitResult.sources.length, 6);
     assert.ok(
       logs.some((message) => message.includes('Ensuring git-backed shared SDK sources are available')),
       'git mode must announce governed git-source preparation',

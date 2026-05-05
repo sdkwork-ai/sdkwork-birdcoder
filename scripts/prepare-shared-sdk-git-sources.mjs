@@ -23,16 +23,22 @@ export const SHARED_APPBASE_REPO_URL_ENV_VAR = 'SDKWORK_SHARED_APPBASE_REPO_URL'
 export const SHARED_CORE_REPO_URL_ENV_VAR = 'SDKWORK_SHARED_CORE_REPO_URL';
 export const SHARED_UI_REPO_URL_ENV_VAR = 'SDKWORK_SHARED_UI_REPO_URL';
 export const SHARED_TERMINAL_REPO_URL_ENV_VAR = 'SDKWORK_SHARED_TERMINAL_REPO_URL';
+export const SHARED_APP_SDK_REPO_URL_ENV_VAR = 'SDKWORK_SHARED_APP_SDK_REPO_URL';
+export const SHARED_SDK_COMMONS_REPO_URL_ENV_VAR = 'SDKWORK_SHARED_SDK_COMMONS_REPO_URL';
 
 export const SHARED_APPBASE_GIT_REF_ENV_VAR = 'SDKWORK_SHARED_APPBASE_GIT_REF';
 export const SHARED_CORE_GIT_REF_ENV_VAR = 'SDKWORK_SHARED_CORE_GIT_REF';
 export const SHARED_UI_GIT_REF_ENV_VAR = 'SDKWORK_SHARED_UI_GIT_REF';
 export const SHARED_TERMINAL_GIT_REF_ENV_VAR = 'SDKWORK_SHARED_TERMINAL_GIT_REF';
+export const SHARED_APP_SDK_GIT_REF_ENV_VAR = 'SDKWORK_SHARED_APP_SDK_GIT_REF';
+export const SHARED_SDK_COMMONS_GIT_REF_ENV_VAR = 'SDKWORK_SHARED_SDK_COMMONS_GIT_REF';
 
 export const DEFAULT_SHARED_APPBASE_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-appbase.git';
 export const DEFAULT_SHARED_CORE_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-core.git';
 export const DEFAULT_SHARED_UI_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-ui.git';
 export const DEFAULT_SHARED_TERMINAL_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-terminal.git';
+export const DEFAULT_SHARED_APP_SDK_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-sdk-app.git';
+export const DEFAULT_SHARED_SDK_COMMONS_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-sdk-commons.git';
 export const DEFAULT_SHARED_SDK_RELEASE_CONFIG_PATH = 'config/shared-sdk-release-sources.json';
 const SHARED_SDK_AUTH_TOKEN_ENV_VARS = Object.freeze([
   SHARED_SDK_GITHUB_TOKEN_ENV_VAR,
@@ -317,6 +323,24 @@ export function createSharedSdkSourceSpecs(workspaceRootDir = defaultWorkspaceRo
       repoUrlEnvVar: SHARED_TERMINAL_REPO_URL_ENV_VAR,
       refEnvVar: SHARED_TERMINAL_GIT_REF_ENV_VAR,
       defaultRepoUrl: DEFAULT_SHARED_TERMINAL_REPO_URL,
+    },
+    {
+      id: 'sdkwork-sdk-app',
+      label: 'sdkwork-sdk-app',
+      repoRoot: path.resolve(workspaceRootDir, '..', '..', 'spring-ai-plus-app-api', 'sdkwork-sdk-app'),
+      requiredPaths: ['sdkwork-app-sdk-typescript/package.json'],
+      repoUrlEnvVar: SHARED_APP_SDK_REPO_URL_ENV_VAR,
+      refEnvVar: SHARED_APP_SDK_GIT_REF_ENV_VAR,
+      defaultRepoUrl: DEFAULT_SHARED_APP_SDK_REPO_URL,
+    },
+    {
+      id: 'sdkwork-sdk-commons',
+      label: 'sdkwork-sdk-commons',
+      repoRoot: path.resolve(workspaceRootDir, '..', '..', 'sdk', 'sdkwork-sdk-commons'),
+      requiredPaths: ['sdkwork-sdk-common-typescript/package.json'],
+      repoUrlEnvVar: SHARED_SDK_COMMONS_REPO_URL_ENV_VAR,
+      refEnvVar: SHARED_SDK_COMMONS_GIT_REF_ENV_VAR,
+      defaultRepoUrl: DEFAULT_SHARED_SDK_COMMONS_REPO_URL,
     },
   ];
 }

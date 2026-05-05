@@ -17,6 +17,8 @@ const FAKE_HEADS = Object.freeze({
   'sdkwork-core': '2222222222222222222222222222222222222222',
   'sdkwork-ui': '3333333333333333333333333333333333333333',
   'sdkwork-terminal': '4444444444444444444444444444444444444444',
+  'sdkwork-sdk-app': '5555555555555555555555555555555555555555',
+  'sdkwork-sdk-commons': '6666666666666666666666666666666666666666',
 });
 
 function createRequiredFiles(repoRoot, requiredPaths) {
@@ -209,7 +211,7 @@ function createGitSshCloneSpawn({
 
         assert.match(
           repoUrl,
-          /^git@github\.com:Sdkwork-Cloud\/sdkwork-(?:appbase|core|ui|terminal)\.git$/u,
+          /^git@github\.com:Sdkwork-Cloud\/(?:sdkwork-(?:appbase|core|ui|terminal)|sdkwork-sdk-(?:app|commons))\.git$/u,
           'shared SDK SSH mode must clone governed GitHub sources through the passwordless SSH remote.',
         );
         assert.equal(
@@ -287,7 +289,7 @@ function createGitSshCloneSpawn({
 
 function createTempWorkspace() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-shared-sdk-'));
-  const workspaceRootDir = path.join(tempRoot, 'sdkwork-birdcoder');
+  const workspaceRootDir = path.join(tempRoot, 'apps', 'sdkwork-birdcoder');
   fs.mkdirSync(workspaceRootDir, { recursive: true });
   return {
     tempRoot,
@@ -340,24 +342,15 @@ function createBirdCoderSharedRepos(workspaceRootDir) {
 }
 
 function createDefaultSourceEntries(sharedRepos) {
-  return {
-    'sdkwork-appbase': {
-      repoUrl: sharedRepos['sdkwork-appbase'].root,
-      ref: sharedRepos['sdkwork-appbase'].head,
-    },
-    'sdkwork-core': {
-      repoUrl: sharedRepos['sdkwork-core'].root,
-      ref: sharedRepos['sdkwork-core'].head,
-    },
-    'sdkwork-ui': {
-      repoUrl: sharedRepos['sdkwork-ui'].root,
-      ref: sharedRepos['sdkwork-ui'].head,
-    },
-    'sdkwork-terminal': {
-      repoUrl: sharedRepos['sdkwork-terminal'].root,
-      ref: sharedRepos['sdkwork-terminal'].head,
-    },
-  };
+  return Object.fromEntries(
+    Object.entries(sharedRepos).map(([id, sharedRepo]) => [
+      id,
+      {
+        repoUrl: sharedRepo.root,
+        ref: sharedRepo.head,
+      },
+    ]),
+  );
 }
 
 test('source mode skips shared SDK git materialization', () => {
@@ -392,15 +385,36 @@ test('release config and source specs cover the governed BirdCoder sibling repos
   );
   assert.deepEqual(
     Object.keys(config.sources).sort(),
-    ['sdkwork-appbase', 'sdkwork-core', 'sdkwork-terminal', 'sdkwork-ui'],
+    [
+      'sdkwork-appbase',
+      'sdkwork-core',
+      'sdkwork-sdk-app',
+      'sdkwork-sdk-commons',
+      'sdkwork-terminal',
+      'sdkwork-ui',
+    ],
   );
   assert.deepEqual(
     specs.map((spec) => spec.id),
-    ['sdkwork-appbase', 'sdkwork-core', 'sdkwork-ui', 'sdkwork-terminal'],
+    [
+      'sdkwork-appbase',
+      'sdkwork-core',
+      'sdkwork-ui',
+      'sdkwork-terminal',
+      'sdkwork-sdk-app',
+      'sdkwork-sdk-commons',
+    ],
   );
   assert.deepEqual(
     specs.map((spec) => path.relative(workspaceRootDir, spec.repoRoot).replaceAll('\\', '/')),
-    ['../sdkwork-appbase', '../sdkwork-core', '../sdkwork-ui', '../sdkwork-terminal'],
+    [
+      '../sdkwork-appbase',
+      '../sdkwork-core',
+      '../sdkwork-ui',
+      '../sdkwork-terminal',
+      '../../spring-ai-plus-app-api/sdkwork-sdk-app',
+      '../../sdk/sdkwork-sdk-commons',
+    ],
   );
 });
 
@@ -447,7 +461,7 @@ test('git mode accepts clean sibling repositories pinned to the configured refs'
     assert.equal(result.status, 'ready');
     assert.equal(result.changed, false);
     assert.equal(Array.isArray(result.sources), true);
-    assert.equal(result.sources.length, 4);
+    assert.equal(result.sources.length, 6);
     assert.ok(
       result.sources.every((source) => source.status === 'ready'),
       'all governed shared repositories must report ready',
@@ -495,7 +509,7 @@ test('git mode authenticates GitHub HTTPS clones without embedding tokens in clo
 
     assert.equal(result.status, 'ready');
     assert.equal(result.changed, true);
-    assert.equal(cloneCalls.length, 4);
+    assert.equal(cloneCalls.length, 6);
     assert.ok(
       cloneCalls.every((call) => call.repoUrl.startsWith('https://github.com/Sdkwork-Cloud/')),
       'all governed shared SDK repositories should clone from configured GitHub HTTPS URLs',
@@ -537,7 +551,7 @@ test('git mode can materialize GitHub release sources over SSH without rewriting
 
     assert.equal(result.status, 'ready');
     assert.equal(result.changed, true);
-    assert.equal(cloneCalls.length, 4);
+    assert.equal(cloneCalls.length, 6);
     assert.ok(
       cloneCalls.every((call) => call.repoUrl.startsWith('git@github.com:Sdkwork-Cloud/')),
       'all governed shared SDK repositories should clone from GitHub over SSH when SSH transport is requested.',
@@ -612,7 +626,14 @@ test('git mode can read an explicitly configured release config path', () => {
 
     assert.deepEqual(
       Object.keys(config.sources).sort(),
-      ['sdkwork-appbase', 'sdkwork-core', 'sdkwork-terminal', 'sdkwork-ui'],
+      [
+        'sdkwork-appbase',
+        'sdkwork-core',
+        'sdkwork-sdk-app',
+        'sdkwork-sdk-commons',
+        'sdkwork-terminal',
+        'sdkwork-ui',
+      ],
     );
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });

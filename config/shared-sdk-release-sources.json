@@ -15,6 +15,14 @@
     "sdkwork-terminal": {
       "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-terminal.git",
       "ref": "main"
+    },
+    "sdkwork-sdk-app": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-sdk-app.git",
+      "ref": "main"
+    },
+    "sdkwork-sdk-commons": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-sdk-commons.git",
+      "ref": "main"
     }
   }
 }
