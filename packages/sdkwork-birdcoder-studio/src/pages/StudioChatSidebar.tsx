@@ -2,14 +2,12 @@ import {
   type BirdCoderCodingSessionPendingApproval,
   type BirdCoderCodingSessionPendingUserQuestion,
   deduplicateBirdCoderProjectsForRender,
-  useWorkbenchPreferences,
 } from '@sdkwork/birdcoder-commons';
-import {
-  getWorkbenchCodeEngineSessionSummary,
-} from '@sdkwork/birdcoder-codeengine';
+import { getWorkbenchCodeEngineSessionSummary } from '@sdkwork/birdcoder-codeengine';
 import {
   UniversalChat,
   WorkbenchNewSessionButton,
+  type UniversalChatComposerSelection,
 } from '@sdkwork/birdcoder-ui';
 import {
   ResizeHandle,
@@ -121,7 +119,10 @@ interface StudioChatSidebarProps {
   onMenuActiveProjectIdChange: (projectId: string) => void;
   onSelectedEngineIdChange: (engineId: string) => void | Promise<void>;
   onSelectedModelIdChange: (modelId: string, engineId?: string) => void | Promise<void>;
-  onSendMessage: (text?: string) => void | Promise<void>;
+  onSendMessage: (
+    text?: string,
+    composerSelection?: UniversalChatComposerSelection,
+  ) => void | Promise<void>;
   onSubmitApprovalDecision: (
     approvalId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
@@ -322,7 +323,6 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onRestoreMessage,
 }: StudioChatSidebarProps) {
   const { t } = useTranslation();
-  const { preferences } = useWorkbenchPreferences();
   const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [visibleSessionCountByProjectId, setVisibleSessionCountByProjectId] = useState<
     Record<string, number>
@@ -400,18 +400,17 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
         ? `${currentProjectId}\u0001${selectedCodingSessionId}`
       : selectedCodingSessionId || undefined;
   const currentCodingSessionTitle = currentCodingSession?.title;
-  const headerEngineSummary = currentCodingSession?.engineId?.trim()
-    ? getWorkbenchCodeEngineSessionSummary(
-        currentCodingSession.engineId,
-        currentCodingSession.modelId,
-        preferences,
-      )
-    : getWorkbenchCodeEngineSessionSummary(selectedEngineId, selectedModelId, preferences);
   const currentChatEngineId =
     currentCodingSession?.engineId?.trim() || selectedEngineId;
   const currentChatModelId = currentCodingSession
     ? (currentCodingSession.modelId?.trim() ?? '')
     : selectedModelId;
+  const headerEngineSummary = currentCodingSession?.engineId?.trim()
+    ? getWorkbenchCodeEngineSessionSummary(
+        currentCodingSession.engineId,
+        currentCodingSession.modelId,
+      )
+    : getWorkbenchCodeEngineSessionSummary(selectedEngineId, selectedModelId);
   const isEngineBusyCurrentSession = isBirdCoderCodingSessionEngineBusy(currentCodingSession);
   const visibleMenuProjects = useMemo(() => {
     if (!showProjectMenu) {
@@ -814,12 +813,19 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                         }
                         void onRefreshCodingSessionMessages(menuSelectedSessionId);
                       }}
-                      disabled={!menuSelectedSessionId || refreshingCodingSessionId === menuSelectedSessionId}
+                      disabled={
+                        !menuSelectedSessionId ||
+                        refreshingCodingSessionId === menuSelectedSessionId
+                      }
                       className="flex items-center justify-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all font-medium disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <RefreshCw
                         size={12}
-                        className={refreshingCodingSessionId === menuSelectedSessionId ? 'animate-spin' : ''}
+                        className={
+                          refreshingCodingSessionId === menuSelectedSessionId
+                            ? 'animate-spin'
+                            : ''
+                        }
                       />
                       {t('studio.refreshMessages')}
                     </button>
@@ -830,13 +836,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <div className="flex items-center gap-2 px-1.5 py-1 text-xs text-gray-300">
-                <span
-                  className={`max-w-[220px] truncate whitespace-nowrap font-medium ${
-                    disabled ? 'text-gray-500' : 'text-gray-300'
-                  }`}
-                >
-                  {headerEngineSummary}
-                </span>
+                <span className="max-w-[160px] truncate">{headerEngineSummary}</span>
               </div>
               <button
                 type="button"

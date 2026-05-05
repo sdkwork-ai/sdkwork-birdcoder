@@ -1,6 +1,7 @@
 import { Suspense, lazy, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@sdkwork/birdcoder-ui-shell';
+import { resolveSafeMarkdownHref } from './markdownLinkSecurity';
 
 export interface ContentMarkdownPreviewProps {
   className?: string;
@@ -41,13 +42,22 @@ export function ContentMarkdownPreview({
         <article className="prose prose-invert max-w-none prose-headings:font-semibold prose-headings:text-gray-100 prose-p:text-gray-300 prose-p:leading-7 prose-strong:text-white prose-code:rounded-md prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-gray-100 prose-code:before:content-none prose-code:after:content-none prose-pre:bg-transparent prose-pre:p-0 prose-blockquote:border-l-blue-400 prose-blockquote:text-gray-300 prose-a:text-blue-300 hover:prose-a:text-blue-200 prose-li:text-gray-300 prose-table:block prose-table:w-full prose-table:overflow-x-auto prose-th:text-left prose-th:text-gray-200 prose-td:text-gray-300">
           <ReactMarkdown
             components={{
-              a: ({ ...props }) => (
-                <a
-                  {...props}
-                  rel="noreferrer"
-                  target="_blank"
-                />
-              ),
+              a: ({ children, href }) => {
+                const safeHref = resolveSafeMarkdownHref(href);
+                if (!safeHref) {
+                  return <span>{children}</span>;
+                }
+
+                return (
+                  <a
+                    href={safeHref}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    {children}
+                  </a>
+                );
+              },
               code: ({ className: codeClassName, children, ...props }: any) => {
                 const match = /language-(\w+)/u.exec(codeClassName || '');
                 const language = match ? match[1] : '';

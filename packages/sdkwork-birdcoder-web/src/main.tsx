@@ -1,10 +1,10 @@
 import { createRoot } from 'react-dom/client';
-import { resolveBirdCoderRuntimeUserCenterProviderKind } from '@sdkwork/birdcoder-core';
 import {
   BootstrapGate,
   bootstrapShellRuntime,
   normalizeBirdCoderServerBaseUrl,
   readStoredBirdCoderServerBaseUrl,
+  resolveBirdCoderBootstrapRuntimeUserCenterProviderKind,
   resolveBirdCoderBootstrapServerBaseUrl,
   waitForBirdCoderApiReady,
 } from '@sdkwork/birdcoder-shell-runtime';
@@ -35,16 +35,20 @@ async function bootstrapRuntime() {
   });
 
   await waitForBirdCoderApiReady(resolvedApiBaseUrl);
+  const providerKind = await resolveBirdCoderBootstrapRuntimeUserCenterProviderKind();
   await bootstrapShellRuntime({
     host: resolveWebRuntime('global', {
       apiBaseUrl: resolvedApiBaseUrl,
     }),
     userCenter: {
-      providerKind: resolveBirdCoderRuntimeUserCenterProviderKind(),
+      providerKind,
     },
   });
 }
 
+if (!document.getElementById('root')) {
+  throw new Error('Root element #root not found in the document');
+}
 createRoot(document.getElementById('root')!).render(
   <BootstrapGate bootstrap={bootstrapRuntime}>
     <App />

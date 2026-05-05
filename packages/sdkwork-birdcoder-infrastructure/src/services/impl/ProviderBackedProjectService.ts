@@ -5,8 +5,8 @@ import type {
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import {
-  areBirdCoderChatMessagesEquivalent,
-  areBirdCoderChatMessagesLogicallyMatched,
+  buildBirdCoderChatMessageLogicalMatchKey,
+  buildBirdCoderChatMessageSynchronizationSignature,
   buildBirdCoderProjectBusinessCode,
   buildBirdCoderProjectBusinessName,
   compareBirdCoderProjectsByActivity,
@@ -24,12 +24,14 @@ import type {
   CreateCodingSessionOptions,
   CreateCodingSessionMessageInput,
   CreateProjectOptions,
+  GetCodingSessionTranscriptOptions,
   IProjectService,
   UpdateCodingSessionOptions,
 } from '../interfaces/IProjectService.ts';
-import type { BirdCoderTableRecordRepository } from '../../storage/dataKernel.ts';
 import type {
+  BirdCoderProjectContentRepository,
   BirdCoderProjectContentRecord,
+  BirdCoderProjectRepository,
   BirdCoderRepresentativeProjectRecord,
 } from '../../storage/appConsoleRepository.ts';
 import type { BirdCoderPromptSkillTemplateEvidenceRepositories } from '../../storage/promptSkillTemplateEvidenceRepository.ts';
@@ -54,6 +56,12 @@ function createTimestamp(): string {
 }
 
 const CODEX_NATIVE_MESSAGE_ID_SEGMENT = ':native-message:';
+const EMPTY_PERSISTED_CODING_SESSION_MESSAGES_BY_ID = new Map<
+  string,
+  BirdCoderChatMessage[]
+>();
+const PUBLIC_TRANSCRIPT_SNAPSHOT_CACHE_MAX_ENTRIES = 256;
+const CACHED_CODING_SESSION_MESSAGE_INDEX_MAX_ENTRIES = 128;
 
 function createIdentifier(prefix: string): string {
   void prefix;
@@ -172,16 +180,336 @@ function omitProjectRootPathShadow(
   return projectRecordWithoutRootPath;
 }
 
-function cloneProjects(value: readonly BirdCoderProject[]): BirdCoderProject[] {
-  return structuredClone([...value]);
-}
-
 function cloneCodingSession(value: BirdCoderCodingSession): BirdCoderCodingSession {
   return structuredClone(value);
 }
 
+function cloneCodingSessionForProjectRecord(
+  value: BirdCoderCodingSession,
+): BirdCoderCodingSession {
+  if (value.messages.length === 0) {
+    return {
+      ...value,
+      messages: [],
+    };
+  }
+
+  return cloneCodingSession(value);
+}
+
 function cloneChatMessage(value: BirdCoderChatMessage): BirdCoderChatMessage {
   return structuredClone(value);
+}
+
+function buildCodingSessionScopedCacheKey(projectId: string, codingSessionId: string): string {
+  return `${projectId}\u0001${codingSessionId}`;
+}
+
+function appendCodingSessionMessageByCopy(
+  messages: readonly BirdCoderChatMessage[],
+  message: BirdCoderChatMessage,
+): BirdCoderChatMessage[] {
+  const nextMessages = messages.slice();
+  nextMessages.push(message);
+  return nextMessages;
+}
+
+function replaceCodingSessionMessageAtIndex(
+  messages: readonly BirdCoderChatMessage[],
+  index: number,
+  message: BirdCoderChatMessage,
+): BirdCoderChatMessage[] {
+  const nextMessages = messages.slice();
+  nextMessages[index] = message;
+  return nextMessages;
+}
+
+function removeCodingSessionMessageAtIndex(
+  messages: readonly BirdCoderChatMessage[],
+  index: number,
+): BirdCoderChatMessage[] {
+  const nextMessages = messages.slice();
+  nextMessages.splice(index, 1);
+  return nextMessages;
+}
+
+interface CachedCodingSessionMessageIndex {
+  messages: readonly BirdCoderChatMessage[];
+  messageIndexesById: Map<string, number>;
+  messageIndexesByLogicalKey: Map<string, number>;
+  messageIndexesBySynchronizationSignature: Map<string, number>;
+}
+
+function normalizeCodingSessionMessageId(messageId: string | null | undefined): string | null {
+  const normalizedMessageId = messageId?.trim() ?? '';
+  return normalizedMessageId || null;
+}
+
+function rememberCodingSessionMessageIndexEntry(
+  index: CachedCodingSessionMessageIndex,
+  message: BirdCoderChatMessage,
+  messageIndex: number,
+): void {
+  const normalizedMessageId = normalizeCodingSessionMessageId(message.id);
+  if (normalizedMessageId) {
+    index.messageIndexesById.set(normalizedMessageId, messageIndex);
+  }
+  index.messageIndexesByLogicalKey.set(
+    buildBirdCoderChatMessageLogicalMatchKey(message),
+    messageIndex,
+  );
+  index.messageIndexesBySynchronizationSignature.set(
+    buildBirdCoderChatMessageSynchronizationSignature(message),
+    messageIndex,
+  );
+}
+
+function forgetCodingSessionMessageIndexEntry(
+  index: CachedCodingSessionMessageIndex,
+  message: BirdCoderChatMessage,
+  messageIndex: number,
+): void {
+  const normalizedMessageId = normalizeCodingSessionMessageId(message.id);
+  if (normalizedMessageId && index.messageIndexesById.get(normalizedMessageId) === messageIndex) {
+    index.messageIndexesById.delete(normalizedMessageId);
+  }
+
+  const logicalMatchKey = buildBirdCoderChatMessageLogicalMatchKey(message);
+  if (index.messageIndexesByLogicalKey.get(logicalMatchKey) === messageIndex) {
+    index.messageIndexesByLogicalKey.delete(logicalMatchKey);
+  }
+
+  const synchronizationSignature = buildBirdCoderChatMessageSynchronizationSignature(message);
+  if (
+    index.messageIndexesBySynchronizationSignature.get(synchronizationSignature) === messageIndex
+  ) {
+    index.messageIndexesBySynchronizationSignature.delete(synchronizationSignature);
+  }
+}
+
+function indexCodingSessionMessages(
+  messages: readonly BirdCoderChatMessage[],
+): CachedCodingSessionMessageIndex {
+  const index: CachedCodingSessionMessageIndex = {
+    messages,
+    messageIndexesById: new Map<string, number>(),
+    messageIndexesByLogicalKey: new Map<string, number>(),
+    messageIndexesBySynchronizationSignature: new Map<string, number>(),
+  };
+
+  for (let messageIndex = 0; messageIndex < messages.length; messageIndex += 1) {
+    const message = messages[messageIndex]!;
+    rememberCodingSessionMessageIndexEntry(index, message, messageIndex);
+  }
+
+  return index;
+}
+
+function findCachedCodingSessionMessageIndexById(
+  index: CachedCodingSessionMessageIndex,
+  messageId: string | null | undefined,
+): number | undefined {
+  const normalizedMessageId = normalizeCodingSessionMessageId(messageId);
+  return normalizedMessageId
+    ? index.messageIndexesById.get(normalizedMessageId)
+    : undefined;
+}
+
+function findMatchingCachedCodingSessionMessageIndex(
+  index: CachedCodingSessionMessageIndex,
+  incomingMessage: BirdCoderChatMessage,
+): number | undefined {
+  const exactMessageIndex = findCachedCodingSessionMessageIndexById(
+    index,
+    incomingMessage.id,
+  );
+  if (exactMessageIndex !== undefined) {
+    return exactMessageIndex;
+  }
+
+  const synchronizationSignature = buildBirdCoderChatMessageSynchronizationSignature(
+    incomingMessage,
+  );
+  const synchronizationMessageIndex =
+    index.messageIndexesBySynchronizationSignature.get(synchronizationSignature);
+  if (synchronizationMessageIndex !== undefined) {
+    return synchronizationMessageIndex;
+  }
+
+  return index.messageIndexesByLogicalKey.get(
+    buildBirdCoderChatMessageLogicalMatchKey(incomingMessage),
+  );
+}
+
+function appendCachedCodingSessionMessageIndex(
+  index: CachedCodingSessionMessageIndex,
+  nextMessages: readonly BirdCoderChatMessage[],
+  message: BirdCoderChatMessage,
+): CachedCodingSessionMessageIndex {
+  index.messages = nextMessages;
+  rememberCodingSessionMessageIndexEntry(index, message, nextMessages.length - 1);
+  return index;
+}
+
+function replaceCachedCodingSessionMessageIndexEntry(
+  index: CachedCodingSessionMessageIndex,
+  nextMessages: readonly BirdCoderChatMessage[],
+  previousMessage: BirdCoderChatMessage,
+  nextMessage: BirdCoderChatMessage,
+  messageIndex: number,
+): CachedCodingSessionMessageIndex {
+  forgetCodingSessionMessageIndexEntry(index, previousMessage, messageIndex);
+  index.messages = nextMessages;
+  rememberCodingSessionMessageIndexEntry(index, nextMessage, messageIndex);
+  return index;
+}
+
+function removeCachedCodingSessionMessageIndexEntry(
+  index: CachedCodingSessionMessageIndex,
+  nextMessages: readonly BirdCoderChatMessage[],
+  removedMessage: BirdCoderChatMessage,
+  removedMessageIndex: number,
+): CachedCodingSessionMessageIndex {
+  forgetCodingSessionMessageIndexEntry(index, removedMessage, removedMessageIndex);
+  index.messages = nextMessages;
+
+  for (let messageIndex = removedMessageIndex; messageIndex < nextMessages.length; messageIndex += 1) {
+    const message = nextMessages[messageIndex]!;
+    rememberCodingSessionMessageIndexEntry(index, message, messageIndex);
+  }
+
+  return index;
+}
+
+function buildCachedCodingSessionTranscript(
+  codingSession: BirdCoderCodingSession,
+): BirdCoderCodingSession {
+  return {
+    ...codingSession,
+    messages: codingSession.messages.map((message) => cloneChatMessage(message)),
+  };
+}
+
+function parseOptionalTranscriptTimestamp(value: string | null | undefined): number {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return Number.NaN;
+  }
+
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? Number.NaN : timestamp;
+}
+
+function resolveLatestTranscriptTimestampCandidate(
+  ...candidates: Array<string | null | undefined>
+): string | null {
+  let latestTimestamp = Number.NEGATIVE_INFINITY;
+  let latestCandidate: string | null = null;
+
+  for (const candidate of candidates) {
+    const normalizedCandidate = candidate?.trim() ?? '';
+    if (!normalizedCandidate) {
+      continue;
+    }
+
+    const parsedTimestamp = parseOptionalTranscriptTimestamp(normalizedCandidate);
+    if (Number.isNaN(parsedTimestamp)) {
+      if (!latestCandidate) {
+        latestCandidate = normalizedCandidate;
+      }
+      continue;
+    }
+
+    if (parsedTimestamp >= latestTimestamp) {
+      latestTimestamp = parsedTimestamp;
+      latestCandidate = normalizedCandidate;
+    }
+  }
+
+  return latestCandidate;
+}
+
+function isCachedCodingSessionTranscriptFresh(
+  codingSession: BirdCoderCodingSession,
+  options?: GetCodingSessionTranscriptOptions,
+): boolean {
+  const expectedTranscriptUpdatedAt = options?.expectedTranscriptUpdatedAt?.trim() ?? '';
+  if (!expectedTranscriptUpdatedAt) {
+    return true;
+  }
+
+  const cachedTranscriptUpdatedAt = codingSession.transcriptUpdatedAt?.trim() ?? '';
+  if (!cachedTranscriptUpdatedAt) {
+    return false;
+  }
+
+  const expectedTimestamp = parseOptionalTranscriptTimestamp(expectedTranscriptUpdatedAt);
+  const cachedTimestamp = parseOptionalTranscriptTimestamp(cachedTranscriptUpdatedAt);
+  if (Number.isNaN(expectedTimestamp) || Number.isNaN(cachedTimestamp)) {
+    return cachedTranscriptUpdatedAt === expectedTranscriptUpdatedAt;
+  }
+
+  return cachedTimestamp >= expectedTimestamp;
+}
+
+function freezeReadonlySnapshot<TValue>(value: TValue, seenObjects = new WeakSet<object>()): TValue {
+  if (typeof value !== 'object' || value === null) {
+    return value;
+  }
+
+  if (seenObjects.has(value)) {
+    return value;
+  }
+  seenObjects.add(value);
+
+  for (const key of Reflect.ownKeys(value)) {
+    freezeReadonlySnapshot((value as Record<PropertyKey, unknown>)[key], seenObjects);
+  }
+
+  return Object.freeze(value);
+}
+
+function buildReadonlyCodingSessionTranscriptSnapshot(
+  codingSession: BirdCoderCodingSession,
+  options: {
+    cloneMessages?: boolean;
+  } = {},
+): BirdCoderCodingSession {
+  const messages =
+    options.cloneMessages === false
+      ? codingSession.messages
+      : codingSession.messages.map((message) => cloneChatMessage(message));
+  return freezeReadonlySnapshot({
+    ...codingSession,
+    messages,
+  });
+}
+
+function buildPublicCodingSessionTranscriptVersionKey(
+  codingSession: BirdCoderCodingSession,
+): string {
+  return [
+    codingSession.workspaceId,
+    codingSession.projectId,
+    codingSession.id,
+    codingSession.title,
+    codingSession.status,
+    codingSession.hostMode,
+    codingSession.engineId,
+    codingSession.modelId,
+    codingSession.nativeSessionId ?? '',
+    codingSession.createdAt,
+    codingSession.updatedAt,
+    codingSession.lastTurnAt ?? '',
+    codingSession.sortTimestamp ?? '',
+    codingSession.transcriptUpdatedAt ?? '',
+    codingSession.displayTime ?? '',
+    codingSession.pinned === true ? '1' : '0',
+    codingSession.archived === true ? '1' : '0',
+    codingSession.unread === true ? '1' : '0',
+    String(codingSession.messages.length),
+    codingSession.messages[0]?.id ?? '',
+    codingSession.messages[codingSession.messages.length - 1]?.id ?? '',
+  ].join('\u0002');
 }
 
 function sanitizeCodingSessionMessageUpdates(
@@ -227,6 +555,98 @@ function sortCodingSessionsByActivity<TSession extends SortableCodingSessionLike
   sessions: readonly TSession[],
 ): TSession[] {
   return [...sessions].sort(compareCodingSessionsByActivity);
+}
+
+function indexCodingSessionsById(
+  sessions: readonly BirdCoderCodingSession[],
+): Map<string, BirdCoderCodingSession> {
+  const sessionsById = new Map<string, BirdCoderCodingSession>();
+  for (const session of sessions) {
+    sessionsById.set(session.id, session);
+  }
+  return sessionsById;
+}
+
+function indexCodingSessionPositionsById(
+  sessions: readonly BirdCoderCodingSession[],
+): Map<string, number> {
+  const sessionPositionsById = new Map<string, number>();
+  for (let index = 0; index < sessions.length; index += 1) {
+    sessionPositionsById.set(sessions[index]!.id, index);
+  }
+  return sessionPositionsById;
+}
+
+function findCodingSessionActivityInsertionIndex<TSession extends SortableCodingSessionLike>(
+  sessions: readonly TSession[],
+  nextSession: TSession,
+): number {
+  let lowerBound = 0;
+  let upperBound = sessions.length;
+
+  while (lowerBound < upperBound) {
+    const middleIndex = Math.floor((lowerBound + upperBound) / 2);
+    const middleSession = sessions[middleIndex]!;
+    if (compareCodingSessionsByActivity(nextSession, middleSession) <= 0) {
+      upperBound = middleIndex;
+    } else {
+      lowerBound = middleIndex + 1;
+    }
+  }
+
+  return lowerBound;
+}
+
+function canReplaceCodingSessionAtActivityIndex<TSession extends SortableCodingSessionLike>(
+  sessions: readonly TSession[],
+  nextSession: TSession,
+  existingIndex?: number,
+): existingIndex is number {
+  if (
+    typeof existingIndex !== 'number' ||
+    existingIndex < 0 ||
+    existingIndex >= sessions.length ||
+    sessions[existingIndex]?.id !== nextSession.id
+  ) {
+    return false;
+  }
+
+  const previousSession = existingIndex > 0 ? sessions[existingIndex - 1] : undefined;
+  const nextNeighborSession =
+    existingIndex + 1 < sessions.length ? sessions[existingIndex + 1] : undefined;
+
+  return (
+    (!previousSession || compareCodingSessionsByActivity(previousSession, nextSession) <= 0) &&
+    (!nextNeighborSession || compareCodingSessionsByActivity(nextSession, nextNeighborSession) <= 0)
+  );
+}
+
+function upsertCodingSessionByActivity<TSession extends SortableCodingSessionLike>(
+  sessions: readonly TSession[],
+  nextSession: TSession,
+  existingIndex?: number,
+): TSession[] {
+  if (canReplaceCodingSessionAtActivityIndex(sessions, nextSession, existingIndex)) {
+    const nextSessions = sessions.slice();
+    nextSessions[existingIndex] = nextSession;
+    return nextSessions;
+  }
+
+  const nextSessions = sessions.slice();
+  if (
+    typeof existingIndex === 'number' &&
+    existingIndex >= 0 &&
+    existingIndex < nextSessions.length &&
+    nextSessions[existingIndex]?.id === nextSession.id
+  ) {
+    nextSessions.splice(existingIndex, 1);
+  }
+  const insertionIndex = findCodingSessionActivityInsertionIndex(
+    nextSessions,
+    nextSession,
+  );
+  nextSessions.splice(insertionIndex, 0, nextSession);
+  return nextSessions;
 }
 
 function findLatestTranscriptTimestamp(
@@ -326,38 +746,44 @@ function createChatMessage(
 
 function deduplicateCodingSessionMessages(
   messages: readonly BirdCoderChatMessage[],
+  options: {
+    cloneMessages?: boolean;
+  } = {},
 ): BirdCoderChatMessage[] {
-  return deduplicateBirdCoderComparableChatMessages(messages).map((message) =>
-    cloneChatMessage(message),
-  );
-}
+  const deduplicatedMessages = deduplicateBirdCoderComparableChatMessages(messages);
+  if (options.cloneMessages === false) {
+    return [...deduplicatedMessages];
+  }
 
-function findMatchingCodingSessionMessageIndex(
-  messages: readonly BirdCoderChatMessage[],
-  incomingMessage: BirdCoderChatMessage,
-): number {
-  return messages.findIndex(
-    (message) =>
-      areBirdCoderChatMessagesEquivalent(message, incomingMessage) ||
-      areBirdCoderChatMessagesLogicallyMatched(message, incomingMessage),
-  );
+  return deduplicatedMessages.map((message) => cloneChatMessage(message));
 }
 
 export interface ProviderBackedProjectServiceOptions {
   codingSessionRepositories?: BirdCoderCodingSessionRepositories;
   defaultOwnerUserId?: string;
   evidenceRepositories?: BirdCoderPromptSkillTemplateEvidenceRepositories;
-  projectContentRepository: BirdCoderTableRecordRepository<BirdCoderProjectContentRecord>;
-  repository: BirdCoderTableRecordRepository<BirdCoderRepresentativeProjectRecord>;
+  projectContentRepository: BirdCoderProjectContentRepository;
+  repository: BirdCoderProjectRepository;
 }
 
 export class ProviderBackedProjectService implements IProjectService, IProjectSessionMirror {
   private readonly codingSessionRepositories?: BirdCoderCodingSessionRepositories;
   private readonly defaultOwnerUserId: string;
   private readonly evidenceRepositories?: BirdCoderPromptSkillTemplateEvidenceRepositories;
-  private readonly projectContentRepository: BirdCoderTableRecordRepository<BirdCoderProjectContentRecord>;
-  private readonly repository: BirdCoderTableRecordRepository<BirdCoderRepresentativeProjectRecord>;
+  private readonly projectContentRepository: BirdCoderProjectContentRepository;
+  private readonly publicTranscriptSnapshotsBySessionKey = new Map<
+    string,
+    {
+      snapshot: BirdCoderCodingSession;
+      versionKey: string;
+    }
+  >();
+  private readonly repository: BirdCoderProjectRepository;
   private readonly sessionsByProjectId = new Map<string, BirdCoderCodingSession[]>();
+  private readonly sessionIndexesByProjectId = new Map<string, Map<string, BirdCoderCodingSession>>();
+  private readonly sessionPositionsByProjectId = new Map<string, Map<string, number>>();
+  private readonly messageIndexesBySessionKey = new Map<string, CachedCodingSessionMessageIndex>();
+  private readonly locallyMutatedTranscriptSessionKeys = new Set<string>();
 
   constructor({
     codingSessionRepositories,
@@ -377,9 +803,31 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     // Provider-backed project reads are already served from the local authority.
   }
 
+  private async listProjectRecordsByWorkspaceId(
+    workspaceId: string,
+  ): Promise<BirdCoderRepresentativeProjectRecord[]> {
+    const normalizedWorkspaceId = workspaceId.trim();
+    if (!normalizedWorkspaceId) {
+      return [];
+    }
+
+    if (this.repository.listProjectsByWorkspaceIds) {
+      return this.repository.listProjectsByWorkspaceIds([normalizedWorkspaceId]);
+    }
+
+    return (await this.repository.list()).filter(
+      (record) => record.workspaceId === normalizedWorkspaceId,
+    );
+  }
+
   private async findProjectContentByProjectId(
     projectId: string,
   ): Promise<BirdCoderProjectContentRecord | null> {
+    const directProjectContent = await this.projectContentRepository.findById(projectId);
+    if (directProjectContent?.projectId === projectId) {
+      return directProjectContent;
+    }
+
     return (
       (await this.projectContentRepository.list()).find(
         (content) => content.projectId === projectId,
@@ -395,8 +843,22 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       return rootPathsByProjectId;
     }
 
+    if (projectIds.length === 1) {
+      const projectContent = await this.projectContentRepository.findById(projectIds[0]!);
+      if (projectContent?.projectId === projectIds[0]) {
+        const rootPath = readBirdCoderProjectRootPathFromConfigData(projectContent.configData);
+        if (rootPath) {
+          rootPathsByProjectId.set(projectContent.projectId, rootPath);
+          return rootPathsByProjectId;
+        }
+      }
+    }
+
+    const projectContents = this.projectContentRepository.listProjectContentsByProjectIds
+      ? await this.projectContentRepository.listProjectContentsByProjectIds(projectIds)
+      : await this.projectContentRepository.list();
     const projectIdSet = new Set(projectIds);
-    for (const projectContent of await this.projectContentRepository.list()) {
+    for (const projectContent of projectContents) {
       if (!projectIdSet.has(projectContent.projectId)) {
         continue;
       }
@@ -467,29 +929,33 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   }
 
   private async deleteProjectRootPathContent(projectId: string): Promise<void> {
-    for (const projectContent of await this.projectContentRepository.list()) {
-      if (projectContent.projectId === projectId) {
-        await this.projectContentRepository.delete(projectContent.id);
-      }
+    const projectContent = await this.findProjectContentByProjectId(projectId);
+    if (projectContent) {
+      await this.projectContentRepository.delete(projectContent.id);
     }
   }
 
   async getProjects(workspaceId?: string): Promise<BirdCoderProject[]> {
-    const records = await this.hydrateProjectRecords(await this.repository.list());
-    const hydratedRecords = workspaceId
-      ? records.filter((record) => record.workspaceId === workspaceId)
-      : records;
+    const filteredRecords = workspaceId
+      ? await this.listProjectRecordsByWorkspaceId(workspaceId)
+      : await this.repository.list();
+    const hydratedRecords = await this.hydrateProjectRecords(filteredRecords);
 
     const persistedSessionsByProjectId = this.codingSessionRepositories
-      ? await this.loadPersistedCodingSessionsSnapshot(hydratedRecords.map((record) => record.id))
+      ? await this.loadPersistedCodingSessionInventorySnapshot(hydratedRecords.map((record) => record.id))
       : undefined;
-    const projects = hydratedRecords.map((record) =>
-      this.mapProjectRecord(
-        record,
-        persistedSessionsByProjectId?.get(record.id) ?? this.sessionsByProjectId.get(record.id) ?? [],
-      ),
-    );
-    return cloneProjects([...projects].sort(compareBirdCoderProjectsByActivity));
+    const projects = hydratedRecords.map((record) => {
+      const sessions = this.mergeLocallyMutatedTranscriptSessions(
+        record.id,
+        persistedSessionsByProjectId?.get(record.id) ??
+          this.sessionsByProjectId.get(record.id) ??
+          [],
+      );
+      return this.mapProjectRecord(record, sessions, {
+        sessionsSortedByActivity: true,
+      });
+    });
+    return projects.sort(compareBirdCoderProjectsByActivity);
   }
 
   async getProjectById(projectId: string): Promise<BirdCoderProject | null> {
@@ -499,34 +965,41 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     }
 
     const record = await this.hydrateProjectRecord(storedRecord);
-    const sessions = this.codingSessionRepositories
-      ? (await this.loadPersistedCodingSessionsSnapshot([record.id])).get(record.id) ??
+    let sessions = this.codingSessionRepositories
+      ? (await this.loadPersistedCodingSessionInventorySnapshot([record.id])).get(record.id) ??
         this.sessionsByProjectId.get(record.id) ??
         []
       : this.sessionsByProjectId.get(record.id) ?? [];
-    return structuredClone(this.mapProjectRecord(record, sessions));
+    sessions = this.mergeLocallyMutatedTranscriptSessions(record.id, sessions);
+    return this.mapProjectRecord(record, sessions, {
+      sessionsSortedByActivity: true,
+    });
   }
 
   async getProjectByPath(workspaceId: string, path: string): Promise<BirdCoderProject | null> {
-    const records = await this.hydrateProjectRecords(await this.repository.list());
+    const records = await this.hydrateProjectRecords(
+      await this.listProjectRecordsByWorkspaceId(workspaceId),
+    );
     const record = findMatchingProjectRecordByPath(records, workspaceId, path);
     if (!record) {
       return null;
     }
 
-    const sessions = this.codingSessionRepositories
-      ? (await this.loadPersistedCodingSessionsSnapshot([record.id])).get(record.id) ??
+    let sessions = this.codingSessionRepositories
+      ? (await this.loadPersistedCodingSessionInventorySnapshot([record.id])).get(record.id) ??
         this.sessionsByProjectId.get(record.id) ??
         []
       : this.sessionsByProjectId.get(record.id) ?? [];
-    return structuredClone(this.mapProjectRecord(record, sessions));
+    sessions = this.mergeLocallyMutatedTranscriptSessions(record.id, sessions);
+    return this.mapProjectRecord(record, sessions, {
+      sessionsSortedByActivity: true,
+    });
   }
 
   async getProjectMirrorSnapshots(workspaceId?: string): Promise<BirdCoderProjectMirrorSnapshot[]> {
-    const records = await this.repository.list();
     const filteredRecords = workspaceId
-      ? records.filter((record) => record.workspaceId === workspaceId)
-      : records;
+      ? await this.listProjectRecordsByWorkspaceId(workspaceId)
+      : await this.repository.list();
     const hydratedRecords = await this.hydrateProjectRecords(filteredRecords);
 
     const persistedSessionSnapshotsByProjectId = this.codingSessionRepositories
@@ -543,6 +1016,69 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
         ),
       )
       .sort(compareBirdCoderProjectsByActivity);
+  }
+
+  async getCodingSessionTranscript(
+    projectId: string,
+    codingSessionId: string,
+    options?: GetCodingSessionTranscriptOptions,
+  ): Promise<BirdCoderCodingSession | null> {
+    const normalizedProjectId = projectId.trim();
+    const normalizedCodingSessionId = codingSessionId.trim();
+    if (!normalizedProjectId || !normalizedCodingSessionId) {
+      return null;
+    }
+
+    const cachedSession = this.getCachedCodingSession(
+      normalizedProjectId,
+      normalizedCodingSessionId,
+    );
+    if (
+      cachedSession &&
+      cachedSession.messages.length > 0 &&
+      isCachedCodingSessionTranscriptFresh(cachedSession, options)
+    ) {
+      return this.resolvePublicCodingSessionTranscriptSnapshot(cachedSession);
+    }
+
+    if (this.codingSessionRepositories) {
+      const persistedSession = await this.codingSessionRepositories.sessions.findById(
+        normalizedCodingSessionId,
+      );
+      if (persistedSession?.projectId !== normalizedProjectId) {
+        return null;
+      }
+      if (!persistedSession) {
+        return null;
+      }
+
+      const persistedMessages =
+        await this.codingSessionRepositories.listMessagesByCodingSessionIds([
+          normalizedCodingSessionId,
+        ]);
+      const messagesByCodingSessionId = new Map<string, BirdCoderChatMessage[]>();
+      messagesByCodingSessionId.set(normalizedCodingSessionId, persistedMessages);
+
+      const hydratedSession = this.mapPersistedCodingSessionRecord(
+        persistedSession,
+        messagesByCodingSessionId,
+        {
+          cloneMessages: false,
+        },
+      );
+      this.replaceCachedCodingSession(
+        normalizedProjectId,
+        buildCachedCodingSessionTranscript(hydratedSession),
+        this.sessionsByProjectId.get(normalizedProjectId),
+      );
+      return this.resolvePublicCodingSessionTranscriptSnapshot(hydratedSession, {
+        cloneMessages: false,
+      });
+    }
+
+    return cachedSession
+      ? this.resolvePublicCodingSessionTranscriptSnapshot(cachedSession)
+      : null;
   }
 
   async createProject(
@@ -564,7 +1100,9 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       const sessions = await this.readProjectSessions(existingProjectByPath.id, {
         refresh: true,
       });
-      return this.mapProjectRecord(existingProjectByPath, sessions);
+      return this.mapProjectRecord(existingProjectByPath, sessions, {
+        sessionsSortedByActivity: true,
+      });
     }
 
     const now = createTimestamp();
@@ -611,7 +1149,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       options,
     );
     await this.upsertProjectRootPathContent(record, normalizedPath);
-    this.sessionsByProjectId.set(record.id, []);
+    this.setProjectSessionsCache(record.id, []);
     return this.mapProjectRecord(
       {
         ...record,
@@ -689,15 +1227,20 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       updatedAt: summary.updatedAt || createTimestamp(),
     }));
     await this.upsertProjectRootPathContent(record, nextRootPath);
-    const sessions = await this.readProjectSessions(summary.id, {
-      refresh: true,
-    });
+    const sessions = this.codingSessionRepositories
+      ? (await this.loadPersistedCodingSessionInventorySnapshot([summary.id])).get(summary.id) ??
+        this.sessionsByProjectId.get(summary.id) ??
+        []
+      : this.sessionsByProjectId.get(summary.id) ?? [];
     return this.mapProjectRecord(
       {
         ...record,
         rootPath: nextRootPath,
       },
       sessions,
+      {
+        sessionsSortedByActivity: true,
+      },
     );
   }
 
@@ -772,7 +1315,9 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     await this.repository.delete(projectId);
     await this.deleteProjectRootPathContent(projectId);
     await this.deletePersistedProjectSessions(projectId);
-    this.sessionsByProjectId.delete(projectId);
+    this.clearProjectSessionsCache(projectId);
+    this.clearLocallyMutatedTranscriptSessionsForProject(projectId);
+    this.deletePublicTranscriptSnapshotsForProject(projectId);
   }
 
   private async findProjectByWorkspaceAndPath(
@@ -785,7 +1330,9 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       return null;
     }
 
-    const records = await this.hydrateProjectRecords(await this.repository.list());
+    const records = await this.hydrateProjectRecords(
+      await this.listProjectRecordsByWorkspaceId(workspaceId),
+    );
     return (
       records.find((candidate) => {
         if (candidate.workspaceId !== workspaceId || candidate.id === excludedProjectId) {
@@ -804,42 +1351,47 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   ): Promise<BirdCoderCodingSession> {
     const projectRecord = await this.readProjectRecord(projectId);
     const codingSession = createCodingSession(projectRecord, title, options);
-    const sessions = await this.readProjectSessions(projectId, {
+    const sessions = await this.readProjectSessionInventoryCache(projectId, {
       refresh: true,
     });
-    this.storeProjectSessions(projectId, [codingSession, ...sessions]);
+    this.insertCachedCodingSession(projectId, codingSession, sessions);
     await this.persistCodingSessionSummary(codingSession);
     return cloneCodingSession(codingSession);
   }
 
   async upsertCodingSession(projectId: string, codingSession: BirdCoderCodingSession): Promise<void> {
     await this.readProjectRecord(projectId);
-    const sessions = await this.readProjectSessions(projectId, {
+    const sessions = await this.readProjectSessionInventoryCache(projectId, {
       refresh: true,
     });
-    const nextCodingSession = cloneCodingSession(codingSession);
-    const existingCodingSession = sessions.find(
-      (candidate) => candidate.id === nextCodingSession.id,
+    let nextCodingSession = cloneCodingSession(codingSession);
+    const shouldPreservePersistedTranscript = nextCodingSession.messages.length === 0;
+    const existingCodingSession = this.getCachedCodingSession(
+      projectId,
+      nextCodingSession.id,
     );
 
-    if (nextCodingSession.messages.length === 0 && existingCodingSession?.messages.length) {
-      nextCodingSession.messages = existingCodingSession.messages.map((message) =>
-        cloneChatMessage(message),
+    if (shouldPreservePersistedTranscript && existingCodingSession?.messages.length) {
+      nextCodingSession.messages = existingCodingSession.messages;
+    }
+    if (!shouldPreservePersistedTranscript) {
+      nextCodingSession.messages = deduplicateCodingSessionMessages(
+        nextCodingSession.messages,
+      );
+      nextCodingSession = this.touchCodingSessionTranscript(nextCodingSession);
+    }
+
+    this.replaceCachedCodingSession(projectId, nextCodingSession, sessions);
+    if (!shouldPreservePersistedTranscript) {
+      this.markLocallyMutatedTranscriptSession(projectId, nextCodingSession.id);
+    }
+    await this.persistCodingSessionSummary(nextCodingSession);
+    if (!shouldPreservePersistedTranscript) {
+      await this.replacePersistedCodingSessionMessages(
+        nextCodingSession.id,
+        nextCodingSession.messages,
       );
     }
-    nextCodingSession.messages = deduplicateCodingSessionMessages(
-      nextCodingSession.messages,
-    );
-
-    this.storeProjectSessions(
-      projectId,
-      [nextCodingSession, ...sessions.filter((candidate) => candidate.id !== nextCodingSession.id)],
-    );
-    await this.persistCodingSessionSummary(nextCodingSession);
-    await this.replacePersistedCodingSessionMessages(
-      nextCodingSession.id,
-      nextCodingSession.messages,
-    );
   }
 
   async renameCodingSession(
@@ -847,11 +1399,9 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     codingSessionId: string,
     title: string,
   ): Promise<void> {
-    const codingSession = await this.findCodingSession(projectId, codingSessionId, {
-      refresh: true,
-    });
+    const codingSession = await this.findCodingSession(projectId, codingSessionId);
     const nextCodingSession = this.touchCodingSessionMetadata({
-      ...cloneCodingSession(codingSession),
+      ...codingSession,
       title: title.trim() || codingSession.title,
     });
     this.replaceCachedCodingSession(projectId, nextCodingSession);
@@ -863,11 +1413,9 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     codingSessionId: string,
     updates: UpdateCodingSessionOptions,
   ): Promise<void> {
-    const codingSession = await this.findCodingSession(projectId, codingSessionId, {
-      refresh: true,
-    });
+    const codingSession = await this.findCodingSession(projectId, codingSessionId);
     const nextCodingSession = this.touchCodingSessionMetadata({
-      ...cloneCodingSession(codingSession),
+      ...codingSession,
       title: updates.title?.trim() || codingSession.title,
       status: updates.archived === true ? 'archived' : updates.status ?? codingSession.status,
       hostMode: updates.hostMode ?? codingSession.hostMode,
@@ -906,18 +1454,26 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       })),
     });
     const sessions = await this.readProjectSessions(projectId);
-    this.storeProjectSessions(projectId, [nextForkedSession, ...sessions]);
+    this.insertCachedCodingSession(projectId, nextForkedSession, sessions);
+    if (nextForkedSession.messages.length > 0) {
+      this.markLocallyMutatedTranscriptSession(projectId, nextForkedSession.id);
+    }
     await this.persistCodingSessionSummary(nextForkedSession);
     await this.persistCodingSessionMessages(nextForkedSession.messages);
     return cloneCodingSession(nextForkedSession);
   }
 
   async deleteCodingSession(projectId: string, codingSessionId: string): Promise<void> {
-    const sessions = await this.readProjectSessions(projectId, {
-      refresh: true,
-    });
-    const nextSessions = sessions.filter((codingSession) => codingSession.id !== codingSessionId);
-    this.sessionsByProjectId.set(projectId, nextSessions);
+    const sessions = this.codingSessionRepositories
+      ? (await this.loadPersistedCodingSessionInventorySnapshot([projectId])).get(projectId) ??
+        this.sessionsByProjectId.get(projectId) ??
+        []
+      : await this.readProjectSessions(projectId);
+    this.removeCachedCodingSession(projectId, codingSessionId, sessions);
+    this.unmarkLocallyMutatedTranscriptSession(projectId, codingSessionId);
+    this.publicTranscriptSnapshotsBySessionKey.delete(
+      buildCodingSessionScopedCacheKey(projectId, codingSessionId),
+    );
     await this.deletePersistedCodingSession(codingSessionId);
   }
 
@@ -926,25 +1482,26 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     codingSessionId: string,
     message: CreateCodingSessionMessageInput,
   ): Promise<BirdCoderChatMessage> {
-    const codingSession = await this.findCodingSession(projectId, codingSessionId, {
-      refresh: true,
-    });
+    const codingSession = await this.findCodingSession(projectId, codingSessionId);
+    const cachedMessageIndex = this.resolveCachedCodingSessionMessageIndex(projectId, codingSession);
     const normalizedMessageId = message.id?.trim();
     if (normalizedMessageId) {
-      const existingMessage = codingSession.messages.find(
-        (candidate) => candidate.id === normalizedMessageId,
+      const existingMessageIndex = findCachedCodingSessionMessageIndexById(
+        cachedMessageIndex,
+        normalizedMessageId,
       );
-      if (existingMessage) {
+      if (existingMessageIndex !== undefined) {
+        const existingMessage = codingSession.messages[existingMessageIndex]!;
         return cloneChatMessage(existingMessage);
       }
     }
 
     const newMessage = createChatMessage(codingSessionId, message);
-    const existingLogicalMessageIndex = findMatchingCodingSessionMessageIndex(
-      codingSession.messages,
+    const existingLogicalMessageIndex = findMatchingCachedCodingSessionMessageIndex(
+      cachedMessageIndex,
       newMessage,
     );
-    if (existingLogicalMessageIndex >= 0) {
+    if (existingLogicalMessageIndex !== undefined) {
       const existingLogicalMessage = codingSession.messages[existingLogicalMessageIndex]!;
       const mergedMessage = mergeBirdCoderComparableChatMessages(
         existingLogicalMessage,
@@ -954,44 +1511,45 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
         return cloneChatMessage(existingLogicalMessage);
       }
 
+      const nextMessages = replaceCodingSessionMessageAtIndex(
+        codingSession.messages,
+        existingLogicalMessageIndex,
+        mergedMessage,
+      );
+      const nextMessageIndex = replaceCachedCodingSessionMessageIndexEntry(
+        cachedMessageIndex,
+        nextMessages,
+        existingLogicalMessage,
+        mergedMessage,
+        existingLogicalMessageIndex,
+      );
       const nextCodingSession = this.touchCodingSessionTranscript({
-        ...cloneCodingSession(codingSession),
-        messages: deduplicateCodingSessionMessages(
-          codingSession.messages.map((candidate, index) =>
-            index === existingLogicalMessageIndex
-              ? mergedMessage
-              : cloneChatMessage(candidate),
-          ),
-        ),
+        ...codingSession,
+        messages: nextMessages,
       });
       this.replaceCachedCodingSession(projectId, nextCodingSession);
+      this.markLocallyMutatedTranscriptSession(projectId, codingSessionId);
+      this.setCachedCodingSessionMessageIndex(projectId, codingSessionId, nextMessageIndex);
       await this.persistCodingSessionSummary(nextCodingSession);
-      await this.replacePersistedCodingSessionMessages(
-        codingSessionId,
-        nextCodingSession.messages,
-      );
-      const resolvedMessage =
-        nextCodingSession.messages.find(
-          (candidate) =>
-            areBirdCoderChatMessagesEquivalent(candidate, mergedMessage) ||
-            areBirdCoderChatMessagesLogicallyMatched(candidate, mergedMessage),
-        ) ?? mergedMessage;
-      return cloneChatMessage(resolvedMessage);
+      await this.persistCodingSessionMessage(mergedMessage);
+      return cloneChatMessage(mergedMessage);
     }
 
+    const nextMessages = appendCodingSessionMessageByCopy(codingSession.messages, newMessage);
+    const nextMessageIndex = appendCachedCodingSessionMessageIndex(
+      cachedMessageIndex,
+      nextMessages,
+      newMessage,
+    );
     const nextCodingSession = this.touchCodingSessionTranscript({
-      ...cloneCodingSession(codingSession),
-      messages: deduplicateCodingSessionMessages([
-        ...codingSession.messages.map((candidate) => cloneChatMessage(candidate)),
-        newMessage,
-      ]),
+      ...codingSession,
+      messages: nextMessages,
     });
     this.replaceCachedCodingSession(projectId, nextCodingSession);
+    this.markLocallyMutatedTranscriptSession(projectId, codingSessionId);
+    this.setCachedCodingSessionMessageIndex(projectId, codingSessionId, nextMessageIndex);
     await this.persistCodingSessionSummary(nextCodingSession);
-    await this.replacePersistedCodingSessionMessages(
-      codingSessionId,
-      nextCodingSession.messages,
-    );
+    await this.persistCodingSessionMessage(newMessage);
     await this.recordPromptMessageEvidence(projectId, codingSessionId, newMessage);
     return cloneChatMessage(newMessage);
   }
@@ -1002,26 +1560,44 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     messageId: string,
     updates: Partial<BirdCoderChatMessage>,
   ): Promise<void> {
-    const codingSession = await this.findCodingSession(projectId, codingSessionId, {
-      refresh: true,
-    });
-    const message = codingSession.messages.find((candidate) => candidate.id === messageId);
-    if (!message) {
+    const codingSession = await this.findCodingSessionWithTranscript(
+      projectId,
+      codingSessionId,
+    );
+    const cachedMessageIndex = this.resolveCachedCodingSessionMessageIndex(projectId, codingSession);
+    const messageIndex = findCachedCodingSessionMessageIndexById(
+      cachedMessageIndex,
+      messageId,
+    );
+    if (messageIndex === undefined) {
       throw new Error(`Message ${messageId} not found`);
     }
 
+    const message = codingSession.messages[messageIndex]!;
     const editableUpdates = sanitizeCodingSessionMessageUpdates(updates);
     const nextMessage = {
       ...cloneChatMessage(message),
       ...editableUpdates,
     };
+    const nextMessages = replaceCodingSessionMessageAtIndex(
+      codingSession.messages,
+      messageIndex,
+      nextMessage,
+    );
+    const nextMessageIndex = replaceCachedCodingSessionMessageIndexEntry(
+      cachedMessageIndex,
+      nextMessages,
+      message,
+      nextMessage,
+      messageIndex,
+    );
     const nextCodingSession = this.touchCodingSessionTranscript({
-      ...cloneCodingSession(codingSession),
-      messages: codingSession.messages.map((candidate) =>
-        candidate.id === messageId ? nextMessage : cloneChatMessage(candidate),
-      ),
+      ...codingSession,
+      messages: nextMessages,
     });
     this.replaceCachedCodingSession(projectId, nextCodingSession);
+    this.markLocallyMutatedTranscriptSession(projectId, codingSessionId);
+    this.setCachedCodingSessionMessageIndex(projectId, codingSessionId, nextMessageIndex);
     await this.persistCodingSessionSummary(nextCodingSession);
     await this.persistCodingSessionMessage(nextMessage);
   }
@@ -1031,21 +1607,34 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     codingSessionId: string,
     messageId: string,
   ): Promise<void> {
-    const codingSession = await this.findCodingSession(projectId, codingSessionId, {
-      refresh: true,
-    });
-    const message = codingSession.messages.find((candidate) => candidate.id === messageId);
-    if (!message) {
+    const codingSession = await this.findCodingSessionWithTranscript(
+      projectId,
+      codingSessionId,
+    );
+    const cachedMessageIndex = this.resolveCachedCodingSessionMessageIndex(projectId, codingSession);
+    const messageIndex = findCachedCodingSessionMessageIndexById(
+      cachedMessageIndex,
+      messageId,
+    );
+    if (messageIndex === undefined) {
       throw new Error(`Message ${messageId} not found`);
     }
 
+    const message = codingSession.messages[messageIndex]!;
+    const nextMessages = removeCodingSessionMessageAtIndex(codingSession.messages, messageIndex);
+    const nextMessageIndex = removeCachedCodingSessionMessageIndexEntry(
+      cachedMessageIndex,
+      nextMessages,
+      message,
+      messageIndex,
+    );
     const nextCodingSession = this.touchCodingSessionTranscript({
-      ...cloneCodingSession(codingSession),
-      messages: codingSession.messages
-        .filter((message) => message.id !== messageId)
-        .map((message) => cloneChatMessage(message)),
+      ...codingSession,
+      messages: nextMessages,
     });
     this.replaceCachedCodingSession(projectId, nextCodingSession);
+    this.markLocallyMutatedTranscriptSession(projectId, codingSessionId);
+    this.setCachedCodingSessionMessageIndex(projectId, codingSessionId, nextMessageIndex);
     await this.persistCodingSessionSummary(nextCodingSession);
     await this.deletePersistedCodingSessionMessage(codingSessionId, messageId);
   }
@@ -1053,19 +1642,18 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   private mapProjectRecord(
     record: BirdCoderRepresentativeProjectRecord,
     sessions: readonly BirdCoderCodingSession[],
+    options: {
+      sessionsSortedByActivity?: boolean;
+    } = {},
   ): BirdCoderProject {
     const displayName = record.title?.trim() || record.name;
-    const normalizedSessions = [...sessions]
-      .map((session) => ({
-        ...cloneCodingSession(session),
-        displayTime: formatBirdCoderSessionActivityDisplayTime(session),
-      }))
-      .sort(
-        (left, right) =>
-          compareBirdCoderSessionSortTimestamp(right, left) ||
-          right.updatedAt.localeCompare(left.updatedAt) ||
-          left.id.localeCompare(right.id),
-      );
+    const normalizedSessions = sessions.map((session) => ({
+      ...cloneCodingSessionForProjectRecord(session),
+      displayTime: formatBirdCoderSessionActivityDisplayTime(session),
+    }));
+    if (!options.sessionsSortedByActivity) {
+      normalizedSessions.sort(compareCodingSessionsByActivity);
+    }
 
     return {
       id: record.id,
@@ -1105,11 +1693,77 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     };
   }
 
+  private markLocallyMutatedTranscriptSession(
+    projectId: string,
+    codingSessionId: string,
+  ): void {
+    this.locallyMutatedTranscriptSessionKeys.add(
+      buildCodingSessionScopedCacheKey(projectId, codingSessionId),
+    );
+  }
+
+  private unmarkLocallyMutatedTranscriptSession(
+    projectId: string,
+    codingSessionId: string,
+  ): void {
+    this.locallyMutatedTranscriptSessionKeys.delete(
+      buildCodingSessionScopedCacheKey(projectId, codingSessionId),
+    );
+  }
+
+  private clearLocallyMutatedTranscriptSessionsForProject(projectId: string): void {
+    const projectSessionKeyPrefix = `${projectId}\u0001`;
+    for (const sessionKey of this.locallyMutatedTranscriptSessionKeys) {
+      if (sessionKey.startsWith(projectSessionKeyPrefix)) {
+        this.locallyMutatedTranscriptSessionKeys.delete(sessionKey);
+      }
+    }
+  }
+
+  private mergeLocallyMutatedTranscriptSessions(
+    projectId: string,
+    sessions: readonly BirdCoderCodingSession[],
+  ): BirdCoderCodingSession[] {
+    let nextSessions: BirdCoderCodingSession[] | null = null;
+    for (let index = 0; index < sessions.length; index += 1) {
+      const session = sessions[index]!;
+      const sessionKey = buildCodingSessionScopedCacheKey(projectId, session.id);
+      if (!this.locallyMutatedTranscriptSessionKeys.has(sessionKey)) {
+        continue;
+      }
+
+      const cachedSession = this.getCachedCodingSession(projectId, session.id);
+      if (!cachedSession) {
+        this.locallyMutatedTranscriptSessionKeys.delete(sessionKey);
+        continue;
+      }
+
+      if (
+        (cachedSession.transcriptUpdatedAt ?? null) !==
+        (session.transcriptUpdatedAt ?? null)
+      ) {
+        continue;
+      }
+
+      if (!nextSessions) {
+        nextSessions = sessions.slice() as BirdCoderCodingSession[];
+      }
+      nextSessions[index] = {
+        ...session,
+        messages: cachedSession.messages,
+      };
+    }
+
+    return nextSessions ?? (sessions as BirdCoderCodingSession[]);
+  }
+
   private mapCodingSessionsToMirrorSnapshots(
     sessions: readonly BirdCoderCodingSession[],
   ): BirdCoderCodingSessionMirrorSnapshot[] {
-    return [...sessions]
-      .map((session) => ({
+    const snapshots = sessions.map((session) => {
+      const transcriptUpdatedAt =
+        session.transcriptUpdatedAt ?? findLatestTranscriptTimestamp(session.messages);
+      return {
         id: session.id,
         workspaceId: session.workspaceId,
         projectId: session.projectId,
@@ -1123,25 +1777,20 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
         updatedAt: session.updatedAt,
         lastTurnAt: session.lastTurnAt,
         sortTimestamp: resolveBirdCoderSessionSortTimestampString(session),
-        transcriptUpdatedAt:
-          session.transcriptUpdatedAt ?? findLatestTranscriptTimestamp(session.messages),
+        transcriptUpdatedAt,
         displayTime: formatBirdCoderSessionActivityDisplayTime({
           ...session,
-          transcriptUpdatedAt:
-            session.transcriptUpdatedAt ?? findLatestTranscriptTimestamp(session.messages),
+          transcriptUpdatedAt,
         }),
         pinned: session.pinned,
         archived: session.archived,
         unread: session.unread,
         messageCount: session.messages.length,
         nativeTranscriptUpdatedAt: findLatestNativeTranscriptTimestamp(session.messages),
-      }))
-      .sort(
-        (left, right) =>
-          compareBirdCoderSessionSortTimestamp(right, left) ||
-          right.updatedAt.localeCompare(left.updatedAt) ||
-          left.id.localeCompare(right.id),
-      );
+      };
+    });
+    snapshots.sort(compareCodingSessionsByActivity);
+    return snapshots;
   }
 
   private mapProjectRecordToMirrorSnapshot(
@@ -1195,8 +1844,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   ): Promise<BirdCoderCodingSession[]> {
     if (this.codingSessionRepositories && options.refresh === true) {
       const refreshedSessions = (await this.loadPersistedCodingSessionsSnapshot([projectId])).get(projectId) ?? [];
-      this.sessionsByProjectId.set(projectId, refreshedSessions);
-      return refreshedSessions;
+      return this.setProjectSessionsCache(projectId, refreshedSessions);
     }
 
     const sessions = this.sessionsByProjectId.get(projectId);
@@ -1207,8 +1855,47 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     const nextSessions = this.codingSessionRepositories
       ? (await this.loadPersistedCodingSessionsSnapshot([projectId])).get(projectId) ?? []
       : [];
-    this.sessionsByProjectId.set(projectId, nextSessions);
-    return nextSessions;
+    return this.setProjectSessionsCache(projectId, nextSessions);
+  }
+
+  private async readProjectSessionInventoryCache(
+    projectId: string,
+    options: {
+      refresh?: boolean;
+    } = {},
+  ): Promise<BirdCoderCodingSession[]> {
+    if (this.codingSessionRepositories && options.refresh === true) {
+      const inventorySessionsByProjectId =
+        await this.loadPersistedCodingSessionInventorySnapshot([projectId]);
+      const cachedSessions = this.sessionsByProjectId.get(projectId);
+      if (cachedSessions) {
+        return cachedSessions;
+      }
+
+      return this.setProjectSessionsCache(
+        projectId,
+        inventorySessionsByProjectId.get(projectId) ?? [],
+      );
+    }
+
+    const cachedSessions = this.sessionsByProjectId.get(projectId);
+    if (cachedSessions) {
+      return cachedSessions;
+    }
+
+    if (!this.codingSessionRepositories) {
+      return this.setProjectSessionsCache(projectId, []);
+    }
+
+    const inventorySessionsByProjectId =
+      await this.loadPersistedCodingSessionInventorySnapshot([projectId]);
+    return (
+      this.sessionsByProjectId.get(projectId) ??
+      this.setProjectSessionsCache(
+        projectId,
+        inventorySessionsByProjectId.get(projectId) ?? [],
+      )
+    );
   }
 
   private async findCodingSession(
@@ -1218,14 +1905,34 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       refresh?: boolean;
     } = {},
   ): Promise<BirdCoderCodingSession> {
-    const codingSession = (await this.readProjectSessions(projectId, options)).find(
-      (candidate) => candidate.id === codingSessionId,
-    );
+    await this.readProjectSessions(projectId, options);
+    const codingSession = this.getCachedCodingSession(projectId, codingSessionId);
     if (!codingSession) {
       throw new Error(`Coding session ${codingSessionId} not found`);
     }
 
     return codingSession;
+  }
+
+  private async findCodingSessionWithTranscript(
+    projectId: string,
+    codingSessionId: string,
+  ): Promise<BirdCoderCodingSession> {
+    const cachedSession = this.getCachedCodingSession(projectId, codingSessionId);
+    if (cachedSession && cachedSession.messages.length > 0) {
+      return cachedSession;
+    }
+
+    const hydratedSession = await this.getCodingSessionTranscript(projectId, codingSessionId);
+    if (hydratedSession) {
+      return hydratedSession;
+    }
+
+    if (cachedSession) {
+      return cachedSession;
+    }
+
+    return this.findCodingSession(projectId, codingSessionId);
   }
 
   private async readProjectRecord(projectId: string): Promise<BirdCoderRepresentativeProjectRecord> {
@@ -1287,18 +1994,249 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     });
   }
 
+  private insertCachedCodingSession(
+    projectId: string,
+    nextCodingSession: BirdCoderCodingSession,
+    existingSessions?: readonly BirdCoderCodingSession[],
+  ): BirdCoderCodingSession {
+    const currentSessions = existingSessions ?? this.sessionsByProjectId.get(projectId) ?? [];
+    const insertionIndex = findCodingSessionActivityInsertionIndex(currentSessions, nextCodingSession);
+    const nextSessions = currentSessions.slice();
+    nextSessions.splice(insertionIndex, 0, nextCodingSession);
+    const currentSessionIndex = this.sessionIndexesByProjectId.get(projectId);
+    const currentPositionIndex = this.sessionPositionsByProjectId.get(projectId);
+    if (currentSessionIndex && currentPositionIndex) {
+      currentSessionIndex.set(nextCodingSession.id, nextCodingSession);
+      for (let index = insertionIndex; index < nextSessions.length; index += 1) {
+        currentPositionIndex.set(nextSessions[index]!.id, index);
+      }
+      this.setProjectSessionsCache(projectId, nextSessions, {
+        sessionIndexById: currentSessionIndex,
+        sessionPositionsById: currentPositionIndex,
+      });
+    } else {
+      this.setProjectSessionsCache(projectId, nextSessions);
+    }
+    return nextCodingSession;
+  }
+
   private replaceCachedCodingSession(
     projectId: string,
     nextCodingSession: BirdCoderCodingSession,
     existingSessions?: readonly BirdCoderCodingSession[],
   ): BirdCoderCodingSession {
     const currentSessions = existingSessions ?? this.sessionsByProjectId.get(projectId) ?? [];
-    const nextSessions = sortCodingSessionsByActivity([
+    const existingIndex = this.sessionPositionsByProjectId.get(projectId)?.get(nextCodingSession.id);
+    const previousCodingSession =
+      typeof existingIndex === 'number' &&
+      existingIndex >= 0 &&
+      existingIndex < currentSessions.length &&
+      currentSessions[existingIndex]?.id === nextCodingSession.id
+        ? currentSessions[existingIndex]
+        : this.sessionIndexesByProjectId.get(projectId)?.get(nextCodingSession.id);
+    const canReplaceAtExistingIndex = canReplaceCodingSessionAtActivityIndex(
+      currentSessions,
       nextCodingSession,
-      ...currentSessions.filter((candidate) => candidate.id !== nextCodingSession.id),
-    ]);
-    this.sessionsByProjectId.set(projectId, nextSessions);
+      existingIndex,
+    );
+    const nextSessions = upsertCodingSessionByActivity(currentSessions, nextCodingSession, existingIndex);
+    const currentSessionIndex = this.sessionIndexesByProjectId.get(projectId);
+    const currentPositionIndex = this.sessionPositionsByProjectId.get(projectId);
+    if (canReplaceAtExistingIndex && currentSessionIndex && currentPositionIndex) {
+      currentSessionIndex.set(nextCodingSession.id, nextCodingSession);
+      this.setProjectSessionsCache(projectId, nextSessions, {
+        sessionIndexById: currentSessionIndex,
+        sessionPositionsById: currentPositionIndex,
+      });
+    } else {
+      this.setProjectSessionsCache(projectId, nextSessions);
+    }
+    if (previousCodingSession?.messages !== nextCodingSession.messages) {
+      this.deleteCachedCodingSessionMessageIndex(projectId, nextCodingSession.id);
+    }
     return nextCodingSession;
+  }
+
+  private removeCachedCodingSession(
+    projectId: string,
+    codingSessionId: string,
+    existingSessions?: readonly BirdCoderCodingSession[],
+  ): void {
+    const currentSessions = existingSessions ?? this.sessionsByProjectId.get(projectId) ?? [];
+    const existingIndex = this.sessionPositionsByProjectId.get(projectId)?.get(codingSessionId);
+    if (
+      typeof existingIndex !== 'number' ||
+      existingIndex < 0 ||
+      existingIndex >= currentSessions.length ||
+      currentSessions[existingIndex]?.id !== codingSessionId
+    ) {
+      return;
+    }
+
+    const nextSessions = currentSessions.slice();
+    nextSessions.splice(existingIndex, 1);
+    const currentSessionIndex = this.sessionIndexesByProjectId.get(projectId);
+    const currentPositionIndex = this.sessionPositionsByProjectId.get(projectId);
+    if (currentSessionIndex && currentPositionIndex) {
+      currentSessionIndex.delete(codingSessionId);
+      currentPositionIndex.delete(codingSessionId);
+      for (let index = existingIndex; index < nextSessions.length; index += 1) {
+        currentPositionIndex.set(nextSessions[index]!.id, index);
+      }
+      this.setProjectSessionsCache(projectId, nextSessions, {
+        sessionIndexById: currentSessionIndex,
+        sessionPositionsById: currentPositionIndex,
+      });
+    } else {
+      this.setProjectSessionsCache(projectId, nextSessions);
+    }
+    this.deleteCachedCodingSessionMessageIndex(projectId, codingSessionId);
+  }
+
+  private resolvePublicCodingSessionTranscriptSnapshot(
+    codingSession: BirdCoderCodingSession,
+    options: {
+      cloneMessages?: boolean;
+    } = {},
+  ): BirdCoderCodingSession {
+    const sessionKey = buildCodingSessionScopedCacheKey(
+      codingSession.projectId,
+      codingSession.id,
+    );
+    const versionKey = buildPublicCodingSessionTranscriptVersionKey(codingSession);
+    const cachedSnapshot = this.publicTranscriptSnapshotsBySessionKey.get(sessionKey);
+    if (cachedSnapshot?.versionKey === versionKey) {
+      this.publicTranscriptSnapshotsBySessionKey.delete(sessionKey);
+      this.publicTranscriptSnapshotsBySessionKey.set(sessionKey, cachedSnapshot);
+      return cachedSnapshot.snapshot;
+    }
+
+    const snapshot = buildReadonlyCodingSessionTranscriptSnapshot(
+      codingSession,
+      options,
+    );
+    this.publicTranscriptSnapshotsBySessionKey.delete(sessionKey);
+    this.publicTranscriptSnapshotsBySessionKey.set(sessionKey, {
+      snapshot,
+      versionKey,
+    });
+
+    while (
+      this.publicTranscriptSnapshotsBySessionKey.size >
+      PUBLIC_TRANSCRIPT_SNAPSHOT_CACHE_MAX_ENTRIES
+    ) {
+      const oldestSessionKey =
+        this.publicTranscriptSnapshotsBySessionKey.keys().next().value;
+      if (typeof oldestSessionKey !== 'string') {
+        break;
+      }
+      this.publicTranscriptSnapshotsBySessionKey.delete(oldestSessionKey);
+    }
+
+    return snapshot;
+  }
+
+  private deletePublicTranscriptSnapshotsForProject(projectId: string): void {
+    const normalizedProjectId = projectId.trim();
+    if (!normalizedProjectId) {
+      return;
+    }
+
+    const projectSessionKeyPrefix = `${normalizedProjectId}\u0001`;
+    for (const sessionKey of this.publicTranscriptSnapshotsBySessionKey.keys()) {
+      if (sessionKey.startsWith(projectSessionKeyPrefix)) {
+        this.publicTranscriptSnapshotsBySessionKey.delete(sessionKey);
+      }
+    }
+  }
+
+  private setProjectSessionsCache(
+    projectId: string,
+    sessions: readonly BirdCoderCodingSession[],
+    options: {
+      sessionIndexById?: Map<string, BirdCoderCodingSession>;
+      sessionPositionsById?: Map<string, number>;
+    } = {},
+  ): BirdCoderCodingSession[] {
+    const cachedSessions = sessions as BirdCoderCodingSession[];
+    this.sessionsByProjectId.set(projectId, cachedSessions);
+    this.sessionIndexesByProjectId.set(
+      projectId,
+      options.sessionIndexById ?? indexCodingSessionsById(cachedSessions),
+    );
+    this.sessionPositionsByProjectId.set(
+      projectId,
+      options.sessionPositionsById ?? indexCodingSessionPositionsById(cachedSessions),
+    );
+    return cachedSessions;
+  }
+
+  private clearProjectSessionsCache(projectId: string): void {
+    this.sessionsByProjectId.delete(projectId);
+    this.sessionIndexesByProjectId.delete(projectId);
+    this.sessionPositionsByProjectId.delete(projectId);
+    this.deleteCachedCodingSessionMessageIndexesForProject(projectId);
+  }
+
+  private getCachedCodingSession(
+    projectId: string,
+    codingSessionId: string,
+  ): BirdCoderCodingSession | null {
+    return this.sessionIndexesByProjectId.get(projectId)?.get(codingSessionId) ?? null;
+  }
+
+  private setCachedCodingSessionMessageIndex(
+    projectId: string,
+    codingSessionId: string,
+    index: CachedCodingSessionMessageIndex,
+  ): void {
+    const sessionKey = buildCodingSessionScopedCacheKey(projectId, codingSessionId);
+    this.messageIndexesBySessionKey.delete(sessionKey);
+    this.messageIndexesBySessionKey.set(sessionKey, index);
+
+    while (
+      this.messageIndexesBySessionKey.size > CACHED_CODING_SESSION_MESSAGE_INDEX_MAX_ENTRIES
+    ) {
+      const oldestSessionKey = this.messageIndexesBySessionKey.keys().next().value;
+      if (typeof oldestSessionKey !== 'string') {
+        break;
+      }
+      this.messageIndexesBySessionKey.delete(oldestSessionKey);
+    }
+  }
+
+  private deleteCachedCodingSessionMessageIndex(
+    projectId: string,
+    codingSessionId: string,
+  ): void {
+    this.messageIndexesBySessionKey.delete(
+      buildCodingSessionScopedCacheKey(projectId, codingSessionId),
+    );
+  }
+
+  private deleteCachedCodingSessionMessageIndexesForProject(projectId: string): void {
+    const projectSessionKeyPrefix = `${projectId}\u0001`;
+    for (const sessionKey of this.messageIndexesBySessionKey.keys()) {
+      if (sessionKey.startsWith(projectSessionKeyPrefix)) {
+        this.messageIndexesBySessionKey.delete(sessionKey);
+      }
+    }
+  }
+
+  private resolveCachedCodingSessionMessageIndex(
+    projectId: string,
+    codingSession: BirdCoderCodingSession,
+  ): CachedCodingSessionMessageIndex {
+    const sessionKey = buildCodingSessionScopedCacheKey(projectId, codingSession.id);
+    const cachedIndex = this.messageIndexesBySessionKey.get(sessionKey);
+    if (cachedIndex?.messages === codingSession.messages) {
+      this.setCachedCodingSessionMessageIndex(projectId, codingSession.id, cachedIndex);
+      return cachedIndex;
+    }
+
+    const nextIndex = indexCodingSessionMessages(codingSession.messages);
+    this.setCachedCodingSessionMessageIndex(projectId, codingSession.id, nextIndex);
+    return nextIndex;
   }
 
   private storeProjectSessions(
@@ -1306,8 +2244,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     sessions: readonly BirdCoderCodingSession[],
   ): BirdCoderCodingSession[] {
     const nextSessions = sortCodingSessionsByActivity(sessions);
-    this.sessionsByProjectId.set(projectId, nextSessions);
-    return nextSessions;
+    return this.setProjectSessionsCache(projectId, nextSessions);
   }
 
   private async loadPersistedCodingSessionsSnapshot(
@@ -1362,10 +2299,105 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
           right.updatedAt.localeCompare(left.updatedAt) ||
           left.id.localeCompare(right.id),
       );
-      this.sessionsByProjectId.set(projectId, sessions);
+      this.setProjectSessionsCache(projectId, sessions);
     }
 
     return sessionsByProjectId;
+  }
+
+  private async loadPersistedCodingSessionInventorySnapshot(
+    projectIds: readonly string[],
+  ): Promise<Map<string, BirdCoderCodingSession[]>> {
+    if (!this.codingSessionRepositories) {
+      return new Map();
+    }
+
+    const projectIdSet = new Set(projectIds);
+    const persistedSessions = await this.codingSessionRepositories.listSessionsByProjectIds(
+      projectIds,
+    );
+    const messageMetadataByCodingSessionId =
+      persistedSessions.length > 0
+        ? await this.codingSessionRepositories.readMessageMetadataByCodingSessionIds(
+            persistedSessions.map((session) => session.id),
+          )
+        : new Map<string, BirdCoderPersistedCodingSessionMessageMetadata>();
+    const cachedSessionsByProjectId = new Map<string, Map<string, BirdCoderCodingSession>>();
+    for (const projectId of projectIdSet) {
+      const cachedSessionIndex = this.sessionIndexesByProjectId.get(projectId);
+      if (!cachedSessionIndex || cachedSessionIndex.size === 0) {
+        continue;
+      }
+
+      cachedSessionsByProjectId.set(projectId, cachedSessionIndex);
+    }
+
+    const inventorySessionsByProjectId = new Map<string, BirdCoderCodingSession[]>();
+    const cachedInventorySessionsByProjectId = new Map<string, BirdCoderCodingSession[]>();
+    const hasCachedTranscriptReuseByProjectId = new Map<string, boolean>();
+
+    for (const session of persistedSessions) {
+      if (!projectIdSet.has(session.projectId)) {
+        continue;
+      }
+
+      const metadata = messageMetadataByCodingSessionId.get(session.id);
+      const latestTranscriptUpdatedAt = resolveLatestTranscriptTimestampCandidate(
+        session.transcriptUpdatedAt,
+        metadata?.latestTranscriptUpdatedAt,
+      );
+      const inventorySession = this.mapPersistedCodingSessionRecord(
+        {
+          ...session,
+          transcriptUpdatedAt: latestTranscriptUpdatedAt,
+        },
+        EMPTY_PERSISTED_CODING_SESSION_MESSAGES_BY_ID,
+      );
+      const cachedSession = cachedSessionsByProjectId
+        .get(session.projectId)
+        ?.get(session.id);
+      const canReuseCachedTranscript =
+        Boolean(cachedSession && cachedSession.messages.length > 0) &&
+        (cachedSession?.transcriptUpdatedAt ?? null) ===
+          (inventorySession.transcriptUpdatedAt ?? null);
+      if (canReuseCachedTranscript) {
+        hasCachedTranscriptReuseByProjectId.set(session.projectId, true);
+      }
+      const cacheSession =
+        canReuseCachedTranscript && cachedSession
+          ? {
+              ...inventorySession,
+              messages: cachedSession.messages,
+            }
+          : inventorySession;
+
+      const projectInventorySessions =
+        inventorySessionsByProjectId.get(session.projectId) ?? [];
+      projectInventorySessions.push(inventorySession);
+      inventorySessionsByProjectId.set(session.projectId, projectInventorySessions);
+
+      const projectCachedInventorySessions =
+        cachedInventorySessionsByProjectId.get(session.projectId) ?? [];
+      projectCachedInventorySessions.push(cacheSession);
+      cachedInventorySessionsByProjectId.set(
+        session.projectId,
+        projectCachedInventorySessions,
+      );
+    }
+
+    for (const [projectId, sessions] of inventorySessionsByProjectId) {
+      sessions.sort(compareCodingSessionsByActivity);
+      if (hasCachedTranscriptReuseByProjectId.get(projectId) === true) {
+        const cacheSessions =
+          cachedInventorySessionsByProjectId.get(projectId) ?? sessions;
+        cacheSessions.sort(compareCodingSessionsByActivity);
+        this.setProjectSessionsCache(projectId, cacheSessions);
+      } else {
+        this.setProjectSessionsCache(projectId, sessions);
+      }
+    }
+
+    return inventorySessionsByProjectId;
   }
 
   private async loadPersistedCodingSessionMirrorSnapshot(
@@ -1433,9 +2465,19 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   private mapPersistedCodingSessionRecord(
     session: BirdCoderPersistedCodingSessionRecord,
     messagesByCodingSessionId: ReadonlyMap<string, BirdCoderChatMessage[]>,
+    options: {
+      cloneMessages?: boolean;
+    } = {},
   ): BirdCoderCodingSession {
     const messages = deduplicateCodingSessionMessages(
       messagesByCodingSessionId.get(session.id) ?? [],
+      {
+        cloneMessages: options.cloneMessages,
+      },
+    );
+    const transcriptUpdatedAt = resolveLatestTranscriptTimestampCandidate(
+      session.transcriptUpdatedAt,
+      findLatestTranscriptTimestamp(messages),
     );
 
     return {
@@ -1452,12 +2494,10 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       updatedAt: session.updatedAt,
       lastTurnAt: session.lastTurnAt,
       sortTimestamp: resolveBirdCoderSessionSortTimestampString(session),
-      transcriptUpdatedAt:
-        session.transcriptUpdatedAt ?? findLatestTranscriptTimestamp(messages),
+      transcriptUpdatedAt,
       displayTime: formatBirdCoderSessionActivityDisplayTime({
         ...session,
-        transcriptUpdatedAt:
-          session.transcriptUpdatedAt ?? findLatestTranscriptTimestamp(messages),
+        transcriptUpdatedAt,
       }),
       pinned: session.pinned,
       archived: session.archived,
@@ -1542,7 +2582,10 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       await this.codingSessionRepositories.messages.saveMany(replacementMessages);
     }
 
-    const persistedMessages = await this.codingSessionRepositories.messages.list();
+    const persistedMessages =
+      await this.codingSessionRepositories.listMessagesByCodingSessionIds([
+        normalizedCodingSessionId,
+      ]);
     for (const persistedMessage of persistedMessages) {
       if (
         persistedMessage.codingSessionId.trim() !== normalizedCodingSessionId ||
@@ -1577,15 +2620,11 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       return;
     }
 
-    const persistedMessages = await this.codingSessionRepositories.messages.list();
-    const messageIds = persistedMessages
-      .filter((message) => message.codingSessionId === codingSessionId)
-      .map((message) => message.id);
-
-    for (const messageId of messageIds) {
-      await this.deletePersistedCodingSessionMessage(codingSessionId, messageId);
-    }
-    await this.codingSessionRepositories.sessions.delete(codingSessionId);
+    const normalizedCodingSessionId = codingSessionId.trim();
+    await this.codingSessionRepositories.deleteMessagesByCodingSessionIds([
+      normalizedCodingSessionId,
+    ]);
+    await this.codingSessionRepositories.sessions.delete(normalizedCodingSessionId);
   }
 
   private async deletePersistedProjectSessions(projectId: string): Promise<void> {
@@ -1593,10 +2632,13 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       return;
     }
 
-    const persistedSessions = (await this.loadPersistedCodingSessionsSnapshot([projectId])).get(projectId) ?? [];
-    for (const session of persistedSessions) {
-      await this.deletePersistedCodingSession(session.id);
+    const normalizedProjectId = projectId.trim();
+    if (!normalizedProjectId) {
+      return;
     }
+
+    await this.codingSessionRepositories.deleteMessagesByProjectIds([normalizedProjectId]);
+    await this.codingSessionRepositories.deleteSessionsByProjectIds([normalizedProjectId]);
   }
 
   private async recordPromptMessageEvidence(

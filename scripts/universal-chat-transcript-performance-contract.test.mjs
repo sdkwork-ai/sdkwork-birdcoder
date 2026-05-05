@@ -48,8 +48,26 @@ assert.doesNotMatch(
 
 assert.match(
   universalChatSource,
-  /const messageActionTargets = useMemo\(\s*\(\) => buildMessageActionTargets\(renderedMessages\),[\s\S]*?\[renderedMessages\],?[\s\S]*?\);/s,
-  'UniversalChat transcript must precompute grouped reply action targets once per rendered message window so large transcripts do not repeatedly rescan the same message list for every row render.',
+  /const messageActionTargets = useMemo\(\s*\(\) =>[\s\S]*?buildVisibleMessageActionTargets\(\s*renderedMessages,\s*visibleStartIndex,\s*visibleMessages\.length,\s*\),[\s\S]*?\[renderedMessages, visibleMessages\.length, visibleStartIndex\],?[\s\S]*?\);/s,
+  'UniversalChat transcript must precompute grouped reply action targets only for the virtualized visible message window so large progressively loaded transcripts do not rescan every loaded row.',
+);
+
+const messageActionTargetsBody = universalChatSource.match(
+  /function buildVisibleMessageActionTargets\([\s\S]*?\n\}/,
+)?.[0];
+assert.ok(
+  messageActionTargetsBody,
+  'UniversalChat must keep visible grouped message action target generation in a dedicated helper.',
+);
+assert.doesNotMatch(
+  messageActionTargetsBody,
+  /\.slice\(index,\s*endIndex \+ 1\)/,
+  'UniversalChat must not allocate a grouped message slice for every reply segment while building action targets.',
+);
+assert.doesNotMatch(
+  messageActionTargetsBody,
+  /new Array<ChatMessageActionTarget \| null>\(messages\.length\)/,
+  'UniversalChat must not allocate action target arrays sized to the full transcript when only a virtualized subset is visible.',
 );
 
 assert.match(

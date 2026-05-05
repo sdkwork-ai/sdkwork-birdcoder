@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -14,20 +22,62 @@ interface ToastContextType {
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
+const MAX_VISIBLE_TOASTS = 4;
+const TOAST_AUTO_DISMISS_MS = 3000;
+
+function createToastId(): string {
+  return Math.random().toString(36).substring(2, 9);
+}
 
 export const ToastProvider = ({ children }: { children: ReactNode }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastTimeoutsRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const toastsRef = useRef<Toast[]>([]);
 
-  const addToast = useCallback((message: string, type: ToastType = 'info') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((previous) => [...previous, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((previous) => previous.filter((toast) => toast.id !== id));
-    }, 3000);
+  const publishToasts = useCallback((nextToasts: Toast[]) => {
+    toastsRef.current = nextToasts;
+    setToasts(nextToasts);
+  }, []);
+
+  const clearToastTimeout = useCallback((id: string) => {
+    const timeoutId = toastTimeoutsRef.current.get(id);
+    if (!timeoutId) {
+      return;
+    }
+
+    clearTimeout(timeoutId);
+    toastTimeoutsRef.current.delete(id);
   }, []);
 
   const removeToast = useCallback((id: string) => {
-    setToasts((previous) => previous.filter((toast) => toast.id !== id));
+    clearToastTimeout(id);
+    const nextToasts = toastsRef.current.filter((toast) => toast.id !== id);
+    publishToasts(nextToasts);
+  }, [clearToastTimeout, publishToasts]);
+
+  const addToast = useCallback((message: string, type: ToastType = 'info') => {
+    const id = createToastId();
+    const nextToast = { id, message, type };
+    const previousToasts = [...toastsRef.current, nextToast];
+    const overflowCount = Math.max(0, previousToasts.length - MAX_VISIBLE_TOASTS);
+    previousToasts.slice(0, overflowCount).forEach((toast) => clearToastTimeout(toast.id));
+    publishToasts(previousToasts.slice(-MAX_VISIBLE_TOASTS));
+
+    const timeoutId = setTimeout(() => {
+      removeToast(id);
+    }, TOAST_AUTO_DISMISS_MS);
+    toastTimeoutsRef.current.set(id, timeoutId);
+  }, [clearToastTimeout, publishToasts, removeToast]);
+
+  useEffect(() => {
+    return () => {
+      for (const timeoutId of toastTimeoutsRef.current.values()) {
+        clearTimeout(timeoutId);
+      }
+
+      toastTimeoutsRef.current.clear();
+      toastsRef.current = [];
+    };
   }, []);
 
   return React.createElement(

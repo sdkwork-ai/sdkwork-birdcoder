@@ -22,7 +22,7 @@ fs.writeFileSync(
 );
 
 const stdoutChunks = [];
-const rollbackPlan = runLocalReleaseCommand(
+const rollbackPlan = await runLocalReleaseCommand(
   [
     'rollback-plan',
     '--release-assets-dir',

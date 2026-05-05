@@ -4,8 +4,6 @@ import type {
 } from '@sdkwork/birdcoder-types';
 import { mergeProjectsForStore } from '../stores/projectsStore.ts';
 
-const RENDER_SESSION_INVENTORY_PROJECT_ID = '__birdcoder_render_session_inventory__';
-
 function hasDuplicateIdentity<TValue>(
   values: readonly TValue[],
   getIdentity: (value: TValue) => string,
@@ -38,19 +36,8 @@ function hasDuplicateProjectRenderIdentity(
   );
 }
 
-function buildRenderSessionInventoryProject(
-  codingSessions: readonly BirdCoderCodingSession[],
-): BirdCoderProject {
-  return {
-    id: RENDER_SESSION_INVENTORY_PROJECT_ID,
-    workspaceId: '',
-    name: RENDER_SESSION_INVENTORY_PROJECT_ID,
-    path: '',
-    createdAt: '',
-    updatedAt: '',
-    archived: false,
-    codingSessions: codingSessions as BirdCoderCodingSession[],
-  };
+function buildCodingSessionRenderIdentity(codingSession: BirdCoderCodingSession): string {
+  return codingSession.id;
 }
 
 export function deduplicateBirdCoderProjectsForRender(
@@ -66,10 +53,25 @@ export function deduplicateBirdCoderProjectsForRender(
 export function deduplicateBirdCoderCodingSessionsForRender(
   codingSessions: readonly BirdCoderCodingSession[],
 ): BirdCoderCodingSession[] {
-  if (!hasDuplicateIdentity(codingSessions, (codingSession) => codingSession.id)) {
+  if (!hasDuplicateIdentity(codingSessions, buildCodingSessionRenderIdentity)) {
     return codingSessions as BirdCoderCodingSession[];
   }
 
-  const renderProject = buildRenderSessionInventoryProject(codingSessions);
-  return mergeProjectsForStore([renderProject], [renderProject])[0]?.codingSessions ?? [];
+  const codingSessionsById = new Map<string, BirdCoderCodingSession>();
+  for (const codingSession of codingSessions) {
+    const identity = buildCodingSessionRenderIdentity(codingSession);
+    const previousCodingSession = codingSessionsById.get(identity);
+    if (!previousCodingSession) {
+      codingSessionsById.set(identity, codingSession);
+      continue;
+    }
+
+    codingSessionsById.set(
+      identity,
+      codingSession.messages.length === 0 && previousCodingSession.messages.length > 0
+        ? { ...codingSession, messages: previousCodingSession.messages }
+        : codingSession,
+    );
+  }
+  return Array.from(codingSessionsById.values());
 }

@@ -10,8 +10,13 @@ type SqlPlanMeta =
       id?: string;
       kind:
         | 'coding-session-list-by-project-ids'
+        | 'coding-session-delete-by-project-ids'
         | 'coding-session-message-metadata-by-session-ids'
         | 'coding-session-messages-by-session-ids'
+        | 'coding-session-messages-delete-by-session-ids'
+        | 'coding-session-messages-delete-by-project-ids'
+        | 'project-content-list-by-project-ids'
+        | 'project-list-by-workspace-ids'
         | 'table-clear'
         | 'table-count'
         | 'table-delete'
@@ -22,7 +27,9 @@ type SqlPlanMeta =
       nativeMessageIdSegment?: string;
       projectIds?: string[];
       rows?: Record<string, unknown>[];
+      sessionTableName?: string;
       tableName: string;
+      workspaceIds?: string[];
     }
   | undefined;
 
@@ -126,6 +133,20 @@ function executeSqlPlan(plan: SqlPlan): { affectedRowCount: number; rows?: Recor
         rows: cloneLiveRows(rows).filter((row) => projectIds.has(String(row.project_id))),
       };
     }
+    case 'project-content-list-by-project-ids': {
+      const projectIds = new Set(meta.projectIds ?? []);
+      return {
+        affectedRowCount: 0,
+        rows: cloneLiveRows(rows).filter((row) => projectIds.has(String(row.project_id))),
+      };
+    }
+    case 'project-list-by-workspace-ids': {
+      const workspaceIds = new Set(meta.workspaceIds ?? []);
+      return {
+        affectedRowCount: 0,
+        rows: cloneLiveRows(rows).filter((row) => workspaceIds.has(String(row.workspace_id))),
+      };
+    }
     case 'coding-session-messages-by-session-ids': {
       const codingSessionIds = new Set(meta.codingSessionIds ?? []);
       return {
@@ -134,6 +155,33 @@ function executeSqlPlan(plan: SqlPlan): { affectedRowCount: number; rows?: Recor
           codingSessionIds.has(String(row.coding_session_id)),
         ),
       };
+    }
+    case 'coding-session-messages-delete-by-project-ids': {
+      const projectIds = new Set(meta.projectIds ?? []);
+      const deletedSessionIds = new Set(
+        cloneLiveRows(readTable(meta.sessionTableName ?? 'coding_sessions'))
+          .filter((row) => projectIds.has(String(row.project_id)))
+          .map((row) => String(row.id)),
+      );
+      const nextRows = rows.filter((row) =>
+        !deletedSessionIds.has(String(row.coding_session_id)),
+      );
+      tables.set(meta.tableName, nextRows);
+      return { affectedRowCount: rows.length - nextRows.length };
+    }
+    case 'coding-session-messages-delete-by-session-ids': {
+      const codingSessionIds = new Set(meta.codingSessionIds ?? []);
+      const nextRows = rows.filter((row) =>
+        !codingSessionIds.has(String(row.coding_session_id)),
+      );
+      tables.set(meta.tableName, nextRows);
+      return { affectedRowCount: rows.length - nextRows.length };
+    }
+    case 'coding-session-delete-by-project-ids': {
+      const projectIds = new Set(meta.projectIds ?? []);
+      const nextRows = rows.filter((row) => !projectIds.has(String(row.project_id)));
+      tables.set(meta.tableName, nextRows);
+      return { affectedRowCount: rows.length - nextRows.length };
     }
     case 'coding-session-message-metadata-by-session-ids': {
       const codingSessionIds = new Set(meta.codingSessionIds ?? []);

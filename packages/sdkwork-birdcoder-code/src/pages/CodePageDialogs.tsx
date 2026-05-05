@@ -13,6 +13,7 @@ export interface CodeDeleteConfirmation {
   id: string;
   ids?: string[];
   parentId?: string;
+  projectId?: string;
 }
 
 interface CodePageDialogsProps {

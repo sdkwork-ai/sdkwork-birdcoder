@@ -67,6 +67,7 @@ export interface BirdCoderTauriFileSystemRuntime {
     rootSystemPath: string,
     rootVirtualPath: string,
     mountedPath: string,
+    options?: { maxBytes?: number },
   ): Promise<string>;
   getFileRevision(
     rootSystemPath: string,
@@ -256,6 +257,14 @@ function normalizeWatchEventPaths(paths: unknown): string[] {
   return [...normalizedPaths];
 }
 
+function normalizeTauriReadFileMaxBytes(maxBytes: number | undefined): number | undefined {
+  if (typeof maxBytes !== 'number' || !Number.isFinite(maxBytes) || maxBytes <= 0) {
+    return undefined;
+  }
+
+  return Math.floor(maxBytes);
+}
+
 export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSystemRuntime {
   return {
     async listDirectory(rootSystemPath, rootVirtualPath, mountedPath) {
@@ -321,8 +330,9 @@ export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSyste
         }
       };
     },
-    async readFile(rootSystemPath, rootVirtualPath, mountedPath) {
+    async readFile(rootSystemPath, rootVirtualPath, mountedPath, options) {
       return invokeTauriFileSystemCommand<string>('fs_read_file', {
+        maxBytes: normalizeTauriReadFileMaxBytes(options?.maxBytes),
         rootPath: rootSystemPath,
         relativePath: toMountedRelativePath(rootVirtualPath, mountedPath),
       });

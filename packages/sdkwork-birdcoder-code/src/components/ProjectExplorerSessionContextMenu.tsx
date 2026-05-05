@@ -8,21 +8,23 @@ interface ProjectExplorerSessionContextMenuProps {
   position: ProjectExplorerMenuPosition;
   zIndex: number;
   sessionId: string;
+  projectId: string;
   session?: BirdCoderCodingSession;
   isRefreshing: boolean;
   onClose: () => void;
   onRefresh?: (id: string) => Promise<void> | void;
-  onPin?: (id: string) => void;
-  onStartRename: (id: string, title: string) => void;
-  onArchive?: (id: string) => void;
-  onMarkUnread?: (id: string) => void;
-  onCopyWorkingDirectory?: (id: string) => void;
+  onPin?: (id: string, projectId: string) => void;
+  onStartRename: (id: string, projectId: string, title: string) => void;
+  onArchive?: (id: string, projectId: string) => void;
+  onMarkUnread?: (id: string, projectId: string) => void;
+  onCopyWorkingDirectory?: (id: string, projectId: string) => void;
   onOpenInTerminal?: (id: string, nativeSessionId?: string) => void;
   onCopySessionId?: (id: string, nativeSessionId?: string) => void;
-  onCopyDeeplink?: (id: string) => void;
-  onForkLocal?: (id: string) => void;
-  onForkNewTree?: (id: string) => void;
-  onDelete: (id: string) => void;
+  onCopyResumeCommand?: (id: string, projectId: string, nativeSessionId?: string) => void;
+  onCopyDeeplink?: (id: string, projectId: string) => void;
+  onForkLocal?: (id: string, projectId: string) => void;
+  onForkNewTree?: (id: string, projectId: string) => void;
+  onDelete: (id: string, projectId: string) => void;
 }
 
 export function ProjectExplorerSessionContextMenu({
@@ -30,6 +32,7 @@ export function ProjectExplorerSessionContextMenu({
   position,
   zIndex,
   sessionId,
+  projectId,
   session,
   isRefreshing,
   onClose,
@@ -41,6 +44,7 @@ export function ProjectExplorerSessionContextMenu({
   onCopyWorkingDirectory,
   onOpenInTerminal,
   onCopySessionId,
+  onCopyResumeCommand,
   onCopyDeeplink,
   onForkLocal,
   onForkNewTree,
@@ -76,7 +80,7 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onPin?.(sessionId);
+          onPin?.(sessionId, projectId);
           onClose();
         }}
       >
@@ -86,7 +90,7 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onStartRename(sessionId, session?.title ?? '');
+          onStartRename(sessionId, projectId, session?.title ?? '');
           onClose();
         }}
       >
@@ -96,7 +100,7 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onArchive?.(sessionId);
+          onArchive?.(sessionId, projectId);
           onClose();
         }}
       >
@@ -106,7 +110,7 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onMarkUnread?.(sessionId);
+          onMarkUnread?.(sessionId, projectId);
           onClose();
         }}
       >
@@ -117,7 +121,7 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onCopyWorkingDirectory?.(sessionId);
+          onCopyWorkingDirectory?.(sessionId, projectId);
           onClose();
         }}
       >
@@ -147,7 +151,17 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onCopyDeeplink?.(sessionId);
+          onCopyResumeCommand?.(sessionId, projectId, session?.nativeSessionId?.trim());
+          onClose();
+        }}
+      >
+        {t('code.copySessionResumeCommand')}
+      </button>
+      <button
+        type="button"
+        className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
+        onClick={() => {
+          onCopyDeeplink?.(sessionId, projectId);
           onClose();
         }}
       >
@@ -158,7 +172,7 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onForkLocal?.(sessionId);
+          onForkLocal?.(sessionId, projectId);
           onClose();
         }}
       >
@@ -168,7 +182,7 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onForkNewTree?.(sessionId);
+          onForkNewTree?.(sessionId, projectId);
           onClose();
         }}
       >
@@ -179,7 +193,7 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-red-500/10 hover:text-red-400 text-red-500 transition-colors"
         onClick={() => {
-          onDelete(sessionId);
+          onDelete(sessionId, projectId);
           onClose();
         }}
       >

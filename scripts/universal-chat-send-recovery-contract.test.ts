@@ -49,20 +49,20 @@ assert.doesNotMatch(
 
 assert.match(
   universalChatSource,
-  /onSendMessage: \(text\?: string\) => void \| Promise<void>;/,
-  'UniversalChat must treat message dispatch as an async-capable operation so send failures can be awaited and recovered in the composer.',
+  /onSendMessage:\s*\(\s*text\?: string,\s*composerSelection\?: UniversalChatComposerSelection,\s*\)\s*=> void \| Promise<void>;/,
+  'UniversalChat must treat message dispatch as an async-capable operation that carries the current composer selection so send failures can be awaited and recovered in the composer.',
 );
 
 assert.match(
   workspaceChatTypesSource,
-  /onSendMessage: \(text\?: string\) => void \| Promise<void>;/,
-  'Workspace chat props must preserve the optional text override while supporting async send handlers.',
+  /onSendMessage:\s*\(\s*text\?: string,\s*composerSelection\?: UniversalChatComposerSelection,\s*\)\s*=> void \| Promise<void>;/,
+  'Workspace chat props must preserve the optional text override, composer selection, and async send handlers across the panel boundary.',
 );
 
 assert.match(
   universalChatSource,
-  /await Promise\.resolve\(onSendMessage\(fullText\)\);/,
-  'UniversalChat must await the provided send handler before treating a message submission as committed.',
+  /await Promise\.resolve\(onSendMessage\(fullText,\s*currentComposerSelection\)\);/,
+  'UniversalChat must await the provided send handler with the active composer selection before treating a message submission as committed.',
 );
 
 assert.match(
@@ -79,14 +79,14 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /const persistSubmittedPromptHistory = useCallback\([\s\S]*saveSessionPromptHistoryEntry\(submittedText(?:,\s*normalizedSessionId)?\)/,
-  'UniversalChat must route prompt-history persistence through the canonical session prompt-history helper so it can be sequenced after successful sends and scoped to the active session.',
+  /const persistSubmittedPromptHistory = useCallback\([\s\S]*saveSessionPromptHistoryEntry\(\s*submittedText,\s*normalizedSessionStateScopeKey,\s*\)/,
+  'UniversalChat must route prompt-history persistence through the canonical helper scoped to the active session-state key so it can be sequenced after successful sends without leaking across duplicate session ids.',
 );
 
 assert.match(
   universalChatSource,
-  /try \{\s*await Promise\.resolve\(onSendMessage\(fullText\)\);[\s\S]*\}\s*catch \(error\) \{[\s\S]*setInputValue\(\(previousInputValue\) =>\s*resolveComposerInputAfterSendFailure\(/,
-  'UniversalChat must treat send failures as a dedicated recovery path that restores the composer state.',
+  /try \{\s*await Promise\.resolve\(onSendMessage\(fullText,\s*currentComposerSelection\)\);[\s\S]*\}\s*catch \(error\) \{[\s\S]*setInputValue\(\(previousInputValue\) =>\s*resolveComposerInputAfterSendFailure\(/,
+  'UniversalChat must treat send failures after dispatching with the active composer selection as a dedicated recovery path that restores the composer state.',
 );
 
 assert.match(
@@ -97,14 +97,14 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /await Promise\.resolve\(onSendMessage\(fullText\)\);[\s\S]*try \{\s*await persistSubmittedPromptHistory\(fullText\);/s,
-  'Prompt history must only be persisted after the message dispatch succeeds.',
+  /await Promise\.resolve\(onSendMessage\(fullText,\s*currentComposerSelection\)\);[\s\S]*try \{\s*await persistSubmittedPromptHistory\(fullText\);/s,
+  'Prompt history must only be persisted after the message dispatch with the active composer selection succeeds.',
 );
 
 assert.match(
   universalChatSource,
-  /hydratedSessionPromptHistoryIdRef\.current = normalizedSessionId;[\s\S]*sessionChatInputHistoryRef\.current = \[\];[\s\S]*setHistoryIndex\([\s\S]*-1[\s\S]*setTempInput\([\s\S]*''[\s\S]*syncHistoryPrompts\(\[\]\);/s,
-  'UniversalChat must clear the in-memory prompt-history navigation state before hydrating a different session so prompt recall cannot leak across sessions.',
+  /hydratedSessionPromptHistoryIdRef\.current = normalizedSessionStateScopeKey;[\s\S]*sessionChatInputHistoryRef\.current = \[\];[\s\S]*setHistoryIndex\([\s\S]*-1[\s\S]*setTempInput\([\s\S]*''[\s\S]*syncHistoryPrompts\(\[\]\);/s,
+  'UniversalChat must clear the in-memory prompt-history navigation state before hydrating a different session-state scope so prompt recall cannot leak across duplicate session ids.',
 );
 
 assert.match(
@@ -145,8 +145,8 @@ assert.match(
 
 assert.match(
   codePageSurfacePropsSource,
-  /sessionId: activeTab === 'ai' \? \(sessionId \|\| undefined\) : undefined,/,
-  'Code main chat props must carry the selected coding session through sessionId instead of the legacy chatId alias.',
+  /const mainChatProps = useMemo<UniversalChatComponentProps>\(\(\) => \(\{[\s\S]*sessionId: sessionId \|\| undefined,\s*sessionScopeKey: transcriptSessionScopeKey,/,
+  'Code main chat props must carry the selected coding session through sessionId and the scoped transcript key instead of the legacy chatId alias.',
 );
 
 assert.match(

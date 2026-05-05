@@ -38,7 +38,7 @@ assert.doesNotMatch(
 
 assert.match(
   runtimeFileSystemServiceSource,
-  /import\s*\{\s*searchProjectFiles,/u,
+  /import\s*\{[\s\S]*searchProjectFiles,/u,
   'runtime file system service must import the canonical search implementation.',
 );
 

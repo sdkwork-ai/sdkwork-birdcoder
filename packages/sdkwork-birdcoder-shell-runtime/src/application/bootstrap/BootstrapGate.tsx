@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 type BootstrapStatus = 'booting' | 'failed' | 'ready';
 const DEFAULT_BOOTSTRAP_TIMEOUT_MS = 30_000;
+const BOOTSTRAP_IDLE_START_TIMEOUT_MS = 250;
 
 export interface BootstrapGateProps {
   bootstrap: () => Promise<void>;
@@ -10,6 +11,28 @@ export interface BootstrapGateProps {
   children: ReactNode;
   title?: string;
 }
+
+interface DeferredBootstrapStart {
+  cancel: () => void;
+}
+
+interface BootstrapIdleDeadline {
+  didTimeout: boolean;
+  timeRemaining: () => number;
+}
+
+type BootstrapIdleCallback = (deadline: BootstrapIdleDeadline) => void;
+type BootstrapRequestIdleCallback = (
+  callback: BootstrapIdleCallback,
+  options?: {
+    timeout?: number;
+  },
+) => number;
+type BootstrapCancelIdleCallback = (handle: number) => void;
+type BootstrapSchedulingGlobal = typeof globalThis & {
+  cancelIdleCallback?: BootstrapCancelIdleCallback;
+  requestIdleCallback?: BootstrapRequestIdleCallback;
+};
 
 function normalizeBootstrapError(error: unknown): Error {
   if (error instanceof Error) {
@@ -49,6 +72,31 @@ function createBootstrapTimeoutPromise(timeoutMs: number): {
   };
 }
 
+function scheduleBootstrapStart(callback: () => void): DeferredBootstrapStart {
+  const schedulingGlobal = globalThis as BootstrapSchedulingGlobal;
+  const requestIdleCallback = schedulingGlobal.requestIdleCallback;
+  const cancelIdleCallback = schedulingGlobal.cancelIdleCallback;
+
+  if (typeof requestIdleCallback === 'function' && typeof cancelIdleCallback === 'function') {
+    const idleCallbackHandle = requestIdleCallback(callback, {
+      timeout: BOOTSTRAP_IDLE_START_TIMEOUT_MS,
+    });
+
+    return {
+      cancel: () => {
+        cancelIdleCallback(idleCallbackHandle);
+      },
+    };
+  }
+
+  const timeoutHandle = globalThis.setTimeout(callback, 0);
+  return {
+    cancel: () => {
+      globalThis.clearTimeout(timeoutHandle);
+    },
+  };
+}
+
 export function BootstrapGate({
   bootstrap,
   bootstrapTimeoutMs = DEFAULT_BOOTSTRAP_TIMEOUT_MS,
@@ -67,6 +115,8 @@ export function BootstrapGate({
 
   useEffect(() => {
     let isDisposed = false;
+    let hasBootstrapSettled = false;
+    let bootstrapStart: DeferredBootstrapStart | null = null;
 
     setError(null);
     setStatus('booting');
@@ -75,16 +125,30 @@ export function BootstrapGate({
       normalizeBootstrapTimeoutMs(bootstrapTimeoutMs),
     );
 
+    const deferredBootstrapPromise = new Promise<void>((resolve, reject) => {
+      bootstrapStart = scheduleBootstrapStart(() => {
+        if (isDisposed || hasBootstrapSettled) {
+          resolve();
+          return;
+        }
+
+        bootstrapRef.current().then(resolve, reject);
+      });
+    });
+
     void Promise.race([
-      bootstrapRef.current(),
+      deferredBootstrapPromise,
       timeoutBoundary.promise,
     ])
       .then(() => {
+        hasBootstrapSettled = true;
         if (!isDisposed) {
           setStatus('ready');
         }
       })
       .catch((caughtError) => {
+        hasBootstrapSettled = true;
+        bootstrapStart?.cancel();
         if (!isDisposed) {
           setError(normalizeBootstrapError(caughtError));
           setStatus('failed');
@@ -96,6 +160,7 @@ export function BootstrapGate({
 
     return () => {
       isDisposed = true;
+      bootstrapStart?.cancel();
       timeoutBoundary.clear();
     };
   }, [attempt, bootstrapTimeoutMs]);

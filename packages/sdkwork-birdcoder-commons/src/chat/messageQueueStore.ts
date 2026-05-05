@@ -5,6 +5,12 @@ type ChatMessageQueueListener = () => void;
 export interface WorkbenchChatQueuedMessage {
   readonly id: string;
   readonly text: string;
+  readonly composerSelection?: WorkbenchChatQueuedMessageComposerSelection;
+}
+
+export interface WorkbenchChatQueuedMessageComposerSelection {
+  readonly engineId: string;
+  readonly modelId: string;
 }
 
 const EMPTY_QUEUED_MESSAGES: readonly WorkbenchChatQueuedMessage[] = Object.freeze([]);
@@ -52,13 +58,45 @@ function normalizeQueuedMessageId(id: string | null | undefined): string {
   return typeof id === 'string' ? id.trim() : '';
 }
 
+function normalizeQueuedMessageComposerSelection(
+  composerSelection: WorkbenchChatQueuedMessageComposerSelection | null | undefined,
+): WorkbenchChatQueuedMessageComposerSelection | undefined {
+  if (!composerSelection) {
+    return undefined;
+  }
+
+  const engineId = composerSelection.engineId.trim();
+  const modelId = composerSelection.modelId.trim();
+  if (!engineId || !modelId) {
+    return undefined;
+  }
+
+  return Object.freeze({ engineId, modelId });
+}
+
+function areQueuedMessageComposerSelectionsEqual(
+  first: WorkbenchChatQueuedMessageComposerSelection | undefined,
+  second: WorkbenchChatQueuedMessageComposerSelection | undefined,
+): boolean {
+  return (
+    (first?.engineId ?? '') === (second?.engineId ?? '') &&
+    (first?.modelId ?? '') === (second?.modelId ?? '')
+  );
+}
+
 export function createWorkbenchChatQueuedMessage(
   text: string,
   id?: string | null,
+  composerSelection?: WorkbenchChatQueuedMessageComposerSelection | null,
 ): WorkbenchChatQueuedMessage {
+  const normalizedComposerSelection =
+    normalizeQueuedMessageComposerSelection(composerSelection);
   return Object.freeze({
     id: normalizeQueuedMessageId(id) || createWorkbenchChatQueuedMessageId(),
     text: normalizeQueuedMessageText(text),
+    ...(normalizedComposerSelection
+      ? { composerSelection: normalizedComposerSelection }
+      : {}),
   });
 }
 
@@ -78,7 +116,11 @@ function normalizeQueuedMessages(
         ? normalizedId
         : createWorkbenchChatQueuedMessageId(usedIds);
     usedIds.add(nextId);
-    acc.push(Object.freeze({ id: nextId, text: normalizedText }));
+    acc.push(createWorkbenchChatQueuedMessage(
+      normalizedText,
+      nextId,
+      message.composerSelection,
+    ));
     return acc;
   }, []);
 
@@ -228,7 +270,14 @@ export function setWorkbenchChatQueuedMessages(
     normalizedMessages.length === previousMessages.length &&
     normalizedMessages.every((message, index) => {
       const previousMessage = previousMessages[index];
-      return message.id === previousMessage?.id && message.text === previousMessage.text;
+      return (
+        message.id === previousMessage?.id &&
+        message.text === previousMessage.text &&
+        areQueuedMessageComposerSelectionsEqual(
+          message.composerSelection,
+          previousMessage.composerSelection,
+        )
+      );
     })
   ) {
     return [...previousMessages];
@@ -247,6 +296,7 @@ export function setWorkbenchChatQueuedMessages(
 export function enqueueWorkbenchChatQueuedMessage(
   key: string | null | undefined,
   message: string,
+  composerSelection?: WorkbenchChatQueuedMessageComposerSelection | null,
 ): WorkbenchChatQueuedMessage[] {
   const normalizedMessage = normalizeQueuedMessageText(message);
   if (!normalizedMessage) {
@@ -255,7 +305,7 @@ export function enqueueWorkbenchChatQueuedMessage(
 
   return setWorkbenchChatQueuedMessages(key, (previousMessages) => [
     ...previousMessages,
-    createWorkbenchChatQueuedMessage(normalizedMessage),
+    createWorkbenchChatQueuedMessage(normalizedMessage, null, composerSelection),
   ]);
 }
 
@@ -306,7 +356,10 @@ export function useWorkbenchChatMessageQueue(
 ): {
   clearQueuedMessages: () => void;
   dequeueQueuedMessage: () => WorkbenchChatQueuedMessage | undefined;
-  enqueueQueuedMessage: (message: string) => WorkbenchChatQueuedMessage[];
+  enqueueQueuedMessage: (
+    message: string,
+    composerSelection?: WorkbenchChatQueuedMessageComposerSelection | null,
+  ) => WorkbenchChatQueuedMessage[];
   queuedMessages: readonly WorkbenchChatQueuedMessage[];
   restoreQueuedMessagesToFront: (
     messages: readonly WorkbenchChatQueuedMessage[],
@@ -346,7 +399,10 @@ export function useWorkbenchChatMessageQueue(
     [normalizedKey],
   );
   const enqueueQueuedMessage = useCallback(
-    (message: string) => enqueueWorkbenchChatQueuedMessage(normalizedKey, message),
+    (
+      message: string,
+      composerSelection?: WorkbenchChatQueuedMessageComposerSelection | null,
+    ) => enqueueWorkbenchChatQueuedMessage(normalizedKey, message, composerSelection),
     [normalizedKey],
   );
   const dequeueQueuedMessage = useCallback(

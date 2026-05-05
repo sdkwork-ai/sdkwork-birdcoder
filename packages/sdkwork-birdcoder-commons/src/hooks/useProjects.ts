@@ -336,9 +336,47 @@ function appendCodingSessionMessageIfMissing(
     return messages as BirdCoderChatMessage[];
   }
 
-  return messages.map((message, index) =>
-    index === matchingMessageIndex ? mergedMessage : message,
-  );
+  const nextMessages = [...messages];
+  nextMessages[matchingMessageIndex] = mergedMessage;
+  return nextMessages;
+}
+
+function replaceCodingSessionMessageAtIndex(
+  messages: readonly BirdCoderChatMessage[],
+  messageIndex: number,
+  nextMessage: BirdCoderChatMessage,
+): BirdCoderChatMessage[] {
+  if (
+    messageIndex < 0 ||
+    messageIndex >= messages.length ||
+    messages[messageIndex] === nextMessage
+  ) {
+    return messages as BirdCoderChatMessage[];
+  }
+
+  const nextMessages = [...messages];
+  nextMessages[messageIndex] = nextMessage;
+  return nextMessages;
+}
+
+function replaceCodingSessionMessageById(
+  messages: readonly BirdCoderChatMessage[],
+  messageId: string,
+  updates: Partial<BirdCoderChatMessage>,
+): BirdCoderChatMessage[] {
+  const messageIndex = messages.findIndex((message) => message.id === messageId);
+  if (messageIndex < 0) {
+    return messages as BirdCoderChatMessage[];
+  }
+
+  const existingMessage = messages[messageIndex]!;
+  const nextMessage = {
+    ...existingMessage,
+    ...updates,
+  };
+  return areBirdCoderChatMessagesEquivalent(existingMessage, nextMessage)
+    ? (messages as BirdCoderChatMessage[])
+    : replaceCodingSessionMessageAtIndex(messages, messageIndex, nextMessage);
 }
 
 function reconcileCodingSessionMessage(
@@ -349,8 +387,9 @@ function reconcileCodingSessionMessage(
   const optimisticMessageIndex = messages.findIndex(
     (message) => message.id === optimisticMessageId,
   );
-  const messagesWithoutOptimistic = messages.filter(
-    (message) => message.id !== optimisticMessageId,
+  const messagesWithoutOptimistic = removeCodingSessionMessageById(
+    messages,
+    optimisticMessageId,
   );
   const matchingResolvedMessageIndex = messagesWithoutOptimistic.findIndex((message) =>
     areBirdCoderChatMessagesEquivalent(message, resolvedMessage) ||
@@ -363,8 +402,10 @@ function reconcileCodingSessionMessage(
       return messagesWithoutOptimistic as BirdCoderChatMessage[];
     }
 
-    return messagesWithoutOptimistic.map((message, index) =>
-      index === matchingResolvedMessageIndex ? mergedMessage : message,
+    return replaceCodingSessionMessageAtIndex(
+      messagesWithoutOptimistic,
+      matchingResolvedMessageIndex,
+      mergedMessage,
     );
   }
 
@@ -375,11 +416,9 @@ function reconcileCodingSessionMessage(
     return [...messagesWithoutOptimistic, resolvedMessage];
   }
 
-  return [
-    ...messagesWithoutOptimistic.slice(0, optimisticMessageIndex),
-    resolvedMessage,
-    ...messagesWithoutOptimistic.slice(optimisticMessageIndex),
-  ];
+  const nextMessages = [...messagesWithoutOptimistic];
+  nextMessages.splice(optimisticMessageIndex, 0, resolvedMessage);
+  return nextMessages;
 }
 
 function buildOptimisticCodingSessionMessage(
@@ -419,12 +458,20 @@ function removeCodingSessionMessageById(
   messages: readonly BirdCoderChatMessage[],
   messageId: string,
 ): BirdCoderChatMessage[] {
-  const hasSameMessage = messages.some((message) => message.id === messageId);
-  if (!hasSameMessage) {
-    return messages as BirdCoderChatMessage[];
+  let nextMessages: BirdCoderChatMessage[] | null = null;
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index]!;
+    if (message.id === messageId) {
+      if (!nextMessages) {
+        nextMessages = messages.slice(0, index) as BirdCoderChatMessage[];
+      }
+      continue;
+    }
+
+    nextMessages?.push(message);
   }
 
-  return messages.filter((message) => message.id !== messageId);
+  return nextMessages ?? (messages as BirdCoderChatMessage[]);
 }
 
 function findCodingSessionInCollection(
@@ -1155,13 +1202,10 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
         updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
           ...codingSession,
-          messages: codingSession.messages.map((message) =>
-            message.id === messageId
-              ? {
-                  ...message,
-                  ...editableUpdates,
-                }
-              : message,
+          messages: replaceCodingSessionMessageById(
+            codingSession.messages,
+            messageId,
+            editableUpdates,
           ),
           updatedAt,
           lastTurnAt: updatedAt,
@@ -1192,7 +1236,10 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
         updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
           ...codingSession,
-          messages: codingSession.messages.filter((message) => message.id !== messageId),
+          messages: removeCodingSessionMessageById(
+            codingSession.messages,
+            messageId,
+          ),
           updatedAt,
           lastTurnAt: updatedAt,
           transcriptUpdatedAt: updatedAt,

@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -267,23 +266,16 @@ assert.ok(
   fs.existsSync(checksumsPath),
   'release-openapi-canonical quality evidence contract requires SHA256SUMS.txt.',
 );
-const releaseNotesSha256 = crypto
-  .createHash('sha256')
-  .update(releaseNotes)
-  .digest('hex');
-const finalizedSmokeReportSha256 = crypto
-  .createHash('sha256')
-  .update(fs.readFileSync(packagedFinalizedSmokeReportPath))
-  .digest('hex');
-assert.match(
-  fs.readFileSync(checksumsPath, 'utf8'),
-  new RegExp(`^${releaseNotesSha256}  release-notes\\.md$`, 'm'),
-  'canonical SHA256SUMS.txt must preserve the current rendered release-notes.md digest.',
+const checksumSource = fs.readFileSync(checksumsPath, 'utf8');
+assert.doesNotMatch(
+  checksumSource,
+  /\srelease-notes\.md$/m,
+  'canonical SHA256SUMS.txt must stay scoped to release-manifest.json.artifacts, not rendered release notes.',
 );
-assert.match(
-  fs.readFileSync(checksumsPath, 'utf8'),
-  new RegExp(`^${finalizedSmokeReportSha256}  finalized-release-smoke-report\\.json$`, 'm'),
-  'canonical SHA256SUMS.txt must preserve the current finalized-release-smoke-report.json digest.',
+assert.doesNotMatch(
+  checksumSource,
+  /\sfinalized-release-smoke-report\.json$/m,
+  'canonical SHA256SUMS.txt must stay scoped to release-manifest.json.artifacts, not finalized smoke evidence.',
 );
 
 console.log('release-openapi-canonical quality evidence contract passed.');

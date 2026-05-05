@@ -149,18 +149,20 @@ function resolveBirdCoderAuthDevelopmentPrefill(
 }
 
 export function mapBirdCoderAuthUser(user: User): SdkworkAuthUser {
+  const email = user.email?.trim() ?? '';
   return createSdkworkAuthUserFromCanonicalIdentity({
     avatarUrl: user.avatarUrl,
-    email: user.email.trim(),
-    id: user.id || user.email.trim(),
-    name: user.name?.trim() || user.email.trim(),
-    username: user.email.trim(),
+    email,
+    id: (user.id?.trim() || email) || undefined,
+    name: user.name?.trim() || email || undefined,
+    username: email || undefined,
   });
 }
 
 export function createBirdCoderAuthSession(user: User): SdkworkAuthSession {
+  const email = user.email?.trim() ?? '';
   return createSdkworkSyntheticAuthSession(mapBirdCoderAuthUser(user), {
-    sessionKey: `birdcoder:${user.id || user.email.trim()}`,
+    sessionKey: `birdcoder:${user.id?.trim() || email}`,
   });
 }
 
@@ -194,7 +196,8 @@ export function createBirdCoderAuthController(
       return authConfig?.providerKey?.trim() || undefined;
     },
     resolveSyntheticSessionKey(user) {
-      return `birdcoder:${user.id || user.email.trim()}`;
+      const email = user.email?.trim() ?? '';
+      return `birdcoder:${user.id?.trim() || email}`;
     },
     toSession: createBirdCoderAuthSession,
     toUser: mapBirdCoderAuthUser,

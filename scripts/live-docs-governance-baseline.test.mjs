@@ -226,6 +226,37 @@ assert.match(
 );
 
 assert.match(
+  releaseAndDeploymentSource,
+  /pnpm release:candidate:dry-run/,
+  'core release-and-deployment doc must include the release candidate dry-run command as the offline commercial release rehearsal.',
+);
+assert.match(
+  releaseAndDeploymentSource,
+  /birdcoder\.releaseCandidateDryRun\.v2[\s\S]*birdcoder\.releaseRehearsalPlan\.v1/,
+  'core release-and-deployment doc must describe the versioned dry-run report and structured rehearsal plan schemas.',
+);
+assert.match(
+  releaseAndDeploymentSource,
+  /plan, environment preflight, package, trust, smoke, finalize, attestation, and publish-readiness phases/,
+  'core release-and-deployment doc must describe the structured dry-run rehearsal phase order.',
+);
+assert.match(
+  releaseAndDeploymentSource,
+  /pnpm release:rehearsal:verify/,
+  'core release-and-deployment doc must include the release rehearsal verification command as the real-asset evidence gate.',
+);
+assert.match(
+  releaseAndDeploymentSource,
+  /artifacts\/release-rehearsal\/release-rehearsal-execution-report\.json[\s\S]*birdcoder\.releaseRehearsalExecution\.v1/,
+  'core release-and-deployment doc must describe the versioned release rehearsal execution report path.',
+);
+assert.match(
+  releaseAndDeploymentSource,
+  /Missing evidence is reported as `blocked`[\s\S]*schema or command-plan drift is reported as `failed`[\s\S]*does not execute signing, publishing, or any other release-producing command/,
+  'core release-and-deployment doc must describe blocked, failed, and non-mutating release rehearsal verification semantics.',
+);
+
+assert.match(
   commandsReferenceSource,
   /`pnpm lint`/,
   'commands reference must describe the lint command in prose, not only list it in the verification command block.',
@@ -332,6 +363,37 @@ assert.match(
   /`pnpm release:package:desktop`/,
   'commands reference must describe the desktop release packaging command in prose, not only list it in the release command block.',
 );
+assert.match(
+  commandsReferenceSource,
+  /birdcoder\.releaseCandidateDryRun\.v2[\s\S]*birdcoder\.releaseRehearsalPlan\.v1/,
+  'commands reference must describe the versioned release candidate dry-run report and rehearsal plan schemas.',
+);
+assert.match(
+  commandsReferenceSource,
+  /phase order, expected evidence paths, external signing\/trust\/attestation gates, and stop-ship rules/,
+  'commands reference must describe the structured release candidate rehearsal plan evidence fields.',
+);
+assert.match(
+  commandsReferenceSource,
+  /`pnpm release:rehearsal:verify`/,
+  'commands reference must describe the release rehearsal verification command in prose, not only list it in the release command block.',
+);
+assert.match(
+  commandsReferenceSource,
+  /artifacts\/release-rehearsal\/release-rehearsal-execution-report\.json[\s\S]*birdcoder\.releaseRehearsalExecution\.v1/,
+  'commands reference must describe the versioned release rehearsal execution report path.',
+);
+assert.match(
+  commandsReferenceSource,
+  /Missing evidence is reported as `blocked`[\s\S]*schema or command-plan drift is reported as `failed`[\s\S]*does not execute signing, publishing, or any other release-producing command/,
+  'commands reference must describe blocked, failed, and non-mutating release rehearsal verification semantics.',
+);
+
+assert.match(
+  commandsReferenceSource,
+  /`pnpm release:verify-trust:desktop`/,
+  'commands reference must describe the desktop installer trust verification command in prose, not only list it in the release command block.',
+);
 
 assert.match(
   commandsReferenceSource,
@@ -367,6 +429,12 @@ assert.match(
   commandsReferenceSource,
   /`pnpm release:smoke:desktop`/,
   'commands reference must describe the desktop release smoke command in prose, not only list it in the release command block.',
+);
+
+assert.match(
+  releaseAndDeploymentSource,
+  /pnpm release:verify-trust:desktop/,
+  'core release-and-deployment doc must include the desktop installer trust verification command in the focused release slice.',
 );
 
 assert.match(

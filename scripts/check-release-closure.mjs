@@ -196,8 +196,13 @@ function main() {
   );
   assert.match(
     workflow,
-    /smoke-desktop-installers\.mjs[\s\S]*smoke-desktop-packaged-launch\.mjs/s,
-    'desktop release workflow must run installer and packaged launch smoke phases',
+    /package-release-assets\.mjs desktop[\s\S]*verify-desktop-installer-trust\.mjs[\s\S]*smoke-desktop-installers\.mjs[\s\S]*smoke-desktop-packaged-launch\.mjs/s,
+    'desktop release workflow must verify installer trust before installer and packaged launch smoke phases',
+  );
+  assert.match(
+    workflow,
+    /run-desktop-release-build\.mjs --profile .* --phase bundle[\s\S]*--bundles \$\{\{ join\(matrix\.bundles, ','\) \}\}/,
+    'desktop release workflow must pass matrix.bundles into the Tauri bundle phase so build intent matches release coverage',
   );
   assert.doesNotMatch(
     workflow,
@@ -211,8 +216,8 @@ function main() {
   );
   assert.match(
     workflow,
-    /finalize-release-assets\.mjs[\s\S]*smoke-finalized-release-assets\.mjs --release-assets-dir release-assets[\s\S]*render-release-notes\.mjs --release-tag .* --output release-assets\/release-notes\.md/,
-    'release workflow must run finalized smoke after finalization and before rendering release notes',
+    /render-release-notes\.mjs --release-tag .* --output release-assets\/release-notes\.md[\s\S]*finalize-release-assets\.mjs[\s\S]*smoke-finalized-release-assets\.mjs --release-assets-dir release-assets[\s\S]*Attest finalized release assets[\s\S]*write-attestation-evidence\.mjs --profile \$\{\{ inputs\.release_profile \}\} --release-assets-dir release-assets --repository \$\{\{ github\.repository \}\} --release-tag \$\{\{ needs\.prepare\.outputs\.release_tag \}\}[\s\S]*assert-release-readiness\.mjs --profile \$\{\{ inputs\.release_profile \}\} --release-assets-dir release-assets/,
+    'release workflow must render notes before finalization, finalize and smoke immutable assets, attest them, write attestation evidence, and assert readiness',
   );
   assert.match(
     kubernetesReadme,
@@ -251,6 +256,11 @@ function main() {
   );
   assert.match(
     releaseDoc,
+    /release:verify-trust:desktop/,
+    'release docs must expose the desktop installer trust verification command',
+  );
+  assert.match(
+    releaseDoc,
     /release:smoke:desktop-packaged-launch/,
     'release docs must expose the packaged desktop launch smoke command',
   );
@@ -281,6 +291,11 @@ function main() {
   );
   assert.match(
     releaseDoc,
+    /release:assert-ready/,
+    'release docs must expose the finalized release readiness assertion command',
+  );
+  assert.match(
+    releaseDoc,
     /Post-release operations and writeback:/,
     'release docs must describe post-release operations and writeback guidance',
   );
@@ -303,6 +318,26 @@ function main() {
     releaseDoc,
     /SHA256SUMS\.txt/,
     'release and deployment docs must describe the finalized SHA256SUMS.txt checksum surface',
+  );
+  assert.match(
+    releaseDoc,
+    /release-manifest\.json\.sha256\.txt/,
+    'release and deployment docs must describe the finalized release manifest checksum sidecar',
+  );
+  assert.match(
+    releaseDoc,
+    /release-attestations\.json/,
+    'release and deployment docs must describe the finalized attestation evidence surface',
+  );
+  assert.match(
+    releaseDoc,
+    /releaseCoverage/,
+    'release and deployment docs must describe the finalized releaseCoverage publication gate',
+  );
+  assert.match(
+    read('scripts/release/assert-release-readiness.mjs'),
+    /releaseCoverage[\s\S]*allowPartialRelease[\s\S]*Checksum manifest mismatch[\s\S]*Release attestation evidence/,
+    'release readiness assertion must reject partial manifests, checksum drift, and attestation evidence drift',
   );
   assert.match(
     releaseDoc,

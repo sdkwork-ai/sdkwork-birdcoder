@@ -40,6 +40,9 @@ import {
   summarizeDesktopStartupReadiness,
 } from './desktop-startup-readiness-summary.mjs';
 import {
+  normalizeDesktopInstallerTrustSummary,
+} from './desktop-installer-trust-evidence.mjs';
+import {
   resolveDesktopStartupEvidencePath,
 } from './desktop-startup-smoke-contract.mjs';
 import {
@@ -341,6 +344,62 @@ function assertDesktopStartupReadinessSummaryMatches({
   });
 }
 
+function assertDesktopInstallerTrustSummaryMatches({
+  manifest,
+  releaseAssetsDir,
+} = {}) {
+  const desktopAssets = (manifest.assets ?? []).filter((entry) => String(entry?.family ?? '').trim() === 'desktop');
+  if (desktopAssets.length === 0) {
+    return [];
+  }
+
+  return desktopAssets.map((entry) => {
+    const target = resolveDesktopAssetTargetLabel(entry);
+    if (!entry.desktopInstallerTrust) {
+      throw new Error(`Missing finalized manifest desktopInstallerTrust for packaged desktop asset: ${target}.`);
+    }
+
+    const normalizedManifestSummary = normalizeDesktopInstallerTrustSummary(
+      entry.desktopInstallerTrust,
+    );
+    const reportRelativePath = String(
+      normalizedManifestSummary?.reportRelativePath ?? '',
+    ).trim();
+    if (!reportRelativePath) {
+      throw new Error(`Missing finalized manifest desktopInstallerTrust.reportRelativePath for packaged desktop asset: ${target}.`);
+    }
+
+    const reportPath = path.join(releaseAssetsDir, reportRelativePath);
+    if (!fs.existsSync(reportPath)) {
+      throw new Error(`Missing packaged desktop installer trust report referenced by finalized manifest: ${reportPath}`);
+    }
+
+    const rawReport = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+    const normalizedReportSummary = normalizeDesktopInstallerTrustSummary({
+      reportRelativePath,
+      manifestRelativePath: normalizedManifestSummary.manifestRelativePath,
+      ...rawReport,
+    });
+
+    if (JSON.stringify(normalizedManifestSummary) !== JSON.stringify(normalizedReportSummary)) {
+      throw new Error(`Finalized manifest desktopInstallerTrust does not match the packaged desktop installer trust report for ${target}.`);
+    }
+
+    return {
+      target,
+      reportRelativePath: normalizedReportSummary.reportRelativePath,
+      manifestRelativePath: normalizedReportSummary.manifestRelativePath,
+      status: normalizedReportSummary.status,
+      platform: normalizedReportSummary.platform,
+      arch: normalizedReportSummary.arch,
+      targetTriple: normalizedReportSummary.target,
+      verifiedAt: normalizedReportSummary.verifiedAt,
+      installerCount: normalizedReportSummary.installerCount,
+      installers: normalizedReportSummary.installers,
+    };
+  });
+}
+
 function assertStopShipSignalsSummaryMatches({
   manifest,
   qualityEvidence,
@@ -350,6 +409,7 @@ function assertStopShipSignalsSummaryMatches({
     archiveSummary: collectReleaseStopShipSignals({
       qualityEvidence,
       assets: manifest.assets,
+      artifacts: manifest.artifacts,
     }),
     normalizeSummary: normalizeStopShipSignals,
     missingManifestMessage: 'Missing finalized manifest stopShipSignals summary.',
@@ -412,6 +472,10 @@ export function smokeFinalizedReleaseAssets({
     manifest,
     releaseAssetsDir,
   });
+  const desktopInstallerTrust = assertDesktopInstallerTrustSummaryMatches({
+    manifest,
+    releaseAssetsDir,
+  });
   const qualityEvidence = assertQualityEvidenceSummaryMatches({
     manifest,
     releaseAssetsDir,
@@ -428,6 +492,7 @@ export function smokeFinalizedReleaseAssets({
     releaseControl: manifest.releaseControl ?? null,
     qualityEvidence,
     assets: manifest.assets,
+    artifacts: manifest.artifacts,
     errorPrefix: 'Formal or general-availability finalized release manifests require clear stop-ship evidence',
   });
 
@@ -487,6 +552,13 @@ export function smokeFinalizedReleaseAssets({
           : 'no packaged desktop startup evidence is attached to the finalized release manifest',
       },
       {
+        id: 'desktop-installer-trust-summary-match',
+        status: desktopInstallerTrust.length > 0 ? 'passed' : 'skipped',
+        detail: desktopInstallerTrust.length > 0
+          ? 'finalized manifest desktopInstallerTrust matches the packaged desktop installer trust report'
+          : 'no packaged desktop installer trust report is attached to the finalized release manifest',
+      },
+      {
         id: 'quality-evidence-summary-match',
         status: 'passed',
         detail: 'finalized manifest qualityEvidence summary matches the quality gate matrix report',
@@ -498,6 +570,7 @@ export function smokeFinalizedReleaseAssets({
     simulatorEvidence: simulatorEvidence ?? null,
     testEvidence: testEvidence ?? null,
     desktopStartupReadiness,
+    desktopInstallerTrust,
     qualityEvidence: qualityEvidence ?? null,
     stopShipSignals,
     promotionReadiness,
@@ -518,6 +591,7 @@ export function smokeFinalizedReleaseAssets({
     simulatorEvidence,
     testEvidence,
     desktopStartupReadiness,
+    desktopInstallerTrust,
     qualityEvidence,
     stopShipSignals,
     promotionReadiness,

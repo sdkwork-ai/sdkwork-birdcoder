@@ -13,7 +13,11 @@ import {
   mergeBirdCoderProjectionMessages,
   resolveBirdCoderCodingSessionRuntimeStatus,
 } from '@sdkwork/birdcoder-types';
-import type { IProjectService } from '../services/interfaces/IProjectService.ts';
+import type {
+  BirdCoderCodingSessionMirrorSnapshot,
+  BirdCoderProjectMirrorSnapshot,
+  IProjectService,
+} from '../services/interfaces/IProjectService.ts';
 import {
   isAuthorityBackedNativeSessionId,
   type NativeSessionAuthorityCoreReadService,
@@ -498,6 +502,31 @@ function buildRefreshedCodingSession(
   };
 }
 
+function isCodingSessionSummaryInResolvedLocationScope(
+  requestedCodingSessionId: string,
+  summary: BirdCoderCodingSessionSummary,
+  resolvedLocation: ResolvedCodingSessionLocation,
+  fallbackWorkspaceId: string,
+): boolean {
+  const summaryCodingSessionId = summary.id.trim();
+  if (summaryCodingSessionId && summaryCodingSessionId !== requestedCodingSessionId) {
+    return false;
+  }
+
+  const summaryProjectId = summary.projectId.trim();
+  const resolvedProjectId = resolvedLocation.project.id.trim();
+  if (summaryProjectId && resolvedProjectId && summaryProjectId !== resolvedProjectId) {
+    return false;
+  }
+
+  const summaryWorkspaceId = summary.workspaceId.trim();
+  const resolvedWorkspaceId =
+    resolvedLocation.project.workspaceId.trim() ||
+    resolvedLocation.codingSession.workspaceId.trim() ||
+    fallbackWorkspaceId;
+  return !summaryWorkspaceId || !resolvedWorkspaceId || summaryWorkspaceId === resolvedWorkspaceId;
+}
+
 function mergeCoreVisibleMessages(
   codingSessionId: string,
   existingMessages: readonly BirdCoderChatMessage[],
@@ -539,17 +568,119 @@ function findCodingSessionLocationInProjects(
   projects: Awaited<ReturnType<IProjectService['getProjects']>>,
   codingSessionId: string,
 ) {
+  let matchedLocation: {
+    codingSession: BirdCoderCodingSession;
+    project: BirdCoderProject;
+  } | null = null;
   for (const project of projects) {
     const codingSession = project.codingSessions.find((candidate) => candidate.id === codingSessionId);
-    if (codingSession) {
-      return {
-        codingSession,
-        project,
-      };
+    if (!codingSession) {
+      continue;
     }
+
+    if (matchedLocation) {
+      return null;
+    }
+    matchedLocation = {
+      codingSession,
+      project,
+    };
   }
 
-  return null;
+  return matchedLocation;
+}
+
+function materializeCodingSessionFromMirrorSnapshot(
+  codingSessionSnapshot: BirdCoderCodingSessionMirrorSnapshot,
+): BirdCoderCodingSession {
+  const {
+    messageCount: _messageCount,
+    nativeTranscriptUpdatedAt: _nativeTranscriptUpdatedAt,
+    ...codingSession
+  } = codingSessionSnapshot;
+  return {
+    ...codingSession,
+    messages: [],
+  };
+}
+
+function materializeProjectFromMirrorSnapshot(
+  projectSnapshot: BirdCoderProjectMirrorSnapshot,
+): BirdCoderProject {
+  const { codingSessions, ...project } = projectSnapshot;
+  return {
+    ...project,
+    codingSessions: codingSessions.map(materializeCodingSessionFromMirrorSnapshot),
+  };
+}
+
+function findProjectMirrorSnapshotLocation(
+  projectSnapshots: readonly BirdCoderProjectMirrorSnapshot[],
+  codingSessionId: string,
+): ResolvedCodingSessionLocation | null {
+  let matchedLocation: ResolvedCodingSessionLocation | null = null;
+  for (const projectSnapshot of projectSnapshots) {
+    const codingSessionSnapshot = projectSnapshot.codingSessions.find(
+      (candidate) => candidate.id === codingSessionId,
+    );
+    if (!codingSessionSnapshot) {
+      continue;
+    }
+
+    if (matchedLocation) {
+      return null;
+    }
+    matchedLocation = {
+      codingSession: materializeCodingSessionFromMirrorSnapshot(codingSessionSnapshot),
+      project: materializeProjectFromMirrorSnapshot(projectSnapshot),
+    };
+  }
+
+  return matchedLocation;
+}
+
+async function readProjectMirrorSnapshotsForLocation(
+  projectService: IProjectService,
+  workspaceId: string,
+): Promise<readonly BirdCoderProjectMirrorSnapshot[] | null> {
+  const projectMirrorReader = projectService.getProjectMirrorSnapshots?.bind(projectService);
+  if (!projectMirrorReader) {
+    return null;
+  }
+
+  return projectMirrorReader(workspaceId || undefined);
+}
+
+async function resolveAuthorityProjectFromMirrorSnapshots(
+  projectService: IProjectService,
+  summary: BirdCoderCodingSessionSummary,
+): Promise<BirdCoderProject | null> {
+  const projectId = summary.projectId.trim();
+  const workspaceId = summary.workspaceId.trim();
+  const projectSnapshots = await readProjectMirrorSnapshotsForLocation(
+    projectService,
+    workspaceId,
+  );
+  if (!projectSnapshots) {
+    return null;
+  }
+
+  const projectSnapshot = projectSnapshots.find((candidate) => candidate.id === projectId);
+  return projectSnapshot ? materializeProjectFromMirrorSnapshot(projectSnapshot) : null;
+}
+
+async function resolveCodingSessionLocationFromMirrorSnapshots(
+  projectService: IProjectService,
+  codingSessionId: string,
+  workspaceId: string,
+): Promise<ResolvedCodingSessionLocation | null> {
+  const projectSnapshots = await readProjectMirrorSnapshotsForLocation(
+    projectService,
+    workspaceId,
+  );
+  return projectSnapshots
+    ? findProjectMirrorSnapshotLocation(projectSnapshots, codingSessionId)
+    : null;
 }
 
 function buildBootstrapCodingSession(
@@ -579,6 +710,21 @@ async function resolveAuthorityProjectForCodingSession(
   const projectId = summary.projectId.trim();
   if (!projectId) {
     return null;
+  }
+
+  try {
+    const mirrorProject = await resolveAuthorityProjectFromMirrorSnapshots(
+      projectService,
+      summary,
+    );
+    if (mirrorProject) {
+      return mirrorProject;
+    }
+  } catch (error) {
+    console.error(
+      `Failed to resolve coding session "${summary.id}" from project mirror snapshots`,
+      error,
+    );
   }
 
   const authorityProject = await projectService.getProjectById(projectId);
@@ -642,6 +788,17 @@ async function resolveCodingSessionLocation(
 
   if (normalizedWorkspaceId) {
     try {
+      if (coreReadService) {
+        const mirrorLocation = await resolveCodingSessionLocationFromMirrorSnapshots(
+          projectService,
+          normalizedCodingSessionId,
+          normalizedWorkspaceId,
+        );
+        if (mirrorLocation) {
+          return mirrorLocation;
+        }
+      }
+
       preferredProjects = await projectService.getProjects(normalizedWorkspaceId);
       return findCodingSessionLocationInProjects(
         preferredProjects,
@@ -828,6 +985,24 @@ export async function refreshCodingSessionMessages(
 
         throw error;
       }
+      if (
+        !isCodingSessionSummaryInResolvedLocationScope(
+          normalizedCodingSessionId,
+          summary,
+          resolvedLocation,
+          normalizedWorkspaceId,
+        )
+      ) {
+        return {
+          codingSessionId: normalizedCodingSessionId,
+          messageCount: resolvedLocation.codingSession.messages.length,
+          projectId: resolvedLocation.project.id,
+          source: 'core',
+          status: 'not-found',
+          workspaceId: resolvedLocation.project.workspaceId,
+        } satisfies RefreshCodingSessionMessagesResult;
+      }
+
       const resolvedRuntimeStatus = resolveBirdCoderCodingSessionRuntimeStatus(
         events,
         summary.runtimeStatus ?? resolvedLocation.codingSession.runtimeStatus,

@@ -1,9 +1,12 @@
 import {
   createBirdCoderTableRecordRepository,
   type BirdCoderStorageAccess,
+  type BirdCoderSqlPlanStorageAccess,
   type BirdCoderTableRecordRepository,
 } from './dataKernel.ts';
+import { createBirdCoderStorageDialect } from './providers.ts';
 import { coerceBirdCoderSqlEntityRow } from './sqlRowCodec.ts';
+import type { BirdCoderSqlPlan } from './sqlPlans.ts';
 import {
   BIRDCODER_GOVERNANCE_POLICY_STORAGE_BINDING,
   BIRDCODER_DEPLOYMENT_TARGET_STORAGE_BINDING,
@@ -132,6 +135,20 @@ export interface BirdCoderProjectContentRecord {
   updatedAt: string;
   userId?: string;
   uuid?: string;
+}
+
+export interface BirdCoderProjectContentRepository
+  extends BirdCoderTableRecordRepository<BirdCoderProjectContentRecord> {
+  listProjectContentsByProjectIds?(
+    projectIds: readonly string[],
+  ): Promise<BirdCoderProjectContentRecord[]>;
+}
+
+export interface BirdCoderProjectRepository
+  extends BirdCoderTableRecordRepository<BirdCoderRepresentativeProjectRecord> {
+  listProjectsByWorkspaceIds?(
+    workspaceIds: readonly string[],
+  ): Promise<BirdCoderRepresentativeProjectRecord[]>;
 }
 
 export interface BirdCoderRepresentativeProjectDocumentRecord {
@@ -264,8 +281,8 @@ export interface BirdCoderRepresentativeAppAdminRepositories {
   documents: BirdCoderTableRecordRepository<BirdCoderRepresentativeProjectDocumentRecord>;
   members: BirdCoderTableRecordRepository<BirdCoderRepresentativeTeamMemberRecord>;
   policies: BirdCoderTableRecordRepository<BirdCoderRepresentativePolicyRecord>;
-  projectContents: BirdCoderTableRecordRepository<BirdCoderProjectContentRecord>;
-  projects: BirdCoderTableRecordRepository<BirdCoderRepresentativeProjectRecord>;
+  projectContents: BirdCoderProjectContentRepository;
+  projects: BirdCoderProjectRepository;
   releases: BirdCoderTableRecordRepository<BirdCoderRepresentativeReleaseRecord>;
   teams: BirdCoderTableRecordRepository<BirdCoderRepresentativeTeamRecord>;
 }
@@ -987,6 +1004,236 @@ function projectContentToRow(value: BirdCoderProjectContentRecord): Record<strin
   };
 }
 
+function supportsSqlPlanExecution(
+  storage: BirdCoderStorageAccess,
+): storage is BirdCoderStorageAccess & BirdCoderSqlPlanStorageAccess {
+  return (
+    'sqlPlanExecutionEnabled' in storage &&
+    storage.sqlPlanExecutionEnabled === true &&
+    'executeSqlPlan' in storage &&
+    typeof storage.executeSqlPlan === 'function'
+  );
+}
+
+function normalizeBatchIds(values: readonly string[]): string[] {
+  const ids: string[] = [];
+  const seenIds = new Set<string>();
+  for (const value of values) {
+    const id = value.trim();
+    if (!id || seenIds.has(id)) {
+      continue;
+    }
+    seenIds.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
+function buildPlaceholderList(
+  providerId: BirdCoderDatabaseProviderId,
+  startIndex: number,
+  count: number,
+): string {
+  const dialect = createBirdCoderStorageDialect(providerId);
+  return Array.from({ length: count }, (_, index) =>
+    dialect.buildPlaceholder(startIndex + index),
+  ).join(', ');
+}
+
+function defaultSoftDeleteValue(providerId: BirdCoderDatabaseProviderId): boolean | number {
+  return providerId === 'sqlite' ? 0 : false;
+}
+
+function normalizeProjectContentRows(
+  values: readonly unknown[],
+): BirdCoderProjectContentRecord[] {
+  return values
+    .map(normalizeProjectContentRecord)
+    .filter((record): record is BirdCoderProjectContentRecord => record !== null)
+    .sort(sortByUpdatedAtDescending);
+}
+
+function normalizeProjectRows(
+  values: readonly unknown[],
+): BirdCoderRepresentativeProjectRecord[] {
+  return values
+    .map(normalizeProjectRecord)
+    .filter((record): record is BirdCoderRepresentativeProjectRecord => record !== null)
+    .sort(sortByUpdatedAtDescending);
+}
+
+function buildProjectListByWorkspaceIdsPlan(
+  providerId: BirdCoderDatabaseProviderId,
+  workspaceIds: readonly string[],
+): BirdCoderSqlPlan {
+  const dialect = createBirdCoderStorageDialect(providerId);
+  const definition = getBirdCoderEntityDefinition('project');
+  const hasSoftDeleteColumn = definition.columns.some((column) => column.name === 'is_deleted');
+  const orderBy = [
+    { column: 'updated_at', direction: 'desc' },
+    { column: 'id', direction: 'asc' },
+  ] as const;
+  return {
+    intent: 'read',
+    meta: {
+      excludeDeleted: hasSoftDeleteColumn,
+      kind: 'project-list-by-workspace-ids',
+      orderBy,
+      tableName: definition.tableName,
+      workspaceIds,
+    },
+    providerId,
+    statements: [
+      hasSoftDeleteColumn
+        ? {
+            params: [defaultSoftDeleteValue(providerId), ...workspaceIds],
+            sql:
+              `SELECT * FROM ${definition.tableName} ` +
+              `WHERE is_deleted = ${dialect.buildPlaceholder(1)} ` +
+              `AND workspace_id IN (${buildPlaceholderList(providerId, 2, workspaceIds.length)}) ` +
+              `ORDER BY updated_at DESC, id ASC;`,
+          }
+        : {
+            params: [...workspaceIds],
+            sql:
+              `SELECT * FROM ${definition.tableName} ` +
+              `WHERE workspace_id IN (${buildPlaceholderList(providerId, 1, workspaceIds.length)}) ` +
+              `ORDER BY updated_at DESC, id ASC;`,
+          },
+    ],
+    transactional: false,
+  };
+}
+
+function buildProjectContentListByProjectIdsPlan(
+  providerId: BirdCoderDatabaseProviderId,
+  projectIds: readonly string[],
+): BirdCoderSqlPlan {
+  const dialect = createBirdCoderStorageDialect(providerId);
+  const definition = getBirdCoderEntityDefinition('project_content');
+  const hasSoftDeleteColumn = definition.columns.some((column) => column.name === 'is_deleted');
+  const orderBy = [
+    { column: 'updated_at', direction: 'desc' },
+    { column: 'id', direction: 'asc' },
+  ] as const;
+  return {
+    intent: 'read',
+    meta: {
+      excludeDeleted: hasSoftDeleteColumn,
+      kind: 'project-content-list-by-project-ids',
+      orderBy,
+      projectIds,
+      tableName: definition.tableName,
+    },
+    providerId,
+    statements: [
+      hasSoftDeleteColumn
+        ? {
+            params: [defaultSoftDeleteValue(providerId), ...projectIds],
+            sql:
+              `SELECT * FROM ${definition.tableName} ` +
+              `WHERE is_deleted = ${dialect.buildPlaceholder(1)} ` +
+              `AND project_id IN (${buildPlaceholderList(providerId, 2, projectIds.length)}) ` +
+              `ORDER BY updated_at DESC, id ASC;`,
+          }
+        : {
+            params: [...projectIds],
+            sql:
+              `SELECT * FROM ${definition.tableName} ` +
+              `WHERE project_id IN (${buildPlaceholderList(providerId, 1, projectIds.length)}) ` +
+              `ORDER BY updated_at DESC, id ASC;`,
+          },
+    ],
+    transactional: false,
+  };
+}
+
+function createBirdCoderProjectRepository({
+  providerId,
+  storage,
+}: CreateBirdCoderRepresentativeAppAdminRepositoriesOptions): BirdCoderProjectRepository {
+  const repository = createBirdCoderTableRecordRepository({
+    binding: BIRDCODER_PROJECT_STORAGE_BINDING,
+    definition: getBirdCoderEntityDefinition('project'),
+    providerId,
+    storage,
+    identify(value) {
+      return value.id;
+    },
+    normalize: normalizeProjectRecord,
+    sort: sortByUpdatedAtDescending,
+    toRow: projectToRow,
+  });
+
+  return {
+    ...repository,
+    async listProjectsByWorkspaceIds(workspaceIds) {
+      const normalizedWorkspaceIds = normalizeBatchIds(workspaceIds);
+      if (normalizedWorkspaceIds.length === 0) {
+        return [];
+      }
+
+      if (supportsSqlPlanExecution(storage)) {
+        try {
+          const result = await storage.executeSqlPlan(
+            buildProjectListByWorkspaceIdsPlan(providerId, normalizedWorkspaceIds),
+          );
+          return normalizeProjectRows(result.rows ?? []);
+        } catch {
+        }
+      }
+
+      const workspaceIdSet = new Set(normalizedWorkspaceIds);
+      return (await repository.list()).filter((project) =>
+        workspaceIdSet.has(project.workspaceId),
+      );
+    },
+  };
+}
+
+function createBirdCoderProjectContentRepository({
+  providerId,
+  storage,
+}: CreateBirdCoderRepresentativeAppAdminRepositoriesOptions): BirdCoderProjectContentRepository {
+  const repository = createBirdCoderTableRecordRepository({
+    binding: BIRDCODER_PROJECT_CONTENT_STORAGE_BINDING,
+    definition: getBirdCoderEntityDefinition('project_content'),
+    providerId,
+    storage,
+    identify(value) {
+      return value.id;
+    },
+    normalize: normalizeProjectContentRecord,
+    sort: sortByUpdatedAtDescending,
+    toRow: projectContentToRow,
+  });
+
+  return {
+    ...repository,
+    async listProjectContentsByProjectIds(projectIds) {
+      const normalizedProjectIds = normalizeBatchIds(projectIds);
+      if (normalizedProjectIds.length === 0) {
+        return [];
+      }
+
+      if (supportsSqlPlanExecution(storage)) {
+        try {
+          const result = await storage.executeSqlPlan(
+            buildProjectContentListByProjectIdsPlan(providerId, normalizedProjectIds),
+          );
+          return normalizeProjectContentRows(result.rows ?? []);
+        } catch {
+        }
+      }
+
+      const projectIdSet = new Set(normalizedProjectIds);
+      return (await repository.list()).filter((projectContent) =>
+        projectIdSet.has(projectContent.projectId),
+      );
+    },
+  };
+}
+
 function normalizeDocumentRecord(value: unknown): BirdCoderRepresentativeProjectDocumentRecord | null {
   if (
     isRecord(value) &&
@@ -1681,29 +1928,13 @@ export function createBirdCoderRepresentativeAppAdminRepositories({
       sort: sortByUpdatedAtDescending,
       toRow: policyToRow,
     }),
-    projectContents: createBirdCoderTableRecordRepository({
-      binding: BIRDCODER_PROJECT_CONTENT_STORAGE_BINDING,
-      definition: getBirdCoderEntityDefinition('project_content'),
+    projectContents: createBirdCoderProjectContentRepository({
       providerId,
       storage,
-      identify(value) {
-        return value.id;
-      },
-      normalize: normalizeProjectContentRecord,
-      sort: sortByUpdatedAtDescending,
-      toRow: projectContentToRow,
     }),
-    projects: createBirdCoderTableRecordRepository({
-      binding: BIRDCODER_PROJECT_STORAGE_BINDING,
-      definition: getBirdCoderEntityDefinition('project'),
+    projects: createBirdCoderProjectRepository({
       providerId,
       storage,
-      identify(value) {
-        return value.id;
-      },
-      normalize: normalizeProjectRecord,
-      sort: sortByUpdatedAtDescending,
-      toRow: projectToRow,
     }),
     teams: createBirdCoderTableRecordRepository({
       binding: BIRDCODER_TEAM_STORAGE_BINDING,

@@ -4,6 +4,9 @@ export {
   type BootstrapShellRuntimeOptions,
 } from './application/bootstrap/bootstrapShellRuntime';
 export {
+  resolveBirdCoderBootstrapRuntimeUserCenterProviderKind,
+} from './application/bootstrap/bootstrapRuntimeUserCenter';
+export {
   normalizeBirdCoderServerBaseUrl,
   readStoredBirdCoderServerBaseUrl,
   resolveBirdCoderBootstrapServerBaseUrl,

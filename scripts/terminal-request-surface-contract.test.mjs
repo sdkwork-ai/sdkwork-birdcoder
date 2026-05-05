@@ -211,12 +211,12 @@ assert.match(
 );
 assert.match(
   codePageTerminalActionsSource,
-  /const handleCopySessionId = useCallback\(async \(\s*codingSessionId: string,\s*nativeSessionIdFromList\?: string \| null,\s*\) => \{[\s\S]*resolveSession\(codingSessionId\)[\s\S]*normalizeCodingSessionNativeSessionId\([\s\S]*nativeSessionIdFromList\?\.trim\(\) \|\|[\s\S]*await resolveCodingSessionNativeSessionId\(codingSessionId\)[\s\S]*navigator\.clipboard\.writeText\(nativeSessionId\);/m,
-  'Session ID copy must copy the normalized raw provider-native session id from the loaded session item before falling back to authority.',
+  /const handleCopySessionId = useCallback\(async \(\s*codingSessionId: string,\s*nativeSessionIdFromList\?: string \| null,\s*\) => \{[\s\S]*resolveSession\(codingSessionId\)[\s\S]*normalizeCodingSessionNativeSessionId\([\s\S]*nativeSessionIdFromList\?\.trim\(\) \|\|[\s\S]*await resolveCodingSessionNativeSessionId\(codingSessionId\)[\s\S]*copyTextToClipboard\(nativeSessionId\);/m,
+  'Session ID copy must copy the normalized raw provider-native session id through the shared clipboard boundary before falling back to authority.',
 );
 assert.doesNotMatch(
   codePageTerminalActionsSource,
-  /const handleCopySessionId = useCallback\(\(codingSessionId: string\) => \{[\s\S]*navigator\.clipboard\.writeText\(codingSessionId\);/m,
+  /const handleCopySessionId = useCallback\(\(codingSessionId: string\) => \{[\s\S]*(?:navigator\.clipboard\.writeText|copyTextToClipboard)\(codingSessionId\);/m,
   'Session ID copy must not write the BirdCoder coding session id to the clipboard.',
 );
 assert.match(

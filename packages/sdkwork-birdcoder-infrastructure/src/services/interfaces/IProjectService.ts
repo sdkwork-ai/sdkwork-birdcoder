@@ -42,6 +42,10 @@ export interface BirdCoderProjectMirrorSnapshot extends Omit<BirdCoderProject, '
   codingSessions: BirdCoderCodingSessionMirrorSnapshot[];
 }
 
+export interface GetCodingSessionTranscriptOptions {
+  expectedTranscriptUpdatedAt?: string | null;
+}
+
 export type CreateCodingSessionMessageInput =
   Omit<BirdCoderChatMessage, 'codingSessionId' | 'createdAt' | 'id'> &
     Partial<Pick<BirdCoderChatMessage, 'createdAt' | 'id'>>;
@@ -55,6 +59,11 @@ export interface IProjectService {
     workspaceId?: string;
   }): Promise<void> | void;
   getProjectMirrorSnapshots?(workspaceId?: string): Promise<BirdCoderProjectMirrorSnapshot[]>;
+  getCodingSessionTranscript?(
+    projectId: string,
+    codingSessionId: string,
+    options?: GetCodingSessionTranscriptOptions,
+  ): Promise<BirdCoderCodingSession | null>;
   recordProjectCreationEvidence?(
     projectId: string,
     options?: CreateProjectOptions,

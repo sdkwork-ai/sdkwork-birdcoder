@@ -29,6 +29,37 @@ assert.match(
 
 assert.match(
   progressiveTranscriptHookSource,
+  /const topLoadAnimationFrameRef = useRef<number \| null>\(null\);/,
+  'Progressive transcript pagination must keep a dedicated animation-frame gate for top-load threshold checks.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /const scheduleEarlierTranscriptPageRequest = \(\) => \{[\s\S]*topLoadAnimationFrameRef\.current = window\.requestAnimationFrame\(\(\) => \{[\s\S]*requestEarlierTranscriptPage\(\);[\s\S]*\}\);[\s\S]*\}/s,
+  'Progressive transcript pagination must batch top-load threshold reads onto animation frames instead of doing layout work inside native scroll events.',
+);
+
+const transcriptScrollHandlerMatch = progressiveTranscriptHookSource.match(
+  /const handleTranscriptScroll = \(\) => \{([\s\S]*?)\n    \};\n    const handleTranscriptPointerDown/,
+);
+assert.ok(
+  transcriptScrollHandlerMatch,
+  'Progressive transcript pagination must keep the transcript scroll listener body inspectable.',
+);
+const transcriptScrollHandlerBody = transcriptScrollHandlerMatch[1] ?? '';
+assert.match(
+  transcriptScrollHandlerBody,
+  /scheduleEarlierTranscriptPageRequest\(\);/,
+  'Progressive transcript pagination scroll events must only schedule top-load checks.',
+);
+assert.doesNotMatch(
+  transcriptScrollHandlerBody,
+  /readTranscriptScrollMetrics|shouldLoadEarlierTranscriptPage|requestEarlierTranscriptPage\(\)/,
+  'Progressive transcript pagination scroll events must not synchronously read layout or reveal older history.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
   /const scrollMetrics = readTranscriptScrollMetrics\(messagesEndRef\);[\s\S]*shouldLoadEarlierTranscriptPage\(scrollMetrics, visibleTranscriptStartIndex\)/s,
   'Progressive transcript pagination must gate earlier-history loading behind the shared top-threshold predicate.',
 );
@@ -43,6 +74,12 @@ assert.match(
   progressiveTranscriptHookSource,
   /scrollContainer\.addEventListener\('scroll', handleTranscriptScroll, \{ passive: true \}\);/s,
   'Progressive transcript pagination must listen to transcript scroll events so older history is revealed on demand.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /window\.cancelAnimationFrame\(topLoadAnimationFrameRef\.current\);/,
+  'Progressive transcript pagination must cancel pending top-load animation frames during listener cleanup.',
 );
 
 assert.doesNotMatch(

@@ -12,8 +12,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Number as JsonNumber, Value as JsonValue};
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::io::Read;
 use std::path::{Component, Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use std::time::UNIX_EPOCH;
 use tauri::{AppHandle, Manager};
 
@@ -35,6 +36,10 @@ const DEFAULT_PRIVATE_DATA_SCOPE_VALUE: i64 = 1;
 const USER_HOME_CONFIG_RELATIVE_ROOT: &str = ".sdkwork/birdcoder";
 
 static DESKTOP_RUNTIME_CONFIG: OnceLock<DesktopRuntimeConfig> = OnceLock::new();
+static DESKTOP_RUNTIME_STARTUP: OnceLock<
+    tokio::sync::OnceCell<Result<DesktopRuntimeConfig, String>>,
+> = OnceLock::new();
+static INITIALIZED_DATABASE_PATHS: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -2041,20 +2046,35 @@ fn import_legacy_desktop_local_projects_from_sibling(
     Ok(())
 }
 
+fn initialized_database_paths() -> &'static Mutex<HashSet<PathBuf>> {
+    INITIALIZED_DATABASE_PATHS.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+fn ensure_database_ready(connection: &Connection, database_path: &Path) -> Result<(), String> {
+    let mut initialized_paths = initialized_database_paths()
+        .lock()
+        .map_err(|error| format!("failed to lock sqlite initialization guard: {error}"))?;
+    if initialized_paths.contains(database_path) {
+        return Ok(());
+    }
+
+    initialize_database_schema(connection)?;
+    purge_reserved_authority_local_store_rows(connection)?;
+    ensure_bootstrap_workspace_authority(connection)?;
+    if let Err(error) = import_legacy_desktop_local_projects_from_sibling(connection, database_path)
+    {
+        eprintln!("failed to import legacy desktop-local projects: {error}");
+    }
+    initialized_paths.insert(database_path.to_path_buf());
+
+    Ok(())
+}
+
 fn open_database(app: &AppHandle) -> Result<Connection, String> {
     let database_path = local_database_path(app)?;
     let connection = Connection::open(&database_path)
         .map_err(|error| format!("failed to open sqlite database: {error}"))?;
-
-    initialize_database_schema(&connection)?;
-    purge_reserved_authority_local_store_rows(&connection)?;
-    ensure_bootstrap_workspace_authority(&connection)?;
-    if let Err(error) =
-        import_legacy_desktop_local_projects_from_sibling(&connection, &database_path)
-    {
-        eprintln!("failed to import legacy desktop-local projects: {error}");
-    }
-
+    ensure_database_ready(&connection, &database_path)?;
     Ok(connection)
 }
 
@@ -2114,17 +2134,21 @@ fn bind_embedded_coding_server_listener(
     }
 }
 
-fn start_embedded_coding_server(app: &AppHandle) -> Result<(), String> {
-    if DESKTOP_RUNTIME_CONFIG.get().is_some() {
-        return Ok(());
+fn desktop_runtime_startup() -> &'static tokio::sync::OnceCell<Result<DesktopRuntimeConfig, String>>
+{
+    DESKTOP_RUNTIME_STARTUP.get_or_init(tokio::sync::OnceCell::new)
+}
+
+fn start_embedded_coding_server(app: &AppHandle) -> Result<DesktopRuntimeConfig, String> {
+    if let Some(runtime_config) = DESKTOP_RUNTIME_CONFIG.get() {
+        return Ok(runtime_config.clone());
     }
 
     if let Some(api_base_url) = read_explicit_api_base_url() {
-        let _ = DESKTOP_RUNTIME_CONFIG.set(DesktopRuntimeConfig { api_base_url });
-        if let Some(runtime_config) = DESKTOP_RUNTIME_CONFIG.get() {
-            print_coding_server_startup_summary(&runtime_config.api_base_url);
-        }
-        return Ok(());
+        let runtime_config = DesktopRuntimeConfig { api_base_url };
+        let _ = DESKTOP_RUNTIME_CONFIG.set(runtime_config.clone());
+        print_coding_server_startup_summary(&runtime_config.api_base_url);
+        return Ok(runtime_config);
     }
 
     let connection = open_database(app)?;
@@ -2154,11 +2178,31 @@ fn start_embedded_coding_server(app: &AppHandle) -> Result<(), String> {
         }
     });
 
-    let _ = DESKTOP_RUNTIME_CONFIG.set(DesktopRuntimeConfig { api_base_url });
-    if let Some(runtime_config) = DESKTOP_RUNTIME_CONFIG.get() {
-        print_coding_server_startup_summary(&runtime_config.api_base_url);
-    }
-    Ok(())
+    let runtime_config = DesktopRuntimeConfig { api_base_url };
+    let _ = DESKTOP_RUNTIME_CONFIG.set(runtime_config.clone());
+    print_coding_server_startup_summary(&runtime_config.api_base_url);
+    Ok(runtime_config)
+}
+
+async fn ensure_desktop_runtime_config(app: AppHandle) -> Result<DesktopRuntimeConfig, String> {
+    desktop_runtime_startup()
+        .get_or_init(|| async move {
+            tauri::async_runtime::spawn_blocking(move || start_embedded_coding_server(&app))
+                .await
+                .map_err(|error| {
+                    format!("failed to join embedded coding server startup task: {error}")
+                })?
+        })
+        .await
+        .clone()
+}
+
+fn spawn_embedded_coding_server_startup(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        if let Err(error) = ensure_desktop_runtime_config(app).await {
+            eprintln!("failed to start embedded coding server: {error}");
+        }
+    });
 }
 
 #[tauri::command]
@@ -2167,11 +2211,8 @@ fn host_mode() -> &'static str {
 }
 
 #[tauri::command]
-fn desktop_runtime_config() -> Result<DesktopRuntimeConfig, String> {
-    DESKTOP_RUNTIME_CONFIG
-        .get()
-        .cloned()
-        .ok_or_else(|| "desktop runtime config is unavailable".to_string())
+async fn desktop_runtime_config(app: AppHandle) -> Result<DesktopRuntimeConfig, String> {
+    ensure_desktop_runtime_config(app).await
 }
 
 fn json_value_to_sql_value(value: &JsonValue) -> SqlValue {
@@ -2454,80 +2495,107 @@ fn execute_local_sql_plan(
 }
 
 #[tauri::command]
-fn local_sql_execute_plan(
+async fn local_sql_execute_plan(
     app: AppHandle,
     plan: LocalSqlPlan,
 ) -> Result<LocalSqlExecutionResult, String> {
-    let mut connection = open_database(&app)?;
-    execute_local_sql_plan(&mut connection, &plan)
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut connection = open_database(&app)?;
+        execute_local_sql_plan(&mut connection, &plan)
+    })
+    .await
+    .map_err(|error| format!("failed to join local SQL execution task: {error}"))?
 }
 
 #[tauri::command]
-fn user_home_config_read(relative_path: String) -> Result<Option<String>, String> {
-    let path = resolve_user_home_config_path(&relative_path)?;
-    if !path.exists() {
-        return Ok(None);
-    }
+async fn user_home_config_read(relative_path: String) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = resolve_user_home_config_path(&relative_path)?;
+        if !path.exists() {
+            return Ok(None);
+        }
 
-    if !path.is_file() {
-        return Err(format!(
-            "user home config path is not a file: {}",
-            path.display()
-        ));
-    }
+        if !path.is_file() {
+            return Err(format!(
+                "user home config path is not a file: {}",
+                path.display()
+            ));
+        }
 
-    fs::read_to_string(&path)
-        .map(Some)
-        .map_err(|error| format!("failed to read user home config {}: {error}", path.display()))
-}
-
-#[tauri::command]
-fn user_home_config_write(relative_path: String, content: String) -> Result<(), String> {
-    let path = resolve_user_home_config_path(&relative_path)?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|error| {
+        fs::read_to_string(&path).map(Some).map_err(|error| {
             format!(
-                "failed to create user home config directory {}: {error}",
-                parent.display()
+                "failed to read user home config {}: {error}",
+                path.display()
             )
-        })?;
-    }
-
-    fs::write(&path, content)
-        .map_err(|error| format!("failed to write user home config {}: {error}", path.display()))
+        })
+    })
+    .await
+    .map_err(|error| format!("failed to join user home config read task: {error}"))?
 }
 
 #[tauri::command]
-fn local_store_get(app: AppHandle, scope: String, key: String) -> Result<Option<String>, String> {
+async fn user_home_config_write(relative_path: String, content: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = resolve_user_home_config_path(&relative_path)?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|error| {
+                format!(
+                    "failed to create user home config directory {}: {error}",
+                    parent.display()
+                )
+            })?;
+        }
+
+        fs::write(&path, content).map_err(|error| {
+            format!(
+                "failed to write user home config {}: {error}",
+                path.display()
+            )
+        })
+    })
+    .await
+    .map_err(|error| format!("failed to join user home config write task: {error}"))?
+}
+
+#[tauri::command]
+async fn local_store_get(
+    app: AppHandle,
+    scope: String,
+    key: String,
+) -> Result<Option<String>, String> {
     if local_store_key_targets_authority_tables(&key) {
         return Err(format!(
             "local store key '{}' is reserved for direct authority tables and is not readable via kv_store",
             key
         ));
     }
-    let connection = open_database(&app)?;
-    let mut statement = connection
-        .prepare("SELECT value FROM kv_store WHERE scope = ?1 AND key = ?2")
-        .map_err(|error| format!("failed to prepare local_store_get: {error}"))?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let connection = open_database(&app)?;
+        let mut statement = connection
+            .prepare("SELECT value FROM kv_store WHERE scope = ?1 AND key = ?2")
+            .map_err(|error| format!("failed to prepare local_store_get: {error}"))?;
 
-    let mut rows = statement
-        .query(params![scope, key])
-        .map_err(|error| format!("failed to query local_store_get: {error}"))?;
+        let mut rows = statement
+            .query(params![scope, key])
+            .map_err(|error| format!("failed to query local_store_get: {error}"))?;
 
-    match rows
-        .next()
-        .map_err(|error| format!("failed to read local_store_get row: {error}"))?
-    {
-        Some(row) => row
-            .get(0)
-            .map(Some)
-            .map_err(|error| format!("failed to decode local_store_get value: {error}")),
-        None => Ok(None),
-    }
+        match rows
+            .next()
+            .map_err(|error| format!("failed to read local_store_get row: {error}"))?
+        {
+            Some(row) => row
+                .get(0)
+                .map(Some)
+                .map_err(|error| format!("failed to decode local_store_get value: {error}")),
+            None => Ok(None),
+        }
+    })
+    .await
+    .map_err(|error| format!("failed to join local store get task: {error}"))?
 }
 
 #[tauri::command]
-fn local_store_set(
+async fn local_store_set(
     app: AppHandle,
     scope: String,
     key: String,
@@ -2539,75 +2607,87 @@ fn local_store_set(
             key
         ));
     }
-    let connection = open_database(&app)?;
-    connection
-        .execute(
-            r#"
-            INSERT INTO kv_store (scope, key, value, updated_at)
-            VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP)
-            ON CONFLICT(scope, key)
-            DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-            "#,
-            params![&scope, &key, &value],
-        )
-        .map_err(|error| format!("failed to persist local store value: {error}"))?;
-    Ok(())
+    tauri::async_runtime::spawn_blocking(move || {
+        let connection = open_database(&app)?;
+        connection
+            .execute(
+                r#"
+                INSERT INTO kv_store (scope, key, value, updated_at)
+                VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP)
+                ON CONFLICT(scope, key)
+                DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+                "#,
+                params![&scope, &key, &value],
+            )
+            .map_err(|error| format!("failed to persist local store value: {error}"))?;
+        Ok(())
+    })
+    .await
+    .map_err(|error| format!("failed to join local store set task: {error}"))?
 }
 
 #[tauri::command]
-fn local_store_delete(app: AppHandle, scope: String, key: String) -> Result<(), String> {
+async fn local_store_delete(app: AppHandle, scope: String, key: String) -> Result<(), String> {
     if local_store_key_targets_authority_tables(&key) {
         return Err(format!(
             "local store key '{}' is reserved for direct authority tables and cannot be deleted via kv_store",
             key
         ));
     }
-    let connection = open_database(&app)?;
-    connection
-        .execute(
-            "DELETE FROM kv_store WHERE scope = ?1 AND key = ?2",
-            params![&scope, &key],
-        )
-        .map_err(|error| format!("failed to delete local store value: {error}"))?;
-    Ok(())
+    tauri::async_runtime::spawn_blocking(move || {
+        let connection = open_database(&app)?;
+        connection
+            .execute(
+                "DELETE FROM kv_store WHERE scope = ?1 AND key = ?2",
+                params![&scope, &key],
+            )
+            .map_err(|error| format!("failed to delete local store value: {error}"))?;
+        Ok(())
+    })
+    .await
+    .map_err(|error| format!("failed to join local store delete task: {error}"))?
 }
 
 #[tauri::command]
-fn local_store_list(app: AppHandle, scope: String) -> Result<Vec<LocalStoreEntry>, String> {
-    let connection = open_database(&app)?;
-    let mut statement = connection
-        .prepare(
-            r#"
-            SELECT scope, key, value, updated_at
-            FROM kv_store
-            WHERE scope = ?1
-            ORDER BY updated_at DESC, key ASC
-            "#,
-        )
-        .map_err(|error| format!("failed to prepare local_store_list: {error}"))?;
+async fn local_store_list(app: AppHandle, scope: String) -> Result<Vec<LocalStoreEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let connection = open_database(&app)?;
+        let mut statement = connection
+            .prepare(
+                r#"
+                SELECT scope, key, value, updated_at
+                FROM kv_store
+                WHERE scope = ?1
+                ORDER BY updated_at DESC, key ASC
+                "#,
+            )
+            .map_err(|error| format!("failed to prepare local_store_list: {error}"))?;
 
-    let rows = statement
-        .query_map(params![scope], |row| {
-            Ok(LocalStoreEntry {
-                scope: row.get(0)?,
-                key: row.get(1)?,
-                value: row.get(2)?,
-                updated_at: row.get(3)?,
+        let rows = statement
+            .query_map(params![scope], |row| {
+                Ok(LocalStoreEntry {
+                    scope: row.get(0)?,
+                    key: row.get(1)?,
+                    value: row.get(2)?,
+                    updated_at: row.get(3)?,
+                })
             })
-        })
-        .map_err(|error| format!("failed to list local store values: {error}"))?;
+            .map_err(|error| format!("failed to list local store values: {error}"))?;
 
-    let mut entries = Vec::new();
-    for row in rows {
-        let entry =
-            row.map_err(|error| format!("failed to decode local_store_list row: {error}"))?;
-        if local_store_key_targets_authority_tables(&entry.key) {
-            continue;
+        let mut entries = Vec::new();
+        for row in rows {
+            let entry =
+                row.map_err(|error| format!("failed to decode local_store_list row: {error}"))?;
+            if local_store_key_targets_authority_tables(&entry.key) {
+                continue;
+            }
+            entries.push(entry);
         }
-        entries.push(entry);
-    }
 
-    Ok(entries)
+        Ok(entries)
+    })
+    .await
+    .map_err(|error| format!("failed to join local store list task: {error}"))?
 }
 
 #[tauri::command]
@@ -2678,15 +2758,49 @@ async fn fs_list_directory(
     .map_err(|error| format!("failed to join directory listing task: {error}"))?
 }
 
-#[tauri::command]
-fn fs_read_file(root_path: String, relative_path: String) -> Result<String, String> {
-    let file_path = resolve_scoped_path(&root_path, &relative_path)?;
-    fs::read_to_string(&file_path).map_err(|error| {
+fn read_mounted_file_to_string(
+    file_path: &Path,
+    max_bytes: Option<usize>,
+) -> Result<String, String> {
+    if let Some(max_bytes) = max_bytes.filter(|value| *value > 0) {
+        let file = fs::File::open(file_path).map_err(|error| {
+            format!(
+                "failed to open mounted file '{}': {error}",
+                file_path.display()
+            )
+        })?;
+        let mut buffer = Vec::with_capacity(max_bytes.min(64 * 1024));
+        file.take(max_bytes as u64)
+            .read_to_end(&mut buffer)
+            .map_err(|error| {
+                format!(
+                    "failed to read mounted file prefix '{}': {error}",
+                    file_path.display()
+                )
+            })?;
+        return Ok(String::from_utf8_lossy(&buffer).into_owned());
+    }
+
+    fs::read_to_string(file_path).map_err(|error| {
         format!(
             "failed to read mounted file '{}': {error}",
             file_path.display()
         )
     })
+}
+
+#[tauri::command]
+async fn fs_read_file(
+    root_path: String,
+    relative_path: String,
+    max_bytes: Option<usize>,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let file_path = resolve_scoped_path(&root_path, &relative_path)?;
+        read_mounted_file_to_string(&file_path, max_bytes)
+    })
+    .await
+    .map_err(|error| format!("failed to join mounted file read task: {error}"))?
 }
 
 fn build_entry_revision(metadata: &fs::Metadata) -> Result<String, String> {
@@ -2701,334 +2815,370 @@ fn build_entry_revision(metadata: &fs::Metadata) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn fs_get_file_revision(root_path: String, relative_path: String) -> Result<String, String> {
-    let file_path = resolve_scoped_path(&root_path, &relative_path)?;
-    let metadata = fs::metadata(&file_path).map_err(|error| {
-        format!(
-            "failed to inspect mounted file '{}': {error}",
-            file_path.display()
-        )
-    })?;
+async fn fs_get_file_revision(root_path: String, relative_path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let file_path = resolve_scoped_path(&root_path, &relative_path)?;
+        let metadata = fs::metadata(&file_path).map_err(|error| {
+            format!(
+                "failed to inspect mounted file '{}': {error}",
+                file_path.display()
+            )
+        })?;
 
-    if !metadata.is_file() {
-        return Err(format!(
-            "mounted path must be a file: {}",
-            file_path.display()
-        ));
-    }
+        if !metadata.is_file() {
+            return Err(format!(
+                "mounted path must be a file: {}",
+                file_path.display()
+            ));
+        }
 
-    build_entry_revision(&metadata)
+        build_entry_revision(&metadata)
+    })
+    .await
+    .map_err(|error| format!("failed to join mounted file revision task: {error}"))?
 }
 
 #[tauri::command]
-fn fs_get_file_revisions(
+async fn fs_get_file_revisions(
     root_path: String,
     relative_paths: Vec<String>,
 ) -> Result<Vec<FileSystemFileRevisionProbeResponse>, String> {
-    let mut probes = Vec::with_capacity(relative_paths.len());
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut probes = Vec::with_capacity(relative_paths.len());
 
-    for relative_path in relative_paths {
-        let file_path = match resolve_scoped_path(&root_path, &relative_path) {
-            Ok(file_path) => file_path,
-            Err(error) => {
-                probes.push(FileSystemFileRevisionProbeResponse {
-                    revision: None,
-                    missing: false,
-                    error: Some(error),
-                });
-                continue;
-            }
-        };
+        for relative_path in relative_paths {
+            let file_path = match resolve_scoped_path(&root_path, &relative_path) {
+                Ok(file_path) => file_path,
+                Err(error) => {
+                    probes.push(FileSystemFileRevisionProbeResponse {
+                        revision: None,
+                        missing: false,
+                        error: Some(error),
+                    });
+                    continue;
+                }
+            };
 
-        let metadata = match fs::metadata(&file_path) {
-            Ok(metadata) => metadata,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                probes.push(FileSystemFileRevisionProbeResponse {
-                    revision: None,
-                    missing: true,
-                    error: None,
-                });
-                continue;
-            }
-            Err(error) => {
+            let metadata = match fs::metadata(&file_path) {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    probes.push(FileSystemFileRevisionProbeResponse {
+                        revision: None,
+                        missing: true,
+                        error: None,
+                    });
+                    continue;
+                }
+                Err(error) => {
+                    probes.push(FileSystemFileRevisionProbeResponse {
+                        revision: None,
+                        missing: false,
+                        error: Some(format!(
+                            "failed to inspect mounted file '{}': {error}",
+                            file_path.display()
+                        )),
+                    });
+                    continue;
+                }
+            };
+
+            if !metadata.is_file() {
                 probes.push(FileSystemFileRevisionProbeResponse {
                     revision: None,
                     missing: false,
                     error: Some(format!(
-                        "failed to inspect mounted file '{}': {error}",
+                        "mounted path must be a file: {}",
                         file_path.display()
                     )),
                 });
                 continue;
             }
-        };
 
-        if !metadata.is_file() {
-            probes.push(FileSystemFileRevisionProbeResponse {
-                revision: None,
-                missing: false,
-                error: Some(format!(
-                    "mounted path must be a file: {}",
-                    file_path.display()
-                )),
-            });
-            continue;
-        }
-
-        match build_entry_revision(&metadata) {
-            Ok(revision) => probes.push(FileSystemFileRevisionProbeResponse {
-                revision: Some(revision),
-                missing: false,
-                error: None,
-            }),
-            Err(error) => probes.push(FileSystemFileRevisionProbeResponse {
-                revision: None,
-                missing: false,
-                error: Some(error),
-            }),
-        }
-    }
-
-    Ok(probes)
-}
-
-#[tauri::command]
-fn fs_get_directory_revisions(
-    root_path: String,
-    relative_paths: Vec<String>,
-) -> Result<Vec<FileSystemFileRevisionProbeResponse>, String> {
-    let mut probes = Vec::with_capacity(relative_paths.len());
-
-    for relative_path in relative_paths {
-        let directory_path = match resolve_scoped_path(&root_path, &relative_path) {
-            Ok(directory_path) => directory_path,
-            Err(error) => {
-                probes.push(FileSystemFileRevisionProbeResponse {
+            match build_entry_revision(&metadata) {
+                Ok(revision) => probes.push(FileSystemFileRevisionProbeResponse {
+                    revision: Some(revision),
+                    missing: false,
+                    error: None,
+                }),
+                Err(error) => probes.push(FileSystemFileRevisionProbeResponse {
                     revision: None,
                     missing: false,
                     error: Some(error),
-                });
-                continue;
+                }),
             }
-        };
+        }
 
-        let metadata = match fs::metadata(&directory_path) {
-            Ok(metadata) => metadata,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                probes.push(FileSystemFileRevisionProbeResponse {
-                    revision: None,
-                    missing: true,
-                    error: None,
-                });
-                continue;
-            }
-            Err(error) => {
+        Ok(probes)
+    })
+    .await
+    .map_err(|error| format!("failed to join mounted file revisions task: {error}"))?
+}
+
+#[tauri::command]
+async fn fs_get_directory_revisions(
+    root_path: String,
+    relative_paths: Vec<String>,
+) -> Result<Vec<FileSystemFileRevisionProbeResponse>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut probes = Vec::with_capacity(relative_paths.len());
+
+        for relative_path in relative_paths {
+            let directory_path = match resolve_scoped_path(&root_path, &relative_path) {
+                Ok(directory_path) => directory_path,
+                Err(error) => {
+                    probes.push(FileSystemFileRevisionProbeResponse {
+                        revision: None,
+                        missing: false,
+                        error: Some(error),
+                    });
+                    continue;
+                }
+            };
+
+            let metadata = match fs::metadata(&directory_path) {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    probes.push(FileSystemFileRevisionProbeResponse {
+                        revision: None,
+                        missing: true,
+                        error: None,
+                    });
+                    continue;
+                }
+                Err(error) => {
+                    probes.push(FileSystemFileRevisionProbeResponse {
+                        revision: None,
+                        missing: false,
+                        error: Some(format!(
+                            "failed to inspect mounted directory '{}': {error}",
+                            directory_path.display()
+                        )),
+                    });
+                    continue;
+                }
+            };
+
+            if !metadata.is_dir() {
                 probes.push(FileSystemFileRevisionProbeResponse {
                     revision: None,
                     missing: false,
                     error: Some(format!(
-                        "failed to inspect mounted directory '{}': {error}",
+                        "mounted path must be a directory: {}",
                         directory_path.display()
                     )),
                 });
                 continue;
             }
-        };
 
-        if !metadata.is_dir() {
-            probes.push(FileSystemFileRevisionProbeResponse {
-                revision: None,
-                missing: false,
-                error: Some(format!(
-                    "mounted path must be a directory: {}",
-                    directory_path.display()
-                )),
-            });
-            continue;
+            match build_entry_revision(&metadata) {
+                Ok(revision) => probes.push(FileSystemFileRevisionProbeResponse {
+                    revision: Some(revision),
+                    missing: false,
+                    error: None,
+                }),
+                Err(error) => probes.push(FileSystemFileRevisionProbeResponse {
+                    revision: None,
+                    missing: false,
+                    error: Some(error),
+                }),
+            }
         }
 
-        match build_entry_revision(&metadata) {
-            Ok(revision) => probes.push(FileSystemFileRevisionProbeResponse {
-                revision: Some(revision),
-                missing: false,
-                error: None,
-            }),
-            Err(error) => probes.push(FileSystemFileRevisionProbeResponse {
-                revision: None,
-                missing: false,
-                error: Some(error),
-            }),
-        }
-    }
-
-    Ok(probes)
-}
-
-#[tauri::command]
-fn fs_write_file(root_path: String, relative_path: String, content: String) -> Result<(), String> {
-    let file_path = resolve_scoped_path(&root_path, &relative_path)?;
-    fs::write(&file_path, content).map_err(|error| {
-        format!(
-            "failed to write mounted file '{}': {error}",
-            file_path.display()
-        )
+        Ok(probes)
     })
+    .await
+    .map_err(|error| format!("failed to join mounted directory revisions task: {error}"))?
 }
 
 #[tauri::command]
-fn fs_create_file(root_path: String, relative_path: String) -> Result<(), String> {
-    let file_path = resolve_scoped_path(&root_path, &relative_path)?;
-    if file_path.exists() {
-        if file_path.is_file() {
-            return Ok(());
+async fn fs_write_file(
+    root_path: String,
+    relative_path: String,
+    content: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let file_path = resolve_scoped_path(&root_path, &relative_path)?;
+        fs::write(&file_path, content).map_err(|error| {
+            format!(
+                "failed to write mounted file '{}': {error}",
+                file_path.display()
+            )
+        })
+    })
+    .await
+    .map_err(|error| format!("failed to join mounted file write task: {error}"))?
+}
+
+#[tauri::command]
+async fn fs_create_file(root_path: String, relative_path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let file_path = resolve_scoped_path(&root_path, &relative_path)?;
+        if file_path.exists() {
+            if file_path.is_file() {
+                return Ok(());
+            }
+
+            return Err(format!(
+                "cannot create file because a directory already exists at '{}'",
+                file_path.display()
+            ));
         }
 
-        return Err(format!(
-            "cannot create file because a directory already exists at '{}'",
-            file_path.display()
-        ));
-    }
-
-    let parent_directory = file_path.parent().ok_or_else(|| {
-        format!(
-            "cannot create mounted file without a parent directory: {}",
-            file_path.display()
-        )
-    })?;
-
-    if !parent_directory.exists() {
-        return Err(format!(
-            "parent directory does not exist for mounted file '{}'",
-            file_path.display()
-        ));
-    }
-
-    fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(false)
-        .open(&file_path)
-        .map_err(|error| {
+        let parent_directory = file_path.parent().ok_or_else(|| {
             format!(
-                "failed to create mounted file '{}': {error}",
+                "cannot create mounted file without a parent directory: {}",
                 file_path.display()
             )
         })?;
 
-    Ok(())
-}
-
-#[tauri::command]
-fn fs_create_directory(root_path: String, relative_path: String) -> Result<(), String> {
-    let directory_path = resolve_scoped_path(&root_path, &relative_path)?;
-    if directory_path.exists() {
-        if directory_path.is_dir() {
-            return Ok(());
+        if !parent_directory.exists() {
+            return Err(format!(
+                "parent directory does not exist for mounted file '{}'",
+                file_path.display()
+            ));
         }
 
-        return Err(format!(
-            "cannot create directory because a file already exists at '{}'",
-            directory_path.display()
-        ));
-    }
+        fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(false)
+            .open(&file_path)
+            .map_err(|error| {
+                format!(
+                    "failed to create mounted file '{}': {error}",
+                    file_path.display()
+                )
+            })?;
 
-    let parent_directory = directory_path.parent().ok_or_else(|| {
-        format!(
-            "cannot create mounted directory without a parent directory: {}",
-            directory_path.display()
-        )
-    })?;
-
-    if !parent_directory.exists() {
-        return Err(format!(
-            "parent directory does not exist for mounted directory '{}'",
-            directory_path.display()
-        ));
-    }
-
-    fs::create_dir(&directory_path).map_err(|error| {
-        format!(
-            "failed to create mounted directory '{}': {error}",
-            directory_path.display()
-        )
-    })?;
-
-    Ok(())
+        Ok(())
+    })
+    .await
+    .map_err(|error| format!("failed to join mounted file create task: {error}"))?
 }
 
 #[tauri::command]
-fn fs_delete_entry(
+async fn fs_create_directory(root_path: String, relative_path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let directory_path = resolve_scoped_path(&root_path, &relative_path)?;
+        if directory_path.exists() {
+            if directory_path.is_dir() {
+                return Ok(());
+            }
+
+            return Err(format!(
+                "cannot create directory because a file already exists at '{}'",
+                directory_path.display()
+            ));
+        }
+
+        let parent_directory = directory_path.parent().ok_or_else(|| {
+            format!(
+                "cannot create mounted directory without a parent directory: {}",
+                directory_path.display()
+            )
+        })?;
+
+        if !parent_directory.exists() {
+            return Err(format!(
+                "parent directory does not exist for mounted directory '{}'",
+                directory_path.display()
+            ));
+        }
+
+        fs::create_dir(&directory_path).map_err(|error| {
+            format!(
+                "failed to create mounted directory '{}': {error}",
+                directory_path.display()
+            )
+        })?;
+
+        Ok(())
+    })
+    .await
+    .map_err(|error| format!("failed to join mounted directory create task: {error}"))?
+}
+
+#[tauri::command]
+async fn fs_delete_entry(
     root_path: String,
     relative_path: String,
     recursive: bool,
 ) -> Result<(), String> {
-    let entry_path = resolve_scoped_path(&root_path, &relative_path)?;
-    let metadata = fs::metadata(&entry_path).map_err(|error| {
-        format!(
-            "failed to inspect mounted entry '{}': {error}",
-            entry_path.display()
-        )
-    })?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let entry_path = resolve_scoped_path(&root_path, &relative_path)?;
+        let metadata = fs::metadata(&entry_path).map_err(|error| {
+            format!(
+                "failed to inspect mounted entry '{}': {error}",
+                entry_path.display()
+            )
+        })?;
 
-    if metadata.is_dir() {
-        if recursive {
-            fs::remove_dir_all(&entry_path).map_err(|error| {
-                format!(
-                    "failed to delete mounted directory '{}': {error}",
-                    entry_path.display()
-                )
-            })?;
+        if metadata.is_dir() {
+            if recursive {
+                fs::remove_dir_all(&entry_path).map_err(|error| {
+                    format!(
+                        "failed to delete mounted directory '{}': {error}",
+                        entry_path.display()
+                    )
+                })?;
+            } else {
+                fs::remove_dir(&entry_path).map_err(|error| {
+                    format!(
+                        "failed to delete mounted directory '{}': {error}",
+                        entry_path.display()
+                    )
+                })?;
+            }
         } else {
-            fs::remove_dir(&entry_path).map_err(|error| {
+            fs::remove_file(&entry_path).map_err(|error| {
                 format!(
-                    "failed to delete mounted directory '{}': {error}",
+                    "failed to delete mounted file '{}': {error}",
                     entry_path.display()
                 )
             })?;
         }
-    } else {
-        fs::remove_file(&entry_path).map_err(|error| {
-            format!(
-                "failed to delete mounted file '{}': {error}",
-                entry_path.display()
-            )
-        })?;
-    }
 
-    Ok(())
+        Ok(())
+    })
+    .await
+    .map_err(|error| format!("failed to join mounted entry delete task: {error}"))?
 }
 
 #[tauri::command]
-fn fs_rename_entry(
+async fn fs_rename_entry(
     root_path: String,
     old_relative_path: String,
     new_relative_path: String,
 ) -> Result<(), String> {
-    let old_path = resolve_scoped_path(&root_path, &old_relative_path)?;
-    let new_path = resolve_scoped_path(&root_path, &new_relative_path)?;
-    let new_parent_directory = new_path.parent().ok_or_else(|| {
-        format!(
-            "cannot rename mounted entry without a destination parent directory: {}",
-            new_path.display()
-        )
-    })?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let old_path = resolve_scoped_path(&root_path, &old_relative_path)?;
+        let new_path = resolve_scoped_path(&root_path, &new_relative_path)?;
+        let new_parent_directory = new_path.parent().ok_or_else(|| {
+            format!(
+                "cannot rename mounted entry without a destination parent directory: {}",
+                new_path.display()
+            )
+        })?;
 
-    if !new_parent_directory.exists() {
-        return Err(format!(
-            "destination parent directory does not exist for mounted entry '{}'",
-            new_path.display()
-        ));
-    }
+        if !new_parent_directory.exists() {
+            return Err(format!(
+                "destination parent directory does not exist for mounted entry '{}'",
+                new_path.display()
+            ));
+        }
 
-    fs::rename(&old_path, &new_path).map_err(|error| {
-        format!(
-            "failed to rename mounted entry '{}' to '{}': {error}",
-            old_path.display(),
-            new_path.display()
-        )
-    })?;
+        fs::rename(&old_path, &new_path).map_err(|error| {
+            format!(
+                "failed to rename mounted entry '{}' to '{}': {error}",
+                old_path.display(),
+                new_path.display()
+            )
+        })?;
 
-    Ok(())
+        Ok(())
+    })
+    .await
+    .map_err(|error| format!("failed to join mounted entry rename task: {error}"))?
 }
 
 fn locate_terminal_executable(executable: &str, aliases: &[String]) -> Option<String> {
@@ -3075,20 +3225,24 @@ fn locate_terminal_executable(executable: &str, aliases: &[String]) -> Option<St
 }
 
 #[tauri::command]
-fn terminal_cli_profile_detect(
+async fn terminal_cli_profile_detect(
     request: TerminalCliProfileDetectRequest,
 ) -> Result<TerminalCliProfileAvailability, String> {
-    let resolved_executable = locate_terminal_executable(&request.executable, &request.aliases);
+    tauri::async_runtime::spawn_blocking(move || {
+        let resolved_executable = locate_terminal_executable(&request.executable, &request.aliases);
 
-    Ok(TerminalCliProfileAvailability {
-        profile_id: request.profile_id,
-        status: if resolved_executable.is_some() {
-            "available".to_string()
-        } else {
-            "missing".to_string()
-        },
-        resolved_executable,
+        Ok(TerminalCliProfileAvailability {
+            profile_id: request.profile_id,
+            status: if resolved_executable.is_some() {
+                "available".to_string()
+            } else {
+                "missing".to_string()
+            },
+            resolved_executable,
+        })
     })
+    .await
+    .map_err(|error| format!("failed to join terminal CLI profile detect task: {error}"))?
 }
 
 pub fn run() {
@@ -3100,7 +3254,7 @@ pub fn run() {
             app.manage(terminal_bridge::DesktopRuntimeState::new(Some(
                 app.handle().clone(),
             )));
-            start_embedded_coding_server(app.handle())?;
+            spawn_embedded_coding_server_startup(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -3161,7 +3315,9 @@ mod tests {
             resolve_user_home_config_path(".sdkwork/birdcoder/code-engine-models.json")
                 .expect("resolve canonical BirdCoder model config path");
         assert!(
-            resolved_path.ends_with(Path::new(USER_HOME_CONFIG_RELATIVE_ROOT).join("code-engine-models.json")),
+            resolved_path.ends_with(
+                Path::new(USER_HOME_CONFIG_RELATIVE_ROOT).join("code-engine-models.json")
+            ),
             "canonical model config must resolve under ~/.sdkwork/birdcoder"
         );
         assert!(

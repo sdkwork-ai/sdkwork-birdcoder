@@ -49,6 +49,7 @@ export function useProgressiveTranscriptWindow(
   const pendingPrependedScrollMetricsRef = useRef<TranscriptScrollMetrics | null>(null);
   const isTranscriptPointerDragActiveRef = useRef(false);
   const pendingTopLoadAfterPointerReleaseRef = useRef(false);
+  const topLoadAnimationFrameRef = useRef<number | null>(null);
   const [visibleTranscriptStartIndex, setVisibleTranscriptStartIndex] = useState(() =>
     resolveInitialVisibleTranscriptStartIndex(messages.length),
   );
@@ -126,20 +127,30 @@ export function useProgressiveTranscriptWindow(
         resolveEarlierTranscriptStartIndex(previousVisibleTranscriptStartIndex),
       );
     };
-    const handleTranscriptScroll = () => {
+    const scheduleEarlierTranscriptPageRequest = () => {
       if (pendingPrependedScrollMetricsRef.current || isLoadingEarlierMessages) {
         return;
       }
 
-      if (isTranscriptPointerDragActiveRef.current) {
-        pendingTopLoadAfterPointerReleaseRef.current = shouldLoadEarlierTranscriptPage(
-          readTranscriptScrollMetrics(messagesEndRef),
-          visibleTranscriptStartIndex,
-        );
+      if (topLoadAnimationFrameRef.current !== null) {
         return;
       }
 
-      requestEarlierTranscriptPage();
+      topLoadAnimationFrameRef.current = window.requestAnimationFrame(() => {
+        topLoadAnimationFrameRef.current = null;
+        if (isTranscriptPointerDragActiveRef.current) {
+          pendingTopLoadAfterPointerReleaseRef.current = shouldLoadEarlierTranscriptPage(
+            readTranscriptScrollMetrics(messagesEndRef),
+            visibleTranscriptStartIndex,
+          );
+          return;
+        }
+
+        requestEarlierTranscriptPage();
+      });
+    };
+    const handleTranscriptScroll = () => {
+      scheduleEarlierTranscriptPageRequest();
     };
     const handleTranscriptPointerDown = (event: PointerEvent) => {
       if (event.pointerType === 'mouse' && event.button !== 0) {
@@ -160,6 +171,10 @@ export function useProgressiveTranscriptWindow(
       }
 
       pendingTopLoadAfterPointerReleaseRef.current = false;
+      if (topLoadAnimationFrameRef.current !== null) {
+        window.cancelAnimationFrame(topLoadAnimationFrameRef.current);
+        topLoadAnimationFrameRef.current = null;
+      }
       requestEarlierTranscriptPage();
     };
 
@@ -171,6 +186,10 @@ export function useProgressiveTranscriptWindow(
     return () => {
       isTranscriptPointerDragActiveRef.current = false;
       pendingTopLoadAfterPointerReleaseRef.current = false;
+      if (topLoadAnimationFrameRef.current !== null) {
+        window.cancelAnimationFrame(topLoadAnimationFrameRef.current);
+        topLoadAnimationFrameRef.current = null;
+      }
       scrollContainer.removeEventListener('scroll', handleTranscriptScroll);
       scrollContainer.removeEventListener('pointerdown', handleTranscriptPointerDown);
       window.removeEventListener('pointerup', handleTranscriptPointerRelease, true);

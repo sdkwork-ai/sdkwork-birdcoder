@@ -106,11 +106,30 @@ const INI_FILE_NAMES = new Set(['.editorconfig', '.gitconfig']);
 const PROPERTIES_FILE_NAMES = new Set(['.npmrc']);
 
 const CONTENT_PREVIEW_MAX_EMBEDDED_DOCUMENT_LENGTH = 500_000;
-const CONTENT_PREVIEW_MAX_MARKDOWN_LENGTH = 300_000;
+export const CONTENT_PREVIEW_MAX_CODE_HIGHLIGHT_LENGTH = 100_000;
+export const CONTENT_PREVIEW_MAX_MARKDOWN_LENGTH = 64_000;
 const CONTENT_PREVIEW_MAX_KEY_VALUE_LENGTH = 200_000;
 const CONTENT_PREVIEW_MAX_KEY_VALUE_LINES = 4_000;
 const CONTENT_PREVIEW_MAX_TABLE_LENGTH = 200_000;
 const CONTENT_PREVIEW_MAX_TABLE_LINES = 2_000;
+const CONTENT_PREVIEW_SANDBOX_TOKENS_BY_POLICY: Record<
+  ContentPreviewSandboxPolicy,
+  readonly string[]
+> = {
+  locked: [],
+  balanced: ['allow-forms', 'allow-modals', 'allow-popups'],
+  trusted: [
+    'allow-downloads',
+    'allow-forms',
+    'allow-modals',
+    'allow-pointer-lock',
+    'allow-popups',
+    'allow-popups-to-escape-sandbox',
+    'allow-presentation',
+    'allow-same-origin',
+    'allow-scripts',
+  ],
+};
 
 function normalizeValue(value: string | null | undefined): string {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -915,7 +934,10 @@ export function resolveContentPreviewDescriptor(
   let structuredData: ParsedStructuredDataPreviewValue | null = null;
   let tabularData: ParsedTabularDataPreviewValue | null = null;
   const fallbackToCodeOrText = () => {
-    if (codeLanguage !== 'text') {
+    if (
+      codeLanguage !== 'text' &&
+      sourceValue.length <= CONTENT_PREVIEW_MAX_CODE_HIGHLIGHT_LENGTH
+    ) {
       presentation = 'code';
       displayLabel = 'Code';
       return;
@@ -934,7 +956,8 @@ export function resolveContentPreviewDescriptor(
     }
   } else if (kind === 'markdown') {
     if (sourceValue.length > CONTENT_PREVIEW_MAX_MARKDOWN_LENGTH) {
-      fallbackToCodeOrText();
+      presentation = 'text';
+      displayLabel = 'Text';
     } else {
       presentation = 'markdown';
       displayLabel = 'Markdown';
@@ -983,7 +1006,10 @@ export function resolveContentPreviewDescriptor(
         if (tabularData !== null) {
           presentation = 'table';
           displayLabel = 'Data Table';
-        } else if (codeLanguage !== 'text') {
+        } else if (
+          codeLanguage !== 'text' &&
+          sourceValue.length <= CONTENT_PREVIEW_MAX_CODE_HIGHLIGHT_LENGTH
+        ) {
           presentation = 'code';
           displayLabel = 'Code';
         } else {
@@ -1026,18 +1052,13 @@ export function resolveContentPreviewSandbox(
   sandboxOverride?: string | null,
 ): string {
   if (typeof sandboxOverride === 'string') {
-    return sandboxOverride;
+    const requestedTokens = new Set(sandboxOverride.trim().split(/\s+/u).filter(Boolean));
+    return CONTENT_PREVIEW_SANDBOX_TOKENS_BY_POLICY[policy]
+      .filter((token) => requestedTokens.has(token))
+      .join(' ');
   }
 
-  switch (policy) {
-    case 'locked':
-      return '';
-    case 'trusted':
-      return 'allow-downloads allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts';
-    case 'balanced':
-    default:
-      return 'allow-forms allow-modals allow-popups allow-same-origin allow-scripts';
-  }
+  return CONTENT_PREVIEW_SANDBOX_TOKENS_BY_POLICY[policy].join(' ');
 }
 
 export function buildHtmlPreviewDocument(

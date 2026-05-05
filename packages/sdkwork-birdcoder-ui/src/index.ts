@@ -2,6 +2,8 @@ export { FileExplorer } from './components/FileExplorer';
 export type { FileNode } from './components/FileExplorer';
 
 export { WorkbenchNewSessionButton } from './components/WorkbenchNewSessionButton';
+export { copyTextToClipboard } from './components/clipboard';
+export { resolveSafeMarkdownHref } from './components/markdownLinkSecurity';
 
 export { ProjectGitOverviewPanel } from './components/ProjectGitOverviewPanel';
 export { ProjectGitOverviewDrawer } from './components/ProjectGitOverviewDrawer';
@@ -28,7 +30,11 @@ export { DeferredDiffEditor } from './components/DeferredDiffEditor';
 export { DeferredRunConfigurationDialog, DeferredRunTaskDialog } from './components/DeferredRunDialogs';
 
 export { UniversalChat } from './components/UniversalChat';
-export type { ChatSkill, UniversalChatProps } from './components/UniversalChat';
+export type {
+  ChatSkill,
+  UniversalChatComposerSelection,
+  UniversalChatProps,
+} from './components/UniversalChat';
 export { UniversalChatComposerChrome } from './components/UniversalChatComposerChrome';
 export type { UniversalChatComposerChromeProps } from './components/UniversalChatComposerChrome';
 

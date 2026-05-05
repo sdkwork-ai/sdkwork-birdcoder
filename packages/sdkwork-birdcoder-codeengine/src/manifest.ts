@@ -295,6 +295,140 @@ const OPENCODE_TRANSPORT_KINDS: readonly BirdCoderEngineTransportKind[] = [
   'sdk-stream',
 ];
 
+interface BirdCoderBuiltInModelDefinition {
+  modelId: string;
+  displayName: string;
+  defaultForEngine?: boolean;
+  providerId?: string;
+  capabilityMatrix?: Partial<BirdCoderEngineCapabilityMatrix>;
+}
+
+function buildBuiltInModelCatalog(
+  engineKey: BirdCoderStandardEngineId,
+  transportKinds: readonly BirdCoderEngineTransportKind[],
+  models: readonly BirdCoderBuiltInModelDefinition[],
+): BirdCoderModelCatalogEntry[] {
+  return models.map((model) =>
+    buildModelCatalogEntry(
+      engineKey,
+      model.modelId,
+      model.displayName,
+      model.defaultForEngine ?? false,
+      transportKinds,
+      model.capabilityMatrix ?? {},
+      model.providerId,
+    ),
+  );
+}
+
+const CODEX_BUILT_IN_MODEL_DEFINITIONS: readonly BirdCoderBuiltInModelDefinition[] = [
+  { modelId: 'gpt-5.5', displayName: 'GPT-5.5', defaultForEngine: true },
+  { modelId: 'gpt-5.4', displayName: 'GPT-5.4' },
+  { modelId: 'gpt-5.3-codex', displayName: 'GPT-5.3 Codex' },
+  { modelId: 'gpt-5.2-codex', displayName: 'GPT-5.2 Codex' },
+  { modelId: 'gpt-5.1-codex-max', displayName: 'GPT-5.1 Codex Max' },
+  { modelId: 'gpt-5.1-codex', displayName: 'GPT-5.1 Codex' },
+  { modelId: 'gpt-5.2', displayName: 'GPT-5.2' },
+  { modelId: 'gpt-5.1', displayName: 'GPT-5.1' },
+  { modelId: 'gpt-5-codex', displayName: 'GPT-5 Codex' },
+  { modelId: 'gpt-5', displayName: 'GPT-5' },
+  { modelId: 'gpt-oss-120b', displayName: 'GPT-OSS 120B' },
+  { modelId: 'gpt-oss-20b', displayName: 'GPT-OSS 20B' },
+  {
+    modelId: 'gpt-5.1-codex-mini',
+    displayName: 'GPT-5.1 Codex Mini',
+    capabilityMatrix: { planning: false },
+  },
+  {
+    modelId: 'gpt-5-codex-mini',
+    displayName: 'GPT-5 Codex Mini',
+    capabilityMatrix: { planning: false },
+  },
+];
+
+const CLAUDE_CODE_BUILT_IN_MODEL_DEFINITIONS: readonly BirdCoderBuiltInModelDefinition[] = [
+  { modelId: 'claude-sonnet-4-6', displayName: 'Claude Sonnet 4.6', defaultForEngine: true },
+  { modelId: 'claude-opus-4-6', displayName: 'Claude Opus 4.6' },
+  { modelId: 'claude-haiku-4-5-20251001', displayName: 'Claude Haiku 4.5' },
+  { modelId: 'claude-opus-4-5-20251101', displayName: 'Claude Opus 4.5' },
+  { modelId: 'claude-opus-4-1-20250805', displayName: 'Claude Opus 4.1' },
+  { modelId: 'claude-opus-4-20250514', displayName: 'Claude Opus 4' },
+  { modelId: 'claude-sonnet-4-5-20250929', displayName: 'Claude Sonnet 4.5' },
+  { modelId: 'claude-sonnet-4-20250514', displayName: 'Claude Sonnet 4' },
+  { modelId: 'claude-3-7-sonnet-20250219', displayName: 'Claude 3.7 Sonnet' },
+  { modelId: 'claude-3-5-sonnet-20241022', displayName: 'Claude 3.5 Sonnet' },
+  {
+    modelId: 'claude-3-5-haiku-20241022',
+    displayName: 'Claude 3.5 Haiku',
+    capabilityMatrix: { planning: false },
+  },
+];
+
+const GEMINI_BUILT_IN_MODEL_DEFINITIONS: readonly BirdCoderBuiltInModelDefinition[] = [
+  { modelId: 'auto-gemini-3', displayName: 'Auto (Gemini 3)', defaultForEngine: true },
+  { modelId: 'auto-gemini-2.5', displayName: 'Auto (Gemini 2.5)' },
+  { modelId: 'gemini-3.1-pro-preview', displayName: 'Gemini 3.1 Pro Preview' },
+  { modelId: 'gemini-3.1-pro-preview-customtools', displayName: 'Gemini 3.1 Pro Preview Custom Tools' },
+  {
+    modelId: 'gemini-3.1-flash-lite-preview',
+    displayName: 'Gemini 3.1 Flash Lite Preview',
+    capabilityMatrix: { planning: false },
+  },
+  { modelId: 'gemini-3-pro-preview', displayName: 'Gemini 3 Pro Preview' },
+  {
+    modelId: 'gemini-3-flash-preview',
+    displayName: 'Gemini 3 Flash Preview',
+    capabilityMatrix: { planning: false },
+  },
+  { modelId: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro' },
+  {
+    modelId: 'gemini-2.5-flash',
+    displayName: 'Gemini 2.5 Flash',
+    capabilityMatrix: { planning: false },
+  },
+  {
+    modelId: 'gemini-2.5-flash-lite',
+    displayName: 'Gemini 2.5 Flash Lite',
+    capabilityMatrix: { planning: false },
+  },
+];
+
+const OPENCODE_BUILT_IN_MODEL_DEFINITIONS: readonly BirdCoderBuiltInModelDefinition[] = [
+  { modelId: 'opencode/big-pickle', displayName: 'Big Pickle', defaultForEngine: true, providerId: 'opencode' },
+  { modelId: 'opencode/claude-sonnet-4-6', displayName: 'Claude Sonnet 4.6', providerId: 'opencode' },
+  { modelId: 'opencode/claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5', providerId: 'opencode' },
+  { modelId: 'opencode/claude-sonnet-4', displayName: 'Claude Sonnet 4', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5.4-pro', displayName: 'GPT-5.4 Pro', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5.4-nano', displayName: 'GPT-5.4 Nano', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5.4-mini', displayName: 'GPT-5.4 Mini', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5.4', displayName: 'GPT-5.4', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5.3-codex-spark', displayName: 'GPT-5.3 Codex Spark', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5.3-codex', displayName: 'GPT-5.3 Codex', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5.2-codex', displayName: 'GPT-5.2 Codex', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5.2', displayName: 'GPT-5.2', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5.1-codex-mini', displayName: 'GPT-5.1 Codex Mini', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5.1-codex-max', displayName: 'GPT-5.1 Codex Max', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5.1-codex', displayName: 'GPT-5.1 Codex', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5.1', displayName: 'GPT-5.1', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5-nano', displayName: 'GPT-5 Nano', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5-codex', displayName: 'GPT-5 Codex', providerId: 'opencode' },
+  { modelId: 'opencode/gpt-5', displayName: 'GPT-5', providerId: 'opencode' },
+  { modelId: 'opencode/nemotron-3-super-free', displayName: 'Nemotron 3 Super Free', providerId: 'opencode' },
+  { modelId: 'opencode/minimax-m2.5-free', displayName: 'MiniMax M2.5 Free', providerId: 'opencode' },
+  { modelId: 'opencode/minimax-m2.5', displayName: 'MiniMax M2.5', providerId: 'opencode' },
+  { modelId: 'opencode/mimo-v2-pro-free', displayName: 'MiMo V2 Pro Free', providerId: 'opencode' },
+  { modelId: 'opencode/mimo-v2-omni-free', displayName: 'MiMo V2 Omni Free', providerId: 'opencode' },
+  { modelId: 'opencode/kimi-k2.5', displayName: 'Kimi K2.5', providerId: 'opencode' },
+  { modelId: 'opencode/glm-5', displayName: 'GLM-5', providerId: 'opencode' },
+  { modelId: 'opencode/gemini-3.1-pro', displayName: 'Gemini 3.1 Pro Preview', providerId: 'opencode' },
+  { modelId: 'opencode/gemini-3-flash', displayName: 'Gemini 3 Flash', providerId: 'opencode' },
+  { modelId: 'opencode/claude-opus-4-6', displayName: 'Claude Opus 4.6', providerId: 'opencode' },
+  { modelId: 'opencode/claude-opus-4-5', displayName: 'Claude Opus 4.5', providerId: 'opencode' },
+  { modelId: 'opencode/claude-opus-4-1', displayName: 'Claude Opus 4.1', providerId: 'opencode' },
+  { modelId: 'opencode/claude-haiku-4-5', displayName: 'Claude Haiku 4.5', providerId: 'opencode' },
+  { modelId: 'opencode/claude-3-5-haiku', displayName: 'Claude 3.5 Haiku', providerId: 'opencode' },
+];
+
 export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
   createBirdCoderCodeEngineManifest({
     id: 'codex',
@@ -329,64 +463,7 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
           'BirdCoder standardizes Codex on the official TypeScript SDK contract while keeping the Rust-native CLI JSONL authority lane as the production baseline.',
       }),
     },
-    modelCatalog: [
-      buildModelCatalogEntry('codex', 'gpt-5.4', 'GPT-5.4', true, CODEX_TRANSPORT_KINDS),
-      buildModelCatalogEntry(
-        'codex',
-        'gpt-5.3-codex',
-        'GPT-5.3 Codex',
-        false,
-        CODEX_TRANSPORT_KINDS,
-      ),
-      buildModelCatalogEntry(
-        'codex',
-        'gpt-5.2-codex',
-        'GPT-5.2 Codex',
-        false,
-        CODEX_TRANSPORT_KINDS,
-      ),
-      buildModelCatalogEntry(
-        'codex',
-        'gpt-5.1-codex-max',
-        'GPT-5.1 Codex Max',
-        false,
-        CODEX_TRANSPORT_KINDS,
-      ),
-      buildModelCatalogEntry(
-        'codex',
-        'gpt-5.1-codex',
-        'GPT-5.1 Codex',
-        false,
-        CODEX_TRANSPORT_KINDS,
-      ),
-      buildModelCatalogEntry(
-        'codex',
-        'gpt-5.1-codex-mini',
-        'GPT-5.1 Codex Mini',
-        false,
-        CODEX_TRANSPORT_KINDS,
-        {
-          planning: false,
-        },
-      ),
-      buildModelCatalogEntry(
-        'codex',
-        'gpt-5-codex',
-        'GPT-5 Codex',
-        false,
-        CODEX_TRANSPORT_KINDS,
-      ),
-      buildModelCatalogEntry(
-        'codex',
-        'gpt-5-codex-mini',
-        'GPT-5 Codex Mini',
-        false,
-        CODEX_TRANSPORT_KINDS,
-        {
-          planning: false,
-        },
-      ),
-    ],
+    modelCatalog: buildBuiltInModelCatalog('codex', CODEX_TRANSPORT_KINDS, CODEX_BUILT_IN_MODEL_DEFINITIONS),
     cli: {
       profileId: 'codex',
       executable: 'codex',
@@ -446,49 +523,17 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
           'BirdCoder standardizes Claude Code on the official Agent SDK contract, with a real Claude CLI print fallback inside the bundled TypeScript stdio bridge when Rust authority delegates SDK execution.',
       }),
     },
-    modelCatalog: [
-      buildModelCatalogEntry(
-        'claude-code',
-        'claude-code',
-        'Claude Code Default',
-        true,
-        CLAUDE_CODE_TRANSPORT_KINDS,
-        {
+    modelCatalog: buildBuiltInModelCatalog(
+      'claude-code',
+      CLAUDE_CODE_TRANSPORT_KINDS,
+      CLAUDE_CODE_BUILT_IN_MODEL_DEFINITIONS.map((model) => ({
+        ...model,
+        capabilityMatrix: {
           remoteBridge: true,
+          ...model.capabilityMatrix,
         },
-      ),
-      buildModelCatalogEntry(
-        'claude-code',
-        'claude-3-opus',
-        'Claude 3 Opus',
-        false,
-        CLAUDE_CODE_TRANSPORT_KINDS,
-        {
-          remoteBridge: true,
-        },
-      ),
-      buildModelCatalogEntry(
-        'claude-code',
-        'claude-3-sonnet',
-        'Claude 3 Sonnet',
-        false,
-        CLAUDE_CODE_TRANSPORT_KINDS,
-        {
-          remoteBridge: true,
-        },
-      ),
-      buildModelCatalogEntry(
-        'claude-code',
-        'claude-3-haiku',
-        'Claude 3 Haiku',
-        false,
-        CLAUDE_CODE_TRANSPORT_KINDS,
-        {
-          planning: false,
-          remoteBridge: true,
-        },
-      ),
-    ],
+      })),
+    ),
     cli: {
       profileId: 'claude-code',
       executable: 'claude',
@@ -548,26 +593,7 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
           'BirdCoder standardizes Gemini on the Gemini CLI SDK contract and treats the bundled TypeScript stdio bridge as the primary authority delegation lane.',
       }),
     },
-    modelCatalog: [
-      buildModelCatalogEntry('gemini', 'gemini', 'Gemini Default', true, GEMINI_TRANSPORT_KINDS),
-      buildModelCatalogEntry(
-        'gemini',
-        'gemini-1.5-pro',
-        'Gemini 1.5 Pro',
-        false,
-        GEMINI_TRANSPORT_KINDS,
-      ),
-      buildModelCatalogEntry(
-        'gemini',
-        'gemini-1.5-flash',
-        'Gemini 1.5 Flash',
-        false,
-        GEMINI_TRANSPORT_KINDS,
-        {
-          planning: false,
-        },
-      ),
-    ],
+    modelCatalog: buildBuiltInModelCatalog('gemini', GEMINI_TRANSPORT_KINDS, GEMINI_BUILT_IN_MODEL_DEFINITIONS),
     cli: {
       profileId: 'gemini',
       executable: 'gemini',
@@ -627,9 +653,7 @@ export const BIRDCODER_STANDARD_ENGINE_MANIFESTS = [
           'BirdCoder standardizes OpenCode on the official JavaScript SDK contract while the Rust authority owns the OpenAPI-native server lane.',
       }),
     },
-    modelCatalog: [
-      buildModelCatalogEntry('opencode', 'opencode', 'OpenCode', true, OPENCODE_TRANSPORT_KINDS),
-    ],
+    modelCatalog: buildBuiltInModelCatalog('opencode', OPENCODE_TRANSPORT_KINDS, OPENCODE_BUILT_IN_MODEL_DEFINITIONS),
     cli: {
       profileId: 'opencode',
       executable: 'opencode',

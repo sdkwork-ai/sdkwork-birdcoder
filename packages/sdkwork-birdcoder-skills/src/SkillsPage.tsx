@@ -26,6 +26,10 @@ import {
   usePersistedState,
   useToast,
 } from '@sdkwork/birdcoder-commons';
+import {
+  copyTextToClipboard,
+  resolveSafeMarkdownHref,
+} from '@sdkwork/birdcoder-ui';
 import type {
   BirdCoderSkillCatalogEntrySummary,
   BirdCoderSkillPackageSummary,
@@ -119,6 +123,25 @@ function mapSkillPackage(summary: BirdCoderSkillPackageSummary): SkillPackage {
   };
 }
 
+const skillReadmeMarkdownComponents = {
+  a: ({ children, href }: any) => {
+    const safeHref = resolveSafeMarkdownHref(href);
+    if (!safeHref) {
+      return <span>{children}</span>;
+    }
+
+    return (
+      <a
+        href={safeHref}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        {children}
+      </a>
+    );
+  },
+};
+
 export function SkillsPage({
   isAuthenticated = true,
   onRequireAuth,
@@ -138,6 +161,7 @@ export function SkillsPage({
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
+  const copiedCommandTimeoutRef = useRef<number | null>(null);
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,6 +170,19 @@ export function SkillsPage({
   const registryMenuRef = useRef<HTMLDivElement>(null);
   const selectedRegistry =
     REGISTRIES.find((registry) => registry.id === selectedRegistryId) ?? REGISTRIES[0];
+
+  const clearCopiedCommandTimeout = useCallback(() => {
+    if (copiedCommandTimeoutRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(copiedCommandTimeoutRef.current);
+    copiedCommandTimeoutRef.current = null;
+  }, []);
+
+  useEffect(() => () => {
+    clearCopiedCommandTimeout();
+  }, [clearCopiedCommandTimeout]);
 
   const handleRegistryMenuClickOutside = useCallback((event: MouseEvent) => {
       if (!showRegistryMenu) {
@@ -279,12 +316,25 @@ export function SkillsPage({
   }
 
   async function copyCommand(command: string) {
-    await navigator.clipboard.writeText(command);
+    const didCopy = await copyTextToClipboard(command);
+    if (!didCopy) {
+      addToast('Unable to copy install command.', 'error');
+      return;
+    }
+
     setCopiedCommand(command);
-    window.setTimeout(() => setCopiedCommand(null), 2000);
+    clearCopiedCommandTimeout();
+    copiedCommandTimeoutRef.current = window.setTimeout(() => {
+      setCopiedCommand(null);
+      copiedCommandTimeoutRef.current = null;
+    }, 2000);
   }
 
   async function installPackage(skillPackage: SkillPackage) {
+    if (installingId !== null) {
+      return;
+    }
+
     if (!normalizedWorkspaceId) {
       if (!isAuthenticated) {
         onRequireAuth?.();
@@ -761,7 +811,9 @@ export function SkillsPage({
                 </div>
                 <div className="prose prose-invert max-w-none">
                   {selectedSkill.readme ? (
-                    <ReactMarkdown>{selectedSkill.readme}</ReactMarkdown>
+                    <ReactMarkdown components={skillReadmeMarkdownComponents}>
+                      {selectedSkill.readme}
+                    </ReactMarkdown>
                   ) : (
                     <p>{selectedSkill.longDesc || selectedSkill.desc}</p>
                   )}
@@ -778,7 +830,7 @@ export function SkillsPage({
                       <a
                         href={selectedSkill.repository}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-gray-200 transition hover:bg-white/10"
                       >
                         <span className="inline-flex items-center gap-2">

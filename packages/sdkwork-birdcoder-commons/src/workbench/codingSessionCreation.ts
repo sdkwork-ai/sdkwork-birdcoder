@@ -38,6 +38,14 @@ export interface WorkbenchCodingSessionSelectionContext {
   title?: string;
 }
 
+export interface WorkbenchCodingSessionTurnModelSelection {
+  engineId?: string | null;
+  modelId?: string | null;
+}
+
+export const WORKBENCH_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY =
+  'codeEngineSelection';
+
 export type ShouldSelectWorkbenchCodingSession = (
   codingSession: BirdCoderCodingSession,
   context: WorkbenchCodingSessionSelectionContext,
@@ -168,6 +176,23 @@ export function buildWorkbenchCodingSessionTurnContext({
   };
 }
 
+export function buildWorkbenchCodingSessionTurnModelSelectionMetadata(
+  selection?: WorkbenchCodingSessionTurnModelSelection | null,
+): Record<string, unknown> | undefined {
+  const engineId = selection?.engineId?.trim() ?? '';
+  const modelId = selection?.modelId?.trim() ?? '';
+  if (!engineId && !modelId) {
+    return undefined;
+  }
+
+  return {
+    [WORKBENCH_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY]: {
+      ...(engineId ? { engineId } : {}),
+      ...(modelId ? { modelId } : {}),
+    },
+  };
+}
+
 function buildWorkbenchMessageSessionTitle(messageContent: string): string {
   const normalizedMessageContent = messageContent.trim();
   if (!normalizedMessageContent) {
@@ -185,6 +210,8 @@ export async function ensureWorkbenchCodingSessionForMessage({
   currentCodingSessionId,
   currentProjectId,
   messageContent,
+  requestedEngineId,
+  requestedModelId,
   resolveProjectId,
   selectCodingSession,
 }: {
@@ -192,6 +219,8 @@ export async function ensureWorkbenchCodingSessionForMessage({
   currentCodingSessionId?: string | null;
   currentProjectId?: string | null;
   messageContent: string;
+  requestedEngineId?: string | null;
+  requestedModelId?: string | null;
   resolveProjectId: ResolveWorkbenchProjectId;
   selectCodingSession: SelectWorkbenchCodingSession;
 }): Promise<{
@@ -221,6 +250,8 @@ export async function ensureWorkbenchCodingSessionForMessage({
   const newSession = await createWorkbenchCodingSessionInProject({
     createCodingSessionWithSelection,
     projectId,
+    requestedEngineId: requestedEngineId?.trim() || undefined,
+    requestedModelId: requestedModelId?.trim() || undefined,
     selectCodingSession,
     title: buildWorkbenchMessageSessionTitle(messageContent),
   });

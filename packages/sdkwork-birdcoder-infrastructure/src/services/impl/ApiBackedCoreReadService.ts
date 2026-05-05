@@ -23,6 +23,7 @@ const INFLIGHT_ONLY_TTL_MS = 0;
 const SESSION_DETAIL_TTL_MS = INFLIGHT_ONLY_TTL_MS;
 const SESSION_INVENTORY_TTL_MS = 10_000;
 const STATIC_CATALOG_TTL_MS = 30_000;
+const CORE_READ_CACHE_MAX_ENTRIES = 256;
 
 function stableSerializeCacheKeyPart(value: unknown): string {
   if (value === null || value === undefined) {
@@ -76,12 +77,42 @@ export class ApiBackedCoreReadService implements ICoreReadService {
     return `${scope}:${stableSerializeCacheKeyPart(payload ?? null)}`;
   }
 
+  private pruneReadCache(now: number = Date.now()): void {
+    for (const [cacheKey, entry] of this.readCache) {
+      if (entry.inflight) {
+        continue;
+      }
+
+      if (entry.expiresAt <= now) {
+        this.readCache.delete(cacheKey);
+      }
+    }
+
+    while (this.readCache.size > CORE_READ_CACHE_MAX_ENTRIES) {
+      let evictedEntry = false;
+      for (const [cacheKey, entry] of this.readCache) {
+        if (entry.inflight) {
+          continue;
+        }
+
+        this.readCache.delete(cacheKey);
+        evictedEntry = true;
+        break;
+      }
+
+      if (!evictedEntry) {
+        break;
+      }
+    }
+  }
+
   private readThroughCache<T>(
     key: string,
     ttlMs: number,
     loader: () => Promise<T>,
   ): Promise<T> {
     const now = Date.now();
+    this.pruneReadCache(now);
     const cachedEntry = this.readCache.get(key) as ReadCacheEntry<T> | undefined;
 
     if (cachedEntry?.inflight) {
@@ -89,6 +120,8 @@ export class ApiBackedCoreReadService implements ICoreReadService {
     }
 
     if (cachedEntry && ttlMs > 0 && cachedEntry.value !== undefined && cachedEntry.expiresAt > now) {
+      this.readCache.delete(key);
+      this.readCache.set(key, cachedEntry as ReadCacheEntry<unknown>);
       return Promise.resolve(cachedEntry.value);
     }
 
@@ -100,6 +133,7 @@ export class ApiBackedCoreReadService implements ICoreReadService {
             inflight: null,
             value,
           });
+          this.pruneReadCache();
         } else {
           this.readCache.delete(key);
         }
@@ -115,6 +149,7 @@ export class ApiBackedCoreReadService implements ICoreReadService {
       inflight: request,
       value: cachedEntry?.value,
     });
+    this.pruneReadCache();
 
     return request;
   }

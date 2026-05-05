@@ -88,7 +88,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml 2>&1 | tee cargo-test.log
+          node scripts/run-cargo.mjs test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml 2>&1 | tee cargo-test.log
           status=${PIPESTATUS[0]}
           if [[ $status -ne 0 ]]; then
             tail -n 200 cargo-test.log
@@ -108,6 +108,20 @@ jobs:
 
       - name: Build docs site
         run: pnpm docs:build
+
+      - name: Prove release readiness success path
+        run: pnpm release:fixture:ready
+
+      - name: Prove release candidate dry-run success path
+        run: pnpm release:candidate:dry-run
+
+      - name: Upload release candidate dry-run evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-dry-run-evidence
+          path: artifacts/release-candidate-dry-run
+          if-no-files-found: error
+          retention-days: 30
 
   desktop-rust-windows:
     name: Desktop Rust tests (windows)
@@ -150,7 +164,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml 2>&1 | tee cargo-test.log
+          node scripts/run-cargo.mjs test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml 2>&1 | tee cargo-test.log
           status=${PIPESTATUS[0]}
           if [[ $status -ne 0 ]]; then
             tail -n 200 cargo-test.log

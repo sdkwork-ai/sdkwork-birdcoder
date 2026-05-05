@@ -134,6 +134,29 @@ function hasCodingSessionId(
   return codingSessions.some((codingSession) => codingSession.id === codingSessionId);
 }
 
+function findUniqueProjectByCodingSessionId(
+  projects: ReadonlyArray<
+    Pick<BirdCoderProject, 'id'> & {
+      codingSessions?: ReadonlyArray<Pick<BirdCoderCodingSession, 'id'>>;
+    }
+  >,
+  codingSessionId: string,
+): Pick<BirdCoderProject, 'id'> | null {
+  let matchedProject: Pick<BirdCoderProject, 'id'> | null = null;
+  for (const project of projects) {
+    if (!hasCodingSessionId(project.codingSessions ?? [], codingSessionId)) {
+      continue;
+    }
+
+    if (matchedProject) {
+      return null;
+    }
+    matchedProject = project;
+  }
+
+  return matchedProject;
+}
+
 export function normalizeWorkbenchRecoverySnapshot(value: unknown): WorkbenchRecoverySnapshot {
   if (!value || typeof value !== 'object') {
     return { ...DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT };
@@ -242,8 +265,9 @@ export function resolveStartupProjectId(
 
   const recoveryCodingSessionId = options.recoverySnapshot.activeCodingSessionId;
   if (recoveryCodingSessionId) {
-    const recoveryProjectByCodingSession = scopedProjects.find((project) =>
-      hasCodingSessionId(project.codingSessions ?? [], recoveryCodingSessionId),
+    const recoveryProjectByCodingSession = findUniqueProjectByCodingSessionId(
+      scopedProjects,
+      recoveryCodingSessionId,
     );
     if (recoveryProjectByCodingSession) {
       return recoveryProjectByCodingSession.id;

@@ -52,6 +52,11 @@ const MAX_FILE_SEARCH_SNIPPET_LENGTH = 160;
 const FILE_AUTOSAVE_DELAY_MS = 400;
 const MAX_INACTIVE_OPEN_FILE_REVISIONS_PER_CYCLE = 6;
 
+interface FileTreeIndex {
+  filePaths: ReadonlySet<string>;
+  loadedDirectoryPaths: ReadonlySet<string>;
+}
+
 function readDocumentForegroundState(): boolean {
   if (typeof document === 'undefined') {
     return true;
@@ -73,52 +78,36 @@ function isMissingFileSystemEntryError(error: unknown): boolean {
   );
 }
 
-function collectLoadedDirectoryPaths(nodes: ReadonlyArray<IFileNode>): Set<string> {
-  const loadedPaths = new Set<string>();
+function createEmptyFileTreeIndex(): FileTreeIndex {
+  return {
+    filePaths: new Set<string>(),
+    loadedDirectoryPaths: new Set<string>(),
+  };
+}
+
+function buildFileTreeIndex(nodes: ReadonlyArray<IFileNode>): FileTreeIndex {
+  const filePaths = new Set<string>();
+  const loadedDirectoryPaths = new Set<string>();
 
   const visit = (node: IFileNode) => {
-    if (node.type !== 'directory' || node.children === undefined) {
+    if (node.type === 'file') {
+      filePaths.add(node.path);
       return;
     }
 
-    loadedPaths.add(node.path);
+    if (node.children === undefined) {
+      return;
+    }
+
+    loadedDirectoryPaths.add(node.path);
     node.children.forEach((child) => visit(child));
   };
 
   nodes.forEach((node) => visit(node));
-  return loadedPaths;
-}
-
-function hasKnownFilePath(nodes: ReadonlyArray<IFileNode>, targetPath: string): boolean {
-  for (const node of nodes) {
-    if (node.type === 'file' && node.path === targetPath) {
-      return true;
-    }
-
-    if (node.children?.length && hasKnownFilePath(node.children, targetPath)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function isDirectoryPathLoaded(nodes: ReadonlyArray<IFileNode>, targetPath: string): boolean {
-  for (const node of nodes) {
-    if (node.type !== 'directory') {
-      continue;
-    }
-
-    if (node.path === targetPath) {
-      return node.children !== undefined;
-    }
-
-    if (node.children?.length && isDirectoryPathLoaded(node.children, targetPath)) {
-      return true;
-    }
-  }
-
-  return false;
+  return {
+    filePaths,
+    loadedDirectoryPaths,
+  };
 }
 
 function resolveParentFilePath(path: string): string {
@@ -149,14 +138,20 @@ function isPathWithinDirectory(path: string, directoryPath: string): boolean {
 }
 
 function resolveLoadedRootDirectoryPaths(loadedDirectoryPaths: ReadonlySet<string>): string[] {
-  const orderedPaths = [...loadedDirectoryPaths].sort((left, right) => left.length - right.length);
-  return orderedPaths.filter((candidatePath) => {
+  const rootDirectoryPaths: string[] = [];
+  for (const candidatePath of loadedDirectoryPaths) {
     if (candidatePath === '/') {
-      return true;
+      rootDirectoryPaths.push(candidatePath);
+      continue;
     }
+
     const parentPath = resolveParentFilePath(candidatePath);
-    return !loadedDirectoryPaths.has(parentPath);
-  });
+    if (!loadedDirectoryPaths.has(parentPath)) {
+      rootDirectoryPaths.push(candidatePath);
+    }
+  }
+
+  return rootDirectoryPaths;
 }
 
 function resolveNearestLoadedDirectoryPath(
@@ -180,15 +175,14 @@ function resolveNearestLoadedDirectoryPath(
 }
 
 function resolveFileChangeRefreshDirectoryPaths(
-  files: ReadonlyArray<IFileNode>,
+  fileTreeIndex: FileTreeIndex,
   event: ProjectFileSystemChangeEvent,
 ): string[] {
-  const loadedDirectoryPaths = collectLoadedDirectoryPaths(files);
+  const loadedDirectoryPaths = fileTreeIndex.loadedDirectoryPaths;
   if (loadedDirectoryPaths.size === 0) {
     return [];
   }
 
-  const fallbackRootPaths = resolveLoadedRootDirectoryPaths(loadedDirectoryPaths);
   const refreshPaths = new Set<string>();
   const appendRefreshPath = (path: string | null | undefined) => {
     const normalizedPath = path?.trim() ?? '';
@@ -206,12 +200,12 @@ function resolveFileChangeRefreshDirectoryPaths(
     }
 
     if (event.kind === 'modify') {
-      if (isDirectoryPathLoaded(files, normalizedPath)) {
+      if (loadedDirectoryPaths.has(normalizedPath)) {
         appendRefreshPath(normalizedPath);
         continue;
       }
 
-      if (hasKnownFilePath(files, normalizedPath)) {
+      if (fileTreeIndex.filePaths.has(normalizedPath)) {
         continue;
       }
     }
@@ -227,15 +221,15 @@ function resolveFileChangeRefreshDirectoryPaths(
     return [];
   }
 
-  return fallbackRootPaths;
+  return resolveLoadedRootDirectoryPaths(loadedDirectoryPaths);
 }
 
-function shouldKeepOpenFilePath(files: ReadonlyArray<IFileNode>, path: string): boolean {
-  if (hasKnownFilePath(files, path)) {
+function shouldKeepOpenFilePath(fileTreeIndex: FileTreeIndex, path: string): boolean {
+  if (fileTreeIndex.filePaths.has(path)) {
     return true;
   }
 
-  return !isDirectoryPathLoaded(files, resolveParentFilePath(path));
+  return !fileTreeIndex.loadedDirectoryPaths.has(resolveParentFilePath(path));
 }
 
 function normalizeEditorOpenFileState(state: EditorOpenFileState): EditorOpenFileState {
@@ -329,12 +323,12 @@ function selectInactiveOpenFileProbePaths(
 }
 
 function filterEditorOpenFileStateByFiles(
-  files: ReadonlyArray<IFileNode>,
+  fileTreeIndex: FileTreeIndex,
   state: EditorOpenFileState,
 ): EditorOpenFileState {
   const normalizedState = normalizeEditorOpenFileState(state);
   const openFilePaths = normalizedState.openFilePaths.filter((path) =>
-    shouldKeepOpenFilePath(files, path),
+    shouldKeepOpenFilePath(fileTreeIndex, path),
   );
   const selectedFilePath =
     normalizedState.selectedFilePath && openFilePaths.includes(normalizedState.selectedFilePath)
@@ -349,10 +343,11 @@ function filterEditorOpenFileStateByFiles(
 
 function resolveStartupEditorOpenFileState(
   files: ReadonlyArray<IFileNode>,
+  fileTreeIndex: FileTreeIndex,
   state: EditorOpenFileState,
   persistedSelectedFilePath: string | null,
 ): EditorOpenFileState {
-  const filteredState = filterEditorOpenFileStateByFiles(files, state);
+  const filteredState = filterEditorOpenFileStateByFiles(fileTreeIndex, state);
   if (filteredState.selectedFilePath) {
     return filteredState;
   }
@@ -497,6 +492,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
   const requestGuardRef = useRef(createFileSystemRequestGuardState(projectId));
   const previousProjectIdRef = useRef(normalizedProjectId);
   const filesRef = useRef<IFileNode[]>([]);
+  const filesIndexRef = useRef<FileTreeIndex>(createEmptyFileTreeIndex());
   const fileContentRef = useRef('');
   const selectedFileRevisionRef = useRef<string | null>(null);
   const openFileRevisionsRef = useRef<Map<string, string | null>>(new Map());
@@ -1041,6 +1037,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
       } else {
         filesRef.current = nextFiles;
       }
+      filesIndexRef.current = buildFileTreeIndex(nextFiles);
       const nextCandidateState =
         candidateState ??
         editorStateByProjectIdRef.current.get(normalizedProjectId) ?? {
@@ -1049,9 +1046,10 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
         };
       const nextEditorOpenFileState =
         startupSelectedFilePath === undefined
-          ? filterEditorOpenFileStateByFiles(nextFiles, nextCandidateState)
+          ? filterEditorOpenFileStateByFiles(filesIndexRef.current, nextCandidateState)
           : resolveStartupEditorOpenFileState(
               nextFiles,
+              filesIndexRef.current,
               nextCandidateState,
               startupSelectedFilePath,
             );
@@ -1079,7 +1077,10 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
     }
 
     try {
-      const refreshDirectoryPaths = resolveFileChangeRefreshDirectoryPaths(filesRef.current, event);
+      const refreshDirectoryPaths = resolveFileChangeRefreshDirectoryPaths(
+        filesIndexRef.current,
+        event,
+      );
       if (refreshDirectoryPaths.length > 0) {
         const nextFiles = await fileSystemService.refreshDirectories(
           requestProjectId,
@@ -1185,6 +1186,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
     inactiveOpenFileProbeCursorRef.current = 0;
     openFileContentCacheRef.current = new Map();
     filesRef.current = [];
+    filesIndexRef.current = createEmptyFileTreeIndex();
     setFiles([]);
     setIsLoading(false);
     setLoadingDirectoryPaths({});
@@ -1894,7 +1896,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
     }
 
     try {
-      const loadedDirectoryPaths = [...collectLoadedDirectoryPaths(filesRef.current)];
+      const loadedDirectoryPaths = [...filesIndexRef.current.loadedDirectoryPaths];
       const data = await fileSystemService.refreshDirectories(
         requestProjectId,
         loadedDirectoryPaths,

@@ -49,6 +49,13 @@ import {
   collectReleaseStopShipSignals,
 } from './release-stop-ship-governance.mjs';
 import {
+  DESKTOP_INSTALLER_TRUST_REPORT_FILENAME,
+} from './verify-desktop-installer-trust.mjs';
+import {
+  normalizeDesktopInstallerSignatureEvidence,
+  normalizeDesktopInstallerTrustSummary,
+} from './desktop-installer-trust-evidence.mjs';
+import {
   collectDesktopStartupReadinessSignals,
   summarizeDesktopStartupReadiness,
 } from './desktop-startup-readiness-summary.mjs';
@@ -101,6 +108,51 @@ function computeSha256(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
+function assertReleaseTopLevelFileName(fileName, label) {
+  if (
+    !fileName
+    || fileName === '.'
+    || fileName === '..'
+    || fileName.includes('\0')
+    || fileName.includes(':')
+    || fileName.includes('/')
+    || fileName.includes('\\')
+    || path.posix.isAbsolute(fileName)
+    || path.win32.isAbsolute(fileName)
+    || path.posix.basename(fileName) !== fileName
+    || path.win32.basename(fileName) !== fileName
+  ) {
+    throw new Error(`Invalid ${label}: ${fileName || 'missing'}`);
+  }
+}
+
+function removeStaleReleaseMetadata({
+  releaseAssetsDir,
+  profile,
+}) {
+  for (const fileName of [
+    profile.release.manifestFileName,
+    profile.release.manifestChecksumFileName,
+    profile.release.attestationEvidenceFileName,
+    profile.release.globalChecksumsFileName,
+  ].filter(Boolean)) {
+    assertReleaseTopLevelFileName(fileName, 'release metadata file name');
+    fs.rmSync(path.join(releaseAssetsDir, fileName), { force: true });
+  }
+}
+
+function writeFileChecksumSidecar({
+  sourcePath,
+  sourceFileName,
+  sidecarPath,
+}) {
+  fs.writeFileSync(
+    sidecarPath,
+    `${computeSha256(sourcePath)}  ${sourceFileName}\n`,
+    'utf8',
+  );
+}
+
 function toRelativePath(baseDir, targetPath) {
   return path.relative(baseDir, targetPath).split(path.sep).join('/');
 }
@@ -119,6 +171,217 @@ function ensureExistingJson(filePath, label) {
 
 function normalizeStatus(status) {
   return String(status ?? '').trim().toLowerCase();
+}
+
+function normalizeManifestArtifactPath(relativePath) {
+  return String(relativePath ?? '').trim().replaceAll('\\', '/');
+}
+
+function assertSafeManifestArtifactPath(relativePath) {
+  const normalizedRelativePath = normalizeManifestArtifactPath(relativePath);
+  if (!normalizedRelativePath) {
+    throw new Error('Release artifact entry is missing relativePath.');
+  }
+  if (
+    path.posix.isAbsolute(normalizedRelativePath)
+    || path.win32.isAbsolute(normalizedRelativePath)
+    || normalizedRelativePath.split('/').includes('..')
+  ) {
+    throw new Error(`Release artifact entry has unsafe relativePath: ${normalizedRelativePath}`);
+  }
+
+  return normalizedRelativePath;
+}
+
+function inferArtifactKind(relativePath) {
+  const normalizedRelativePath = String(relativePath ?? '').trim().toLowerCase();
+  if (normalizedRelativePath.endsWith('.json') || normalizedRelativePath.endsWith('.yaml') || normalizedRelativePath.endsWith('.yml')) {
+    return 'metadata';
+  }
+  if (normalizedRelativePath.endsWith('.exe') || normalizedRelativePath.endsWith('.msi') || normalizedRelativePath.endsWith('.dmg')) {
+    return 'installer';
+  }
+  if (normalizedRelativePath.endsWith('.deb') || normalizedRelativePath.endsWith('.rpm') || normalizedRelativePath.endsWith('.appimage')) {
+    return 'package';
+  }
+
+  return 'archive';
+}
+
+function resolveArtifactPlatform(descriptor) {
+  if (descriptor.family === 'web') {
+    return 'web';
+  }
+
+  return String(descriptor.platform ?? '').trim();
+}
+
+function resolveArtifactArch(descriptor) {
+  if (descriptor.family === 'web') {
+    return 'any';
+  }
+
+  return String(descriptor.arch ?? '').trim();
+}
+
+function buildPublishArtifactEntries({
+  releaseAssetsDir,
+  familyManifests,
+} = {}) {
+  const artifactEntries = [];
+  const seenRelativePaths = new Set();
+
+  for (const { descriptor } of familyManifests) {
+    for (const artifact of descriptor.artifacts ?? []) {
+      const relativePath = assertSafeManifestArtifactPath(artifact.relativePath);
+      if (seenRelativePaths.has(relativePath)) {
+        throw new Error(`Duplicate release artifact entry: ${relativePath}`);
+      }
+
+      const artifactPath = path.join(releaseAssetsDir, relativePath);
+      if (!fs.existsSync(artifactPath)) {
+        throw new Error(`Missing release artifact declared by ${descriptor.family} manifest: ${relativePath}`);
+      }
+
+      const artifactStat = fs.statSync(artifactPath);
+      if (!artifactStat.isFile()) {
+        throw new Error(`Release artifact declared by ${descriptor.family} manifest is not a file: ${relativePath}`);
+      }
+
+      seenRelativePaths.add(relativePath);
+      const artifactEntry = {
+        family: String(descriptor.family ?? '').trim(),
+        platform: resolveArtifactPlatform(descriptor),
+        arch: resolveArtifactArch(descriptor),
+        target: String(descriptor.target ?? '').trim(),
+        accelerator: String(descriptor.accelerator ?? '').trim(),
+        kind: String(artifact.kind ?? '').trim() || inferArtifactKind(relativePath),
+        relativePath,
+        sha256: computeSha256(artifactPath),
+        size: artifactStat.size,
+      };
+      const bundle = String(artifact.bundle ?? '').trim();
+      const installerFormat = String(artifact.installerFormat ?? '').trim();
+      const artifactTarget = String(artifact.target ?? '').trim();
+      if (bundle) {
+        artifactEntry.bundle = bundle;
+      }
+      if (installerFormat) {
+        artifactEntry.installerFormat = installerFormat;
+      }
+      if (artifactTarget) {
+        artifactEntry.target = artifactTarget;
+      }
+      const signatureEvidence = normalizeDesktopInstallerSignatureEvidence(
+        artifact.signatureEvidence,
+      );
+      if (signatureEvidence) {
+        artifactEntry.signatureEvidence = signatureEvidence;
+      }
+
+      artifactEntries.push(artifactEntry);
+    }
+  }
+
+  return artifactEntries.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
+}
+
+function buildRequiredReleaseCoverage(profile) {
+  const requiredTargets = ['web/web/any'];
+
+  for (const entry of profile.desktop?.matrix ?? []) {
+    for (const bundle of entry.bundles ?? []) {
+      requiredTargets.push(`desktop/${entry.platform}/${entry.arch}/${bundle}`);
+    }
+  }
+
+  for (const entry of profile.server?.matrix ?? []) {
+    requiredTargets.push(`server/${entry.platform}/${entry.arch}`);
+  }
+
+  for (const entry of profile.container?.matrix ?? []) {
+    requiredTargets.push(`container/${entry.platform}/${entry.arch}/${entry.accelerator}`);
+  }
+
+  for (const entry of profile.kubernetes?.matrix ?? []) {
+    requiredTargets.push(`kubernetes/${entry.platform}/${entry.arch}/${entry.accelerator}`);
+  }
+
+  return requiredTargets.sort((left, right) => left.localeCompare(right));
+}
+
+function desktopArtifactSatisfiesBundle(artifact, bundle) {
+  const explicitBundle = String(artifact.bundle ?? '').trim().toLowerCase();
+  if (explicitBundle) {
+    return explicitBundle === bundle && String(artifact.kind ?? '').trim() === 'installer';
+  }
+
+  const relativePath = String(artifact.relativePath ?? '').trim().toLowerCase();
+  if (bundle === 'nsis') {
+    return relativePath.endsWith('.exe');
+  }
+  if (bundle === 'msi') {
+    return relativePath.endsWith('.msi');
+  }
+  if (bundle === 'deb') {
+    return relativePath.endsWith('.deb');
+  }
+  if (bundle === 'rpm') {
+    return relativePath.endsWith('.rpm');
+  }
+  if (bundle === 'appimage') {
+    return relativePath.endsWith('.appimage');
+  }
+  if (bundle === 'app') {
+    return relativePath.endsWith('.app.zip') || relativePath.endsWith('.app.tar.gz');
+  }
+  if (bundle === 'dmg') {
+    return relativePath.endsWith('.dmg');
+  }
+
+  return false;
+}
+
+function artifactSatisfiesCoverageTarget(artifact, target) {
+  const [family, platform, arch, qualifier] = target.split('/');
+  if (
+    artifact.family !== family
+    || artifact.platform !== platform
+    || artifact.arch !== arch
+  ) {
+    return false;
+  }
+
+  if (family === 'desktop') {
+    return desktopArtifactSatisfiesBundle(artifact, qualifier);
+  }
+  if (family === 'container' || family === 'kubernetes') {
+    return String(artifact.accelerator ?? '').trim() === qualifier;
+  }
+
+  return true;
+}
+
+function buildReleaseCoverage({
+  profile,
+  artifacts,
+  allowPartialRelease = false,
+} = {}) {
+  const requiredTargets = buildRequiredReleaseCoverage(profile);
+  const presentTargets = requiredTargets
+    .filter((target) => artifacts.some((artifact) => artifactSatisfiesCoverageTarget(artifact, target)))
+    .sort((left, right) => left.localeCompare(right));
+  const missingTargets = requiredTargets
+    .filter((target) => !presentTargets.includes(target))
+    .sort((left, right) => left.localeCompare(right));
+
+  return {
+    status: missingTargets.length === 0 ? 'complete' : 'partial',
+    allowPartialRelease: Boolean(allowPartialRelease),
+    requiredTargets,
+    presentTargets,
+    missingTargets,
+  };
 }
 
 function normalizeDesktopSmokeMetadata({
@@ -140,6 +403,13 @@ function normalizeDesktopSmokeMetadata({
     platform: descriptor.platform,
     arch: descriptor.arch,
   });
+  const installerTrustReportPath = path.join(
+    releaseAssetsDir,
+    'desktop',
+    descriptor.platform,
+    descriptor.arch,
+    DESKTOP_INSTALLER_TRUST_REPORT_FILENAME,
+  );
 
   const installerReport = ensureExistingJson(
     installerReportPath,
@@ -164,6 +434,28 @@ function normalizeDesktopSmokeMetadata({
   const desktopStartupReadinessSummary = summarizeDesktopStartupReadiness(
     startupEvidence.readinessEvidence,
   );
+  const installerTrustReport = fs.existsSync(installerTrustReportPath)
+    ? ensureExistingJson(
+      installerTrustReportPath,
+      DESKTOP_INSTALLER_TRUST_REPORT_FILENAME,
+    )
+    : null;
+  const desktopInstallerTrust = installerTrustReport
+    ? normalizeDesktopInstallerTrustSummary({
+      reportRelativePath: toRelativePath(releaseAssetsDir, installerTrustReportPath),
+      manifestRelativePath: toRelativePath(
+        releaseAssetsDir,
+        path.join(
+          releaseAssetsDir,
+          'desktop',
+          descriptor.platform,
+          descriptor.arch,
+          RELEASE_ASSET_MANIFEST_FILE_NAME,
+        ),
+      ),
+      ...installerTrustReport,
+    })
+    : null;
 
   return {
     desktopInstallerSmoke: {
@@ -200,6 +492,9 @@ function normalizeDesktopSmokeMetadata({
     },
     ...(desktopStartupReadinessSummary
       ? { desktopStartupReadinessSummary }
+      : {}),
+    ...(desktopInstallerTrust
+      ? { desktopInstallerTrust }
       : {}),
   };
 }
@@ -294,8 +589,15 @@ export function finalizeReleaseAssets(options = {}) {
   const repository = options.repository ?? '';
   const releaseAssetsDir = path.resolve(rootDir, options['release-assets-dir'] ?? 'release-assets');
   const profile = resolveReleaseProfile(profileId);
+  const allowPartialRelease = options['allow-partial-release'] === true
+    || options['allow-partial-release'] === 'true'
+    || options.allowPartialRelease === true;
 
   fs.mkdirSync(releaseAssetsDir, { recursive: true });
+  removeStaleReleaseMetadata({
+    releaseAssetsDir,
+    profile,
+  });
 
   const familyManifests = walkFiles(releaseAssetsDir)
     .filter((filePath) => path.basename(filePath) === RELEASE_ASSET_MANIFEST_FILE_NAME)
@@ -309,6 +611,15 @@ export function finalizeReleaseAssets(options = {}) {
 
   const manifestPath = path.join(releaseAssetsDir, profile.release.manifestFileName);
   const checksumsPath = path.join(releaseAssetsDir, profile.release.globalChecksumsFileName);
+  const artifacts = buildPublishArtifactEntries({
+    releaseAssetsDir,
+    familyManifests,
+  });
+  const releaseCoverage = buildReleaseCoverage({
+    profile,
+    artifacts,
+    allowPartialRelease,
+  });
   const manifest = {
     profileId,
     releaseTag,
@@ -325,6 +636,9 @@ export function finalizeReleaseAssets(options = {}) {
     generatedAt: new Date().toISOString(),
     checksumFileName: profile.release.globalChecksumsFileName,
     attestationEnabled: profile.release.enableArtifactAttestations,
+    attestationEvidenceFileName: profile.release.attestationEvidenceFileName,
+    attestationPredicateType: profile.release.attestationPredicateType,
+    releaseCoverage,
     verification: repository
       ? {
         checksumCommand: `sha256sum -c ${profile.release.globalChecksumsFileName}`,
@@ -336,6 +650,7 @@ export function finalizeReleaseAssets(options = {}) {
       manifestFile: entry.manifestFile,
       descriptor: entry.descriptor,
     })),
+    artifacts,
   };
   const previewEvidence = summarizeStudioPreviewEvidenceArchive({
     releaseAssetsDir,
@@ -408,6 +723,7 @@ export function finalizeReleaseAssets(options = {}) {
   manifest.stopShipSignals = collectReleaseStopShipSignals({
     qualityEvidence: manifest.qualityEvidence,
     assets: manifest.assets,
+    artifacts: manifest.artifacts,
   });
   manifest.promotionReadiness = buildPromotionReadinessSummary({
     releaseControl: manifest.releaseControl,
@@ -417,18 +733,18 @@ export function finalizeReleaseAssets(options = {}) {
     releaseControl: manifest.releaseControl,
     qualityEvidence: manifest.qualityEvidence,
     assets: manifest.assets,
+    artifacts: manifest.artifacts,
     errorPrefix: 'Formal or general-availability release finalization requires clear stop-ship evidence',
   });
 
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-
-  const checksumTargets = walkFiles(releaseAssetsDir)
-    .filter((filePath) => path.resolve(filePath) !== path.resolve(checksumsPath));
-  const checksumLines = checksumTargets.map((filePath) => {
-    const digest = computeSha256(filePath);
-    const relativePath = toRelativePath(releaseAssetsDir, filePath);
-    return `${digest}  ${relativePath}`;
+  writeFileChecksumSidecar({
+    sourcePath: manifestPath,
+    sourceFileName: profile.release.manifestFileName,
+    sidecarPath: path.join(releaseAssetsDir, profile.release.manifestChecksumFileName),
   });
+
+  const checksumLines = manifest.artifacts.map((artifact) => `${artifact.sha256}  ${artifact.relativePath}`);
   fs.writeFileSync(checksumsPath, `${checksumLines.join('\n')}\n`);
 
   return {

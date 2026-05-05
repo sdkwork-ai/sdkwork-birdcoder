@@ -36,8 +36,39 @@ export function resolveTranscriptMessageKey(
   return `${index}\u0001${normalizedMessageId || 'message'}`;
 }
 
+export function hasTranscriptMessageKey(
+  messages: readonly BirdCoderChatMessage[],
+  messageKey: string,
+): boolean {
+  const separatorIndex = messageKey.indexOf('\u0001');
+  if (separatorIndex <= 0) {
+    return false;
+  }
+
+  const index = Number(messageKey.slice(0, separatorIndex));
+  if (!Number.isInteger(index) || index < 0 || index >= messages.length) {
+    return false;
+  }
+
+  return resolveTranscriptMessageKey(messages[index], index) === messageKey;
+}
+
+function countTranscriptContentLines(content: string): number {
+  if (content.length === 0) {
+    return 1;
+  }
+
+  let lineCount = 1;
+  for (let index = 0; index < content.length; index += 1) {
+    if (content.charCodeAt(index) === 10) {
+      lineCount += 1;
+    }
+  }
+  return lineCount;
+}
+
 function estimateTranscriptMessageHeight(message: BirdCoderChatMessage): number {
-  const lineCount = Math.max(1, message.content.split(/\r?\n/u).length);
+  const lineCount = countTranscriptContentLines(message.content);
   const wrappedLineCount = Math.ceil(message.content.length / 96);
   const contentLineEstimate = Math.max(lineCount, wrappedLineCount);
   const baseHeight = message.role === 'user' ? 84 : 132;
@@ -149,6 +180,51 @@ function reconcileMeasuredTranscriptPrefixHeightsCache(
   };
 }
 
+function reconcileAppendOnlyTranscriptPrefixHeightsCache(
+  previousCache: TranscriptPrefixHeightsCache,
+  measuredHeights: ReadonlyMap<string, number>,
+  messages: readonly BirdCoderChatMessage[],
+  invalidatedMessageIds: readonly string[],
+): TranscriptPrefixHeightsCache | null {
+  if (
+    invalidatedMessageIds.length > 0 ||
+    messages.length <= previousCache.messages.length
+  ) {
+    return null;
+  }
+
+  const previousMessages = previousCache.messages;
+  for (let index = 0; index < previousMessages.length; index += 1) {
+    if (messages[index] !== previousMessages[index]) {
+      return null;
+    }
+  }
+
+  const nextEntries = previousCache.entries.slice();
+  const nextMessageIndexesByKey = new Map(previousCache.messageIndexesByKey);
+  const nextPrefixHeights = previousCache.prefixHeights.slice();
+
+  for (let index = previousMessages.length; index < messages.length; index += 1) {
+    const message = messages[index]!;
+    const key = resolveTranscriptMessageKey(message, index);
+    const height = resolveTranscriptMessageHeight(message, index, measuredHeights);
+    nextEntries.push({
+      height,
+      key,
+      message,
+    });
+    nextMessageIndexesByKey.set(key, index);
+    nextPrefixHeights[index + 1] = nextPrefixHeights[index]! + height;
+  }
+
+  return {
+    entries: nextEntries,
+    messageIndexesByKey: nextMessageIndexesByKey,
+    messages,
+    prefixHeights: nextPrefixHeights,
+  };
+}
+
 function resolveVisibleStartIndex(prefixHeights: readonly number[], offset: number): number {
   const messageCount = prefixHeights.length - 1;
   if (messageCount <= 0) {
@@ -217,6 +293,16 @@ export function reconcileTranscriptPrefixHeightsCache({
       measuredHeights,
       invalidatedMessageIds,
     );
+  }
+
+  const appendOnlyCache = reconcileAppendOnlyTranscriptPrefixHeightsCache(
+    previousCache,
+    measuredHeights,
+    messages,
+    invalidatedMessageIds,
+  );
+  if (appendOnlyCache) {
+    return appendOnlyCache;
   }
 
   const invalidatedMessageKeySet = new Set(

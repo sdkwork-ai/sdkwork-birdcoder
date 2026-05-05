@@ -64,10 +64,12 @@ try {
           return fallbackLocalStore.get(key) ?? null;
         },
         key(index) {
-          return [...fallbackLocalStore.keys()][index] ?? null;
+          throw new Error(
+            `local-store list fallback must not enumerate global localStorage keys; requested key(${index})`,
+          );
         },
         get length() {
-          return fallbackLocalStore.size;
+          throw new Error('local-store list fallback must not read global localStorage.length');
         },
         removeItem(key) {
           fallbackLocalStore.delete(key);

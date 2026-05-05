@@ -388,16 +388,20 @@ function readUserQuestionEventIdentity(event: BirdCoderCodingSessionEvent): {
   };
 }
 
-function hasUserQuestionAnswer(event: BirdCoderCodingSessionEvent): boolean {
-  const args = readEventToolArguments(event);
+function hasUserQuestionAnswer(
+  event: BirdCoderCodingSessionEvent,
+  args: Record<string, unknown> | null = readEventToolArguments(event),
+): boolean {
   return (
     !!readStringRecordField(event.payload, 'answer') ||
     !!readStringRecordField(args ?? undefined, 'answer')
   );
 }
 
-function hasSettledUserQuestionStatus(event: BirdCoderCodingSessionEvent): boolean {
-  const args = readEventToolArguments(event);
+function hasSettledUserQuestionStatus(
+  event: BirdCoderCodingSessionEvent,
+  args: Record<string, unknown> | null = readEventToolArguments(event),
+): boolean {
   return [
     event.payload?.runtimeStatus,
     event.payload?.status,
@@ -410,7 +414,10 @@ function hasSettledUserQuestionStatus(event: BirdCoderCodingSessionEvent): boole
   ].some(isBirdCoderCodeEngineSettledStatus);
 }
 
-function isUserQuestionLifecycleEvent(event: BirdCoderCodingSessionEvent): boolean {
+function isUserQuestionLifecycleEvent(
+  event: BirdCoderCodingSessionEvent,
+  args: Record<string, unknown> | null = readEventToolArguments(event),
+): boolean {
   if (
     event.kind !== 'operation.updated' &&
     event.kind !== 'tool.call.completed' &&
@@ -419,7 +426,6 @@ function isUserQuestionLifecycleEvent(event: BirdCoderCodingSessionEvent): boole
     return false;
   }
 
-  const args = readEventToolArguments(event);
   const toolName =
     readStringRecordField(event.payload, 'toolName') ??
     readStringRecordField(event.payload, 'name') ??
@@ -443,14 +449,14 @@ function deriveSettledUserQuestionKeys(
   const settledKeys = new Set<string>();
 
   for (const event of events) {
-    if (!isUserQuestionLifecycleEvent(event)) {
+    const args = readEventToolArguments(event);
+    if (!isUserQuestionLifecycleEvent(event, args)) {
       continue;
     }
-    if (!hasUserQuestionAnswer(event) && !hasSettledUserQuestionStatus(event)) {
+    if (!hasUserQuestionAnswer(event, args) && !hasSettledUserQuestionStatus(event, args)) {
       continue;
     }
 
-    const args = readEventToolArguments(event);
     const toolCallId = resolveBirdCoderCodeEngineToolCallId({
       payload: event.payload,
       toolArguments: args,
@@ -472,8 +478,10 @@ function deriveSettledUserQuestionKeys(
   return settledKeys;
 }
 
-function hasSettledApprovalLifecycle(event: BirdCoderCodingSessionEvent): boolean {
-  const args = readEventToolArguments(event);
+function hasSettledApprovalLifecycle(
+  event: BirdCoderCodingSessionEvent,
+  args: Record<string, unknown> | null = readEventToolArguments(event),
+): boolean {
   const hasSettledDecision = [
     event.payload?.approvalDecision,
     event.payload?.decision,
@@ -506,11 +514,11 @@ function deriveSettledApprovalKeys(
     ) {
       continue;
     }
-    if (!hasSettledApprovalLifecycle(event)) {
+    const args = readEventToolArguments(event);
+    if (!hasSettledApprovalLifecycle(event, args)) {
       continue;
     }
 
-    const args = readEventToolArguments(event);
     const approvalId = resolveBirdCoderCodeEngineApprovalId({
       payload: event.payload,
       toolArguments: args,
@@ -531,14 +539,272 @@ function deriveSettledApprovalKeys(
   return settledKeys;
 }
 
+interface PendingInteractionSettledKeys {
+  approvalKeys: Set<string>;
+  userQuestionKeys: Set<string>;
+}
+
+function deriveSettledPendingInteractionKeys(
+  events: readonly BirdCoderCodingSessionEvent[],
+): PendingInteractionSettledKeys {
+  const approvalKeys = new Set<string>();
+  const userQuestionKeys = new Set<string>();
+
+  for (const event of events) {
+    if (
+      event.kind !== 'operation.updated' &&
+      event.kind !== 'tool.call.completed' &&
+      event.kind !== 'tool.call.progress'
+    ) {
+      continue;
+    }
+
+    const args = readEventToolArguments(event);
+    if (
+      isUserQuestionLifecycleEvent(event, args) &&
+      (hasUserQuestionAnswer(event, args) || hasSettledUserQuestionStatus(event, args))
+    ) {
+      const toolCallId = resolveBirdCoderCodeEngineToolCallId({
+        payload: event.payload,
+        toolArguments: args,
+      });
+      const questionId = resolveBirdCoderCodeEngineUserQuestionId({
+        payload: event.payload,
+        toolArguments: args,
+        toolCallId,
+      });
+
+      if (questionId) {
+        userQuestionKeys.add(`question:${questionId}`);
+      }
+      if (toolCallId) {
+        userQuestionKeys.add(`tool:${toolCallId}`);
+      }
+    }
+
+    if (hasSettledApprovalLifecycle(event, args)) {
+      const approvalId = resolveBirdCoderCodeEngineApprovalId({
+        payload: event.payload,
+        toolArguments: args,
+      });
+      const checkpointId = resolveBirdCoderCodeEngineCheckpointId({
+        payload: event.payload,
+        toolArguments: args,
+      });
+
+      if (approvalId) {
+        approvalKeys.add(`approval:${approvalId}`);
+      }
+      if (checkpointId) {
+        approvalKeys.add(`checkpoint:${checkpointId}`);
+      }
+    }
+  }
+
+  return {
+    approvalKeys,
+    userQuestionKeys,
+  };
+}
+
+interface PendingApprovalIndexedEvent {
+  event: BirdCoderCodingSessionEvent;
+  order: number;
+}
+
+interface PendingApprovalDerivationIndex {
+  approvalEventsByApprovalId: Map<string, PendingApprovalIndexedEvent>;
+  approvalEventsByRuntimeId: Map<string, PendingApprovalIndexedEvent>;
+  artifactIdsByOperationId: Map<string, string[]>;
+  artifactIdsByTurnId: Map<string, string[]>;
+  artifactOrderById: Map<string, number>;
+  firstOperationIdByTurnId: Map<string, string>;
+}
+
+interface PendingInteractionDerivationIndex {
+  eventsByChronology: readonly BirdCoderCodingSessionEvent[];
+  pendingApprovalIndex: PendingApprovalDerivationIndex;
+  settledApprovalKeys: Set<string>;
+  settledUserQuestionKeys: Set<string>;
+}
+
+const EMPTY_PENDING_APPROVAL_DERIVATION_INDEX: PendingApprovalDerivationIndex = {
+  approvalEventsByApprovalId: new Map<string, PendingApprovalIndexedEvent>(),
+  approvalEventsByRuntimeId: new Map<string, PendingApprovalIndexedEvent>(),
+  artifactIdsByOperationId: new Map<string, string[]>(),
+  artifactIdsByTurnId: new Map<string, string[]>(),
+  artifactOrderById: new Map<string, number>(),
+  firstOperationIdByTurnId: new Map<string, string>(),
+};
+
+function appendPendingApprovalArtifactId(
+  index: Map<string, string[]>,
+  key: string | undefined,
+  artifactId: string,
+): void {
+  if (!key) {
+    return;
+  }
+
+  const artifactIds = index.get(key);
+  if (artifactIds) {
+    artifactIds.push(artifactId);
+    return;
+  }
+
+  index.set(key, [artifactId]);
+}
+
+function keepNewestPendingApprovalEvent(
+  index: Map<string, PendingApprovalIndexedEvent>,
+  key: string | undefined,
+  event: PendingApprovalIndexedEvent,
+): void {
+  if (!key || index.has(key)) {
+    return;
+  }
+
+  index.set(key, event);
+}
+
+function buildPendingApprovalDerivationIndex(
+  projection: BirdCoderCodingSessionProjection,
+  eventsByChronology: readonly BirdCoderCodingSessionEvent[] =
+    [...projection.events].sort(compareCodingSessionEventChronology),
+): PendingApprovalDerivationIndex {
+  const approvalEventsByApprovalId = new Map<string, PendingApprovalIndexedEvent>();
+  const approvalEventsByRuntimeId = new Map<string, PendingApprovalIndexedEvent>();
+  const artifactIdsByOperationId = new Map<string, string[]>();
+  const artifactIdsByTurnId = new Map<string, string[]>();
+  const artifactOrderById = new Map<string, number>();
+  const firstOperationIdByTurnId = new Map<string, string>();
+
+  let order = 0;
+  for (let index = eventsByChronology.length - 1; index >= 0; index -= 1) {
+    const event = eventsByChronology[index]!;
+    if (event.kind !== 'approval.required') {
+      continue;
+    }
+
+    const toolArguments = readEventToolArguments(event);
+    const approvalId = resolveBirdCoderCodeEngineApprovalId({
+      payload: event.payload,
+      toolArguments,
+    });
+    const runtimeId = event.runtimeId?.trim() || undefined;
+    const indexedEvent = {
+      event,
+      order,
+    };
+    keepNewestPendingApprovalEvent(approvalEventsByApprovalId, approvalId, indexedEvent);
+    keepNewestPendingApprovalEvent(approvalEventsByRuntimeId, runtimeId, indexedEvent);
+    order += 1;
+  }
+
+  projection.artifacts.forEach((artifact, order) => {
+    artifactOrderById.set(artifact.id, order);
+    const turnId = artifact.turnId?.trim() || undefined;
+    const operationId = readArtifactOperationId(artifact);
+    appendPendingApprovalArtifactId(artifactIdsByTurnId, turnId, artifact.id);
+    appendPendingApprovalArtifactId(artifactIdsByOperationId, operationId, artifact.id);
+    if (turnId && operationId && !firstOperationIdByTurnId.has(turnId)) {
+      firstOperationIdByTurnId.set(turnId, operationId);
+    }
+  });
+
+  return {
+    approvalEventsByApprovalId,
+    approvalEventsByRuntimeId,
+    artifactIdsByOperationId,
+    artifactIdsByTurnId,
+    artifactOrderById,
+    firstOperationIdByTurnId,
+  };
+}
+
+function buildPendingInteractionDerivationIndex(
+  projection: BirdCoderCodingSessionProjection,
+): PendingInteractionDerivationIndex {
+  const eventsByChronology = [...projection.events]
+    .sort(compareCodingSessionEventChronology);
+  const settledKeys = deriveSettledPendingInteractionKeys(projection.events);
+
+  return {
+    eventsByChronology,
+    pendingApprovalIndex: buildPendingApprovalDerivationIndex(projection, eventsByChronology),
+    settledApprovalKeys: settledKeys.approvalKeys,
+    settledUserQuestionKeys: settledKeys.userQuestionKeys,
+  };
+}
+
+function resolvePendingApprovalEvent(
+  index: PendingApprovalDerivationIndex,
+  approvalId: string,
+  runtimeId: string | undefined,
+): BirdCoderCodingSessionEvent | undefined {
+  const approvalEvent = index.approvalEventsByApprovalId.get(approvalId);
+  const runtimeEvent = runtimeId ? index.approvalEventsByRuntimeId.get(runtimeId) : undefined;
+  if (!approvalEvent) {
+    return runtimeEvent?.event;
+  }
+  if (!runtimeEvent) {
+    return approvalEvent.event;
+  }
+
+  return approvalEvent.order <= runtimeEvent.order
+    ? approvalEvent.event
+    : runtimeEvent.event;
+}
+
+function resolvePendingApprovalArtifactIds(
+  index: PendingApprovalDerivationIndex,
+  turnId: string | undefined,
+  operationId: string | undefined,
+): string[] {
+  const artifactIdsByTurnId = turnId ? index.artifactIdsByTurnId.get(turnId) ?? [] : [];
+  const artifactIdsByOperationId = operationId
+    ? index.artifactIdsByOperationId.get(operationId) ?? []
+    : [];
+
+  if (artifactIdsByTurnId.length === 0) {
+    return [...artifactIdsByOperationId];
+  }
+  if (artifactIdsByOperationId.length === 0) {
+    return [...artifactIdsByTurnId];
+  }
+
+  const selectedArtifactIds = new Set<string>([
+    ...artifactIdsByTurnId,
+    ...artifactIdsByOperationId,
+  ]);
+  return [...selectedArtifactIds].sort(
+    (left, right) =>
+      (index.artifactOrderById.get(left) ?? Number.MAX_SAFE_INTEGER) -
+      (index.artifactOrderById.get(right) ?? Number.MAX_SAFE_INTEGER),
+  );
+}
+
 export function deriveCodingSessionPendingApprovals(
   projection: BirdCoderCodingSessionProjection,
 ): BirdCoderCodingSessionPendingApproval[] {
-  const settledApprovalKeys = deriveSettledApprovalKeys(projection.events);
-  const eventsByLatest = [...projection.events]
-    .sort(compareCodingSessionEventChronology)
-    .reverse();
+  const pendingApprovalIndex = buildPendingApprovalDerivationIndex(projection);
+  return deriveCodingSessionPendingApprovalsFromIndex(
+    projection,
+    {
+      eventsByChronology: projection.events,
+      pendingApprovalIndex,
+      settledApprovalKeys: deriveSettledApprovalKeys(projection.events),
+      settledUserQuestionKeys: EMPTY_SETTLED_USER_QUESTION_KEYS,
+    },
+  );
+}
 
+const EMPTY_SETTLED_USER_QUESTION_KEYS = new Set<string>();
+
+function deriveCodingSessionPendingApprovalsFromIndex(
+  projection: BirdCoderCodingSessionProjection,
+  index: PendingInteractionDerivationIndex,
+): BirdCoderCodingSessionPendingApproval[] {
   const approvals = [...projection.checkpoints]
     .sort(compareCodingSessionCheckpointChronology)
     .filter((checkpoint) => checkpoint.checkpointKind === 'approval' && checkpoint.resumable)
@@ -551,22 +817,17 @@ export function deriveCodingSessionPendingApprovals(
         return null;
       }
       if (
-        settledApprovalKeys.has(`approval:${approvalId}`) ||
-        settledApprovalKeys.has(`checkpoint:${checkpoint.id}`)
+        index.settledApprovalKeys.has(`approval:${approvalId}`) ||
+        index.settledApprovalKeys.has(`checkpoint:${checkpoint.id}`)
       ) {
         return null;
       }
 
-      const approvalEvent = eventsByLatest.find((event) => {
-        const eventApprovalId = resolveBirdCoderCodeEngineApprovalId({
-          payload: event.payload,
-          toolArguments: readEventToolArguments(event),
-        });
-        return (
-          event.kind === 'approval.required' &&
-          (eventApprovalId === approvalId || event.runtimeId === checkpoint.runtimeId)
-        );
-      });
+      const approvalEvent = resolvePendingApprovalEvent(
+        index.pendingApprovalIndex,
+        approvalId,
+        checkpoint.runtimeId,
+      );
       const runtimeId =
         readStringRecordField(state, 'runtimeId') ??
         checkpoint.runtimeId ??
@@ -574,22 +835,15 @@ export function deriveCodingSessionPendingApprovals(
         undefined;
       const turnId =
         readStringRecordField(state, 'turnId') ?? approvalEvent?.turnId ?? undefined;
-      const artifactWithOperation = projection.artifacts.find(
-        (artifact) => artifact.turnId === turnId && readArtifactOperationId(artifact),
-      );
-      const derivedOperationId = artifactWithOperation
-        ? readArtifactOperationId(artifactWithOperation)
-        : undefined;
       const operationId =
         readStringRecordField(state, 'operationId') ??
         readStringRecordField(approvalEvent?.payload, 'operationId') ??
-        derivedOperationId;
-      const artifactIds = projection.artifacts
-        .filter(
-          (artifact) =>
-            artifact.turnId === turnId || readArtifactOperationId(artifact) === operationId,
-        )
-        .map((artifact) => artifact.id);
+        index.pendingApprovalIndex.firstOperationIdByTurnId.get(turnId ?? '');
+      const artifactIds = resolvePendingApprovalArtifactIds(
+        index.pendingApprovalIndex,
+        turnId,
+        operationId,
+      );
 
       return {
         approvalId,
@@ -609,12 +863,26 @@ export function deriveCodingSessionPendingApprovals(
 export function deriveCodingSessionPendingUserQuestions(
   projection: BirdCoderCodingSessionProjection,
 ): BirdCoderCodingSessionPendingUserQuestion[] {
-  const settledKeys = deriveSettledUserQuestionKeys(projection.events);
+  return deriveCodingSessionPendingUserQuestionsFromIndex({
+    eventsByChronology: [...projection.events].sort(compareCodingSessionEventChronology),
+    pendingApprovalIndex: EMPTY_PENDING_APPROVAL_DERIVATION_INDEX,
+    settledApprovalKeys: EMPTY_SETTLED_APPROVAL_KEYS,
+    settledUserQuestionKeys: deriveSettledUserQuestionKeys(projection.events),
+  });
+}
+
+const EMPTY_SETTLED_APPROVAL_KEYS = new Set<string>();
+
+function deriveCodingSessionPendingUserQuestionsFromIndex(
+  index: PendingInteractionDerivationIndex,
+): BirdCoderCodingSessionPendingUserQuestion[] {
   const pendingByQuestionKey = new Map<string, BirdCoderCodingSessionPendingUserQuestion>();
 
-  for (const event of [...projection.events]
-    .sort(compareCodingSessionEventChronology)
-    .filter(isUserQuestionEvent)) {
+  for (const event of index.eventsByChronology) {
+    if (!isUserQuestionEvent(event)) {
+      continue;
+    }
+
     const args = readEventToolArguments(event);
     const questions = readUserQuestionPrompts(args);
     if (questions.length === 0) {
@@ -626,8 +894,8 @@ export function deriveCodingSessionPendingUserQuestions(
       continue;
     }
     if (
-      settledKeys.has(`question:${questionId}`) ||
-      (toolCallId ? settledKeys.has(`tool:${toolCallId}`) : false)
+      index.settledUserQuestionKeys.has(`question:${questionId}`) ||
+      (toolCallId ? index.settledUserQuestionKeys.has(`tool:${toolCallId}`) : false)
     ) {
       continue;
     }
@@ -697,11 +965,23 @@ export async function loadCodingSessionUserQuestionState(
 export async function loadCodingSessionPendingInteractionState(
   coreReadService: BirdCoderCodingSessionApprovalReader,
   codingSessionId: string,
+  expectedProjectId?: string | null,
 ): Promise<BirdCoderCodingSessionPendingInteractions> {
   const projection = await loadCodingSessionProjection(coreReadService, codingSessionId);
+  const normalizedExpectedProjectId = expectedProjectId?.trim() ?? '';
+  const projectionProjectId = projection.session.projectId.trim();
+  if (
+    normalizedExpectedProjectId &&
+    projectionProjectId &&
+    projectionProjectId !== normalizedExpectedProjectId
+  ) {
+    return EMPTY_PENDING_INTERACTIONS;
+  }
+
+  const pendingInteractionIndex = buildPendingInteractionDerivationIndex(projection);
   return normalizePendingInteractions({
-    approvals: deriveCodingSessionPendingApprovals(projection),
-    questions: deriveCodingSessionPendingUserQuestions(projection),
+    approvals: deriveCodingSessionPendingApprovalsFromIndex(projection, pendingInteractionIndex),
+    questions: deriveCodingSessionPendingUserQuestionsFromIndex(pendingInteractionIndex),
   });
 }
 
@@ -874,23 +1154,29 @@ export function useCodingSessionApprovalState(
 export function useCodingSessionPendingInteractionState(
   codingSessionId?: string | null,
   refreshToken?: string | number | null,
+  scopeKey?: string | null,
+  expectedProjectId?: string | null,
 ) {
   const { coreReadService, coreWriteService } = useIDEServices();
   const [state, setState] = useState<BirdCoderCodingSessionPendingInteractionState>(
     INITIAL_PENDING_INTERACTION_STATE,
   );
   const latestRefreshTokenRef = useRef(0);
-  const latestCodingSessionIdRef = useRef<string | null>(null);
+  const latestScopeKeyRef = useRef<string | null>(null);
+  const normalizedScopeKey =
+    codingSessionId
+      ? scopeKey?.trim() || codingSessionId
+      : null;
 
   const refreshPendingInteractions = useCallback(async () => {
     if (!codingSessionId) {
       latestRefreshTokenRef.current += 1;
-      latestCodingSessionIdRef.current = null;
+      latestScopeKeyRef.current = null;
       setState(INITIAL_PENDING_INTERACTION_STATE);
       return EMPTY_PENDING_INTERACTIONS;
     }
-    const didSwitchCodingSession = latestCodingSessionIdRef.current !== codingSessionId;
-    latestCodingSessionIdRef.current = codingSessionId;
+    const didSwitchCodingSession = latestScopeKeyRef.current !== normalizedScopeKey;
+    latestScopeKeyRef.current = normalizedScopeKey;
     const refreshToken = latestRefreshTokenRef.current + 1;
     latestRefreshTokenRef.current = refreshToken;
 
@@ -910,6 +1196,7 @@ export function useCodingSessionPendingInteractionState(
       const pendingInteractions = await loadCodingSessionPendingInteractionState(
         coreReadService,
         codingSessionId,
+        expectedProjectId,
       );
       if (latestRefreshTokenRef.current === refreshToken) {
         setState({
@@ -928,7 +1215,7 @@ export function useCodingSessionPendingInteractionState(
       }
       return EMPTY_PENDING_INTERACTIONS;
     }
-  }, [codingSessionId, coreReadService]);
+  }, [codingSessionId, coreReadService, expectedProjectId, normalizedScopeKey]);
 
   const submitApprovalDecision = useCallback(
     async (approvalId: string, request: BirdCoderSubmitApprovalDecisionRequest) => {
@@ -957,7 +1244,7 @@ export function useCodingSessionPendingInteractionState(
   }, [refreshPendingInteractions, refreshToken]);
 
   const visibleState =
-    codingSessionId && latestCodingSessionIdRef.current === codingSessionId
+    codingSessionId && latestScopeKeyRef.current === normalizedScopeKey
       ? state
       : INITIAL_PENDING_INTERACTION_STATE;
 

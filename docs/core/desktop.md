@@ -7,6 +7,9 @@ BirdCoder desktop delivery follows the same release-family role as Claw Studio: 
 - renderer UI from `sdkwork-birdcoder-web`
 - native shell from `sdkwork-birdcoder-desktop/src-tauri`
 - release orchestration from `scripts/run-desktop-release-build.mjs`
+- native installer artifacts under `desktop/<platform>/<arch>/installers/<bundle>/...`
+
+The `installers/<bundle>` directory segment is part of the desktop release contract. It preserves the Tauri bundle type and prevents same-name installers from different bundle generators from overwriting each other during packaging or publication.
 
 ## Verification
 

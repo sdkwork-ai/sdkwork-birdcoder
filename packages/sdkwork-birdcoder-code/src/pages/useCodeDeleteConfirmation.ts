@@ -22,9 +22,13 @@ interface UseCodeDeleteConfirmationOptions {
   onProjectChange?: (projectId: string) => void;
   projectRemovedMessage: string;
   resolveProjectById: (projectId: string) => BirdCoderProject | null;
-  resolveSession: (codingSessionId: string) => CodingSessionLocation | null;
+  resolveSession: (
+    codingSessionId: string,
+    projectId?: string | null,
+  ) => CodingSessionLocation | null;
   sessionId: string | null;
   setSelectedSessionId: (codingSessionId: string | null) => void;
+  setSelectedSessionProjectId: (projectId: string | null) => void;
   sessionDeletedMessage: string;
 }
 
@@ -40,19 +44,24 @@ export function useCodeDeleteConfirmation({
   resolveSession,
   sessionId,
   setSelectedSessionId,
+  setSelectedSessionProjectId,
   sessionDeletedMessage,
 }: UseCodeDeleteConfirmationOptions) {
   const [deleteConfirmation, setDeleteConfirmation] = useState<CodeDeleteConfirmation | null>(null);
 
-  const requestDeleteSession = useCallback((codingSessionId: string) => {
-    setDeleteConfirmation({ type: 'session', id: codingSessionId });
+  const requestDeleteSession = useCallback((codingSessionId: string, projectId: string) => {
+    setDeleteConfirmation({ type: 'session', id: codingSessionId, projectId });
   }, []);
 
   const requestDeleteProject = useCallback((projectId: string) => {
     setDeleteConfirmation({ type: 'project', id: projectId });
   }, []);
 
-  const requestDeleteMessage = useCallback((codingSessionId: string, messageIds: string[]) => {
+  const requestDeleteMessage = useCallback((
+    codingSessionId: string,
+    projectId: string,
+    messageIds: string[],
+  ) => {
     const normalizedMessageIds = messageIds
       .map((messageId) => messageId.trim())
       .filter((messageId) => messageId.length > 0);
@@ -65,6 +74,7 @@ export function useCodeDeleteConfirmation({
       id: normalizedMessageIds[normalizedMessageIds.length - 1]!,
       ids: normalizedMessageIds,
       parentId: codingSessionId,
+      projectId,
     });
   }, []);
 
@@ -79,11 +89,12 @@ export function useCodeDeleteConfirmation({
     }
 
     if (confirmation.type === 'session') {
-      const project = resolveSession(confirmation.id)?.project;
+      const project = resolveSession(confirmation.id, confirmation.projectId)?.project;
       if (project) {
         await deleteCodingSession(project.id, confirmation.id);
-        if (sessionId === confirmation.id) {
+        if (sessionId === confirmation.id && currentProjectId === project.id) {
           setSelectedSessionId(null);
+          setSelectedSessionProjectId(project.id);
         }
         addToast(sessionDeletedMessage, 'success');
       }
@@ -95,10 +106,12 @@ export function useCodeDeleteConfirmation({
       await deleteProject(confirmation.id);
       const project = resolveProjectById(confirmation.id);
       if (
+        currentProjectId === confirmation.id &&
         project &&
         project.codingSessions.some((codingSession) => codingSession.id === sessionId)
       ) {
         setSelectedSessionId(null);
+        setSelectedSessionProjectId(null);
       }
       if (currentProjectId === confirmation.id) {
         onProjectChange?.('');
@@ -109,7 +122,7 @@ export function useCodeDeleteConfirmation({
     }
 
     if (confirmation.parentId) {
-      const project = resolveSession(confirmation.parentId)?.project;
+      const project = resolveSession(confirmation.parentId, confirmation.projectId)?.project;
       if (project) {
         try {
           const deletedMessageCount = await deleteWorkbenchCodingSessionMessages({
@@ -145,6 +158,7 @@ export function useCodeDeleteConfirmation({
     resolveSession,
     sessionId,
     setSelectedSessionId,
+    setSelectedSessionProjectId,
     sessionDeletedMessage,
   ]);
 

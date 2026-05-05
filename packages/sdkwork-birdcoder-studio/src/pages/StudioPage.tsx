@@ -1,7 +1,9 @@
 import { memo, startTransition, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
+  buildCodingSessionProjectScopedKey,
   buildProjectCodingSessionIndex,
   buildWorkbenchCodingSessionTurnContext,
+  buildWorkbenchCodingSessionTurnModelSelectionMetadata,
   createIdleProjectMountRecoveryState,
   deleteWorkbenchCodingSessionMessages,
   emitProjectMountRecoveryState,
@@ -42,21 +44,16 @@ import {
   type BirdCoderSubmitApprovalDecisionRequest,
   type BirdCoderSubmitUserQuestionAnswerRequest,
 } from '@sdkwork/birdcoder-types';
-import { ProjectGitOverviewDrawer } from '@sdkwork/birdcoder-ui';
 import { useTranslation } from 'react-i18next';
-import { StudioPreviewPanel } from '../preview/StudioPreviewPanel';
-import { StudioStageHeader } from '../preview/StudioStageHeader';
-import { StudioSimulatorPanel } from '../simulator/StudioSimulatorPanel';
-import { StudioCodeWorkspacePanel } from './StudioCodeWorkspacePanel';
 import {
-  StudioPageDialogs,
   type StudioAnalyzeReport,
   type StudioDeleteConfirmation,
 } from './StudioPageDialogs';
+import { StudioDialogSurface } from './StudioDialogSurface';
 import { StudioChatSidebar } from './StudioChatSidebar';
+import { StudioMainContent } from './StudioMainContent';
+import { analyzeStudioCode } from './studioCodeAnalysis';
 import { useStudioCodingSessionSync } from './useStudioCodingSessionSync';
-import { StudioTerminalIntegrationPanel } from './StudioTerminalIntegrationPanel';
-import { StudioWorkspaceOverlays } from './StudioWorkspaceOverlays';
 import { StudioSessionTranscriptLoadingState } from './StudioSessionTranscriptLoadingState';
 import { useStudioCollaboration } from './useStudioCollaboration';
 import { useStudioExecutionActions } from './useStudioExecutionActions';
@@ -77,6 +74,7 @@ function StudioPageComponent({
 }: StudioPageProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'preview' | 'simulator' | 'code'>('preview');
+  const isSimulatorTabActive = activeTab === 'simulator';
   const handleActiveTabChange = useCallback((nextTab: 'preview' | 'simulator' | 'code') => {
     startTransition(() => {
       setActiveTab(nextTab);
@@ -102,8 +100,10 @@ function StudioPageComponent({
   const { user } = useAuth();
   const { addToast } = useToast();
   const [sessionId, setSessionId] = useState<string>('');
+  const [selectedSessionProjectId, setSelectedSessionProjectId] = useState<string | null>(null);
   const [selectionRefreshToken, setSelectionRefreshToken] = useState(0);
   const pendingProjectChangeIdRef = useRef<string | null>(null);
+  const pendingLocalCodingSessionSelectionKeyRef = useRef<string | null>(null);
   const [menuActiveProjectId, setMenuActiveProjectId] = useState<string>('');
   const [viewingDiff, setViewingDiff] = useState<FileChange | null>(null);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
@@ -155,19 +155,37 @@ function StudioPageComponent({
     [sessionIndex],
   );
   const resolveCodingSessionLocation = useCallback(
-    (id: string | null | undefined) => {
+    (id: string | null | undefined, scopedProjectId?: string | null) => {
       const normalizedCodingSessionId = id?.trim() ?? '';
-      return normalizedCodingSessionId
-        ? sessionIndex.codingSessionLocationsById.get(normalizedCodingSessionId) ?? null
-        : null;
+      if (!normalizedCodingSessionId) {
+        return null;
+      }
+
+      const normalizedScopedProjectId = scopedProjectId?.trim() ?? '';
+      if (normalizedScopedProjectId) {
+        return sessionIndex.codingSessionLocationsByProjectIdAndId.get(
+          buildCodingSessionProjectScopedKey(
+            normalizedScopedProjectId,
+            normalizedCodingSessionId,
+          ),
+        ) ?? null;
+      }
+
+      return sessionIndex.codingSessionLocationsById.get(normalizedCodingSessionId) ?? null;
     },
     [sessionIndex],
   );
-  const selectedCodingSessionLocation = resolveCodingSessionLocation(sessionId);
+  const selectedCodingSessionLocation = resolveCodingSessionLocation(
+    sessionId,
+    selectedSessionProjectId ?? projectId,
+  );
   const sessionProjectId = selectedCodingSessionLocation?.project.id ?? '';
   const normalizedProjectId = projectId?.trim() ?? '';
+  const normalizedSelectedSessionProjectId = selectedSessionProjectId?.trim() ?? '';
   const normalizedSessionProjectId = sessionProjectId?.trim() ?? '';
-  const currentProjectId = normalizedSessionProjectId || normalizedProjectId;
+  const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
+  const currentProjectId =
+    normalizedSessionProjectId || normalizedSelectedSessionProjectId || normalizedProjectId;
   const projectGitOverviewState = useProjectGitOverview({
     isActive: activeTab === 'code',
     projectId: currentProjectId,
@@ -188,7 +206,7 @@ function StudioPageComponent({
     currentSessionModelId: selectedSession?.modelId,
   });
   const notifyProjectChange = useCallback((nextProjectId: string) => {
-    if (!onProjectChange) {
+    if (!isVisible || !onProjectChange) {
       return;
     }
 
@@ -199,7 +217,7 @@ function StudioPageComponent({
 
     pendingProjectChangeIdRef.current = normalizedNextProjectId;
     onProjectChange(normalizedNextProjectId);
-  }, [currentProjectId, onProjectChange]);
+  }, [currentProjectId, isVisible, onProjectChange]);
   const selectCodingSession = useCallback((
     nextCodingSessionId: string,
     options?: { projectId?: string },
@@ -221,13 +239,15 @@ function StudioPageComponent({
       return;
     }
 
+    pendingLocalCodingSessionSelectionKeyRef.current = nextProjectId
+      ? buildCodingSessionProjectScopedKey(nextProjectId, normalizedCodingSessionId)
+      : normalizedCodingSessionId;
     if (nextProjectId) {
-      notifyProjectChange(nextProjectId);
       setMenuActiveProjectId(nextProjectId);
     }
-
     setSessionId(normalizedCodingSessionId);
-  }, [currentProjectId, notifyProjectChange, resolveCodingSessionLocation, sessionId]);
+    setSelectedSessionProjectId(nextProjectId || null);
+  }, [currentProjectId, resolveCodingSessionLocation, sessionId]);
   const { createCodingSessionInProject } = useWorkbenchCodingSessionCreationActions({
     addToast,
     createCodingSessionWithSelection,
@@ -281,11 +301,13 @@ function StudioPageComponent({
     currentProjectId,
     createCodingSessionWithSelection,
     (codingSessionId) => {
-      selectCodingSession(codingSessionId);
+      selectCodingSession(codingSessionId, {
+        projectId: currentProjectId,
+      });
     },
     {
       isActive: isVisible,
-      createCodingSessionInProject,
+      createCodingSessionInProject: createStudioCodingSessionInProject,
     },
   );
   useStudioWorkbenchEventBindings({
@@ -315,6 +337,8 @@ function StudioPageComponent({
     if (
       !normalizedSessionProjectId ||
       !onProjectChange ||
+      onCodingSessionChange ||
+      !isVisible ||
       normalizedSessionProjectId === normalizedProjectId
     ) {
       return;
@@ -331,18 +355,29 @@ function StudioPageComponent({
         ? previousProjectId
         : normalizedSessionProjectId,
     );
-  }, [normalizedProjectId, normalizedSessionProjectId, onProjectChange]);
+  }, [
+    isVisible,
+    normalizedProjectId,
+    normalizedSessionProjectId,
+    onCodingSessionChange,
+    onProjectChange,
+  ]);
 
   useStudioCodingSessionSync({
+    isActive: isVisible,
     projects,
-    initialCodingSessionId,
+    initialCodingSessionId: normalizedInitialCodingSessionId,
+    initialProjectId: normalizedProjectId,
     onCodingSessionChange,
+    pendingLocalCodingSessionSelectionKeyRef,
+    selectedProjectId: currentProjectId,
     selectedCodingSessionId: sessionId,
-    selectCodingSession,
+    setSelectedCodingSessionId: setSessionId,
+    setSelectedCodingSessionProjectId: setSelectedSessionProjectId,
   });
 
   useEffect(() => {
-    if (!hasFetchedProjects) {
+    if (!isVisible || !hasFetchedProjects) {
       return;
     }
 
@@ -353,11 +388,19 @@ function StudioPageComponent({
       if (currentProjectId && !resolveProjectById(currentProjectId)) {
         notifyProjectChange('');
         setSessionId('');
-      } else if (
-        sessionId &&
-        !resolveCodingSessionLocation(sessionId)
-      ) {
-        setSessionId('');
+        setSelectedSessionProjectId(null);
+      } else if (sessionId) {
+        const retainedProjectId =
+          selectedSessionProjectId?.trim() ||
+          projectId?.trim() ||
+          currentProjectId;
+        if (
+          !resolveCodingSessionLocation(sessionId, retainedProjectId) &&
+          (!retainedProjectId || !resolveProjectById(retainedProjectId))
+        ) {
+          setSessionId('');
+          setSelectedSessionProjectId(retainedProjectId || null);
+        }
       }
     } else {
       setMenuActiveProjectId('');
@@ -365,16 +408,20 @@ function StudioPageComponent({
         notifyProjectChange('');
       }
       setSessionId('');
+      setSelectedSessionProjectId(null);
     }
   }, [
     currentProjectId,
     hasFetchedProjects,
+    isVisible,
     menuActiveProjectId,
     notifyProjectChange,
+    projectId,
     projects,
     resolveCodingSessionLocation,
     resolveProjectById,
     sessionId,
+    selectedSessionProjectId,
   ]);
 
   const [isSubmittingTurn, setIsSubmittingTurn] = useState(false);
@@ -447,6 +494,9 @@ function StudioPageComponent({
     notifyProjectChange(projectId);
     setMenuActiveProjectId(projectId);
     setSessionId('');
+    setSelectedSessionProjectId(projectId);
+    pendingLocalCodingSessionSelectionKeyRef.current =
+      buildCodingSessionProjectScopedKey(projectId, '');
   }, [notifyProjectChange, projects, selectCodingSession]);
   const syncImportedProjectInBackground = useCallback((projectId: string) => {
     void (async () => {
@@ -469,6 +519,9 @@ function StudioPageComponent({
           notifyProjectChange(projectId);
           setMenuActiveProjectId(projectId);
           setSessionId('');
+          setSelectedSessionProjectId(projectId);
+          pendingLocalCodingSessionSelectionKeyRef.current =
+            buildCodingSessionProjectScopedKey(projectId, '');
         }
       } catch (error) {
         console.error('Failed to refresh imported project sessions', error);
@@ -525,6 +578,10 @@ function StudioPageComponent({
     if (targetProjectId) {
       notifyProjectChange(targetProjectId);
       setMenuActiveProjectId(targetProjectId);
+      setSessionId('');
+      setSelectedSessionProjectId(targetProjectId);
+      pendingLocalCodingSessionSelectionKeyRef.current =
+        buildCodingSessionProjectScopedKey(targetProjectId, '');
     }
   };
 
@@ -622,7 +679,7 @@ function StudioPageComponent({
     selectionRefreshToken,
     selectedCodingSession: selectedSession,
     selectedCodingSessionId: sessionId,
-    selectedProject: selectedCodingSessionLocation?.project ?? null,
+    selectedProject: selectedCodingSessionLocation?.project ?? currentProject ?? null,
     workspaceId,
   });
   const isSelectedCodingSessionHydrating = Boolean(
@@ -651,26 +708,39 @@ function StudioPageComponent({
         t('studio.sessionMessagesRefreshed', { name: codingSessionTitle }),
     },
     projectService,
-    resolveCodingSessionTitle: (codingSessionId: string) =>
-      resolveCodingSessionLocation(codingSessionId)?.codingSession.title ?? codingSessionId,
+    resolveCodingSessionLocation: (codingSessionId: string, targetProjectId?: string | null) =>
+      resolveCodingSessionLocation(codingSessionId, targetProjectId),
+    resolveCodingSessionTitle: (codingSessionId: string, targetProjectId?: string | null) =>
+      resolveCodingSessionLocation(codingSessionId, targetProjectId)
+        ?.codingSession.title ?? codingSessionId,
     resolveProjectName: (targetProjectId: string) =>
       resolveProjectById(targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
     workspaceId,
   });
   const pendingInteractionRefreshToken = useMemo(() => [
+    currentProjectId,
     selectedSession?.id ?? '',
     selectedSession?.runtimeStatus ?? '',
     selectedSession?.updatedAt ?? '',
     selectedSession?.lastTurnAt ?? '',
     selectedSession?.transcriptUpdatedAt ?? '',
-  ].join('\u0001'), [selectedSession]);
+  ].join('\u0001'), [currentProjectId, selectedSession]);
+  const pendingInteractionScopeKey =
+    currentProjectId && sessionId
+      ? `${workspaceId ?? ''}\u0001${currentProjectId}\u0001${sessionId}`
+      : sessionId || null;
   const {
     approvals: pendingApprovals,
     questions: pendingUserQuestions,
     submitApprovalDecision,
     submitUserQuestionAnswer,
-  } = useCodingSessionPendingInteractionState(sessionId || null, pendingInteractionRefreshToken);
+  } = useCodingSessionPendingInteractionState(
+    sessionId || null,
+    pendingInteractionRefreshToken,
+    pendingInteractionScopeKey,
+    currentProjectId,
+  );
   const handleSubmitApprovalDecision = useCallback(async (
     approvalId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
@@ -710,38 +780,15 @@ function StudioPageComponent({
     if (!selectedFile) {
       return;
     }
-    
-    const lines = fileContent.split('\n');
-    const loc = lines.length;
-    const emptyLines = lines.filter(l => l.trim() === '').length;
-    const imports = lines.filter(l => l.trim().startsWith('import ')).length;
-    const functions = (fileContent.match(/function\s+\w+|const\s+\w+\s*=\s*(?:async\s*)?(?:\([^)]*\)|[^=]+)\s*=>/g) || []).length;
-    const classes = (fileContent.match(/class\s+\w+/g) || []).length;
-    
-    // Simple cyclomatic complexity estimation (very naive)
-    const complexityKeywords = (fileContent.match(/\b(if|while|for|case|catch|&&|\|\||\?)\b/g) || []).length;
-    const estimatedComplexity = complexityKeywords + 1;
-    
-    let maintainability = 100;
-    if (loc > 300) maintainability -= 10;
-    if (estimatedComplexity > 20) maintainability -= 15;
-    if (functions > 10) maintainability -= 5;
-    
-    setAnalyzeReport({
-      loc,
-      emptyLines,
-      imports,
-      functions,
-      classes,
-      complexity: estimatedComplexity,
-      maintainability: Math.max(0, maintainability)
-    });
+
+    setAnalyzeReport(analyzeStudioCode(fileContent));
     setIsAnalyzeModalVisible(true);
   }, [fileContent, selectedFile]);
 
   const handleEditMessage = useWorkbenchCodingSessionMessageEditAction({
     editCodingSessionMessage,
-    resolveCodingSessionLocation,
+    resolveCodingSessionLocation: (codingSessionId: string) =>
+      resolveCodingSessionLocation(codingSessionId, currentProjectId),
     sessionUnavailableMessage: t('chat.sendMessageSessionUnavailable'),
     setSelectionRefreshToken,
   });
@@ -763,7 +810,7 @@ function StudioPageComponent({
   }, []);
 
   const executeDeleteMessage = async (codingSessionId: string, messageIds: string[]) => {
-    const project = resolveCodingSessionLocation(codingSessionId)?.project;
+    const project = resolveCodingSessionLocation(codingSessionId, currentProjectId)?.project;
     if (project) {
       try {
         const deletedMessageCount = await deleteWorkbenchCodingSessionMessages({
@@ -788,7 +835,7 @@ function StudioPageComponent({
       return;
     }
 
-    const resolvedSessionLocation = resolveCodingSessionLocation(codingSessionId);
+    const resolvedSessionLocation = resolveCodingSessionLocation(codingSessionId, currentProjectId);
     const project = resolvedSessionLocation?.project;
     if (project) {
       const codingSession = resolvedSessionLocation?.codingSession;
@@ -820,6 +867,7 @@ function StudioPageComponent({
       }
     }
   }, [
+    currentProjectId,
     deleteCodingSessionMessage,
     fileContent,
     isChatBusy,
@@ -833,7 +881,8 @@ function StudioPageComponent({
   ]);
 
   const handleRestoreMessage = useCallback(async (codingSessionId: string, messageId: string) => {
-    const codingSession = resolveCodingSessionLocation(codingSessionId)?.codingSession;
+    const codingSession =
+      resolveCodingSessionLocation(codingSessionId, currentProjectId)?.codingSession;
     const msg = codingSession?.messages?.find(m => m.id === messageId);
     try {
       const didRestore = await restoreWorkbenchCodingSessionMessageFiles({
@@ -851,13 +900,20 @@ function StudioPageComponent({
     }
   }, [
     addToast,
+    currentProjectId,
     resolveCodingSessionLocation,
     restoreWorkbenchCodingSessionMessageFiles,
     saveFileContent,
     t,
   ]);
 
-  const handleSendMessage = useCallback(async (text?: string) => {
+  const handleSendMessage = useCallback(async (
+    text?: string,
+    composerSelection?: {
+      engineId?: string | null;
+      modelId?: string | null;
+    },
+  ) => {
     const trimmedContent = typeof text === 'string' ? text.trim() : '';
     if (!trimmedContent) {
       return;
@@ -865,18 +921,28 @@ function StudioPageComponent({
     if (isChatBusy) {
       throw new Error(t('chat.sendMessageBusy'));
     }
+    const requestedEngineId = composerSelection?.engineId?.trim() ?? '';
+    const currentSessionEngineId = selectedSession?.engineId?.trim() ?? '';
+    const currentCodingSessionId =
+      currentSessionEngineId &&
+      requestedEngineId &&
+      requestedEngineId.toLowerCase() !== currentSessionEngineId.toLowerCase()
+        ? null
+        : sessionId;
     const bootstrappedSession = await ensureWorkbenchCodingSessionForMessage({
       createCodingSessionWithSelection,
-      currentCodingSessionId: sessionId,
+      currentCodingSessionId,
       currentProjectId,
       messageContent: trimmedContent,
+      requestedEngineId: composerSelection?.engineId,
+      requestedModelId: composerSelection?.modelId,
       resolveProjectId: async () => {
         if (projects.length === 0) {
           const importedProject = await selectFolderAndImportProject(t('studio.newProject'));
           if (!importedProject) {
             return null;
           }
-          onProjectChange?.(importedProject.projectId);
+          notifyProjectChange(importedProject.projectId);
           setMenuActiveProjectId(importedProject.projectId);
           return importedProject.projectId;
         }
@@ -899,11 +965,16 @@ function StudioPageComponent({
         sessionId: bootstrappedSession.codingSessionId,
         workspaceId,
       });
+      const turnModelSelectionMetadata =
+        buildWorkbenchCodingSessionTurnModelSelectionMetadata(composerSelection);
       const sentMessage = await sendMessage(
         bootstrappedSession.projectId,
         bootstrappedSession.codingSessionId,
         trimmedContent,
         context,
+        turnModelSelectionMetadata
+          ? { metadata: turnModelSelectionMetadata }
+          : undefined,
       );
       if (
         sentMessage?.codingSessionId &&
@@ -922,10 +993,11 @@ function StudioPageComponent({
     currentProjectId,
     fileContent,
     isChatBusy,
-    onProjectChange,
+    notifyProjectChange,
     projects,
     selectCodingSession,
     selectFolderAndImportProject,
+    selectedSession?.engineId,
     selectedFile,
     sendMessage,
     setSelectionRefreshToken,
@@ -1213,151 +1285,116 @@ function StudioPageComponent({
         onRestoreMessage={handleStudioRestoreMessage}
       />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col relative bg-[#0e0e11] overflow-hidden">
-        <StudioWorkspaceOverlays
-          currentProjectId={currentProjectId || undefined}
-          files={files}
-          mountRecoveryState={mountRecoveryState}
-          isMountRecoveryActionPending={isMountRecoveryActionPending}
-          isFindVisible={isFindVisible}
-          isSearchingFiles={isSearchingFiles}
-          isQuickOpenVisible={isQuickOpenVisible}
-          searchFiles={searchFiles}
-          onSelectFile={handleStudioOverlaySelectFile}
-          onRetryMountRecovery={handleStudioRetryMountRecovery}
-          onReimportProjectFolder={handleStudioReimportProjectFolder}
-          onCloseFind={handleStudioCloseFind}
-          onCloseQuickOpen={handleStudioCloseQuickOpen}
-          onNotifyNoResults={handleStudioNotifyNoResults}
-        />
-
-        {/* Tabs */}
-        <StudioStageHeader
-          activeTab={activeTab}
-          isProjectGitOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
-          projectGitOverviewState={projectGitOverviewState}
-          projectId={activeTab === 'code' ? currentProjectId || undefined : undefined}
-          previewUrl={previewUrl}
-          previewPlatform={previewPlatform}
-          previewWebDevice={previewWebDevice}
-          previewMpPlatform={previewMpPlatform}
-          previewAppPlatform={previewAppPlatform}
-          previewDeviceModel={previewDeviceModel}
-          previewIsLandscape={previewIsLandscape}
-          selectedFile={selectedFile}
-          viewingDiffPath={viewingDiff?.path}
-          isTerminalOpen={isTerminalOpen}
-          onTabChange={handleActiveTabChange}
-          onPreviewPlatformChange={setPreviewPlatform}
-          onPreviewWebDeviceChange={setPreviewWebDevice}
-          onPreviewMpPlatformChange={setPreviewMpPlatform}
-          onPreviewAppPlatformChange={handlePreviewAppPlatformChange}
-          onPreviewDeviceModelChange={setPreviewDeviceModel}
-          onPreviewLandscapeToggle={handlePreviewLandscapeToggle}
-          onRefreshPreview={handleRefreshPreview}
-          onOpenPreviewInNewTab={handleOpenPreviewInNewTab}
-          onLaunchSimulator={handleLaunchSimulatorFromHeader}
-          onAnalyzeCode={handleAnalyzeCode}
-          onToggleTerminal={handleToggleStudioTerminal}
-          onToggleProjectGitOverviewDrawer={handleToggleProjectGitOverviewDrawer}
-          onOpenShare={handleOpenStudioShare}
-          onOpenPublish={handleOpenStudioPublish}
-        />
-
-        {/* Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="relative flex-1 flex overflow-hidden">
-            {activeTab === 'preview' ? (
-              <StudioPreviewPanel
-                devicePreviewProps={memoizedDevicePreviewProps}
-              />
-            ) : activeTab === 'simulator' ? (
-              <StudioSimulatorPanel
-                devicePreviewProps={memoizedDevicePreviewProps}
-              />
-            ) : null}
-            <StudioCodeWorkspacePanel
-              isActive={isVisible && activeTab === 'code'}
-              currentProjectId={currentProjectId || undefined}
-              files={files}
-              loadingDirectoryPaths={loadingDirectoryPaths}
-              openFiles={openFiles}
-              explorerWidth={codeExplorerWidth}
-              selectedFile={selectedFile}
-              currentProjectPath={currentProject?.path}
-              viewingDiff={viewingDiff}
-              fileContent={fileContent}
-              onSelectFile={handleStudioCodePanelSelectFile}
-              onExpandDirectory={loadDirectory}
-              onCloseFile={closeFile}
-              onCreateFile={createFile}
-              onCreateFolder={createFolder}
-              onDeleteFile={deleteFile}
-              onDeleteFolder={deleteFolder}
-              onRenameNode={renameNode}
-              onAcceptDiff={handleStudioAcceptViewingDiff}
-              onRejectDiff={handleStudioRejectViewingDiff}
-              onFileDraftChange={updateFileDraft}
-              onExplorerResize={handleStudioCodeExplorerResize}
-              getLanguageFromPath={getLanguageFromPath}
-            />
-            <ProjectGitOverviewDrawer
-              isOpen={isProjectGitOverviewDrawerOpen}
-              onClose={handleCloseProjectGitOverviewDrawer}
-              projectId={currentProjectId || undefined}
-              projectGitOverviewState={projectGitOverviewState}
-            />
-          </div>
-
-          <StudioTerminalIntegrationPanel
-            isOpen={isTerminalOpen}
-            height={terminalHeight}
-            terminalRequest={terminalRequest}
-            workspaceId={workspaceId}
-            projectId={currentProjectId}
-            onResize={handleStudioTerminalResize}
-          />
-        </div>
-      </div>
-
-      <StudioPageDialogs
-        isAnalyzeModalVisible={isAnalyzeModalVisible}
-        analyzeReport={analyzeReport}
-        onCloseAnalyze={() => setIsAnalyzeModalVisible(false)}
-        isRunTaskVisible={isRunTaskVisible}
-        runConfigurations={runConfigurations}
-        onCloseRunTask={() => setIsRunTaskVisible(false)}
-        onRunTask={handleRunTaskExecution}
-        isRunConfigVisible={isRunConfigVisible}
-        runConfigurationDraft={runConfigurationDraft}
-        onRunConfigurationDraftChange={setRunConfigurationDraft}
-        onCloseRunConfig={() => setIsRunConfigVisible(false)}
-        onSubmitRunConfig={() => {
-          void handleSubmitRunConfiguration();
+      <StudioMainContent
+        model={{
+          activeTab,
+          codeExplorerWidth,
+          currentProjectId,
+          currentProjectPath: currentProject?.path,
+          fileContent,
+          files,
+          getLanguageFromPath,
+          handleActiveTabChange,
+          handleAnalyzeCode,
+          handleCloseProjectGitOverviewDrawer,
+          handleLaunchSimulatorFromHeader,
+          handleOpenPreviewInNewTab,
+          handleOpenStudioPublish,
+          handleOpenStudioShare,
+          handlePreviewAppPlatformChange,
+          handlePreviewLandscapeToggle,
+          handleRefreshPreview,
+          handleStudioAcceptViewingDiff,
+          handleStudioCloseFind,
+          handleStudioCloseQuickOpen,
+          handleStudioCodeExplorerResize,
+          handleStudioCodePanelSelectFile,
+          handleStudioNotifyNoResults,
+          handleStudioOverlaySelectFile,
+          handleStudioReimportProjectFolder,
+          handleStudioRejectViewingDiff,
+          handleStudioRetryMountRecovery,
+          handleStudioTerminalResize,
+          handleToggleProjectGitOverviewDrawer,
+          handleToggleStudioTerminal,
+          isFindVisible,
+          isMountRecoveryActionPending,
+          isProjectGitOverviewDrawerOpen,
+          isQuickOpenVisible,
+          isSearchingFiles,
+          isSimulatorTabActive,
+          isTerminalOpen,
+          isVisible,
+          loadingDirectoryPaths,
+          memoizedDevicePreviewProps,
+          mountRecoveryState,
+          openFiles,
+          previewAppPlatform,
+          previewDeviceModel,
+          previewIsLandscape,
+          previewMpPlatform,
+          previewPlatform,
+          previewUrl,
+          previewWebDevice,
+          projectGitOverviewState,
+          searchFiles,
+          selectedFile,
+          setPreviewDeviceModel,
+          setPreviewMpPlatform,
+          setPreviewPlatform,
+          setPreviewWebDevice,
+          terminalHeight,
+          terminalRequest,
+          updateFileDraft,
+          viewingDiff,
+          workspaceId,
+          closeFile,
+          createFile,
+          createFolder,
+          deleteFile,
+          deleteFolder,
+          loadDirectory,
+          renameNode,
         }}
-        isDebugConfigVisible={isDebugConfigVisible}
-        onCloseDebugConfig={() => setIsDebugConfigVisible(false)}
-        onSaveDebugConfig={handleSaveDebugConfiguration}
-        deleteConfirmation={deleteConfirmation}
-        onCancelDelete={() => setDeleteConfirmation(null)}
-        onConfirmDelete={handleConfirmDelete}
-        showShareModal={showShareModal}
-        shareAccess={shareAccess}
-        publicShareUrl={publicShareUrl}
-        collaborators={projectCollaborators}
-        inviteEmail={inviteEmail}
-        isCollaboratorsLoading={isCollaboratorsLoading}
-        isInvitePending={isInvitePending}
-        onShareAccessChange={setShareAccess}
-        onCloseShare={() => setShowShareModal(false)}
-        onCopyPublicLink={handleCopyPublicLink}
-        onInviteEmailChange={setInviteEmail}
-        onInviteCollaborator={handleInviteCollaborator}
-        showPublishModal={showPublishModal}
-        publishProjectId={currentProjectId}
-        publishProjectName={currentProject?.name}
-        onClosePublish={() => setShowPublishModal(false)}
+      />
+
+      <StudioDialogSurface
+        model={{
+          analyzeReport,
+          collaborators: projectCollaborators,
+          currentProjectId,
+          currentProjectName: currentProject?.name,
+          deleteConfirmation,
+          handleConfirmDelete,
+          handleCopyPublicLink,
+          handleInviteCollaborator,
+          handleRunTaskExecution,
+          handleSaveDebugConfiguration,
+          handleSubmitRunConfiguration,
+          inviteEmail,
+          isAnalyzeModalVisible,
+          isCollaboratorsLoading,
+          isDebugConfigVisible,
+          isInvitePending,
+          isRunConfigVisible,
+          isRunTaskVisible,
+          publicShareUrl,
+          runConfigurationDraft,
+          runConfigurations,
+          setDeleteConfirmation,
+          setInviteEmail,
+          setIsAnalyzeModalVisible,
+          setIsDebugConfigVisible,
+          setIsRunConfigVisible,
+          setIsRunTaskVisible,
+          setRunConfigurationDraft,
+          setShareAccess,
+          setShowPublishModal,
+          setShowShareModal,
+          shareAccess,
+          showPublishModal,
+          showShareModal,
+        }}
       />
     </div>
   );

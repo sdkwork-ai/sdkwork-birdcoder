@@ -10,6 +10,9 @@ import {
   RELEASE_ASSET_MANIFEST_FILE_NAME,
   resolveReleaseProfile,
 } from './release-profiles.mjs';
+import {
+  createPendingDesktopInstallerSignatureEvidence,
+} from './desktop-installer-trust-evidence.mjs';
 
 const DEFAULT_KUBERNETES_IMAGE_REPOSITORY = 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server';
 
@@ -62,14 +65,390 @@ function copyIfExists(sourcePath, targetPath) {
   return true;
 }
 
-function copyPreferredTarget(targetPath, candidatePaths) {
-  for (const candidatePath of candidatePaths) {
-    if (copyIfExists(candidatePath, targetPath)) {
-      return candidatePath;
+function copyRequiredBuildOutput({
+  sourcePath,
+  targetPath,
+  label,
+  command,
+  releaseAssetsLabel = 'release assets',
+  requiredEntries = [],
+}) {
+  if (!fs.existsSync(sourcePath)) {
+    throw new Error(`Missing required ${label}: ${sourcePath}. Run \`${command}\` before packaging ${releaseAssetsLabel}.`);
+  }
+
+  const sourceStat = fs.statSync(sourcePath);
+  if (!sourceStat.isDirectory()) {
+    throw new Error(`Required ${label} must be a directory: ${sourcePath}. Run \`${command}\` before packaging ${releaseAssetsLabel}.`);
+  }
+
+  for (const requiredEntry of requiredEntries) {
+    const requiredEntryPath = path.join(sourcePath, requiredEntry);
+    if (!fs.existsSync(requiredEntryPath)) {
+      throw new Error(
+        `Missing required ${label} entry: ${requiredEntryPath}. Run \`${command}\` before packaging ${releaseAssetsLabel}.`,
+      );
     }
   }
 
-  return '';
+  ensureDir(path.dirname(targetPath));
+  fs.cpSync(sourcePath, targetPath, { recursive: true });
+}
+
+function resolveServerBinaryFileName(binaryName, {
+  targetTriple = '',
+  platform = '',
+} = {}) {
+  const normalizedBinaryName = String(binaryName ?? '').trim();
+  const normalizedTargetTriple = String(targetTriple ?? '').trim().toLowerCase();
+  const normalizedPlatform = String(platform ?? '').trim().toLowerCase();
+  if (
+    (normalizedTargetTriple.includes('windows')
+      || normalizedPlatform === 'windows'
+      || normalizedPlatform === 'win32')
+    && !normalizedBinaryName.toLowerCase().endsWith('.exe')
+  ) {
+    return `${normalizedBinaryName}.exe`;
+  }
+
+  return normalizedBinaryName;
+}
+
+function resolveRequiredServerBinaryPath({
+  rootDir,
+  descriptor,
+  profile,
+}) {
+  const binaryName = String(profile?.server?.binaryName ?? '').trim() || 'sdkwork-birdcoder-server';
+  const binaryFileName = resolveServerBinaryFileName(binaryName, {
+    targetTriple: descriptor.target,
+    platform: descriptor.platform,
+  });
+  const serverTargetRoot = path.join(
+    rootDir,
+    'packages',
+    'sdkwork-birdcoder-server',
+    'src-host',
+    'target',
+  );
+  const candidatePaths = [];
+  const normalizedTarget = String(descriptor.target ?? '').trim();
+  if (normalizedTarget) {
+    candidatePaths.push(path.join(serverTargetRoot, normalizedTarget, 'release', binaryFileName));
+  }
+  candidatePaths.push(path.join(serverTargetRoot, 'release', binaryFileName));
+
+  const binaryPath = candidatePaths.find((candidatePath) => fs.existsSync(candidatePath)) ?? '';
+  if (!binaryPath) {
+    throw new Error(
+      `Missing required server binary build output: ${candidatePaths[0]}. Run \`pnpm server:build\` before packaging ${descriptor.family} release assets.`,
+    );
+  }
+  if (!fs.statSync(binaryPath).isFile()) {
+    throw new Error(
+      `Required server binary build output must be a file: ${binaryPath}. Run \`pnpm server:build\` before packaging ${descriptor.family} release assets.`,
+    );
+  }
+
+  return {
+    binaryFileName,
+    binaryPath,
+  };
+}
+
+function copyRequiredServerBinary({
+  bundleRoot,
+  descriptor,
+  rootDir,
+  profile,
+}) {
+  const { binaryFileName, binaryPath } = resolveRequiredServerBinaryPath({
+    rootDir,
+    descriptor,
+    profile,
+  });
+  copyIfExists(
+    binaryPath,
+    path.join(bundleRoot, 'server', 'bin', binaryFileName),
+  );
+}
+
+function resolveDesktopBundleOutputRoot({
+  rootDir,
+  target,
+} = {}) {
+  const targetRoot = path.join(
+    rootDir,
+    'packages',
+    'sdkwork-birdcoder-desktop',
+    'src-tauri',
+    'target',
+  );
+  const normalizedTarget = String(target ?? '').trim();
+  if (normalizedTarget) {
+    return path.join(targetRoot, normalizedTarget, 'release', 'bundle');
+  }
+
+  return path.join(targetRoot, 'release', 'bundle');
+}
+
+function isDesktopInstallerArtifact(filePath) {
+  const normalizedPath = String(filePath ?? '').trim().replaceAll('\\', '/').toLowerCase();
+  return (
+    normalizedPath.endsWith('.exe')
+    || normalizedPath.endsWith('.msi')
+    || normalizedPath.endsWith('.deb')
+    || normalizedPath.endsWith('.rpm')
+    || normalizedPath.endsWith('.appimage')
+    || normalizedPath.endsWith('.dmg')
+    || normalizedPath.endsWith('.app.tar.gz')
+    || normalizedPath.endsWith('.app.zip')
+  );
+}
+
+function resolveDesktopReleaseTarget({
+  profile,
+  descriptor,
+} = {}) {
+  const normalizedPlatform = String(descriptor?.platform ?? '').trim();
+  const normalizedArch = String(descriptor?.arch ?? '').trim();
+  const normalizedTarget = String(descriptor?.target ?? '').trim();
+  const matchingTargets = (profile?.desktop?.matrix ?? [])
+    .filter((entry) => (
+      String(entry.platform ?? '').trim() === normalizedPlatform
+      && String(entry.arch ?? '').trim() === normalizedArch
+      && (!normalizedTarget || String(entry.target ?? '').trim() === normalizedTarget)
+    ));
+
+  if (matchingTargets.length === 0) {
+    throw new Error(
+      `Unsupported desktop release target for profile ${profile?.id ?? descriptor?.profileId ?? 'unknown'}: ${normalizedPlatform}/${normalizedArch}/${normalizedTarget || 'default'}.`,
+    );
+  }
+  if (matchingTargets.length > 1) {
+    throw new Error(
+      `Ambiguous desktop release target for profile ${profile?.id ?? descriptor?.profileId ?? 'unknown'}: ${normalizedPlatform}/${normalizedArch}/${normalizedTarget || 'default'}. Pass --target before packaging desktop release assets.`,
+    );
+  }
+
+  return matchingTargets[0];
+}
+
+function resolveRequiredDesktopBundles({
+  profile,
+  descriptor,
+  desktopReleaseTarget,
+} = {}) {
+  const resolvedDesktopReleaseTarget = desktopReleaseTarget ?? resolveDesktopReleaseTarget({
+    profile,
+    descriptor,
+  });
+  const normalizedPlatform = String(descriptor?.platform ?? '').trim();
+  const normalizedArch = String(descriptor?.arch ?? '').trim();
+  const normalizedTarget = String(descriptor?.target ?? '').trim();
+  const requiredBundles = resolvedDesktopReleaseTarget.bundles ?? [];
+  if (!Array.isArray(requiredBundles) || requiredBundles.length === 0) {
+    throw new Error(
+      `Desktop release target for profile ${profile?.id ?? descriptor?.profileId ?? 'unknown'} has no required installer bundles: ${normalizedPlatform}/${normalizedArch}/${normalizedTarget || String(resolvedDesktopReleaseTarget.target ?? '').trim() || 'default'}.`,
+    );
+  }
+
+  return requiredBundles.map((bundle) => String(bundle ?? '').trim()).filter(Boolean);
+}
+
+function desktopInstallerSatisfiesBundle({
+  bundleOutputRoot,
+  installerPath,
+  bundle,
+} = {}) {
+  const relativePath = normalizeRelativePath(path.relative(bundleOutputRoot, installerPath)).toLowerCase();
+  const firstSegment = relativePath.split('/')[0] ?? '';
+  const normalizedBundle = String(bundle ?? '').trim().toLowerCase();
+
+  if (firstSegment !== normalizedBundle) {
+    return false;
+  }
+  if (normalizedBundle === 'nsis') {
+    return relativePath.endsWith('.exe');
+  }
+  if (normalizedBundle === 'msi') {
+    return relativePath.endsWith('.msi');
+  }
+  if (normalizedBundle === 'deb') {
+    return relativePath.endsWith('.deb');
+  }
+  if (normalizedBundle === 'rpm') {
+    return relativePath.endsWith('.rpm');
+  }
+  if (normalizedBundle === 'appimage') {
+    return relativePath.endsWith('.appimage');
+  }
+  if (normalizedBundle === 'app') {
+    return relativePath.endsWith('.app.zip') || relativePath.endsWith('.app.tar.gz');
+  }
+  if (normalizedBundle === 'dmg') {
+    return relativePath.endsWith('.dmg');
+  }
+
+  return false;
+}
+
+function assertRequiredDesktopInstallerBundles({
+  bundleOutputRoot,
+  descriptor,
+  installerPaths,
+  profile,
+  desktopReleaseTarget,
+} = {}) {
+  const requiredBundles = resolveRequiredDesktopBundles({
+    profile,
+    descriptor,
+    desktopReleaseTarget,
+  });
+  const missingBundles = requiredBundles.filter((bundle) => !installerPaths.some((installerPath) => desktopInstallerSatisfiesBundle({
+    bundleOutputRoot,
+    installerPath,
+    bundle,
+  })));
+
+  if (missingBundles.length > 0) {
+    throw new Error(
+      [
+        `Missing required desktop installer bundle artifacts for profile ${profile?.id ?? descriptor.profileId}: ${descriptor.platform}/${descriptor.arch}/${descriptor.target || 'default'}`,
+        `bundleOutputRoot: ${bundleOutputRoot}`,
+        `missing: ${missingBundles.join(', ')}`,
+        'Run `pnpm tauri:build` before packaging desktop release assets.',
+      ].join('. '),
+    );
+  }
+}
+
+function resolveDesktopInstallerArtifacts({
+  descriptor,
+  rootDir,
+} = {}) {
+  const bundleOutputRoot = resolveDesktopBundleOutputRoot({
+    rootDir,
+    target: descriptor.target,
+  });
+  if (!fs.existsSync(bundleOutputRoot)) {
+    throw new Error(
+      `Missing required desktop installer bundle output: ${bundleOutputRoot}. Run \`pnpm tauri:build\` before packaging desktop release assets.`,
+    );
+  }
+  if (!fs.statSync(bundleOutputRoot).isDirectory()) {
+    throw new Error(
+      `Required desktop installer bundle output must be a directory: ${bundleOutputRoot}. Run \`pnpm tauri:build\` before packaging desktop release assets.`,
+    );
+  }
+
+  const installerPaths = listFiles(bundleOutputRoot)
+    .filter(isDesktopInstallerArtifact);
+  if (installerPaths.length === 0) {
+    throw new Error(
+      `Missing native desktop installer artifacts under ${bundleOutputRoot}. Run \`pnpm tauri:build\` before packaging desktop release assets.`,
+    );
+  }
+
+  return {
+    bundleOutputRoot,
+    installerPaths,
+  };
+}
+
+function resolveDesktopInstallerArtifactRelativePath({
+  bundleOutputRoot,
+  installerPath,
+} = {}) {
+  const relativePath = normalizeRelativePath(path.relative(bundleOutputRoot, installerPath));
+  if (
+    !relativePath
+    || relativePath === '.'
+    || path.posix.isAbsolute(relativePath)
+    || path.win32.isAbsolute(relativePath)
+    || relativePath.split('/').includes('..')
+  ) {
+    throw new Error(`Unsafe desktop installer artifact path under Tauri bundle output: ${installerPath}`);
+  }
+
+  return path.posix.join('installers', relativePath);
+}
+
+function resolveDesktopInstallerManifestMetadata({
+  descriptor,
+  outputFamilyDir,
+  filePath,
+} = {}) {
+  if (descriptor.family !== 'desktop') {
+    return {};
+  }
+
+  const familyRelativePath = normalizeRelativePath(path.relative(outputFamilyDir, filePath));
+  const pathSegments = familyRelativePath.split('/');
+  if (pathSegments[0] !== 'installers' || pathSegments.length < 3) {
+    return {};
+  }
+  if (!isDesktopInstallerArtifact(filePath)) {
+    return {};
+  }
+
+  const bundle = String(pathSegments[1] ?? '').trim().toLowerCase();
+  if (!bundle) {
+    return {};
+  }
+
+  return {
+    kind: 'installer',
+    bundle,
+    installerFormat: bundle,
+    target: String(descriptor.target ?? '').trim(),
+    signatureEvidence: createPendingDesktopInstallerSignatureEvidence({
+      platform: descriptor.platform,
+      bundle,
+    }),
+  };
+}
+
+function copyDesktopInstallerArtifacts({
+  descriptor,
+  profile,
+  rootDir,
+  outputFamilyDir,
+  desktopInstallerArtifacts,
+  desktopReleaseTarget,
+} = {}) {
+  const resolvedDesktopInstallerArtifacts = desktopInstallerArtifacts ?? resolveDesktopInstallerArtifacts({
+    descriptor,
+    rootDir,
+  });
+  const { bundleOutputRoot, installerPaths } = resolvedDesktopInstallerArtifacts;
+  assertRequiredDesktopInstallerBundles({
+    bundleOutputRoot,
+    descriptor,
+    installerPaths,
+    profile,
+    desktopReleaseTarget,
+  });
+
+  const seenOutputRelativePaths = new Set();
+  for (const installerPath of installerPaths) {
+    const installerRelativePath = resolveDesktopInstallerArtifactRelativePath({
+      bundleOutputRoot,
+      installerPath,
+    });
+    const normalizedOutputKey = installerRelativePath.toLowerCase();
+    if (seenOutputRelativePaths.has(normalizedOutputKey)) {
+      throw new Error(
+        `Duplicate desktop installer artifact output path after normalization: ${installerRelativePath}`,
+      );
+    }
+
+    seenOutputRelativePaths.add(normalizedOutputKey);
+    copyIfExists(
+      installerPath,
+      path.join(outputFamilyDir, ...installerRelativePath.split('/')),
+    );
+  }
 }
 
 function listFiles(directoryPath) {
@@ -344,7 +723,7 @@ function writeContainerReleaseSidecars(bundleRoot, descriptor) {
   });
 }
 
-function stageFamilyPayload(bundleRoot, family, descriptor, rootDir) {
+function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
   writeJson(path.join(bundleRoot, 'release-descriptor.json'), descriptor);
 
   if (family === 'desktop') {
@@ -352,40 +731,55 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir) {
       path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop', 'src-tauri'),
       path.join(bundleRoot, 'desktop'),
     );
-    copyPreferredTarget(path.join(bundleRoot, 'app'), [
-      path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop', 'dist'),
-      path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist'),
-      path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'src'),
-    ]);
+    copyRequiredBuildOutput({
+      sourcePath: path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop', 'dist'),
+      targetPath: path.join(bundleRoot, 'app'),
+      label: 'desktop app build output',
+      command: 'pnpm tauri:build',
+      releaseAssetsLabel: 'desktop release assets',
+      requiredEntries: ['index.html'],
+    });
     return;
   }
 
   if (family === 'server') {
-    copyIfExists(
-      path.join(rootDir, 'packages', 'sdkwork-birdcoder-server', 'src-host'),
-      path.join(bundleRoot, 'server'),
-    );
+    copyRequiredServerBinary({
+      bundleRoot,
+      descriptor,
+      rootDir,
+      profile,
+    });
     copyIfExists(
       path.join(rootDir, 'artifacts', 'openapi', 'coding-server-v1.json'),
       path.join(bundleRoot, 'openapi', 'coding-server-v1.json'),
     );
-    copyPreferredTarget(path.join(bundleRoot, 'web'), [
-      path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist'),
-      path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'src'),
-    ]);
+    copyRequiredBuildOutput({
+      sourcePath: path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist'),
+      targetPath: path.join(bundleRoot, 'web'),
+      label: 'server web build output',
+      command: 'pnpm build',
+      releaseAssetsLabel: 'server release assets',
+      requiredEntries: ['index.html'],
+    });
     return;
   }
 
   if (family === 'container') {
     copyIfExists(path.join(rootDir, 'deploy', 'docker'), path.join(bundleRoot, 'deploy'));
-    copyIfExists(
-      path.join(rootDir, 'packages', 'sdkwork-birdcoder-server', 'src-host'),
-      path.join(bundleRoot, 'server'),
-    );
-    copyPreferredTarget(path.join(bundleRoot, 'web'), [
-      path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist'),
-      path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'src'),
-    ]);
+    copyRequiredServerBinary({
+      bundleRoot,
+      descriptor,
+      rootDir,
+      profile,
+    });
+    copyRequiredBuildOutput({
+      sourcePath: path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist'),
+      targetPath: path.join(bundleRoot, 'web'),
+      label: 'container web build output',
+      command: 'pnpm build',
+      releaseAssetsLabel: 'container release assets',
+      requiredEntries: ['index.html'],
+    });
     writeContainerReleaseSidecars(bundleRoot, descriptor);
     return;
   }
@@ -397,15 +791,22 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir) {
   }
 
   if (family === 'web') {
-    copyPreferredTarget(path.join(bundleRoot, 'app'), [
-      path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist'),
-      path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'src'),
-    ]);
-    copyPreferredTarget(path.join(bundleRoot, 'docs'), [
-      path.join(rootDir, 'docs', '.vitepress', 'dist'),
-      path.join(rootDir, 'docs'),
-    ]);
-    copyIfExists(path.join(rootDir, 'docs'), path.join(bundleRoot, 'docs-source'));
+    copyRequiredBuildOutput({
+      sourcePath: path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist'),
+      targetPath: path.join(bundleRoot, 'app'),
+      label: 'web app build output',
+      command: 'pnpm build',
+      releaseAssetsLabel: 'web release assets',
+      requiredEntries: ['index.html'],
+    });
+    copyRequiredBuildOutput({
+      sourcePath: path.join(rootDir, 'docs', '.vitepress', 'dist'),
+      targetPath: path.join(bundleRoot, 'docs'),
+      label: 'public docs build output',
+      command: 'pnpm docs:build',
+      releaseAssetsLabel: 'web release assets',
+      requiredEntries: ['index.html', '404.html', 'search-index.json'],
+    });
     return;
   }
 
@@ -413,6 +814,10 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir) {
 }
 
 function copyFamilySidecars(bundleRoot, outputFamilyDir, family) {
+  if (family === 'desktop') {
+    return;
+  }
+
   if (family === 'server') {
     copyIfExists(
       path.join(bundleRoot, 'openapi', 'coding-server-v1.json'),
@@ -452,6 +857,11 @@ function createReleaseAssetManifest({
     .map((filePath) => ({
       relativePath: normalizeRelativePath(path.relative(outputDir, filePath)),
       size: fs.statSync(filePath).size,
+      ...resolveDesktopInstallerManifestMetadata({
+        descriptor,
+        outputFamilyDir,
+        filePath,
+      }),
     }));
 
   const manifest = {
@@ -499,17 +909,47 @@ function packageReleaseAssets(family, options = {}) {
   );
   const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), `birdcoder-release-${family}-`));
   const bundleRoot = path.join(stagingRoot, bundleBaseName);
+  const desktopReleaseTarget = family === 'desktop'
+    ? resolveDesktopReleaseTarget({
+      profile,
+      descriptor,
+    })
+    : null;
+  let desktopInstallerArtifacts;
 
   fs.rmSync(outputFamilyDir, { recursive: true, force: true });
   ensureDir(outputFamilyDir);
 
   try {
-    stageFamilyPayload(bundleRoot, family, descriptor, rootDir);
+    stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile);
+    if (family === 'desktop') {
+      desktopInstallerArtifacts = resolveDesktopInstallerArtifacts({
+        descriptor,
+        rootDir,
+      });
+      assertRequiredDesktopInstallerBundles({
+        bundleOutputRoot: desktopInstallerArtifacts.bundleOutputRoot,
+        descriptor,
+        installerPaths: desktopInstallerArtifacts.installerPaths,
+        profile,
+        desktopReleaseTarget,
+      });
+    }
     createArchive({
       sourceDir: bundleRoot,
       archivePath,
       archiveFormat,
     });
+    if (family === 'desktop') {
+      copyDesktopInstallerArtifacts({
+        descriptor,
+        profile,
+        rootDir,
+        outputFamilyDir,
+        desktopInstallerArtifacts,
+        desktopReleaseTarget,
+      });
+    }
     copyFamilySidecars(bundleRoot, outputFamilyDir, family);
     const { manifest, manifestPath } = createReleaseAssetManifest({
       descriptor,

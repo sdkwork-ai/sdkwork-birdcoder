@@ -1562,6 +1562,8 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderCreateCodingSessionTurnRequest: createOpenApiObjectSchema(
       {
         runtimeId: createOpenApiStringSchema(),
+        engineId: createOpenApiStringSchema(),
+        modelId: createOpenApiStringSchema(),
         requestKind: createOpenApiStringEnumSchema(BIRDCODER_CODING_SESSION_TURN_REQUEST_KINDS),
         inputSummary: createOpenApiStringSchema(),
         stream: createOpenApiBooleanSchema(

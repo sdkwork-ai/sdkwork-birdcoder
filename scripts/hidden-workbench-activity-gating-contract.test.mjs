@@ -157,7 +157,7 @@ assert.match(
 
 assert.match(
   selectedMessagesHookSource,
-  /if \(!isActive \|\| !normalizedCodingSessionId \|\| !coreReadService\) \{/,
+  /if \(\s*!isActive \|\|\s*!normalizedCodingSessionId \|\|\s*\(!coreReadService && !localTranscriptReader\)\s*\) \{/,
   'useSelectedCodingSessionMessages must skip transcript synchronization while inactive.',
 );
 

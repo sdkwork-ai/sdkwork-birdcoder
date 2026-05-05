@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import type {
   BirdCoderChatMessage,
 } from '@sdkwork/birdcoder-types';
@@ -172,6 +173,59 @@ assert.deepEqual(
     'coding-session-message-metadata-by-session-ids',
   ],
   'batch loading must use targeted SQL plans instead of generic full table scans.',
+);
+
+const codingSessionRepositorySource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-infrastructure/src/storage/codingSessionRepository.ts', import.meta.url),
+  'utf8',
+);
+const listMessagesMethodStart = codingSessionRepositorySource.indexOf(
+  'async listMessagesByCodingSessionIds(codingSessionIds) {',
+);
+assert.notEqual(
+  listMessagesMethodStart,
+  -1,
+  'coding session repositories must define listMessagesByCodingSessionIds.',
+);
+const listMessagesMethodEnd = codingSessionRepositorySource.indexOf(
+  '\n    async listSessionsByProjectIds',
+  listMessagesMethodStart + 1,
+);
+const listMessagesMethodSource = codingSessionRepositorySource.slice(
+  listMessagesMethodStart,
+  listMessagesMethodEnd,
+);
+assert.match(
+  listMessagesMethodSource,
+  /normalizeCodingSessionMessageRows\(result\.rows \?\? \[\],\s*\{\s*preserveOrder:\s*true,\s*\}\)/,
+  'SQL-backed transcript reads must preserve database ORDER BY order instead of sorting large message arrays again in JavaScript.',
+);
+
+const normalizeMessageRowsFunctionStart = codingSessionRepositorySource.indexOf(
+  'function normalizeCodingSessionMessageRows(',
+);
+assert.notEqual(
+  normalizeMessageRowsFunctionStart,
+  -1,
+  'coding session repository must define normalizeCodingSessionMessageRows.',
+);
+const normalizeMessageRowsFunctionEnd = codingSessionRepositorySource.indexOf(
+  '\nfunction normalizeNullableMetadataTimestamp',
+  normalizeMessageRowsFunctionStart + 1,
+);
+const normalizeMessageRowsFunctionSource = codingSessionRepositorySource.slice(
+  normalizeMessageRowsFunctionStart,
+  normalizeMessageRowsFunctionEnd,
+);
+assert.match(
+  normalizeMessageRowsFunctionSource,
+  /preserveOrder\?:\s*boolean/,
+  'transcript row normalization must expose an order-preserving path for SQL rows that are already ordered by the database.',
+);
+assert.match(
+  normalizeMessageRowsFunctionSource,
+  /if \(options\.preserveOrder === true\) \{[\s\S]*return normalizedRows;[\s\S]*\}/,
+  'transcript row normalization must skip JavaScript sort when SQL already returned rows in transcript order.',
 );
 
 let degradedSqlExecutionAttempts = 0;

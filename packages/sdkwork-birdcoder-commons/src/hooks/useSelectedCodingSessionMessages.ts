@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { canSubscribeBirdCoderWorkspaceRealtime } from '@sdkwork/birdcoder-infrastructure-runtime';
 import {
-  buildBirdCoderSessionSynchronizationVersion,
   isBirdCoderCodingSessionExecuting,
-  resolveBirdCoderSessionActivityTimestamp,
   type BirdCoderCodingSession,
   type BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
@@ -27,13 +26,6 @@ export interface UseSelectedCodingSessionMessagesOptions {
   selectedCodingSessionId?: string | null;
   selectedProject?: BirdCoderProject | null;
   workspaceId?: string;
-}
-
-function buildSynchronizationVersion(
-  codingSession: BirdCoderCodingSession,
-  messageCount: number = codingSession.messages.length,
-): string {
-  return buildBirdCoderSessionSynchronizationVersion(codingSession, messageCount);
 }
 
 function normalizeSelectionScopePart(value: string | null | undefined): string {
@@ -69,13 +61,8 @@ const synchronizedSessionVersionsByScopeKey = new Map<string, string>();
 const attemptedSessionVersionsByScopeKey = new Map<string, string>();
 const processedSelectionRefreshKeyByScopeKey = new Map<string, string>();
 const MAX_TRACKED_SYNCHRONIZATION_SCOPES = 512;
-const EXECUTING_SESSION_FRESH_REFRESH_INTERVAL_MS = 400;
-const EXECUTING_SESSION_RECENT_REFRESH_INTERVAL_MS = 900;
-const EXECUTING_SESSION_STALE_REFRESH_INTERVAL_MS = 1600;
-const EXECUTING_SESSION_FRESH_ACTIVITY_WINDOW_MS = 2_500;
-const EXECUTING_SESSION_RECENT_ACTIVITY_WINDOW_MS = 8_000;
-const EXECUTING_SESSION_REFRESH_SETTLE_WINDOW_MS = 15_000;
-const SELECTED_SESSION_IDLE_EXTERNAL_REFRESH_INTERVAL_MS = 5000;
+const SELECTED_SESSION_REALTIME_FALLBACK_EXECUTING_REFRESH_INTERVAL_MS = 15000;
+const SELECTED_SESSION_REALTIME_FALLBACK_IDLE_REFRESH_INTERVAL_MS = 60000;
 
 function isReplyMessageRole(role: BirdCoderCodingSession['messages'][number]['role']): boolean {
   return (
@@ -93,39 +80,56 @@ function hasPendingVisibleReply(
     return false;
   }
 
+  let hasReplyAfterLatestUserMessage = false;
   for (let index = codingSession.messages.length - 1; index >= 0; index -= 1) {
     const message = codingSession.messages[index];
+    if (isReplyMessageRole(message.role)) {
+      hasReplyAfterLatestUserMessage = true;
+      continue;
+    }
+
     if (message.role !== 'user') {
       continue;
     }
 
-    return !codingSession.messages
-      .slice(index + 1)
-      .some((candidate) => isReplyMessageRole(candidate.role));
+    return !hasReplyAfterLatestUserMessage;
   }
 
   return false;
 }
 
-function resolveSelectedCodingSessionExecutionRefreshDelay(
-  codingSession: BirdCoderCodingSession | null | undefined,
+function parseSelectedTranscriptTimestamp(value: string | null | undefined): number {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return Number.NaN;
+  }
+
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? Number.NaN : timestamp;
+}
+
+function readSelectedCodingSessionLatestMessageTimestamp(
+  codingSession: BirdCoderCodingSession,
 ): number {
-  const activityTimestamp = resolveBirdCoderSessionActivityTimestamp(codingSession ?? {});
-  const parsedActivityTimestamp =
-    typeof activityTimestamp === 'string' ? Date.parse(activityTimestamp) : Number.NaN;
-  if (Number.isNaN(parsedActivityTimestamp)) {
-    return EXECUTING_SESSION_STALE_REFRESH_INTERVAL_MS;
+  const latestMessage = codingSession.messages[codingSession.messages.length - 1];
+  return parseSelectedTranscriptTimestamp(latestMessage?.createdAt);
+}
+
+function shouldHydrateSelectedCodingSessionTranscript(
+  codingSession: BirdCoderCodingSession | null | undefined,
+): boolean {
+  if (!codingSession || codingSession.messages.length === 0) {
+    return true;
   }
 
-  const activityAgeMs = Math.max(0, Date.now() - parsedActivityTimestamp);
-  if (activityAgeMs <= EXECUTING_SESSION_FRESH_ACTIVITY_WINDOW_MS) {
-    return EXECUTING_SESSION_FRESH_REFRESH_INTERVAL_MS;
-  }
-  if (activityAgeMs <= EXECUTING_SESSION_RECENT_ACTIVITY_WINDOW_MS) {
-    return EXECUTING_SESSION_RECENT_REFRESH_INTERVAL_MS;
+  const transcriptUpdatedAt = parseSelectedTranscriptTimestamp(
+    codingSession.transcriptUpdatedAt,
+  );
+  if (Number.isNaN(transcriptUpdatedAt)) {
+    return false;
   }
 
-  return EXECUTING_SESSION_STALE_REFRESH_INTERVAL_MS;
+  const latestMessageTimestamp = readSelectedCodingSessionLatestMessageTimestamp(codingSession);
+  return Number.isNaN(latestMessageTimestamp) || transcriptUpdatedAt > latestMessageTimestamp;
 }
 
 function setTrackedScopeValue(
@@ -158,9 +162,8 @@ export function useSelectedCodingSessionMessages({
   const { user } = useAuth();
   const activeSynchronizationCountRef = useRef(0);
   const isMountedRef = useRef(true);
-  const pendingExecutionRefreshUntilRef = useRef(0);
   const [isSelectedCodingSessionMessagesLoading, setIsSelectedCodingSessionMessagesLoading] = useState(false);
-  const [executionRefreshTick, setExecutionRefreshTick] = useState(0);
+  const [authorityFallbackRefreshTick, setAuthorityFallbackRefreshTick] = useState(0);
   const normalizedUserScope = user?.id?.trim() ?? 'anonymous';
   const normalizedCodingSessionId = selectedCodingSessionId?.trim() ?? '';
   const normalizedSelectedProjectId = selectedProject?.id?.trim() ?? '';
@@ -168,10 +171,24 @@ export function useSelectedCodingSessionMessages({
   const normalizedSelectedCodingSessionProjectId = selectedCodingSession?.projectId?.trim() ?? '';
   const normalizedSelectedCodingSessionWorkspaceId =
     selectedCodingSession?.workspaceId?.trim() ?? '';
-  const selectedCodingSessionSynchronizationVersion =
-    selectedCodingSession?.id === normalizedCodingSessionId
-      ? buildSynchronizationVersion(selectedCodingSession)
-      : '';
+  const normalizedSelectedCodingSessionTranscriptUpdatedAt =
+    selectedCodingSession?.transcriptUpdatedAt?.trim() ?? '';
+  const selectedCodingSessionMessageCount = selectedCodingSession?.messages.length ?? 0;
+  const selectedCodingSessionLastMessage =
+    selectedCodingSessionMessageCount > 0
+      ? selectedCodingSession?.messages[selectedCodingSessionMessageCount - 1]
+      : undefined;
+  const selectedCodingSessionLastMessageCreatedAt =
+    selectedCodingSessionLastMessage?.createdAt?.trim() ?? '';
+  const selectedSessionWorkspaceId =
+    normalizedSelectedProjectWorkspaceId ||
+    normalizedSelectedCodingSessionWorkspaceId ||
+    workspaceId?.trim() ||
+    '';
+  const canUseWorkspaceRealtime = useMemo(
+    () => Boolean(selectedSessionWorkspaceId) && canSubscribeBirdCoderWorkspaceRealtime(),
+    [normalizedUserScope, selectedSessionWorkspaceId],
+  );
   const isSelectedCodingSessionExecuting =
     selectedCodingSession?.id === normalizedCodingSessionId &&
     isBirdCoderCodingSessionExecuting(selectedCodingSession);
@@ -187,75 +204,45 @@ export function useSelectedCodingSessionMessages({
   }, []);
 
   useEffect(() => {
-    if (!normalizedCodingSessionId) {
-      pendingExecutionRefreshUntilRef.current = 0;
-      return;
-    }
-
-    pendingExecutionRefreshUntilRef.current = Date.now() + EXECUTING_SESSION_REFRESH_SETTLE_WINDOW_MS;
-  }, [normalizedCodingSessionId, selectionRefreshToken]);
-
-  useEffect(() => {
-    if (!normalizedCodingSessionId) {
-      pendingExecutionRefreshUntilRef.current = 0;
-      return;
-    }
-
-    if (!hasSelectedCodingSessionPendingReply) {
-      pendingExecutionRefreshUntilRef.current = 0;
-      return;
-    }
-
-    if (isSelectedCodingSessionExecuting) {
-      pendingExecutionRefreshUntilRef.current =
-        Date.now() + EXECUTING_SESSION_REFRESH_SETTLE_WINDOW_MS;
-    }
-  }, [
-    hasSelectedCodingSessionPendingReply,
-    isSelectedCodingSessionExecuting,
-    normalizedCodingSessionId,
-    selectedCodingSessionSynchronizationVersion,
-  ]);
-
-  useEffect(() => {
-    const shouldContinuePollingAfterCompletion =
-      hasSelectedCodingSessionPendingReply &&
-      pendingExecutionRefreshUntilRef.current > Date.now();
-    const shouldUseExecutingSessionRefresh =
-      isSelectedCodingSessionExecuting || shouldContinuePollingAfterCompletion;
     if (
       !isActive ||
       !coreReadService ||
       isSelectedCodingSessionMessagesLoading ||
-      !normalizedCodingSessionId
+      !normalizedCodingSessionId ||
+      canUseWorkspaceRealtime
     ) {
       return;
     }
 
-    const executionRefreshDelay = shouldUseExecutingSessionRefresh
-      ? resolveSelectedCodingSessionExecutionRefreshDelay(
-          selectedCodingSession,
-        )
-      : SELECTED_SESSION_IDLE_EXTERNAL_REFRESH_INTERVAL_MS;
+    const fallbackRefreshDelay =
+      (isSelectedCodingSessionExecuting || hasSelectedCodingSessionPendingReply)
+        ? SELECTED_SESSION_REALTIME_FALLBACK_EXECUTING_REFRESH_INTERVAL_MS
+        : SELECTED_SESSION_REALTIME_FALLBACK_IDLE_REFRESH_INTERVAL_MS;
     const refreshTimer = window.setTimeout(() => {
-      setExecutionRefreshTick((previousState) => previousState + 1);
-    }, executionRefreshDelay);
+      setAuthorityFallbackRefreshTick((previousState) => previousState + 1);
+    }, fallbackRefreshDelay);
 
     return () => {
       window.clearTimeout(refreshTimer);
     };
   }, [
     coreReadService,
+    canUseWorkspaceRealtime,
     hasSelectedCodingSessionPendingReply,
     isActive,
     isSelectedCodingSessionMessagesLoading,
     isSelectedCodingSessionExecuting,
     normalizedCodingSessionId,
-    selectedCodingSessionSynchronizationVersion,
   ]);
 
   useEffect(() => {
-    if (!isActive || !normalizedCodingSessionId || !coreReadService) {
+    const localTranscriptReader =
+      projectService.getCodingSessionTranscript?.bind(projectService);
+    if (
+      !isActive ||
+      !normalizedCodingSessionId ||
+      (!coreReadService && !localTranscriptReader)
+    ) {
       activeSynchronizationCountRef.current = 0;
       setIsSelectedCodingSessionMessagesLoading((previousState) =>
         previousState ? false : previousState,
@@ -270,29 +257,49 @@ export function useSelectedCodingSessionMessages({
       selectedProject,
       workspaceId,
     );
-    const selectionRefreshKey =
-      `${synchronizationScopeKey}:${selectionRefreshToken}:${executionRefreshTick}`;
+    const synchronizationRequestKey =
+      `${synchronizationScopeKey}:${selectionRefreshToken}:${authorityFallbackRefreshTick}`;
     const hadSynchronizedSessionVersion =
       synchronizedSessionVersionsByScopeKey.has(synchronizationScopeKey);
     if (
-      processedSelectionRefreshKeyByScopeKey.get(synchronizationScopeKey) !== selectionRefreshKey
+      processedSelectionRefreshKeyByScopeKey.get(synchronizationScopeKey) !==
+      synchronizationRequestKey
     ) {
       synchronizedSessionVersionsByScopeKey.delete(synchronizationScopeKey);
       attemptedSessionVersionsByScopeKey.delete(synchronizationScopeKey);
       setTrackedScopeValue(
         processedSelectionRefreshKeyByScopeKey,
         synchronizationScopeKey,
-        selectionRefreshKey,
+        synchronizationRequestKey,
       );
     }
 
+    const selectedProjectCodingSession =
+      selectedProject?.codingSessions.find(
+        (codingSession) => codingSession.id === normalizedCodingSessionId,
+      ) ?? null;
+    const resolvedCodingSession =
+      selectedCodingSession?.id === normalizedCodingSessionId
+        ? selectedCodingSession
+        : selectedProjectCodingSession;
     const resolvedProject =
-      selectedCodingSession && selectedProject?.id === selectedCodingSession.projectId
+      selectedProject &&
+      (
+        !resolvedCodingSession ||
+        selectedProject.id === resolvedCodingSession.projectId ||
+        selectedProjectCodingSession === resolvedCodingSession
+      )
         ? selectedProject
         : null;
-    const resolvedCodingSession =
-      selectedCodingSession?.id === normalizedCodingSessionId ? selectedCodingSession : null;
     const shouldBootstrapFromAuthority = !resolvedProject || !resolvedCodingSession;
+    const shouldHydrateLocalTranscript =
+      Boolean(resolvedProject) &&
+      Boolean(localTranscriptReader) &&
+      shouldHydrateSelectedCodingSessionTranscript(resolvedCodingSession);
+    const shouldSynchronizeAuthority =
+      shouldBootstrapFromAuthority ||
+      authorityFallbackRefreshTick > 0 ||
+      (!canUseWorkspaceRealtime && !shouldHydrateLocalTranscript);
     const shouldShowForegroundLoading =
       !hadSynchronizedSessionVersion &&
       (
@@ -302,17 +309,19 @@ export function useSelectedCodingSessionMessages({
 
     const synchronizationVersion =
       resolvedCodingSession && resolvedProject
-        ? buildSynchronizationVersion(resolvedCodingSession)
-        : `bootstrap:${selectionRefreshKey}`;
+        ? synchronizationRequestKey
+        : `bootstrap:${synchronizationRequestKey}`;
     if (
       synchronizedSessionVersionsByScopeKey.get(synchronizationScopeKey) ===
-      synchronizationVersion
+      synchronizationVersion &&
+      !shouldHydrateLocalTranscript
     ) {
       return;
     }
     if (
       attemptedSessionVersionsByScopeKey.get(synchronizationScopeKey) ===
-      synchronizationVersion
+      synchronizationVersion &&
+      !shouldHydrateLocalTranscript
     ) {
       return;
     }
@@ -330,25 +339,100 @@ export function useSelectedCodingSessionMessages({
     }
     let isDisposed = false;
 
-    const synchronizationTask = shouldBootstrapFromAuthority
-        ? refreshCodingSessionMessages({
-            codingSessionId: normalizedCodingSessionId,
-            coreReadService,
-            identityScope: normalizedUserScope,
-            projectService,
-            workspaceId,
-          })
-      : refreshCodingSessionMessages({
-            codingSessionId: normalizedCodingSessionId,
-            coreReadService,
-            identityScope: normalizedUserScope,
-            projectService,
-            resolvedLocation: {
-            codingSession: resolvedCodingSession,
-            project: resolvedProject,
+    const synchronizationTask = (async () => {
+      let localTranscriptCodingSession: BirdCoderCodingSession | null = null;
+      let refreshResolvedLocation =
+        resolvedProject && resolvedCodingSession
+          ? {
+              codingSession: resolvedCodingSession,
+              project: resolvedProject,
+            }
+          : null;
+
+      if (shouldHydrateLocalTranscript && localTranscriptReader && resolvedProject) {
+        localTranscriptCodingSession = await localTranscriptReader(
+          resolvedProject.id,
+          normalizedCodingSessionId,
+          {
+            expectedTranscriptUpdatedAt: resolvedCodingSession?.transcriptUpdatedAt ?? null,
           },
-          workspaceId: resolvedProject.workspaceId?.trim() || workspaceId,
+        ).catch((error) => {
+          console.error(
+            `Failed to hydrate local transcript for selected coding session "${normalizedCodingSessionId}"`,
+            error,
+          );
+          return null;
         });
+
+        if (localTranscriptCodingSession && !isDisposed) {
+          refreshResolvedLocation = {
+            codingSession: localTranscriptCodingSession,
+            project: resolvedProject,
+          };
+          if (localTranscriptCodingSession.messages.length > 0) {
+            upsertCodingSessionIntoProjectsStore(
+              resolvedProject.workspaceId?.trim() ||
+                localTranscriptCodingSession.workspaceId,
+              resolvedProject.id,
+              localTranscriptCodingSession,
+              normalizedUserScope,
+            );
+          }
+        }
+      }
+
+      const shouldRunAuthorityRefresh =
+        shouldSynchronizeAuthority ||
+        (
+          !canUseWorkspaceRealtime &&
+          shouldHydrateLocalTranscript &&
+          (localTranscriptCodingSession?.messages.length ?? 0) === 0
+        );
+
+      if (!shouldRunAuthorityRefresh && localTranscriptCodingSession) {
+        return {
+          codingSessionId: normalizedCodingSessionId,
+          codingSession: localTranscriptCodingSession,
+          messageCount: localTranscriptCodingSession.messages.length,
+          projectId: resolvedProject?.id ?? localTranscriptCodingSession.projectId,
+          source: 'engine' as const,
+          status: 'refreshed' as const,
+          workspaceId:
+            resolvedProject?.workspaceId?.trim() ||
+            localTranscriptCodingSession.workspaceId,
+        };
+      }
+
+      if (!refreshResolvedLocation && resolvedProject) {
+        return {
+          codingSessionId: normalizedCodingSessionId,
+          messageCount: 0,
+          projectId: resolvedProject.id,
+          source: 'engine' as const,
+          status: 'not-found' as const,
+          workspaceId: resolvedProject.workspaceId,
+        };
+      }
+
+      if (!refreshResolvedLocation) {
+        return refreshCodingSessionMessages({
+          codingSessionId: normalizedCodingSessionId,
+          coreReadService,
+          identityScope: normalizedUserScope,
+          projectService,
+          workspaceId,
+        });
+      }
+
+      return refreshCodingSessionMessages({
+        codingSessionId: normalizedCodingSessionId,
+        coreReadService,
+        identityScope: normalizedUserScope,
+        projectService,
+        resolvedLocation: refreshResolvedLocation,
+        workspaceId: refreshResolvedLocation.project.workspaceId?.trim() || workspaceId,
+      });
+    })();
 
     void synchronizationTask
       .then(async (result) => {
@@ -406,8 +490,7 @@ export function useSelectedCodingSessionMessages({
         setTrackedScopeValue(
           synchronizedSessionVersionsByScopeKey,
           synchronizationScopeKey,
-          result.synchronizationVersion ??
-            buildSynchronizationVersion(result.codingSession, result.messageCount),
+          synchronizationRequestKey,
         );
       })
       .catch((error) => {
@@ -437,12 +520,14 @@ export function useSelectedCodingSessionMessages({
     isActive,
     normalizedCodingSessionId,
     normalizedSelectedCodingSessionProjectId,
+    normalizedSelectedCodingSessionTranscriptUpdatedAt,
     normalizedSelectedCodingSessionWorkspaceId,
+    selectedCodingSessionLastMessageCreatedAt,
+    selectedCodingSessionMessageCount,
     normalizedSelectedProjectId,
     normalizedSelectedProjectWorkspaceId,
     normalizedUserScope,
-    selectedCodingSessionSynchronizationVersion,
-    executionRefreshTick,
+    authorityFallbackRefreshTick,
     workspaceId,
   ]);
 

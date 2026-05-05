@@ -31,6 +31,52 @@ function assertChunkExists(assets, prefix) {
   );
 }
 
+function assertChunkSizeByPrefix(assets, prefix, maxBytes, label) {
+  const asset = findAssetByPrefix(assets, prefix);
+  assert.ok(asset, `web bundle budget check expected a ${prefix} chunk.`);
+  assert.ok(
+    asset.size <= maxBytes,
+    [
+      `${label} exceeds budget: ${asset.name} is ${formatKb(asset.size)}; expected <= ${formatKb(maxBytes)}.`,
+      'Top built assets:',
+      listTopAssets(assets),
+    ].join('\n'),
+  );
+}
+
+function assertNoOversizedAnonymousIndexChunks(assets, maxBytes) {
+  const oversizedAnonymousIndexChunks = assets.filter(
+    (asset) =>
+      /^index-[A-Za-z0-9_-]+\.js$/u.test(asset.name)
+      && asset.size > maxBytes,
+  );
+
+  assert.deepEqual(
+    oversizedAnonymousIndexChunks,
+    [],
+    [
+      `web bundle budget check found oversized anonymous index chunks; lazy feature chunks above ${formatKb(maxBytes)} must have governed names.`,
+      'Anonymous chunks:',
+      listTopAssets(oversizedAnonymousIndexChunks),
+    ].join('\n'),
+  );
+}
+
+function assertNoAssetPrefix(assets, prefix, reason) {
+  const matches = assets.filter((asset) => asset.name.startsWith(prefix));
+
+  assert.deepEqual(
+    matches,
+    [],
+    [
+      `web bundle budget check found assets with forbidden prefix ${prefix}.`,
+      reason,
+      'Assets:',
+      listTopAssets(matches),
+    ].join('\n'),
+  );
+}
+
 function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
@@ -88,10 +134,26 @@ assert.ok(
 for (const forbiddenPreloadPrefix of [
   'birdcoder-shell-app-',
   'birdcoder-shell-bootstrap-',
+  'birdcoder-code-surface-',
+  'birdcoder-studio-surface-',
+  'birdcoder-multiwindow-surface-',
+  'birdcoder-settings-surface-',
+  'birdcoder-skills-surface-',
+  'birdcoder-templates-surface-',
+  'vendor-terminal-xterm-',
+  'vendor-terminal-xterm-addon-canvas-',
+  'vendor-terminal-xterm-addon-fit-',
+  'vendor-terminal-xterm-addon-search-',
+  'vendor-terminal-xterm-addon-unicode11-',
+  'vendor-tauri-core-',
+  'vendor-tauri-event-',
+  'vendor-tauri-window-',
   'ui-workbench-',
   'birdcoder-identity-surface-',
   'birdcoder-user-center-core-',
   'birdcoder-platform-',
+  'birdcoder-platform-api-client-',
+  'birdcoder-platform-filesystem-',
   'vendor-markdown-',
   'vendor-code-highlight-',
   'vendor-monaco-',
@@ -107,7 +169,25 @@ for (const requiredChunkPrefix of [
   'birdcoder-shell-bootstrap-',
   'birdcoder-storage-runtime-',
   'ui-shell-',
-  'birdcoder-platform-',
+  'birdcoder-platform-runtime-',
+  'birdcoder-platform-api-client-',
+  'birdcoder-platform-filesystem-',
+  'birdcoder-code-surface-',
+  'birdcoder-studio-surface-',
+  'birdcoder-multiwindow-surface-',
+  'birdcoder-settings-surface-',
+  'birdcoder-skills-surface-',
+  'birdcoder-templates-surface-',
+  'birdcoder-terminal-desktop-',
+  'birdcoder-terminal-infrastructure-',
+  'vendor-terminal-xterm-',
+  'vendor-terminal-xterm-addon-canvas-',
+  'vendor-terminal-xterm-addon-fit-',
+  'vendor-terminal-xterm-addon-search-',
+  'vendor-terminal-xterm-addon-unicode11-',
+  'vendor-tauri-core-',
+  'vendor-tauri-event-',
+  'vendor-tauri-window-',
   'birdcoder-identity-surface-',
   'birdcoder-codeengine-',
   'birdcoder-commons-root-',
@@ -118,6 +198,31 @@ for (const requiredChunkPrefix of [
 ]) {
   assertChunkExists(jsAssets, requiredChunkPrefix);
 }
+
+assertNoOversizedAnonymousIndexChunks(
+  jsAssets,
+  BIRDCODER_PERFORMANCE_BUDGETS.webEntryJsBytes,
+);
+assertNoAssetPrefix(
+  jsAssets,
+  '_sdkwork-birdcoder-web-xterm-',
+  'Terminal vendor chunks must use stable vendor-terminal-* names instead of leaking internal CommonJS compat virtual module ids into release assets.',
+);
+assertNoAssetPrefix(
+  jsAssets,
+  'core-',
+  'Tauri API core runtime must use vendor-tauri-core-* so release assets remain attributable.',
+);
+assertNoAssetPrefix(
+  jsAssets,
+  'event-',
+  'Tauri API event runtime must use vendor-tauri-event-* so release assets remain attributable.',
+);
+assertNoAssetPrefix(
+  jsAssets,
+  'window-',
+  'Tauri API window runtime must use vendor-tauri-window-* so release assets remain attributable.',
+);
 
 assert.ok(
   !findAssetByPrefix(jsAssets, 'birdcoder-identity-runtime-'),
@@ -151,6 +256,13 @@ assert.ok(
     'Top built assets:',
     listTopAssets(jsAssets),
   ].join('\n'),
+);
+
+assertChunkSizeByPrefix(
+  jsAssets,
+  'birdcoder-platform-runtime-',
+  BIRDCODER_PERFORMANCE_BUDGETS.webPlatformRuntimeJsBytes,
+  'web platform runtime JS asset',
 );
 
 console.log(

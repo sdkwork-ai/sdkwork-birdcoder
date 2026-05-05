@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { AlignLeft, Check, Copy, Loader2, Map, WrapText } from 'lucide-react';
 import { globalEventBus, useToast } from '@sdkwork/birdcoder-commons';
+import { copyTextToClipboard } from './clipboard';
 import { resolveMonacoOverflowWidgetsDomNode } from './monacoOverflowWidgets';
 import {
   applyBirdCoderMonacoTheme,
@@ -92,8 +93,18 @@ export function CodeEditor({
   const [wordWrap, setWordWrap] = useState<'on' | 'off'>(defaultWordWrap);
   const [showMinimap, setShowMinimap] = useState(defaultShowMinimap);
   const [copied, setCopied] = useState(false);
+  const copyFeedbackTimeoutRef = useRef<number | null>(null);
   const [mountedEditor, setMountedEditor] = useState<any | null>(null);
   const { addToast } = useToast();
+
+  const clearCopyFeedbackTimeout = useCallback(() => {
+    if (copyFeedbackTimeoutRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(copyFeedbackTimeoutRef.current);
+    copyFeedbackTimeoutRef.current = null;
+  }, []);
 
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
@@ -109,12 +120,25 @@ export function CodeEditor({
     addToast('Document formatted', 'success');
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(value);
+  const handleCopy = async () => {
+    const didCopy = await copyTextToClipboard(value);
+    if (!didCopy) {
+      addToast('Unable to copy content to clipboard', 'error');
+      return;
+    }
+
     setCopied(true);
     addToast('Content copied to clipboard', 'success');
-    window.setTimeout(() => setCopied(false), 2_000);
+    clearCopyFeedbackTimeout();
+    copyFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setCopied(false);
+      copyFeedbackTimeoutRef.current = null;
+    }, 2_000);
   };
+
+  useEffect(() => () => {
+    clearCopyFeedbackTimeout();
+  }, [clearCopyFeedbackTimeout]);
 
   useEffect(() => {
     const handleEditorCommand = (command: string) => {

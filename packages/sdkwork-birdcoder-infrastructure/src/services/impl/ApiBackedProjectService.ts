@@ -13,21 +13,16 @@ import type {
   BirdCoderProjectSummary,
 } from '@sdkwork/birdcoder-types';
 import {
-  areBirdCoderChatMessagesEquivalent,
   areBirdCoderChatMessagesLogicallyMatched,
-  mergeBirdCoderComparableChatMessages,
   compareBirdCoderSessionSortTimestamp,
   compareBirdCoderProjectsByActivity,
   formatBirdCoderSessionActivityDisplayTime,
   isBirdCoderCodingSessionExecuting,
+  mergeBirdCoderComparableChatMessages,
   resolveBirdCoderCodingSessionRuntimeStatus,
   resolveBirdCoderSessionSortTimestampString,
   stringifyBirdCoderApiJson,
 } from '@sdkwork/birdcoder-types';
-import {
-  isBirdCoderCodeEngineNativeSessionId,
-  normalizeBirdCoderCodeEngineNativeSessionId,
-} from '@sdkwork/birdcoder-codeengine';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { IProjectSessionMirror } from '../interfaces/IProjectSessionMirror.ts';
 import {
@@ -45,6 +40,7 @@ import type {
   CreateCodingSessionOptions,
   CreateCodingSessionMessageInput,
   CreateProjectOptions,
+  GetCodingSessionTranscriptOptions,
   IProjectService,
   UpdateCodingSessionOptions,
 } from '../interfaces/IProjectService.ts';
@@ -53,6 +49,9 @@ const ZERO_TIMESTAMP = new Date(0).toISOString();
 const PROJECT_LIST_CACHE_TTL_MS = 30_000;
 const PROJECT_DETAIL_CACHE_TTL_MS = 15_000;
 const AUTHORITATIVE_CODING_SESSION_SUMMARY_CACHE_TTL_MS = 15_000;
+const PROJECT_READ_CACHE_MAX_ENTRIES = 256;
+const RECENT_AUTHORITATIVE_TURN_OVERLAY_MAX_SESSIONS = 128;
+const RECENT_AUTHORITATIVE_TURN_OVERLAY_MAX_MESSAGES_PER_SESSION = 32;
 const LOCAL_EXECUTING_RUNTIME_STATUS_STALE_MS = 2 * 60 * 1000;
 const LOCAL_ORPHANABLE_EXECUTING_RUNTIME_STATUS_SET = new Set<
   NonNullable<BirdCoderCodingSession['runtimeStatus']>
@@ -337,7 +336,7 @@ function mergeCodingSessionSummary(
     archived: summary.status === 'archived',
     unread: localCodingSession?.unread ?? false,
     messages: preserveLocalMessages && hasCodingSessionMessages(localCodingSession)
-      ? structuredClone(localCodingSession.messages)
+      ? normalizeLocalCodingSessionMessages(localCodingSession.messages)
       : [],
   } satisfies Omit<BirdCoderCodingSession, 'displayTime' | 'sortTimestamp'>;
   const sortTimestamp = resolveBirdCoderSessionSortTimestampString(nextCodingSession);
@@ -419,7 +418,7 @@ function toProjectCodingSession(
     unread: localCodingSession.unread ?? false,
     messages:
       preserveLocalMessages && 'messages' in localCodingSession
-        ? structuredClone(localCodingSession.messages)
+        ? normalizeLocalCodingSessionMessages(localCodingSession.messages)
         : [],
   };
 }
@@ -441,36 +440,11 @@ function normalizeProjectForInventory(project: BirdCoderProject): BirdCoderProje
   return {
     ...project,
     codingSessions: project.codingSessions.map((codingSession) =>
-      toInventoryProjectCodingSession(codingSession),
+      toInventoryProjectCodingSession(codingSession, {
+        preserveLocalMessages: false,
+      }),
     ),
   };
-}
-
-function appendCodingSessionMessageIfMissing(
-  messages: readonly BirdCoderChatMessage[],
-  incomingMessage: BirdCoderChatMessage,
-): BirdCoderChatMessage[] {
-  const matchingMessageIndex = messages.findIndex(
-    (message) =>
-      areBirdCoderChatMessagesEquivalent(message, incomingMessage) ||
-      areBirdCoderChatMessagesLogicallyMatched(message, incomingMessage),
-  );
-  if (matchingMessageIndex < 0) {
-    return [...messages, structuredClone(incomingMessage)];
-  }
-
-  const existingMessage = messages[matchingMessageIndex]!;
-  const mergedMessage = mergeBirdCoderComparableChatMessages(
-    existingMessage,
-    incomingMessage,
-  );
-  if (mergedMessage === existingMessage) {
-    return messages as BirdCoderChatMessage[];
-  }
-
-  return messages.map((message, index) =>
-    index === matchingMessageIndex ? structuredClone(mergedMessage) : message,
-  );
 }
 
 function resolveAuthoritativeMirrorMessageCreatedAt(
@@ -643,12 +617,12 @@ function normalizeRequiredProjectPathForCreate(path: string | null | undefined):
 
 function indexLocalCodingSessionsById(
   localProjects: readonly LocalProjectSnapshot[],
-): Map<string, BirdCoderCodingSession> {
-  const localCodingSessionsById = new Map<string, BirdCoderCodingSession>();
+): Map<string, LocalCodingSessionSnapshot> {
+  const localCodingSessionsById = new Map<string, LocalCodingSessionSnapshot>();
 
   for (const project of localProjects) {
     for (const codingSession of project.codingSessions) {
-      localCodingSessionsById.set(codingSession.id, toProjectCodingSession(codingSession));
+      localCodingSessionsById.set(codingSession.id, codingSession);
     }
   }
 
@@ -765,10 +739,7 @@ function mergeAuthoritativeProjectSessions(
   );
   const authoritativeSessions = authoritativeCodingSessions.map((codingSession) =>
     mergeCodingSessionSummary(codingSession, localCodingSessionsById.get(codingSession.id), {
-      preserveLocalMessages: shouldPreserveLocalCodingSessionMessages(
-        codingSession,
-        localCodingSessionsById.get(codingSession.id),
-      ),
+      preserveLocalMessages: false,
     }),
   );
   const localOnlySessions = (localProject?.codingSessions ?? [])
@@ -779,30 +750,6 @@ function mergeAuthoritativeProjectSessions(
     ...authoritativeSessions,
     ...localOnlySessions,
   ]);
-}
-
-function shouldPreserveLocalCodingSessionMessages(
-  summary: BirdCoderCodingSessionSummary,
-  localCodingSession: LocalCodingSessionSnapshot | undefined,
-): boolean {
-  if (isAuthorityBackedNativeSessionId(summary.id, summary.engineId, summary.nativeSessionId)) {
-    return false;
-  }
-
-  if (!hasCodingSessionMessages(localCodingSession) || localCodingSession.messages.length === 0) {
-    return false;
-  }
-
-  const localTranscriptTimestamp = resolveComparableTimestamp(
-    localCodingSession.transcriptUpdatedAt ??
-      localCodingSession.lastTurnAt ??
-      localCodingSession.updatedAt,
-  );
-  const authoritativeTranscriptTimestamp = resolveComparableTimestamp(
-    summary.transcriptUpdatedAt ?? summary.lastTurnAt ?? summary.updatedAt,
-  );
-
-  return localTranscriptTimestamp >= authoritativeTranscriptTimestamp;
 }
 
 function shouldPreferLocalCodingSessionState(
@@ -915,6 +862,32 @@ function resolveLatestMergedCodingSessionTimestamp(
   return resolvedTimestamp;
 }
 
+function normalizeLocalCodingSessionMessages(
+  messages: readonly BirdCoderChatMessage[],
+): BirdCoderChatMessage[] {
+  if (messages.length < 2) {
+    return messages.map((message) => structuredClone(message));
+  }
+
+  const normalizedMessages: BirdCoderChatMessage[] = [];
+  for (const message of messages) {
+    const matchingMessageIndex = normalizedMessages.findIndex((existingMessage) =>
+      areBirdCoderChatMessagesLogicallyMatched(existingMessage, message),
+    );
+    if (matchingMessageIndex < 0) {
+      normalizedMessages.push(structuredClone(message));
+      continue;
+    }
+
+    normalizedMessages[matchingMessageIndex] = mergeBirdCoderComparableChatMessages(
+      normalizedMessages[matchingMessageIndex]!,
+      message,
+    );
+  }
+
+  return normalizedMessages;
+}
+
 function resolveLatestCodingSessionMessageTimestamp(
   messages: readonly Pick<BirdCoderChatMessage, 'createdAt'>[],
 ): string | null {
@@ -922,6 +895,19 @@ function resolveLatestCodingSessionMessageTimestamp(
     const candidate = messages[index]?.createdAt;
     if (typeof candidate === 'string' && !Number.isNaN(Date.parse(candidate))) {
       return candidate;
+    }
+  }
+
+  return null;
+}
+
+function findLatestNativeTranscriptTimestamp(
+  messages: readonly Pick<BirdCoderChatMessage, 'createdAt' | 'id'>[],
+): string | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.id.includes(':native-message:')) {
+      return message.createdAt;
     }
   }
 
@@ -960,7 +946,9 @@ function sortProjectMirrorSnapshots(
 function toCodingSessionMirrorSnapshot(
   codingSession: LocalCodingSessionSnapshot,
 ): BirdCoderCodingSessionMirrorSnapshot {
-  const projectedCodingSession = toInventoryProjectCodingSession(codingSession);
+  const projectedCodingSession = toInventoryProjectCodingSession(codingSession, {
+    preserveLocalMessages: false,
+  });
   const messages = hasCodingSessionMessages(codingSession)
     ? codingSession.messages
     : [];
@@ -991,10 +979,7 @@ function toCodingSessionMirrorSnapshot(
     nativeTranscriptUpdatedAt:
       'nativeTranscriptUpdatedAt' in codingSession
         ? codingSession.nativeTranscriptUpdatedAt
-        : [...messages]
-            .reverse()
-            .find((message) => message.id.includes(':native-message:'))
-            ?.createdAt ?? null,
+        : findLatestNativeTranscriptTimestamp(messages),
   };
 }
 
@@ -1078,6 +1063,16 @@ function finalizeCachedCodingSession(
   };
 }
 
+function toCachedProjectCodingSession(
+  codingSession: LocalCodingSessionSnapshot,
+): BirdCoderCodingSession {
+  return finalizeCachedCodingSession(
+    toInventoryProjectCodingSession(codingSession, {
+      preserveLocalMessages: false,
+    }),
+  );
+}
+
 function isBirdCoderProject(value: unknown): value is BirdCoderProject {
   return (
     !!value &&
@@ -1092,7 +1087,7 @@ function upsertCachedProjectCodingSession(
   project: BirdCoderProject,
   codingSession: BirdCoderCodingSession,
 ): BirdCoderProject {
-  const nextCodingSession = finalizeCachedCodingSession(structuredClone(codingSession));
+  const nextCodingSession = toCachedProjectCodingSession(codingSession);
   return {
     ...project,
     codingSessions: sortCachedProjectCodingSessions([
@@ -1121,9 +1116,8 @@ function updateCachedProjectCodingSession(
     return project;
   }
 
-  const nextCodingSession = finalizeCachedCodingSession(
-    updater(structuredClone(currentCodingSession)),
-  );
+  const currentMetadata = toCachedProjectCodingSession(currentCodingSession);
+  const nextCodingSession = toCachedProjectCodingSession(updater(currentMetadata));
   return {
     ...project,
     codingSessions: sortCachedProjectCodingSessions([
@@ -1166,6 +1160,8 @@ const REMOTE_CODING_SESSION_TURN_REQUEST_KIND_BY_ROLE = {
   BirdCoderCreateCodingSessionTurnRequest['requestKind'] | undefined
 >;
 
+const REMOTE_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY = 'codeEngineSelection';
+
 function resolveRemoteCodingSessionTurnRequest(
   message: Omit<BirdCoderChatMessage, 'codingSessionId' | 'createdAt' | 'id'>,
 ): BirdCoderCreateCodingSessionTurnRequest | null {
@@ -1182,11 +1178,14 @@ function resolveRemoteCodingSessionTurnRequest(
 
   const ideContext = readRemoteCodingSessionTurnIdeContext(message.metadata);
   const options = readRemoteCodingSessionTurnOptions(message.metadata);
+  const modelSelection = readRemoteCodingSessionTurnModelSelection(message.metadata);
   return {
     requestKind,
     inputSummary,
     stream: true,
     ideContext,
+    ...(modelSelection?.engineId ? { engineId: modelSelection.engineId } : {}),
+    ...(modelSelection?.modelId ? { modelId: modelSelection.modelId } : {}),
     ...(options ? { options } : {}),
   };
 }
@@ -1256,6 +1255,34 @@ function readRemoteCodingSessionTurnIdeContext(
   };
 }
 
+function readRemoteCodingSessionTurnModelSelection(
+  metadata: BirdCoderChatMessage['metadata'],
+): Pick<BirdCoderCreateCodingSessionTurnRequest, 'engineId' | 'modelId'> | undefined {
+  const metadataRecord = readRecord(metadata);
+  const selectionRecord = readRecord(
+    metadataRecord?.[REMOTE_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY],
+  );
+  if (!selectionRecord) {
+    return undefined;
+  }
+
+  const engineId =
+    typeof selectionRecord.engineId === 'string' && selectionRecord.engineId.trim()
+      ? selectionRecord.engineId.trim()
+      : undefined;
+  const modelId =
+    typeof selectionRecord.modelId === 'string' && selectionRecord.modelId.trim()
+      ? selectionRecord.modelId.trim()
+      : undefined;
+
+  return engineId || modelId
+    ? {
+        ...(engineId ? { engineId: engineId as BirdCoderCreateCodingSessionTurnRequest['engineId'] } : {}),
+        ...(modelId ? { modelId } : {}),
+      }
+    : undefined;
+}
+
 function normalizeRemoteFiniteNumber(
   value: unknown,
   minimum: number,
@@ -1311,30 +1338,6 @@ function readRemoteCodingSessionTurnOptions(
     options.topP !== undefined
     ? options
     : undefined;
-}
-
-function isAuthorityBackedNativeSessionId(
-  codingSessionId: string,
-  engineId?: string,
-  nativeSessionId?: string | null,
-): boolean {
-  if (isBirdCoderCodeEngineNativeSessionId(codingSessionId, engineId)) {
-    return true;
-  }
-
-  const normalizedCodingSessionId = normalizeBirdCoderCodeEngineNativeSessionId(
-    codingSessionId,
-    engineId,
-  );
-  const normalizedNativeSessionId = normalizeBirdCoderCodeEngineNativeSessionId(
-    nativeSessionId,
-    engineId,
-  );
-  return (
-    !!normalizedCodingSessionId &&
-    !!normalizedNativeSessionId &&
-    normalizedCodingSessionId === normalizedNativeSessionId
-  );
 }
 
 function compareCodingSessionMessages(
@@ -1477,6 +1480,10 @@ export class ApiBackedProjectService implements IProjectService {
   private readonly projectMirror?: ProjectSummaryMirror;
   private readonly projectSummaryMirrors: readonly ProjectSummaryMirror[];
   private readonly readCache = new Map<string, ReadCacheEntry<unknown>>();
+  private readonly recentAuthoritativeTurnMessagesBySessionKey = new Map<
+    string,
+    BirdCoderChatMessage[]
+  >();
   private readonly remoteTurnMirrorSyncs = new Map<
     string,
     BackgroundRemoteTurnMirrorSyncEntry
@@ -1524,12 +1531,42 @@ export class ApiBackedProjectService implements IProjectService {
     return `${scope}:${stableSerializeCacheKeyPart(payload ?? null)}`;
   }
 
+  private pruneReadCache(now: number = Date.now()): void {
+    for (const [cacheKey, entry] of this.readCache) {
+      if (entry.inflight) {
+        continue;
+      }
+
+      if (entry.expiresAt <= now) {
+        this.readCache.delete(cacheKey);
+      }
+    }
+
+    while (this.readCache.size > PROJECT_READ_CACHE_MAX_ENTRIES) {
+      let evictedEntry = false;
+      for (const [cacheKey, entry] of this.readCache) {
+        if (entry.inflight) {
+          continue;
+        }
+
+        this.readCache.delete(cacheKey);
+        evictedEntry = true;
+        break;
+      }
+
+      if (!evictedEntry) {
+        break;
+      }
+    }
+  }
+
   private readThroughCache<T>(
     key: string,
     ttlMs: number,
     loader: () => Promise<T>,
   ): Promise<T> {
     const now = Date.now();
+    this.pruneReadCache(now);
     const cachedEntry = this.readCache.get(key) as ReadCacheEntry<T> | undefined;
 
     if (cachedEntry?.inflight) {
@@ -1537,7 +1574,9 @@ export class ApiBackedProjectService implements IProjectService {
     }
 
     if (cachedEntry && ttlMs > 0 && cachedEntry.value !== undefined && cachedEntry.expiresAt > now) {
-      return Promise.resolve(cachedEntry.value);
+      this.readCache.delete(key);
+      this.readCache.set(key, cachedEntry as ReadCacheEntry<unknown>);
+      return Promise.resolve(this.applyRecentAuthoritativeTurnOverlays(cachedEntry.value));
     }
 
     const request = loader()
@@ -1548,10 +1587,11 @@ export class ApiBackedProjectService implements IProjectService {
             inflight: null,
             value,
           });
+          this.pruneReadCache();
         } else {
           this.readCache.delete(key);
         }
-        return value;
+        return this.applyRecentAuthoritativeTurnOverlays(value);
       })
       .catch((error) => {
         this.readCache.delete(key);
@@ -1563,8 +1603,29 @@ export class ApiBackedProjectService implements IProjectService {
       inflight: request,
       value: cachedEntry?.value,
     });
+    this.pruneReadCache();
 
     return request;
+  }
+
+  private applyRecentAuthoritativeTurnOverlays<T>(value: T): T {
+    if (Array.isArray(value)) {
+      let changed = false;
+      const nextProjects = value.map((entry) => {
+        if (!isBirdCoderProject(entry)) {
+          return entry;
+        }
+
+        const nextProject = this.applyRecentAuthoritativeTurnMessageOverlays(entry);
+        changed = changed || nextProject !== entry;
+        return nextProject;
+      });
+      return (changed ? nextProjects : value) as T;
+    }
+
+    return isBirdCoderProject(value)
+      ? (this.applyRecentAuthoritativeTurnMessageOverlays(value) as T)
+      : value;
   }
 
   private readFreshCachedValue<T>(key: string): T | undefined {
@@ -1574,6 +1635,7 @@ export class ApiBackedProjectService implements IProjectService {
     }
 
     if (cachedEntry.expiresAt <= Date.now()) {
+      this.readCache.delete(key);
       return undefined;
     }
 
@@ -1716,6 +1778,126 @@ export class ApiBackedProjectService implements IProjectService {
 
   private invalidateReadCache(): void {
     this.readCache.clear();
+  }
+
+  private buildAuthoritativeTurnOverlayKey(
+    projectId: string,
+    codingSessionId: string,
+  ): string {
+    return `${projectId.trim()}:${codingSessionId.trim()}`;
+  }
+
+  private recordRecentAuthoritativeTurnMessage(
+    projectId: string,
+    codingSessionId: string,
+    message: BirdCoderChatMessage,
+  ): void {
+    this.recordRecentAuthoritativeTurnMessages(projectId, codingSessionId, [
+      message,
+    ]);
+  }
+
+  private recordRecentAuthoritativeTurnMessages(
+    projectId: string,
+    codingSessionId: string,
+    messages: readonly BirdCoderChatMessage[],
+  ): void {
+    const key = this.buildAuthoritativeTurnOverlayKey(projectId, codingSessionId);
+    if (key === ':' || messages.length === 0) {
+      return;
+    }
+
+    const existingMessages =
+      this.recentAuthoritativeTurnMessagesBySessionKey.get(key) ?? [];
+    const nextMessages = normalizeLocalCodingSessionMessages([
+      ...existingMessages,
+      ...messages,
+    ]).slice(-RECENT_AUTHORITATIVE_TURN_OVERLAY_MAX_MESSAGES_PER_SESSION);
+    this.recentAuthoritativeTurnMessagesBySessionKey.delete(key);
+    this.recentAuthoritativeTurnMessagesBySessionKey.set(key, nextMessages);
+
+    while (
+      this.recentAuthoritativeTurnMessagesBySessionKey.size >
+      RECENT_AUTHORITATIVE_TURN_OVERLAY_MAX_SESSIONS
+    ) {
+      const oldestKey =
+        this.recentAuthoritativeTurnMessagesBySessionKey.keys().next().value;
+      if (typeof oldestKey !== 'string') {
+        break;
+      }
+      this.recentAuthoritativeTurnMessagesBySessionKey.delete(oldestKey);
+    }
+  }
+
+  private forgetRecentAuthoritativeTurnMessages(
+    projectId: string,
+    codingSessionId?: string,
+  ): void {
+    const normalizedProjectId = projectId.trim();
+    const normalizedCodingSessionId = codingSessionId?.trim();
+    if (!normalizedProjectId) {
+      return;
+    }
+
+    if (normalizedCodingSessionId) {
+      this.recentAuthoritativeTurnMessagesBySessionKey.delete(
+        this.buildAuthoritativeTurnOverlayKey(
+          normalizedProjectId,
+          normalizedCodingSessionId,
+        ),
+      );
+      return;
+    }
+
+    const projectKeyPrefix = `${normalizedProjectId}:`;
+    for (const key of this.recentAuthoritativeTurnMessagesBySessionKey.keys()) {
+      if (key.startsWith(projectKeyPrefix)) {
+        this.recentAuthoritativeTurnMessagesBySessionKey.delete(key);
+      }
+    }
+  }
+
+  private applyRecentAuthoritativeTurnMessageOverlays(
+    project: BirdCoderProject,
+  ): BirdCoderProject {
+    const normalizedProjectId = project.id.trim();
+    if (!normalizedProjectId || this.recentAuthoritativeTurnMessagesBySessionKey.size === 0) {
+      return project;
+    }
+
+    let changed = false;
+    const codingSessions = project.codingSessions.map((codingSession) => {
+      const overlayMessages = this.recentAuthoritativeTurnMessagesBySessionKey.get(
+        this.buildAuthoritativeTurnOverlayKey(normalizedProjectId, codingSession.id),
+      );
+      if (!overlayMessages || overlayMessages.length === 0) {
+        return codingSession;
+      }
+
+      const messages = normalizeLocalCodingSessionMessages([
+        ...codingSession.messages,
+        ...overlayMessages,
+      ]);
+      if (messages.length === codingSession.messages.length) {
+        return codingSession;
+      }
+
+      changed = true;
+      return finalizeCachedCodingSession({
+        ...codingSession,
+        messages,
+        transcriptUpdatedAt:
+          resolveLatestCodingSessionMessageTimestamp(messages) ??
+          codingSession.transcriptUpdatedAt,
+      });
+    });
+
+    return changed
+      ? {
+          ...project,
+          codingSessions,
+        }
+      : project;
   }
 
   private invalidateAuthoritativeCodingSessionSummariesCache(scope: {
@@ -1938,6 +2120,18 @@ export class ApiBackedProjectService implements IProjectService {
     summary: BirdCoderCodingSessionSummary,
     localCodingSession?: BirdCoderCodingSession,
   ): Promise<BirdCoderCodingSession> {
+    const normalizedProjectId = projectId.trim();
+    const summaryProjectId = summary.projectId.trim();
+    if (
+      normalizedProjectId &&
+      summaryProjectId &&
+      normalizedProjectId !== summaryProjectId
+    ) {
+      throw new Error(
+        `Authoritative coding session ${summary.id} belongs to project ${summaryProjectId}, not ${normalizedProjectId}.`,
+      );
+    }
+
     const fallbackCodingSession = mergeCodingSessionSummary(summary, localCodingSession);
     if (!this.coreReadClient) {
       return fallbackCodingSession;
@@ -2567,6 +2761,28 @@ export class ApiBackedProjectService implements IProjectService {
     return sortProjectMirrorSnapshots(mergedProjects);
   }
 
+  async getCodingSessionTranscript(
+    projectId: string,
+    codingSessionId: string,
+    options?: GetCodingSessionTranscriptOptions,
+  ): Promise<BirdCoderCodingSession | null> {
+    const normalizedProjectId = projectId.trim();
+    const normalizedCodingSessionId = codingSessionId.trim();
+    if (
+      !normalizedProjectId ||
+      !normalizedCodingSessionId ||
+      !this.writeService.getCodingSessionTranscript
+    ) {
+      return null;
+    }
+
+    return this.writeService.getCodingSessionTranscript(
+      normalizedProjectId,
+      normalizedCodingSessionId,
+      options,
+    );
+  }
+
   async createProject(
     workspaceId: string,
     name: string,
@@ -2669,6 +2885,7 @@ export class ApiBackedProjectService implements IProjectService {
   async deleteProject(projectId: string): Promise<void> {
     await this.client.deleteProject(projectId);
     await this.writeService.deleteProject(projectId);
+    this.forgetRecentAuthoritativeTurnMessages(projectId);
     this.invalidateReadCache();
   }
 
@@ -3011,6 +3228,7 @@ export class ApiBackedProjectService implements IProjectService {
     const existingCodingSession = await this.resolveProjectCodingSession(projectId, codingSessionId);
     await this.coreWriteClient.deleteCodingSession(codingSessionId);
     await this.writeService.deleteCodingSession(projectId, codingSessionId);
+    this.forgetRecentAuthoritativeTurnMessages(projectId, codingSessionId);
     this.patchCachedProjectCodingSessionRemoval(projectId, codingSessionId);
     this.invalidateAuthoritativeCodingSessionSummariesCache({
       projectId,
@@ -3075,6 +3293,11 @@ export class ApiBackedProjectService implements IProjectService {
       effectiveCodingSessionId,
       buildAuthoritativeMirrorMessage(effectiveCodingSessionId, createdTurn, message),
     );
+    this.recordRecentAuthoritativeTurnMessage(
+      effectiveProjectId,
+      effectiveCodingSessionId,
+      mirroredMessage,
+    );
     const messageTimestamp = mirroredMessage.createdAt;
     const optimisticRuntimeStatus =
       createdTurn.status === 'running' || createdTurn.status === 'queued'
@@ -3085,10 +3308,6 @@ export class ApiBackedProjectService implements IProjectService {
       effectiveCodingSessionId,
       (codingSession) => ({
         ...codingSession,
-        messages: appendCodingSessionMessageIfMissing(
-          codingSession.messages,
-          mirroredMessage,
-        ),
         runtimeStatus: optimisticRuntimeStatus ?? codingSession.runtimeStatus,
         updatedAt: messageTimestamp || codingSession.updatedAt,
         lastTurnAt: messageTimestamp || codingSession.lastTurnAt,
@@ -3152,21 +3371,6 @@ export class ApiBackedProjectService implements IProjectService {
       messageId,
       editableUpdates,
     );
-    this.patchCachedProjectCodingSessionUpdate(
-      projectId,
-      codingSessionId,
-      (codingSession) => ({
-        ...codingSession,
-        messages: codingSession.messages.map((message) =>
-          message.id === messageId
-            ? {
-                ...message,
-                ...editableUpdates,
-              }
-            : message,
-        ),
-      }),
-    );
   }
 
   async deleteCodingSessionMessage(
@@ -3188,21 +3392,24 @@ export class ApiBackedProjectService implements IProjectService {
     }
 
     await this.writeService.deleteCodingSessionMessage(projectId, codingSessionId, messageId);
-    this.patchCachedProjectCodingSessionUpdate(
-      projectId,
-      codingSessionId,
-      (codingSession) => ({
-        ...codingSession,
-        messages: codingSession.messages.filter((message) => message.id !== messageId),
-      }),
-    );
   }
 
   private async syncRemoteTurnMirror(
     projectId: string,
     codingSessionId: string,
   ): Promise<BirdCoderCodingSession | null> {
-    return this.synchronizeAuthoritativeCodingSession(projectId, codingSessionId);
+    const synchronizedCodingSession = await this.synchronizeAuthoritativeCodingSession(
+      projectId,
+      codingSessionId,
+    );
+    if (synchronizedCodingSession) {
+      this.recordRecentAuthoritativeTurnMessages(
+        projectId,
+        codingSessionId,
+        synchronizedCodingSession.messages,
+      );
+    }
+    return synchronizedCodingSession;
   }
 
   private buildRemoteTurnMirrorSyncKey(scope: BackgroundRemoteTurnMirrorSyncScope): string {

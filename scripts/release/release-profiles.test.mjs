@@ -17,6 +17,10 @@ assert.equal(RELEASE_ASSET_MANIFEST_FILE_NAME, 'release-asset-manifest.json');
 assert.equal(profile.id, 'sdkwork-birdcoder');
 assert.equal(profile.productName, 'SDKWork BirdCoder');
 assert.equal(profile.release.partialManifestFileName, 'release-asset-manifest.json');
+assert.equal(profile.release.manifestChecksumFileName, 'release-manifest.json.sha256.txt');
+assert.equal(profile.release.attestationEvidenceFileName, 'release-attestations.json');
+assert.equal(profile.release.attestationPredicateType, 'https://slsa.dev/provenance/v1');
+assert.equal(profile.release.attestationSignerWorkflowPath, '.github/workflows/release-reusable.yml');
 assert.equal(profile.release.enableArtifactAttestations, true);
 
 const desktopMatrix = buildDesktopReleaseMatrix();

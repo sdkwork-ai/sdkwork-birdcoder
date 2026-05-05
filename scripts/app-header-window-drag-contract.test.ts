@@ -118,13 +118,58 @@ const {
   assert.equal(scheduled, true);
   assert.equal(
     startDraggingCalls,
+    1,
+    'app header must start native window dragging immediately on primary mouse down so a normal desktop title-bar drag can move a restored window.',
+  );
+  assert.equal(
+    timerHarness.pendingCount(),
     0,
-    'app header must not start dragging immediately on mouse down; it should wait for a long press.',
+    'primary mouse title-bar drag must not wait behind a long-press timer because moving the mouse before the timer fires cancels normal desktop window movement.',
+  );
+  assert.equal(
+    windowHarness.listenerCount('pointerup'),
+    0,
+    'primary mouse title-bar drag must not install long-press cancellation listeners.',
+  );
+  assert.equal(windowHarness.listenerCount('pointercancel'), 0);
+  assert.equal(windowHarness.listenerCount('blur'), 0);
+}
+
+{
+  const timerHarness = createTimerHarness();
+  const windowHarness = createWindowListenerHarness();
+  let startDraggingCalls = 0;
+
+  const controller = createAppHeaderWindowDragController({
+    addWindowListener: windowHarness.addEventListener,
+    clearTimeoutFn: timerHarness.clearTimeout,
+    removeWindowListener: windowHarness.removeEventListener,
+    setTimeoutFn: timerHarness.setTimeout,
+    startDragging: () => {
+      startDraggingCalls += 1;
+    },
+  });
+
+  const scheduled = controller.handlePointerDown({
+    button: 0,
+    clientX: 12,
+    clientY: 18,
+    isPrimary: true,
+    pointerId: 1,
+    pointerType: 'touch',
+    target: createTarget(false),
+  });
+
+  assert.equal(scheduled, true);
+  assert.equal(
+    startDraggingCalls,
+    0,
+    'touch title-bar drag must not start immediately; it should wait for a long press to avoid accidental window movement.',
   );
   assert.equal(
     timerHarness.pendingCount(),
     1,
-    'app header long-press drag must schedule exactly one pending drag timer.',
+    'touch title-bar drag must schedule exactly one pending long-press timer.',
   );
   assert.equal(windowHarness.listenerCount('pointerup'), 1);
   assert.equal(windowHarness.listenerCount('pointercancel'), 1);
@@ -133,13 +178,13 @@ const {
   assert.equal(
     timerHarness.flushNext(),
     APP_HEADER_WINDOW_DRAG_LONG_PRESS_MS,
-    'app header long-press drag must use the shared long-press threshold.',
+    'touch title-bar drag must use the shared long-press threshold.',
   );
   assert.equal(startDraggingCalls, 1);
   assert.equal(
     windowHarness.listenerCount('pointerup'),
     0,
-    'app header long-press drag must remove global pointerup listeners after drag begins.',
+    'touch long-press drag must remove global pointerup listeners after drag begins.',
   );
   assert.equal(windowHarness.listenerCount('pointercancel'), 0);
   assert.equal(windowHarness.listenerCount('blur'), 0);
@@ -166,7 +211,7 @@ const {
     clientY: 18,
     isPrimary: true,
     pointerId: 1,
-    pointerType: 'mouse',
+    pointerType: 'touch',
     target: createTarget(false),
   });
   windowHarness.dispatch('pointerup', { pointerId: 1 });
@@ -307,7 +352,7 @@ const {
     clientY: 18,
     isPrimary: true,
     pointerId: 1,
-    pointerType: 'mouse',
+    pointerType: 'touch',
     target: createTarget(false),
   });
   windowHarness.dispatch('pointercancel', { pointerId: 1 });
@@ -343,7 +388,7 @@ const {
     clientY: 18,
     isPrimary: true,
     pointerId: 1,
-    pointerType: 'mouse',
+    pointerType: 'touch',
     target: createTarget(false),
   });
   windowHarness.dispatch('blur');
@@ -379,7 +424,7 @@ const {
     clientY: 18,
     isPrimary: true,
     pointerId: 1,
-    pointerType: 'mouse',
+    pointerType: 'touch',
     target: createTarget(false),
   });
   windowHarness.dispatch('pointermove', {
@@ -419,7 +464,7 @@ const {
     clientY: 18,
     isPrimary: true,
     pointerId: 1,
-    pointerType: 'mouse',
+    pointerType: 'touch',
     target: createTarget(false),
   });
   windowHarness.dispatch('pointermove', {

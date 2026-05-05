@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 
 import { RELEASE_ASSET_MANIFEST_FILE_NAME } from './release-profiles.mjs';
 import { writeReleaseSmokeReport } from './release-smoke-contract.mjs';
@@ -28,6 +29,54 @@ function normalizePlatform(platform) {
   }
 
   return normalizedPlatform;
+}
+
+function parseTarOctal(buffer) {
+  const trimmed = buffer.toString('utf8').replace(/\0.*$/u, '').trim();
+  return trimmed ? Number.parseInt(trimmed, 8) : 0;
+}
+
+function readTarGzEntryPaths(archivePath) {
+  const archiveBuffer = gunzipSync(fs.readFileSync(archivePath));
+  const entryPaths = [];
+  let offset = 0;
+
+  while (offset + 512 <= archiveBuffer.length) {
+    const header = archiveBuffer.subarray(offset, offset + 512);
+    if (header.every((value) => value === 0)) {
+      break;
+    }
+
+    const name = header.subarray(0, 100).toString('utf8').replace(/\0.*$/u, '');
+    const prefix = header.subarray(345, 500).toString('utf8').replace(/\0.*$/u, '');
+    const size = parseTarOctal(header.subarray(124, 136));
+    entryPaths.push((prefix ? `${prefix}/${name}` : name).replaceAll('\\', '/'));
+    offset += 512 + Math.ceil(size / 512) * 512;
+  }
+
+  return entryPaths;
+}
+
+function resolveExpectedServerBinaryName(target = '') {
+  return String(target ?? '').toLowerCase().includes('windows')
+    ? 'sdkwork-birdcoder-server.exe'
+    : 'sdkwork-birdcoder-server';
+}
+
+function assertContainerServerBinaryPresent({
+  archivePath,
+  archiveRelativePath,
+  target,
+}) {
+  const bundleRoot = path.posix.basename(archiveRelativePath.replaceAll('\\', '/'), '.tar.gz');
+  const expectedBinaryPath = `${bundleRoot}/server/bin/${resolveExpectedServerBinaryName(target)}`;
+  const entryPaths = readTarGzEntryPaths(archivePath);
+  if (!entryPaths.includes(expectedBinaryPath)) {
+    throw new Error(`Container release archive is missing compiled server binary: ${expectedBinaryPath}`);
+  }
+  if (entryPaths.some((entryPath) => entryPath.startsWith(`${bundleRoot}/server/src/`))) {
+    throw new Error(`Container release archive must not include Rust source files under ${bundleRoot}/server/src/.`);
+  }
 }
 
 export function smokeDeploymentReleaseAssets({
@@ -68,6 +117,13 @@ export function smokeDeploymentReleaseAssets({
   }
   if (!archiveRelativePath || !fs.existsSync(archivePath)) {
     throw new Error(`Missing packaged ${normalizedFamily} archive referenced by ${manifestPath}.`);
+  }
+  if (normalizedFamily === 'container') {
+    assertContainerServerBinaryPresent({
+      archivePath,
+      archiveRelativePath,
+      target,
+    });
   }
 
   const metadataPath = path.join(outputFamilyDir, 'release-metadata.json');
@@ -120,6 +176,11 @@ export function smokeDeploymentReleaseAssets({
           id: 'archive-present',
           status: 'passed',
           detail: 'container release archive exists and is referenced by the manifest',
+        },
+        {
+          id: 'server-binary-present',
+          status: 'passed',
+          detail: 'container archive contains the compiled server runtime binary under server/bin',
         },
       ]
       : [

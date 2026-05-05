@@ -94,13 +94,49 @@ function collectSessionSeeds({
       title: codingSession.title,
     })),
   );
-  const preferredSeedIndex = seeds.findIndex((seed) =>
-    normalizedInitialCodingSessionId
-      ? seed.codingSessionId === normalizedInitialCodingSessionId
-      : normalizedInitialProjectId
-        ? seed.projectId === normalizedInitialProjectId
-        : false,
-  );
+  const initialProjectExists = normalizedInitialProjectId
+    ? projects.some((project) => project.id === normalizedInitialProjectId)
+    : false;
+  const scopedProjectSeeds = initialProjectExists
+    ? seeds.filter((seed) => seed.projectId === normalizedInitialProjectId)
+    : [];
+  if (initialProjectExists) {
+    if (normalizedInitialCodingSessionId) {
+      const exactScopedSeed = scopedProjectSeeds.find(
+        (seed) => seed.codingSessionId === normalizedInitialCodingSessionId,
+      );
+      if (!exactScopedSeed) {
+        return [
+          {
+            codingSessionId: normalizedInitialCodingSessionId,
+            projectId: normalizedInitialProjectId,
+            title: '',
+          },
+          ...scopedProjectSeeds,
+        ];
+      }
+
+      return [
+        exactScopedSeed,
+        ...seeds.filter((seed) => seed !== exactScopedSeed),
+      ];
+    }
+
+    return scopedProjectSeeds.length > 0
+      ? [
+          ...scopedProjectSeeds,
+          ...seeds.filter((seed) => seed.projectId !== normalizedInitialProjectId),
+        ]
+      : [];
+  }
+
+  const matchingSessionSeeds = normalizedInitialCodingSessionId
+    ? seeds.filter((seed) => seed.codingSessionId === normalizedInitialCodingSessionId)
+    : [];
+  const preferredSeedIndex =
+    normalizedInitialCodingSessionId && matchingSessionSeeds.length === 1
+      ? seeds.indexOf(matchingSessionSeeds[0])
+      : -1;
 
   if (preferredSeedIndex <= 0) {
     return seeds;

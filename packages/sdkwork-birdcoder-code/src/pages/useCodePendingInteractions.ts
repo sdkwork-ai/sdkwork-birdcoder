@@ -9,13 +9,19 @@ import type {
 
 interface UseCodePendingInteractionsOptions {
   refreshToken?: string | number | null;
+  projectId?: string | null;
   sessionId: string | null;
-  onRefreshCodingSessionMessages: (codingSessionId: string) => void | Promise<void>;
+  sessionScopeKey?: string | null;
+  onRefreshCodingSessionMessages: (
+    codingSessionId: string,
+  ) => void | Promise<void>;
 }
 
 export function useCodePendingInteractions({
   refreshToken,
+  projectId,
   sessionId,
+  sessionScopeKey,
   onRefreshCodingSessionMessages,
 }: UseCodePendingInteractionsOptions) {
   const {
@@ -23,7 +29,12 @@ export function useCodePendingInteractions({
     questions: pendingUserQuestions,
     submitApprovalDecision,
     submitUserQuestionAnswer,
-  } = useCodingSessionPendingInteractionState(sessionId, refreshToken);
+  } = useCodingSessionPendingInteractionState(
+    sessionId,
+    refreshToken,
+    sessionScopeKey,
+    projectId,
+  );
 
   const onSubmitApprovalDecision = useCallback(async (
     approvalId: string,

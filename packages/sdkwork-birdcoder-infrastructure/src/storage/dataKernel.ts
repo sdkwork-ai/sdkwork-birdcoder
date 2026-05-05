@@ -601,6 +601,24 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
     return normalizedRecords;
   }
 
+  function normalizeRecordsForUpsert(records: readonly TRecord[]): TRecord[] {
+    const recordsById = new Map<TId, TRecord>();
+    for (const value of records) {
+      const normalizedValue = normalize(value);
+      if (!normalizedValue) {
+        continue;
+      }
+
+      recordsById.set(identify(normalizedValue), normalizedValue);
+    }
+
+    const normalizedRecords = Array.from(recordsById.values());
+    if (sort) {
+      normalizedRecords.sort(sort);
+    }
+    return normalizedRecords;
+  }
+
   return {
     binding,
     definition,
@@ -656,6 +674,26 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
       return savedValue;
     },
     async saveMany(values) {
+      const sqlExecutorPath = resolveSqlExecutorPath();
+      if (sqlExecutorPath) {
+        const normalizedRecords = normalizeRecordsForUpsert(values);
+        if (normalizedRecords.length === 0) {
+          return [];
+        }
+
+        try {
+          await sqlExecutorPath.storage.executeSqlPlan(
+            sqlPlanner.buildUpsertPlan(
+              normalizedRecords.map((record) => sqlExecutorPath.toRow(record)),
+            ),
+          );
+          return normalizedRecords;
+        } catch {
+          enterVolatileTableFallback(normalizedRecords);
+          return normalizedRecords;
+        }
+      }
+
       const currentRecords = await readRecords();
       const nextRecords = [...currentRecords];
       const indexesById = new Map<TId, number>();

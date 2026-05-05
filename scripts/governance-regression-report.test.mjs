@@ -232,7 +232,16 @@ assert.deepEqual(
     'release-smoke-contract',
     'release-smoke-router',
     'release-package-assets',
+    'release-desktop-signing-environment-preflight',
+    'release-desktop-installer-trust-verifier',
     'release-finalize-assets',
+    'release-attestation-evidence',
+    'release-checksums',
+    'release-readiness-assertion',
+    'release-readiness-complete-matrix',
+    'release-readiness-fixture',
+    'release-candidate-dry-run',
+    'release-rehearsal-verify',
     'release-finalized-assets-smoke',
     'release-studio-evidence-archives',
     'release-notes-render',
@@ -254,8 +263,8 @@ assert.deepEqual(
 assert.deepEqual(executedChecks, GOVERNANCE_REGRESSION_CHECKS.map((check) => check.id));
 assert.equal(passedReport.status, 'passed');
 assert.equal(passedReport.generatedAt, '2026-04-08T15:30:00.000Z');
-assert.equal(passedReport.summary.totalChecks, 101);
-assert.equal(passedReport.summary.passedCount, 101);
+assert.equal(passedReport.summary.totalChecks, 110);
+assert.equal(passedReport.summary.passedCount, 110);
 assert.equal(passedReport.summary.blockedCount, 0);
 assert.equal(passedReport.summary.failedCount, 0);
 assert.deepEqual(passedReport.summary.blockedCheckIds, []);
@@ -351,7 +360,16 @@ assert.deepEqual(
     'node scripts/release/release-smoke-contract.test.mjs',
     'node scripts/release/smoke-release-assets.test.mjs',
     'node scripts/release/package-release-assets.test.mjs',
+    'node scripts/release/preflight-desktop-signing-environment.test.mjs',
+    'node scripts/release/verify-desktop-installer-trust.test.mjs',
     'node scripts/release/finalize-release-assets.test.mjs',
+    'node scripts/release/write-attestation-evidence.test.mjs',
+    'node scripts/release/release-checksums.test.mjs',
+    'node scripts/release/assert-release-readiness.test.mjs',
+    'node scripts/release/release-readiness-complete-matrix.test.mjs',
+    'node scripts/release/write-readiness-fixture.test.mjs',
+    'node scripts/release/candidate-dry-run.test.mjs',
+    'node scripts/release/rehearsal-verify.test.mjs',
     'node scripts/release/smoke-finalized-release-assets.test.mjs',
     'node scripts/release/studio-evidence-archives.test.mjs',
     'node scripts/release/render-release-notes.test.mjs',
@@ -422,7 +440,7 @@ const blockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(blockedReport.status, 'blocked');
-assert.equal(blockedReport.summary.passedCount, 100);
+assert.equal(blockedReport.summary.passedCount, 109);
 assert.equal(blockedReport.summary.blockedCount, 1);
 assert.equal(blockedReport.summary.failedCount, 0);
 assert.deepEqual(blockedReport.summary.blockedCheckIds, ['web-bundle-budget']);
@@ -481,7 +499,7 @@ const runnerBlockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(runnerBlockedReport.status, 'blocked');
-assert.equal(runnerBlockedReport.summary.passedCount, 100);
+assert.equal(runnerBlockedReport.summary.passedCount, 109);
 assert.equal(runnerBlockedReport.summary.blockedCount, 1);
 assert.equal(runnerBlockedReport.summary.failedCount, 0);
 assert.deepEqual(runnerBlockedReport.summary.blockedCheckIds, ['web-bundle-budget']);

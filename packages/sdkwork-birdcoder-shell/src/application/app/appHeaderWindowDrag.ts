@@ -78,6 +78,17 @@ export function createAppHeaderWindowDragController(
   let pressOrigin: { clientX: number; clientY: number } | null = null;
   let activePointerId: number | null = null;
 
+  const startDraggingNow = () => {
+    try {
+      const dragResult = options.startDragging();
+      if (dragResult && typeof (dragResult as Promise<void>).catch === 'function') {
+        void (dragResult as Promise<void>).catch(() => {
+        });
+      }
+    } catch {
+    }
+  };
+
   const detachCancelListeners = () => {
     removeWindowListener('pointerup', cancelPendingDrag);
     removeWindowListener('pointercancel', cancelPendingDrag);
@@ -149,6 +160,12 @@ export function createAppHeaderWindowDragController(
     }
 
     cancelPendingDrag();
+
+    if (isMouseLikePointer) {
+      startDraggingNow();
+      return true;
+    }
+
     pressOrigin = {
       clientX: typeof clientX === 'number' ? clientX : 0,
       clientY: typeof clientY === 'number' ? clientY : 0,
@@ -168,7 +185,7 @@ export function createAppHeaderWindowDragController(
         return;
       }
 
-      await options.startDragging();
+      startDraggingNow();
     }, delayMs);
 
     return true;

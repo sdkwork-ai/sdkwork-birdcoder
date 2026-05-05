@@ -8,6 +8,18 @@ import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from '../governance-regression
 import { smokeFinalizedReleaseAssets } from './smoke-finalized-release-assets.mjs';
 
 const releaseAssetsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-finalized-smoke-'));
+const passedWindowsSignatureEvidence = {
+  status: 'passed',
+  required: true,
+  scheme: 'windows-authenticode',
+  verifiedAt: '2026-04-08T13:04:00.000Z',
+  subject: 'CN=SDKWork BirdCoder',
+  issuer: 'CN=SDKWork Code Signing CA',
+  timestamped: true,
+  notarized: false,
+  stapled: false,
+  packageMetadataVerified: true,
+};
 
 fs.mkdirSync(path.join(releaseAssetsDir, 'studio', 'build'), { recursive: true });
 fs.mkdirSync(path.join(releaseAssetsDir, 'studio', 'preview'), { recursive: true });
@@ -82,6 +94,31 @@ fs.writeFileSync(
         projectId: 'project-1',
         runConfigurationId: 'workspace-suite',
         launchedAt: 1712577780000,
+      },
+    ],
+  }, null, 2),
+);
+fs.writeFileSync(
+  path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'desktop-setup.exe'),
+  'exe',
+);
+fs.writeFileSync(
+  path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'desktop-installer-trust-report.json'),
+  JSON.stringify({
+    status: 'passed',
+    platform: 'windows',
+    arch: 'x64',
+    target: 'x86_64-pc-windows-msvc',
+    manifestPath: path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'release-asset-manifest.json'),
+    verifiedAt: '2026-04-08T13:04:00.000Z',
+    installerCount: 1,
+    installers: [
+      {
+        relativePath: 'desktop/windows/x64/desktop-setup.exe',
+        bundle: 'nsis',
+        installerFormat: 'nsis',
+        target: 'x86_64-pc-windows-msvc',
+        signatureEvidence: passedWindowsSignatureEvidence,
       },
     ],
   }, null, 2),
@@ -218,6 +255,12 @@ const codingServerOpenApiSha256 = crypto
   .createHash('sha256')
   .update(fs.readFileSync(path.join(releaseAssetsDir, 'server', 'windows', 'x64', 'openapi', 'coding-server-v1.json')))
   .digest('hex');
+const desktopInstallerRelativePath = 'desktop/windows/x64/desktop-setup.exe';
+const desktopInstallerSha256 = crypto
+  .createHash('sha256')
+  .update(fs.readFileSync(path.join(releaseAssetsDir, desktopInstallerRelativePath)))
+  .digest('hex');
+const publishArtifactRelativePath = 'server/windows/x64/openapi/coding-server-v1.json';
 fs.writeFileSync(
   path.join(releaseAssetsDir, 'release-manifest.json'),
   JSON.stringify({
@@ -231,6 +274,7 @@ fs.writeFileSync(
       rollbackRunbookRef: 'docs/runbooks/canary-rollback.md',
       rollbackCommand: '',
     },
+    checksumFileName: 'SHA256SUMS.txt',
     assets: [
       {
         family: 'desktop',
@@ -278,6 +322,35 @@ fs.writeFileSync(
             'retrySupported',
           ],
         },
+        desktopInstallerTrust: {
+          reportRelativePath: 'desktop/windows/x64/desktop-installer-trust-report.json',
+          manifestRelativePath: 'desktop/windows/x64/release-asset-manifest.json',
+          status: 'passed',
+          platform: 'windows',
+          arch: 'x64',
+          target: 'x86_64-pc-windows-msvc',
+          verifiedAt: '2026-04-08T13:04:00.000Z',
+          installerCount: 1,
+          installers: [
+            {
+              relativePath: desktopInstallerRelativePath,
+              bundle: 'nsis',
+              installerFormat: 'nsis',
+              target: 'x86_64-pc-windows-msvc',
+              signatureEvidence: passedWindowsSignatureEvidence,
+            },
+          ],
+        },
+        artifacts: [
+          {
+            relativePath: desktopInstallerRelativePath,
+            kind: 'installer',
+            bundle: 'nsis',
+            installerFormat: 'nsis',
+            target: 'x86_64-pc-windows-msvc',
+            signatureEvidence: passedWindowsSignatureEvidence,
+          },
+        ],
       },
       {
         family: 'server',
@@ -285,9 +358,36 @@ fs.writeFileSync(
         arch: 'x64',
         artifacts: [
           {
-            relativePath: 'server/windows/x64/openapi/coding-server-v1.json',
+            relativePath: publishArtifactRelativePath,
           },
         ],
+      },
+    ],
+    artifacts: [
+      {
+        family: 'desktop',
+        platform: 'windows',
+        arch: 'x64',
+        target: 'x86_64-pc-windows-msvc',
+        accelerator: '',
+        kind: 'installer',
+        bundle: 'nsis',
+        installerFormat: 'nsis',
+        relativePath: desktopInstallerRelativePath,
+        sha256: desktopInstallerSha256,
+        size: fs.statSync(path.join(releaseAssetsDir, desktopInstallerRelativePath)).size,
+        signatureEvidence: passedWindowsSignatureEvidence,
+      },
+      {
+        family: 'server',
+        platform: 'windows',
+        arch: 'x64',
+        target: '',
+        accelerator: '',
+        kind: 'metadata',
+        relativePath: publishArtifactRelativePath,
+        sha256: codingServerOpenApiSha256,
+        size: fs.statSync(path.join(releaseAssetsDir, publishArtifactRelativePath)).size,
       },
     ],
     codingServerOpenApiEvidence: {
@@ -458,6 +558,28 @@ assert.deepEqual(result.desktopStartupReadiness, [
     ],
   },
 ]);
+assert.deepEqual(result.desktopInstallerTrust, [
+  {
+    target: 'windows/x64',
+    reportRelativePath: 'desktop/windows/x64/desktop-installer-trust-report.json',
+    manifestRelativePath: 'desktop/windows/x64/release-asset-manifest.json',
+    status: 'passed',
+    platform: 'windows',
+    arch: 'x64',
+    targetTriple: 'x86_64-pc-windows-msvc',
+    verifiedAt: '2026-04-08T13:04:00.000Z',
+    installerCount: 1,
+    installers: [
+      {
+        relativePath: desktopInstallerRelativePath,
+        bundle: 'nsis',
+        installerFormat: 'nsis',
+        target: 'x86_64-pc-windows-msvc',
+        signatureEvidence: passedWindowsSignatureEvidence,
+      },
+    ],
+  },
+]);
 assert.deepEqual(result.stopShipSignals, [
   'quality blockers `vite-host-build-preflight`',
   'runtime blocked tiers `standard`',
@@ -513,10 +635,6 @@ assert.deepEqual(result.qualityEvidence, {
 });
 
 const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
-const smokeReportSha256 = crypto
-  .createHash('sha256')
-  .update(fs.readFileSync(result.reportPath))
-  .digest('hex');
 assert.equal(report.status, 'passed');
 assert.deepEqual(report.stopShipSignals, [
   'quality blockers `vite-host-build-preflight`',
@@ -561,9 +679,14 @@ assert.equal(
   report.checks.find((entry) => entry.id === 'desktop-startup-readiness-summary-match')?.status,
   'passed',
 );
-assert.match(
+assert.equal(
+  report.checks.find((entry) => entry.id === 'desktop-installer-trust-summary-match')?.status,
+  'passed',
+);
+assert.equal(
   fs.readFileSync(path.join(releaseAssetsDir, 'SHA256SUMS.txt'), 'utf8'),
-  new RegExp(`^${smokeReportSha256}  finalized-release-smoke-report\\.json$`, 'm'),
+  `${desktopInstallerSha256}  ${desktopInstallerRelativePath}\n${codingServerOpenApiSha256}  ${publishArtifactRelativePath}\n`,
+  'finalized smoke must refresh checksums from release-manifest.json.artifacts without inserting the smoke report',
 );
 
 const manifestPath = path.join(releaseAssetsDir, 'release-manifest.json');

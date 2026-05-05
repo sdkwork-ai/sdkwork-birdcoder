@@ -5,6 +5,10 @@ const studioPageSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
+const studioMainContentSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioMainContent.tsx', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   studioPageSource,
@@ -19,7 +23,7 @@ assert.match(
 );
 
 assert.match(
-  studioPageSource,
+  studioMainContentSource,
   /onTabChange=\{handleActiveTabChange\}/,
   'StudioStageHeader must receive the transition-aware tab-change callback instead of the raw setState dispatcher.',
 );

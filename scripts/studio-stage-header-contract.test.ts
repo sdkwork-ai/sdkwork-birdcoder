@@ -9,6 +9,10 @@ const studioPageSource = readFileSync(
   new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
+const studioMainContentSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioMainContent.tsx', import.meta.url),
+  'utf8',
+);
 
 assert.equal(
   studioStageHeaderSource.includes("onClick={() => onTabChange('preview')}"),
@@ -107,8 +111,9 @@ assert.doesNotMatch(
 );
 
 assert.ok(
-  studioPageSource.includes("projectId={activeTab === 'code' ? currentProjectId || undefined : undefined}"),
-  'StudioPage should only activate StageHeader Git loading when the code tab is visible.',
+  studioPageSource.includes("from './StudioMainContent';") &&
+    studioMainContentSource.includes("projectId={activeTab === 'code' ? currentProjectId || undefined : undefined}"),
+  'StudioMainContent should only activate StageHeader Git loading when the code tab is visible.',
 );
 
 console.log('studio stage header contract passed.');

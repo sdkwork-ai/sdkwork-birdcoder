@@ -379,8 +379,8 @@ assert.match(
 
 assert.match(
   universalChatHandleSendSource,
-  /isAwaitingQueuedTurnSettlement\s*=\s*queuedTurnFlushGateRef\.current\.awaitingTurnSettlement[\s\S]*if \(isComposerTurnBlocked \|\| isAwaitingQueuedTurnSettlement\) \{[\s\S]*enqueueQueuedMessage\(currentInput\);/,
-  'Manual typed sends must enter the queue while a just-created turn is waiting for runtime busy observation.',
+  /isAwaitingQueuedTurnSettlement\s*=\s*queuedTurnFlushGateRef\.current\.awaitingTurnSettlement[\s\S]*if \(isComposerTurnBlocked \|\| isAwaitingQueuedTurnSettlement\) \{[\s\S]*enqueueQueuedMessage\(currentInput,\s*currentComposerSelection\);/,
+  'Manual typed sends must enter the queue with the current composer selection while a just-created turn is waiting for runtime busy observation.',
 );
 
 assert.match(

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import type { BirdCoderProjectCollaboratorSummary } from '@sdkwork/birdcoder-types';
+import { copyTextToClipboard } from '@sdkwork/birdcoder-ui';
 
 type ToastFn = (message: string, type?: 'success' | 'error' | 'info') => void;
 
@@ -87,8 +88,12 @@ export function useStudioCollaboration({
   }, [showShareModal]);
 
   const handleCopyPublicLink = useCallback(() => {
-    navigator.clipboard.writeText(publicShareUrl);
-    addToast(messages.linkCopied, 'success');
+    void copyTextToClipboard(publicShareUrl).then((didCopy) => {
+      addToast(
+        didCopy ? messages.linkCopied : 'Unable to copy public link',
+        didCopy ? 'success' : 'error',
+      );
+    });
   }, [addToast, messages.linkCopied, publicShareUrl]);
 
   const handleInviteCollaborator = useCallback(async () => {

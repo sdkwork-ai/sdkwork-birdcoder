@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import {
   buildHtmlPreviewDocument,
   buildSvgPreviewDocument,
+  CONTENT_PREVIEW_MAX_CODE_HIGHLIGHT_LENGTH,
+  CONTENT_PREVIEW_MAX_MARKDOWN_LENGTH,
   parseKeyValuePreviewValue,
   parseStructuredDataPreviewValue,
   parseTabularDataPreviewValue,
@@ -32,6 +34,48 @@ assert.equal(
   }),
   'markdown',
   'Markdown files must resolve to Markdown preview mode.',
+);
+
+assert.equal(
+  CONTENT_PREVIEW_MAX_MARKDOWN_LENGTH,
+  64_000,
+  'Markdown preview must use a conservative rich-render budget so large documents do not monopolize the UI thread.',
+);
+
+assert.equal(
+  resolveContentPreviewDescriptor({
+    path: '/workspace/README.md',
+    language: 'markdown',
+    value: `${'# Large document\n\n'}${'content '.repeat(10_000)}`,
+  }).presentation,
+  'text',
+  'Oversized Markdown files must fall back to plain text instead of ReactMarkdown or syntax highlighting.',
+);
+
+assert.equal(
+  CONTENT_PREVIEW_MAX_CODE_HIGHLIGHT_LENGTH,
+  100_000,
+  'Code preview must use a bounded syntax-highlighting budget so large files do not monopolize the UI thread.',
+);
+
+assert.equal(
+  resolveContentPreviewDescriptor({
+    path: '/workspace/src/app.ts',
+    language: 'typescript',
+    value: 'export const value = 1;\n',
+  }).presentation,
+  'code',
+  'Small source files should still use syntax-highlighted code preview.',
+);
+
+assert.equal(
+  resolveContentPreviewDescriptor({
+    path: '/workspace/src/huge.ts',
+    language: 'typescript',
+    value: 'export const value = 1;\n'.repeat(6000),
+  }).presentation,
+  'text',
+  'Oversized source files must fall back to plain text instead of syntax highlighting.',
 );
 
 assert.equal(
@@ -572,6 +616,30 @@ assert.equal(
   'Locked sandbox policy must remove all iframe permissions.',
 );
 
+assert.doesNotMatch(
+  resolveContentPreviewSandbox('balanced'),
+  /\ballow-scripts\b|\ballow-same-origin\b/,
+  'Balanced sandbox policy must not combine scripts or same-origin by default for untrusted project file previews.',
+);
+
+assert.equal(
+  resolveContentPreviewSandbox('locked', 'allow-scripts allow-same-origin allow-popups'),
+  '',
+  'Locked sandbox policy must ignore override tokens and keep the iframe fully locked.',
+);
+
+assert.equal(
+  resolveContentPreviewSandbox('balanced', 'allow-scripts allow-same-origin allow-popups made-up-token'),
+  'allow-popups',
+  'Balanced sandbox overrides must be sanitized so callers cannot re-enable scripts or same-origin for untrusted previews.',
+);
+
+assert.equal(
+  resolveContentPreviewSandbox('trusted', 'allow-scripts allow-same-origin allow-popups made-up-token'),
+  'allow-popups allow-same-origin allow-scripts',
+  'Trusted sandbox overrides may request powerful iframe capabilities but must still drop unknown sandbox tokens.',
+);
+
 assert.match(
   resolveContentPreviewSandbox('trusted'),
   /allow-same-origin/,
@@ -609,6 +677,14 @@ const contentPreviewerSource = readFileSync(
 );
 const universalChatCodeBlockSource = readFileSync(
   new URL('../packages/sdkwork-birdcoder-ui/src/components/UniversalChatCodeBlock.tsx', import.meta.url),
+  'utf8',
+);
+const multiWindowPaneSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-multiwindow/src/components/MultiWindowPane.tsx', import.meta.url),
+  'utf8',
+);
+const devicePreviewSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-ui-shell/src/components/DevicePreview.tsx', import.meta.url),
   'utf8',
 );
 
@@ -670,6 +746,12 @@ assert.match(
   universalChatCodeBlockSource,
   /\['toml', 'toml'\]/,
   'UniversalChatCodeBlock must register TOML so config-oriented code previews such as Cargo.toml render with correct syntax highlighting.',
+);
+
+assert.doesNotMatch(
+  `${multiWindowPaneSource}\n${devicePreviewSource}`,
+  /sandbox="(?=[^"]*\ballow-scripts\b)(?=[^"]*\ballow-same-origin\b)[^"]*"/,
+  'Preview iframes with arbitrary URLs must not hard-code the allow-scripts plus allow-same-origin sandbox combination.',
 );
 
 console.log('content previewer contract passed');

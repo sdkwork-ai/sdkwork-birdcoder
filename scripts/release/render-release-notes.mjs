@@ -131,6 +131,7 @@ function buildFinalizedReleaseReadinessOverviewLines(manifest = null) {
     : collectReleaseStopShipSignals({
       qualityEvidence: manifest.qualityEvidence,
       assets: manifest.assets ?? [],
+      artifacts: manifest.artifacts ?? [],
     });
   const finalizedReadinessSignals = normalizeStopShipSignals([
     ...stopShipSignals,
@@ -306,10 +307,13 @@ function normalizeNotePath(targetPath) {
   const absolutePath = path.isAbsolute(trimmed)
     ? trimmed
     : path.resolve(process.cwd(), trimmed);
-  const relativePath = path.relative(process.cwd(), absolutePath);
-  const displayPath = relativePath && !relativePath.startsWith('..')
-    ? relativePath
-    : trimmed;
+  const rootRelativePath = path.relative(workspaceRootDir, absolutePath);
+  const cwdRelativePath = path.relative(process.cwd(), absolutePath);
+  const displayPath = rootRelativePath && !rootRelativePath.startsWith('..') && !path.isAbsolute(rootRelativePath)
+    ? rootRelativePath
+    : cwdRelativePath && !cwdRelativePath.startsWith('..') && !path.isAbsolute(cwdRelativePath)
+      ? cwdRelativePath
+      : trimmed;
 
   return displayPath.replace(/\\/g, '/');
 }
@@ -427,6 +431,7 @@ function buildPostReleaseOperationsLines({
   const stopShipSignals = collectReleaseStopShipSignals({
     qualityEvidence: manifest.qualityEvidence ?? null,
     assets,
+    artifacts: manifest.artifacts ?? [],
   });
 
   const registryTarget = normalizeNotePath(path.join(docsDir, 'releases.json'));
@@ -572,6 +577,7 @@ function buildRegistryPromotionMetadata(manifest = null) {
     : collectReleaseStopShipSignals({
       qualityEvidence: manifest.qualityEvidence,
       assets: manifest.assets ?? [],
+      artifacts: manifest.artifacts ?? [],
     });
   const promotionReadiness = manifest.promotionReadiness
     ? normalizePromotionReadinessSummary(manifest.promotionReadiness)

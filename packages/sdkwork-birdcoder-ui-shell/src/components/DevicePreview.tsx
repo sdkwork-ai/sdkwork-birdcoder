@@ -1,4 +1,5 @@
 import { LayoutGrid } from 'lucide-react';
+import { resolveSafePreviewUrl } from './previewUrlSecurity';
 
 export type PreviewPlatform = 'web' | 'miniprogram' | 'app';
 export type WebDevice = 'desktop' | 'tablet' | 'mobile';
@@ -35,6 +36,7 @@ export function DevicePreview({
   isLandscape = false,
   refreshKey = 0,
 }: DevicePreviewProps) {
+  const safeUrl = resolveSafePreviewUrl(url);
   const getDeviceDimensions = () => {
     if (platform === 'web') {
       if (webDevice === 'desktop') {
@@ -121,13 +123,13 @@ export function DevicePreview({
           <div className="relative h-full w-full flex-1 bg-white">
             <iframe
               key={refreshKey}
-              src={url}
+              src={safeUrl}
               className="h-full w-full border-0 bg-white"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              sandbox="allow-scripts allow-forms allow-popups"
               title="Preview"
             />
 
-            {url === 'about:blank' ? (
+            {safeUrl === 'about:blank' ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#18181b] text-gray-400">
                 <LayoutGrid size={32} className="mb-4 opacity-20" />
                 <p className="text-sm">Preview not available</p>

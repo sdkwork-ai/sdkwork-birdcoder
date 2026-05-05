@@ -31,8 +31,8 @@ assert.match(
 
 assert.match(
   projectionHookSource,
-  /export async function loadCodingSessionPendingInteractionState\([\s\S]*const projection = await loadCodingSessionProjection\(coreReadService, codingSessionId\);[\s\S]*approvals: deriveCodingSessionPendingApprovals\(projection\),[\s\S]*questions: deriveCodingSessionPendingUserQuestions\(projection\),/,
-  'Combined pending interaction loader must load the session projection once and derive both approvals and questions from it.',
+  /export async function loadCodingSessionPendingInteractionState\([\s\S]*const projection = await loadCodingSessionProjection\(coreReadService, codingSessionId\);[\s\S]*const pendingInteractionIndex = buildPendingInteractionDerivationIndex\(projection\);[\s\S]*approvals: deriveCodingSessionPendingApprovalsFromIndex\(projection,\s*pendingInteractionIndex\),[\s\S]*questions: deriveCodingSessionPendingUserQuestionsFromIndex\(pendingInteractionIndex\),/,
+  'Combined pending interaction loader must load the session projection once and derive both approvals and questions from one shared projection index.',
 );
 
 assert.match(
@@ -43,8 +43,8 @@ assert.match(
 
 assert.match(
   projectionHookSource,
-  /const refreshPendingInteractions = useCallback\([\s\S]*loadCodingSessionPendingInteractionState\(\s*coreReadService,\s*codingSessionId,\s*\)[\s\S]*useEffect\(\(\) => \{\s*void refreshPendingInteractions\(\);\s*\}, \[refreshPendingInteractions, refreshToken\]\);/s,
-  'Combined pending interaction hook must refresh both interaction types through one projection read when the refresh token changes.',
+  /const refreshPendingInteractions = useCallback\([\s\S]*loadCodingSessionPendingInteractionState\(\s*coreReadService,\s*codingSessionId,\s*expectedProjectId,\s*\)[\s\S]*useEffect\(\(\) => \{\s*void refreshPendingInteractions\(\);\s*\}, \[refreshPendingInteractions, refreshToken\]\);/s,
+  'Combined pending interaction hook must refresh both interaction types through one project-scoped projection read when the refresh token changes.',
 );
 
 assert.match(
@@ -55,8 +55,8 @@ assert.match(
 
 assert.match(
   codePendingInteractionsSource,
-  /useCodingSessionPendingInteractionState\(sessionId, refreshToken\)/,
-  'Code pending interactions must use the combined projection hook.',
+  /useCodingSessionPendingInteractionState\(\s*sessionId,\s*refreshToken,\s*sessionScopeKey,\s*projectId,\s*\)/,
+  'Code pending interactions must use the combined projection hook with session scope.',
 );
 
 assert.doesNotMatch(
@@ -67,8 +67,8 @@ assert.doesNotMatch(
 
 assert.match(
   studioPageSource,
-  /useCodingSessionPendingInteractionState\(sessionId \|\| null, pendingInteractionRefreshToken\)/,
-  'StudioPage must use the combined pending interaction projection hook.',
+  /useCodingSessionPendingInteractionState\(\s*sessionId \|\| null,\s*pendingInteractionRefreshToken,\s*pendingInteractionScopeKey,\s*currentProjectId,\s*\)/,
+  'StudioPage must use the combined pending interaction projection hook with session scope.',
 );
 
 assert.doesNotMatch(

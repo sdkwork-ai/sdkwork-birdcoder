@@ -118,6 +118,16 @@ export function createReleasePlan({
   if (!normalizedReleaseTag) {
     throw new Error('releaseTag is required to resolve a release plan.');
   }
+  const desktopMatrix = buildDesktopReleaseMatrix(profile.id);
+  const serverMatrix = buildServerReleaseMatrix(profile.id);
+  const containerMatrix = buildContainerReleaseMatrix(profile.id);
+  const kubernetesMatrix = buildKubernetesReleaseMatrix(profile.id);
+  const targetSummary = buildReleasePlanTargetSummary({
+    desktopMatrix,
+    serverMatrix,
+    containerMatrix,
+    kubernetesMatrix,
+  });
 
   return {
     profileId: profile.id,
@@ -135,10 +145,38 @@ export function createReleasePlan({
       rollbackRunbookRef,
       rollbackCommand,
     }),
-    desktopMatrix: buildDesktopReleaseMatrix(profile.id),
-    serverMatrix: buildServerReleaseMatrix(profile.id),
-    containerMatrix: buildContainerReleaseMatrix(profile.id),
-    kubernetesMatrix: buildKubernetesReleaseMatrix(profile.id),
+    ...targetSummary,
+    desktopMatrix,
+    serverMatrix,
+    containerMatrix,
+    kubernetesMatrix,
+  };
+}
+
+export function buildReleasePlanTargetSummary({
+  desktopMatrix = [],
+  serverMatrix = [],
+  containerMatrix = [],
+  kubernetesMatrix = [],
+} = {}) {
+  const familyTargetCounts = {
+    web: 1,
+    desktop: desktopMatrix.reduce(
+      (total, entry) => total + (Array.isArray(entry?.bundles) ? entry.bundles.length : 0),
+      0,
+    ),
+    server: serverMatrix.length,
+    container: containerMatrix.length,
+    kubernetes: kubernetesMatrix.length,
+  };
+  const requiredTargetCount = Object.values(familyTargetCounts).reduce(
+    (total, count) => total + count,
+    0,
+  );
+
+  return {
+    familyTargetCounts,
+    requiredTargetCount,
   };
 }
 
@@ -306,7 +344,11 @@ export function writeGitHubOutput(
     `rollback_runbook_ref=${plan.releaseControl.rollbackRunbookRef}`,
     `rollback_command=${plan.releaseControl.rollbackCommand}`,
     `manifest_file_name=${plan.release.manifestFileName}`,
+    `manifest_checksum_file_name=${plan.release.manifestChecksumFileName}`,
+    `attestation_evidence_file_name=${plan.release.attestationEvidenceFileName}`,
     `global_checksums_file_name=${plan.release.globalChecksumsFileName}`,
+    `required_target_count=${plan.requiredTargetCount}`,
+    `family_target_counts=${JSON.stringify(plan.familyTargetCounts)}`,
     `desktop_matrix=${JSON.stringify(plan.desktopMatrix)}`,
     `server_matrix=${JSON.stringify(plan.serverMatrix)}`,
     `container_matrix=${JSON.stringify(plan.containerMatrix)}`,

@@ -23,6 +23,9 @@ const codeWorkspacePanelSource = readSource(
 const studioPageSource = readSource(
   'packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx',
 );
+const studioMainContentSource = readSource(
+  'packages/sdkwork-birdcoder-studio/src/pages/StudioMainContent.tsx',
+);
 const studioHeaderSource = readSource(
   'packages/sdkwork-birdcoder-studio/src/preview/StudioStageHeader.tsx',
 );
@@ -68,8 +71,8 @@ assert.match(
 
 assert.match(
   codeSurfacePropsSource,
-  /projectGitOverviewState,/,
-  'Code page surface props builder must thread the shared Git overview state into the surfaces that render Git UI.',
+  /const gitOverviewDrawerProps = useMemo<ComponentProps<typeof ProjectGitOverviewDrawer>>\(\(\) => \(\{[\s\S]*projectGitOverviewState,/s,
+  'Code page surface props builder must thread the shared Git overview state into the page-level drawer that renders Git UI.',
 );
 
 assert.match(
@@ -78,10 +81,10 @@ assert.match(
   'TopBar must reuse the shared Git overview state when rendering header Git controls.',
 );
 
-assert.match(
+assert.doesNotMatch(
   codeWorkspacePanelSource,
-  /\{isActive \? \([\s\S]*<ProjectGitOverviewPanel[\s\S]*projectGitOverviewState=\{projectGitOverviewState\}/s,
-  'Code editor workspace panel must mount the Git overview panel only while active and reuse the shared Git overview state.',
+  /ProjectGitOverviewPanel|projectGitOverviewState/,
+  'Code editor workspace panel must not subscribe to or receive Git overview state; the page-level drawer owns Git UI so Git refreshes do not rerender the editor chat rail.',
 );
 
 assert.match(
@@ -97,9 +100,15 @@ assert.match(
 );
 
 assert.match(
+  studioMainContentSource,
+  /<ProjectGitOverviewDrawer[\s\S]*projectGitOverviewState=\{projectGitOverviewState\}/s,
+  'Studio main content must reuse the shared Git overview state when rendering the page-level Git overview drawer.',
+);
+
+assert.doesNotMatch(
   studioWorkspacePanelSource,
-  /\{isActive \? \([\s\S]*<ProjectGitOverviewPanel[\s\S]*projectGitOverviewState=\{projectGitOverviewState\}/s,
-  'Studio code workspace panel must mount the Git overview panel only while active and reuse the shared Git overview state.',
+  /ProjectGitOverviewPanel|projectGitOverviewState/,
+  'Studio code workspace panel must not subscribe to or receive Git overview state; the page-level drawer owns Git UI so Git refreshes do not rerender the code workspace.',
 );
 
 console.log('project git overview performance contract passed.');

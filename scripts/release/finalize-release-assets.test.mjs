@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,6 +7,7 @@ import path from 'node:path';
 import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from '../governance-regression-report.mjs';
 import { finalizeReleaseAssets } from './finalize-release-assets.mjs';
 import { summarizeQualityLoopScoreboard } from './quality-gate-release-evidence.mjs';
+import { RELEASE_ASSET_MANIFEST_FILE_NAME } from './release-profiles.mjs';
 import {
   buildPromotionReadinessSummary,
   collectReleaseStopShipSignals,
@@ -14,6 +16,35 @@ import {
 const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-finalize-'));
 const releaseAssetsDir = path.join(fixtureRoot, 'assets');
 const qualityExecutionReportSourcePath = path.join(fixtureRoot, 'quality-gate-execution-report.json');
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+const pendingWindowsSignatureEvidence = {
+  status: 'pending',
+  required: true,
+  scheme: 'windows-authenticode',
+  verifiedAt: '',
+  subject: '',
+  issuer: '',
+  timestamped: false,
+  notarized: false,
+  stapled: false,
+  packageMetadataVerified: false,
+};
+const passedWindowsSignatureEvidence = {
+  status: 'passed',
+  required: true,
+  scheme: 'windows-authenticode',
+  verifiedAt: '2026-04-08T12:30:00.000Z',
+  subject: 'CN=SDKWork BirdCoder',
+  issuer: 'CN=SDKWork Code Signing CA',
+  timestamped: true,
+  notarized: false,
+  stapled: false,
+  packageMetadataVerified: true,
+};
 fs.mkdirSync(path.join(releaseAssetsDir, 'container', 'linux', 'x64', 'cpu'), { recursive: true });
 fs.mkdirSync(path.join(releaseAssetsDir, 'desktop', 'windows', 'x64'), { recursive: true });
 fs.mkdirSync(path.join(releaseAssetsDir, 'server', 'windows', 'x64', 'openapi'), { recursive: true });
@@ -60,10 +91,58 @@ fs.writeFileSync(
     archiveRelativePath: 'desktop/windows/x64/desktop.tar.gz',
     artifacts: [
       { relativePath: 'desktop/windows/x64/desktop.tar.gz', size: 3 },
+      {
+        relativePath: 'desktop/windows/x64/desktop-setup.exe',
+        size: 3,
+        kind: 'installer',
+        bundle: 'nsis',
+        installerFormat: 'nsis',
+        target: 'x86_64-pc-windows-msvc',
+        signatureEvidence: passedWindowsSignatureEvidence,
+      },
+      {
+        relativePath: 'desktop/windows/x64/desktop-installer.msi',
+        size: 3,
+        kind: 'installer',
+        bundle: 'msi',
+        installerFormat: 'msi',
+        target: 'x86_64-pc-windows-msvc',
+        signatureEvidence: passedWindowsSignatureEvidence,
+      },
     ],
   }, null, 2),
 );
 fs.writeFileSync(path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'desktop.tar.gz'), 'tar');
+fs.writeFileSync(path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'desktop-setup.exe'), 'exe');
+fs.writeFileSync(path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'desktop-installer.msi'), 'msi');
+fs.writeFileSync(
+  path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'desktop-installer-trust-report.json'),
+  JSON.stringify({
+    status: 'passed',
+    platform: 'windows',
+    arch: 'x64',
+    target: 'x86_64-pc-windows-msvc',
+    manifestPath: path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'release-asset-manifest.json'),
+    verifiedAt: '2026-04-08T12:30:00.000Z',
+    installerCount: 2,
+    installers: [
+      {
+        relativePath: 'desktop/windows/x64/desktop-installer.msi',
+        bundle: 'msi',
+        installerFormat: 'msi',
+        target: 'x86_64-pc-windows-msvc',
+        signatureEvidence: passedWindowsSignatureEvidence,
+      },
+      {
+        relativePath: 'desktop/windows/x64/desktop-setup.exe',
+        bundle: 'nsis',
+        installerFormat: 'nsis',
+        target: 'x86_64-pc-windows-msvc',
+        signatureEvidence: passedWindowsSignatureEvidence,
+      },
+    ],
+  }, null, 2),
+);
 fs.writeFileSync(
   path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'desktop-installer-smoke-report.json'),
   JSON.stringify({
@@ -310,9 +389,25 @@ const result = finalizeReleaseAssets({
 
 assert.ok(fs.existsSync(result.manifestPath));
 assert.ok(fs.existsSync(result.checksumsPath));
+assert.equal(
+  fs.existsSync(path.join(releaseAssetsDir, 'release-manifest.json.sha256.txt')),
+  true,
+  'finalizer must write a checksum sidecar for the finalized manifest itself',
+);
+assert.equal(
+  fs.existsSync(path.join(releaseAssetsDir, 'release-attestations.json')),
+  false,
+  'finalizer must leave attestation evidence for the post-attestation evidence writer',
+);
 
 const manifest = JSON.parse(fs.readFileSync(result.manifestPath, 'utf8'));
 assert.equal(manifest.profileId, 'sdkwork-birdcoder');
+assert.equal(manifest.attestationEvidenceFileName, 'release-attestations.json');
+assert.equal(manifest.attestationPredicateType, 'https://slsa.dev/provenance/v1');
+assert.equal(
+  fs.readFileSync(path.join(releaseAssetsDir, 'release-manifest.json.sha256.txt'), 'utf8'),
+  `${sha256(fs.readFileSync(result.manifestPath))}  release-manifest.json\n`,
+);
 assert.deepEqual(manifest.releaseControl, {
   releaseKind: 'canary',
   rolloutStage: 'ring-1',
@@ -324,7 +419,227 @@ assert.equal(manifest.assets.length, 3);
 assert.equal(manifest.assets[0].family, 'container');
 assert.equal(manifest.assets[1].family, 'desktop');
 assert.equal(manifest.assets[2].family, 'server');
+assert.equal(manifest.releaseCoverage.status, 'partial');
+assert.equal(manifest.releaseCoverage.allowPartialRelease, false);
+assert.match(manifest.releaseCoverage.requiredTargets.join(','), /web\/web\/any/);
+assert.match(manifest.releaseCoverage.presentTargets.join(','), /container\/linux\/x64\/cpu/);
+assert.match(manifest.releaseCoverage.presentTargets.join(','), /desktop\/windows\/x64\/msi/);
+assert.match(manifest.releaseCoverage.presentTargets.join(','), /desktop\/windows\/x64\/nsis/);
+assert.match(manifest.releaseCoverage.presentTargets.join(','), /server\/windows\/x64/);
+assert.match(manifest.releaseCoverage.missingTargets.join(','), /web\/web\/any/);
+const explicitBundleCoverageAssetsDir = path.join(fixtureRoot, 'explicit-bundle-coverage');
+fs.mkdirSync(path.join(explicitBundleCoverageAssetsDir, 'desktop', 'windows', 'x64'), { recursive: true });
+fs.writeFileSync(
+  path.join(explicitBundleCoverageAssetsDir, 'desktop', 'windows', 'x64', 'desktop-setup.exe'),
+  'exe',
+);
+fs.writeFileSync(
+  path.join(explicitBundleCoverageAssetsDir, 'desktop', 'windows', 'x64', RELEASE_ASSET_MANIFEST_FILE_NAME),
+  JSON.stringify({
+    family: 'desktop',
+    profileId: 'sdkwork-birdcoder',
+    platform: 'windows',
+    arch: 'x64',
+    target: 'x86_64-pc-windows-msvc',
+    archiveRelativePath: 'desktop/windows/x64/desktop-setup.exe',
+    artifacts: [
+      {
+        relativePath: 'desktop/windows/x64/desktop-setup.exe',
+        size: 3,
+        kind: 'installer',
+        bundle: 'msi',
+        installerFormat: 'msi',
+        target: 'x86_64-pc-windows-msvc',
+        signatureEvidence: pendingWindowsSignatureEvidence,
+      },
+    ],
+  }, null, 2),
+);
+fs.writeFileSync(
+  path.join(explicitBundleCoverageAssetsDir, 'desktop', 'windows', 'x64', 'desktop-installer-smoke-report.json'),
+  JSON.stringify({
+    platform: 'windows',
+    arch: 'x64',
+    target: 'x86_64-pc-windows-msvc',
+    status: 'passed',
+    installPlanSummaries: [
+      {
+        relativePath: 'desktop/windows/x64/desktop-setup.exe',
+        format: 'msi',
+        bundle: 'msi',
+        target: 'x86_64-pc-windows-msvc',
+        platform: 'windows',
+        stepCount: 1,
+        signatureEvidence: pendingWindowsSignatureEvidence,
+      },
+    ],
+  }, null, 2),
+);
+fs.writeFileSync(
+  path.join(explicitBundleCoverageAssetsDir, 'desktop', 'windows', 'x64', 'desktop-startup-evidence.json'),
+  fs.readFileSync(path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'desktop-startup-evidence.json'), 'utf8'),
+);
+fs.writeFileSync(
+  path.join(explicitBundleCoverageAssetsDir, 'desktop', 'windows', 'x64', 'desktop-startup-smoke-report.json'),
+  fs.readFileSync(path.join(releaseAssetsDir, 'desktop', 'windows', 'x64', 'desktop-startup-smoke-report.json'), 'utf8'),
+);
+const explicitBundleCoverageResult = finalizeReleaseAssets({
+  profile: 'sdkwork-birdcoder',
+  'release-tag': 'release-local',
+  'release-kind': 'canary',
+  'release-assets-dir': explicitBundleCoverageAssetsDir,
+});
+const explicitBundleCoverageManifest = JSON.parse(fs.readFileSync(explicitBundleCoverageResult.manifestPath, 'utf8'));
+assert.match(
+  explicitBundleCoverageManifest.releaseCoverage.presentTargets.join(','),
+  /desktop\/windows\/x64\/msi/,
+  'desktop coverage must honor explicit artifact.bundle metadata even when installer extension would otherwise imply a different bundle',
+);
+assert.doesNotMatch(
+  explicitBundleCoverageManifest.releaseCoverage.presentTargets.join(','),
+  /desktop\/windows\/x64\/nsis/,
+  'desktop coverage must not infer nsis from a .exe extension when explicit artifact.bundle says msi',
+);
+assert.deepEqual(
+  explicitBundleCoverageManifest.artifacts
+    .filter((artifact) => artifact.kind === 'installer')
+    .map((artifact) => ({
+      relativePath: artifact.relativePath,
+      bundle: artifact.bundle,
+      signatureEvidence: artifact.signatureEvidence,
+    })),
+  [
+    {
+      relativePath: 'desktop/windows/x64/desktop-setup.exe',
+      bundle: 'msi',
+      signatureEvidence: pendingWindowsSignatureEvidence,
+    },
+  ],
+  'finalized release artifacts must preserve desktop installer trust evidence from family manifests',
+);
+assert.equal(manifest.artifacts.length, 6);
+assert.deepEqual(
+  manifest.artifacts.map((artifact) => ({
+    relativePath: artifact.relativePath,
+    family: artifact.family,
+    platform: artifact.platform,
+    arch: artifact.arch,
+    kind: artifact.kind,
+    bundle: artifact.bundle,
+    installerFormat: artifact.installerFormat,
+    target: artifact.target,
+    signatureEvidence: artifact.signatureEvidence,
+    hasChecksum: /^[a-f0-9]{64}$/.test(String(artifact.sha256 ?? '')),
+    hasSize: typeof artifact.size === 'number' && artifact.size > 0,
+  })),
+  [
+    {
+      relativePath: 'container/linux/x64/cpu/sample.txt',
+      family: 'container',
+      platform: 'linux',
+      arch: 'x64',
+      kind: 'archive',
+      bundle: undefined,
+      installerFormat: undefined,
+      target: '',
+      signatureEvidence: undefined,
+      hasChecksum: true,
+      hasSize: true,
+    },
+    {
+      relativePath: 'desktop/windows/x64/desktop-installer.msi',
+      family: 'desktop',
+      platform: 'windows',
+      arch: 'x64',
+      kind: 'installer',
+      bundle: 'msi',
+      installerFormat: 'msi',
+      target: 'x86_64-pc-windows-msvc',
+      signatureEvidence: passedWindowsSignatureEvidence,
+      hasChecksum: true,
+      hasSize: true,
+    },
+    {
+      relativePath: 'desktop/windows/x64/desktop-setup.exe',
+      family: 'desktop',
+      platform: 'windows',
+      arch: 'x64',
+      kind: 'installer',
+      bundle: 'nsis',
+      installerFormat: 'nsis',
+      target: 'x86_64-pc-windows-msvc',
+      signatureEvidence: passedWindowsSignatureEvidence,
+      hasChecksum: true,
+      hasSize: true,
+    },
+    {
+      relativePath: 'desktop/windows/x64/desktop.tar.gz',
+      family: 'desktop',
+      platform: 'windows',
+      arch: 'x64',
+      kind: 'archive',
+      bundle: undefined,
+      installerFormat: undefined,
+      target: '',
+      signatureEvidence: undefined,
+      hasChecksum: true,
+      hasSize: true,
+    },
+    {
+      relativePath: 'server/windows/x64/openapi/coding-server-v1.json',
+      family: 'server',
+      platform: 'windows',
+      arch: 'x64',
+      kind: 'metadata',
+      bundle: undefined,
+      installerFormat: undefined,
+      target: '',
+      signatureEvidence: undefined,
+      hasChecksum: true,
+      hasSize: true,
+    },
+    {
+      relativePath: 'server/windows/x64/sdkwork-birdcoder-server-release-local-windows-x64.tar.gz',
+      family: 'server',
+      platform: 'windows',
+      arch: 'x64',
+      kind: 'archive',
+      bundle: undefined,
+      installerFormat: undefined,
+      target: '',
+      signatureEvidence: undefined,
+      hasChecksum: true,
+      hasSize: true,
+    },
+  ],
+);
 assert.equal(manifest.assets[0].releaseSmoke.status, 'passed');
+assert.deepEqual(manifest.assets[1].desktopInstallerTrust, {
+  reportRelativePath: 'desktop/windows/x64/desktop-installer-trust-report.json',
+  manifestRelativePath: 'desktop/windows/x64/release-asset-manifest.json',
+  status: 'passed',
+  platform: 'windows',
+  arch: 'x64',
+  target: 'x86_64-pc-windows-msvc',
+  verifiedAt: '2026-04-08T12:30:00.000Z',
+  installerCount: 2,
+  installers: [
+    {
+      relativePath: 'desktop/windows/x64/desktop-installer.msi',
+      bundle: 'msi',
+      installerFormat: 'msi',
+      target: 'x86_64-pc-windows-msvc',
+      signatureEvidence: passedWindowsSignatureEvidence,
+    },
+    {
+      relativePath: 'desktop/windows/x64/desktop-setup.exe',
+      bundle: 'nsis',
+      installerFormat: 'nsis',
+      target: 'x86_64-pc-windows-msvc',
+      signatureEvidence: passedWindowsSignatureEvidence,
+    },
+  ],
+});
 assert.equal(manifest.assets[1].desktopStartupSmoke.status, 'passed');
 assert.equal(manifest.assets[2].releaseSmoke.status, 'passed');
 assert.deepEqual(manifest.assets[1].desktopStartupReadinessSummary, {

@@ -91,7 +91,7 @@
         },
         "notes": "BirdCoder standardizes Codex on the official TypeScript SDK contract while keeping the Rust-native CLI JSONL authority lane as the production baseline."
       },
-      "defaultModelId": "gpt-5.4",
+      "defaultModelId": "gpt-5.5",
       "status": "active"
     },
     {
@@ -205,7 +205,7 @@
         },
         "notes": "BirdCoder standardizes Claude Code on the official Agent SDK contract, with a real Claude CLI print fallback inside the bundled TypeScript stdio bridge when Rust authority delegates SDK execution."
       },
-      "defaultModelId": "claude-code",
+      "defaultModelId": "claude-sonnet-4-6",
       "status": "active"
     },
     {
@@ -300,7 +300,7 @@
         },
         "notes": "BirdCoder standardizes Gemini on the Gemini CLI SDK contract and treats the bundled TypeScript stdio bridge as the primary authority delegation lane."
       },
-      "defaultModelId": "gemini",
+      "defaultModelId": "auto-gemini-3",
       "status": "active"
     },
     {
@@ -378,11 +378,28 @@
         },
         "notes": "BirdCoder standardizes OpenCode on the official JavaScript SDK contract while the Rust authority owns the OpenAPI-native server lane."
       },
-      "defaultModelId": "opencode",
+      "defaultModelId": "opencode/big-pickle",
       "status": "active"
     }
   ],
   "models": [
+    {
+      "id": "model-catalog:codex:gpt-5.5",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5.5",
+      "displayName": "GPT-5.5",
+      "status": "active",
+      "defaultForEngine": true,
+      "transportKinds": [
+        "cli-jsonl",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
     {
       "id": "model-catalog:codex:gpt-5.4",
       "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
@@ -393,7 +410,7 @@
       "modelId": "gpt-5.4",
       "displayName": "GPT-5.4",
       "status": "active",
-      "defaultForEngine": true,
+      "defaultForEngine": false,
       "transportKinds": [
         "cli-jsonl",
         "sdk-stream"
@@ -469,23 +486,38 @@
       "capabilityMatrix": {}
     },
     {
-      "id": "model-catalog:codex:gpt-5.1-codex-mini",
+      "id": "model-catalog:codex:gpt-5.2",
       "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
       "tenantId": "0",
       "createdAt": "2026-04-24T00:00:00.000Z",
       "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "codex",
-      "modelId": "gpt-5.1-codex-mini",
-      "displayName": "GPT-5.1 Codex Mini",
+      "modelId": "gpt-5.2",
+      "displayName": "GPT-5.2",
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
         "cli-jsonl",
         "sdk-stream"
       ],
-      "capabilityMatrix": {
-        "planning": false
-      }
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:codex:gpt-5.1",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5.1",
+      "displayName": "GPT-5.1",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "cli-jsonl",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
     },
     {
       "id": "model-catalog:codex:gpt-5-codex",
@@ -503,6 +535,76 @@
         "sdk-stream"
       ],
       "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:codex:gpt-5",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5",
+      "displayName": "GPT-5",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "cli-jsonl",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:codex:gpt-oss-120b",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-oss-120b",
+      "displayName": "GPT-OSS 120B",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "cli-jsonl",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:codex:gpt-oss-20b",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-oss-20b",
+      "displayName": "GPT-OSS 20B",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "cli-jsonl",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:codex:gpt-5.1-codex-mini",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636f",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5.1-codex-mini",
+      "displayName": "GPT-5.1 Codex Mini",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "cli-jsonl",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {
+        "planning": false
+      }
     },
     {
       "id": "model-catalog:codex:gpt-5-codex-mini",
@@ -524,14 +626,14 @@
       }
     },
     {
-      "id": "model-catalog:claude-code:claude-code",
+      "id": "model-catalog:claude-code:claude-sonnet-4-6",
       "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
       "tenantId": "0",
       "createdAt": "2026-04-24T00:00:00.000Z",
       "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "claude-code",
-      "modelId": "claude-code",
-      "displayName": "Claude Code Default",
+      "modelId": "claude-sonnet-4-6",
+      "displayName": "Claude Sonnet 4.6",
       "status": "active",
       "defaultForEngine": true,
       "transportKinds": [
@@ -544,14 +646,14 @@
       }
     },
     {
-      "id": "model-catalog:claude-code:claude-3-opus",
+      "id": "model-catalog:claude-code:claude-opus-4-6",
       "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
       "tenantId": "0",
       "createdAt": "2026-04-24T00:00:00.000Z",
       "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "claude-code",
-      "modelId": "claude-3-opus",
-      "displayName": "Claude 3 Opus",
+      "modelId": "claude-opus-4-6",
+      "displayName": "Claude Opus 4.6",
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
@@ -564,14 +666,14 @@
       }
     },
     {
-      "id": "model-catalog:claude-code:claude-3-sonnet",
+      "id": "model-catalog:claude-code:claude-haiku-4-5-20251001",
       "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
       "tenantId": "0",
       "createdAt": "2026-04-24T00:00:00.000Z",
       "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "claude-code",
-      "modelId": "claude-3-sonnet",
-      "displayName": "Claude 3 Sonnet",
+      "modelId": "claude-haiku-4-5-20251001",
+      "displayName": "Claude Haiku 4.5",
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
@@ -584,14 +686,14 @@
       }
     },
     {
-      "id": "model-catalog:claude-code:claude-3-haiku",
+      "id": "model-catalog:claude-code:claude-opus-4-5-20251101",
       "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
       "tenantId": "0",
       "createdAt": "2026-04-24T00:00:00.000Z",
       "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "claude-code",
-      "modelId": "claude-3-haiku",
-      "displayName": "Claude 3 Haiku",
+      "modelId": "claude-opus-4-5-20251101",
+      "displayName": "Claude Opus 4.5",
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
@@ -600,19 +702,159 @@
         "remote-control-http"
       ],
       "capabilityMatrix": {
-        "planning": false,
         "remoteBridge": true
       }
     },
     {
-      "id": "model-catalog:gemini:gemini",
+      "id": "model-catalog:claude-code:claude-opus-4-1-20250805",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "claude-code",
+      "modelId": "claude-opus-4-1-20250805",
+      "displayName": "Claude Opus 4.1",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "remoteBridge": true
+      }
+    },
+    {
+      "id": "model-catalog:claude-code:claude-opus-4-20250514",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "claude-code",
+      "modelId": "claude-opus-4-20250514",
+      "displayName": "Claude Opus 4",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "remoteBridge": true
+      }
+    },
+    {
+      "id": "model-catalog:claude-code:claude-sonnet-4-5-20250929",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "claude-code",
+      "modelId": "claude-sonnet-4-5-20250929",
+      "displayName": "Claude Sonnet 4.5",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "remoteBridge": true
+      }
+    },
+    {
+      "id": "model-catalog:claude-code:claude-sonnet-4-20250514",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "claude-code",
+      "modelId": "claude-sonnet-4-20250514",
+      "displayName": "Claude Sonnet 4",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "remoteBridge": true
+      }
+    },
+    {
+      "id": "model-catalog:claude-code:claude-3-7-sonnet-20250219",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "claude-code",
+      "modelId": "claude-3-7-sonnet-20250219",
+      "displayName": "Claude 3.7 Sonnet",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "remoteBridge": true
+      }
+    },
+    {
+      "id": "model-catalog:claude-code:claude-3-5-sonnet-20241022",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "claude-code",
+      "modelId": "claude-3-5-sonnet-20241022",
+      "displayName": "Claude 3.5 Sonnet",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "remoteBridge": true
+      }
+    },
+    {
+      "id": "model-catalog:claude-code:claude-3-5-haiku-20241022",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a636c",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "claude-code",
+      "modelId": "claude-3-5-haiku-20241022",
+      "displayName": "Claude 3.5 Haiku",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "remoteBridge": true,
+        "planning": false
+      }
+    },
+    {
+      "id": "model-catalog:gemini:auto-gemini-3",
       "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
       "tenantId": "0",
       "createdAt": "2026-04-24T00:00:00.000Z",
       "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "gemini",
-      "modelId": "gemini",
-      "displayName": "Gemini Default",
+      "modelId": "auto-gemini-3",
+      "displayName": "Auto (Gemini 3)",
       "status": "active",
       "defaultForEngine": true,
       "transportKinds": [
@@ -622,14 +864,14 @@
       "capabilityMatrix": {}
     },
     {
-      "id": "model-catalog:gemini:gemini-1.5-pro",
+      "id": "model-catalog:gemini:auto-gemini-2.5",
       "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
       "tenantId": "0",
       "createdAt": "2026-04-24T00:00:00.000Z",
       "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "gemini",
-      "modelId": "gemini-1.5-pro",
-      "displayName": "Gemini 1.5 Pro",
+      "modelId": "auto-gemini-2.5",
+      "displayName": "Auto (Gemini 2.5)",
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
@@ -639,14 +881,48 @@
       "capabilityMatrix": {}
     },
     {
-      "id": "model-catalog:gemini:gemini-1.5-flash",
+      "id": "model-catalog:gemini:gemini-3.1-pro-preview",
       "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
       "tenantId": "0",
       "createdAt": "2026-04-24T00:00:00.000Z",
       "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "gemini",
-      "modelId": "gemini-1.5-flash",
-      "displayName": "Gemini 1.5 Flash",
+      "modelId": "gemini-3.1-pro-preview",
+      "displayName": "Gemini 3.1 Pro Preview",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:gemini:gemini-3.1-pro-preview-customtools",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-3.1-pro-preview-customtools",
+      "displayName": "Gemini 3.1 Pro Preview Custom Tools",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:gemini:gemini-3.1-flash-lite-preview",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-3.1-flash-lite-preview",
+      "displayName": "Gemini 3.1 Flash Lite Preview",
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
@@ -658,16 +934,684 @@
       }
     },
     {
-      "id": "model-catalog:opencode:opencode",
+      "id": "model-catalog:gemini:gemini-3-pro-preview",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-3-pro-preview",
+      "displayName": "Gemini 3 Pro Preview",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:gemini:gemini-3-flash-preview",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-3-flash-preview",
+      "displayName": "Gemini 3 Flash Preview",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http"
+      ],
+      "capabilityMatrix": {
+        "planning": false
+      }
+    },
+    {
+      "id": "model-catalog:gemini:gemini-2.5-pro",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-2.5-pro",
+      "displayName": "Gemini 2.5 Pro",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:gemini:gemini-2.5-flash",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-2.5-flash",
+      "displayName": "Gemini 2.5 Flash",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http"
+      ],
+      "capabilityMatrix": {
+        "planning": false
+      }
+    },
+    {
+      "id": "model-catalog:gemini:gemini-2.5-flash-lite",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6765",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-2.5-flash-lite",
+      "displayName": "Gemini 2.5 Flash Lite",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http"
+      ],
+      "capabilityMatrix": {
+        "planning": false
+      }
+    },
+    {
+      "id": "model-catalog:opencode:opencode/big-pickle",
       "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
       "tenantId": "0",
       "createdAt": "2026-04-24T00:00:00.000Z",
       "updatedAt": "2026-04-24T00:00:00.000Z",
       "engineKey": "opencode",
-      "modelId": "opencode",
-      "displayName": "OpenCode",
+      "modelId": "opencode/big-pickle",
+      "displayName": "Big Pickle",
+      "providerId": "opencode",
       "status": "active",
       "defaultForEngine": true,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/claude-sonnet-4-6",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/claude-sonnet-4-6",
+      "displayName": "Claude Sonnet 4.6",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/claude-sonnet-4-5",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/claude-sonnet-4-5",
+      "displayName": "Claude Sonnet 4.5",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/claude-sonnet-4",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/claude-sonnet-4",
+      "displayName": "Claude Sonnet 4",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5.4-pro",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5.4-pro",
+      "displayName": "GPT-5.4 Pro",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5.4-nano",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5.4-nano",
+      "displayName": "GPT-5.4 Nano",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5.4-mini",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5.4-mini",
+      "displayName": "GPT-5.4 Mini",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5.4",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5.4",
+      "displayName": "GPT-5.4",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5.3-codex-spark",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5.3-codex-spark",
+      "displayName": "GPT-5.3 Codex Spark",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5.3-codex",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5.3-codex",
+      "displayName": "GPT-5.3 Codex",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5.2-codex",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5.2-codex",
+      "displayName": "GPT-5.2 Codex",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5.2",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5.2",
+      "displayName": "GPT-5.2",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5.1-codex-mini",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5.1-codex-mini",
+      "displayName": "GPT-5.1 Codex Mini",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5.1-codex-max",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5.1-codex-max",
+      "displayName": "GPT-5.1 Codex Max",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5.1-codex",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5.1-codex",
+      "displayName": "GPT-5.1 Codex",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5.1",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5.1",
+      "displayName": "GPT-5.1",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5-nano",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5-nano",
+      "displayName": "GPT-5 Nano",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5-codex",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5-codex",
+      "displayName": "GPT-5 Codex",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gpt-5",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gpt-5",
+      "displayName": "GPT-5",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/nemotron-3-super-free",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/nemotron-3-super-free",
+      "displayName": "Nemotron 3 Super Free",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/minimax-m2.5-free",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/minimax-m2.5-free",
+      "displayName": "MiniMax M2.5 Free",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/minimax-m2.5",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/minimax-m2.5",
+      "displayName": "MiniMax M2.5",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/mimo-v2-pro-free",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/mimo-v2-pro-free",
+      "displayName": "MiMo V2 Pro Free",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/mimo-v2-omni-free",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/mimo-v2-omni-free",
+      "displayName": "MiMo V2 Omni Free",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/kimi-k2.5",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/kimi-k2.5",
+      "displayName": "Kimi K2.5",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/glm-5",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/glm-5",
+      "displayName": "GLM-5",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gemini-3.1-pro",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gemini-3.1-pro",
+      "displayName": "Gemini 3.1 Pro Preview",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/gemini-3-flash",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/gemini-3-flash",
+      "displayName": "Gemini 3 Flash",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/claude-opus-4-6",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/claude-opus-4-6",
+      "displayName": "Claude Opus 4.6",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/claude-opus-4-5",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/claude-opus-4-5",
+      "displayName": "Claude Opus 4.5",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/claude-opus-4-1",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/claude-opus-4-1",
+      "displayName": "Claude Opus 4.1",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/claude-haiku-4-5",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/claude-haiku-4-5",
+      "displayName": "Claude Haiku 4.5",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "openapi-http",
+        "sdk-stream"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "model-catalog:opencode:opencode/claude-3-5-haiku",
+      "uuid": "6d6f6465-6c2d-6361-7461-6c6f673a6f70",
+      "tenantId": "0",
+      "createdAt": "2026-04-24T00:00:00.000Z",
+      "updatedAt": "2026-04-24T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/claude-3-5-haiku",
+      "displayName": "Claude 3.5 Haiku",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
       "transportKinds": [
         "openapi-http",
         "sdk-stream"

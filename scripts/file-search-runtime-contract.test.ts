@@ -1,12 +1,61 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import type { IFileNode } from '@sdkwork/birdcoder-types';
 
 const modulePath = new URL(
   '../packages/sdkwork-birdcoder-commons/src/workbench/fileSearch.ts',
   import.meta.url,
 );
+const implementationPath = new URL(
+  '../packages/sdkwork-birdcoder-types/src/fileSearch.ts',
+  import.meta.url,
+);
+const implementationSource = fs.readFileSync(implementationPath, 'utf8');
 
-const { searchProjectFiles } = await import(`${modulePath.href}?t=${Date.now()}`);
+const { DEFAULT_MAX_SEARCHABLE_FILE_CONTENT_CHARACTERS, searchProjectFiles } = await import(
+  `${modulePath.href}?t=${Date.now()}`
+);
+
+assert.equal(
+  typeof DEFAULT_MAX_SEARCHABLE_FILE_CONTENT_CHARACTERS,
+  'number',
+  'file search must expose a governed per-file content budget so oversized files cannot create unbounded UI-thread scanning work.',
+);
+assert.doesNotMatch(
+  implementationSource,
+  /\.split\(['"]\\n['"]\)/u,
+  'file search must scan file content line-by-line without allocating a full line array for every searched file.',
+);
+
+assert.doesNotMatch(
+  implementationSource,
+  /const filePaths = collectFilePaths\(options\.files\);/,
+  'file search must not synchronously flatten the entire project tree before reading because large repositories can monopolize the UI thread before cancellation is observed.',
+);
+
+assert.doesNotMatch(
+  implementationSource,
+  /const perFileResults: WorkspaceFileSearchResult\[\]\[\] = Array\.from\(/,
+  'file search must not allocate a result bucket for every file in the repository because large projects can consume memory before any match is found.',
+);
+
+assert.doesNotMatch(
+  implementationSource,
+  /perFileResults\.flat\(\)/,
+  'file search must stream ordered result buckets into one bounded result list instead of flattening a repository-sized result matrix.',
+);
+
+assert.match(
+  implementationSource,
+  /const FILE_SEARCH_TRAVERSAL_YIELD_INTERVAL = \d+;/,
+  'file search must define a traversal yield interval so path discovery is chunked for large project trees.',
+);
+
+assert.match(
+  implementationSource,
+  /await yieldFileSearchTraversal\(\);/,
+  'file search must yield while discovering paths so cancellation and input handling can run during large tree traversal.',
+);
 
 const fileTree: IFileNode[] = [
   { name: 'alpha.ts', type: 'file', path: '/alpha.ts' },
@@ -164,6 +213,30 @@ assert.equal(
   clippedResults.results[0].content.endsWith('...'),
   true,
   'clipped snippets for middle-of-line matches should include a trailing ellipsis',
+);
+
+const oversizedResults = await searchProjectFiles({
+  files: [
+    {
+      name: 'oversized.log',
+      type: 'file',
+      path: '/oversized.log',
+    },
+  ],
+  query: 'needle-after-budget',
+  readFileContent: async () =>
+    `${'x'.repeat(DEFAULT_MAX_SEARCHABLE_FILE_CONTENT_CHARACTERS + 1024)}needle-after-budget`,
+});
+
+assert.deepEqual(
+  oversizedResults.results,
+  [],
+  'file search must not scan beyond the governed per-file content budget because a single oversized file can monopolize the UI thread.',
+);
+assert.equal(
+  oversizedResults.limitReached,
+  true,
+  'file search must mark oversized content scans as partial so callers can communicate that large files were budgeted.',
 );
 
 console.log('file search runtime contract passed.');

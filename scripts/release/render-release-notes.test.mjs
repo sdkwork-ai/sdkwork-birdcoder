@@ -20,10 +20,19 @@ const expectedReleaseGovernanceLine = `Release governance checks: ${ENGINE_GOVER
 const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-release-notes-'));
 const releaseAssetsDir = path.join(fixtureRoot, 'assets');
 fs.mkdirSync(releaseAssetsDir, { recursive: true });
+fs.mkdirSync(path.join(releaseAssetsDir, 'server', 'windows', 'x64'), { recursive: true });
+const publishArtifactRelativePath = 'server/windows/x64/server.tar.gz';
+const publishArtifactContent = Buffer.from('publishable server release archive\n', 'utf8');
+fs.writeFileSync(path.join(releaseAssetsDir, publishArtifactRelativePath), publishArtifactContent);
+const publishArtifactSha256 = crypto
+  .createHash('sha256')
+  .update(publishArtifactContent)
+  .digest('hex');
 fs.writeFileSync(
   path.join(releaseAssetsDir, 'release-manifest.json'),
   JSON.stringify({
     generatedAt: '2026-04-08T00:00:00.000Z',
+    checksumFileName: 'SHA256SUMS.txt',
     releaseControl: {
       releaseKind: 'canary',
       rolloutStage: 'ring-1',
@@ -62,6 +71,11 @@ fs.writeFileSync(
         file: 'server/release-manifest.json',
         platform: 'linux',
         arch: 'x64',
+        artifacts: [
+          {
+            relativePath: publishArtifactRelativePath,
+          },
+        ],
         releaseSmoke: { status: 'passed' },
       },
       {
@@ -79,6 +93,19 @@ fs.writeFileSync(
       version: 'v1',
       title: 'SDKWork BirdCoder Coding Server API',
     },
+    artifacts: [
+      {
+        family: 'server',
+        platform: 'windows',
+        arch: 'x64',
+        target: '',
+        accelerator: '',
+        kind: 'archive',
+        relativePath: publishArtifactRelativePath,
+        sha256: publishArtifactSha256,
+        size: publishArtifactContent.length,
+      },
+    ],
     qualityEvidence: {
       archiveRelativePath: 'quality/quality-gate-matrix-report.json',
       totalTiers: 3,
@@ -261,14 +288,10 @@ renderReleaseNotes({
   'release-assets-dir': releaseAssetsDir,
   output: releaseAssetsOutputPath,
 });
-const renderedReleaseNotes = fs.readFileSync(releaseAssetsOutputPath, 'utf8');
-const renderedReleaseNotesSha256 = crypto
-  .createHash('sha256')
-  .update(renderedReleaseNotes)
-  .digest('hex');
-assert.match(
+assert.equal(
   fs.readFileSync(checksumsPath, 'utf8'),
-  new RegExp(`^${renderedReleaseNotesSha256}  release-notes\\.md$`, 'm'),
+  `${publishArtifactSha256}  ${publishArtifactRelativePath}\n`,
+  'rendering notes into a finalized release directory must preserve the manifest artifacts checksum view',
 );
 
 const missingQualityReleaseAssetsDir = path.join(fixtureRoot, 'assets-missing-quality');

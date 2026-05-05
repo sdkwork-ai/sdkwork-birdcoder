@@ -23,8 +23,20 @@ assert.match(
 
 assert.match(
   codeWorkspaceOverlaysSource,
-  /const quickOpenResults = useMemo\(\s*\(\) => {\s*if \(!isQuickOpenVisible\) {\s*return \[\];/s,
-  'CodeWorkspaceOverlays must skip quick-open result collection while the overlay is hidden to avoid unnecessary file tree traversal on the main thread.',
+  /const \[quickOpenResults, setQuickOpenResults\] = useState<CodeWorkspaceSearchResult\[\]>\(\[\]\);/,
+  'CodeWorkspaceOverlays must keep quick-open results in state so file tree traversal runs outside the render path.',
+);
+
+assert.match(
+  codeWorkspaceOverlaysSource,
+  /useEffect\(\(\) => \{[\s\S]*const quickOpenSearchTask = createCodeQuickOpenSearchTask\(/,
+  'CodeWorkspaceOverlays must start cancellable quick-open search work from an effect after React commits the query input.',
+);
+
+assert.doesNotMatch(
+  codeWorkspaceOverlaysSource,
+  /const quickOpenResults = useMemo\(\(\) => \{[\s\S]*collectCodeQuickOpenResults\(/,
+  'CodeWorkspaceOverlays must not recursively collect quick-open results inside useMemo during render.',
 );
 
 console.log('code workspace overlays performance contract passed.');

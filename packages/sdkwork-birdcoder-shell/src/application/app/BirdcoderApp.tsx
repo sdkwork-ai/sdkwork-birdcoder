@@ -9,6 +9,7 @@ import {
   AuthProvider,
   DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
   buildDefaultTerminalCommandRequest,
+  buildCodingSessionProjectScopedKey,
   buildProjectCodingSessionIndex,
   buildWorkbenchRecoveryAnnouncement,
   buildWorkbenchRecoverySnapshot,
@@ -188,6 +189,60 @@ function replaceAuthSurfaceHashPath(path: string | null): void {
   window.history.replaceState(window.history.state, '', nextUrl);
 }
 
+interface WorkbenchStartupSelectionLink {
+  activeTab?: AppTab;
+  codingSessionId?: string;
+  projectId?: string;
+  workspaceId?: string;
+}
+
+function normalizeStartupSelectionParam(value: string | null): string {
+  return value?.trim() ?? '';
+}
+
+function readWorkbenchStartupSelectionLink(): WorkbenchStartupSelectionLink | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const codingSessionId =
+    normalizeStartupSelectionParam(searchParams.get('codingSessionId')) ||
+    normalizeStartupSelectionParam(searchParams.get('sessionId'));
+  const projectId = normalizeStartupSelectionParam(searchParams.get('projectId'));
+  const workspaceId = normalizeStartupSelectionParam(searchParams.get('workspaceId'));
+  if (!codingSessionId && !projectId && !workspaceId) {
+    return null;
+  }
+
+  const requestedTab = normalizeStartupSelectionParam(searchParams.get('tab'));
+  return {
+    activeTab: requestedTab === 'studio' ? 'studio' : 'code',
+    ...(workspaceId ? { workspaceId } : {}),
+    ...(projectId ? { projectId } : {}),
+    ...(codingSessionId ? { codingSessionId } : {}),
+  };
+}
+
+function applyWorkbenchStartupSelectionLink(
+  recoverySnapshot: WorkbenchRecoverySnapshot,
+): WorkbenchRecoverySnapshot {
+  const selectionLink = readWorkbenchStartupSelectionLink();
+  if (!selectionLink) {
+    return recoverySnapshot;
+  }
+
+  return {
+    ...recoverySnapshot,
+    activeTab: selectionLink.activeTab ?? recoverySnapshot.activeTab,
+    activeWorkspaceId: selectionLink.workspaceId ?? recoverySnapshot.activeWorkspaceId,
+    activeProjectId: selectionLink.projectId ?? recoverySnapshot.activeProjectId,
+    activeCodingSessionId:
+      selectionLink.codingSessionId ?? recoverySnapshot.activeCodingSessionId,
+    cleanExit: true,
+  };
+}
+
 function shouldBootIntoAuthSurface(): boolean {
   if (typeof window === 'undefined') {
     return false;
@@ -215,7 +270,6 @@ type DesktopWindowHandle = {
   isMinimized: () => Promise<boolean>;
   isMaximized: () => Promise<boolean>;
   onResized: (handler: () => void) => Promise<() => void>;
-  onFocusChanged: (handler: () => void) => Promise<() => void>;
   onScaleChanged: (handler: () => void) => Promise<() => void>;
   minimize: () => Promise<void>;
   toggleMaximize: () => Promise<void>;
@@ -224,7 +278,16 @@ type DesktopWindowHandle = {
 };
 
 const DESKTOP_WINDOW_FRAME_STATE_RECONCILIATION_DELAY_MS = 120;
+const DESKTOP_WINDOW_FRAME_STATE_CACHE_TTL_MS = 500;
 const WORKBENCH_RECOVERY_PERSIST_DELAY_MS = 80;
+
+function readDesktopWindowFrameStateClockMs(): number {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now();
+  }
+
+  return Date.now();
+}
 
 function persistWorkbenchRecoverySnapshot(snapshot: WorkbenchRecoverySnapshot): void {
   void setStoredJson('workbench', 'recovery-context', snapshot).catch(() => {
@@ -450,7 +513,6 @@ function BirdcoderAppHeader({
       </div>
 
       <div
-        data-no-drag="true"
         className="flex min-w-0 items-center justify-center"
       >
         {centerContent}
@@ -514,7 +576,7 @@ interface AppMainBodyProps {
   onActiveTabChange: (tab: AppTab) => void;
   onRequireAuth: (targetTab: AppTab) => void;
   onProjectChange: (projectId: string) => void;
-  onCodingSessionChange: (codingSessionId: string) => void;
+  onCodingSessionChange: (codingSessionId: string, projectId?: string) => void;
 }
 
 const PersistentAppTabPanel = React.memo(function PersistentAppTabPanel({
@@ -749,10 +811,18 @@ function AppContent() {
     isActive: Boolean(user),
   });
   const currentWorkbenchUserScope = normalizeWorkbenchRecoveryUserScope(user?.id);
-  const normalizedStoredRecoverySnapshot = normalizeWorkbenchRecoverySnapshot(recoverySnapshot);
-  const normalizedRecoverySnapshot = resolveWorkbenchRecoverySnapshotForUser(
-    normalizedStoredRecoverySnapshot,
-    currentWorkbenchUserScope,
+  const normalizedStoredRecoverySnapshot = useMemo(
+    () => normalizeWorkbenchRecoverySnapshot(recoverySnapshot),
+    [recoverySnapshot],
+  );
+  const normalizedRecoverySnapshot = useMemo(
+    () => applyWorkbenchStartupSelectionLink(
+      resolveWorkbenchRecoverySnapshotForUser(
+        normalizedStoredRecoverySnapshot,
+        currentWorkbenchUserScope,
+      ),
+    ),
+    [currentWorkbenchUserScope, normalizedStoredRecoverySnapshot],
   );
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
   const [activeProjectId, setActiveProjectId] = useState<string>('');
@@ -870,6 +940,7 @@ function AppContent() {
   const [isDocumentFullscreen, setIsDocumentFullscreen] = useState(false);
   const titleBarWindowDragControllerRef = useRef<ReturnType<typeof createAppHeaderWindowDragController> | null>(null);
   const desktopWindowPromiseRef = useRef<Promise<DesktopWindowHandle | null> | null>(null);
+  const desktopWindowHandleRef = useRef<DesktopWindowHandle | null>(null);
   const isDesktopWindowAvailableRef = useRef(false);
   const isDesktopWindowMaximizedRef = useRef(false);
   const isDesktopWindowMinimizedRef = useRef(false);
@@ -877,6 +948,8 @@ function AppContent() {
   const desktopWindowStateSyncTokenRef = useRef(0);
   const desktopWindowFrameStateReconciliationTimeoutRef =
     useRef<ReturnType<typeof setTimeout> | null>(null);
+  const desktopWindowFrameStateSyncPromiseRef = useRef<Promise<void> | null>(null);
+  const desktopWindowFrameStateLastVerifiedAtRef = useRef(0);
   const recoverySnapshotPersistTimeoutRef = useRef<number | null>(null);
   const desktopWindowToggleInFlightRef = useRef(false);
   const hasAppliedRecoveredTabRef = useRef(false);
@@ -891,6 +964,25 @@ function AppContent() {
   const projectMountRecoveryIdentityRef = useRef('');
   const projectMountRecoveryActiveSurfaceRef = useRef('');
   const workspaceBootstrapPromiseRef = useRef<Promise<string> | null>(null);
+  const activeCodingSessionSelectionScopeKeyRef = useRef('');
+
+  const clearActiveCodingSessionSelection = useCallback(() => {
+    activeCodingSessionSelectionScopeKeyRef.current = '';
+    setActiveCodingSessionId('');
+  }, []);
+
+  const commitActiveCodingSessionSelection = useCallback((
+    projectId: string,
+    codingSessionId: string,
+  ) => {
+    const normalizedProjectId = projectId.trim();
+    const normalizedCodingSessionId = codingSessionId.trim();
+    activeCodingSessionSelectionScopeKeyRef.current =
+      normalizedProjectId && normalizedCodingSessionId
+        ? buildCodingSessionProjectScopedKey(normalizedProjectId, normalizedCodingSessionId)
+        : '';
+    setActiveCodingSessionId(normalizedCodingSessionId);
+  }, []);
 
   useEffect(() => {
     if (
@@ -943,7 +1035,7 @@ function AppContent() {
           scopedActiveWorkspaceId !== resolvedWorkspaceId
         ) {
           setActiveProjectId('');
-          setActiveCodingSessionId('');
+          clearActiveCodingSessionSelection();
         }
       })
       .catch((error) => {
@@ -965,6 +1057,7 @@ function AppContent() {
     normalizedRecoverySnapshot.activeWorkspaceId,
     refreshWorkspaces,
     scopedActiveWorkspaceId,
+    clearActiveCodingSessionSelection,
     user,
     workspaces,
     workspacesById,
@@ -1006,9 +1099,9 @@ function AppContent() {
     setActiveWorkspaceId(normalizedWorkspaceId);
     setMenuActiveWorkspaceId(normalizedWorkspaceId);
     setActiveProjectId('');
-    setActiveCodingSessionId('');
+    clearActiveCodingSessionSelection();
     setProjectActionsMenuId(null);
-  }, []);
+  }, [clearActiveCodingSessionSelection]);
 
   const previewWorkspaceSelection = useCallback((workspaceId: string) => {
     const normalizedWorkspaceId = workspaceId.trim();
@@ -1035,12 +1128,36 @@ function AppContent() {
     recoverySnapshot: normalizedRecoverySnapshot,
   });
   const effectiveProjectId = (scopedActiveProjectId || resolvedProjectId).trim();
+  const activeProjectCodingSessions =
+    activeProjectsIndex.projectsById.get(effectiveProjectId)?.codingSessions ?? [];
+  const activeProjectCodingSessionIds = useMemo(
+    () => new Set(activeProjectCodingSessions.map((codingSession) => codingSession.id)),
+    [activeProjectCodingSessions],
+  );
   const resolvedCodingSessionId = resolveStartupCodingSessionId({
     projectId: effectiveProjectId,
     projects: activeProjects,
     recoverySnapshot: normalizedRecoverySnapshot,
   });
-  const effectiveCodingSessionId = (scopedActiveCodingSessionId || resolvedCodingSessionId).trim();
+  const scopedActiveCodingSessionScopeKey =
+    effectiveProjectId && scopedActiveCodingSessionId
+      ? buildCodingSessionProjectScopedKey(effectiveProjectId, scopedActiveCodingSessionId)
+      : '';
+  const isScopedActiveCodingSessionInProject = Boolean(
+    scopedActiveCodingSessionId &&
+    activeProjectCodingSessionIds.has(scopedActiveCodingSessionId),
+  );
+  const isPendingScopedActiveCodingSession = Boolean(
+    scopedActiveCodingSessionId &&
+    scopedActiveCodingSessionScopeKey &&
+    activeCodingSessionSelectionScopeKeyRef.current === scopedActiveCodingSessionScopeKey &&
+    activeProjectsIndex.projectsById.has(effectiveProjectId),
+  );
+  const effectiveCodingSessionId = (
+    isScopedActiveCodingSessionInProject || isPendingScopedActiveCodingSession
+      ? scopedActiveCodingSessionId
+      : resolvedCodingSessionId
+  ).trim();
   const currentUserFallbackRecoverySnapshot =
     lastPersistedRecoverySnapshotRef.current?.userScope === currentWorkbenchUserScope
       ? lastPersistedRecoverySnapshotRef.current
@@ -1078,12 +1195,6 @@ function AppContent() {
     activeProjectId: effectiveProjectId,
     activeCodingSessionId: effectiveCodingSessionId,
   });
-  const activeProjectCodingSessions =
-    activeProjectsIndex.projectsById.get(effectiveProjectId)?.codingSessions ?? [];
-  const activeProjectCodingSessionIds = useMemo(
-    () => new Set(activeProjectCodingSessions.map((codingSession) => codingSession.id)),
-    [activeProjectCodingSessions],
-  );
   const resolveImmediateProjectIndex = useCallback(
     (workspaceId: string) => {
       const normalizedWorkspaceId = workspaceId.trim();
@@ -1114,9 +1225,9 @@ function AppContent() {
       const immediateProjectIndex = resolveImmediateProjectIndex(workspaceId);
       const latestCodingSessionId =
         immediateProjectIndex?.latestCodingSessionIdByProjectId.get(projectId) ?? null;
-      setActiveCodingSessionId(latestCodingSessionId ?? '');
+      commitActiveCodingSessionSelection(projectId, latestCodingSessionId ?? '');
     },
-    [resolveImmediateProjectIndex],
+    [commitActiveCodingSessionSelection, resolveImmediateProjectIndex],
   );
 
   const hydrateImportedProjectSelectionInBackground = useCallback(
@@ -1146,7 +1257,10 @@ function AppContent() {
             return;
           }
 
-          setActiveCodingSessionId(hydratedProject.latestCodingSessionId ?? '');
+          commitActiveCodingSessionSelection(
+            projectId,
+            hydratedProject.latestCodingSessionId ?? '',
+          );
           pendingImportedProjectIdRef.current = '';
           pendingImportedWorkspaceIdRef.current = '';
         } catch (error) {
@@ -1160,6 +1274,7 @@ function AppContent() {
       effectiveWorkspaceId,
       menuProjects,
       projectService,
+      commitActiveCodingSessionSelection,
       user?.id,
     ],
   );
@@ -1244,10 +1359,10 @@ function AppContent() {
     setActiveWorkspaceId('');
     setMenuActiveWorkspaceId('');
     setActiveProjectId('');
-    setActiveCodingSessionId('');
+    clearActiveCodingSessionSelection();
     setProjectActionsMenuId(null);
     setShowWorkspaceMenu(false);
-  }, [currentWorkbenchUserScope]);
+  }, [clearActiveCodingSessionSelection, currentWorkbenchUserScope]);
 
   useEffect(() => {
     if (!isRecoveryHydrated || recoverySessionIdRef.current) {
@@ -1338,32 +1453,53 @@ function AppContent() {
       return;
     }
 
-    if (activeProjectCodingSessions.length === 0) {
+    if (!effectiveProjectId) {
       if (activeCodingSessionId) {
-        setActiveCodingSessionId('');
+        clearActiveCodingSessionSelection();
       }
       return;
     }
 
-    if (
-      !activeProjectCodingSessionIds.has(activeCodingSessionId) &&
-      resolvedCodingSessionId
-    ) {
-      setActiveCodingSessionId(resolvedCodingSessionId);
+    if (activeCodingSessionId) {
+      const activeSelectionScopeKey = buildCodingSessionProjectScopedKey(
+        effectiveProjectId,
+        activeCodingSessionId,
+      );
+      if (activeProjectCodingSessionIds.has(activeCodingSessionId)) {
+        activeCodingSessionSelectionScopeKeyRef.current = activeSelectionScopeKey;
+        return;
+      }
+
+      if (
+        activeCodingSessionSelectionScopeKeyRef.current === activeSelectionScopeKey &&
+        activeProjectsIndex.projectsById.has(effectiveProjectId)
+      ) {
+        return;
+      }
+
+      if (resolvedCodingSessionId) {
+        commitActiveCodingSessionSelection(effectiveProjectId, resolvedCodingSessionId);
+        return;
+      }
+
+      clearActiveCodingSessionSelection();
       return;
     }
 
     if (
-      activeCodingSessionId &&
-      !activeProjectCodingSessionIds.has(activeCodingSessionId)
+      activeProjectCodingSessions.length > 0 &&
+      resolvedCodingSessionId
     ) {
-      setActiveCodingSessionId('');
+      commitActiveCodingSessionSelection(effectiveProjectId, resolvedCodingSessionId);
     }
   }, [
     activeCodingSessionId,
     activeProjectsHasFetched,
+    activeProjectsIndex,
     activeProjectCodingSessionIds,
     activeProjectCodingSessions.length,
+    clearActiveCodingSessionSelection,
+    commitActiveCodingSessionSelection,
     effectiveProjectId,
     effectiveWorkspaceId.length,
     resolvedCodingSessionId,
@@ -1848,7 +1984,7 @@ function AppContent() {
       await deleteProject(projectToDelete);
       if (activeProjectId === projectToDelete) {
         setActiveProjectId('');
-        setActiveCodingSessionId('');
+        clearActiveCodingSessionSelection();
       }
       addToast(t('app.projectRemoved'), "success");
     } catch (error) {
@@ -1888,7 +2024,7 @@ function AppContent() {
       setMenuActiveWorkspaceId(nextWorkspaceId || effectiveWorkspaceId);
       setActiveProjectId(nextProjectId);
       if (shouldResetCodingSession || nextCodingSessionId) {
-        setActiveCodingSessionId(nextCodingSessionId);
+        commitActiveCodingSessionSelection(nextProjectId, nextCodingSessionId);
       }
       setProjectActionsMenuId(null);
       setShowWorkspaceMenu(false);
@@ -1897,11 +2033,16 @@ function AppContent() {
       effectiveMenuWorkspaceId,
       effectiveProjectId,
       effectiveWorkspaceId,
+      commitActiveCodingSessionSelection,
       resolveImmediateProjectIndex,
     ],
   );
 
   const getDesktopWindow = useCallback(async (): Promise<DesktopWindowHandle | null> => {
+    if (desktopWindowHandleRef.current) {
+      return desktopWindowHandleRef.current;
+    }
+
     if (desktopWindowPromiseRef.current) {
       return desktopWindowPromiseRef.current;
     }
@@ -1913,7 +2054,9 @@ function AppContent() {
       }
 
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      return getCurrentWindow() as DesktopWindowHandle;
+      const desktopWindow = getCurrentWindow() as DesktopWindowHandle;
+      desktopWindowHandleRef.current = desktopWindow;
+      return desktopWindow;
     })();
 
     desktopWindowPromiseRef.current = desktopWindowPromise;
@@ -1922,6 +2065,7 @@ function AppContent() {
       return await desktopWindowPromise;
     } catch (error) {
       desktopWindowPromiseRef.current = null;
+      desktopWindowHandleRef.current = null;
       throw error;
     }
   }, []);
@@ -1945,22 +2089,49 @@ function AppContent() {
   const syncDesktopWindowFrameState = useCallback(
     async (
       desktopWindow: DesktopWindowHandle,
+      options: { force?: boolean } = {},
     ) => {
-      const syncToken = ++desktopWindowStateSyncTokenRef.current;
-      const [nextIsMaximized, nextIsMinimized] = await Promise.all([
-        desktopWindow.isMaximized(),
-        desktopWindow.isMinimized(),
-      ]);
+      const force = options.force === true;
+      const now = readDesktopWindowFrameStateClockMs();
 
-      if (syncToken !== desktopWindowStateSyncTokenRef.current) {
-        return;
+      if (!force && desktopWindowFrameStateSyncPromiseRef.current) {
+        return desktopWindowFrameStateSyncPromiseRef.current;
       }
 
-      applyDesktopWindowFrameState({
-        isAvailable: true,
-        isMaximized: nextIsMaximized,
-        isMinimized: nextIsMinimized,
+      if (
+        !force &&
+        isDesktopWindowAvailableRef.current &&
+        desktopWindowFrameStateLastVerifiedAtRef.current > 0 &&
+        now - desktopWindowFrameStateLastVerifiedAtRef.current < DESKTOP_WINDOW_FRAME_STATE_CACHE_TTL_MS
+      ) {
+        return Promise.resolve();
+      }
+
+      const syncToken = ++desktopWindowStateSyncTokenRef.current;
+      const syncPromise = (async () => {
+        const [nextIsMaximized, nextIsMinimized] = await Promise.all([
+          desktopWindow.isMaximized(),
+          desktopWindow.isMinimized(),
+        ]);
+
+        if (syncToken !== desktopWindowStateSyncTokenRef.current) {
+          return;
+        }
+
+        desktopWindowFrameStateLastVerifiedAtRef.current = readDesktopWindowFrameStateClockMs();
+        applyDesktopWindowFrameState({
+          isAvailable: true,
+          isMaximized: nextIsMaximized,
+          isMinimized: nextIsMinimized,
+        });
+      })().finally(() => {
+        if (desktopWindowFrameStateSyncPromiseRef.current === syncPromise) {
+          desktopWindowFrameStateSyncPromiseRef.current = null;
+        }
       });
+
+      desktopWindowFrameStateSyncPromiseRef.current = syncPromise;
+      return syncPromise;
     },
     [applyDesktopWindowFrameState],
   );
@@ -2035,7 +2206,7 @@ function AppContent() {
           return;
         }
 
-        await syncDesktopWindowFrameState(desktopWindow);
+        await syncDesktopWindowFrameState(desktopWindow, { force: true });
         await registerWindowListener(
           desktopWindow.onResized(() => {
             scheduleDesktopWindowFrameStateReconciliation(desktopWindow);
@@ -2043,11 +2214,6 @@ function AppContent() {
         );
         await registerWindowListener(
           desktopWindow.onScaleChanged(() => {
-            scheduleDesktopWindowFrameStateReconciliation(desktopWindow);
-          }),
-        );
-        await registerWindowListener(
-          desktopWindow.onFocusChanged(() => {
             scheduleDesktopWindowFrameStateReconciliation(desktopWindow);
           }),
         );
@@ -2067,6 +2233,8 @@ function AppContent() {
     return () => {
       cancelled = true;
       cancelPendingWork();
+      desktopWindowStateSyncTokenRef.current += 1;
+      desktopWindowFrameStateSyncPromiseRef.current = null;
       for (const unlisten of unlistenCallbacks) {
         unlisten();
       }
@@ -2110,14 +2278,27 @@ function AppContent() {
   if (titleBarWindowDragControllerRef.current === null) {
     titleBarWindowDragControllerRef.current = createAppHeaderWindowDragController({
       canStartDragging: () => isDesktopWindowAvailableRef.current && !isDocumentFullscreenRef.current,
-      startDragging: async () => {
+      startDragging: () => {
         try {
-          const desktopWindow = await getDesktopWindow();
-          if (!desktopWindow) {
+          const desktopWindow = desktopWindowHandleRef.current;
+          if (desktopWindow) {
+            void desktopWindow.startDragging().catch((error) => {
+              console.warn('Failed to start window dragging', error);
+            });
             return;
           }
 
-          await desktopWindow.startDragging();
+          void getDesktopWindow()
+            .then((resolvedDesktopWindow) => {
+              if (!resolvedDesktopWindow) {
+                return undefined;
+              }
+
+              return resolvedDesktopWindow.startDragging();
+            })
+            .catch((error) => {
+              console.warn('Failed to start window dragging', error);
+            });
         } catch (error) {
           console.warn('Failed to start window dragging', error);
         }
@@ -2149,7 +2330,7 @@ function AppContent() {
       if (!handledByNativeBridge) {
         await desktopWindow.minimize();
       }
-      await syncDesktopWindowFrameState(desktopWindow);
+      await syncDesktopWindowFrameState(desktopWindow, { force: true });
     } catch (error) {
       console.warn('Failed to minimize desktop window', error);
     }
@@ -2181,13 +2362,13 @@ function AppContent() {
 
       const settleDesktopWindowToggle = () => {
         desktopWindowToggleInFlightRef.current = false;
-        return syncDesktopWindowFrameState(desktopWindow);
+        return syncDesktopWindowFrameState(desktopWindow, { force: true });
       };
 
       const recoverDesktopWindowToggleFailure = (error: unknown) => {
         desktopWindowToggleInFlightRef.current = false;
         console.warn('Failed to toggle desktop window maximize state', error);
-        return syncDesktopWindowFrameState(desktopWindow);
+        return syncDesktopWindowFrameState(desktopWindow, { force: true });
       };
 
       void performNativeWindowControlAction('toggleMaximize')
@@ -2344,7 +2525,9 @@ function AppContent() {
   const activeWorkspace = workspacesById.get(effectiveWorkspaceId) || workspaces[0];
   const activeProject = activeProjectsIndex.projectsById.get(effectiveProjectId) ?? null;
   const activeCodingSession =
-    activeProjectsIndex.codingSessionLocationsById.get(effectiveCodingSessionId)?.codingSession ??
+    activeProjectsIndex.codingSessionLocationsByProjectIdAndId.get(
+      buildCodingSessionProjectScopedKey(effectiveProjectId, effectiveCodingSessionId),
+    )?.codingSession ??
     null;
   const {
     createCodingSessionWithSelection: createActiveCodingSessionWithSelection,
@@ -2381,14 +2564,14 @@ function AppContent() {
         setActiveProjectId(targetProjectId);
       }
 
-      setActiveCodingSessionId(normalizedCodingSessionId);
+      commitActiveCodingSessionSelection(targetProjectId, normalizedCodingSessionId);
       setActiveTab((previousActiveTab) =>
         previousActiveTab === 'code' || previousActiveTab === 'studio'
           ? previousActiveTab
           : 'code',
       );
     },
-    [effectiveProjectId],
+    [commitActiveCodingSessionSelection, effectiveProjectId],
   );
   const handleSelectMenuCreatedCodingSession = useCallback(
     (
@@ -2408,13 +2591,31 @@ function AppContent() {
       if (targetProjectId) {
         setActiveProjectId(targetProjectId);
       }
-      setActiveCodingSessionId(normalizedCodingSessionId);
+      commitActiveCodingSessionSelection(targetProjectId, normalizedCodingSessionId);
       setActiveTab('code');
       setProjectActionsMenuId(null);
       setShowWorkspaceMenu(false);
     },
-    [effectiveMenuWorkspaceId],
+    [commitActiveCodingSessionSelection, effectiveMenuWorkspaceId],
   );
+  const handleActiveProjectChange = useCallback((projectId: string) => {
+    const normalizedProjectId = projectId.trim();
+    setActiveProjectId(normalizedProjectId);
+    clearActiveCodingSessionSelection();
+  }, [clearActiveCodingSessionSelection]);
+  const handleActiveCodingSessionChange = useCallback((
+    codingSessionId: string,
+    projectId?: string,
+  ) => {
+    const normalizedProjectId = projectId?.trim() ?? '';
+    if (normalizedProjectId) {
+      setActiveProjectId(normalizedProjectId);
+    }
+    commitActiveCodingSessionSelection(
+      normalizedProjectId || effectiveProjectId,
+      codingSessionId,
+    );
+  }, [commitActiveCodingSessionSelection, effectiveProjectId]);
   const {
     createCodingSessionFromCurrentProject: createActiveCodingSessionFromCurrentProject,
   } = useWorkbenchCodingSessionCreationActions({
@@ -2677,7 +2878,7 @@ function AppContent() {
     () => [
       {
         label: t('app.menu.documentation'),
-        onClick: () => window.open('https://github.com', '_blank'),
+        onClick: () => window.open('https://github.com', '_blank', 'noopener,noreferrer'),
       },
       { label: t('app.menu.whatsNew'), onClick: () => setShowWhatsNewModal(true) },
       { label: t('app.menu.skills'), onClick: () => setActiveTab('skills') },
@@ -2857,8 +3058,8 @@ function AppContent() {
         codingSessionId={effectiveCodingSessionId}
         onActiveTabChange={handleActiveTabChange}
         onRequireAuth={openAuthenticationSurface}
-        onProjectChange={setActiveProjectId}
-        onCodingSessionChange={setActiveCodingSessionId}
+        onProjectChange={handleActiveProjectChange}
+        onCodingSessionChange={handleActiveCodingSessionChange}
       />
 
       <AppShellDialogs

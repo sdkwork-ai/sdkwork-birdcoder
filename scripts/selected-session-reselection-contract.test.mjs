@@ -32,8 +32,14 @@ assert.match(
 
 assert.match(
   hookSource,
-  /useEffect\(\(\) => \{[\s\S]*const synchronizationVersion =[\s\S]*selectedCodingSessionSynchronizationVersion,[\s\S]*\]\);/s,
-  'Selected-session hydration must rerun when the selected transcript synchronization version changes, so realtime project/session updates trigger authoritative message sync for external CLI or IDE turns.',
+  /const synchronizationRequestKey =\s*`\$\{synchronizationScopeKey\}:\$\{selectionRefreshToken\}:\$\{authorityFallbackRefreshTick\}`;/,
+  'Selected-session hydration must key reselection retries by initial/manual refresh and slow fallback ticks instead of local transcript mutations.',
+);
+
+assert.doesNotMatch(
+  hookSource,
+  /selectedCodingSessionSynchronizationVersion/,
+  'Selected-session hydration must not refetch authoritative messages for each realtime transcript mutation because the realtime stream already updates the selected transcript.',
 );
 
 console.log('selected session reselection contract passed.');

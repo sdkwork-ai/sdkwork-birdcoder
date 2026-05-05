@@ -87,6 +87,13 @@ const studioPageSource = readSource(
   'pages',
   'StudioPage.tsx',
 );
+const studioMainContentSource = readSource(
+  'packages',
+  'sdkwork-birdcoder-studio',
+  'src',
+  'pages',
+  'StudioMainContent.tsx',
+);
 const studioStageHeaderSource = readSource(
   'packages',
   'sdkwork-birdcoder-studio',
@@ -193,14 +200,20 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-ui';/s,
-  'Studio page must render the shared ProjectGitOverviewDrawer so Code and Studio follow the same Git overview presentation standard.',
+  /from '\.\/StudioMainContent';/,
+  'Studio page must delegate workspace chrome into StudioMainContent so page state and drawer presentation stay separated.',
 );
 
 assert.match(
-  studioPageSource,
+  studioMainContentSource,
+  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-ui';/s,
+  'Studio main content must render the shared ProjectGitOverviewDrawer so Code and Studio follow the same Git overview presentation standard.',
+);
+
+assert.match(
+  studioMainContentSource,
   /<ProjectGitOverviewDrawer[\s\S]*isOpen=\{isProjectGitOverviewDrawerOpen\}[\s\S]*projectGitOverviewState=\{projectGitOverviewState\}/s,
-  'Studio page must host the Git overview in a page-level drawer instead of inside StudioCodeWorkspacePanel.',
+  'Studio main content must host the Git overview in a page-level drawer instead of inside StudioCodeWorkspacePanel.',
 );
 
 assert.match(

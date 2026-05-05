@@ -31,14 +31,20 @@ assert.match(
 
 assert.match(
   source,
-  /messages:\s*preserveLocalMessages && hasCodingSessionMessages\(localCodingSession\)\s*\?\s*structuredClone\(localCodingSession\.messages\)\s*:\s*\[\]/s,
-  'ApiBackedProjectService must gate local transcript reuse behind an explicit preserveLocalMessages option so summary hydration can preserve mirrored transcript state deliberately.',
+  /messages:\s*preserveLocalMessages && hasCodingSessionMessages\(localCodingSession\)\s*\?\s*normalizeLocalCodingSessionMessages\(localCodingSession\.messages\)\s*:\s*\[\]/s,
+  'ApiBackedProjectService must gate local transcript reuse behind an explicit preserveLocalMessages option and normalize reused messages through the shared logical matcher.',
 );
 
 assert.match(
   source,
-  /preserveLocalMessages:\s*shouldPreserveLocalCodingSessionMessages\([\s\S]*localCodingSessionsById\.get\(codingSession\.id\)/s,
-  'ApiBackedProjectService must only preserve mirrored transcript payloads for authoritative summaries when the local session mirror is at least as fresh as the summary timestamp.',
+  /mergeAuthoritativeProjectSessions[\s\S]*preserveLocalMessages:\s*false/s,
+  'ApiBackedProjectService project inventory merges must stay metadata-only and leave transcript payload loading to selected-session readers.',
+);
+
+assert.doesNotMatch(
+  source,
+  /shouldPreserveLocalCodingSessionMessages/s,
+  'ApiBackedProjectService project inventory must not branch into transcript payload preservation based on timestamp freshness.',
 );
 
 console.log('api backed project service parallel mirror contract passed.');

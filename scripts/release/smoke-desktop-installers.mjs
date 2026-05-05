@@ -8,6 +8,9 @@ import { pathToFileURL } from 'node:url';
 import {
   writeDesktopInstallerSmokeReport,
 } from './desktop-installer-smoke-contract.mjs';
+import {
+  assertDesktopInstallerSignatureEvidence,
+} from './desktop-installer-trust-evidence.mjs';
 import { RELEASE_ASSET_MANIFEST_FILE_NAME } from './release-profiles.mjs';
 
 function readOptionValue(argv, index, flag) {
@@ -48,6 +51,63 @@ function readManifest(manifestPath) {
   return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 }
 
+function isNativeDesktopInstallerArtifact(relativePath) {
+  const normalizedRelativePath = String(relativePath ?? '').trim().toLowerCase();
+  return (
+    normalizedRelativePath.endsWith('.exe')
+    || normalizedRelativePath.endsWith('.msi')
+    || normalizedRelativePath.endsWith('.deb')
+    || normalizedRelativePath.endsWith('.rpm')
+    || normalizedRelativePath.endsWith('.appimage')
+    || normalizedRelativePath.endsWith('.dmg')
+    || normalizedRelativePath.endsWith('.app.tar.gz')
+    || normalizedRelativePath.endsWith('.app.zip')
+  );
+}
+
+function normalizeInstallerManifestArtifact({
+  artifact,
+  manifestPath,
+  expectedTarget,
+} = {}) {
+  const relativePath = String(artifact?.relativePath ?? '').trim();
+  const kind = String(artifact?.kind ?? '').trim();
+  const bundle = String(artifact?.bundle ?? '').trim();
+  const installerFormat = String(artifact?.installerFormat ?? '').trim();
+  const target = String(artifact?.target ?? '').trim();
+  if (!relativePath || !isNativeDesktopInstallerArtifact(relativePath)) {
+    return null;
+  }
+  if (kind !== 'installer' || !bundle || !installerFormat || !target) {
+    throw new Error(
+      `Desktop installer manifest artifact must declare kind=installer, bundle, installerFormat, and target: ${relativePath} in ${manifestPath}.`,
+    );
+  }
+  if (String(expectedTarget ?? '').trim() && target !== String(expectedTarget).trim()) {
+    throw new Error(
+      `Desktop installer manifest artifact target mismatch in ${manifestPath}: ${relativePath} declares ${target}, expected ${expectedTarget}.`,
+    );
+  }
+  if (bundle !== installerFormat) {
+    throw new Error(
+      `Desktop installer manifest artifact bundle and installerFormat must match in ${manifestPath}: ${relativePath} declares bundle=${bundle}, installerFormat=${installerFormat}.`,
+    );
+  }
+  const signatureEvidence = assertDesktopInstallerSignatureEvidence({
+    artifact,
+    manifestPath,
+    relativePath,
+  });
+
+  return {
+    relativePath,
+    bundle,
+    installerFormat,
+    target,
+    signatureEvidence,
+  };
+}
+
 export function smokeDesktopInstallers({
   releaseAssetsDir = path.join(process.cwd(), 'artifacts', 'release'),
   platform = process.platform,
@@ -84,30 +144,52 @@ export function smokeDesktopInstallers({
     );
   }
 
-  const artifactRelativePaths = Array.isArray(manifest.artifacts)
+  const installableArtifacts = Array.isArray(manifest.artifacts)
     ? manifest.artifacts
-      .map((artifact) => String(artifact?.relativePath ?? '').trim())
+      .map((artifact) => normalizeInstallerManifestArtifact({
+        artifact,
+        manifestPath,
+        expectedTarget: target,
+      }))
       .filter(Boolean)
-      .sort((left, right) => left.localeCompare(right))
+      .sort((left, right) => left.relativePath.localeCompare(right.relativePath))
     : [];
+  const installableArtifactRelativePaths = installableArtifacts.map((artifact) => artifact.relativePath);
+  if (installableArtifactRelativePaths.length === 0) {
+    throw new Error(`Desktop manifest must include native installer artifacts before smoke: ${manifestPath}.`);
+  }
+  for (const relativePath of installableArtifactRelativePaths) {
+    const installerPath = path.resolve(releaseAssetsDir, relativePath);
+    if (!fs.existsSync(installerPath)) {
+      throw new Error(
+        `Missing native desktop installer artifact referenced by ${manifestPath}: ${relativePath}`,
+      );
+    }
+    if (!fs.statSync(installerPath).isFile()) {
+      throw new Error(
+        `Native desktop installer artifact referenced by ${manifestPath} must be a file: ${relativePath}`,
+      );
+    }
+  }
   const smokeReport = writeDesktopInstallerSmokeReport({
     releaseAssetsDir,
     platform: normalizedPlatform,
     arch: normalizedArch,
     target,
     manifestPath,
-    installableArtifactRelativePaths: [archiveRelativePath],
+    installableArtifactRelativePaths,
     requiredCompanionArtifactRelativePaths: [],
-    installPlanSummaries: [
-      {
-        relativePath: archiveRelativePath,
-        format: 'bundle-archive',
-        platform: normalizedPlatform,
-        stepCount: 1,
-      },
-    ],
+    installPlanSummaries: installableArtifacts.map((artifact) => ({
+      relativePath: artifact.relativePath,
+      format: artifact.installerFormat,
+      bundle: artifact.bundle,
+      target: artifact.target,
+      signatureEvidence: artifact.signatureEvidence,
+      platform: normalizedPlatform,
+      stepCount: 1,
+    })),
     installReadyLayout: {
-      mode: 'bundle-archive',
+      mode: 'native-installers',
       ready: true,
     },
   });

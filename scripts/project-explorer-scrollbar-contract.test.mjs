@@ -21,8 +21,38 @@ const sessionRowSource = fs.readFileSync(
 
 assert.match(
   source,
-  /className="project-explorer-scroll-region px-1 py-2 flex-1 overflow-y-auto"/,
-  'Project explorer session list must render through the dedicated hover-scroll region class with compact horizontal padding.',
+  /className="project-explorer-scroll-region px-1 pb-2 flex-1 min-h-0 overflow-y-auto"/,
+  'Project explorer session list must render through the dedicated hover-scroll region class with compact horizontal padding and min-height gating.',
+);
+
+const sectionHeaderIndex = source.indexOf(
+  'className="flex items-center justify-between text-gray-400 text-xs mb-3 px-2 relative font-semibold tracking-wider uppercase animate-in fade-in slide-in-from-left-4 fill-mode-both"',
+);
+const searchInputIndex = source.indexOf('placeholder={searchSessionsPlaceholder}');
+const scrollRegionIndex = source.indexOf(
+  'className="project-explorer-scroll-region px-1 pb-2 flex-1 min-h-0 overflow-y-auto"',
+);
+const scrollRegionChildrenIndex = source.indexOf('{children}', scrollRegionIndex);
+
+assert.notEqual(sectionHeaderIndex, -1, 'Project explorer section header must exist.');
+assert.notEqual(searchInputIndex, -1, 'Project explorer search input must exist.');
+assert.notEqual(scrollRegionIndex, -1, 'Project explorer scroll region must exist.');
+assert.notEqual(scrollRegionChildrenIndex, -1, 'Project explorer children must render inside the scroll region.');
+
+assert.ok(
+  sectionHeaderIndex < scrollRegionIndex,
+  'Project explorer section header and filters must render before the scroll region so project scrolling only moves the session list.',
+);
+
+assert.ok(
+  searchInputIndex < scrollRegionIndex,
+  'Project explorer search box must render before the scroll region so searching controls stay pinned above project scrolling.',
+);
+
+assert.doesNotMatch(
+  source,
+  /className="project-explorer-scroll-region px-1 pb-2 flex-1 min-h-0 overflow-y-auto"[\s\S]*?<span>\{sessionsLabel\}<\/span>/,
+  'Project explorer scroll region must not contain the Sessions header.',
 );
 
 assert.match(

@@ -180,6 +180,28 @@ class InMemorySqlExecutorImpl implements BirdCoderInMemorySqlExecutor, BirdCoder
           rows: sortRows(rows, meta.orderBy),
         };
       }
+      case 'project-content-list-by-project-ids': {
+        const table = this.ensureTable(meta.tableName);
+        const projectIdSet = new Set(meta.projectIds);
+        const rows = Array.from(table.values()).filter((row) =>
+          projectIdSet.has(String(row.project_id)) &&
+          (meta.excludeDeleted ? !isRowSoftDeleted(row) : true),
+        );
+        return {
+          rows: sortRows(rows, meta.orderBy),
+        };
+      }
+      case 'project-list-by-workspace-ids': {
+        const table = this.ensureTable(meta.tableName);
+        const workspaceIdSet = new Set(meta.workspaceIds);
+        const rows = Array.from(table.values()).filter((row) =>
+          workspaceIdSet.has(String(row.workspace_id)) &&
+          (meta.excludeDeleted ? !isRowSoftDeleted(row) : true),
+        );
+        return {
+          rows: sortRows(rows, meta.orderBy),
+        };
+      }
       case 'coding-session-messages-by-session-ids': {
         const table = this.ensureTable(meta.tableName);
         const codingSessionIdSet = new Set(meta.codingSessionIds);
@@ -237,6 +259,56 @@ class InMemorySqlExecutorImpl implements BirdCoderInMemorySqlExecutor, BirdCoder
           rows: Array.from(metadataByCodingSessionId.values()).sort((left, right) =>
             left.coding_session_id.localeCompare(right.coding_session_id),
           ),
+        };
+      }
+      case 'coding-session-messages-delete-by-project-ids': {
+        const sessionTable = this.ensureTable(meta.sessionTableName);
+        const projectIdSet = new Set(meta.projectIds);
+        const deletedSessionIds = new Set<string>();
+        for (const row of sessionTable.values()) {
+          if (projectIdSet.has(String(row.project_id))) {
+            deletedSessionIds.add(String(row.id));
+          }
+        }
+
+        const table = this.ensureTable(meta.tableName);
+        let affectedRowCount = 0;
+        for (const [rowId, row] of [...table.entries()]) {
+          if (deletedSessionIds.has(String(row.coding_session_id))) {
+            table.delete(rowId);
+            affectedRowCount += 1;
+          }
+        }
+        return {
+          affectedRowCount,
+        };
+      }
+      case 'coding-session-messages-delete-by-session-ids': {
+        const table = this.ensureTable(meta.tableName);
+        const codingSessionIdSet = new Set(meta.codingSessionIds);
+        let affectedRowCount = 0;
+        for (const [rowId, row] of [...table.entries()]) {
+          if (codingSessionIdSet.has(String(row.coding_session_id))) {
+            table.delete(rowId);
+            affectedRowCount += 1;
+          }
+        }
+        return {
+          affectedRowCount,
+        };
+      }
+      case 'coding-session-delete-by-project-ids': {
+        const table = this.ensureTable(meta.tableName);
+        const projectIdSet = new Set(meta.projectIds);
+        let affectedRowCount = 0;
+        for (const [rowId, row] of [...table.entries()]) {
+          if (projectIdSet.has(String(row.project_id))) {
+            table.delete(rowId);
+            affectedRowCount += 1;
+          }
+        }
+        return {
+          affectedRowCount,
         };
       }
       case 'table-count': {

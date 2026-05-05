@@ -65,6 +65,24 @@ const smoke = parseArgs(['smoke', 'container', '--accelerator', 'cpu']);
 assert.equal(smoke.mode, 'smoke:container');
 assert.equal(smoke.accelerator, 'cpu');
 
+const trust = parseArgs([
+  'verify-trust',
+  'desktop',
+  '--release-assets-dir',
+  'artifacts/release',
+  '--platform',
+  'windows',
+  '--arch',
+  'x64',
+  '--target',
+  'x86_64-pc-windows-msvc',
+]);
+assert.equal(trust.mode, 'verify-trust:desktop');
+assert.equal(trust.releaseAssetsDir, 'artifacts/release');
+assert.equal(trust.platform, 'windows');
+assert.equal(trust.arch, 'x64');
+assert.equal(trust.target, 'x86_64-pc-windows-msvc');
+
 const smokeWeb = parseArgs(['smoke', 'web', '--release-assets-dir', 'artifacts/release']);
 assert.equal(smokeWeb.mode, 'smoke:web');
 assert.equal(smokeWeb.releaseAssetsDir, 'artifacts/release');
@@ -86,6 +104,10 @@ assert.equal(kubernetesPackage.imageDigest, 'sha256:test');
 const finalize = parseArgs(['finalize', '--release-assets-dir', 'artifacts/release']);
 assert.equal(finalize.mode, 'finalize');
 assert.equal(finalize.releaseAssetsDir, 'artifacts/release');
+
+const assertReady = parseArgs(['assert-ready', '--release-assets-dir', 'artifacts/release']);
+assert.equal(assertReady.mode, 'assert-ready');
+assert.equal(assertReady.releaseAssetsDir, 'artifacts/release');
 
 const finalizeWithQualityExecutionReport = parseArgs([
   'finalize',
@@ -134,14 +156,34 @@ const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-local-relea
 
 try {
   fs.mkdirSync(path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-server', 'src-host', 'src'), { recursive: true });
-  fs.mkdirSync(path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-web', 'src'), { recursive: true });
+  fs.mkdirSync(path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-server', 'src-host', 'target', 'release'), { recursive: true });
+  fs.mkdirSync(path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-web', 'dist', 'assets'), { recursive: true });
   fs.mkdirSync(path.join(fixtureRoot, 'artifacts', 'openapi'), { recursive: true });
   fs.writeFileSync(
     path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-server', 'src-host', 'src', 'main.rs'),
     'fn main() {}\n',
   );
+  const localServerBinaryName = process.platform === 'win32'
+    ? 'sdkwork-birdcoder-server.exe'
+    : 'sdkwork-birdcoder-server';
   fs.writeFileSync(
-    path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-web', 'src', 'index.ts'),
+    path.join(
+      fixtureRoot,
+      'packages',
+      'sdkwork-birdcoder-server',
+      'src-host',
+      'target',
+      'release',
+      localServerBinaryName,
+    ),
+    'compiled-birdcoder-server-binary\n',
+  );
+  fs.writeFileSync(
+    path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-web', 'dist', 'index.html'),
+    '<!doctype html><script type="module" src="./assets/index.js"></script>\n',
+  );
+  fs.writeFileSync(
+    path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-web', 'dist', 'assets', 'index.js'),
     'export const web = true;\n',
   );
   fs.writeFileSync(
@@ -158,7 +200,7 @@ try {
   process.chdir(fixtureRoot);
 
   const stdoutChunks = [];
-  const serverPackage = runLocalReleaseCommand(
+  const serverPackage = await runLocalReleaseCommand(
     ['package', 'server'],
     {
       write: (chunk) => {
@@ -212,6 +254,87 @@ try {
     false,
   );
   assert.deepEqual(JSON.parse(stdoutChunks.join('')), serverPackage);
+
+  const readinessCalls = [];
+  const readinessChunks = [];
+  const readinessResult = await runLocalReleaseCommand(
+    ['assert-ready', '--release-assets-dir', 'artifacts/release'],
+    {
+      write: (chunk) => {
+        readinessChunks.push(String(chunk));
+      },
+      assertReleaseReadinessFn(options) {
+        readinessCalls.push(options);
+        return {
+          releaseAssetsDir: path.resolve('artifacts/release'),
+          manifestPath: path.resolve('artifacts/release/release-manifest.json'),
+          checksumPath: path.resolve('artifacts/release/SHA256SUMS.txt'),
+          artifactCount: 1,
+          requiredTargetCount: 1,
+        };
+      },
+    },
+  );
+
+  assert.deepEqual(
+    readinessCalls.map((call) => ({
+      ...call,
+      releaseAssetsDir: path.relative(fixtureRoot, call.releaseAssetsDir).replaceAll('\\', '/'),
+    })),
+    [
+      {
+        profileId: 'sdkwork-birdcoder',
+        releaseAssetsDir: 'artifacts/release',
+      },
+    ],
+  );
+  assert.equal(readinessResult.mode, 'assert-ready');
+  assert.deepEqual(JSON.parse(readinessChunks.join('')), readinessResult);
+
+  const trustChunks = [];
+  const publicTrustCalls = [];
+  const trustResult = await runLocalReleaseCommand(
+    [
+      'verify-trust',
+      'desktop',
+      '--release-assets-dir',
+      'artifacts/release',
+      '--platform',
+      'windows',
+      '--arch',
+      'x64',
+      '--target',
+      'x86_64-pc-windows-msvc',
+    ],
+    {
+      write: (chunk) => {
+        trustChunks.push(String(chunk));
+      },
+      verifyDesktopInstallerTrustFn(options) {
+        publicTrustCalls.push(options);
+        return {
+          status: 'passed',
+          releaseAssetsDir: options.releaseAssetsDir,
+          platform: options.platform,
+          arch: options.arch,
+          target: options.target,
+          installerCount: 1,
+          reportPath: path.resolve('artifacts/release/desktop/windows/x64/desktop-installer-trust-report.json'),
+        };
+      },
+    },
+  );
+  assert.equal(trustResult.mode, 'verify-trust:desktop');
+  assert.equal(trustResult.status, 'passed');
+  assert.deepEqual(publicTrustCalls, [
+    {
+      releaseAssetsDir: 'artifacts/release',
+      platform: 'windows',
+      arch: 'x64',
+      target: 'x86_64-pc-windows-msvc',
+    },
+  ]);
+  assert.deepEqual(JSON.parse(trustChunks.join('')), trustResult);
 } finally {
   process.chdir(originalCwd);
   fs.rmSync(fixtureRoot, { recursive: true, force: true });

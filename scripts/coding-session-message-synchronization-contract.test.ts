@@ -291,9 +291,15 @@ assert.deepEqual(
       path: 'src/unsafe-counter.ts',
       additions: 1,
       deletions: 1,
+      diff: [
+        '--- a/src/unsafe-counter.ts',
+        '+++ b/src/unsafe-counter.ts',
+        '-const value = 1;',
+        '+const value = 2;',
+      ].join('\n'),
     },
   ],
-  'projection file-change counters must reject unsafe JavaScript integers and fall back to diff-derived counts instead of rendering rounded Long-sized counts.',
+  'projection file-change counters must reject unsafe JavaScript integers, preserve the diff payload, and fall back to diff-derived counts instead of rendering rounded Long-sized counts.',
 );
 
 const unsafeTaskProgressMessages = mergeBirdCoderProjectionMessages({
@@ -1649,14 +1655,16 @@ assert.deepEqual(
       path: 'src/App.tsx',
       additions: 1,
       deletions: 1,
+      diff: '--- a/src/App.tsx\n+++ b/src/App.tsx\n@@\n-export const answer = 41;\n+export const answer = 42;\n',
     },
     {
       path: 'src/index.ts',
       additions: 1,
       deletions: 0,
+      diff: '--- a/src/index.ts\n+++ b/src/index.ts\n@@\n+export * from "./App";\n',
     },
   ],
-  'projection refresh must expand canonical changes[] patch payloads into multiple fileChanges for multi-file code engine edits',
+  'projection refresh must expand canonical changes[] patch payloads into multiple fileChanges with diff details for multi-file code engine edits',
 );
 const codexMultiFilePatchCommandMessages = mergeBirdCoderProjectionMessages({
   codingSessionId: 'coding-session-1',

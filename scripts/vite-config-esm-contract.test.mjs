@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -8,6 +8,13 @@ import ts from 'typescript';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const workspaceRootDir = path.resolve(__dirname, '..');
+const rootTsconfigPath = path.resolve(workspaceRootDir, 'tsconfig.json');
+const sharedCoreBrowserFacadePath = path.resolve(
+  workspaceRootDir,
+  'scripts',
+  'vite-shims',
+  'sdkwork-core-pc-react-browser-facade.mjs',
+);
 
 const stubModuleSources = {
   '@vitejs/plugin-react': `export default function react() { return 'react-plugin'; }\n`,
@@ -90,6 +97,66 @@ function assertLucideRollupWarningFilter(onwarn, label) {
   );
 }
 
+function assertSharedCoreBrowserFacadeAlias(aliases, label) {
+  const sharedCoreAlias = findAliasEntry(
+    aliases,
+    (candidate) => candidate?.find === '@sdkwork/core-pc-react',
+    `${label} must expose the shared core root alias.`,
+  );
+
+  assert.equal(
+    sharedCoreAlias.replacement,
+    sharedCoreBrowserFacadePath,
+    `${label} must route @sdkwork/core-pc-react through the BirdCoder browser facade instead of the shared root barrel so unused IM exports do not pull unresolved IM SDK packages into production builds.`,
+  );
+}
+
+assert.ok(
+  existsSync(sharedCoreBrowserFacadePath),
+  'BirdCoder must provide a Vite browser facade for @sdkwork/core-pc-react so the app can consume shared core runtime exports without bundling the unused IM SDK barrel.',
+);
+const sharedCoreBrowserFacadeSource = readFileSync(sharedCoreBrowserFacadePath, 'utf8');
+const rootTsconfig = JSON.parse(readFileSync(rootTsconfigPath, 'utf8'));
+assert.ok(
+  rootTsconfig.exclude?.includes('scripts/vite-shims/sdkwork-core-pc-react-browser-facade.mjs'),
+  'The root TypeScript project must exclude the Vite-only shared core facade so tsc does not recurse into sibling sdkwork-core source and its external SDK workspace dependencies.',
+);
+assert.match(
+  sharedCoreBrowserFacadeSource,
+  /export \* from ['"]\.\.\/\.\.\/\.\.\/sdkwork-core\/sdkwork-core-pc-react\/src\/env\/index\.ts['"]/u,
+  'The shared core browser facade must re-export the shared env module.',
+);
+assert.match(
+  sharedCoreBrowserFacadeSource,
+  /export \* from ['"]\.\.\/\.\.\/\.\.\/sdkwork-core\/sdkwork-core-pc-react\/src\/app\/index\.ts['"]/u,
+  'The shared core browser facade must re-export the shared app runtime module.',
+);
+assert.match(
+  sharedCoreBrowserFacadeSource,
+  /from ['"]\.\.\/\.\.\/\.\.\/sdkwork-core\/sdkwork-core-pc-react\/src\/runtime\/shell-bridge\.ts['"]/u,
+  'The shared core browser facade must use the IM-free shared shell bridge module for locale and shell bridge exports.',
+);
+assert.match(
+  sharedCoreBrowserFacadeSource,
+  /from ['"]\.\.\/\.\.\/\.\.\/sdkwork-core\/sdkwork-core-pc-react\/src\/internal\/runtimeState\.ts['"]/u,
+  'The shared core browser facade must compose runtime/session exports from shared runtimeState instead of the shared runtime barrel.',
+);
+assert.match(
+  sharedCoreBrowserFacadeSource,
+  /export \* from ['"]\.\.\/\.\.\/\.\.\/sdkwork-core\/sdkwork-core-pc-react\/src\/preferences\/index\.ts['"]/u,
+  'The shared core browser facade must re-export the shared preferences module.',
+);
+assert.match(
+  sharedCoreBrowserFacadeSource,
+  /export function usePcReactResolvedShellPreferences\(/u,
+  'The shared core browser facade must provide the shell preference hook used by sdkwork-appbase without importing the shared hooks barrel.',
+);
+assert.doesNotMatch(
+  sharedCoreBrowserFacadeSource,
+  /\/im\/|runtime\/index\.ts|hooks\/index\.ts|src\/index\.ts/u,
+  'The shared core browser facade must not re-export the shared root, runtime, hooks, or IM barrels because those barrels import the IM SDK runtime graph.',
+);
+
 async function loadConfigModule(relativePath) {
   const absolutePath = path.resolve(workspaceRootDir, relativePath);
   const transpiled = ts.transpileModule(readFileSync(absolutePath, 'utf8'), {
@@ -142,6 +209,7 @@ assert.equal(
   ),
   'Root Vite config should resolve @sdkwork/auth-pc-react from the canonical sdkwork-appbase source tree.',
 );
+assertSharedCoreBrowserFacadeAlias(rootConfig.resolve?.alias, 'Root Vite config');
 const rootBirdcoderBareAlias = findAliasEntry(
   rootConfig.resolve?.alias,
   (candidate) =>
@@ -171,6 +239,7 @@ assert.deepEqual(
 
 const webConfig = await loadConfigModule('packages/sdkwork-birdcoder-web/vite.config.ts');
 assert.equal(webConfig.esbuild, false);
+assertSharedCoreBrowserFacadeAlias(webConfig.resolve?.alias, 'Web Vite config');
 const webBirdcoderBareAlias = findAliasEntry(
   webConfig.resolve?.alias,
   (candidate) =>
@@ -240,16 +309,262 @@ assertLucideRollupWarningFilter(
 const webManualChunks = webConfig.build?.rollupOptions?.output?.manualChunks;
 assert.equal(typeof webManualChunks, 'function', 'Web Vite config must expose manual chunk governance.');
 for (const platformRuntimeModuleId of [
-  '/repo/packages/sdkwork-birdcoder-workbench-state/src/userProfileState.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts',
   '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts',
+  '/repo/packages/sdkwork-birdcoder-workbench-state/src/userProfileState.ts',
+  '/repo/packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts',
 ]) {
   assert.equal(
     webManualChunks(platformRuntimeModuleId),
     'birdcoder-platform-runtime',
-    `Web Vite config must keep tightly coupled platform runtime services in one chunk to avoid circular chunk warnings for ${platformRuntimeModuleId}.`,
+    `Web Vite config must keep platform orchestration runtime in the core platform chunk for ${platformRuntimeModuleId}.`,
+  );
+}
+for (const platformApiClientModuleId of [
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/coreApiClient.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts',
+]) {
+  assert.equal(
+    webManualChunks(platformApiClientModuleId),
+    'birdcoder-platform-api-client',
+    `Web Vite config must split API transport/client/session-token runtime from generic platform orchestration for ${platformApiClientModuleId}.`,
+  );
+}
+for (const platformFileSystemModuleId of [
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/platform/tauriRuntime.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/platform/tauriFileSystemRuntime.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
+]) {
+  assert.equal(
+    webManualChunks(platformFileSystemModuleId),
+    'birdcoder-platform-filesystem',
+    `Web Vite config must split local filesystem and Tauri filesystem bridge runtime from generic platform orchestration for ${platformFileSystemModuleId}.`,
+  );
+}
+for (const providerRuntimeModuleId of [
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedWorkspaceService.ts',
+]) {
+  assert.equal(
+    webManualChunks(providerRuntimeModuleId),
+    'birdcoder-platform-provider-services',
+    `Web Vite config must split local provider-backed services from platform orchestration for ${providerRuntimeModuleId}.`,
+  );
+}
+for (const serviceCoreModuleId of [
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeApiRetry.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/codingSessionSelection.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/codingSessionMessageProjection.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/projectContentConfigData.ts',
+]) {
+  assert.equal(
+    webManualChunks(serviceCoreModuleId),
+    'birdcoder-platform-service-core',
+    `Web Vite config must split service support modules from platform orchestration to preserve acyclic chunks for ${serviceCoreModuleId}.`,
+  );
+}
+assert.equal(
+  webManualChunks('/repo/packages/sdkwork-birdcoder-infrastructure/src/storage/bootstrapConsoleCatalog.ts'),
+  'birdcoder-platform-storage',
+  'Web Vite config must keep bootstrap storage catalog helpers in the storage chunk so provider-backed services do not depend back on platform orchestration.',
+);
+for (const terminalDesktopModuleId of [
+  '/repo/sdkwork-terminal/apps/desktop/src/index.ts',
+  '/repo/sdkwork-terminal/apps/desktop/src/App.tsx',
+  '/repo/sdkwork-terminal/packages/sdkwork-terminal-shell/src/index.tsx',
+  '/repo/sdkwork-terminal/packages/sdkwork-terminal-workbench/src/index.tsx',
+]) {
+  assert.equal(
+    webManualChunks(terminalDesktopModuleId),
+    'birdcoder-terminal-desktop',
+    `Web Vite config must name the lazy sdkwork terminal desktop surface instead of letting Rollup emit anonymous index chunks for ${terminalDesktopModuleId}.`,
+  );
+}
+for (const terminalInfrastructureModuleId of [
+  '/repo/packages/sdkwork-birdcoder-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
+  '/repo/packages/sdkwork-birdcoder-commons/src/terminal/terminalRuntimeSanitization.ts',
+  '/repo/sdkwork-terminal/packages/sdkwork-terminal-core/src/index.ts',
+  '/repo/sdkwork-terminal/packages/sdkwork-terminal-types/src/index.ts',
+  '/repo/sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/index.ts',
+]) {
+  assert.equal(
+    webManualChunks(terminalInfrastructureModuleId),
+    'birdcoder-terminal-infrastructure',
+    `Web Vite config must isolate terminal infrastructure from the generic platform runtime for ${terminalInfrastructureModuleId}.`,
+  );
+}
+for (const terminalVendorModule of [
+  {
+    chunkName: 'vendor-terminal-xterm',
+    moduleIds: [
+      '/repo/node_modules/@xterm/xterm/lib/xterm.js',
+      '\0sdkwork-birdcoder-web-xterm-xterm',
+      '\0sdkwork-birdcoder-web-xterm-xterm-compiled',
+    ],
+  },
+  {
+    chunkName: 'vendor-terminal-xterm-addon-canvas',
+    moduleIds: [
+      '/repo/node_modules/@xterm/addon-canvas/lib/addon-canvas.js',
+      '\0sdkwork-birdcoder-web-xterm-addon-canvas',
+    ],
+  },
+  {
+    chunkName: 'vendor-terminal-xterm-addon-fit',
+    moduleIds: [
+      '/repo/node_modules/@xterm/addon-fit/lib/addon-fit.js',
+      '\0sdkwork-birdcoder-web-xterm-addon-fit',
+    ],
+  },
+  {
+    chunkName: 'vendor-terminal-xterm-addon-search',
+    moduleIds: [
+      '/repo/node_modules/@xterm/addon-search/lib/addon-search.js',
+      '\0sdkwork-birdcoder-web-xterm-addon-search',
+    ],
+  },
+  {
+    chunkName: 'vendor-terminal-xterm-addon-unicode11',
+    moduleIds: [
+      '/repo/node_modules/@xterm/addon-unicode11/lib/addon-unicode11.js',
+      '\0sdkwork-birdcoder-web-xterm-addon-unicode11',
+    ],
+  },
+]) {
+  for (const terminalVendorModuleId of terminalVendorModule.moduleIds) {
+    assert.equal(
+      webManualChunks(terminalVendorModuleId),
+      terminalVendorModule.chunkName,
+      `Web Vite config must publish terminal vendor runtime with governed chunk names instead of virtual-module-derived asset names for ${terminalVendorModuleId}.`,
+    );
+  }
+}
+for (const tauriVendorModule of [
+  {
+    chunkName: 'vendor-tauri-core',
+    moduleIds: [
+      '/repo/node_modules/@tauri-apps/api/core.js',
+      '/repo/node_modules/@tauri-apps/api/core/index.js',
+    ],
+  },
+  {
+    chunkName: 'vendor-tauri-event',
+    moduleIds: [
+      '/repo/node_modules/@tauri-apps/api/event.js',
+      '/repo/node_modules/@tauri-apps/api/event/index.js',
+    ],
+  },
+  {
+    chunkName: 'vendor-tauri-window',
+    moduleIds: [
+      '/repo/node_modules/@tauri-apps/api/window.js',
+      '/repo/node_modules/@tauri-apps/api/window/index.js',
+      '/repo/node_modules/@tauri-apps/api/dpi.js',
+    ],
+  },
+]) {
+  for (const tauriVendorModuleId of tauriVendorModule.moduleIds) {
+    assert.equal(
+      webManualChunks(tauriVendorModuleId),
+      tauriVendorModule.chunkName,
+      `Web Vite config must publish Tauri browser API runtime with governed chunk names instead of generic core/event/window assets for ${tauriVendorModuleId}.`,
+    );
+  }
+}
+for (const productSurfaceModule of [
+  {
+    chunkName: 'birdcoder-code-surface',
+    moduleIds: [
+      '/repo/packages/sdkwork-birdcoder-code/src/index.ts',
+      '/repo/packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx',
+      '/repo/packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-studio-surface',
+    moduleIds: [
+      '/repo/packages/sdkwork-birdcoder-studio/src/index.ts',
+      '/repo/packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx',
+      '/repo/packages/sdkwork-birdcoder-studio/src/pages/StudioChatSidebar.tsx',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-multiwindow-surface',
+    moduleIds: [
+      '/repo/packages/sdkwork-birdcoder-multiwindow/src/index.ts',
+      '/repo/packages/sdkwork-birdcoder-multiwindow/src/pages/MultiWindowProgrammingPage.tsx',
+      '/repo/packages/sdkwork-birdcoder-multiwindow/src/components/MultiWindowPane.tsx',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-settings-surface',
+    moduleIds: [
+      '/repo/packages/sdkwork-birdcoder-settings/src/index.ts',
+      '/repo/packages/sdkwork-birdcoder-settings/src/pages/SettingsPage.tsx',
+      '/repo/packages/sdkwork-birdcoder-settings/src/components/CodeEngineSettings.tsx',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-skills-surface',
+    moduleIds: [
+      '/repo/packages/sdkwork-birdcoder-skills/src/index.ts',
+      '/repo/packages/sdkwork-birdcoder-skills/src/SkillsPage.tsx',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-templates-surface',
+    moduleIds: [
+      '/repo/packages/sdkwork-birdcoder-templates/src/index.ts',
+      '/repo/packages/sdkwork-birdcoder-templates/src/TemplatesPage.tsx',
+    ],
+  },
+]) {
+  for (const productSurfaceModuleId of productSurfaceModule.moduleIds) {
+    assert.equal(
+      webManualChunks(productSurfaceModuleId),
+      productSurfaceModule.chunkName,
+      `Web Vite config must name lazy product surface chunks instead of letting Rollup emit anonymous index chunks for ${productSurfaceModuleId}.`,
+    );
+  }
+}
+for (const typeDataModuleId of [
+  '/repo/packages/sdkwork-birdcoder-types/src/data.ts',
+]) {
+  assert.equal(
+    webManualChunks(typeDataModuleId),
+    'birdcoder-types-data',
+    `Web Vite config must split large static data entity definitions from the shared types runtime for ${typeDataModuleId}.`,
+  );
+}
+for (const typeApiModuleId of [
+  '/repo/packages/sdkwork-birdcoder-types/src/server-api.ts',
+  '/repo/packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts',
+  '/repo/packages/sdkwork-birdcoder-types/src/generated/coding-server-openapi.ts',
+]) {
+  assert.equal(
+    webManualChunks(typeApiModuleId),
+    'birdcoder-types-api',
+    `Web Vite config must split generated server API contracts from the shared types runtime for ${typeApiModuleId}.`,
+  );
+}
+assert.equal(
+  webManualChunks('/repo/packages/sdkwork-birdcoder-types/src/storageBindings.ts'),
+  'birdcoder-types-storage',
+  'Web Vite config must keep storage binding contracts in the dedicated storage types chunk.',
+);
+assert.equal(
+  webManualChunks('/repo/packages/sdkwork-birdcoder-types/src/coding-session.ts'),
+  'birdcoder-types',
+  'Web Vite config must keep general runtime type helpers in the shared types fallback chunk.',
+);
+for (const apiRuntimeModuleId of [
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCoreReadService.ts',
+]) {
+  assert.equal(
+    webManualChunks(apiRuntimeModuleId),
+    'birdcoder-platform-api-services',
+    `Web Vite config must split API-backed service implementations from platform orchestration for ${apiRuntimeModuleId}.`,
   );
 }
 for (const identitySurfaceModuleId of [
@@ -285,6 +600,7 @@ const desktopConfig = await loadConfigModule('packages/sdkwork-birdcoder-desktop
 assert.equal(desktopConfig.base, './');
 assert.equal(desktopConfig.esbuild, false);
 assert.equal(desktopConfig.resolve?.preserveSymlinks, undefined);
+assertSharedCoreBrowserFacadeAlias(desktopConfig.resolve?.alias, 'Desktop Vite config');
 assert.equal(
   desktopConfig.build?.minify,
   false,

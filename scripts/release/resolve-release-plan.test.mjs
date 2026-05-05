@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import {
+  buildReleasePlanTargetSummary,
   createRollbackPlan,
   createReleasePlan,
   parseArgs,
@@ -53,6 +54,35 @@ assert.equal(parsed.rollbackCommand, 'gh workflow run rollback.yml --ref main');
 assert.equal(parsed.githubOutput, true);
 
 assert.throws(() => createReleasePlan(), /releaseTag is required/);
+assert.deepEqual(
+  buildReleasePlanTargetSummary({
+    desktopMatrix: [
+      {
+        platform: 'windows',
+        arch: 'x64',
+        bundles: ['nsis', 'msi'],
+      },
+      {
+        platform: 'linux',
+        arch: 'x64',
+        bundles: ['deb', 'rpm', 'appimage'],
+      },
+    ],
+    serverMatrix: [{}, {}],
+    containerMatrix: [{}],
+    kubernetesMatrix: [{}, {}, {}],
+  }),
+  {
+    familyTargetCounts: {
+      web: 1,
+      desktop: 5,
+      server: 2,
+      container: 1,
+      kubernetes: 3,
+    },
+    requiredTargetCount: 12,
+  },
+);
 
 const plan = createReleasePlan({
   releaseTag: 'release-2026-04-09-93',
@@ -73,6 +103,18 @@ assert.ok(plan.desktopMatrix.length > 0);
 assert.ok(plan.serverMatrix.length > 0);
 assert.ok(plan.containerMatrix.length > 0);
 assert.ok(plan.kubernetesMatrix.length > 0);
+assert.deepEqual(plan.familyTargetCounts, {
+  web: 1,
+  desktop: 12,
+  server: 6,
+  container: 4,
+  kubernetes: 4,
+});
+assert.equal(plan.requiredTargetCount, 27);
+assert.equal(
+  plan.requiredTargetCount,
+  Object.values(plan.familyTargetCounts).reduce((total, count) => total + count, 0),
+);
 
 const canaryPlan = createReleasePlan({
   releaseTag: 'release-2026-04-09-93',
@@ -108,6 +150,13 @@ assert.match(output, /rollout_stage=ring-1/);
 assert.match(output, /monitoring_window_minutes=45/);
 assert.match(output, /rollback_runbook_ref=docs\/runbooks\/canary-rollback\.md/);
 assert.match(output, /rollback_command=gh workflow run rollback\.yml --ref main/);
+assert.match(output, /manifest_checksum_file_name=release-manifest\.json\.sha256\.txt/);
+assert.match(output, /attestation_evidence_file_name=release-attestations\.json/);
+assert.match(output, /^required_target_count=27$/m);
+assert.match(
+  output,
+  /^family_target_counts=\{"web":1,"desktop":12,"server":6,"container":4,"kubernetes":4\}$/m,
+);
 assert.match(output, /desktop_matrix=\[/);
 
 assert.throws(() => writeGitHubOutput(plan, { env: {} }), /GITHUB_OUTPUT is required/);

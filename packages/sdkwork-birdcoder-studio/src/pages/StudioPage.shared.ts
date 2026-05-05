@@ -6,7 +6,7 @@ export interface StudioPageProps {
   projectId?: string;
   initialCodingSessionId?: string;
   onProjectChange?: (projectId: string) => void;
-  onCodingSessionChange?: (codingSessionId: string) => void;
+  onCodingSessionChange?: (codingSessionId: string, projectId?: string) => void;
 }
 
 export const EMPTY_STUDIO_CHAT_MESSAGES: BirdCoderChatMessage[] = [];

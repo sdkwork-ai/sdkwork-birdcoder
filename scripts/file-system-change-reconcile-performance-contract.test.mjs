@@ -42,8 +42,8 @@ assert.match(
 
 assert.match(
   fileSystemSource,
-  /const refreshDirectoryPaths = resolveFileChangeRefreshDirectoryPaths\(filesRef\.current, event\);[\s\S]*await fileSystemService\.refreshDirectories\(\s*requestProjectId,\s*refreshDirectoryPaths,\s*\)/s,
-  'useFileSystem should refresh only the impacted mounted directories during realtime reconciliation instead of reloading the entire file tree on every file-system event.',
+  /const refreshDirectoryPaths = resolveFileChangeRefreshDirectoryPaths\(\s*filesIndexRef\.current,\s*event,\s*\);[\s\S]*await fileSystemService\.refreshDirectories\(\s*requestProjectId,\s*refreshDirectoryPaths,\s*\)/s,
+  'useFileSystem should refresh only the impacted mounted directories from the precomputed file-tree index instead of reloading or rescanning the entire file tree on every file-system event.',
 );
 
 assert.doesNotMatch(

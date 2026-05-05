@@ -82,7 +82,7 @@ assert.match(
 
 assert.match(
   codingSessionActionsSource,
-  /type CreateCodingSessionInProjectAction = \([\s\S]*projectId: string,[\s\S]*requestedEngineId\?: string,[\s\S]*\) => Promise<unknown> \| unknown;[\s\S]*createCodingSessionInProject\?: CreateCodingSessionInProjectAction;/,
+  /type CreateCodingSessionInProjectAction = \([\s\S]*projectId: string,[\s\S]*requestedEngineId\?: string,[\s\S]*requestedModelId\?: string,[\s\S]*\) => Promise<unknown> \| unknown;[\s\S]*createCodingSessionInProject\?: CreateCodingSessionInProjectAction;/,
   'useCodingSessionActions must allow surfaces to provide their page-level create-session callback so event-driven creation cannot bypass UI orchestration.',
 );
 
@@ -94,8 +94,8 @@ assert.match(
 
 assert.match(
   codingSessionActionsSource,
-  /if \(createCodingSessionInProjectRef\.current\) \{[\s\S]*await createCodingSessionInProjectRef\.current\(targetProjectId, request\?\.engineId\);[\s\S]*return;[\s\S]*\}/s,
-  'useCodingSessionActions must prefer the page-level create-session callback before falling back to the low-level helper.',
+  /if \(createCodingSessionInProjectRef\.current\) \{[\s\S]*await createCodingSessionInProjectRef\.current\([\s\S]*targetProjectId,[\s\S]*request\?\.engineId,[\s\S]*request\?\.modelId,[\s\S]*\);[\s\S]*return;[\s\S]*\}/s,
+  'useCodingSessionActions must prefer the page-level create-session callback and preserve engine/model selection before falling back to the low-level helper.',
 );
 
 assert.match(
@@ -112,7 +112,13 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /useCodingSessionActions\([\s\S]*(?:createCodingSessionInProject:\s*createCodingSessionInProject|createCodingSessionInProject,)/s,
+  /const createStudioCodingSessionInProject = useCallback\([\s\S]*createCodingSessionInProject\(projectId, engineId, \{ modelId \}\)/s,
+  'StudioPage must preserve engine and model selection when adapting the shared UI-facing creation action.',
+);
+
+assert.match(
+  studioPageSource,
+  /useCodingSessionActions\([\s\S]*createCodingSessionInProject:\s*createStudioCodingSessionInProject/s,
   'StudioPage create-session event listeners must route through the shared UI-facing creation action so success, failure, and selection behavior stay standardized.',
 );
 

@@ -1,4 +1,5 @@
 import {
+  DEFAULT_MAX_SEARCHABLE_FILE_CONTENT_CHARACTERS,
   searchProjectFiles,
   type FileRevisionLookupResult,
   type ProjectFileSystemChangeEvent,
@@ -26,6 +27,7 @@ interface BrowserWritableLike {
 
 interface BrowserFileLike {
   lastModified?: number;
+  slice?(start?: number, end?: number): BrowserFileLike;
   size?: number;
   text(): Promise<string>;
 }
@@ -57,27 +59,35 @@ interface BrowserDirectoryHandleLike {
 type BrowserHandleLike = BrowserDirectoryHandleLike | BrowserFileHandleLike;
 
 interface BrowserMountState {
+  cachedSearchTree?: IFileNode[];
   cachedTree?: IFileNode[];
   directoryHandles: Map<string, BrowserDirectoryHandleLike>;
   fileHandles: Map<string, BrowserFileHandleLike>;
+  loadedDirectoryPaths: Set<string>;
   rootHandle: BrowserDirectoryHandleLike;
   rootPath: string;
   tree: IFileNode;
 }
 
 interface TauriMountState {
+  cachedSearchTree?: IFileNode[];
   cachedTree?: IFileNode[];
   directoryRevisions: Map<string, string>;
+  loadedDirectoryPaths: Set<string>;
   rootSystemPath: string;
   rootVirtualPath: string;
   tree: IFileNode;
 }
 
+type LoadedDirectoryMountState = {
+  loadedDirectoryPaths: Set<string>;
+};
+
 type FileSystemChangeListener = (event: ProjectFileSystemChangeEvent) => void;
 type ProjectFileTreePoller = {
   directoryPollCursor: number;
-  intervalId: ReturnType<typeof setInterval>;
   isRunning: boolean;
+  timerId: ReturnType<typeof setTimeout> | null;
   trackedFileKnownPaths: Set<string>;
   trackedFilePollCursor: number;
   trackedFileRevisionByPath: Map<string, string | null>;
@@ -95,6 +105,10 @@ type ProjectTauriWatchQueue = {
   isFlushing: boolean;
   timerId: ReturnType<typeof setTimeout> | null;
 };
+interface SearchTreeSnapshotContext {
+  signal?: AbortSignal;
+  visitedNodeCount: number;
+}
 
 const FILE_TREE_POLL_INTERVAL_MS = 1500;
 const TAURI_WATCH_FLUSH_DELAY_MS = 40;
@@ -102,6 +116,8 @@ const DIRECTORY_REFRESH_BATCH_SIZE = 4;
 const DIRECTORY_POLL_BATCH_SIZE = 4;
 const MAX_LOADED_DIRECTORY_REVISIONS_PER_POLL = 24;
 const MAX_TRACKED_FILE_REVISIONS_PER_POLL = 7;
+const MIN_RUNTIME_FILE_SEARCH_CONTENT_CHARACTERS = 4_096;
+const SEARCH_TREE_SNAPSHOT_YIELD_INTERVAL = 128;
 
 export interface RuntimeFileSystemServiceOptions {
   tauriRuntime?: BirdCoderTauriFileSystemRuntime;
@@ -127,6 +143,59 @@ function getParentPath(path: string): string {
 
 function isBrowserDirectoryHandle(value: BrowserHandleLike): value is BrowserDirectoryHandleLike {
   return value.kind === 'directory';
+}
+
+function normalizeRuntimeFileSearchContentBudget(maxFileContentCharacters?: number): number {
+  if (
+    typeof maxFileContentCharacters !== 'number' ||
+    !Number.isFinite(maxFileContentCharacters) ||
+    maxFileContentCharacters <= 0
+  ) {
+    return DEFAULT_MAX_SEARCHABLE_FILE_CONTENT_CHARACTERS;
+  }
+
+  return Math.max(MIN_RUNTIME_FILE_SEARCH_CONTENT_CHARACTERS, Math.floor(maxFileContentCharacters));
+}
+
+function createEmptyRuntimeFileSearchResult(): WorkspaceFileSearchExecutionResult {
+  return {
+    limitReached: false,
+    results: [],
+  };
+}
+
+function createSearchTreeSnapshotAbortError(): Error {
+  const error = new Error('Search tree snapshot aborted.');
+  error.name = 'AbortError';
+  return error;
+}
+
+function isSearchTreeSnapshotAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
+function throwIfSearchTreeSnapshotAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw createSearchTreeSnapshotAbortError();
+  }
+}
+
+async function yieldSearchTreeSnapshot(): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+async function trackSearchTreeSnapshotEntry(
+  context: SearchTreeSnapshotContext,
+): Promise<void> {
+  throwIfSearchTreeSnapshotAborted(context.signal);
+  context.visitedNodeCount += 1;
+  if (context.visitedNodeCount < SEARCH_TREE_SNAPSHOT_YIELD_INTERVAL) {
+    return;
+  }
+
+  context.visitedNodeCount = 0;
+  await yieldSearchTreeSnapshot();
+  throwIfSearchTreeSnapshotAborted(context.signal);
 }
 
 async function* listBrowserDirectoryEntries(
@@ -325,10 +394,33 @@ function findNodeByPath(node: IFileNode, targetPath: string): IFileNode | null {
   return null;
 }
 
-function createDirectoryChildrenSignature(children: readonly IFileNode[] | undefined): string {
-  return (children ?? [])
-    .map((child) => `${child.type}:${child.path}:${child.name}`)
-    .join('|');
+function areDirectoryChildrenEquivalent(
+  currentChildren: readonly IFileNode[] | undefined,
+  nextChildren: readonly IFileNode[] | undefined,
+): boolean {
+  const currentChildList = currentChildren ?? [];
+  const nextChildList = nextChildren ?? [];
+  if (currentChildList === nextChildList) {
+    return true;
+  }
+
+  if (currentChildList.length !== nextChildList.length) {
+    return false;
+  }
+
+  for (let index = 0; index < currentChildList.length; index += 1) {
+    const currentChild = currentChildList[index]!;
+    const nextChild = nextChildList[index]!;
+    if (
+      currentChild.type !== nextChild.type ||
+      currentChild.path !== nextChild.path ||
+      currentChild.name !== nextChild.name
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function replaceDirectoryChildren(
@@ -364,22 +456,6 @@ function replaceDirectoryChildren(
     ...node,
     children,
   };
-}
-
-function collectLoadedDirectoryPaths(node: IFileNode): string[] {
-  const loadedPaths: string[] = [];
-
-  const visit = (currentNode: IFileNode) => {
-    if (currentNode.type !== 'directory' || currentNode.children === undefined) {
-      return;
-    }
-
-    loadedPaths.push(currentNode.path);
-    currentNode.children.forEach((child) => visit(child));
-  };
-
-  visit(node);
-  return loadedPaths;
 }
 
 function selectLoadedDirectoryPollPaths(
@@ -490,6 +566,68 @@ function selectTrackedFilePollPaths(
   };
 }
 
+function markLoadedDirectoryPath(
+  mountState: LoadedDirectoryMountState,
+  directoryPath: string,
+): void {
+  const normalizedPath = directoryPath.trim();
+  if (!normalizedPath) {
+    return;
+  }
+
+  mountState.loadedDirectoryPaths.add(normalizedPath);
+}
+
+function removeLoadedDirectoryPath(
+  mountState: LoadedDirectoryMountState,
+  path: string,
+  recursive: boolean,
+): void {
+  const normalizedPath = path.trim();
+  if (!normalizedPath) {
+    return;
+  }
+
+  mountState.loadedDirectoryPaths.delete(normalizedPath);
+  if (!recursive) {
+    return;
+  }
+
+  const descendantPrefix = `${normalizedPath}/`;
+  for (const candidatePath of [...mountState.loadedDirectoryPaths]) {
+    if (candidatePath.startsWith(descendantPrefix)) {
+      mountState.loadedDirectoryPaths.delete(candidatePath);
+    }
+  }
+}
+
+function pruneRemovedLoadedDirectoryPaths(
+  mountState: LoadedDirectoryMountState & { tree: IFileNode },
+  directoryPath: string,
+  nextChildren: readonly IFileNode[],
+): void {
+  const currentNode = findNodeByPath(mountState.tree, directoryPath);
+  if (!currentNode?.children?.length) {
+    return;
+  }
+
+  const nextChildrenByPath = new Map(
+    nextChildren.map((child) => [child.path, child.type] as const),
+  );
+  currentNode.children.forEach((currentChild) => {
+    const nextChildType = nextChildrenByPath.get(currentChild.path);
+    if (nextChildType === currentChild.type) {
+      return;
+    }
+
+    removeLoadedDirectoryPath(
+      mountState,
+      currentChild.path,
+      currentChild.type === 'directory',
+    );
+  });
+}
+
 function resolveSuccessfulPathRevisionMap(
   lookups: readonly BirdCoderTauriPathRevisionLookupResult[],
 ): Map<string, string> {
@@ -503,9 +641,8 @@ function resolveSuccessfulPathRevisionMap(
 }
 
 function pruneTauriDirectoryRevisionMap(mountState: TauriMountState): void {
-  const loadedDirectoryPaths = new Set(collectLoadedDirectoryPaths(mountState.tree));
   mountState.directoryRevisions.forEach((_, path) => {
-    if (!loadedDirectoryPaths.has(path)) {
+    if (!mountState.loadedDirectoryPaths.has(path)) {
       mountState.directoryRevisions.delete(path);
     }
   });
@@ -902,29 +1039,43 @@ export class RuntimeFileSystemService implements IFileSystemService {
     projectId: string,
     options: WorkspaceFileSearchOptions,
   ): Promise<WorkspaceFileSearchExecutionResult> {
-    const browserMount = this.projectBrowserMounts[projectId];
-    const tauriMount = this.projectTauriMounts[projectId];
-    const files = browserMount
-      ? createReadonlyMountedTree(
-          await this.snapshotBrowserDirectoryRecursively(
-            browserMount.rootHandle,
-            browserMount.rootPath,
-          ),
-        )
-      : tauriMount
-        ? createReadonlyMountedTree(
-            (await this.tauriRuntime.snapshotFolder(tauriMount.rootSystemPath)).tree,
-          )
-        : await this.getFiles(projectId);
+    const signal = options.signal;
+    if (signal?.aborted) {
+      return createEmptyRuntimeFileSearchResult();
+    }
+
+    const searchMaxFileContentCharacters = normalizeRuntimeFileSearchContentBudget(
+      options.maxFileContentCharacters,
+    );
+    let files: IFileNode[];
+    try {
+      files = await this.getSearchFileTree(projectId, options.signal);
+    } catch (error) {
+      if (isSearchTreeSnapshotAbortError(error)) {
+        return createEmptyRuntimeFileSearchResult();
+      }
+
+      throw error;
+    }
+
+    if (signal?.aborted) {
+      return createEmptyRuntimeFileSearchResult();
+    }
+
     return searchProjectFiles({
       files,
       query: options.query,
+      maxFileContentCharacters: searchMaxFileContentCharacters,
       maxResults: options.maxResults,
       maxSnippetLength: options.maxSnippetLength,
-      signal: options.signal,
+      signal,
       readFileContent: async (path: string) => {
         try {
-          return await this.getFileContent(projectId, path);
+          return await this.readSearchFileContent(
+            projectId,
+            path,
+            searchMaxFileContentCharacters,
+          );
         } catch {
           return '';
         }
@@ -969,6 +1120,61 @@ export class RuntimeFileSystemService implements IFileSystemService {
     this.ensureProjectFileTreeRealtime(projectId);
   }
 
+  private async getSearchFileTree(
+    projectId: string,
+    signal?: AbortSignal,
+  ): Promise<IFileNode[]> {
+    throwIfSearchTreeSnapshotAborted(signal);
+
+    const browserMount = this.projectBrowserMounts[projectId];
+    if (browserMount) {
+      if (!browserMount.cachedSearchTree) {
+        const browserSearchTreeSnapshot = await this.snapshotBrowserDirectoryRecursively(
+          browserMount.rootHandle,
+          browserMount.rootPath,
+          browserMount.directoryHandles,
+          browserMount.fileHandles,
+          {
+            signal,
+            visitedNodeCount: 0,
+          },
+        );
+        throwIfSearchTreeSnapshotAborted(signal);
+        browserMount.cachedSearchTree = createReadonlyMountedTree(browserSearchTreeSnapshot);
+      }
+      return browserMount.cachedSearchTree;
+    }
+
+    const tauriMount = this.projectTauriMounts[projectId];
+    if (tauriMount) {
+      if (!tauriMount.cachedSearchTree) {
+        throwIfSearchTreeSnapshotAborted(signal);
+        const tauriSearchTreeSnapshot = await this.tauriRuntime.snapshotFolder(
+          tauriMount.rootSystemPath,
+        );
+        throwIfSearchTreeSnapshotAborted(signal);
+        tauriMount.cachedSearchTree = createReadonlyMountedTree(
+          tauriSearchTreeSnapshot.tree,
+        );
+      }
+      return tauriMount.cachedSearchTree;
+    }
+
+    return this.getFiles(projectId);
+  }
+
+  private invalidateProjectSearchTree(projectId: string): void {
+    const browserMount = this.projectBrowserMounts[projectId];
+    if (browserMount) {
+      browserMount.cachedSearchTree = undefined;
+    }
+
+    const tauriMount = this.projectTauriMounts[projectId];
+    if (tauriMount) {
+      tauriMount.cachedSearchTree = undefined;
+    }
+  }
+
   private async buildBrowserMountState(
     rootHandle: BrowserDirectoryHandleLike,
   ): Promise<BrowserMountState> {
@@ -991,6 +1197,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
     return {
       directoryHandles,
       fileHandles,
+      loadedDirectoryPaths: new Set([rootPath]),
       rootHandle,
       rootPath,
       tree,
@@ -1031,16 +1238,31 @@ export class RuntimeFileSystemService implements IFileSystemService {
   private async snapshotBrowserDirectoryRecursively(
     handle: BrowserDirectoryHandleLike,
     directoryPath: string,
+    directoryHandles: Map<string, BrowserDirectoryHandleLike>,
+    fileHandles: Map<string, BrowserFileHandleLike>,
+    context: SearchTreeSnapshotContext,
   ): Promise<IFileNode> {
+    throwIfSearchTreeSnapshotAborted(context.signal);
     const children: IFileNode[] = [];
 
     for await (const entry of listBrowserDirectoryEntries(handle)) {
+      await trackSearchTreeSnapshotEntry(context);
       const childPath = buildChildPath(directoryPath, entry.name);
       if (isBrowserDirectoryHandle(entry)) {
-        children.push(await this.snapshotBrowserDirectoryRecursively(entry, childPath));
+        directoryHandles.set(childPath, entry);
+        children.push(
+          await this.snapshotBrowserDirectoryRecursively(
+            entry,
+            childPath,
+            directoryHandles,
+            fileHandles,
+            context,
+          ),
+        );
         continue;
       }
 
+      fileHandles.set(childPath, entry);
       children.push({
         name: entry.name,
         type: 'file',
@@ -1048,6 +1270,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       });
     }
 
+    throwIfSearchTreeSnapshotAborted(context.signal);
     return {
       name: handle.name,
       type: 'directory',
@@ -1083,7 +1306,9 @@ export class RuntimeFileSystemService implements IFileSystemService {
       children,
     );
     mountState.tree = replaceDirectoryChildren(mountState.tree, directoryPath, children);
+    markLoadedDirectoryPath(mountState, directoryPath);
     mountState.cachedTree = undefined;
+    this.invalidateProjectSearchTree(projectId);
   }
 
   private async refreshBrowserDirectory(projectId: string, directoryPath: string): Promise<void> {
@@ -1110,8 +1335,10 @@ export class RuntimeFileSystemService implements IFileSystemService {
     directoryRevisions: Map<string, string>,
   ): TauriMountState {
     const mountState: TauriMountState = {
+      cachedSearchTree: undefined,
       cachedTree: undefined,
       directoryRevisions: new Map(directoryRevisions),
+      loadedDirectoryPaths: new Set([listing.rootVirtualPath]),
       rootSystemPath,
       rootVirtualPath: listing.rootVirtualPath,
       tree: {
@@ -1140,6 +1367,11 @@ export class RuntimeFileSystemService implements IFileSystemService {
       mountState.rootVirtualPath,
       directoryPath,
     );
+    pruneRemovedLoadedDirectoryPaths(
+      mountState,
+      listing.directory.path,
+      listing.directory.children ?? [],
+    );
     mountState.tree = replaceDirectoryChildren(
       mountState.tree,
       listing.directory.path,
@@ -1156,8 +1388,10 @@ export class RuntimeFileSystemService implements IFileSystemService {
             )
           )[0];
     updateTauriDirectoryRevision(mountState, listing.directory.path, directoryRevision);
+    markLoadedDirectoryPath(mountState, listing.directory.path);
     pruneTauriDirectoryRevisionMap(mountState);
     mountState.cachedTree = undefined;
+    this.invalidateProjectSearchTree(projectId);
   }
 
   private async refreshTauriDirectory(projectId: string, directoryPath: string): Promise<void> {
@@ -1448,17 +1682,30 @@ export class RuntimeFileSystemService implements IFileSystemService {
       return;
     }
 
-    const intervalId = setInterval(() => {
-      void this.pollProjectFileTreeChanges(projectId);
-    }, FILE_TREE_POLL_INTERVAL_MS);
-    this.projectFileTreePollers.set(projectId, {
+    const poller: ProjectFileTreePoller = {
       directoryPollCursor: 0,
-      intervalId,
       isRunning: false,
+      timerId: null,
       trackedFileKnownPaths: new Set(),
       trackedFilePollCursor: 0,
       trackedFileRevisionByPath: new Map(),
-    });
+    };
+    this.projectFileTreePollers.set(projectId, poller);
+    this.scheduleProjectFileTreePoll(projectId, poller);
+  }
+
+  private scheduleProjectFileTreePoll(
+    projectId: string,
+    poller: ProjectFileTreePoller,
+  ): void {
+    if (poller.timerId !== null) {
+      return;
+    }
+
+    poller.timerId = setTimeout(() => {
+      poller.timerId = null;
+      void this.pollProjectFileTreeChanges(projectId);
+    }, FILE_TREE_POLL_INTERVAL_MS);
   }
 
   private stopProjectFileTreePoller(projectId: string): void {
@@ -1467,7 +1714,10 @@ export class RuntimeFileSystemService implements IFileSystemService {
       return;
     }
 
-    clearInterval(poller.intervalId);
+    if (poller.timerId !== null) {
+      clearTimeout(poller.timerId);
+      poller.timerId = null;
+    }
     this.projectFileTreePollers.delete(projectId);
   }
 
@@ -1497,6 +1747,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       const currentPoller = this.projectFileTreePollers.get(projectId);
       if (currentPoller) {
         currentPoller.isRunning = false;
+        this.scheduleProjectFileTreePoll(projectId, currentPoller);
       }
     }
   }
@@ -1612,7 +1863,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       return [];
     }
 
-    const loadedDirectoryPaths = collectLoadedDirectoryPaths(mountState.tree);
+    const loadedDirectoryPaths = [...mountState.loadedDirectoryPaths];
     const poller = this.projectFileTreePollers.get(projectId);
     const selectedDirectoryPollBatch = selectLoadedDirectoryPollPaths(
       loadedDirectoryPaths,
@@ -1651,7 +1902,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       return [];
     }
 
-    const loadedDirectoryPaths = collectLoadedDirectoryPaths(mountState.tree);
+    const loadedDirectoryPaths = [...mountState.loadedDirectoryPaths];
     const poller = this.projectFileTreePollers.get(projectId);
     const selectedDirectoryPollBatch = selectLoadedDirectoryPollPaths(
       loadedDirectoryPaths,
@@ -1721,10 +1972,8 @@ export class RuntimeFileSystemService implements IFileSystemService {
       mountState.directoryHandles,
       mountState.fileHandles,
     );
-    if (
-      createDirectoryChildrenSignature(currentNode.children) ===
-      createDirectoryChildrenSignature(nextChildren)
-    ) {
+    if (areDirectoryChildrenEquivalent(currentNode.children, nextChildren)) {
+      markLoadedDirectoryPath(mountState, directoryPath);
       return false;
     }
 
@@ -1735,7 +1984,9 @@ export class RuntimeFileSystemService implements IFileSystemService {
       nextChildren,
     );
     mountState.tree = replaceDirectoryChildren(mountState.tree, directoryPath, nextChildren);
+    markLoadedDirectoryPath(mountState, directoryPath);
     mountState.cachedTree = undefined;
+    this.invalidateProjectSearchTree(projectId);
     return true;
   }
 
@@ -1761,20 +2012,30 @@ export class RuntimeFileSystemService implements IFileSystemService {
       directoryPath,
     );
     if (
-      createDirectoryChildrenSignature(currentNode.children) ===
-      createDirectoryChildrenSignature(listing.directory.children ?? [])
+      areDirectoryChildrenEquivalent(
+        currentNode.children,
+        listing.directory.children ?? [],
+      )
     ) {
       updateTauriDirectoryRevision(tauriMount, directoryPath, directoryRevision);
+      markLoadedDirectoryPath(tauriMount, directoryPath);
       return false;
     }
+    pruneRemovedLoadedDirectoryPaths(
+      tauriMount,
+      listing.directory.path,
+      listing.directory.children ?? [],
+    );
     tauriMount.tree = replaceDirectoryChildren(
       tauriMount.tree,
       listing.directory.path,
       listing.directory.children ?? [],
     );
     updateTauriDirectoryRevision(tauriMount, listing.directory.path, directoryRevision);
+    markLoadedDirectoryPath(tauriMount, listing.directory.path);
     pruneTauriDirectoryRevisionMap(tauriMount);
     tauriMount.cachedTree = undefined;
+    this.invalidateProjectSearchTree(projectId);
     return true;
   }
 
@@ -1798,6 +2059,11 @@ export class RuntimeFileSystemService implements IFileSystemService {
         return;
       }
 
+      removeLoadedDirectoryPath(
+        mountState,
+        currentChild.path,
+        currentChild.type === 'directory',
+      );
       this.removeBrowserMountedHandles(
         mountState,
         currentChild.path,
@@ -1870,6 +2136,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
   private async readBrowserMountedFileContent(
     projectId: string,
     path: string,
+    options: { maxCharacters?: number } = {},
   ): Promise<string | null> {
     const mountState = this.projectBrowserMounts[projectId];
     const fileHandle = mountState?.fileHandles.get(path);
@@ -1878,9 +2145,21 @@ export class RuntimeFileSystemService implements IFileSystemService {
     }
 
     const file = await fileHandle.getFile();
-    const content = await file.text();
-    this.projectFileContent[projectId] ??= {};
-    this.projectFileContent[projectId][path] = content;
+    const maxCharacters = options.maxCharacters;
+    const shouldReadPrefix =
+      typeof maxCharacters === 'number' &&
+      Number.isFinite(maxCharacters) &&
+      maxCharacters > 0 &&
+      typeof file.size === 'number' &&
+      file.size > maxCharacters &&
+      typeof file.slice === 'function';
+    const content = shouldReadPrefix
+      ? await file.slice(0, Math.floor(maxCharacters)).text()
+      : await file.text();
+    if (!shouldReadPrefix) {
+      this.projectFileContent[projectId] ??= {};
+      this.projectFileContent[projectId][path] = content;
+    }
     return content;
   }
 
@@ -1898,7 +2177,37 @@ export class RuntimeFileSystemService implements IFileSystemService {
     return buildBrowserFileRevision(file);
   }
 
-  private async readTauriMountedFileContent(projectId: string, path: string): Promise<string | null> {
+  private async readSearchFileContent(
+    projectId: string,
+    path: string,
+    maxFileContentCharacters: number,
+  ): Promise<string> {
+    if (this.isBrowserMountedPath(projectId, path)) {
+      const mountedContent = await this.readBrowserMountedFileContent(projectId, path, {
+        maxCharacters: maxFileContentCharacters,
+      });
+      if (mountedContent !== null) {
+        return mountedContent;
+      }
+    }
+
+    if (this.isTauriMountedPath(projectId, path)) {
+      const mountedContent = await this.readTauriMountedFileContent(projectId, path, {
+        maxBytes: maxFileContentCharacters,
+      });
+      if (mountedContent !== null) {
+        return mountedContent;
+      }
+    }
+
+    return this.getFileContent(projectId, path);
+  }
+
+  private async readTauriMountedFileContent(
+    projectId: string,
+    path: string,
+    options: { maxBytes?: number } = {},
+  ): Promise<string | null> {
     const mountState = this.projectTauriMounts[projectId];
     if (!mountState || !isPathWithinRoot(mountState.rootVirtualPath, path, false)) {
       return null;
@@ -1908,9 +2217,12 @@ export class RuntimeFileSystemService implements IFileSystemService {
       mountState.rootSystemPath,
       mountState.rootVirtualPath,
       path,
+      options.maxBytes ? { maxBytes: options.maxBytes } : undefined,
     );
-    this.projectFileContent[projectId] ??= {};
-    this.projectFileContent[projectId][path] = content;
+    if (!options.maxBytes) {
+      this.projectFileContent[projectId] ??= {};
+      this.projectFileContent[projectId][path] = content;
+    }
     return content;
   }
 

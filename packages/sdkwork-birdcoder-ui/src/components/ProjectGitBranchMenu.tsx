@@ -22,6 +22,7 @@ interface ProjectGitBranchMenuProps extends Pick<
   | 'normalizedProjectId'
   | 'overview'
 > {
+  compact?: boolean;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onRefresh: () => void | Promise<void>;
@@ -52,15 +53,16 @@ function getVariantStyle(
     default:
       return {
         button:
-          'flex items-center gap-1.5 rounded-md border border-white/5 px-2.5 py-1.5 text-xs transition-colors',
+          'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors',
         container: 'relative animate-in fade-in slide-in-from-top-2 fill-mode-both',
         menu:
-          'absolute right-0 top-full z-50 mt-1.5 w-80 rounded-lg border border-white/10 bg-[#18181b]/95 py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 origin-top-right',
+          'absolute right-0 top-full z-[80] mt-2 w-[22rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl bg-[#17171b]/98 p-2 text-[13px] text-gray-300 shadow-[0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 origin-top-right',
       };
   }
 }
 
 export const ProjectGitBranchMenu = memo(function ProjectGitBranchMenu({
+  compact = false,
   currentBranchLabel,
   isGitRepositoryReady,
   isLoading,
@@ -77,10 +79,14 @@ export const ProjectGitBranchMenu = memo(function ProjectGitBranchMenu({
   const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
   const variantStyle = getVariantStyle(variant);
+  const isCompactTopbar = variant === 'topbar' && compact;
   const branches = overview?.branches ?? [];
   const buttonValue = loadErrorMessage
     ? t('code.gitOverviewUnavailable')
     : currentBranchLabel || (isLoading ? '...' : t('app.menu.noRepository'));
+  const topbarButtonBaseClassName = isCompactTopbar
+    ? 'inline-flex h-8 w-8 items-center justify-center rounded-md text-xs transition-colors'
+    : variantStyle.button;
   const buttonClassName =
     variant === 'studio'
       ? `${variantStyle.button} ${
@@ -88,11 +94,14 @@ export const ProjectGitBranchMenu = memo(function ProjectGitBranchMenu({
             ? 'border-white/20 bg-[#1a1b22] text-white'
             : 'border-white/10 bg-[#15161b] text-gray-100 hover:border-white/15 hover:bg-[#1a1b22]'
         } ${!normalizedProjectId ? 'cursor-not-allowed opacity-60' : ''}`
-      : `${variantStyle.button} ${
-          isGitRepositoryReady
-            ? 'cursor-pointer bg-white/5 hover:bg-white/10'
-            : 'cursor-not-allowed bg-white/[0.03] text-gray-500 opacity-60'
+      : `${topbarButtonBaseClassName} ${
+          normalizedProjectId
+            ? isOpen
+              ? 'cursor-pointer bg-white/[0.07] text-white'
+              : 'cursor-pointer text-gray-300 hover:bg-white/[0.06] hover:text-white'
+            : 'cursor-not-allowed text-gray-500 opacity-60'
         }`;
+  const compactTitle = `${t('code.currentBranch')}: ${buttonValue}`;
 
   useEffect(() => {
     if (normalizedProjectId || !isOpen) {
@@ -131,10 +140,12 @@ export const ProjectGitBranchMenu = memo(function ProjectGitBranchMenu({
     <div ref={rootRef} className={variantStyle.container}>
       <button
         type="button"
-        disabled={!normalizedProjectId || !isGitRepositoryReady}
+        disabled={!normalizedProjectId}
         className={buttonClassName}
+        aria-label={isCompactTopbar ? compactTitle : undefined}
+        title={isCompactTopbar ? compactTitle : undefined}
         onClick={() => {
-          if (!normalizedProjectId || !isGitRepositoryReady) {
+          if (!normalizedProjectId) {
             return;
           }
           onOpenChange(!isOpen);
@@ -148,29 +159,33 @@ export const ProjectGitBranchMenu = memo(function ProjectGitBranchMenu({
             {t('code.currentBranch')}
           </span>
         ) : null}
-        <span className={variant === 'studio' ? 'min-w-0 max-w-[160px] truncate font-medium text-gray-100' : 'font-medium'}>
-          {buttonValue}
-        </span>
-        <ChevronDown
-          size={14}
-          className={`shrink-0 text-gray-500 transition-transform ${isOpen ? 'rotate-180 text-gray-300' : ''}`}
-        />
+        {!isCompactTopbar ? (
+          <>
+            <span className={variant === 'studio' ? 'min-w-0 max-w-[160px] truncate font-medium text-gray-100' : 'font-medium'}>
+              {buttonValue}
+            </span>
+            <ChevronDown
+              size={14}
+              className={`shrink-0 text-gray-500 transition-transform ${isOpen ? 'rotate-180 text-gray-300' : ''}`}
+            />
+          </>
+        ) : null}
       </button>
 
       {isOpen ? (
         <div className={variantStyle.menu}>
-          <div className="flex items-start justify-between gap-3 border-b border-white/8 px-3 py-2.5">
+          <div className="flex items-start justify-between gap-3 rounded-lg bg-white/[0.025] px-3 py-2.5">
             <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
                 {t('code.branches')}
               </div>
-              <div className="truncate text-[11px] text-gray-600">
+              <div className="mt-0.5 truncate text-[11px] text-gray-600">
                 {overview?.currentRevision?.slice(0, 12) || overview?.repositoryRootPath || ''}
               </div>
             </div>
             <button
               type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-gray-400 transition hover:border-white/20 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => {
                 void onRefresh();
               }}
@@ -183,7 +198,7 @@ export const ProjectGitBranchMenu = memo(function ProjectGitBranchMenu({
           </div>
 
           {loadErrorMessage ? (
-            <div className="m-3 flex items-start gap-2 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-3 text-[12px] text-red-200">
+            <div className="m-3 flex items-start gap-2 rounded-lg bg-red-500/[0.12] px-3 py-3 text-[12px] text-red-200">
               <AlertCircle size={14} className="mt-0.5 shrink-0" />
               <span className="min-w-0 break-words">{loadErrorMessage}</span>
             </div>
@@ -192,15 +207,15 @@ export const ProjectGitBranchMenu = memo(function ProjectGitBranchMenu({
               {t('app.menu.noRepository')}
             </div>
           ) : (
-            <div className="max-h-80 overflow-y-auto px-1 py-1.5">
+            <div className="mt-1 max-h-80 space-y-1 overflow-y-auto py-1 pr-1">
               {branches.map((branch) => (
                 <button
                   key={branch.name}
                   type="button"
-                  className={`mx-1 flex w-[calc(100%-0.5rem)] items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left ${
+                  className={`group flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors ${
                     branch.isCurrent
-                      ? 'border-blue-500/20 bg-blue-500/10'
-                      : 'border-white/8 bg-white/[0.03] hover:border-white/12 hover:bg-white/[0.05]'
+                      ? 'bg-blue-500/[0.13]'
+                      : 'hover:bg-white/[0.055]'
                   }`}
                   onClick={() => {
                     onOpenChange(false);
@@ -217,19 +232,19 @@ export const ProjectGitBranchMenu = memo(function ProjectGitBranchMenu({
                       </div>
                     </div>
                     {branch.upstreamName ? (
-                      <div className="truncate pl-6 text-[11px] text-gray-500">
+                      <div className="truncate pl-6 text-[11px] text-gray-500 group-hover:text-gray-400">
                         {branch.upstreamName}
                       </div>
                     ) : null}
                   </div>
                   <div className="flex shrink-0 items-center gap-1 text-[10px] text-gray-400">
                     {branch.ahead > 0 ? (
-                      <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-200">
+                      <span className="rounded-full bg-emerald-500/[0.13] px-1.5 py-0.5 text-emerald-200">
                         {t('code.ahead')} {branch.ahead}
                       </span>
                     ) : null}
                     {branch.behind > 0 ? (
-                      <span className="rounded-full border border-amber-400/20 bg-amber-500/10 px-1.5 py-0.5 text-amber-200">
+                      <span className="rounded-full bg-amber-500/[0.13] px-1.5 py-0.5 text-amber-200">
                         {t('code.behind')} {branch.behind}
                       </span>
                     ) : null}
@@ -241,10 +256,10 @@ export const ProjectGitBranchMenu = memo(function ProjectGitBranchMenu({
 
           {onRequestCreateBranch ? (
             <>
-              <div className="my-1.5 h-px bg-white/8" />
+              <div className="my-1.5 h-px bg-white/[0.06]" />
               <button
                 type="button"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] text-gray-300 transition-colors hover:bg-white/[0.06] hover:text-white"
                 onClick={() => {
                   onOpenChange(false);
                   onRequestCreateBranch();

@@ -119,11 +119,11 @@ export function SettingsPage({
 
   return (
     <div className="flex h-full w-full bg-[#0e0e11]">
-      <SettingsSidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        onBack={onBack} 
-        onLogout={logout} 
+      <SettingsSidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onBack={onBack}
+        onLogout={logout}
       />
       {renderContent()}
     </div>

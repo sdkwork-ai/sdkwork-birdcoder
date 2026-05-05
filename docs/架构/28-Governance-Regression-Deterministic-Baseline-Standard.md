@@ -75,7 +75,7 @@ The Step 18 packaged release-evidence promotion is now closed; PostgreSQL live s
   - largest JS asset `vendor-markdown-DqZNkVdw.js`: `598.2 KiB`
   - allowed cap: `700.0 KiB`
 - Historical direct-runner evidence on `2026-04-13` re-verified:
-  - `artifacts/governance/governance-regression-report.json`: `101/101` passed with `failedCheckIds: []`
+  - `artifacts/governance/governance-regression-report.json`: `110/110` passed with `failedCheckIds: []`
   - `artifacts/quality/quality-gate-execution-report.json`: `status: passed` with `passedCount: 3`
 - Current host evidence on `2026-04-15` now preserves the governed Vite-host blocker explicitly instead of fabricating a repository failure:
   - direct `pnpm.cmd run build` still passes with entry `68.1 KiB`, largest JS asset `598.2 KiB`, and cap `700.0 KiB`

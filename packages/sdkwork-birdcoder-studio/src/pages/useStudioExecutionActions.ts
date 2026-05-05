@@ -27,6 +27,7 @@ import {
   resolveHostStudioPreviewSession,
   resolveHostStudioSimulatorSession,
 } from '@sdkwork/birdcoder-host-studio';
+import { resolveSafePreviewUrl } from '@sdkwork/birdcoder-ui-shell';
 
 type ToastVariant = 'success' | 'info' | 'error';
 type StudioTab = 'preview' | 'simulator' | 'code';
@@ -246,7 +247,8 @@ export function useStudioExecutionActions({
       }
 
       emitOpenTerminalRequest(launch.request.terminalRequest);
-      setPreviewUrl(launch.request.session.target.url);
+      const safePreviewUrl = resolveSafePreviewUrl(launch.request.session.target.url);
+      setPreviewUrl(safePreviewUrl);
       setPreviewKey((value) => value + 1);
 
       try {
@@ -258,7 +260,7 @@ export function useStudioExecutionActions({
       addToast(t('studio.startingApplication'), 'info');
 
       if (openExternal && typeof window !== 'undefined') {
-        window.open(launch.request.session.target.url, '_blank', 'noopener,noreferrer');
+        window.open(safePreviewUrl, '_blank', 'noopener,noreferrer');
       }
     },
     [

@@ -47,6 +47,46 @@ assert.equal(
   'release-flow runner must execute the canonical release quality evidence contract before downstream lanes',
 );
 assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/assert-release-readiness.test.mjs'),
+  true,
+  'release-flow runner must execute the finalized release readiness assertion contract before release-note lanes',
+);
+assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/write-attestation-evidence.test.mjs'),
+  true,
+  'release-flow runner must execute the attestation evidence contract before release readiness lanes',
+);
+assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/release-checksums.test.mjs'),
+  true,
+  'release-flow runner must execute the release checksum publication-view contract before release-note lanes',
+);
+assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/release-readiness-complete-matrix.test.mjs'),
+  true,
+  'release-flow runner must execute the complete release matrix readiness contract before finalized smoke lanes',
+);
+assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/write-readiness-fixture.mjs --help'),
+  true,
+  'release-flow runner must execute the readiness fixture CLI help path before finalized smoke lanes',
+);
+assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/write-readiness-fixture.test.mjs'),
+  true,
+  'release-flow runner must execute the complete release readiness fixture generator contract before finalized smoke lanes',
+);
+assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/candidate-dry-run.mjs --help'),
+  true,
+  'release-flow runner must execute the release candidate dry-run CLI help path before finalized smoke lanes',
+);
+assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/candidate-dry-run.test.mjs'),
+  true,
+  'release-flow runner must execute the release candidate dry-run evidence contract before finalized smoke lanes',
+);
+assert.equal(
   RELEASE_FLOW_CHECK_COMMANDS.includes('node --experimental-strip-types scripts/coding-server-openapi-snapshot-drift.test.ts'),
   true,
   'release-flow runner must execute the coding-server OpenAPI snapshot drift contract before downstream codegen lanes',

@@ -2,6 +2,7 @@ import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-types';
 import type { RefObject } from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
+  hasTranscriptMessageKey,
   reconcileTranscriptPrefixHeightsCache,
   resolveTranscriptMessageKey,
   resolveVirtualizedTranscriptWindow,
@@ -126,18 +127,15 @@ export function useVirtualizedTranscriptWindow(
   }, [normalizedMeasurementScopeKey, scrollContainerRef]);
 
   useEffect(() => {
-    const messageIdSet = new Set(
-      messages.map((message, index) => resolveTranscriptMessageKey(message, index)),
-    );
     for (const messageId of measuredHeightsRef.current.keys()) {
-      if (messageIdSet.has(messageId)) {
+      if (hasTranscriptMessageKey(messages, messageId)) {
         continue;
       }
       measuredHeightsRef.current.delete(messageId);
     }
 
     for (const [messageId, element] of observedElementsRef.current.entries()) {
-      if (messageIdSet.has(messageId)) {
+      if (hasTranscriptMessageKey(messages, messageId)) {
         continue;
       }
       resizeObserverRef.current?.unobserve(element);
@@ -146,7 +144,7 @@ export function useVirtualizedTranscriptWindow(
     }
 
     for (const messageId of messageRefCallbackMapRef.current.keys()) {
-      if (messageIdSet.has(messageId)) {
+      if (hasTranscriptMessageKey(messages, messageId)) {
         continue;
       }
       messageRefCallbackMapRef.current.delete(messageId);

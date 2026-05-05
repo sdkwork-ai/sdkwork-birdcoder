@@ -1,6 +1,6 @@
 /// <reference path="../react-syntax-highlighter.d.ts" />
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import SyntaxHighlighter from 'react-syntax-highlighter/dist/esm/prism-light';
 import bash from 'react-syntax-highlighter/dist/esm/languages/prism/bash';
@@ -21,6 +21,7 @@ import yaml from 'react-syntax-highlighter/dist/esm/languages/prism/yaml';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@sdkwork/birdcoder-ui-shell';
+import { copyTextToClipboard } from './clipboard';
 
 export interface UniversalChatCodeBlockProps extends Record<string, unknown> {
   language: string;
@@ -105,14 +106,36 @@ export function UniversalChatCodeBlock({
 }: UniversalChatCodeBlockProps) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const copyFeedbackTimeoutRef = useRef<number | null>(null);
+
+  const clearCopyFeedbackTimeout = useCallback(() => {
+    if (copyFeedbackTimeoutRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(copyFeedbackTimeoutRef.current);
+    copyFeedbackTimeoutRef.current = null;
+  }, []);
 
   ensureLanguagesRegistered();
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
+  const handleCopy = async () => {
+    const didCopy = await copyTextToClipboard(String(children).replace(/\n$/, ''));
+    if (!didCopy) {
+      return;
+    }
+
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    clearCopyFeedbackTimeout();
+    copyFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setCopied(false);
+      copyFeedbackTimeoutRef.current = null;
+    }, 2000);
   };
+
+  useEffect(() => () => {
+    clearCopyFeedbackTimeout();
+  }, [clearCopyFeedbackTimeout]);
 
   return (
     <div className="relative group/code rounded-xl overflow-hidden border border-white/10 my-4 bg-[#0d0d0d] shadow-lg">

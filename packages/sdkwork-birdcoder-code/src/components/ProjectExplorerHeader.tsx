@@ -157,7 +157,7 @@ export function ProjectExplorerHeader({
           }
         `}
       </style>
-      <div className="p-3 flex flex-col gap-2">
+      <div className="p-3 flex shrink-0 flex-col gap-2">
         <WorkbenchNewSessionButton
           buttonLabel={newSessionLabel}
           currentSessionEngineId={currentSessionEngineId}
@@ -172,10 +172,7 @@ export function ProjectExplorerHeader({
         />
       </div>
 
-      <div
-        ref={scrollRegionRef}
-        className="project-explorer-scroll-region px-1 py-2 flex-1 overflow-y-auto"
-      >
+      <div className="shrink-0 px-1 pt-2">
         <div
           className="flex items-center justify-between text-gray-400 text-xs mb-3 px-2 relative font-semibold tracking-wider uppercase animate-in fade-in slide-in-from-left-4 fill-mode-both"
           style={{ animationDelay: '100ms' }}
@@ -327,6 +324,12 @@ export function ProjectExplorerHeader({
           </div>
         )}
 
+      </div>
+
+      <div
+        ref={scrollRegionRef}
+        className="project-explorer-scroll-region px-1 pb-2 flex-1 min-h-0 overflow-y-auto"
+      >
         {children}
       </div>
     </>

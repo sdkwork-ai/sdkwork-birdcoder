@@ -340,6 +340,11 @@ try {
   });
   const reloadedProjects = await reloadedServices.projectService.getProjects(createdWorkspace.id);
   const reloadedProject = reloadedProjects.find((project) => project.id === createdProject.id);
+  const reloadedTranscript =
+    await reloadedServices.projectService.getCodingSessionTranscript(
+      createdProject.id,
+      createdSession.id,
+    );
   const storedCodingSessions = await listStoredCodingSessions({
     projectId: createdProject.id,
   });
@@ -352,11 +357,7 @@ try {
       engineId: session.engineId,
       modelId: session.modelId,
       nativeSessionId: session.nativeSessionId,
-      messages: session.messages.map((message) => ({
-        id: message.id,
-        role: message.role,
-        content: message.content,
-      })),
+      messages: session.messages,
     })),
     [
       {
@@ -365,21 +366,30 @@ try {
         engineId: 'codex',
         modelId: 'codex',
         nativeSessionId: 'persistence-native-1',
-        messages: [
-          {
-            id: createdMessage.id,
-            role: 'user',
-            content: 'Persist this coding session across service recreation.',
-          },
-          {
-            id: reloadedProject?.codingSessions[0]?.messages[1]?.id,
-            role: 'assistant',
-            content: 'Acknowledged: Persist this coding session across service recreation.',
-          },
-        ],
+        messages: [],
       },
     ],
-    'coding sessions and projected messages must persist across service recreation.',
+    'coding session inventory must persist across service recreation without eagerly hydrating transcript messages.',
+  );
+  assert.deepEqual(
+    reloadedTranscript?.messages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+    })),
+    [
+      {
+        id: createdMessage.id,
+        role: 'user',
+        content: 'Persist this coding session across service recreation.',
+      },
+      {
+        id: reloadedTranscript?.messages[1]?.id,
+        role: 'assistant',
+        content: 'Acknowledged: Persist this coding session across service recreation.',
+      },
+    ],
+    'selected session transcript messages must persist and hydrate on demand after service recreation.',
   );
   assert.deepEqual(
     storedCodingSessions.map((session) => session.id),

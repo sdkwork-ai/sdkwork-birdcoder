@@ -21,7 +21,7 @@ sdkwork-terminal-session-runtime = { path = "../../../../sdkwork-terminal/crates
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
-tokio = { version = "1", features = ["net", "rt-multi-thread"] }
+tokio = { version = "1", features = ["net", "rt-multi-thread", "sync"] }
 
 [lib]
 name = "sdkwork_birdcoder_desktop_lib"

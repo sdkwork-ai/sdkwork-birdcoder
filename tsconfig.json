@@ -135,6 +135,7 @@
     "**/dist/**",
     "**/target/**",
     "**/src-tauri/target/**",
+    "scripts/vite-shims/sdkwork-core-pc-react-browser-facade.mjs",
     "artifacts/**"
   ]
 }

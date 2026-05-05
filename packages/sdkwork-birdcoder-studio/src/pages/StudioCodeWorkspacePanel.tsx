@@ -49,7 +49,30 @@ function areStudioCodeWorkspacePanelPropsEqual(
     return true;
   }
 
-  return false;
+  return (
+    left.currentProjectId === right.currentProjectId &&
+    left.files === right.files &&
+    left.loadingDirectoryPaths === right.loadingDirectoryPaths &&
+    left.openFiles === right.openFiles &&
+    left.selectedFile === right.selectedFile &&
+    left.currentProjectPath === right.currentProjectPath &&
+    left.viewingDiff === right.viewingDiff &&
+    left.fileContent === right.fileContent &&
+    left.explorerWidth === right.explorerWidth &&
+    left.onSelectFile === right.onSelectFile &&
+    left.onExpandDirectory === right.onExpandDirectory &&
+    left.onCloseFile === right.onCloseFile &&
+    left.onCreateFile === right.onCreateFile &&
+    left.onCreateFolder === right.onCreateFolder &&
+    left.onDeleteFile === right.onDeleteFile &&
+    left.onDeleteFolder === right.onDeleteFolder &&
+    left.onRenameNode === right.onRenameNode &&
+    left.onAcceptDiff === right.onAcceptDiff &&
+    left.onRejectDiff === right.onRejectDiff &&
+    left.onFileDraftChange === right.onFileDraftChange &&
+    left.onExplorerResize === right.onExplorerResize &&
+    left.getLanguageFromPath === right.getLanguageFromPath
+  );
 }
 
 export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({

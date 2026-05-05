@@ -62,7 +62,7 @@ export const QUALITY_GATE_TIERS = Object.freeze([
       kind: 'legacy-parity',
       requiredCommands: Object.freeze([
         'pnpm check:desktop',
-        'cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml',
+        'node scripts/run-cargo.mjs test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml',
         'pnpm check:server',
         'pnpm build',
         'pnpm server:build',
@@ -98,7 +98,7 @@ export const QUALITY_GATE_TIERS = Object.freeze([
         'pnpm lint',
         'pnpm check:desktop',
         'pnpm check:server',
-        'cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml',
+        'node scripts/run-cargo.mjs test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml',
         'pnpm build',
         'pnpm server:build',
         'pnpm docs:build',

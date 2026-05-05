@@ -42,7 +42,11 @@ jobs:
       server_matrix: ${{ steps.plan.outputs.server_matrix }}
       container_matrix: ${{ steps.plan.outputs.container_matrix }}
       kubernetes_matrix: ${{ steps.plan.outputs.kubernetes_matrix }}
+      required_target_count: ${{ steps.plan.outputs.required_target_count }}
+      family_target_counts: ${{ steps.plan.outputs.family_target_counts }}
       manifest_file_name: ${{ steps.plan.outputs.manifest_file_name }}
+      manifest_checksum_file_name: ${{ steps.plan.outputs.manifest_checksum_file_name }}
+      attestation_evidence_file_name: ${{ steps.plan.outputs.attestation_evidence_file_name }}
       global_checksums_file_name: ${{ steps.plan.outputs.global_checksums_file_name }}
     steps:
       - name: Checkout workflow sources
@@ -128,7 +132,7 @@ jobs:
           pnpm lint
           pnpm check:desktop
           pnpm check:server
-          cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml
+          node scripts/run-cargo.mjs test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml
           pnpm build
           pnpm server:build
           pnpm docs:build
@@ -209,19 +213,45 @@ jobs:
       - name: Prepare bundled OpenClaw runtime
         run: node scripts/run-desktop-release-build.mjs --profile ${{ inputs.release_profile }} --phase prepare-openclaw --target ${{ matrix.target }}
 
+      - name: Preflight Windows desktop signing environment
+        if: matrix.platform == 'windows'
+        env:
+          BIRDCODER_WINDOWS_SIGNING_CERT_SHA1: ${{ secrets.BIRDCODER_WINDOWS_SIGNING_CERT_SHA1 }}
+          BIRDCODER_WINDOWS_SIGNING_TIMESTAMP_URL: ${{ secrets.BIRDCODER_WINDOWS_SIGNING_TIMESTAMP_URL }}
+        run: node scripts/release/preflight-desktop-signing-environment.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --bundles ${{ join(matrix.bundles, ',') }}
+
+      - name: Preflight macOS desktop signing environment
+        if: matrix.platform == 'macos'
+        env:
+          BIRDCODER_MACOS_CODESIGN_IDENTITY: ${{ secrets.BIRDCODER_MACOS_CODESIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: node scripts/release/preflight-desktop-signing-environment.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --bundles ${{ join(matrix.bundles, ',') }}
+
+      - name: Preflight Linux desktop package metadata environment
+        if: matrix.platform == 'linux'
+        run: node scripts/release/preflight-desktop-signing-environment.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --bundles ${{ join(matrix.bundles, ',') }}
+
       - name: Build Claw Studio desktop bundle on Windows
         if: matrix.platform == 'windows'
         env:
           CMAKE_GENERATOR: Visual Studio 17 2022
           HOST_CMAKE_GENERATOR: Visual Studio 17 2022
-        run: node scripts/run-desktop-release-build.mjs --profile ${{ inputs.release_profile }} --phase bundle --target ${{ matrix.target }}
+        run: node scripts/run-desktop-release-build.mjs --profile ${{ inputs.release_profile }} --phase bundle --target ${{ matrix.target }} --bundles ${{ join(matrix.bundles, ',') }}
 
       - name: Build Claw Studio desktop bundle on Unix
         if: matrix.platform != 'windows'
-        run: node scripts/run-desktop-release-build.mjs --profile ${{ inputs.release_profile }} --phase bundle --target ${{ matrix.target }}
+        run: node scripts/run-desktop-release-build.mjs --profile ${{ inputs.release_profile }} --phase bundle --target ${{ matrix.target }} --bundles ${{ join(matrix.bundles, ',') }}
 
       - name: Collect desktop release assets
         run: node scripts/release/package-release-assets.mjs desktop --profile ${{ inputs.release_profile }} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --output-dir artifacts/release
+
+      - name: Verify desktop installer trust
+        run: node scripts/release/verify-desktop-installer-trust.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --release-assets-dir artifacts/release
 
       - name: Smoke packaged desktop installers
         run: node scripts/release/smoke-desktop-installers.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --release-assets-dir artifacts/release
@@ -283,6 +313,9 @@ jobs:
 
       - name: Package web release assets
         run: node scripts/release/package-release-assets.mjs web --profile ${{ inputs.release_profile }} --release-tag ${{ needs.prepare.outputs.release_tag }} --output-dir artifacts/release
+
+      - name: Smoke packaged web release assets
+        run: node scripts/release/smoke-web-release-assets.mjs --release-assets-dir artifacts/release
 
       - name: Attest web release assets
         if: ${{ needs.prepare.outputs.release_tag != '' }}
@@ -646,20 +679,27 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      - name: Render release notes
+        run: node scripts/release/render-release-notes.mjs --release-tag ${{ needs.prepare.outputs.release_tag }} --output release-assets/release-notes.md
+
       - name: Finalize release assets
         run: node scripts/release/finalize-release-assets.mjs --profile ${{ inputs.release_profile }} --release-tag ${{ needs.prepare.outputs.release_tag }} --repository ${{ github.repository }} --release-assets-dir release-assets
 
       - name: Smoke finalized release assets
         run: node scripts/release/smoke-finalized-release-assets.mjs --release-assets-dir release-assets
 
-      - name: Render release notes
-        run: node scripts/release/render-release-notes.mjs --release-tag ${{ needs.prepare.outputs.release_tag }} --output release-assets/release-notes.md
-
       - name: Attest finalized release assets
         if: ${{ needs.prepare.outputs.release_tag != '' }}
         uses: actions/attest-build-provenance@v3
         with:
           subject-path: release-assets/**/*
+
+      - name: Write finalized attestation evidence
+        if: ${{ needs.prepare.outputs.release_tag != '' }}
+        run: node scripts/release/write-attestation-evidence.mjs --profile ${{ inputs.release_profile }} --release-assets-dir release-assets --repository ${{ github.repository }} --release-tag ${{ needs.prepare.outputs.release_tag }}
+
+      - name: Assert release readiness
+        run: node scripts/release/assert-release-readiness.mjs --profile ${{ inputs.release_profile }} --release-assets-dir release-assets
 
       - name: Publish release assets
         uses: softprops/action-gh-release@v2

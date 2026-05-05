@@ -472,38 +472,42 @@ export function buildProjectBackedSessionInventory(
   const normalizedWorkspaceId = normalizeScopedIdentifier(options.workspaceId);
   const normalizedProjectId = normalizeScopedIdentifier(options.projectId);
   const includeGlobal = options.includeGlobal ?? true;
+  const records: WorkbenchSessionInventoryRecord[] = [];
 
-  const codingSessions = options.projects
-    .filter((project) => matchesWorkspaceScope(project.workspaceId, normalizedWorkspaceId))
-    .filter((project) =>
-      normalizedProjectId.length === 0 ? true : project.id === normalizedProjectId,
-    )
-    .flatMap((project) =>
-      project.codingSessions
-        .filter((codingSession) =>
-          matchesWorkspaceScope(codingSession.workspaceId, normalizedWorkspaceId),
-        )
-        .filter((codingSession) =>
-          matchesProjectScope(codingSession.projectId, normalizedProjectId, false),
-        )
-        .map(toProjectBackedCodingSessionInventoryRecord),
-    );
+  for (const project of options.projects) {
+    if (!matchesWorkspaceScope(project.workspaceId, normalizedWorkspaceId)) {
+      continue;
+    }
+    if (normalizedProjectId.length > 0 && project.id !== normalizedProjectId) {
+      continue;
+    }
 
-  const terminalSessions = (options.terminalSessions ?? [])
-    .filter((session) => matchesWorkspaceScope(session.workspaceId, normalizedWorkspaceId))
-    .filter((session) =>
-      matchesProjectScope(session.projectId, normalizedProjectId, includeGlobal),
-    )
-    .map((session) => ({
+    for (const codingSession of project.codingSessions) {
+      if (!matchesWorkspaceScope(codingSession.workspaceId, normalizedWorkspaceId)) {
+        continue;
+      }
+      if (!matchesProjectScope(codingSession.projectId, normalizedProjectId, false)) {
+        continue;
+      }
+      records.push(toProjectBackedCodingSessionInventoryRecord(codingSession));
+    }
+  }
+
+  for (const session of options.terminalSessions ?? []) {
+    if (!matchesWorkspaceScope(session.workspaceId, normalizedWorkspaceId)) {
+      continue;
+    }
+    if (!matchesProjectScope(session.projectId, normalizedProjectId, includeGlobal)) {
+      continue;
+    }
+    records.push({
       ...session,
       kind: 'terminal' as const,
       sortTimestamp: session.updatedAt,
-    }));
+    });
+  }
 
-  const records: WorkbenchSessionInventoryRecord[] = [
-    ...terminalSessions,
-    ...codingSessions,
-  ].sort(compareSessionInventoryRecords);
+  records.sort(compareSessionInventoryRecords);
 
   const offset = Math.max(options.offset ?? 0, 0);
   if (typeof options.limit === 'number') {

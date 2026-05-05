@@ -156,6 +156,16 @@ await providerRepository.clear();
 assert.equal(await providerRepository.count(), 0);
 assert.equal(await providerRepository.findById(runtime.id), null);
 
+sqlExecutor.history.length = 0;
+await providerRepository.saveMany([runtime]);
+assert.deepEqual(
+  sqlExecutor.history.map((plan) => plan.meta?.kind),
+  ['table-upsert'],
+  'SQL-backed table repository saveMany must directly upsert the changed records without a full table-list read.',
+);
+assert.equal((await providerRepository.findById(runtime.id))?.id, runtime.id);
+await providerRepository.clear();
+
 let degradedSqlExecutionAttempts = 0;
 const degradedRepository = dataKernelModule.createBirdCoderTableRecordRepository({
   binding: typesModule.BIRDCODER_CODING_SESSION_RUNTIME_STORAGE_BINDING,

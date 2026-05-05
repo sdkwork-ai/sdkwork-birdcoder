@@ -37,9 +37,9 @@ const BIRDCODER_AUTH_SURFACE_RUNTIME_INVARIANT = Object.freeze({
 });
 
 function mapBirdCoderQrAuthenticatedUser(user: SdkworkAuthUser): User {
-  const email = user.email.trim();
-  const displayName = user.displayName.trim();
-  const username = user.username?.trim() ?? "";
+  const email = user.email?.trim() ?? '';
+  const displayName = user.displayName?.trim() ?? '';
+  const username = user.username?.trim() ?? '';
   const fallbackIdentity = email || user.id?.trim() || username;
 
   return {

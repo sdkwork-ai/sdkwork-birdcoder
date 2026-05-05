@@ -53,6 +53,6 @@ export interface MultiWindowProgrammingPageProps {
   isVisible?: boolean;
   projectId?: string;
   workspaceId: string;
-  onCodingSessionChange?: (codingSessionId: string) => void;
+  onCodingSessionChange?: (codingSessionId: string, projectId?: string) => void;
   onProjectChange?: (projectId: string) => void;
 }

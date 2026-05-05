@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-types';
 import { useAuth } from '../context/AuthContext.ts';
 import {
   upsertCodingSessionIntoProjectsStore,
@@ -15,6 +16,11 @@ type ToastTone = 'error' | 'success';
 type SessionRefreshCoreReadService = NonNullable<
   Parameters<typeof refreshCodingSessionMessages>[0]['coreReadService']
 >;
+
+interface SessionRefreshCodingSessionLocation {
+  codingSession: BirdCoderCodingSession;
+  project: BirdCoderProject;
+}
 
 interface PreservedSessionRefreshSelection {
   codingSessionId: string | null;
@@ -34,7 +40,11 @@ export interface UseSessionRefreshActionsOptions {
   getPreservedSelection: () => PreservedSessionRefreshSelection;
   messages: SessionRefreshMessages;
   projectService: IProjectService;
-  resolveCodingSessionTitle: (codingSessionId: string) => string;
+  resolveCodingSessionLocation?: (
+    codingSessionId: string,
+    projectId?: string | null,
+  ) => SessionRefreshCodingSessionLocation | null;
+  resolveCodingSessionTitle: (codingSessionId: string, projectId?: string | null) => string;
   resolveProjectName: (projectId: string) => string;
   restoreSelectionAfterRefresh: (
     projectId: string,
@@ -49,6 +59,7 @@ export function useSessionRefreshActions({
   getPreservedSelection,
   messages,
   projectService,
+  resolveCodingSessionLocation,
   resolveCodingSessionTitle,
   resolveProjectName,
   restoreSelectionAfterRefresh,
@@ -57,7 +68,10 @@ export function useSessionRefreshActions({
   const { user } = useAuth();
   const normalizedUserScope = user?.id?.trim() ?? 'anonymous';
   const [refreshingProjectId, setRefreshingProjectId] = useState<string | null>(null);
-  const [refreshingCodingSessionId, setRefreshingCodingSessionId] = useState<string | null>(null);
+  const [refreshingCodingSessionScope, setRefreshingCodingSessionScope] = useState<{
+    codingSessionId: string;
+    projectId: string | null;
+  } | null>(null);
 
   const handleRefreshProjectSessions = useCallback(async (targetProjectId: string) => {
     const normalizedWorkspaceId = workspaceId?.trim() ?? '';
@@ -113,17 +127,32 @@ export function useSessionRefreshActions({
     workspaceId,
   ]);
 
-  const handleRefreshCodingSessionMessages = useCallback(async (codingSessionId: string) => {
+  const handleRefreshCodingSessionMessages = useCallback(async (
+    codingSessionId: string,
+    projectId?: string | null,
+  ) => {
+    const normalizedProjectId = projectId?.trim() ?? '';
     const preservedSelection = getPreservedSelection();
-    const codingSessionTitle = resolveCodingSessionTitle(codingSessionId);
+    const codingSessionTitle = resolveCodingSessionTitle(codingSessionId, normalizedProjectId);
+    const resolvedLocation = normalizedProjectId
+      ? resolveCodingSessionLocation?.(codingSessionId, normalizedProjectId) ?? null
+      : null;
+    if (normalizedProjectId && !resolvedLocation) {
+      addToast(messages.failedToRefreshSessionMessages, 'error');
+      return;
+    }
 
-    setRefreshingCodingSessionId(codingSessionId);
+    setRefreshingCodingSessionScope({
+      codingSessionId,
+      projectId: normalizedProjectId || null,
+    });
     try {
       const result = await refreshCodingSessionMessages({
         codingSessionId,
         coreReadService,
         identityScope: normalizedUserScope,
         projectService,
+        ...(resolvedLocation ? { resolvedLocation } : {}),
         workspaceId,
       });
       if (result.status !== 'refreshed') {
@@ -169,7 +198,7 @@ export function useSessionRefreshActions({
       console.error('Failed to refresh coding session messages', error);
       addToast(messages.failedToRefreshSessionMessages, 'error');
     } finally {
-      setRefreshingCodingSessionId(null);
+      setRefreshingCodingSessionScope(null);
     }
   }, [
     addToast,
@@ -178,6 +207,7 @@ export function useSessionRefreshActions({
     messages,
     normalizedUserScope,
     projectService,
+    resolveCodingSessionLocation,
     resolveCodingSessionTitle,
     restoreSelectionAfterRefresh,
     workspaceId,
@@ -186,7 +216,8 @@ export function useSessionRefreshActions({
   return {
     handleRefreshCodingSessionMessages,
     handleRefreshProjectSessions,
-    refreshingCodingSessionId,
+    refreshingCodingSessionId: refreshingCodingSessionScope?.codingSessionId ?? null,
+    refreshingCodingSessionProjectId: refreshingCodingSessionScope?.projectId ?? null,
     refreshingProjectId,
   };
 }

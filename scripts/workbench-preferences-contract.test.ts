@@ -22,11 +22,14 @@ assert.deepEqual(
   WORKBENCH_CODE_ENGINES.map((engine) => engine.id),
   ['codex', 'claude-code', 'gemini', 'opencode'],
 );
-assert.equal(getWorkbenchCodeEngineDefinition('claude-code').defaultModelId, 'claude-code');
-assert.equal(normalizeWorkbenchCodeModelId('opencode', 'claude'), 'opencode');
+assert.equal(
+  getWorkbenchCodeEngineDefinition('claude-code').defaultModelId,
+  'claude-sonnet-4-6',
+);
+assert.equal(normalizeWorkbenchCodeModelId('opencode', 'claude'), 'opencode/big-pickle');
 assert.deepEqual(resolveWorkbenchChatSelection({ codeEngineId: 'claude', codeModelId: 'gpt-4o' }), {
   codeEngineId: 'claude-code',
-  codeModelId: 'claude-code',
+  codeModelId: 'claude-sonnet-4-6',
 });
 
 assert.equal(normalizeWorkbenchCodeEngineId('Claude Code'), 'claude-code');
@@ -53,7 +56,7 @@ assert.deepEqual(
   {
     ...DEFAULT_WORKBENCH_PREFERENCES,
     codeEngineId: 'claude-code',
-    codeModelId: 'claude-code',
+    codeModelId: 'claude-sonnet-4-6',
     terminalProfileId: 'gemini',
   },
 );
@@ -90,10 +93,10 @@ const perEnginePreferences = setWorkbenchActiveChatSelection(
     'gpt-5.3-codex',
   ),
   'gemini',
-  'gemini-1.5-pro',
+  'gemini-3.1-pro-preview',
 );
 assert.equal(perEnginePreferences.codeEngineId, 'gemini');
-assert.equal(perEnginePreferences.codeModelId, 'gemini-1.5-pro');
+assert.equal(perEnginePreferences.codeModelId, 'gemini-3.1-pro-preview');
 assert.equal(
   perEnginePreferences.codeEngineSettings.codex?.defaultModelId,
   'gpt-5.3-codex',
@@ -101,12 +104,12 @@ assert.equal(
 );
 assert.equal(
   perEnginePreferences.codeEngineSettings.gemini?.defaultModelId,
-  'gemini-1.5-pro',
+  'gemini-3.1-pro-preview',
   'Workbench preferences must preserve the selected model independently for Gemini.',
 );
 assert.deepEqual(
   resolveWorkbenchChatSelection(
-    { codeEngineId: 'codex', codeModelId: 'gemini-1.5-pro' },
+    { codeEngineId: 'codex', codeModelId: 'gemini-3.1-pro-preview' },
     perEnginePreferences,
   ),
   {

@@ -28,6 +28,18 @@ const qualityReleaseRunnerModule = await import(
 );
 const releaseFlowCommandsJoined = releaseFlowRunnerModule.RELEASE_FLOW_CHECK_COMMANDS.join(' && ');
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractWorkflowStepBlock(workflowSource, stepName) {
+  const match = workflowSource.match(
+    new RegExp(`\\n\\s*- name: ${escapeRegex(stepName)}\\n[\\s\\S]*?(?=\\n\\s*- name: |\\n\\s{2}[A-Za-z0-9_-]+:|\\n\\s*$)`),
+  );
+  assert.ok(match, `Missing workflow step: ${stepName}`);
+  return match[0];
+}
+
 assert.match(releaseWorkflow, /name:\s*release/);
 assert.match(releaseWorkflow, /push:\s*[\s\S]*tags:\s*[\s\S]*-\s*'release-\*'/);
 assert.match(releaseWorkflow, /uses:\s*\.\/\.github\/workflows\/release-reusable\.yml/);
@@ -37,7 +49,10 @@ assert.doesNotMatch(releaseWorkflow, /release_profile:\s*claw-studio/);
 assert.match(reusableWorkflow, /SDKWORK_SHARED_SDK_MODE:\s*git/);
 assert.match(reusableWorkflow, /prepare-shared-sdk-git-sources\.mjs/);
 assert.match(reusableWorkflow, /pnpm prepare:shared-sdk/);
-assert.match(reusableWorkflow, /cargo test --manifest-path packages\/sdkwork-birdcoder-desktop\/src-tauri\/Cargo\.toml/);
+assert.match(
+  reusableWorkflow,
+  /node scripts\/run-cargo\.mjs test --manifest-path packages\/sdkwork-birdcoder-desktop\/src-tauri\/Cargo\.toml/,
+);
 assert.match(reusableWorkflow, /actions\/attest-build-provenance@v3/);
 assert.match(reusableWorkflow, /docker\/build-push-action@v6/);
 assert.match(reusableWorkflow, /azure\/setup-helm@v4/);
@@ -46,10 +61,53 @@ assert.match(reusableWorkflow, /container-image-metadata-\$\{\{ matrix\.arch \}\
 assert.match(reusableWorkflow, /run-desktop-release-build\.mjs --profile .* --phase sync/);
 assert.match(reusableWorkflow, /run-desktop-release-build\.mjs --profile .* --phase prepare-target/);
 assert.match(reusableWorkflow, /run-desktop-release-build\.mjs --profile .* --phase prepare-openclaw/);
-assert.match(reusableWorkflow, /run-desktop-release-build\.mjs --profile .* --phase bundle/);
+assert.match(
+  reusableWorkflow,
+  /run-desktop-release-build\.mjs --profile .* --phase bundle[\s\S]*--bundles \$\{\{ join\(matrix\.bundles, ','\) \}\}/,
+  'release workflow desktop bundle steps must pass matrix.bundles explicitly so build intent cannot silently drift from release coverage.',
+);
 assert.match(reusableWorkflow, /Build Claw Studio desktop bundle on Windows/);
 assert.match(reusableWorkflow, /Build Claw Studio desktop bundle on Unix/);
-assert.match(reusableWorkflow, /smoke-desktop-installers\.mjs/);
+assert.match(
+  reusableWorkflow,
+  /preflight-desktop-signing-environment\.mjs[\s\S]*run-desktop-release-build\.mjs --profile .* --phase bundle[\s\S]*package-release-assets\.mjs desktop[\s\S]*verify-desktop-installer-trust\.mjs[\s\S]*smoke-desktop-installers\.mjs/,
+  'desktop release workflow must preflight signing credentials and tools before bundling, then verify real platform installer trust after packaging and before installer smoke.',
+);
+const windowsDesktopSigningPreflightStep = extractWorkflowStepBlock(
+  reusableWorkflow,
+  'Preflight Windows desktop signing environment',
+);
+assert.match(windowsDesktopSigningPreflightStep, /if: matrix\.platform == 'windows'/);
+assert.match(windowsDesktopSigningPreflightStep, /BIRDCODER_WINDOWS_SIGNING_CERT_SHA1:\s*\$\{\{ secrets\.BIRDCODER_WINDOWS_SIGNING_CERT_SHA1 \}\}/);
+assert.match(windowsDesktopSigningPreflightStep, /BIRDCODER_WINDOWS_SIGNING_TIMESTAMP_URL:\s*\$\{\{ secrets\.BIRDCODER_WINDOWS_SIGNING_TIMESTAMP_URL \}\}/);
+assert.doesNotMatch(
+  windowsDesktopSigningPreflightStep,
+  /APPLE_|APP_STORE_CONNECT_/,
+  'Windows desktop signing preflight must not receive Apple notarization secrets.',
+);
+const macosDesktopSigningPreflightStep = extractWorkflowStepBlock(
+  reusableWorkflow,
+  'Preflight macOS desktop signing environment',
+);
+assert.match(macosDesktopSigningPreflightStep, /if: matrix\.platform == 'macos'/);
+assert.match(macosDesktopSigningPreflightStep, /BIRDCODER_MACOS_CODESIGN_IDENTITY:\s*\$\{\{ secrets\.BIRDCODER_MACOS_CODESIGN_IDENTITY \}\}/);
+assert.match(macosDesktopSigningPreflightStep, /APPLE_APP_SPECIFIC_PASSWORD:\s*\$\{\{ secrets\.APPLE_APP_SPECIFIC_PASSWORD \}\}/);
+assert.match(macosDesktopSigningPreflightStep, /APP_STORE_CONNECT_API_KEY:\s*\$\{\{ secrets\.APP_STORE_CONNECT_API_KEY \}\}/);
+assert.doesNotMatch(
+  macosDesktopSigningPreflightStep,
+  /BIRDCODER_WINDOWS_SIGNING_/,
+  'macOS desktop signing preflight must not receive Windows Authenticode secrets.',
+);
+const linuxDesktopSigningPreflightStep = extractWorkflowStepBlock(
+  reusableWorkflow,
+  'Preflight Linux desktop package metadata environment',
+);
+assert.match(linuxDesktopSigningPreflightStep, /if: matrix\.platform == 'linux'/);
+assert.doesNotMatch(
+  linuxDesktopSigningPreflightStep,
+  /secrets\./,
+  'Linux desktop package metadata preflight must not receive signing secrets.',
+);
 assert.match(reusableWorkflow, /smoke-desktop-packaged-launch\.mjs/);
 assert.doesNotMatch(reusableWorkflow, /smoke-desktop-startup-evidence\.mjs/);
 assert.match(reusableWorkflow, /run-claw-server-build\.mjs/);
@@ -59,7 +117,13 @@ assert.match(reusableWorkflow, /smoke-deployment-release-assets\.mjs --family ku
 assert.doesNotMatch(reusableWorkflow, /smoke-release-assets\.mjs web/);
 assert.match(
   reusableWorkflow,
-  /finalize-release-assets\.mjs[\s\S]*smoke-finalized-release-assets\.mjs --release-assets-dir release-assets[\s\S]*render-release-notes\.mjs --release-tag .* --output release-assets\/release-notes\.md/,
+  /render-release-notes\.mjs --release-tag .* --output release-assets\/release-notes\.md[\s\S]*finalize-release-assets\.mjs[\s\S]*smoke-finalized-release-assets\.mjs --release-assets-dir release-assets[\s\S]*Attest finalized release assets[\s\S]*write-attestation-evidence\.mjs --profile \$\{\{ inputs\.release_profile \}\} --release-assets-dir release-assets --repository \$\{\{ github\.repository \}\} --release-tag \$\{\{ needs\.prepare\.outputs\.release_tag \}\}[\s\S]*assert-release-readiness\.mjs --profile \$\{\{ inputs\.release_profile \}\} --release-assets-dir release-assets/,
+  'publish workflow must render notes before finalization, finalize and smoke immutable assets, attest them, write verified attestation evidence, and assert readiness before publication.',
+);
+assert.doesNotMatch(
+  reusableWorkflow,
+  /Finalize release assets[\s\S]*--allow-partial-release[\s\S]*Assert release readiness[\s\S]*Render release notes/,
+  'GitHub release finalization must not publish partial release manifests',
 );
 assert.match(reusableWorkflow, /render-release-notes\.mjs --release-tag .* --output release-assets\/release-notes\.md/);
 
@@ -114,8 +178,20 @@ assert.match(releaseFlowCommandsJoined, /live-docs-governance-baseline\.test\.mj
 assert.match(releaseFlowCommandsJoined, /quality-loop-scoreboard-contract\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /rollback-plan-command\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /package-release-assets\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /preflight-desktop-signing-environment\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /finalize-release-assets\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /write-attestation-evidence\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /assert-release-readiness\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /release-readiness-complete-matrix\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /write-readiness-fixture\.mjs --help/);
+assert.match(releaseFlowCommandsJoined, /write-readiness-fixture\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /candidate-dry-run\.mjs --help/);
+assert.match(releaseFlowCommandsJoined, /candidate-dry-run\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /rehearsal-verify\.mjs --help/);
+assert.match(releaseFlowCommandsJoined, /rehearsal-verify\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /smoke-finalized-release-assets\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /verify-desktop-installer-trust\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /smoke-web-release-assets\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /smoke-desktop-installers\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /smoke-server-release-assets\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /coding-server-openapi-snapshot-drift\.test\.ts/);
@@ -267,11 +343,42 @@ for (const scriptName of ['build', 'build:dev', 'build:test', 'build:prod']) {
 assert.match(rootPackageJson.scripts['prepare:shared-sdk'], /prepare-shared-sdk-packages\.mjs/);
 assert.match(rootPackageJson.scripts['release:smoke:desktop-packaged-launch'], /smoke-desktop-packaged-launch\.mjs/);
 assert.match(rootPackageJson.scripts['release:smoke:desktop-startup'], /smoke-desktop-startup-evidence\.mjs/);
+assert.equal(
+  rootPackageJson.scripts['release:verify-trust:desktop'],
+  'node scripts/release/local-release-command.mjs verify-trust desktop --release-assets-dir artifacts/release',
+);
+assert.equal(
+  rootPackageJson.scripts['release:preflight:desktop-signing'],
+  'node scripts/release/preflight-desktop-signing-environment.mjs',
+);
+assert.equal(
+  rootPackageJson.scripts['release:write-attestation-evidence'],
+  'node scripts/release/write-attestation-evidence.mjs --release-assets-dir artifacts/release',
+);
 assert.match(rootPackageJson.scripts['release:smoke:finalized'], /smoke-finalized-release-assets\.mjs/);
 assert.match(rootPackageJson.scripts['release:rollback:plan'], /local-release-command\.mjs rollback-plan/);
 assert.match(
   rootPackageJson.scripts['release:finalize'],
   /--quality-execution-report-path artifacts\/quality\/quality-gate-execution-report\.json/,
+);
+assert.match(
+  rootPackageJson.scripts['release:assert-ready'],
+  /local-release-command\.mjs assert-ready --release-assets-dir artifacts\/release/,
+);
+assert.equal(
+  rootPackageJson.scripts['release:fixture:ready'],
+  'node scripts/release/write-readiness-fixture.mjs',
+  'Root release scripts must expose the complete release readiness fixture generator.',
+);
+assert.equal(
+  rootPackageJson.scripts['release:candidate:dry-run'],
+  'node scripts/release/candidate-dry-run.mjs',
+  'Root release scripts must expose the commercial release candidate dry-run evidence command.',
+);
+assert.equal(
+  rootPackageJson.scripts['release:rehearsal:verify'],
+  'node scripts/release/rehearsal-verify.mjs',
+  'Root release scripts must expose the commercial release rehearsal verification command.',
 );
 
 console.log('release flow contract passed.');

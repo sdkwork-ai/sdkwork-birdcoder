@@ -1,10 +1,10 @@
 import type { ProjectMountRecoveryState } from '@sdkwork/birdcoder-commons';
 import type { FileNode } from '@sdkwork/birdcoder-ui';
 import { AlertCircle, FileCode2, RefreshCw, Search, X } from 'lucide-react';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  collectCodeQuickOpenResults,
+  createCodeQuickOpenSearchTask,
   type CodeWorkspaceSearchResult,
 } from './codeFileSearch';
 
@@ -49,10 +49,14 @@ export const CodeWorkspaceOverlays = memo(function CodeWorkspaceOverlays({
   const [findResults, setFindResults] = useState<CodeWorkspaceSearchResult[]>([]);
   const [isResultLimitReached, setIsResultLimitReached] = useState(false);
   const [quickOpenQuery, setQuickOpenQuery] = useState('');
+  const [quickOpenResults, setQuickOpenResults] = useState<CodeWorkspaceSearchResult[]>([]);
+  const [isQuickOpenSearching, setIsQuickOpenSearching] = useState(false);
   useEffect(() => {
     setFindResults([]);
     setIsResultLimitReached(false);
     setQuickOpenQuery('');
+    setQuickOpenResults([]);
+    setIsQuickOpenSearching(false);
   }, [currentProjectId]);
 
   useEffect(() => {
@@ -65,15 +69,33 @@ export const CodeWorkspaceOverlays = memo(function CodeWorkspaceOverlays({
   useEffect(() => {
     if (!isQuickOpenVisible) {
       setQuickOpenQuery('');
+      setQuickOpenResults([]);
+      setIsQuickOpenSearching(false);
     }
   }, [isQuickOpenVisible]);
 
-  const quickOpenResults = useMemo(() => {
-    if (!isQuickOpenVisible) {
-      return [];
+  useEffect(() => {
+    if (!isQuickOpenVisible || !quickOpenQuery.trim()) {
+      setQuickOpenResults([]);
+      setIsQuickOpenSearching(false);
+      return;
     }
 
-    return collectCodeQuickOpenResults(files, quickOpenQuery, 'File match');
+    setQuickOpenResults([]);
+    setIsQuickOpenSearching(true);
+    const quickOpenSearchTask = createCodeQuickOpenSearchTask({
+      files,
+      fileMatchLabel: 'File match',
+      onComplete: (nextQuickOpenResults) => {
+        setQuickOpenResults(nextQuickOpenResults);
+        setIsQuickOpenSearching(false);
+      },
+      query: quickOpenQuery,
+    });
+
+    return () => {
+      quickOpenSearchTask.cancel();
+    };
   }, [files, isQuickOpenVisible, quickOpenQuery]);
 
   const handleFindSubmit = async (query: string) => {
@@ -264,7 +286,12 @@ export const CodeWorkspaceOverlays = memo(function CodeWorkspaceOverlays({
               ))}
             </div>
           )}
-          {quickOpenQuery && quickOpenResults.length === 0 && (
+          {quickOpenQuery && isQuickOpenSearching && (
+            <div className="p-4 text-center text-sm text-gray-500">
+              Searching files...
+            </div>
+          )}
+          {quickOpenQuery && !isQuickOpenSearching && quickOpenResults.length === 0 && (
             <div className="p-4 text-center text-sm text-gray-500">
               No files found matching "{quickOpenQuery}"
             </div>

@@ -97,6 +97,7 @@ export interface FileChange {
   path: string;
   additions: number;
   deletions: number;
+  diff?: string;
   content?: string;
   originalContent?: string;
 }
@@ -693,6 +694,7 @@ function projectionToolArgumentRecordToFileChangeFromRecord(
     path,
     additions,
     deletions,
+    ...(typeof patchContent === 'string' ? { diff: patchContent } : {}),
     ...(typeof content === 'string' ? { content } : {}),
     ...(typeof originalContent === 'string' ? { originalContent } : {}),
   };
@@ -873,6 +875,7 @@ function mergeProjectionFileChanges(
         path: fileChange.path.trim(),
         additions: normalizeProjectionPayloadNumber(fileChange.additions) ?? 0,
         deletions: normalizeProjectionPayloadNumber(fileChange.deletions) ?? 0,
+        ...(typeof fileChange.diff === 'string' ? { diff: fileChange.diff } : {}),
         ...(typeof fileChange.content === 'string' ? { content: fileChange.content } : {}),
         ...(typeof fileChange.originalContent === 'string'
           ? { originalContent: fileChange.originalContent }
@@ -882,6 +885,7 @@ function mergeProjectionFileChanges(
         normalizedFileChange.path,
         normalizedFileChange.additions,
         normalizedFileChange.deletions,
+        normalizedFileChange.diff ?? '',
         normalizedFileChange.content ?? '',
         normalizedFileChange.originalContent ?? '',
       ]);

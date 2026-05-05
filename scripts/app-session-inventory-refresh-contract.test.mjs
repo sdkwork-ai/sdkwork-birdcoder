@@ -6,6 +6,10 @@ const codePageSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx', import.meta.url),
   'utf8',
 );
+const codePageSessionSelectionHookSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-code/src/pages/useCodePageSessionSelection.ts', import.meta.url),
+  'utf8',
+);
 const studioPageSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
@@ -116,9 +120,9 @@ assert.match(
 );
 
 assert.match(
-  codePageSource,
-  /const restoreSelectionAfterRefresh = \(\s*targetProjectId: string,\s*targetCodingSessionId: string \| null,\s*\) => \{/,
-  'CodePage must explicitly preserve the selected project and session after refresh.',
+  codePageSessionSelectionHookSource,
+  /const restoreSelectionAfterRefresh = useCallback\(\(\s*targetProjectId: string,\s*targetCodingSessionId: string \| null,\s*\) => \{/,
+  'CodePage session-selection hook must explicitly preserve the selected project and session after refresh.',
 );
 
 assert.match(

@@ -13,6 +13,7 @@ export interface WorkspaceFileSearchExecutionResult {
 
 export interface WorkspaceFileSearchOptions {
   query: string;
+  maxFileContentCharacters?: number;
   maxResults?: number;
   maxSnippetLength?: number;
   signal?: AbortSignal;
@@ -25,19 +26,73 @@ export interface SearchProjectFilesOptions extends WorkspaceFileSearchOptions {
   shouldAbort?: () => boolean;
 }
 
-function collectFilePaths(nodes: ReadonlyArray<IFileNode>, results: string[] = []): string[] {
-  for (const node of nodes) {
-    if (node.type === 'file') {
-      results.push(node.path);
+export const DEFAULT_MAX_SEARCHABLE_FILE_CONTENT_CHARACTERS = 256_000;
+const FILE_SEARCH_TRAVERSAL_YIELD_INTERVAL = 256;
+
+interface FileSearchTraversalFrame {
+  index: number;
+  nodes: ReadonlyArray<IFileNode>;
+}
+
+interface FileSearchTraversal {
+  frames: FileSearchTraversalFrame[];
+  visitedNodeCount: number;
+}
+
+function createFileSearchTraversal(nodes: ReadonlyArray<IFileNode>): FileSearchTraversal {
+  return {
+    frames: [{ index: 0, nodes }],
+    visitedNodeCount: 0,
+  };
+}
+
+function hasFileSearchTraversalWork(traversal: FileSearchTraversal): boolean {
+  return traversal.frames.length > 0;
+}
+
+async function yieldFileSearchTraversal(): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+async function readNextFilePathFromTraversal(
+  traversal: FileSearchTraversal,
+  options: SearchProjectFilesOptions,
+): Promise<string | null> {
+  while (traversal.frames.length > 0) {
+    if (shouldAbortSearch(options)) {
+      return null;
+    }
+
+    const frame = traversal.frames[traversal.frames.length - 1]!;
+    if (frame.index >= frame.nodes.length) {
+      traversal.frames.pop();
       continue;
     }
 
+    const node = frame.nodes[frame.index]!;
+    frame.index += 1;
+    traversal.visitedNodeCount += 1;
+    if (traversal.visitedNodeCount >= FILE_SEARCH_TRAVERSAL_YIELD_INTERVAL) {
+      traversal.visitedNodeCount = 0;
+      await yieldFileSearchTraversal();
+      if (shouldAbortSearch(options)) {
+        return null;
+      }
+    }
+
+    if (node.type === 'file') {
+      return node.path;
+    }
+
     if (node.children?.length) {
-      collectFilePaths(node.children, results);
+      traversal.frames.push({
+        index: 0,
+        nodes: node.children,
+      });
     }
   }
 
-  return results;
+  return null;
 }
 
 function clampConcurrency(maxConcurrency?: number): number {
@@ -56,8 +111,36 @@ function clampSnippetLength(maxSnippetLength?: number): number {
   return Math.max(16, Math.floor(maxSnippetLength));
 }
 
+function clampFileContentCharacters(maxFileContentCharacters?: number): number {
+  if (!maxFileContentCharacters || !Number.isFinite(maxFileContentCharacters)) {
+    return DEFAULT_MAX_SEARCHABLE_FILE_CONTENT_CHARACTERS;
+  }
+
+  return Math.max(4_096, Math.floor(maxFileContentCharacters));
+}
+
 function shouldAbortSearch(options: SearchProjectFilesOptions): boolean {
   return options.signal?.aborted === true || options.shouldAbort?.() === true;
+}
+
+function trimSearchableFileContent(
+  content: string,
+  maxFileContentCharacters: number,
+): {
+  content: string;
+  truncated: boolean;
+} {
+  if (content.length <= maxFileContentCharacters) {
+    return {
+      content,
+      truncated: false,
+    };
+  }
+
+  return {
+    content: content.slice(0, maxFileContentCharacters),
+    truncated: true,
+  };
 }
 
 function buildSearchSnippet(
@@ -94,19 +177,36 @@ function collectMatchesForFile(
   content: string,
   normalizedQuery: string,
   maxSnippetLength: number,
+  maxMatches: number,
 ): WorkspaceFileSearchResult[] {
-  const lines = content.split('\n');
   const matches: WorkspaceFileSearchResult[] = [];
+  let lineNumber = 1;
+  let lineStartIndex = 0;
 
-  lines.forEach((line, index) => {
+  while (lineStartIndex <= content.length) {
+    const nextLineBreakIndex = content.indexOf('\n', lineStartIndex);
+    const lineEndIndex = nextLineBreakIndex === -1 ? content.length : nextLineBreakIndex;
+    const line = content.slice(lineStartIndex, lineEndIndex);
+
     if (line.toLowerCase().includes(normalizedQuery)) {
       matches.push({
         path,
-        line: index + 1,
+        line: lineNumber,
         content: buildSearchSnippet(line, normalizedQuery, maxSnippetLength),
       });
+
+      if (matches.length >= maxMatches) {
+        return matches;
+      }
     }
-  });
+
+    if (nextLineBreakIndex === -1) {
+      break;
+    }
+
+    lineStartIndex = nextLineBreakIndex + 1;
+    lineNumber += 1;
+  }
 
   return matches;
 }
@@ -122,64 +222,115 @@ export async function searchProjectFiles(
     };
   }
 
-  const filePaths = collectFilePaths(options.files);
-  if (filePaths.length === 0) {
-    return {
-      limitReached: false,
-      results: [],
-    };
-  }
-
-  const perFileResults: WorkspaceFileSearchResult[][] = Array.from(
-    { length: filePaths.length },
-    () => [],
-  );
-  const concurrency = Math.min(clampConcurrency(options.maxConcurrency), filePaths.length);
+  const traversal = createFileSearchTraversal(options.files);
+  const concurrency = clampConcurrency(options.maxConcurrency);
+  const maxFileContentCharacters = clampFileContentCharacters(options.maxFileContentCharacters);
   const maxResults = Math.max(1, Math.floor(options.maxResults ?? 200));
   const maxSnippetLength = clampSnippetLength(options.maxSnippetLength);
-  let cursor = 0;
-  let collectedResultCount = 0;
+  const activeReads = new Set<Promise<void>>();
+  const orderedResultsByFileIndex = new Map<number, WorkspaceFileSearchResult[]>();
+  const results: WorkspaceFileSearchResult[] = [];
+  let nextFileIndex = 0;
+  let nextResultIndex = 0;
+  let contentBudgetReached = false;
+  let traversalExhausted = false;
   let limitReached = false;
 
-  const worker = async () => {
-    while (cursor < filePaths.length) {
-      if (shouldAbortSearch(options) || limitReached) {
-        return;
+  const flushOrderedResults = () => {
+    while (orderedResultsByFileIndex.has(nextResultIndex)) {
+      const matches = orderedResultsByFileIndex.get(nextResultIndex)!;
+      orderedResultsByFileIndex.delete(nextResultIndex);
+      nextResultIndex += 1;
+      if (matches.length === 0) {
+        continue;
       }
 
-      const currentIndex = cursor;
-      cursor += 1;
-      const path = filePaths[currentIndex];
-      const content = await options.readFileContent(path);
-      const matches = collectMatchesForFile(
-        path,
-        content,
-        normalizedQuery,
-        maxSnippetLength,
-      );
-      const remainingCapacity = maxResults - collectedResultCount;
+      const remainingCapacity = maxResults - results.length;
       if (remainingCapacity <= 0) {
         limitReached = true;
         return;
       }
 
-      const visibleMatches = matches.slice(0, remainingCapacity);
-      perFileResults[currentIndex] = visibleMatches;
-      collectedResultCount += visibleMatches.length;
-
-      if (visibleMatches.length < matches.length || collectedResultCount >= maxResults) {
+      if (matches.length > remainingCapacity) {
+        results.push(...matches.slice(0, remainingCapacity));
         limitReached = true;
+        return;
       }
 
-      if (shouldAbortSearch(options)) {
+      results.push(...matches);
+      if (results.length >= maxResults) {
+        limitReached = true;
         return;
       }
     }
   };
 
-  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  const scheduleNextRead = async (): Promise<boolean> => {
+    if (limitReached || shouldAbortSearch(options)) {
+      return false;
+    }
+
+    const path = await readNextFilePathFromTraversal(traversal, options);
+    if (!path) {
+      traversalExhausted = !hasFileSearchTraversalWork(traversal);
+      return false;
+    }
+
+    const currentIndex = nextFileIndex;
+    nextFileIndex += 1;
+    let trackedRead: Promise<void>;
+    trackedRead = (async () => {
+      const content = await options.readFileContent(path);
+      const searchableContent = trimSearchableFileContent(content, maxFileContentCharacters);
+      if (searchableContent.truncated) {
+        contentBudgetReached = true;
+      }
+
+      const matches = collectMatchesForFile(
+        path,
+        searchableContent.content,
+        normalizedQuery,
+        maxSnippetLength,
+        maxResults,
+      );
+      orderedResultsByFileIndex.set(currentIndex, matches);
+    })().finally(() => {
+      activeReads.delete(trackedRead);
+    });
+    activeReads.add(trackedRead);
+    return true;
+  };
+
+  while (
+    activeReads.size < concurrency &&
+    !traversalExhausted &&
+    !limitReached &&
+    !shouldAbortSearch(options)
+  ) {
+    if (!(await scheduleNextRead())) {
+      break;
+    }
+  }
+
+  while (activeReads.size > 0) {
+    await Promise.race(activeReads);
+    flushOrderedResults();
+
+    while (
+      activeReads.size < concurrency &&
+      !traversalExhausted &&
+      !limitReached &&
+      !shouldAbortSearch(options)
+    ) {
+      if (!(await scheduleNextRead())) {
+        break;
+      }
+    }
+  }
+
+  flushOrderedResults();
   return {
-    limitReached,
-    results: perFileResults.flat(),
+    limitReached: limitReached || contentBudgetReached,
+    results,
   };
 }

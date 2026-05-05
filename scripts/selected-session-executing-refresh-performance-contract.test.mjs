@@ -6,100 +6,103 @@ const hookSource = fs.readFileSync(
   'utf8',
 );
 
-const freshIntervalMatch = hookSource.match(
-  /const EXECUTING_SESSION_FRESH_REFRESH_INTERVAL_MS = (?<value>\d+);/,
+const executingFallbackIntervalMatch = hookSource.match(
+  /const SELECTED_SESSION_REALTIME_FALLBACK_EXECUTING_REFRESH_INTERVAL_MS = (?<value>\d+);/,
 );
-const recentIntervalMatch = hookSource.match(
-  /const EXECUTING_SESSION_RECENT_REFRESH_INTERVAL_MS = (?<value>\d+);/,
-);
-const staleIntervalMatch = hookSource.match(
-  /const EXECUTING_SESSION_STALE_REFRESH_INTERVAL_MS = (?<value>\d+);/,
-);
-const idleIntervalMatch = hookSource.match(
-  /const SELECTED_SESSION_IDLE_EXTERNAL_REFRESH_INTERVAL_MS = (?<value>\d+);/,
+const idleFallbackIntervalMatch = hookSource.match(
+  /const SELECTED_SESSION_REALTIME_FALLBACK_IDLE_REFRESH_INTERVAL_MS = (?<value>\d+);/,
 );
 
 assert.ok(
-  freshIntervalMatch?.groups?.value &&
-    recentIntervalMatch?.groups?.value &&
-    staleIntervalMatch?.groups?.value &&
-    idleIntervalMatch?.groups?.value,
-  'Selected-session hydration should define explicit fresh, recent, and stale refresh intervals.',
+  executingFallbackIntervalMatch?.groups?.value &&
+    idleFallbackIntervalMatch?.groups?.value,
+  'Selected-session hydration must define explicit realtime-unavailable fallback refresh intervals.',
 );
 
-const freshInterval = Number(freshIntervalMatch.groups.value);
-const recentInterval = Number(recentIntervalMatch.groups.value);
-const staleInterval = Number(staleIntervalMatch.groups.value);
-const idleInterval = Number(idleIntervalMatch.groups.value);
+const executingFallbackInterval = Number(executingFallbackIntervalMatch.groups.value);
+const idleFallbackInterval = Number(idleFallbackIntervalMatch.groups.value);
 
 assert.ok(
-  freshInterval < recentInterval && recentInterval < staleInterval,
-  'Executing-session refresh intervals must slow down as session activity becomes older so stale sessions do not poll more aggressively than fresh ones.',
+  executingFallbackInterval >= 15_000,
+  'Executing selected-session fallback refresh must not poll faster than 15s; realtime events own live transcript updates.',
 );
 
 assert.ok(
-  idleInterval > staleInterval,
-  'Idle selected-session external refresh must run slower than executing-session polling so external CLI/IDE synchronization is bounded.',
+  idleFallbackInterval >= 60_000 && idleFallbackInterval > executingFallbackInterval,
+  'Idle selected-session fallback refresh must be low-frequency and slower than executing fallback refresh.',
 );
 
 assert.match(
   hookSource,
-  /const EXECUTING_SESSION_STALE_REFRESH_INTERVAL_MS = \d+;/,
-  'Selected-session hydration should define an explicit stale-refresh interval for executing sessions so fallback polling has a clear performance boundary.',
+  /import \{ canSubscribeBirdCoderWorkspaceRealtime \} from '@sdkwork\/birdcoder-infrastructure-runtime';/,
+  'Selected-session hydration must use workspace realtime availability before scheduling authority fallback refreshes.',
 );
 
 assert.match(
   hookSource,
-  /function resolveSelectedCodingSessionExecutionRefreshDelay\(/,
-  'Selected-session hydration should centralize executing-session refresh delay calculation behind a helper so realtime freshness and fallback polling can be balanced in one place.',
+  /const selectedSessionWorkspaceId =[\s\S]*normalizedSelectedProjectWorkspaceId[\s\S]*normalizedSelectedCodingSessionWorkspaceId[\s\S]*workspaceId/s,
+  'Selected-session hydration must resolve the selected workspace before deciding whether realtime can own transcript updates.',
 );
 
 assert.match(
   hookSource,
-  /const executionRefreshDelay = shouldUseExecutingSessionRefresh[\s\S]*resolveSelectedCodingSessionExecutionRefreshDelay\(\s*selectedCodingSession,\s*\)/s,
-  'Executing-session hydration should derive the next fallback refresh delay from the current selected session snapshot instead of hard-coding a fixed timer gap.',
+  /const canUseWorkspaceRealtime = useMemo\(\s*\(\) => Boolean\(selectedSessionWorkspaceId\) && canSubscribeBirdCoderWorkspaceRealtime\(\),\s*\[normalizedUserScope, selectedSessionWorkspaceId\],\s*\);/s,
+  'Selected-session hydration must memoize realtime availability so render churn does not repeatedly read runtime session storage.',
 );
 
 assert.match(
   hookSource,
-  /isSelectedCodingSessionMessagesLoading \|\|[\s\S]*const executionRefreshDelay = shouldUseExecutingSessionRefresh[\s\S]*resolveSelectedCodingSessionExecutionRefreshDelay\(\s*selectedCodingSession,\s*\)/s,
-  'Executing-session hydration should not schedule a new fallback polling timer while the current authoritative refresh is still in flight.',
+  /if \([\s\S]*canUseWorkspaceRealtime[\s\S]*\) \{\s*return;\s*\}[\s\S]*const fallbackRefreshDelay =/s,
+  'Selected-session hydration must not schedule authority polling while workspace realtime is available.',
 );
 
 assert.match(
   hookSource,
-  /setTrackedScopeValue\(\s*attemptedSessionVersionsByScopeKey,\s*synchronizationScopeKey,\s*synchronizationVersion,\s*\);/s,
-  'Selected-session hydration must bound attempted synchronization scopes so long-running session navigation does not leak refresh bookkeeping.',
+  /const fallbackRefreshDelay =\s*\(isSelectedCodingSessionExecuting \|\| hasSelectedCodingSessionPendingReply\)[\s\S]*SELECTED_SESSION_REALTIME_FALLBACK_EXECUTING_REFRESH_INTERVAL_MS[\s\S]*SELECTED_SESSION_REALTIME_FALLBACK_IDLE_REFRESH_INTERVAL_MS/s,
+  'When realtime is unavailable, selected-session hydration should use slow authority fallback intervals based on active/pending transcript state.',
+);
+
+const pendingReplyHelperMatch = hookSource.match(
+  /function hasPendingVisibleReply\([\s\S]*?\n\}/s,
+);
+assert.ok(
+  pendingReplyHelperMatch,
+  'Selected-session hydration must keep pending-reply detection in a dedicated helper.',
+);
+assert.doesNotMatch(
+  pendingReplyHelperMatch[0],
+  /\.slice\(/,
+  'Pending-reply detection must not allocate a tail message array on every selected-session render.',
+);
+
+assert.match(
+  hookSource,
+  /window\.setTimeout\(\(\) => \{\s*setAuthorityFallbackRefreshTick\(\(previousState\) => previousState \+ 1\);\s*\},\s*fallbackRefreshDelay\);/s,
+  'Selected-session hydration should schedule fallback refreshes through an explicit authority fallback tick.',
+);
+
+assert.match(
+  hookSource,
+  /const synchronizationRequestKey =\s*`\$\{synchronizationScopeKey\}:\$\{selectionRefreshToken\}:\$\{authorityFallbackRefreshTick\}`;/,
+  'Selected-session authority refreshes must be keyed by initial/manual refresh and the slow fallback tick, not by every realtime transcript mutation.',
 );
 
 assert.doesNotMatch(
   hookSource,
-  /attemptedSessionVersionsByScopeKey\.set\(\s*synchronizationScopeKey,\s*synchronizationVersion,\s*\);/s,
-  'Selected-session hydration must not append attempted synchronization scopes without the shared retention limit.',
-);
-
-assert.match(
-  hookSource,
-  /window\.setTimeout\(\(\) => \{\s*setExecutionRefreshTick\(\(previousState\) => previousState \+ 1\);\s*\},\s*executionRefreshDelay\);/s,
-  'Executing-session hydration should schedule fallback refreshes using the derived delay so fresh local transcript activity can postpone unnecessary summary polling.',
-);
-
-assert.match(
-  hookSource,
-  /const shouldUseExecutingSessionRefresh =\s*isSelectedCodingSessionExecuting \|\| shouldContinuePollingAfterCompletion;/,
-  'Selected-session hydration should explicitly distinguish active executing refreshes from low-frequency idle external synchronization.',
-);
-
-assert.match(
-  hookSource,
-  /shouldUseExecutingSessionRefresh\s*\?\s*resolveSelectedCodingSessionExecutionRefreshDelay\(\s*selectedCodingSession,\s*\)\s*:\s*SELECTED_SESSION_IDLE_EXTERNAL_REFRESH_INTERVAL_MS/s,
-  'Visible idle selected sessions must keep a low-frequency authoritative refresh fallback so external CLI or IDE turns are synchronized even without realtime events.',
+  /selectedCodingSessionSynchronizationVersion/,
+  'Selected-session hydration must not rerun authoritative message reads for every realtime transcript mutation.',
 );
 
 assert.doesNotMatch(
   hookSource,
-  /window\.setTimeout\(\(\) => \{\s*setExecutionRefreshTick\(\(previousState\) => previousState \+ 1\);\s*\},\s*EXECUTING_SESSION_REFRESH_INTERVAL_MS\);/s,
-  'Executing-session hydration must not keep a fixed post-update timer because that forces fallback polling even while realtime or optimistic transcript state is still fresh.',
+  /EXECUTING_SESSION_FRESH_REFRESH_INTERVAL_MS|EXECUTING_SESSION_RECENT_REFRESH_INTERVAL_MS|EXECUTING_SESSION_STALE_REFRESH_INTERVAL_MS|SELECTED_SESSION_IDLE_EXTERNAL_REFRESH_INTERVAL_MS/,
+  'Selected-session hydration must not keep the old 400/900/1600/5000ms polling policy.',
+);
+
+assert.doesNotMatch(
+  hookSource,
+  /window\.setTimeout\(\(\) => \{\s*setAuthorityFallbackRefreshTick\(\(previousState\) => previousState \+ 1\);\s*\},\s*EXECUTING_SESSION_REFRESH_INTERVAL_MS\);/s,
+  'Selected-session hydration must not keep a fixed high-frequency executing-session polling timer.',
 );
 
 console.log('selected session executing refresh performance contract passed.');

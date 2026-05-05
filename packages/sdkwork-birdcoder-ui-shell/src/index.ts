@@ -10,6 +10,7 @@ export type {
   PreviewPlatform,
   WebDevice,
 } from './components/DevicePreview';
+export { resolveSafePreviewUrl } from './components/previewUrlSecurity';
 
 export { WorkbenchCodeEngineIcon } from './components/WorkbenchCodeEngineIcon';
 export type { WorkbenchCodeEngineIconProps } from './components/WorkbenchCodeEngineIcon';

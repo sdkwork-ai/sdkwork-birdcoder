@@ -7,8 +7,10 @@ import { pathToFileURL } from 'node:url';
 import {
   DEFAULT_RELEASE_PROFILE_ID,
 } from './release-profiles.mjs';
+import { assertReleaseReadiness } from './assert-release-readiness.mjs';
 import { finalizeReleaseAssets } from './finalize-release-assets.mjs';
 import { packageReleaseAssets } from './package-release-assets.mjs';
+import { verifyDesktopInstallerTrust } from './verify-desktop-installer-trust.mjs';
 import {
   createReleasePlan,
   createRollbackPlan,
@@ -44,7 +46,7 @@ function resolveMode(command, family) {
   const normalizedFamily = String(family ?? '').trim().toLowerCase();
 
   if (!normalizedCommand) {
-    throw new Error('A local release command is required: plan, package <family>, smoke <family>, or finalize.');
+    throw new Error('A local release command is required: plan, package <family>, verify-trust <family>, smoke <family>, finalize, or assert-ready.');
   }
   if (normalizedCommand === 'plan') {
     return 'plan';
@@ -64,8 +66,20 @@ function resolveMode(command, family) {
     }
     return `smoke:${normalizedFamily}`;
   }
+  if (normalizedCommand === 'verify-trust') {
+    if (!normalizedFamily) {
+      throw new Error('A release family is required for "verify-trust": desktop.');
+    }
+    if (normalizedFamily !== 'desktop') {
+      throw new Error(`Unsupported trust verification family: ${family}.`);
+    }
+    return `verify-trust:${normalizedFamily}`;
+  }
   if (normalizedCommand === 'finalize') {
     return 'finalize';
+  }
+  if (normalizedCommand === 'assert-ready') {
+    return 'assert-ready';
   }
 
   throw new Error(`Unsupported command: ${command}`);
@@ -125,7 +139,7 @@ function summarizePackageResult(result) {
 export function parseArgs(argv) {
   const [command, maybeFamily, ...rest] = argv;
   const options = {
-    mode: resolveMode(command, command === 'package' || command === 'smoke' ? maybeFamily : ''),
+    mode: resolveMode(command, command === 'package' || command === 'smoke' || command === 'verify-trust' ? maybeFamily : ''),
     profileId: '',
     releaseTag: 'release-local',
     gitRef: '',
@@ -147,7 +161,7 @@ export function parseArgs(argv) {
     qualityExecutionReportPath: '',
   };
 
-  const tokens = argv.slice(command === 'package' || command === 'smoke' ? 2 : 1);
+  const tokens = argv.slice(command === 'package' || command === 'smoke' || command === 'verify-trust' ? 2 : 1);
 
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
@@ -247,7 +261,7 @@ export function parseArgs(argv) {
   return options;
 }
 
-function smokeReleaseAssets(context) {
+async function smokeReleaseAssets(context) {
   const family = context.mode.split(':')[1];
   if (family === 'desktop') {
     return smokeDesktopInstallers({
@@ -285,7 +299,10 @@ function smokeReleaseAssets(context) {
   });
 }
 
-function resolveCommandPayload(context) {
+async function resolveCommandPayload(context) {
+  const assertReleaseReadinessFn = context.assertReleaseReadinessFn ?? assertReleaseReadiness;
+  const verifyDesktopInstallerTrustFn = context.verifyDesktopInstallerTrustFn ?? verifyDesktopInstallerTrust;
+
   if (context.mode === 'plan') {
     return createReleasePlan({
       profileId: context.profileId,
@@ -332,6 +349,19 @@ function resolveCommandPayload(context) {
     return smokeReleaseAssets(context);
   }
 
+  if (context.mode === 'verify-trust:desktop') {
+    const trustResult = verifyDesktopInstallerTrustFn({
+      releaseAssetsDir: context.releaseAssetsDir || context.outputDir || 'artifacts/release',
+      platform: context.platform || process.platform,
+      arch: context.arch || process.arch,
+      target: context.target,
+    });
+    return {
+      mode: context.mode,
+      ...trustResult,
+    };
+  }
+
   if (context.mode === 'finalize') {
     return finalizeReleaseAssets({
       profile: context.profileId,
@@ -347,25 +377,45 @@ function resolveCommandPayload(context) {
     });
   }
 
+  if (context.mode === 'assert-ready') {
+    const readiness = assertReleaseReadinessFn({
+      profileId: context.profileId,
+      releaseAssetsDir: path.resolve(process.cwd(), context.releaseAssetsDir || context.outputDir || 'artifacts/release'),
+    });
+    return {
+      mode: context.mode,
+      ...readiness,
+    };
+  }
+
   throw new Error(`Unsupported local release mode: ${context.mode}`);
 }
 
-export function runLocalReleaseCommand(
+export async function runLocalReleaseCommand(
   argv,
   {
     write = (content) => process.stdout.write(content),
+    assertReleaseReadinessFn = assertReleaseReadiness,
+    verifyDesktopInstallerTrustFn = verifyDesktopInstallerTrust,
   } = {},
 ) {
-  const context = Array.isArray(argv) ? parseArgs(argv) : argv;
-  const payload = resolveCommandPayload(context);
+  const context = {
+    ...(Array.isArray(argv) ? parseArgs(argv) : argv),
+    assertReleaseReadinessFn,
+    verifyDesktopInstallerTrustFn,
+  };
+  const payload = await resolveCommandPayload(context);
   write(`${JSON.stringify(payload, null, 2)}\n`);
   return payload;
 }
 
-function run() {
-  runLocalReleaseCommand(process.argv.slice(2));
+async function run() {
+  await runLocalReleaseCommand(process.argv.slice(2));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  run();
+  run().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
 }

@@ -27,9 +27,27 @@ assert.match(ciWorkflow, /pnpm prepare:shared-sdk/);
 assert.match(ciWorkflow, /pnpm lint/);
 assert.match(ciWorkflow, /pnpm check:desktop/);
 assert.match(ciWorkflow, /pnpm check:server/);
-assert.match(ciWorkflow, /cargo test --manifest-path packages\/sdkwork-birdcoder-desktop\/src-tauri\/Cargo\.toml/);
+assert.match(
+  ciWorkflow,
+  /node scripts\/run-cargo\.mjs test --manifest-path packages\/sdkwork-birdcoder-desktop\/src-tauri\/Cargo\.toml/,
+);
 assert.match(ciWorkflow, /pnpm server:build/);
 assert.match(ciWorkflow, /pnpm docs:build/);
+assert.match(
+  ciWorkflow,
+  /pnpm release:fixture:ready/,
+  'CI must prove the finalized release readiness success path with a generated complete release fixture.',
+);
+assert.match(
+  ciWorkflow,
+  /pnpm release:candidate:dry-run/,
+  'CI must prove the commercial release candidate dry-run entrypoint writes complete readiness evidence.',
+);
+assert.match(
+  ciWorkflow,
+  /name:\s*Prove release candidate dry-run success path[\s\S]*run:\s*pnpm release:candidate:dry-run[\s\S]*name:\s*Upload release candidate dry-run evidence[\s\S]*uses:\s*actions\/upload-artifact@v4[\s\S]*name:\s*release-candidate-dry-run-evidence[\s\S]*path:\s*artifacts\/release-candidate-dry-run[\s\S]*if-no-files-found:\s*error[\s\S]*retention-days:\s*30/,
+  'CI must upload the release candidate dry-run evidence directory as a stable audit artifact.',
+);
 assert.match(ciWorkflow, /libgbm-dev/);
 assert.match(ciWorkflow, /libpipewire-0\.3-dev/);
 assert.match(ciWorkflow, /desktop-rust-windows:/);
@@ -45,6 +63,16 @@ assert.equal(rootPackageJson.scripts['check:quality:fast'], rootPackageJson.scri
 assert.equal(rootPackageJson.scripts.lint, 'node scripts/run-quality-fast-check.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/run-quality-standard-check.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');
+assert.equal(
+  rootPackageJson.scripts['release:fixture:ready'],
+  'node scripts/release/write-readiness-fixture.mjs',
+  'Root scripts must expose the complete release readiness fixture generator as a first-class CI command.',
+);
+assert.equal(
+  rootPackageJson.scripts['release:candidate:dry-run'],
+  'node scripts/release/candidate-dry-run.mjs',
+  'Root scripts must expose the release candidate dry-run evidence generator as a first-class CI command.',
+);
 assert.equal(
   rootPackageJson.scripts['test:react-syntax-highlighter-types-contract'],
   'node scripts/react-syntax-highlighter-types-contract.test.mjs',
@@ -78,23 +106,23 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:workbench-activity-performance'],
-  'node scripts/hidden-workbench-activity-gating-contract.test.mjs && node scripts/hidden-workbench-sidebar-refresh-performance-contract.test.mjs && node scripts/app-main-body-tab-switch-performance-contract.test.mjs && node scripts/app-shell-startup-lazy-load-contract.test.mjs && node scripts/startup-nonblocking-contract.test.mjs && node scripts/persisted-state-nonblocking-contract.test.mjs && node --experimental-strip-types scripts/server-base-url-bootstrap-contract.test.ts && node --experimental-strip-types scripts/server-api-ready-bootstrap-contract.test.ts && node scripts/shell-runtime-bootstrap-concurrency-contract.test.mjs && node scripts/shell-user-bootstrap-resilience-contract.test.mjs && node scripts/workbench-preferences-performance-contract.test.mjs',
-  'Root quality scripts must expose persistent workbench activity gating, sidebar refresh gating, tab switch, startup lazy-load, startup nonblocking, persisted state failure isolation, startup server base URL fallback, startup API readiness path-prefix safety, startup bootstrap concurrency, shell user-state bootstrap resilience, and preference performance behavior as one first-class performance standard.',
+  'node scripts/hidden-workbench-activity-gating-contract.test.mjs && node scripts/hidden-workbench-sidebar-refresh-performance-contract.test.mjs && node scripts/app-main-body-tab-switch-performance-contract.test.mjs && node scripts/app-shell-startup-lazy-load-contract.test.mjs && node scripts/startup-nonblocking-contract.test.mjs && node scripts/persisted-state-nonblocking-contract.test.mjs && node --experimental-strip-types scripts/server-base-url-bootstrap-contract.test.ts && node --experimental-strip-types scripts/server-api-ready-bootstrap-contract.test.ts && node scripts/shell-runtime-bootstrap-concurrency-contract.test.mjs && node scripts/shell-user-bootstrap-resilience-contract.test.mjs && node scripts/workbench-preferences-performance-contract.test.mjs && node scripts/toast-provider-lifecycle-performance-contract.test.mjs && node scripts/copy-feedback-timer-lifecycle-contract.test.mjs',
+  'Root quality scripts must expose persistent workbench activity gating, sidebar refresh gating, tab switch, startup lazy-load, startup nonblocking, persisted state failure isolation, startup server base URL fallback, startup API readiness path-prefix safety, startup bootstrap concurrency, shell user-state bootstrap resilience, preference performance behavior, toast lifecycle performance, and copy feedback timer lifecycle performance as one first-class performance standard.',
 );
 assert.equal(
   rootPackageJson.scripts['check:universal-chat-rendering-performance'],
-  'node scripts/universal-chat-inactive-gating-performance-contract.test.mjs && node scripts/universal-chat-row-animation-performance-contract.test.mjs && node scripts/transcript-inactive-measurement-gating-contract.test.mjs && node scripts/universal-chat-folder-upload-performance-contract.test.mjs',
-  'Root quality scripts must expose UniversalChat inactive gating, no per-row animation churn, inactive transcript measurement gating, and folder upload performance as one first-class rendering standard.',
+  'node scripts/universal-chat-inactive-gating-performance-contract.test.mjs && node scripts/universal-chat-row-animation-performance-contract.test.mjs && node scripts/transcript-inactive-measurement-gating-contract.test.mjs && node scripts/universal-chat-folder-upload-performance-contract.test.mjs && node --experimental-strip-types scripts/chat-markdown-rendering-performance-contract.test.ts && node scripts/universal-chat-activity-summary-contract.test.mjs && node scripts/universal-chat-task-progress-contract.test.mjs',
+  'Root quality scripts must expose UniversalChat inactive gating, no per-row animation churn, inactive transcript measurement gating, bounded attachment uploads, oversized markdown rendering avoidance, and professional activity summaries as one first-class rendering standard.',
 );
 assert.equal(
   rootPackageJson.scripts['check:project-explorer-hover-stability'],
-  'node scripts/project-explorer-scrollbar-contract.test.mjs && node scripts/sidebar-row-animation-performance-contract.test.mjs && node scripts/sidebar-inventory-memo-contract.test.mjs && node scripts/sidebar-session-expansion-performance-contract.test.mjs',
-  'Root quality scripts must guard project/sidebar row hover geometry, per-row animation stability, sidebar inventory memoization, and session expansion performance as one first-class standard.',
+  'node scripts/project-explorer-scrollbar-contract.test.mjs && node scripts/sidebar-row-animation-performance-contract.test.mjs && node scripts/sidebar-inventory-memo-contract.test.mjs && node scripts/sidebar-session-expansion-performance-contract.test.mjs && node scripts/sidebar-chronological-lazy-performance-contract.test.mjs',
+  'Root quality scripts must guard project/sidebar row hover geometry, per-row animation stability, sidebar inventory memoization, session expansion, and chronological lazy loading performance as one first-class standard.',
 );
 assert.equal(
   rootPackageJson.scripts['check:code-page-componentization'],
-  'node scripts/code-page-componentization-contract.test.mjs && node scripts/code-tab-switch-performance-contract.test.mjs && node scripts/code-main-chat-width-stability-contract.test.mjs',
-  'Root quality scripts must keep Code view composition, tab switching, and main chat width stability covered by one first-class standard.',
+  'node scripts/code-page-componentization-contract.test.mjs && node scripts/code-tab-switch-performance-contract.test.mjs && node scripts/code-main-chat-width-stability-contract.test.mjs && node scripts/code-workspace-overlays-performance-contract.test.mjs && node scripts/quick-open-search-scheduling-performance-contract.test.mjs',
+  'Root quality scripts must keep Code view composition, tab switching, main chat width stability, workspace overlay search scheduling, and quick-open performance covered by one first-class standard.',
 );
 assert.equal(
   rootPackageJson.scripts['check:code-active-surface-performance'],
@@ -103,12 +131,17 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:file-explorer-rendering-performance'],
-  'node scripts/file-explorer-inactive-gating-performance-contract.test.mjs && node scripts/file-explorer-node-render-performance-contract.test.mjs',
-  'Root quality scripts must expose FileExplorer inactive gating and no per-node animation churn as one first-class rendering standard.',
+  'node scripts/file-explorer-inactive-gating-performance-contract.test.mjs && node scripts/file-explorer-node-render-performance-contract.test.mjs && node scripts/file-explorer-search-performance-contract.test.mjs && node scripts/file-explorer-search-scheduling-performance-contract.test.mjs',
+  'Root quality scripts must expose FileExplorer inactive gating, no per-node animation churn, and nonblocking scheduled search as one first-class rendering standard.',
+);
+assert.equal(
+  rootPackageJson.scripts['check:file-system-boundary'],
+  'node scripts/page-file-system-boundary-contract.test.mjs && node scripts/file-system-root-create-contract.test.mjs && node --experimental-strip-types scripts/file-system-request-guard-contract.test.ts && node --experimental-strip-types scripts/file-selection-mutation-contract.test.ts && node --experimental-strip-types scripts/file-search-runtime-contract.test.ts && node scripts/runtime-file-search-snapshot-cache-performance-contract.test.mjs && node scripts/file-system-poller-timeout-performance-contract.test.mjs && node scripts/file-system-loaded-directory-index-performance-contract.test.mjs && node scripts/file-system-hook-tree-index-performance-contract.test.mjs && node --experimental-strip-types scripts/mock-file-system-search-contract.test.ts && node --experimental-strip-types scripts/project-mount-recovery-contract.test.ts && node --experimental-strip-types scripts/local-folder-project-import-contract.test.ts && node --experimental-strip-types scripts/code-local-folder-import-workspace-contract.test.ts',
+  'Root quality scripts must expose file-system boundaries, request guards, search runtime, snapshot cache, timeout-based polling, service and hook loaded-directory indexing, mount recovery, and local-folder import behavior as one first-class file-system performance standard.',
 );
 assert.equal(
   rootPackageJson.scripts['check:workbench-session-standard'],
-  'node scripts/code-new-session-transcript-reset-contract.test.mjs && node scripts/coding-session-creation-standardization-contract.test.mjs && node scripts/workbench-coding-session-creation-actions-contract.test.mjs && node scripts/selected-session-hydration-loading-contract.test.mjs && node scripts/app-session-inventory-refresh-contract.test.mjs && node --experimental-strip-types scripts/project-mirror-snapshot-authoritative-sessions-contract.test.ts && node --experimental-strip-types scripts/coding-session-stale-runtime-status-startup-contract.test.ts && node --experimental-strip-types scripts/selected-session-stale-project-refresh-contract.test.ts && node --experimental-strip-types scripts/selected-session-user-scope-refresh-contract.test.ts && node --experimental-strip-types scripts/session-refresh-timeout-contract.test.ts && node --experimental-strip-types scripts/workbench-recovery-user-scope-contract.test.ts && node --experimental-strip-types scripts/workspace-effective-selection-contract.test.ts',
+  'node scripts/code-new-session-transcript-reset-contract.test.mjs && node scripts/coding-session-creation-standardization-contract.test.mjs && node scripts/workbench-coding-session-creation-actions-contract.test.mjs && node scripts/selected-session-hydration-loading-contract.test.mjs && node scripts/app-session-inventory-refresh-contract.test.mjs && node --experimental-strip-types scripts/project-mirror-snapshot-authoritative-sessions-contract.test.ts && node --experimental-strip-types scripts/coding-session-stale-runtime-status-startup-contract.test.ts && node --experimental-strip-types scripts/selected-session-stale-project-refresh-contract.test.ts && node --experimental-strip-types scripts/selected-session-user-scope-refresh-contract.test.ts && node --experimental-strip-types scripts/selected-session-location-mirror-performance-contract.test.ts && node --experimental-strip-types scripts/selected-session-local-transcript-hydration-contract.test.ts && node --experimental-strip-types scripts/selected-session-api-backed-local-transcript-contract.test.ts && node --experimental-strip-types scripts/session-refresh-timeout-contract.test.ts && node --experimental-strip-types scripts/workbench-recovery-user-scope-contract.test.ts && node --experimental-strip-types scripts/workspace-effective-selection-contract.test.ts',
 );
 assert.equal(
   rootPackageJson.scripts['check:project-inventory-standard'],
@@ -117,7 +150,7 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:project-session-index-performance'],
-  'node scripts/project-session-index-performance-contract.test.mjs && node --experimental-strip-types scripts/project-session-index-cache-performance-contract.test.ts && node --experimental-strip-types scripts/project-session-location-cache-performance-contract.test.ts && node --experimental-strip-types scripts/project-session-navigation-cache-performance-contract.test.ts && node --experimental-strip-types scripts/coding-session-authoritative-summary-cache-contract.test.ts',
+  'node scripts/project-session-index-performance-contract.test.mjs && node --experimental-strip-types scripts/project-session-index-cache-performance-contract.test.ts && node --experimental-strip-types scripts/project-session-location-cache-performance-contract.test.ts && node --experimental-strip-types scripts/project-session-navigation-cache-performance-contract.test.ts && node --experimental-strip-types scripts/coding-session-authoritative-summary-cache-contract.test.ts && node scripts/core-read-cache-memory-bound-contract.test.mjs',
   'Root quality scripts must expose project/session index, location lookup, navigation lookup, and authoritative summary cache behavior as one first-class session loading performance standard.',
 );
 assert.equal(
@@ -139,6 +172,11 @@ assert.match(
   rootPackageJson.scripts['check:data-kernel'] ?? '',
   /coding-session-repository-batch-loading-contract\.test\.ts/,
   'Root quality scripts must cover batched coding-session repository reads so startup project inventory does not full-scan session transcripts.',
+);
+assert.match(
+  rootPackageJson.scripts['check:data-kernel'] ?? '',
+  /provider-backed-session-message-mutation-performance-contract\.test\.mjs/,
+  'Root quality scripts must cover targeted transcript mutation cleanup so session refresh and deletes do not full-scan persisted messages.',
 );
 assert.match(
   rootPackageJson.scripts['check:data-kernel'] ?? '',

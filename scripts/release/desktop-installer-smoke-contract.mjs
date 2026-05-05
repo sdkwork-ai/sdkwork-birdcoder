@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import {
+  normalizeDesktopInstallerSignatureEvidence,
+} from './desktop-installer-trust-evidence.mjs';
+
 export const DESKTOP_INSTALLER_SMOKE_REPORT_FILENAME = 'desktop-installer-smoke-report.json';
 
 function normalizePlatform(platform) {
@@ -31,12 +35,24 @@ function normalizeStringArray(values) {
 function normalizeInstallPlanSummaries(values) {
   return Array.isArray(values)
     ? values
-      .map((value) => ({
-        relativePath: String(value?.relativePath ?? '').trim(),
-        format: String(value?.format ?? '').trim(),
-        platform: String(value?.platform ?? '').trim(),
-        stepCount: Number.isFinite(value?.stepCount) ? value.stepCount : 0,
-      }))
+      .map((value) => {
+        const normalizedValue = {
+          relativePath: String(value?.relativePath ?? '').trim(),
+          format: String(value?.format ?? '').trim(),
+          bundle: String(value?.bundle ?? '').trim(),
+          target: String(value?.target ?? '').trim(),
+          platform: String(value?.platform ?? '').trim(),
+          stepCount: Number.isFinite(value?.stepCount) ? value.stepCount : 0,
+        };
+        const signatureEvidence = normalizeDesktopInstallerSignatureEvidence(
+          value?.signatureEvidence,
+        );
+        if (signatureEvidence) {
+          normalizedValue.signatureEvidence = signatureEvidence;
+        }
+
+        return normalizedValue;
+      })
       .filter((value) => value.relativePath.length > 0)
       .sort((left, right) => left.relativePath.localeCompare(right.relativePath))
     : [];

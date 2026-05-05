@@ -20,6 +20,8 @@ const multiWindowStandardCommand = [
   'node scripts/multiwindow-quality-gate-contract.test.mjs',
   'node --experimental-strip-types scripts/multiwindow-runtime-contract.test.ts',
   'node scripts/multiwindow-page-contract.test.mjs',
+  'node scripts/multiwindow-workspace-state-persistence-performance-contract.test.mjs',
+  'node scripts/multiwindow-workspace-state-serialization-performance-contract.test.mjs',
   'node scripts/multiwindow-package-contract.test.mjs',
   'node scripts/multiwindow-shell-navigation-contract.test.mjs',
   'node scripts/multiwindow-turn-options-contract.test.mjs',
@@ -30,7 +32,7 @@ const multiWindowStandardCommand = [
 assert.equal(
   rootPackageJson.scripts['check:multiwindow-standard'],
   multiWindowStandardCommand,
-  'Multi-window programming must have one root standard gate that covers package, shell, runtime, page, turn-options, release writeback, and package typecheck contracts.',
+  'Multi-window programming must have one root standard gate that covers package, shell, runtime, page, workspace persistence performance, turn-options, release writeback, and package typecheck contracts.',
 );
 assert.equal(
   rootPackageJson.scripts['test:codeengine-turn-options-provider-contract'],

@@ -3,7 +3,10 @@ import {
   getWorkbenchCodeEngineSessionSummary,
 } from '@sdkwork/birdcoder-codeengine';
 import { UniversalChat } from '@sdkwork/birdcoder-ui';
-import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-ui-shell';
+import {
+  WorkbenchCodeEngineIcon,
+  resolveSafePreviewUrl,
+} from '@sdkwork/birdcoder-ui-shell';
 import {
   AlertCircle,
   CheckCircle2,
@@ -58,11 +61,6 @@ interface MultiWindowPaneProps {
   onRetryPane?: () => void;
 }
 
-function normalizePreviewUrl(value: string): string {
-  const normalizedValue = value.trim();
-  return normalizedValue || 'about:blank';
-}
-
 function resolveRuntimeStatusIcon(status: MultiWindowPaneRuntimeStatus) {
   if (status === 'pending') {
     return <Loader2 size={13} className="animate-spin text-blue-300" />;
@@ -112,14 +110,15 @@ export const MultiWindowPane = memo(function MultiWindowPane({
     effectiveModelId,
     preferences,
   );
-  const manualPreviewUrl = normalizePreviewUrl(pane.previewUrl);
-  const autoPreviewUrl = resolveMultiWindowPaneAutoPreviewUrl(messages);
+  const manualPreviewUrl = resolveSafePreviewUrl(pane.previewUrl);
+  const detectedPreviewUrl = resolveMultiWindowPaneAutoPreviewUrl(messages);
+  const autoPreviewUrl = resolveSafePreviewUrl(detectedPreviewUrl);
   const previewUrl = manualPreviewUrl !== 'about:blank'
     ? manualPreviewUrl
-    : autoPreviewUrl ?? 'about:blank';
+    : resolveSafePreviewUrl(autoPreviewUrl);
   const hasPreviewUrl = previewUrl !== 'about:blank';
   const hasManualPreviewOverride = manualPreviewUrl !== 'about:blank';
-  const hasAutoPreviewUrl = manualPreviewUrl === 'about:blank' && Boolean(autoPreviewUrl);
+  const hasAutoPreviewUrl = manualPreviewUrl === 'about:blank' && autoPreviewUrl !== 'about:blank';
   const hasPaneDispatchMetric =
     Boolean(dispatchResult) &&
     dispatchResult?.status !== 'pending' &&
@@ -279,7 +278,7 @@ export const MultiWindowPane = memo(function MultiWindowPane({
               className="min-w-0 flex-1 rounded-md border border-white/10 bg-[#17181d] px-2 py-1.5 text-xs text-gray-200 outline-none placeholder:text-gray-600 focus:border-blue-400/50"
               onChange={(event) => onChange({ ...pane, previewUrl: event.target.value })}
               placeholder={
-                autoPreviewUrl
+                hasAutoPreviewUrl
                   ? t('multiWindow.autoPreviewUrlPlaceholder', { url: autoPreviewUrl })
                   : t('multiWindow.previewUrlPlaceholder')
               }
@@ -288,7 +287,7 @@ export const MultiWindowPane = memo(function MultiWindowPane({
             {hasAutoPreviewUrl ? (
               <span
                 className="hidden rounded-md bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-200 xl:inline-flex"
-                title={autoPreviewUrl ?? undefined}
+                title={autoPreviewUrl}
               >
                 {t('multiWindow.autoPreviewUrl')}
               </span>
@@ -297,7 +296,7 @@ export const MultiWindowPane = memo(function MultiWindowPane({
               <button
                 type="button"
                 className="rounded-md p-1.5 text-emerald-200 transition-colors hover:bg-emerald-500/10 hover:text-emerald-100"
-                onClick={() => onChange({ ...pane, previewUrl: autoPreviewUrl ?? 'about:blank' })}
+                onClick={() => onChange({ ...pane, previewUrl: autoPreviewUrl })}
                 title={t('multiWindow.useDetectedPreviewUrl')}
               >
                 <Link2 size={14} />
@@ -340,7 +339,7 @@ export const MultiWindowPane = memo(function MultiWindowPane({
               <iframe
                 key={`${previewUrl}:${previewRefreshKey}`}
                 className="h-full w-full border-0 bg-white"
-                sandbox="allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
+                sandbox="allow-forms allow-modals allow-popups allow-scripts"
                 src={previewUrl}
                 title={t('multiWindow.previewFrameTitle', { index: paneIndex + 1 })}
               />

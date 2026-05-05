@@ -4,8 +4,12 @@ import {
   getTerminalProfile,
   type ToastType,
 } from '@sdkwork/birdcoder-commons';
-import { normalizeBirdCoderCodeEngineNativeSessionId } from '@sdkwork/birdcoder-codeengine';
+import {
+  buildWorkbenchCodeEngineCliResumeCommand,
+  normalizeBirdCoderCodeEngineNativeSessionId,
+} from '@sdkwork/birdcoder-codeengine';
 import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-types';
+import { copyTextToClipboard } from '@sdkwork/birdcoder-ui';
 import { buildCodingSessionTerminalLaunchPlan } from './codingSessionTerminal';
 
 interface CodePageTerminalProjectLike {
@@ -32,7 +36,10 @@ interface UseCodePageTerminalActionsOptions {
     codingSessionId: string,
   ) => Promise<string | null> | string | null;
   resolveProjectById: (projectId: string) => CodePageTerminalProjectLike | null;
-  resolveSession: (codingSessionId: string) => CodePageTerminalSessionLocation | null;
+  resolveSession: (
+    codingSessionId: string,
+    projectId?: string | null,
+  ) => CodePageTerminalSessionLocation | null;
   t: (key: string, values?: Record<string, string>) => string;
 }
 
@@ -130,11 +137,53 @@ export function useCodePageTerminalActions({
       return;
     }
 
-    navigator.clipboard.writeText(nativeSessionId);
-    addToast(t('code.copiedSessionId', { id: nativeSessionId }), 'success');
+    const didCopy = await copyTextToClipboard(nativeSessionId);
+    addToast(
+      didCopy
+        ? t('code.copiedSessionId', { id: nativeSessionId })
+        : 'Unable to copy session id',
+      didCopy ? 'success' : 'error',
+    );
   }, [addToast, resolveCodingSessionNativeSessionId, resolveSession, t]);
 
+  const handleCopySessionResumeCommand = useCallback(async (
+    codingSessionId: string,
+    projectId: string,
+    nativeSessionIdFromList?: string | null,
+  ) => {
+    const resolvedSessionLocation = resolveSession(codingSessionId, projectId);
+    const codingSession = resolvedSessionLocation?.codingSession;
+    const nativeSessionId = normalizeCodingSessionNativeSessionId(
+      nativeSessionIdFromList?.trim() ||
+      (await resolveCodingSessionNativeSessionId(codingSessionId))?.trim() ||
+      null,
+      codingSession?.engineId,
+    );
+    if (!codingSession || !nativeSessionId) {
+      addToast(t('code.sessionNativeIdUnavailable'), 'error');
+      return;
+    }
+
+    const command = buildWorkbenchCodeEngineCliResumeCommand({
+      engineId: codingSession.engineId,
+      nativeSessionId,
+    });
+    const didCopy = await copyTextToClipboard(command);
+    addToast(
+      didCopy
+        ? t('code.copiedSessionResumeCommand', { command })
+        : 'Unable to copy session resume command',
+      didCopy ? 'success' : 'error',
+    );
+  }, [
+    addToast,
+    resolveCodingSessionNativeSessionId,
+    resolveSession,
+    t,
+  ]);
+
   return {
+    handleCopySessionResumeCommand,
     handleCopySessionId,
     handleOpenCodingSessionInTerminal,
     handleOpenInTerminal,

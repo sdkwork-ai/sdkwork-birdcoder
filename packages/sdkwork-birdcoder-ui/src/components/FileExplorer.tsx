@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef } from 'react';
 import { ChevronRight, ChevronDown, File, Folder, Search, X, Plus, FilePlus, FolderPlus, Trash2, FileJson, FileCode2, FileImage, FileText, FileType2, ListCollapse, Copy, Terminal, ExternalLink, FileEdit, Loader2 } from 'lucide-react';
 import { emitOpenTerminalRequest, globalEventBus, useToast } from '@sdkwork/birdcoder-commons';
+import { copyTextToClipboard } from './clipboard';
 import {
   buildVisibleFileExplorerRows,
   FILE_EXPLORER_OVERSCAN_ROWS,
@@ -58,6 +59,28 @@ type ScoredFileNode = {
 type FileExplorerSearchResult = {
   expandedFolders: Readonly<Record<string, boolean>>;
   files: readonly FileNode[];
+};
+
+type FileExplorerSearchTask = {
+  cancel: () => void;
+};
+
+type FileExplorerSearchTaskFrame = {
+  index: number;
+  matches: ScoredFileNode[];
+  nodes: readonly FileNode[];
+  parent?: {
+    children: readonly FileNode[];
+    frame: FileExplorerSearchTaskFrame;
+    node: FileNode;
+    nodeScore: number;
+  };
+};
+
+type CreateFileExplorerSearchTaskOptions = {
+  nodes: readonly FileNode[];
+  normalizedQuery: string;
+  onComplete: (result: FileExplorerSearchResult) => void;
 };
 
 type FileExplorerInlineInputRowProps = {
@@ -121,76 +144,147 @@ function fuzzyScore(pattern: string, str: string): number {
 }
 
 const FILE_EXPLORER_CONTEXT_MENU_Z_INDEX = 2147483647;
+const FILE_EXPLORER_SEARCH_CHUNK_SIZE = 250;
+const FILE_EXPLORER_SEARCH_IDLE_TIMEOUT_MS = 80;
 
-function resolveFileExplorerSearchMatches(
+function createFileExplorerSearchTaskFrame(
   nodes: readonly FileNode[],
-  normalizedQuery: string,
-  expandedFolders: Record<string, boolean>,
-): ScoredFileNode[] {
-  const nextMatches: ScoredFileNode[] = [];
-
-  for (const node of nodes) {
-    const nodeScore = fuzzyScore(normalizedQuery, node.name.toLowerCase());
-
-    if (node.type === 'directory' && node.children) {
-      const childMatches = resolveFileExplorerSearchMatches(
-        node.children,
-        normalizedQuery,
-        expandedFolders,
-      );
-      let maxChildScore = 0;
-      const nextChildren: FileNode[] = [];
-
-      for (const childMatch of childMatches) {
-        nextChildren.push(childMatch.node);
-        if (childMatch.score > maxChildScore) {
-          maxChildScore = childMatch.score;
-        }
-      }
-
-      const totalScore = Math.max(nodeScore, maxChildScore);
-      if (totalScore > 0) {
-        if (nextChildren.length > 0) {
-          expandedFolders[node.path] = true;
-        }
-        nextMatches.push({
-          node:
-            nextChildren.length === node.children.length &&
-            nextChildren.every((childNode, childIndex) => childNode === node.children?.[childIndex])
-              ? node
-              : { ...node, children: nextChildren },
-          score: totalScore,
-        });
-      }
-      continue;
-    }
-
-    if (nodeScore > 0) {
-      nextMatches.push({ node, score: nodeScore });
-    }
-  }
-
-  nextMatches.sort((left, right) => right.score - left.score);
-  return nextMatches;
+  parent?: FileExplorerSearchTaskFrame['parent'],
+): FileExplorerSearchTaskFrame {
+  return {
+    index: 0,
+    matches: [],
+    nodes,
+    parent,
+  };
 }
 
-function resolveFileExplorerSearchResult(
-  nodes: readonly FileNode[],
-  normalizedQuery: string,
-): FileExplorerSearchResult {
-  if (!normalizedQuery) {
-    return {
-      expandedFolders: EMPTY_FILE_EXPLORER_EXPANDED_FOLDERS,
-      files: nodes,
-    };
+function createFileExplorerSearchTask({
+  nodes,
+  normalizedQuery,
+  onComplete,
+}: CreateFileExplorerSearchTaskOptions): FileExplorerSearchTask {
+  const expandedFolders: Record<string, boolean> = {};
+  const rootFrame = createFileExplorerSearchTaskFrame(nodes);
+  const searchStack: FileExplorerSearchTaskFrame[] = [rootFrame];
+  let isCancelled = false;
+  let searchIdleCallbackId: number | null = null;
+  let searchTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const completeSearchFrame = (frame: FileExplorerSearchTaskFrame) => {
+    frame.matches.sort((left, right) => right.score - left.score);
+
+    if (!frame.parent) {
+      onComplete({
+        expandedFolders,
+        files: frame.matches.map((entry) => entry.node),
+      });
+      return;
+    }
+
+    const nextChildren: FileNode[] = [];
+    let maxChildScore = 0;
+    for (const childMatch of frame.matches) {
+      nextChildren.push(childMatch.node);
+      if (childMatch.score > maxChildScore) {
+        maxChildScore = childMatch.score;
+      }
+    }
+
+    const { children, frame: parentFrame, node, nodeScore } = frame.parent;
+    const totalScore = Math.max(nodeScore, maxChildScore);
+    if (totalScore <= 0) {
+      return;
+    }
+
+    if (nextChildren.length > 0) {
+      expandedFolders[node.path] = true;
+    }
+    parentFrame.matches.push({
+      node:
+        nextChildren.length === children.length &&
+        nextChildren.every((childNode, childIndex) => childNode === children[childIndex])
+          ? node
+          : { ...node, children: nextChildren },
+      score: totalScore,
+    });
+  };
+
+  function runNextSearchChunk() {
+    searchIdleCallbackId = null;
+    searchTimeoutId = null;
+    let processedNodeCount = 0;
+
+    while (
+      !isCancelled &&
+      searchStack.length > 0 &&
+      processedNodeCount < FILE_EXPLORER_SEARCH_CHUNK_SIZE
+    ) {
+      processedNodeCount += 1;
+      const currentFrame = searchStack[searchStack.length - 1]!;
+
+      if (currentFrame.index >= currentFrame.nodes.length) {
+        searchStack.pop();
+        completeSearchFrame(currentFrame);
+        continue;
+      }
+
+      const node = currentFrame.nodes[currentFrame.index]!;
+      currentFrame.index += 1;
+      const nodeScore = fuzzyScore(normalizedQuery, node.name.toLowerCase());
+
+      if (node.type === 'directory' && node.children) {
+        searchStack.push(createFileExplorerSearchTaskFrame(node.children, {
+          children: node.children,
+          frame: currentFrame,
+          node,
+          nodeScore,
+        }));
+        continue;
+      }
+
+      if (nodeScore > 0) {
+        currentFrame.matches.push({ node, score: nodeScore });
+      }
+    }
+
+    if (!isCancelled && searchStack.length > 0) {
+      scheduleNextSearchChunk();
+    }
   }
 
-  const expandedFolders: Record<string, boolean> = {};
+  function scheduleNextSearchChunk() {
+    if (isCancelled) {
+      return;
+    }
+
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      searchIdleCallbackId = window.requestIdleCallback(runNextSearchChunk, {
+        timeout: FILE_EXPLORER_SEARCH_IDLE_TIMEOUT_MS,
+      });
+      return;
+    }
+
+    searchTimeoutId = setTimeout(runNextSearchChunk, 0);
+  }
+
+  scheduleNextSearchChunk();
   return {
-    expandedFolders,
-    files: resolveFileExplorerSearchMatches(nodes, normalizedQuery, expandedFolders).map(
-      (entry) => entry.node,
-    ),
+    cancel: () => {
+      isCancelled = true;
+      if (
+        searchIdleCallbackId !== null &&
+        typeof window !== 'undefined' &&
+        typeof window.cancelIdleCallback === 'function'
+      ) {
+        window.cancelIdleCallback(searchIdleCallbackId);
+        searchIdleCallbackId = null;
+      }
+      if (searchTimeoutId !== null) {
+        clearTimeout(searchTimeoutId);
+        searchTimeoutId = null;
+      }
+    },
   };
 }
 
@@ -502,6 +596,9 @@ export const FileExplorer = React.memo(function FileExplorer({
   });
   const { addToast } = useToast();
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const normalizedDeferredSearchQuery = deferredSearchQuery.trim().toLowerCase();
+  const [searchResult, setSearchResult] = useState<FileExplorerSearchResult>(EMPTY_FILE_EXPLORER_SEARCH_RESULT);
+  const [isSearchPending, setIsSearchPending] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const resolveProjectBasePath = () => resolveAbsoluteExplorerPath(basePath, '');
@@ -686,17 +783,33 @@ export const FileExplorer = React.memo(function FileExplorer({
     });
   }, []);
 
-  const searchResult = useMemo(() => {
-    if (!isActive) {
-      return EMPTY_FILE_EXPLORER_SEARCH_RESULT;
+  useEffect(() => {
+    if (!isActive || !normalizedDeferredSearchQuery) {
+      setSearchResult(EMPTY_FILE_EXPLORER_SEARCH_RESULT);
+      setIsSearchPending(false);
+      return;
     }
 
-    const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
-    return resolveFileExplorerSearchResult(files, normalizedSearchQuery);
-  }, [deferredSearchQuery, files, isActive]);
+    setSearchResult(EMPTY_FILE_EXPLORER_SEARCH_RESULT);
+    setIsSearchPending(true);
+    const searchTask = createFileExplorerSearchTask({
+      nodes: files,
+      normalizedQuery: normalizedDeferredSearchQuery,
+      onComplete: (nextSearchResult) => {
+        setSearchResult(nextSearchResult);
+        setIsSearchPending(false);
+      },
+    });
 
-  const filteredFiles = searchResult.files;
-  const currentExpandedFolders = deferredSearchQuery.trim()
+    return () => {
+      searchTask.cancel();
+    };
+  }, [files, isActive, normalizedDeferredSearchQuery]);
+
+  const filteredFiles = normalizedDeferredSearchQuery
+    ? searchResult.files
+    : files;
+  const currentExpandedFolders = normalizedDeferredSearchQuery
     ? searchResult.expandedFolders
     : expandedFolders;
 
@@ -895,6 +1008,15 @@ export const FileExplorer = React.memo(function FileExplorer({
       return null;
     }
 
+    if (isSearchPending && normalizedDeferredSearchQuery) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-gray-500 px-4 text-center gap-3">
+          <Loader2 size={18} className="text-gray-400 animate-spin" />
+          <p className="text-sm text-gray-400">Searching files...</p>
+        </div>
+      );
+    }
+
     if (visibleRows.length > 0) {
       return (
         <>
@@ -993,7 +1115,9 @@ export const FileExplorer = React.memo(function FileExplorer({
     handleRequestDeleteNode,
     inputValue,
     currentExpandedFolders,
+    isSearchPending,
     loadingDirectoryPaths,
+    normalizedDeferredSearchQuery,
     onExpandDirectory,
     renamingNode,
     searchQuery,
@@ -1184,9 +1308,14 @@ export const FileExplorer = React.memo(function FileExplorer({
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
-              navigator.clipboard.writeText(contextMenu.node.path);
+              void copyTextToClipboard(contextMenu.node.path).then((didCopy) => {
+                if (!didCopy) {
+                  addToast('Unable to copy relative path', 'error');
+                  return;
+                }
+                addToast('Copied relative path', 'success');
+              });
               setContextMenu(null);
-              addToast('Copied relative path', 'success');
             }}
           >
             <Copy size={14} className="text-gray-400" />
@@ -1201,9 +1330,14 @@ export const FileExplorer = React.memo(function FileExplorer({
                 setContextMenu(null);
                 return;
               }
-              navigator.clipboard.writeText(fullPath);
+              void copyTextToClipboard(fullPath).then((didCopy) => {
+                if (!didCopy) {
+                  addToast('Unable to copy full path', 'error');
+                  return;
+                }
+                addToast('Copied full path', 'success');
+              });
               setContextMenu(null);
-              addToast('Copied full path', 'success');
             }}
           >
             <Copy size={14} className="text-gray-400" />

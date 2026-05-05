@@ -1,5 +1,7 @@
 export type ChatMarkdownRenderMode = 'basic' | 'rich';
 
+export const CHAT_RICH_MARKDOWN_MAX_CHARACTERS = 64000;
+
 const CHAT_RICH_MARKDOWN_PATTERNS = [
   /```/u,
   /^#{1,6}\s+/mu,
@@ -22,6 +24,10 @@ export function shouldUseRichChatMarkdown(
 ): boolean {
   const normalizedContent = content.trim();
   if (!normalizedContent) {
+    return false;
+  }
+
+  if (normalizedContent.length > CHAT_RICH_MARKDOWN_MAX_CHARACTERS) {
     return false;
   }
 

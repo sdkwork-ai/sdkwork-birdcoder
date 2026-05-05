@@ -2,6 +2,9 @@ import { normalizeQualityEvidenceSummary } from './quality-gate-release-evidence
 import {
   collectDesktopStartupReadinessSignals,
 } from './desktop-startup-readiness-summary.mjs';
+import {
+  collectDesktopInstallerTrustSignals,
+} from './desktop-installer-trust-evidence.mjs';
 
 function normalizeStringList(values) {
   return Array.from(new Set(
@@ -23,6 +26,7 @@ function formatCodeList(values) {
 export function collectReleaseStopShipSignals({
   qualityEvidence = null,
   assets = [],
+  artifacts = [],
 } = {}) {
   const normalizedQualityEvidence = normalizeQualityEvidenceSummary(qualityEvidence ?? {});
   const stopShipSignals = [];
@@ -70,6 +74,10 @@ export function collectReleaseStopShipSignals({
   }
 
   stopShipSignals.push(...collectDesktopStartupReadinessSignals(assets));
+  stopShipSignals.push(...collectDesktopInstallerTrustSignals({
+    assets,
+    artifacts,
+  }));
 
   return stopShipSignals;
 }
@@ -114,6 +122,7 @@ export function assertClearStopShipEvidence({
   releaseControl = null,
   qualityEvidence = null,
   assets = [],
+  artifacts = [],
   errorPrefix = 'Formal or general-availability release promotion requires clear stop-ship evidence',
 } = {}) {
   if (!requiresClearStopShipEvidence({ releaseControl })) {
@@ -123,6 +132,7 @@ export function assertClearStopShipEvidence({
   const stopShipSignals = collectReleaseStopShipSignals({
     qualityEvidence,
     assets,
+    artifacts,
   });
   if (stopShipSignals.length > 0) {
     throw new Error(`${errorPrefix}: ${stopShipSignals.join('; ')}`);

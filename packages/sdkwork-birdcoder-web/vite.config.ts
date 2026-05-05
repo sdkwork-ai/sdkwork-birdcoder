@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
 
           return deps.filter(
             (dependency) =>
-              !/^assets\/(?:birdcoder-identity-surface|birdcoder-user-center-core|birdcoder-platform|birdcoder-shell-bootstrap|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-run-dialogs|vendor-monaco|vendor-markdown|vendor-code-highlight)-/u.test(
+              !/^assets\/(?:birdcoder-identity-surface|birdcoder-user-center-core|birdcoder-platform|birdcoder-shell-bootstrap|birdcoder-code-surface|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-skills-surface|birdcoder-templates-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight)-/u.test(
                 dependency,
               ),
           );
@@ -95,6 +95,56 @@ export default defineConfig(({ mode }) => {
 
           if (id.includes('/node_modules/qrcode/')) {
             return 'vendor-qrcode';
+          }
+
+          if (
+            id.includes('/node_modules/@xterm/xterm/') ||
+            id.includes('sdkwork-birdcoder-web-xterm-xterm')
+          ) {
+            return 'vendor-terminal-xterm';
+          }
+
+          if (
+            id.includes('/node_modules/@xterm/addon-canvas/') ||
+            id.includes('sdkwork-birdcoder-web-xterm-addon-canvas')
+          ) {
+            return 'vendor-terminal-xterm-addon-canvas';
+          }
+
+          if (
+            id.includes('/node_modules/@xterm/addon-fit/') ||
+            id.includes('sdkwork-birdcoder-web-xterm-addon-fit')
+          ) {
+            return 'vendor-terminal-xterm-addon-fit';
+          }
+
+          if (
+            id.includes('/node_modules/@xterm/addon-search/') ||
+            id.includes('sdkwork-birdcoder-web-xterm-addon-search')
+          ) {
+            return 'vendor-terminal-xterm-addon-search';
+          }
+
+          if (
+            id.includes('/node_modules/@xterm/addon-unicode11/') ||
+            id.includes('sdkwork-birdcoder-web-xterm-addon-unicode11')
+          ) {
+            return 'vendor-terminal-xterm-addon-unicode11';
+          }
+
+          if (
+            id.includes('/node_modules/@tauri-apps/api/window') ||
+            id.includes('/node_modules/@tauri-apps/api/dpi')
+          ) {
+            return 'vendor-tauri-window';
+          }
+
+          if (id.includes('/node_modules/@tauri-apps/api/event')) {
+            return 'vendor-tauri-event';
+          }
+
+          if (id.includes('/node_modules/@tauri-apps/api/core')) {
+            return 'vendor-tauri-core';
           }
 
           if (
@@ -242,6 +292,61 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
+              '/sdkwork-terminal/apps/desktop/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-ai-cli/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-diagnostics/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-i18n/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-resources/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-sessions/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-settings/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-shell/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-ui/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-workbench/src/',
+            ])
+          ) {
+            return 'birdcoder-terminal-desktop';
+          }
+
+          if (
+            isAnySourcePath([
+              '/packages/sdkwork-birdcoder-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
+              '/packages/sdkwork-birdcoder-commons/src/terminal/terminalRuntimeSanitization.ts',
+              '/sdkwork-terminal/packages/sdkwork-terminal-commons/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-contracts/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-core/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/',
+              '/sdkwork-terminal/packages/sdkwork-terminal-types/src/',
+            ])
+          ) {
+            return 'birdcoder-terminal-infrastructure';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-code/src/')) {
+            return 'birdcoder-code-surface';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-studio/src/')) {
+            return 'birdcoder-studio-surface';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-multiwindow/src/')) {
+            return 'birdcoder-multiwindow-surface';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-settings/src/')) {
+            return 'birdcoder-settings-surface';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-skills/src/')) {
+            return 'birdcoder-skills-surface';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-templates/src/')) {
+            return 'birdcoder-templates-surface';
+          }
+
+          if (
+            isAnySourcePath([
               '/packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/bootstrapShellRuntimeImpl.ts',
               '/packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/bootstrapShellUserState.ts',
             ])
@@ -269,6 +374,23 @@ export default defineConfig(({ mode }) => {
             ])
           ) {
             return 'birdcoder-shell-runtime';
+          }
+
+          if (
+            isAnySourcePath([
+              '/packages/sdkwork-birdcoder-types/src/data.ts',
+            ])
+          ) {
+            return 'birdcoder-types-data';
+          }
+
+          if (
+            isAnySourcePath([
+              '/packages/sdkwork-birdcoder-types/src/server-api.ts',
+              '/packages/sdkwork-birdcoder-types/src/generated/',
+            ])
+          ) {
+            return 'birdcoder-types-api';
           }
 
           if (
@@ -422,11 +544,22 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/packages/sdkwork-birdcoder-infrastructure/src/platform/tauriRuntime.ts',
-              '/packages/sdkwork-birdcoder-infrastructure/src/platform/tauriFileSystemRuntime.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/coreApiClient.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts',
             ])
           ) {
-            return 'birdcoder-platform-runtime';
+            return 'birdcoder-platform-api-client';
+          }
+
+          if (
+            isAnySourcePath([
+              '/packages/sdkwork-birdcoder-infrastructure/src/platform/tauriRuntime.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/platform/tauriFileSystemRuntime.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
+            ])
+          ) {
+            return 'birdcoder-platform-filesystem';
           }
 
           if (
@@ -442,10 +575,6 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts',
-              '/packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
-              '/packages/sdkwork-birdcoder-infrastructure/src/services/coreApiClient.ts',
-              '/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeApiRetry.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/userCenterRuntimeBridge.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeAuthService.ts',
             ])
@@ -456,6 +585,7 @@ export default defineConfig(({ mode }) => {
           if (
             isAnySourcePath([
               '/packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/storage/bootstrapConsoleCatalog.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/storage/codingSessionPromptEntryRepository.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/storage/codingSessionRepository.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts',
@@ -474,13 +604,24 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/apiJson.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/codingSessionMessageProjection.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/codingSessionSelection.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/projectContentConfigData.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeApiRetry.ts',
+            ])
+          ) {
+            return 'birdcoder-platform-service-core';
+          }
+
+          if (
+            isAnySourcePath([
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedPromptService.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedWorkspaceService.ts',
             ])
           ) {
-            return 'birdcoder-platform-runtime';
+            return 'birdcoder-platform-provider-services';
           }
 
           if (
@@ -499,10 +640,9 @@ export default defineConfig(({ mode }) => {
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedReleaseService.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedTeamService.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedWorkspaceService.ts',
-              '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
             ])
           ) {
-            return 'birdcoder-platform-runtime';
+            return 'birdcoder-platform-api-services';
           }
 
           if (

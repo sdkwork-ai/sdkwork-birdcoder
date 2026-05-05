@@ -34,13 +34,22 @@ export interface ProjectExplorerProjectSectionProps {
     projectId: string,
   ) => void;
   onNewCodingSessionInProject: (projectId: string, engineId?: string, modelId?: string) => void;
-  onSelectCodingSession: (codingSessionId: string) => void;
-  onCodingSessionContextMenu: (event: React.MouseEvent, codingSessionId: string) => void;
+  onSelectCodingSession: (codingSessionId: string, projectId?: string | null) => void;
+  onCodingSessionContextMenu: (
+    event: React.MouseEvent,
+    codingSessionId: string,
+    projectId?: string | null,
+  ) => void;
   onProjectRenameValueChange: (value: string) => void;
   onProjectRenameSubmit: (projectId: string, nextValue: string, currentName: string) => void;
   onProjectRenameCancel: () => void;
   onSessionRenameValueChange: (value: string) => void;
-  onSessionRenameSubmit: (codingSessionId: string, nextValue: string, currentTitle: string) => void;
+  onSessionRenameSubmit: (
+    codingSessionId: string,
+    projectId: string,
+    nextValue: string,
+    currentTitle: string,
+  ) => void;
   onSessionRenameCancel: () => void;
   onToggleSessionExpansion: (
     projectId: string,
@@ -173,6 +182,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
                   key={session.id}
                   relativeTimeNow={relativeTimeNow}
                   session={session}
+                  sessionProjectId={project.id}
                   isSelected={selectedVisibleSessionId === session.id}
                   isRenaming={renamingVisibleSessionId === session.id}
                   renameValue={renamingVisibleSessionId === session.id ? sessionRenameValue : ''}

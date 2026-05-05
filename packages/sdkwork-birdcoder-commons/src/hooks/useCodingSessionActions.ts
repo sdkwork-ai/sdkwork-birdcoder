@@ -10,6 +10,7 @@ import {
 type CreateCodingSessionInProjectAction = (
   projectId: string,
   requestedEngineId?: string,
+  requestedModelId?: string,
 ) => Promise<unknown> | unknown;
 
 export function useCodingSessionActions(
@@ -53,7 +54,11 @@ export function useCodingSessionActions(
 
       try {
         if (createCodingSessionInProjectRef.current) {
-          await createCodingSessionInProjectRef.current(targetProjectId, request?.engineId);
+          await createCodingSessionInProjectRef.current(
+            targetProjectId,
+            request?.engineId,
+            request?.modelId,
+          );
           return;
         }
 
@@ -61,6 +66,7 @@ export function useCodingSessionActions(
           createCodingSessionWithSelection: createCodingSessionWithSelectionRef.current,
           projectId: targetProjectId,
           requestedEngineId: request?.engineId,
+          requestedModelId: request?.modelId,
           selectCodingSession: selectCodingSessionRef.current,
         });
       } catch (error) {

@@ -67,6 +67,15 @@ function resolveSdkworkTerminalInfrastructureEntryPath(
   );
 }
 
+function resolveSdkworkCorePcReactBrowserFacadePath() {
+  return path.join(
+    workspaceRootDir,
+    'scripts',
+    'vite-shims',
+    'sdkwork-core-pc-react-browser-facade.mjs',
+  );
+}
+
 function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRootDir) {
   return [
     {
@@ -123,10 +132,7 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: '@sdkwork/core-pc-react',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-core/sdkwork-core-pc-react/src/index.ts',
-      ),
+      replacement: resolveSdkworkCorePcReactBrowserFacadePath(),
     },
     {
       find: /^@sdkwork\/app-sdk\/(.+)$/u,

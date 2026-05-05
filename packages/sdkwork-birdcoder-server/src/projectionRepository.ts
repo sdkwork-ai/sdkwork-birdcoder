@@ -286,6 +286,14 @@ function artifactRecordToRow(value: BirdCoderCodingSessionArtifact): Record<stri
   };
 }
 
+function extractSessionIdFromStreamUrl(streamUrl?: string | null): string {
+  if (!streamUrl) {
+    return '';
+  }
+  const match = streamUrl.match(/\/coding-sessions\/([^/?]+)/);
+  return match?.[1] ?? '';
+}
+
 function operationRecordToRow(value: BirdCoderOperationDescriptor): Record<string, unknown> {
   return {
     id: value.operationId,
@@ -293,8 +301,7 @@ function operationRecordToRow(value: BirdCoderOperationDescriptor): Record<strin
     updated_at: DEFAULT_SQL_PROJECTION_TIMESTAMP,
     version: 0,
     is_deleted: false,
-    coding_session_id:
-      value.streamUrl?.split('/coding-sessions/')[1]?.split('/')[0] ?? '',
+    coding_session_id: extractSessionIdFromStreamUrl(value.streamUrl),
     turn_id: value.operationId.replace(/:operation$/, ''),
     status: value.status,
     stream_url: value.streamUrl ?? '',

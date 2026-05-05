@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, Sun, Moon, MonitorSmartphone, X } from 'lucide-react';
+import { copyTextToClipboard } from '@sdkwork/birdcoder-ui';
 import { Button } from '@sdkwork/birdcoder-ui-shell';
 import { useToast } from '@sdkwork/birdcoder-commons';
 import { useTranslation } from 'react-i18next';
@@ -214,8 +215,14 @@ export function AppearanceSettings({ settings, updateSetting }: SettingsProps) {
                     translucent: settings.lightTranslucent !== false,
                     contrast: settings.lightContrast || 45
                   };
-                  navigator.clipboard.writeText(JSON.stringify(themeData, null, 2));
-                  addToast(t('settings.appearance.themeCopied', { type: t('common.light') }), 'success');
+                  void copyTextToClipboard(JSON.stringify(themeData, null, 2)).then((didCopy) => {
+                    addToast(
+                      didCopy
+                        ? t('settings.appearance.themeCopied', { type: t('common.light') })
+                        : 'Unable to copy light theme',
+                      didCopy ? 'success' : 'error',
+                    );
+                  });
                 }}>{t('settings.appearance.copyTheme')}</Button>
                 <div className="relative">
                   <select 
@@ -302,8 +309,14 @@ export function AppearanceSettings({ settings, updateSetting }: SettingsProps) {
                     translucent: settings.darkTranslucent !== false,
                     contrast: settings.darkContrast || 60
                   };
-                  navigator.clipboard.writeText(JSON.stringify(themeData, null, 2));
-                  addToast(t('settings.appearance.themeCopied', { type: t('common.dark') }), 'success');
+                  void copyTextToClipboard(JSON.stringify(themeData, null, 2)).then((didCopy) => {
+                    addToast(
+                      didCopy
+                        ? t('settings.appearance.themeCopied', { type: t('common.dark') })
+                        : 'Unable to copy dark theme',
+                      didCopy ? 'success' : 'error',
+                    );
+                  });
                 }}>{t('settings.appearance.copyTheme')}</Button>
                 <div className="relative">
                   <select 

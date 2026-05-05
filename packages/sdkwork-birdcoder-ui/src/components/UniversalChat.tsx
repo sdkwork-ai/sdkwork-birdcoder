@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, memo, useCallback, useMemo, useRef, useEffect, useLayoutEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { Plus, ChevronDown, ChevronUp, GripVertical, Check, Mic, ArrowUp, Edit, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, FileUp, FolderUp, Image as ImageIcon, Lightbulb, BookOpen, List, Loader2, CircleHelp, ShieldAlert } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, GripVertical, Check, Mic, ArrowUp, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, FileUp, FolderUp, Image as ImageIcon, Lightbulb, BookOpen, List, Loader2, Terminal, FileCode2, Eye, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button, WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-ui-shell';
 import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-types';
@@ -8,12 +8,14 @@ import {
   findWorkbenchCodeEngineDefinition,
   getWorkbenchCodeEngineDefinition,
   getWorkbenchCodeModelLabel,
-  isWorkbenchServerImplementedEngineId,
+  getWorkbenchModelVendorLabel,
   listWorkbenchServerImplementedCodeEngines,
+  MODEL_VENDOR_VALUES,
   normalizeWorkbenchServerImplementedCodeEngineId,
   normalizeWorkbenchCodeModelId,
-  resolveWorkbenchCodeEngineSelectedModelId,
-  resolveWorkbenchServerEngineSupportState,
+  type ModelVendor,
+  type WorkbenchCodeEngineDefinition,
+  type WorkbenchCodeEngineModelDefinition,
 } from '@sdkwork/birdcoder-codeengine';
 import {
   deleteSavedPrompt,
@@ -47,6 +49,7 @@ import {
   resolveComposerInputAfterSendFailure,
   restoreQueuedMessagesAfterSendFailure,
 } from './chatComposerRecovery';
+import { copyTextToClipboard } from './clipboard';
 import { shouldUseRichChatMarkdown } from './chatMarkdownHeuristics';
 import {
   CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS,
@@ -73,14 +76,323 @@ type PromptEntry = {
   timestamp: number;
 };
 
+interface ComposerModelOption {
+  engine: WorkbenchCodeEngineDefinition;
+  model: WorkbenchCodeEngineModelDefinition;
+}
+
+interface ComposerModelVendorGroup {
+  label: string;
+  models: ComposerModelOption[];
+  vendor: ModelVendor;
+}
+
+interface ComposerModelSelectionOverride {
+  engineId: string;
+  modelId: string;
+  scopeKey: string;
+}
+
+interface TaskProgressDisplayState {
+  completed: number;
+  percent: number;
+  total: number;
+}
+
+interface FileUpdateSummaryBlock {
+  endLineIndex: number;
+  fileChanges: ActivityFileChange[];
+  startLineIndex: number;
+}
+
+interface ActivityFileChangeLineImpact {
+  additions: number;
+  deletions: number;
+  isKnown: boolean;
+}
+
+interface ActivityFileChange extends FileChange {
+  lineImpactKnown?: boolean;
+  updateStatus?: string;
+}
+
+const MAX_CACHED_COMPOSER_MODEL_SELECTION_OVERRIDES = 128;
+const composerModelSelectionOverridesByScopeKey =
+  new Map<string, ComposerModelSelectionOverride>();
+
+function readComposerModelSelectionOverride(
+  scopeKey: string,
+): ComposerModelSelectionOverride | null {
+  const cachedOverride = composerModelSelectionOverridesByScopeKey.get(scopeKey);
+  return cachedOverride ? { ...cachedOverride } : null;
+}
+
+function writeComposerModelSelectionOverride(
+  override: ComposerModelSelectionOverride,
+): ComposerModelSelectionOverride {
+  const nextOverride = {
+    engineId: override.engineId.trim(),
+    modelId: override.modelId.trim(),
+    scopeKey: override.scopeKey.trim(),
+  };
+  if (!nextOverride.scopeKey || !nextOverride.engineId || !nextOverride.modelId) {
+    return nextOverride;
+  }
+
+  composerModelSelectionOverridesByScopeKey.delete(nextOverride.scopeKey);
+  composerModelSelectionOverridesByScopeKey.set(nextOverride.scopeKey, nextOverride);
+  while (
+    composerModelSelectionOverridesByScopeKey.size >
+      MAX_CACHED_COMPOSER_MODEL_SELECTION_OVERRIDES
+  ) {
+    const oldestScopeKey = composerModelSelectionOverridesByScopeKey.keys().next().value;
+    if (typeof oldestScopeKey !== 'string') {
+      break;
+    }
+    composerModelSelectionOverridesByScopeKey.delete(oldestScopeKey);
+  }
+  return nextOverride;
+}
+
+function deleteComposerModelSelectionOverride(scopeKey: string): void {
+  composerModelSelectionOverridesByScopeKey.delete(scopeKey);
+}
+
+function readTaskProgressCounter(
+  taskProgress: Record<string, unknown>,
+  keys: readonly string[],
+): unknown {
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(taskProgress, key)) {
+      return taskProgress[key];
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeTaskProgressCounter(value: unknown): number | null {
+  const parsedValue =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim().length > 0
+        ? Number(value.trim())
+        : Number.NaN;
+
+  if (!Number.isFinite(parsedValue)) {
+    return null;
+  }
+
+  return Math.max(0, Math.floor(parsedValue));
+}
+
+function resolveTaskProgressDisplayState(
+  taskProgress: BirdCoderChatMessage['taskProgress'] | undefined,
+): TaskProgressDisplayState | null {
+  if (!taskProgress || typeof taskProgress !== 'object') {
+    return null;
+  }
+
+  const taskProgressRecord = taskProgress as unknown as Record<string, unknown>;
+  const total = normalizeTaskProgressCounter(
+    readTaskProgressCounter(taskProgressRecord, ['total', 'totalSteps', 'totalCount']),
+  );
+  if (!total || total <= 0) {
+    return null;
+  }
+
+  const completed = Math.min(
+    total,
+    normalizeTaskProgressCounter(
+      readTaskProgressCounter(taskProgressRecord, [
+        'completed',
+        'completedSteps',
+        'completedCount',
+        'current',
+        'currentStep',
+      ]),
+    ) ?? 0,
+  );
+  const percent = Math.round((completed / total) * 100);
+
+  return {
+    completed,
+    percent,
+    total,
+  };
+}
+
+function normalizeFileUpdateSummaryPath(path: string): string {
+  return path.trim().replace(/^["']|["']$/g, '').trim();
+}
+
+function parseFileUpdateSummaryBlock(
+  lines: readonly string[],
+  startLineIndex: number,
+): FileUpdateSummaryBlock | null {
+  const fileChanges: ActivityFileChange[] = [];
+  let currentLineIndex = startLineIndex + 1;
+
+  while (currentLineIndex < lines.length) {
+    const line = lines[currentLineIndex]?.trim() ?? '';
+    if (!line) {
+      break;
+    }
+
+    const entryMatch = line.match(FILE_UPDATE_SUMMARY_ENTRY_PATTERN);
+    if (!entryMatch) {
+      break;
+    }
+
+    const updateStatus = entryMatch[1] ?? '';
+    const path = normalizeFileUpdateSummaryPath(entryMatch[2] ?? '');
+    if (!path) {
+      break;
+    }
+
+    fileChanges.push({
+      additions: 0,
+      deletions: 0,
+      path,
+      updateStatus,
+      lineImpactKnown: false,
+    });
+    currentLineIndex += 1;
+  }
+
+  if (fileChanges.length === 0) {
+    return null;
+  }
+
+  return {
+    endLineIndex: currentLineIndex - 1,
+    fileChanges,
+    startLineIndex,
+  };
+}
+
+function parseFileUpdateSummaryContent(content: string): ActivityFileChange[] {
+  if (!content.trim()) {
+    return [];
+  }
+
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+  const fileChanges: ActivityFileChange[] = [];
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    if (!FILE_UPDATE_SUMMARY_HEADER_PATTERN.test(lines[lineIndex]?.trim() ?? '')) {
+      continue;
+    }
+
+    const summaryBlock = parseFileUpdateSummaryBlock(lines, lineIndex);
+    if (!summaryBlock) {
+      continue;
+    }
+
+    fileChanges.push(...summaryBlock.fileChanges);
+    lineIndex = summaryBlock.endLineIndex;
+  }
+
+  return fileChanges;
+}
+
+function normalizeActivityFileChangePathKey(path: string): string {
+  return normalizeFileUpdateSummaryPath(path).replace(/\\/g, '/').toLowerCase();
+}
+
+function resolveMessageActivityFileChanges(msg: BirdCoderChatMessage): ActivityFileChange[] | undefined {
+  const structuredFileChanges = (msg.fileChanges ?? [])
+    .filter((fileChange) => fileChange.path.trim().length > 0)
+    .map<ActivityFileChange>((fileChange) => ({
+      ...fileChange,
+      lineImpactKnown: true,
+    }));
+  const parsedFileChanges = parseFileUpdateSummaryContent(msg.content).map<ActivityFileChange>(
+    (fileChange) => ({
+      ...fileChange,
+      lineImpactKnown: false,
+    }),
+  );
+
+  if (structuredFileChanges.length === 0) {
+    return parsedFileChanges.length > 0 ? parsedFileChanges : undefined;
+  }
+  if (parsedFileChanges.length === 0) {
+    return structuredFileChanges;
+  }
+
+  const fileChangesByPath = new Map<string, ActivityFileChange>();
+  for (const fileChange of parsedFileChanges) {
+    fileChangesByPath.set(normalizeActivityFileChangePathKey(fileChange.path), fileChange);
+  }
+  for (const fileChange of structuredFileChanges) {
+    fileChangesByPath.set(normalizeActivityFileChangePathKey(fileChange.path), fileChange);
+  }
+
+  return [...fileChangesByPath.values()];
+}
+
+function stripFileUpdateSummaryContent(content: string): string {
+  if (!content.trim()) {
+    return content;
+  }
+
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+  let didStripSummaryBlock = false;
+  const remainingLines: string[] = [];
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const currentLine = lines[lineIndex] ?? '';
+    if (!FILE_UPDATE_SUMMARY_HEADER_PATTERN.test(currentLine.trim())) {
+      remainingLines.push(currentLine);
+      continue;
+    }
+
+    const summaryBlock = parseFileUpdateSummaryBlock(lines, lineIndex);
+    if (!summaryBlock) {
+      remainingLines.push(currentLine);
+      continue;
+    }
+
+    didStripSummaryBlock = true;
+    lineIndex = summaryBlock.endLineIndex;
+  }
+
+  return didStripSummaryBlock ? remainingLines.join('\n').trim() : content;
+}
+
+function shouldHideMessageContentAsFileUpdateSummary(
+  content: string,
+  activityFileChanges: readonly FileChange[] | undefined,
+): boolean {
+  if (!activityFileChanges || activityFileChanges.length === 0) {
+    return false;
+  }
+
+  const strippedContent = stripFileUpdateSummaryContent(content);
+  return strippedContent.length === 0;
+}
+
+export interface UniversalChatComposerSelection {
+  engineId: string;
+  modelId: string;
+}
+
 const AUTO_RESIZE_TEXTAREA_MAX_HEIGHT = 200;
 const RESIZABLE_COMPOSER_MIN_HEIGHT = 72;
 const RESIZABLE_COMPOSER_MAX_HEIGHT = 360;
 const FOLDER_UPLOAD_YIELD_INTERVAL = 8;
+const MAX_SINGLE_FILE_UPLOAD_BYTES = 1048576;
+const MAX_SINGLE_FILE_UPLOAD_CHARACTERS = 16000;
+const MAX_IMAGE_UPLOAD_BYTES = 1048576;
+const MAX_IMAGE_UPLOAD_DATA_URL_CHARACTERS = 1400000;
 const MAX_FOLDER_UPLOAD_FILE_CHARACTERS = 4000;
 const MAX_FOLDER_UPLOAD_INPUT_CHARACTERS = 64000;
 const MAX_FOLDER_UPLOAD_TEXT_FILES = 24;
 const QUEUED_TURN_DISPATCH_SETTLEMENT_CHECK_DELAY_MS = 750;
+const MAX_ACTIVITY_DIFF_PREVIEW_LINES = 80;
+const MAX_ACTIVITY_CONTENT_PREVIEW_LINES = 60;
+const MAX_COMMAND_OUTPUT_PREVIEW_LINES = 24;
+const FILE_UPDATE_SUMMARY_HEADER_PATTERN = /^(?:Success\.\s+)?Updated the following files:\s*$/i;
+const FILE_UPDATE_SUMMARY_ENTRY_PATTERN = /^([A-Z?]{1,2})\s+(.+)$/;
 
 export interface UniversalChatProps {
   sessionId?: string;
@@ -91,7 +403,10 @@ export interface UniversalChatProps {
   pendingUserQuestions?: BirdCoderCodingSessionPendingUserQuestion[];
   inputValue?: string;
   setInputValue?: Dispatch<SetStateAction<string>>;
-  onSendMessage: (text?: string) => void | Promise<void>;
+  onSendMessage: (
+    text?: string,
+    composerSelection?: UniversalChatComposerSelection,
+  ) => void | Promise<void>;
   onSubmitApprovalDecision?: (
     approvalId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
@@ -162,6 +477,32 @@ function buildFolderUploadContentBlock(
   const needsTruncation = content.length > normalizedMaxCharacters;
   const visibleContent = content.slice(0, normalizedMaxCharacters);
   return `\n\nFile: ${path}\n\`\`\`\n${visibleContent}${needsTruncation ? '\n...[truncated]' : ''}\n\`\`\`\n`;
+}
+
+function buildSingleFileUploadContentBlock(
+  path: string,
+  content: string,
+): { block: string; isTruncated: boolean } {
+  const visibleContent = content.slice(0, MAX_SINGLE_FILE_UPLOAD_CHARACTERS);
+  const isTruncated = content.length > MAX_SINGLE_FILE_UPLOAD_CHARACTERS;
+  return {
+    block:
+      `\n\nFile: ${path}\n\`\`\`\n${visibleContent}${isTruncated ? '\n...[truncated]' : ''}\n\`\`\`\n`,
+    isTruncated,
+  };
+}
+
+function estimateImageUploadDataUrlCharacters(file: File): number {
+  const mediaType = file.type.trim() || 'image/*';
+  return `data:${mediaType};base64,`.length + Math.ceil(file.size / 3) * 4;
+}
+
+function buildImageUploadContentBlock(fileName: string, dataUrl: string): string | null {
+  if (dataUrl.length > MAX_IMAGE_UPLOAD_DATA_URL_CHARACTERS) {
+    return null;
+  }
+
+  return `\n![${fileName}](${dataUrl})\n`;
 }
 
 function clampComposerHeight(height: number): number {
@@ -306,105 +647,622 @@ function buildTranscriptSurfaceStyle(containIntrinsicSize: string): React.CSSPro
   };
 }
 
-interface CommandExecutionTone {
-  backgroundClassName: string;
-  borderClassName: string;
-  iconClassName: string;
-  semantic: 'approval' | 'command' | 'reply';
-  statusClassName: string;
-  textClassName: string;
-  waitingLabel?: string;
+type ActivityDiffPreviewLineTone = 'addition' | 'deletion' | 'hunk' | 'meta' | 'context';
+
+interface ActivityDiffPreviewLine {
+  marker: string;
+  text: string;
+  tone: ActivityDiffPreviewLineTone;
 }
 
-function resolveCommandExecutionTone(cmd: CommandExecution): CommandExecutionTone {
-  const interactionState = resolveBirdCoderCodeEngineCommandInteractionState(cmd);
-  const isWaitingForReply = interactionState.requiresReply;
-  const isWaitingForApproval = interactionState.requiresApproval;
+interface ActivityDiffPreview {
+  isFallback: boolean;
+  isTruncated: boolean;
+  lines: ActivityDiffPreviewLine[];
+}
 
-  if (isWaitingForReply) {
-    return {
-      backgroundClassName: 'bg-amber-500/10',
-      borderClassName: 'border-amber-400/20',
-      iconClassName: 'text-amber-300',
-      semantic: 'reply',
-      statusClassName: 'text-amber-200 bg-amber-400/10 border-amber-400/20',
-      textClassName: 'font-sans text-gray-100',
-      waitingLabel: 'Needs reply',
-    };
-  }
+interface CommandOutputPreview {
+  isTruncated: boolean;
+  text: string;
+}
 
-  if (isWaitingForApproval) {
-    return {
-      backgroundClassName: 'bg-sky-500/10',
-      borderClassName: 'border-sky-400/20',
-      iconClassName: 'text-sky-300',
-      semantic: 'approval',
-      statusClassName: 'text-sky-200 bg-sky-400/10 border-sky-400/20',
-      textClassName: 'font-sans text-gray-100',
-      waitingLabel: 'Needs approval',
-    };
-  }
+interface UniversalChatActivitySummaryProps {
+  commands?: readonly CommandExecution[];
+  compact?: boolean;
+  copyLabel: string;
+  copyMessageToClipboard: (content: string) => void;
+  environment?: UniversalChatTranscriptEnvironment | null;
+  fileChanges?: readonly ActivityFileChange[];
+  messageId: string;
+  successIconSize: number;
+}
 
+function normalizeActivityLineCount(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+}
+
+function splitActivityPreviewLines(content: string, maxLines: number): {
+  isTruncated: boolean;
+  lines: string[];
+} {
+  const lines = content.replace(/\r\n?/gu, '\n').split('\n');
+  const normalizedMaxLines = Math.max(0, Math.floor(maxLines));
   return {
-    backgroundClassName: 'bg-black/30',
-    borderClassName: 'border-white/5',
-    iconClassName: 'text-blue-400',
-    semantic: 'command',
-    statusClassName: 'text-blue-200 bg-blue-400/10 border-blue-400/20',
-    textClassName: 'font-mono text-gray-300',
+    isTruncated: lines.length > normalizedMaxLines,
+    lines: lines.slice(0, normalizedMaxLines),
   };
 }
 
-function renderCommandExecutionCard({
-  cmd,
-  cmdIdx,
+function resolveDiffPreviewLineTone(line: string): ActivityDiffPreviewLineTone {
+  if (line.startsWith('+++') || line.startsWith('---')) {
+    return 'meta';
+  }
+  if (line.startsWith('+')) {
+    return 'addition';
+  }
+  if (line.startsWith('-')) {
+    return 'deletion';
+  }
+  if (line.startsWith('@@')) {
+    return 'hunk';
+  }
+  if (
+    line.startsWith('diff --git') ||
+    line.startsWith('index ') ||
+    line.startsWith('new file ') ||
+    line.startsWith('deleted file ')
+  ) {
+    return 'meta';
+  }
+
+  return 'context';
+}
+
+function buildActivityDiffPreviewLine(line: string): ActivityDiffPreviewLine {
+  const tone = resolveDiffPreviewLineTone(line);
+  if (tone === 'addition') {
+    return { marker: '+', text: line.slice(1), tone };
+  }
+  if (tone === 'deletion') {
+    return { marker: '-', text: line.slice(1), tone };
+  }
+  if (tone === 'hunk') {
+    return { marker: '@', text: line, tone };
+  }
+
+  return { marker: ' ', text: line, tone };
+}
+
+function buildFileChangeContentPreview(fileChange: FileChange): ActivityDiffPreview {
+  const previewLines: ActivityDiffPreviewLine[] = [];
+  const originalContent =
+    typeof fileChange.originalContent === 'string' ? fileChange.originalContent : '';
+  const content = typeof fileChange.content === 'string' ? fileChange.content : '';
+  const halfPreviewLimit = Math.max(1, Math.floor(MAX_ACTIVITY_CONTENT_PREVIEW_LINES / 2));
+  let isTruncated = false;
+
+  if (originalContent) {
+    previewLines.push({
+      marker: ' ',
+      text: `--- ${fileChange.path}`,
+      tone: 'meta',
+    });
+    const originalPreview = splitActivityPreviewLines(originalContent, content ? halfPreviewLimit : MAX_ACTIVITY_CONTENT_PREVIEW_LINES);
+    isTruncated = isTruncated || originalPreview.isTruncated;
+    for (const line of originalPreview.lines) {
+      previewLines.push({ marker: '-', text: line, tone: 'deletion' });
+    }
+  }
+
+  if (content) {
+    previewLines.push({
+      marker: ' ',
+      text: `+++ ${fileChange.path}`,
+      tone: 'meta',
+    });
+    const contentPreview = splitActivityPreviewLines(content, originalContent ? halfPreviewLimit : MAX_ACTIVITY_CONTENT_PREVIEW_LINES);
+    isTruncated = isTruncated || contentPreview.isTruncated;
+    for (const line of contentPreview.lines) {
+      previewLines.push({ marker: '+', text: line, tone: 'addition' });
+    }
+  }
+
+  return {
+    isFallback: true,
+    isTruncated,
+    lines: previewLines,
+  };
+}
+
+function buildFileChangeDiffPreview(fileChange: FileChange): ActivityDiffPreview {
+  const diffContent = typeof fileChange.diff === 'string' ? fileChange.diff.trim() : '';
+  if (!diffContent) {
+    return buildFileChangeContentPreview(fileChange);
+  }
+
+  const diffPreview = splitActivityPreviewLines(diffContent, MAX_ACTIVITY_DIFF_PREVIEW_LINES);
+  return {
+    isFallback: false,
+    isTruncated: diffPreview.isTruncated,
+    lines: diffPreview.lines.map(buildActivityDiffPreviewLine),
+  };
+}
+
+function resolveActivityFileChangeKey(fileChange: FileChange, index: number): string {
+  return JSON.stringify([
+    index,
+    fileChange.path,
+    normalizeActivityLineCount(fileChange.additions),
+    normalizeActivityLineCount(fileChange.deletions),
+    fileChange.diff ?? '',
+    fileChange.content ?? '',
+    fileChange.originalContent ?? '',
+  ]);
+}
+
+function countDiffLineImpacts(diff: string | undefined): ActivityFileChangeLineImpact | null {
+  if (!diff?.trim()) {
+    return null;
+  }
+
+  let additions = 0;
+  let deletions = 0;
+  for (const line of diff.replace(/\r\n?/g, '\n').split('\n')) {
+    if (line.startsWith('+++') || line.startsWith('---')) {
+      continue;
+    }
+    if (line.startsWith('+')) {
+      additions += 1;
+      continue;
+    }
+    if (line.startsWith('-')) {
+      deletions += 1;
+    }
+  }
+
+  if (additions === 0 && deletions === 0) {
+    return null;
+  }
+
+  return {
+    additions,
+    deletions,
+    isKnown: true,
+  };
+}
+
+function resolveActivityFileChangeLineImpact(
+  fileChange: ActivityFileChange,
+): ActivityFileChangeLineImpact {
+  const additions = normalizeActivityLineCount(fileChange.additions);
+  const deletions = normalizeActivityLineCount(fileChange.deletions);
+  if (additions > 0 || deletions > 0) {
+    return {
+      additions,
+      deletions,
+      isKnown: true,
+    };
+  }
+
+  const diffLineImpact = countDiffLineImpacts(fileChange.diff);
+  if (diffLineImpact) {
+    return diffLineImpact;
+  }
+
+  const isKnown = fileChange.lineImpactKnown !== false;
+
+  return {
+    additions,
+    deletions,
+    isKnown,
+  };
+}
+
+function buildCommandOutputPreview(output: string | undefined): CommandOutputPreview {
+  if (!output?.trim()) {
+    return {
+      isTruncated: false,
+      text: '',
+    };
+  }
+
+  const outputPreview = splitActivityPreviewLines(output.trim(), MAX_COMMAND_OUTPUT_PREVIEW_LINES);
+  return {
+    isTruncated: outputPreview.isTruncated,
+    text: outputPreview.lines.join('\n'),
+  };
+}
+
+function resolveCommandExecutionStatusLabel(
+  command: CommandExecution,
+  t: UniversalChatTranslate | undefined,
+): string {
+  const interactionState = resolveBirdCoderCodeEngineCommandInteractionState(command);
+  if (interactionState.requiresReply) {
+    return t?.('chat.commandNeedsReply') ?? 'Needs reply';
+  }
+  if (interactionState.requiresApproval) {
+    return t?.('chat.commandNeedsApproval') ?? 'Needs approval';
+  }
+  if (command.status === 'success') {
+    return t?.('chat.commandSucceeded') ?? 'Succeeded';
+  }
+  if (command.status === 'error') {
+    return t?.('chat.commandFailed') ?? 'Failed';
+  }
+
+  return t?.('chat.commandRunning') ?? 'Running';
+}
+
+function resolveDiffPreviewLineClassName(tone: ActivityDiffPreviewLineTone): string {
+  if (tone === 'addition') {
+    return 'bg-emerald-500/10 text-emerald-200';
+  }
+  if (tone === 'deletion') {
+    return 'bg-red-500/10 text-red-200';
+  }
+  if (tone === 'hunk') {
+    return 'bg-sky-500/10 text-sky-200';
+  }
+  if (tone === 'meta') {
+    return 'text-gray-500';
+  }
+
+  return 'text-gray-300';
+}
+
+function renderCommandStatusIcon(command: CommandExecution, size: number) {
+  if (command.status === 'success') {
+    return <CheckCircle2 size={size} className="text-emerald-400/80" />;
+  }
+  if (command.status === 'error') {
+    return <AlertCircle size={size} className="text-red-400/80" />;
+  }
+
+  return (
+    <span
+      className="inline-block rounded-full border-2 border-blue-500/25 border-t-blue-400 animate-spin"
+      style={{ height: size, width: size }}
+    />
+  );
+}
+
+function UniversalChatActivitySummary({
+  commands: rawCommands,
+  compact = false,
   copyLabel,
   copyMessageToClipboard,
+  environment,
+  fileChanges: rawFileChanges,
+  messageId,
   successIconSize,
-}: {
-  cmd: CommandExecution;
-  cmdIdx: number;
-  copyLabel: string;
-  copyMessageToClipboard: (content: string) => void;
-  successIconSize: number;
-}) {
-  const tone = resolveCommandExecutionTone(cmd);
+}: UniversalChatActivitySummaryProps) {
+  const fileChanges = useMemo(
+    () => (rawFileChanges ?? []).filter((fileChange) => fileChange.path.trim().length > 0),
+    [rawFileChanges],
+  );
+  const commands = useMemo(
+    () => (rawCommands ?? []).filter((command) => command.command.trim().length > 0),
+    [rawCommands],
+  );
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [expandedFileKeys, setExpandedFileKeys] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [expandedCommandKeys, setExpandedCommandKeys] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+
+  const fileChangeLineImpacts = useMemo(
+    () => fileChanges.map(resolveActivityFileChangeLineImpact),
+    [fileChanges],
+  );
+  const fileChangesWithKnownLineImpact = fileChangeLineImpacts.filter(
+    (lineImpact) => lineImpact.isKnown,
+  );
+  const totalAdditions = fileChangesWithKnownLineImpact.reduce(
+    (sum, lineImpact) => sum + lineImpact.additions,
+    0,
+  );
+  const totalDeletions = fileChangesWithKnownLineImpact.reduce(
+    (sum, lineImpact) => sum + lineImpact.deletions,
+    0,
+  );
+  const hasKnownLineImpact = fileChangesWithKnownLineImpact.length > 0;
+
+  if (fileChanges.length === 0 && commands.length === 0) {
+    return null;
+  }
+
+  const editedFilesLabel = environment?.t('chat.editedFilesSummary', {
+    count: fileChanges.length,
+  }) ?? `Edited ${fileChanges.length} file${fileChanges.length === 1 ? '' : 's'}`;
+  const ranCommandsLabel = environment?.t('chat.ranCommandsSummary', {
+    count: commands.length,
+  }) ?? `Ran ${commands.length} command${commands.length === 1 ? '' : 's'}`;
+  const activitySummaryLabel = environment?.t('chat.activitySummary') ?? 'Code activity';
+  const changedLinesLabel = hasKnownLineImpact
+    ? environment?.t('chat.changedLinesSummary', {
+      additions: totalAdditions,
+      deletions: totalDeletions,
+    }) ?? `+${totalAdditions} -${totalDeletions}`
+    : environment?.t('chat.changedLinesUnknown') ?? 'Line impact not captured';
+  const expandLabel = environment?.t('chat.activityExpand') ?? 'Show activity details';
+  const collapseLabel = environment?.t('chat.activityCollapse') ?? 'Hide activity details';
+  const fileSectionLabel = environment?.t('chat.filesChangedSection') ?? 'Files changed';
+  const commandSectionLabel = environment?.t('chat.commandsRunSection') ?? 'Commands';
+  const openFullDiffLabel = environment?.t('chat.openFullDiff') ?? 'Open full diff';
+  const diffPreviewLabel = environment?.t('chat.diffPreview') ?? 'Diff preview';
+  const noInlineDiffLabel = environment?.t('chat.noInlineDiff') ?? 'No inline diff available';
+  const lineImpactUnknownLabel = environment?.t('chat.changedLinesUnknown') ?? 'Line impact not captured';
+  const commandOutputLabel = environment?.t('chat.commandOutput') ?? 'Output';
+  const noCommandOutputLabel = environment?.t('chat.commandNoOutput') ?? 'No command output captured';
+  const checkpointSavedLabel = environment?.t('chat.checkpointSaved') ?? 'Checkpoint saved';
+  const restoreLabel = environment?.t('chat.restoreChanges') ?? 'Restore';
+  const hasRestorableChanges = hasRestorableFileChanges(fileChanges);
+
+  const toggleFileDetails = (fileKey: string) => {
+    setExpandedFileKeys((previousKeys) => {
+      const nextKeys = new Set(previousKeys);
+      if (nextKeys.has(fileKey)) {
+        nextKeys.delete(fileKey);
+      } else {
+        nextKeys.add(fileKey);
+      }
+      return nextKeys;
+    });
+  };
+
+  const toggleCommandDetails = (commandKey: string) => {
+    setExpandedCommandKeys((previousKeys) => {
+      const nextKeys = new Set(previousKeys);
+      if (nextKeys.has(commandKey)) {
+        nextKeys.delete(commandKey);
+      } else {
+        nextKeys.add(commandKey);
+      }
+      return nextKeys;
+    });
+  };
+
   return (
     <div
-      key={`${cmdIdx}\u0001${cmd.toolCallId ?? cmd.command}`}
-      className={`group/command flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-[13px] text-gray-300 ${tone.borderClassName} ${tone.backgroundClassName}`}
+      className={`mt-2 w-full overflow-hidden rounded-lg border border-white/10 bg-[#121216]/90 shadow-sm ${
+        compact ? 'text-xs' : 'text-sm'
+      }`}
     >
-      <div className="flex min-w-0 items-center gap-3 overflow-hidden">
-        {tone.semantic === 'reply' ? (
-          <CircleHelp size={14} className={`shrink-0 ${tone.iconClassName}`} />
-        ) : tone.semantic === 'approval' ? (
-          <ShieldAlert size={14} className={`shrink-0 ${tone.iconClassName}`} />
-        ) : (
-          <span className={`${tone.iconClassName} shrink-0 font-mono`}>$</span>
-        )}
-        <span className={`truncate ${tone.textClassName}`}>{cmd.command}</span>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          className="opacity-0 transition-opacity group-hover/command:opacity-100 text-gray-500 hover:text-gray-200 hover:bg-white/10 rounded-md p-1"
-          title={copyLabel}
-          onClick={() => copyMessageToClipboard(cmd.command)}
-        >
-          <Copy size={12} />
-        </button>
-        {cmd.status === 'success' ? (
-          <CheckCircle2 size={successIconSize} className="text-green-500/70 shrink-0" />
-        ) : cmd.status === 'error' ? (
-          <span className="shrink-0 text-[11px] text-red-400">Failed</span>
-        ) : tone.waitingLabel ? (
-          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${tone.statusClassName}`}>
-            {tone.waitingLabel}
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-white/5"
+        title={isExpanded ? collapseLabel : expandLabel}
+        onClick={() => setIsExpanded((currentValue) => !currentValue)}
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-500/10 text-blue-300">
+            <CheckCircle2 size={compact ? 13 : 14} />
           </span>
-        ) : (
-          <div className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
-        )}
-      </div>
+          <span className="font-medium text-gray-200">{activitySummaryLabel}</span>
+          {fileChanges.length > 0 ? (
+            <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-gray-300">
+              <FileCode2 size={11} className="text-sky-300" />
+              {editedFilesLabel}
+            </span>
+          ) : null}
+          {commands.length > 0 ? (
+            <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-gray-300">
+              <Terminal size={11} className="text-blue-300" />
+              {ranCommandsLabel}
+            </span>
+          ) : null}
+          {fileChanges.length > 0 && hasKnownLineImpact ? (
+            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 font-mono text-[11px] text-emerald-200">
+              <span>+{totalAdditions}</span>
+              <span className="text-red-200">-{totalDeletions}</span>
+            </span>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-2 text-gray-500">
+          {fileChanges.length > 0 ? (
+            <span className="hidden font-mono text-[11px] sm:inline">{changedLinesLabel}</span>
+          ) : null}
+          {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        </div>
+      </button>
+
+      {isExpanded ? (
+        <div className="border-t border-white/10 px-2.5 py-2.5">
+          {commands.length > 0 ? (
+            <div className={fileChanges.length > 0 ? 'mb-3' : undefined}>
+              <div className="mb-1.5 flex items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                <Terminal size={12} />
+                <span>{commandSectionLabel}</span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {commands.map((cmd, cmdIdx) => {
+                  const commandKey = `${cmdIdx}\u0001${cmd.toolCallId ?? cmd.command}`;
+                  const isCommandExpanded = expandedCommandKeys.has(commandKey);
+                  const commandOutputPreview = buildCommandOutputPreview(cmd.output);
+                  const commandStatusLabel = resolveCommandExecutionStatusLabel(cmd, environment?.t);
+                  return (
+                    <div key={`${cmdIdx}\u0001${cmd.toolCallId ?? cmd.command}`} className="overflow-hidden rounded-md border border-white/10 bg-black/25">
+                      <div className="flex items-center gap-2 px-2.5 py-2">
+                        <button
+                          type="button"
+                          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                          onClick={() => toggleCommandDetails(commandKey)}
+                        >
+                          <span className="shrink-0 text-blue-300">
+                            {isCommandExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                          </span>
+                          <span className="shrink-0">
+                            {renderCommandStatusIcon(cmd, successIconSize)}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-gray-200">
+                            {cmd.command}
+                          </span>
+                          <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-gray-400">
+                            {commandStatusLabel}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="shrink-0 rounded-md p-1 text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-200"
+                          title={copyLabel}
+                          onClick={() => copyMessageToClipboard(cmd.command)}
+                        >
+                          <Copy size={12} />
+                        </button>
+                      </div>
+                      {isCommandExpanded ? (
+                        <div className="border-t border-white/10 bg-black/20 px-3 py-2">
+                          <div className="mb-1 text-[11px] font-medium text-gray-500">
+                            {commandOutputLabel}
+                          </div>
+                          {commandOutputPreview.text ? (
+                            <pre className="max-h-64 overflow-auto rounded-md bg-black/35 p-2 font-mono text-[11px] leading-relaxed text-gray-300 custom-scrollbar">
+                              {commandOutputPreview.text}
+                              {commandOutputPreview.isTruncated ? '\n...' : ''}
+                            </pre>
+                          ) : (
+                            <div className="rounded-md border border-dashed border-white/10 px-2 py-2 text-[11px] text-gray-500">
+                              {noCommandOutputLabel}
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {fileChanges.length > 0 ? (
+            <div>
+              <div className="mb-1.5 flex items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                <FileCode2 size={12} />
+                <span>{fileSectionLabel}</span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {fileChanges.map((fileChange, fileIndex) => {
+                  const fileKey = resolveActivityFileChangeKey(fileChange, fileIndex);
+                  const isFileExpanded = expandedFileKeys.has(fileKey);
+                  const diffPreview = buildFileChangeDiffPreview(fileChange);
+                  const lineImpact = fileChangeLineImpacts[fileIndex] ?? resolveActivityFileChangeLineImpact(fileChange);
+                  return (
+                    <div key={fileKey} className="overflow-hidden rounded-md border border-white/10 bg-black/25">
+                      <div className="flex items-center gap-2 px-2.5 py-2">
+                        <button
+                          type="button"
+                          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                          onClick={() => toggleFileDetails(fileKey)}
+                        >
+                          <span className="shrink-0 text-sky-300">
+                            {isFileExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                          </span>
+                          <FileCode2 size={13} className="shrink-0 text-sky-300" />
+                          <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-gray-200">
+                            {fileChange.path}
+                          </span>
+                          {fileChange.updateStatus ? (
+                            <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+                              {fileChange.updateStatus}
+                            </span>
+                          ) : null}
+                          {lineImpact.isKnown ? (
+                            <>
+                              <span className="shrink-0 font-mono text-[11px] text-emerald-300">
+                                +{lineImpact.additions}
+                              </span>
+                              <span className="shrink-0 font-mono text-[11px] text-red-300">
+                                -{lineImpact.deletions}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="shrink-0 rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] text-gray-500">
+                              {lineImpactUnknownLabel}
+                            </span>
+                          )}
+                        </button>
+                        {environment?.onViewChanges ? (
+                          <button
+                            type="button"
+                            className="shrink-0 rounded-md p-1 text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-200"
+                            title={openFullDiffLabel}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              environment?.onViewChanges?.(fileChange);
+                            }}
+                          >
+                            <Eye size={12} />
+                          </button>
+                        ) : null}
+                      </div>
+                      {isFileExpanded ? (
+                        <div className="border-t border-white/10 bg-black/20 px-3 py-2">
+                          <div className="mb-1 flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-medium text-gray-500">
+                              {diffPreviewLabel}
+                            </span>
+                            {diffPreview.isFallback && diffPreview.lines.length > 0 ? (
+                              <span className="text-[10px] text-gray-600">
+                                {environment?.t('chat.contentPreviewFallback') ?? 'content preview'}
+                              </span>
+                            ) : null}
+                          </div>
+                          {diffPreview.lines.length > 0 ? (
+                            <div className="max-h-72 overflow-auto rounded-md bg-black/35 py-2 font-mono text-[11px] leading-relaxed custom-scrollbar">
+                              {diffPreview.lines.map((line, lineIndex) => (
+                                <div
+                                  key={`${fileKey}\u0001${lineIndex}`}
+                                  className={`grid grid-cols-[2rem_1fr] gap-2 px-2 ${resolveDiffPreviewLineClassName(line.tone)}`}
+                                >
+                                  <span className="select-none text-right text-gray-500">
+                                    {line.marker}
+                                  </span>
+                                  <span className="min-w-0 whitespace-pre-wrap break-words">
+                                    {line.text || ' '}
+                                  </span>
+                                </div>
+                              ))}
+                              {diffPreview.isTruncated ? (
+                                <div className="px-2 pt-1 text-[11px] text-gray-500">...</div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <div className="rounded-md border border-dashed border-white/10 px-2 py-2 text-[11px] text-gray-500">
+                              {noInlineDiffLabel}
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {fileChanges.length > 0 ? (
+            <div className="mt-2 flex items-center justify-between gap-3 px-1 text-[11px] text-gray-500">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <CheckCircle2 size={12} className="shrink-0 text-emerald-400/60" />
+                <span className="truncate">{checkpointSavedLabel}</span>
+              </div>
+              {hasRestorableChanges && environment?.onRestore ? (
+                <button
+                  type="button"
+                  className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors hover:bg-white/10 hover:text-gray-200"
+                  onClick={() => environment.onRestore?.(messageId)}
+                >
+                  <RotateCcw size={12} />
+                  <span>{restoreLabel}</span>
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -419,33 +1277,51 @@ function isReplySegmentRole(role: BirdCoderChatMessage['role']): boolean {
 }
 
 interface ChatMessageActionTarget {
-  copyText: string;
   endIndex: number;
-  messageIds: string[];
+  startIndex: number;
 }
 
-function buildMessageActionTargets(
-  messages: readonly BirdCoderChatMessage[],
-): Array<ChatMessageActionTarget | null> {
-  const targets = new Array<ChatMessageActionTarget | null>(messages.length).fill(null);
+const EMPTY_MESSAGE_ACTION_TARGETS = new Map<number, ChatMessageActionTarget>();
 
-  for (let index = 0; index < messages.length; index += 1) {
+function buildVisibleMessageActionTargets(
+  messages: readonly BirdCoderChatMessage[],
+  visibleStartIndex: number,
+  visibleCount: number,
+): ReadonlyMap<number, ChatMessageActionTarget> {
+  const normalizedVisibleStartIndex = Math.max(0, Math.floor(visibleStartIndex));
+  const visibleEndIndex = Math.min(
+    messages.length - 1,
+    normalizedVisibleStartIndex + Math.max(0, Math.floor(visibleCount)) - 1,
+  );
+  if (normalizedVisibleStartIndex > visibleEndIndex) {
+    return EMPTY_MESSAGE_ACTION_TARGETS;
+  }
+
+  const targets = new Map<number, ChatMessageActionTarget>();
+  for (let index = normalizedVisibleStartIndex; index <= visibleEndIndex; index += 1) {
     const currentMessage = messages[index];
     if (!currentMessage) {
       continue;
     }
 
     if (currentMessage.role === 'user') {
-      targets[index] = {
-        copyText: currentMessage.content,
+      targets.set(index, {
         endIndex: index,
-        messageIds: [currentMessage.id],
-      };
+        startIndex: index,
+      });
       continue;
     }
 
     if (!isReplySegmentRole(currentMessage.role)) {
       continue;
+    }
+
+    let startIndex = index;
+    while (
+      startIndex > 0 &&
+      isReplySegmentRole(messages[startIndex - 1]?.role ?? 'system')
+    ) {
+      startIndex -= 1;
     }
 
     let endIndex = index;
@@ -456,28 +1332,79 @@ function buildMessageActionTargets(
       endIndex += 1;
     }
 
-    const groupedMessages = messages.slice(index, endIndex + 1);
-    const copyText = groupedMessages
-      .map((message) => message.content.trim())
-      .filter((content) => content.length > 0)
-      .join('\n\n');
-    const messageIds = groupedMessages
-      .map((message) => message.id)
-      .filter((messageId): messageId is string => messageId.trim().length > 0);
     const target: ChatMessageActionTarget = {
-      copyText: copyText || currentMessage.content,
       endIndex,
-      messageIds,
+      startIndex,
     };
 
-    for (let groupedIndex = index; groupedIndex <= endIndex; groupedIndex += 1) {
-      targets[groupedIndex] = target;
+    const firstVisibleSegmentIndex = Math.max(startIndex, normalizedVisibleStartIndex);
+    const lastVisibleSegmentIndex = Math.min(endIndex, visibleEndIndex);
+    for (
+      let groupedIndex = firstVisibleSegmentIndex;
+      groupedIndex <= lastVisibleSegmentIndex;
+      groupedIndex += 1
+    ) {
+      targets.set(groupedIndex, target);
     }
 
-    index = endIndex;
+    index = lastVisibleSegmentIndex;
   }
 
   return targets;
+}
+
+function resolveMessageActionTargetCopyText(
+  messages: readonly BirdCoderChatMessage[],
+  target: ChatMessageActionTarget | null | undefined,
+  fallbackContent: string,
+): string {
+  if (!target) {
+    return fallbackContent;
+  }
+
+  if (target.startIndex === target.endIndex && messages[target.startIndex]?.role === 'user') {
+    return messages[target.startIndex]?.content ?? fallbackContent;
+  }
+
+  const startIndex = Math.max(0, target.startIndex);
+  const endIndex = Math.min(messages.length - 1, target.endIndex);
+  const copySegments: string[] = [];
+
+  for (let index = startIndex; index <= endIndex; index += 1) {
+    const content = messages[index]?.content.trim();
+    if (content) {
+      copySegments.push(content);
+    }
+  }
+
+  return copySegments.length > 0 ? copySegments.join('\n\n') : fallbackContent;
+}
+
+function resolveMessageActionTargetMessageIds(
+  messages: readonly BirdCoderChatMessage[],
+  target: ChatMessageActionTarget | null | undefined,
+  fallbackMessageId: string,
+): string[] {
+  if (!target) {
+    return fallbackMessageId.trim().length > 0 ? [fallbackMessageId] : [];
+  }
+
+  const startIndex = Math.max(0, target.startIndex);
+  const endIndex = Math.min(messages.length - 1, target.endIndex);
+  const messageIds: string[] = [];
+
+  for (let index = startIndex; index <= endIndex; index += 1) {
+    const messageId = messages[index]?.id.trim() ?? '';
+    if (messageId.length > 0) {
+      messageIds.push(messageId);
+    }
+  }
+
+  return messageIds.length > 0
+    ? messageIds
+    : fallbackMessageId.trim().length > 0
+      ? [fallbackMessageId]
+      : [];
 }
 
 const UniversalChatTranscript = memo(function UniversalChatTranscript({
@@ -504,10 +1431,6 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     isActive,
     sessionId,
   );
-  const messageActionTargets = useMemo(
-    () => buildMessageActionTargets(renderedMessages),
-    [renderedMessages],
-  );
   const { paddingBottom, paddingTop, registerMessageElement, visibleMessages, visibleStartIndex } =
     useVirtualizedTranscriptWindow(
       renderedMessages,
@@ -515,6 +1438,15 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       isActive && !hasEarlierMessages,
       sessionId,
     );
+  const messageActionTargets = useMemo(
+    () =>
+      buildVisibleMessageActionTargets(
+        renderedMessages,
+        visibleStartIndex,
+        visibleMessages.length,
+      ),
+    [renderedMessages, visibleMessages.length, visibleStartIndex],
+  );
 
   useLayoutEffect(() => {
     if (
@@ -559,11 +1491,16 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
 
   const copyMessageToClipboard = (content: string) => {
     const environment = environmentRef.current;
-    navigator.clipboard.writeText(content);
-    if (!environment) {
-      return;
-    }
-    environment.addToast(environment.t('chat.messageCopied'), 'success');
+    void copyTextToClipboard(content).then((didCopy) => {
+      if (!environment) {
+        return;
+      }
+      if (didCopy) {
+        environment.addToast(environment.t('chat.messageCopied'), 'success');
+      } else {
+        environment.addToast('Unable to copy to clipboard', 'error');
+      }
+    });
   };
 
   const renderTaskProgress = (msg: BirdCoderChatMessage) => {
@@ -571,9 +1508,12 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       return null;
     }
 
-    const total = Math.max(0, Math.floor(msg.taskProgress.total));
-    const completed = Math.min(total, Math.max(0, Math.floor(msg.taskProgress.completed)));
-    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const taskProgressDisplayState = resolveTaskProgressDisplayState(msg.taskProgress);
+    if (!taskProgressDisplayState) {
+      return null;
+    }
+
+    const { completed, percent, total } = taskProgressDisplayState;
 
     return (
       <div className="mt-2 w-full rounded-lg border border-white/5 bg-black/25 px-3 py-2 text-xs text-gray-300">
@@ -604,8 +1544,16 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   ) => {
     const environment = environmentRef.current;
     const copyLabel = environment?.t('common.copy') ?? 'Copy';
-    const actionTarget = messageActionTargets[idx];
+    const actionTarget = messageActionTargets.get(idx);
     const showMessageActions = !!actionTarget && actionTarget.endIndex === idx;
+    const activityFileChanges = resolveMessageActivityFileChanges(msg);
+    const shouldHideActivitySummaryContent = shouldHideMessageContentAsFileUpdateSummary(
+      msg.content,
+      activityFileChanges,
+    );
+    const visibleMessageContent = shouldHideActivitySummaryContent
+      ? ''
+      : stripFileUpdateSummaryContent(msg.content) || msg.content;
     if (msg.role === 'user') {
       return (
         <div
@@ -648,7 +1596,11 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                   size="icon"
                   className="h-5 w-5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
                   title="Delete"
-                  onClick={() => environment.onDeleteMessage?.(actionTarget?.messageIds ?? [msg.id])}
+                  onClick={() =>
+                    environment.onDeleteMessage?.(
+                      resolveMessageActionTargetMessageIds(renderedMessages, actionTarget, msg.id),
+                    )
+                  }
                 >
                   <Trash2 size={10} />
                 </Button>
@@ -667,69 +1619,24 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
         style={buildTranscriptSurfaceStyle('180px')}
       >
         <div className="text-gray-300 w-full">
-          <div className="prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1rem] prose-h2:text-[0.95rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-li:my-0.5 prose-li:text-[13px] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[13px] w-full">
-            {renderMarkdownContent(msg.content)}
-          </div>
-
-          {msg.fileChanges && msg.fileChanges.length > 0 && (
-            <div className="mt-3 flex flex-col gap-2 w-full">
-              <div className="bg-[#18181b] rounded-lg border border-white/10 overflow-hidden">
-                <div className="px-3 py-2 border-b border-white/10 flex items-center gap-2 text-gray-400">
-                  <Edit size={14} />
-                  <span className="text-xs font-medium">Modified Files</span>
-                </div>
-                <div className="p-3 text-xs">
-                  <div className="flex flex-col gap-1 pl-2">
-                    {msg.fileChanges.map((file, i) => (
-                      <div key={i} className="flex items-center justify-between text-gray-400">
-                        <span className="truncate pr-4">{file.path}</span>
-                        <CheckCircle2 size={14} className="text-green-500 shrink-0" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
-                <div className="flex items-center gap-1"><CheckCircle2 size={12}/> Checkpoint</div>
-                <div className="flex gap-3">
-                  <span
-                    className="hover:text-gray-300 cursor-pointer"
-                    onClick={() => {
-                      if (msg.fileChanges && msg.fileChanges.length > 0 && environment?.onViewChanges) {
-                        environment.onViewChanges(msg.fileChanges[0]);
-                      }
-                    }}
-                  >
-                    View changes
-                  </span>
-                  {hasRestorableFileChanges(msg.fileChanges) && environment?.onRestore && (
-                    <span
-                      className="hover:text-gray-300 cursor-pointer flex items-center gap-1"
-                      onClick={() => environment.onRestore?.(msg.id)}
-                    >
-                      <RotateCcw size={12}/> Restore
-                    </span>
-                  )}
-                </div>
-              </div>
+          {visibleMessageContent ? (
+            <div className="prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1rem] prose-h2:text-[0.95rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-li:my-0.5 prose-li:text-[13px] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[13px] w-full">
+              {renderMarkdownContent(visibleMessageContent)}
             </div>
-          )}
+          ) : null}
+
+          <UniversalChatActivitySummary
+            compact
+            commands={msg.commands}
+            copyLabel={copyLabel}
+            copyMessageToClipboard={copyMessageToClipboard}
+            environment={environment}
+            fileChanges={activityFileChanges}
+            messageId={msg.id}
+            successIconSize={13}
+          />
 
           {renderTaskProgress(msg)}
-
-          {msg.commands && msg.commands.length > 0 && (
-            <div className="mt-1.5 flex flex-col gap-1 w-full">
-              {msg.commands.map((cmd, cmdIdx) =>
-                renderCommandExecutionCard({
-                  cmd,
-                  cmdIdx,
-                  copyLabel,
-                  copyMessageToClipboard,
-                  successIconSize: 13,
-                }),
-              )}
-            </div>
-          )}
 
           {isReplySegmentRole(msg.role) && showMessageActions && (
             <div className="mt-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -738,7 +1645,11 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                 size="icon"
                 className="h-6 w-6 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
                 title={copyLabel}
-                onClick={() => copyMessageToClipboard(actionTarget?.copyText ?? msg.content)}
+                onClick={() =>
+                  copyMessageToClipboard(
+                    resolveMessageActionTargetCopyText(renderedMessages, actionTarget, msg.content),
+                  )
+                }
               >
                 <Copy size={12} />
               </Button>
@@ -759,7 +1670,11 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                   size="icon"
                   className="h-6 w-6 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
                   title="Delete"
-                  onClick={() => environment.onDeleteMessage?.(actionTarget?.messageIds ?? [msg.id])}
+                  onClick={() =>
+                    environment.onDeleteMessage?.(
+                      resolveMessageActionTargetMessageIds(renderedMessages, actionTarget, msg.id),
+                    )
+                  }
                 >
                   <Trash2 size={12} />
                 </Button>
@@ -779,8 +1694,16 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   ) => {
     const environment = environmentRef.current;
     const copyLabel = environment?.t('common.copy') ?? 'Copy';
-    const actionTarget = messageActionTargets[idx];
+    const actionTarget = messageActionTargets.get(idx);
     const showMessageActions = !!actionTarget && actionTarget.endIndex === idx;
+    const activityFileChanges = resolveMessageActivityFileChanges(msg);
+    const shouldHideActivitySummaryContent = shouldHideMessageContentAsFileUpdateSummary(
+      msg.content,
+      activityFileChanges,
+    );
+    const visibleMessageContent = shouldHideActivitySummaryContent
+      ? ''
+      : stripFileUpdateSummaryContent(msg.content) || msg.content;
     return (
       <div
         ref={messageRef}
@@ -816,7 +1739,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                     size="icon"
                     className="h-6 w-6 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
                     title={copyLabel}
-                    onClick={() => copyMessageToClipboard(actionTarget?.copyText ?? msg.content)}
+                    onClick={() => copyMessageToClipboard(msg.content)}
                   >
                     <Copy size={12} />
                   </Button>
@@ -826,7 +1749,11 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                       size="icon"
                       className="h-6 w-6 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
                       title="Delete"
-                      onClick={() => environment.onDeleteMessage?.(actionTarget?.messageIds ?? [msg.id])}
+                      onClick={() =>
+                        environment.onDeleteMessage?.(
+                          resolveMessageActionTargetMessageIds(renderedMessages, actionTarget, msg.id),
+                        )
+                      }
                     >
                       <Trash2 size={12} />
                     </Button>
@@ -836,65 +1763,23 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
             </div>
           ) : (
             <div className="flex min-w-0 w-full flex-col">
-              <div className="prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1.02rem] prose-h2:text-[0.96rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-li:my-0.5 prose-li:text-[14px] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[14px] text-gray-300 w-full">
-                {renderMarkdownContent(msg.content)}
-              </div>
-
-              {msg.fileChanges && msg.fileChanges.length > 0 && (
-                <div className="mt-2 flex flex-col gap-2 w-full">
-                  <div className="bg-[#18181b]/80 rounded-xl border border-white/10 overflow-hidden shadow-sm">
-                    <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between bg-white/5">
-                      <div className="flex items-center gap-2 text-gray-300">
-                        <Edit size={14} className="text-blue-400" />
-                        <span className="text-sm font-medium">Modified Files</span>
-                      </div>
-                      <span className="text-xs text-gray-500 font-mono">{msg.fileChanges.length} files</span>
-                    </div>
-                    <div className="p-2 text-sm">
-                      <div className="flex flex-col gap-1">
-                        {msg.fileChanges.map((file, i) => (
-                          <div key={i} className="flex items-center justify-between text-gray-300 hover:bg-white/5 px-3 py-2 rounded-lg transition-colors group/file cursor-pointer" onClick={() => environment?.onViewChanges?.(file)}>
-                            <span className="truncate pr-4 font-mono text-[13px]">{file.path}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500 opacity-0 group-hover/file:opacity-100 transition-opacity">View diff</span>
-                              <CheckCircle2 size={14} className="text-green-500/70 shrink-0" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-gray-500 px-1">
-                    <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-green-500/50"/> Checkpoint saved</div>
-                    <div className="flex gap-4">
-                      {hasRestorableFileChanges(msg.fileChanges) && environment?.onRestore && (
-                        <span
-                          className="hover:text-gray-300 cursor-pointer flex items-center gap-1.5 transition-colors"
-                          onClick={() => environment.onRestore?.(msg.id)}
-                        >
-                          <RotateCcw size={12}/> Restore
-                        </span>
-                      )}
-                    </div>
-                  </div>
+              {visibleMessageContent ? (
+                <div className="prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1.02rem] prose-h2:text-[0.96rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-li:my-0.5 prose-li:text-[14px] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[14px] text-gray-300 w-full">
+                  {renderMarkdownContent(visibleMessageContent)}
                 </div>
-              )}
+              ) : null}
+
+              <UniversalChatActivitySummary
+                commands={msg.commands}
+                copyLabel={copyLabel}
+                copyMessageToClipboard={copyMessageToClipboard}
+                environment={environment}
+                fileChanges={activityFileChanges}
+                messageId={msg.id}
+                successIconSize={14}
+              />
 
               {renderTaskProgress(msg)}
-
-              {msg.commands && msg.commands.length > 0 && (
-                <div className="mt-2 flex flex-col gap-1.5 w-full">
-                  {msg.commands.map((cmd, cmdIdx) =>
-                    renderCommandExecutionCard({
-                      cmd,
-                      cmdIdx,
-                      copyLabel,
-                      copyMessageToClipboard,
-                      successIconSize: 14,
-                    }),
-                  )}
-                </div>
-              )}
 
               {showMessageActions ? (
                 <div className="mt-1.5 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -903,7 +1788,11 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                     size="icon"
                     className="h-7 w-7 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
                     title={copyLabel}
-                    onClick={() => copyMessageToClipboard(actionTarget?.copyText ?? msg.content)}
+                    onClick={() =>
+                      copyMessageToClipboard(
+                        resolveMessageActionTargetCopyText(renderedMessages, actionTarget, msg.content),
+                      )
+                    }
                   >
                     <Copy size={14} />
                   </Button>
@@ -924,7 +1813,11 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                       size="icon"
                       className="h-7 w-7 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
                       title="Delete"
-                      onClick={() => environment.onDeleteMessage?.(actionTarget?.messageIds ?? [msg.id])}
+                      onClick={() =>
+                        environment.onDeleteMessage?.(
+                          resolveMessageActionTargetMessageIds(renderedMessages, actionTarget, msg.id),
+                        )
+                      }
                     >
                       <Trash2 size={14} />
                     </Button>
@@ -1075,20 +1968,24 @@ export const UniversalChat = memo(function UniversalChat({
   const [promptTab, setPromptTab] = useState<'history' | 'mine'>('history');
   const [historyPrompts, setHistoryPrompts] = useState<PromptEntry[]>([]);
   const [myPrompts, setMyPrompts] = useState<PromptEntry[]>([]);
+  const [composerSelectionOverride, setComposerSelectionOverride] =
+    useState<ComposerModelSelectionOverride | null>(null);
   const normalizedSessionId = sessionId?.trim() || '';
   const normalizedTranscriptScopeKey = sessionScopeKey?.trim() || normalizedSessionId;
   const normalizedQueueScopeKey = normalizedTranscriptScopeKey;
+  const normalizedComposerSelectionScopeKey = normalizedTranscriptScopeKey || 'ephemeral';
+  const normalizedSessionStateScopeKey = normalizedSessionId ? normalizedTranscriptScopeKey : '';
   const {
     clearDraftValue: clearSessionDraftValue,
     draftValue: sessionDraftValue,
     setDraftValue: setSessionDraftValue,
-  } = useWorkbenchChatInputDraft(normalizedSessionId);
+  } = useWorkbenchChatInputDraft(normalizedSessionStateScopeKey);
   const [ephemeralInputValue, setEphemeralInputValue] = useState('');
   const isControlledInput =
     typeof controlledInputValue === 'string' && typeof controlledSetInputValue === 'function';
   const inputValue = isControlledInput
     ? controlledInputValue
-    : normalizedSessionId
+    : normalizedSessionStateScopeKey
       ? sessionDraftValue
       : ephemeralInputValue;
   const setInputValue = useCallback<Dispatch<SetStateAction<string>>>((nextValue) => {
@@ -1097,7 +1994,7 @@ export const UniversalChat = memo(function UniversalChat({
       return;
     }
 
-    if (normalizedSessionId) {
+    if (normalizedSessionStateScopeKey) {
       setSessionDraftValue(nextValue);
       return;
     }
@@ -1106,7 +2003,7 @@ export const UniversalChat = memo(function UniversalChat({
   }, [
     controlledSetInputValue,
     isControlledInput,
-    normalizedSessionId,
+    normalizedSessionStateScopeKey,
     setSessionDraftValue,
   ]);
   const clearInputValue = useCallback(() => {
@@ -1115,7 +2012,7 @@ export const UniversalChat = memo(function UniversalChat({
       return;
     }
 
-    if (normalizedSessionId) {
+    if (normalizedSessionStateScopeKey) {
       clearSessionDraftValue();
       return;
     }
@@ -1127,7 +2024,7 @@ export const UniversalChat = memo(function UniversalChat({
     clearSessionDraftValue,
     controlledSetInputValue,
     isControlledInput,
-    normalizedSessionId,
+    normalizedSessionStateScopeKey,
   ]);
   const sessionChatInputHistoryRef = useRef<string[]>([]);
   const pendingPromptHistoryEntriesRef = useRef<string[]>([]);
@@ -1162,22 +2059,46 @@ export const UniversalChat = memo(function UniversalChat({
   const { addToast } = useToast();
   const { preferences } = useWorkbenchPreferences();
   const modelMenuRef = useRef<HTMLDivElement>(null);
+  const selectedModelButtonRef = useRef<HTMLButtonElement | null>(null);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const resolvedSelectedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+  const activeComposerSelectionOverride =
+    composerSelectionOverride?.scopeKey === normalizedComposerSelectionScopeKey
+      ? composerSelectionOverride
+      : null;
+  const controlledSelectedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
     selectedEngineId ?? preferences.codeEngineId,
     preferences,
   );
-  const availableEngines = listWorkbenchServerImplementedCodeEngines(preferences);
+  const hasControlledSelectedModelId =
+    typeof selectedModelId === 'string' && selectedModelId.trim().length > 0;
+  const controlledSelectedModelId = normalizeWorkbenchCodeModelId(
+    controlledSelectedEngineId,
+    selectedModelId ?? preferences.codeModelId,
+    preferences,
+    { allowUnknown: hasControlledSelectedModelId },
+  );
+  const resolvedSelectedEngineId = activeComposerSelectionOverride
+    ? normalizeWorkbenchServerImplementedCodeEngineId(
+        activeComposerSelectionOverride.engineId,
+        preferences,
+      )
+    : controlledSelectedEngineId;
+  const availableEngines = useMemo(
+    () => listWorkbenchServerImplementedCodeEngines(preferences),
+    [preferences],
+  );
   const currentEngine =
     findWorkbenchCodeEngineDefinition(resolvedSelectedEngineId, preferences) ??
     getWorkbenchCodeEngineDefinition(resolvedSelectedEngineId, preferences);
-  const currentModelId = normalizeWorkbenchCodeModelId(
-    resolvedSelectedEngineId,
-    selectedModelId ?? preferences.codeModelId,
-    preferences,
-  );
+  const currentModelId = activeComposerSelectionOverride
+    ? normalizeWorkbenchCodeModelId(
+        resolvedSelectedEngineId,
+        activeComposerSelectionOverride.modelId,
+        preferences,
+      )
+    : controlledSelectedModelId;
   const displayEngineId =
     !showComposerEngineSelector && selectedEngineId ? selectedEngineId : resolvedSelectedEngineId;
   const displayModelId =
@@ -1188,10 +2109,44 @@ export const UniversalChat = memo(function UniversalChat({
       displayModelId,
       preferences,
     ) || displayModelId.trim();
+  const currentComposerModelLabel = currentModelLabel.trim() || currentEngine.label;
   const currentEngineSummary =
     currentModelLabel.trim().toLowerCase() === currentEngine.label.trim().toLowerCase()
       ? currentEngine.label
       : `${currentEngine.label} / ${currentModelLabel}`;
+  const currentModelDefinition = currentEngine.modelCatalog.find(
+    (model) => model.id.toLowerCase() === currentModelId.toLowerCase(),
+  );
+  const currentComposerSelection = useMemo<UniversalChatComposerSelection>(() => ({
+    engineId: resolvedSelectedEngineId,
+    modelId: currentModelId,
+  }), [currentModelId, resolvedSelectedEngineId]);
+  const currentModelVendor = currentModelDefinition?.modelVendor ?? 'unknown';
+  const modelVendorGroups = useMemo<ComposerModelVendorGroup[]>(() => {
+    const groupedModels = new Map<ModelVendor, ComposerModelOption[]>();
+
+    for (const engine of availableEngines) {
+      for (const model of engine.modelCatalog) {
+        const vendorModels = groupedModels.get(model.modelVendor) ?? [];
+        vendorModels.push({ engine, model });
+        groupedModels.set(model.modelVendor, vendorModels);
+      }
+    }
+
+    return MODEL_VENDOR_VALUES
+      .map((vendor) => ({
+        label: getWorkbenchModelVendorLabel(vendor),
+        models: groupedModels.get(vendor) ?? [],
+        vendor,
+      }))
+      .filter((group) => group.models.length > 0);
+  }, [availableEngines]);
+  const [selectedModelVendor, setSelectedModelVendor] = useState<ModelVendor>(currentModelVendor);
+  const selectedModelVendorGroup =
+    modelVendorGroups.find((group) => group.vendor === selectedModelVendor) ??
+    modelVendorGroups.find((group) => group.vendor === currentModelVendor) ??
+    modelVendorGroups[0] ??
+    null;
   const firstPendingUserQuestion = pendingUserQuestions.find(
     (question) => question.questionId.trim().length > 0,
   );
@@ -1217,6 +2172,7 @@ export const UniversalChat = memo(function UniversalChat({
   const isTranscriptPointerScrollActiveRef = useRef(false);
   const lastUserTranscriptScrollAtRef = useRef(0);
   const userTranscriptScrollSettleTimerRef = useRef<number | null>(null);
+  const userTranscriptScrollAnimationFrameRef = useRef<number | null>(null);
 
   const beginEditingMessage = useCallback((messageId: string, content: string) => {
     if (disabled || !onEditMessage) {
@@ -1586,6 +2542,24 @@ export const UniversalChat = memo(function UniversalChat({
     );
   }, [releaseUserTranscriptScrollControl]);
 
+  const scheduleTranscriptUserScrollSync = useCallback(() => {
+    if (typeof window === 'undefined') {
+      markTranscriptUserScrollIntent();
+      updateTranscriptStickiness();
+      return;
+    }
+
+    if (userTranscriptScrollAnimationFrameRef.current !== null) {
+      return;
+    }
+
+    userTranscriptScrollAnimationFrameRef.current = window.requestAnimationFrame(() => {
+      userTranscriptScrollAnimationFrameRef.current = null;
+      markTranscriptUserScrollIntent();
+      updateTranscriptStickiness();
+    });
+  }, [markTranscriptUserScrollIntent, updateTranscriptStickiness]);
+
   const markTranscriptPointerScrollIntent = useCallback(() => {
     isTranscriptPointerScrollActiveRef.current = true;
     markTranscriptUserScrollIntent();
@@ -1610,8 +2584,8 @@ export const UniversalChat = memo(function UniversalChat({
     }
 
     void Promise.all([
-      normalizedSessionId
-        ? listSessionPromptHistory(normalizedSessionId)
+      normalizedSessionStateScopeKey
+        ? listSessionPromptHistory(normalizedSessionStateScopeKey)
         : Promise.resolve<PromptEntry[]>([]),
       listSavedPrompts(),
     ])
@@ -1622,29 +2596,29 @@ export const UniversalChat = memo(function UniversalChat({
       .catch((error) => {
         console.error('Failed to load prompts', error);
       });
-  }, [isActive, normalizedSessionId, showPromptModal]);
+  }, [isActive, normalizedSessionStateScopeKey, showPromptModal]);
 
   useEffect(() => {
     if (!isActive) {
       return;
     }
 
-    if (hydratedSessionPromptHistoryIdRef.current === normalizedSessionId) {
+    if (hydratedSessionPromptHistoryIdRef.current === normalizedSessionStateScopeKey) {
       return;
     }
 
-    hydratedSessionPromptHistoryIdRef.current = normalizedSessionId;
+    hydratedSessionPromptHistoryIdRef.current = normalizedSessionStateScopeKey;
     lastScrollSnapshotRef.current = null;
     sessionChatInputHistoryRef.current = [];
     setHistoryIndex((previousHistoryIndex) => (previousHistoryIndex === -1 ? previousHistoryIndex : -1));
     setTempInput((previousTempInput) => (previousTempInput ? '' : previousTempInput));
     syncHistoryPrompts([]);
-    if (!normalizedSessionId) {
+    if (!normalizedSessionStateScopeKey) {
       return;
     }
 
     let isMounted = true;
-    void listSessionPromptHistory(normalizedSessionId)
+    void listSessionPromptHistory(normalizedSessionStateScopeKey)
       .then((historyEntries) => {
         if (!isMounted) {
           return;
@@ -1663,10 +2637,14 @@ export const UniversalChat = memo(function UniversalChat({
     return () => {
       isMounted = false;
     };
-  }, [isActive, normalizedSessionId]);
+  }, [isActive, normalizedSessionStateScopeKey]);
 
   useEffect(() => {
-    if (!isActive || !normalizedSessionId || pendingPromptHistoryEntriesRef.current.length === 0) {
+    if (
+      !isActive ||
+      !normalizedSessionStateScopeKey ||
+      pendingPromptHistoryEntriesRef.current.length === 0
+    ) {
       return;
     }
 
@@ -1678,7 +2656,7 @@ export const UniversalChat = memo(function UniversalChat({
       for (const pendingEntry of pendingEntries) {
         latestHistoryEntries = await saveSessionPromptHistoryEntry(
           pendingEntry,
-          normalizedSessionId,
+          normalizedSessionStateScopeKey,
         );
       }
 
@@ -1701,7 +2679,7 @@ export const UniversalChat = memo(function UniversalChat({
     return () => {
       isMounted = false;
     };
-  }, [isActive, normalizedSessionId]);
+  }, [isActive, normalizedSessionStateScopeKey]);
 
   useEffect(() => {
     if (!isActive) {
@@ -1717,6 +2695,10 @@ export const UniversalChat = memo(function UniversalChat({
       window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
       userTranscriptScrollSettleTimerRef.current = null;
     }
+    if (userTranscriptScrollAnimationFrameRef.current !== null) {
+      window.cancelAnimationFrame(userTranscriptScrollAnimationFrameRef.current);
+      userTranscriptScrollAnimationFrameRef.current = null;
+    }
 
     const scrollContainer = transcriptScrollContainerRef.current;
     if (!scrollContainer) {
@@ -1728,8 +2710,7 @@ export const UniversalChat = memo(function UniversalChat({
         return;
       }
 
-      markTranscriptUserScrollIntent();
-      updateTranscriptStickiness();
+      scheduleTranscriptUserScrollSync();
     };
     const handleTranscriptKeyDown = (event: KeyboardEvent) => {
       if (
@@ -1768,6 +2749,10 @@ export const UniversalChat = memo(function UniversalChat({
         window.clearTimeout(userTranscriptScrollSettleTimerRef.current);
         userTranscriptScrollSettleTimerRef.current = null;
       }
+      if (userTranscriptScrollAnimationFrameRef.current !== null) {
+        window.cancelAnimationFrame(userTranscriptScrollAnimationFrameRef.current);
+        userTranscriptScrollAnimationFrameRef.current = null;
+      }
       isUserControllingTranscriptScrollRef.current = false;
       isTranscriptPointerScrollActiveRef.current = false;
     };
@@ -1777,6 +2762,7 @@ export const UniversalChat = memo(function UniversalChat({
     markTranscriptUserScrollIntent,
     normalizedSessionId,
     releaseTranscriptPointerScrollIntent,
+    scheduleTranscriptUserScrollSync,
     updateTranscriptStickiness,
   ]);
 
@@ -1808,11 +2794,11 @@ export const UniversalChat = memo(function UniversalChat({
   };
 
   const deleteFromHistory = (text: string) => {
-    if (!normalizedSessionId) {
+    if (!normalizedSessionStateScopeKey) {
       return;
     }
 
-    void deleteSessionPromptHistoryEntry(text, normalizedSessionId)
+    void deleteSessionPromptHistoryEntry(text, normalizedSessionStateScopeKey)
       .then((history) => {
         syncHistoryPrompts(history);
         const nextChatHistory = promptEntriesToSessionChatInputHistory(history);
@@ -1828,15 +2814,31 @@ export const UniversalChat = memo(function UniversalChat({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > MAX_SINGLE_FILE_UPLOAD_BYTES) {
+        addToast(t('chat.fileTooLarge'), 'error');
+        setShowAttachmentMenu(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
       try {
         const content = await readFileAsText(file);
+        const { block: fileContentBlock, isTruncated } = buildSingleFileUploadContentBlock(
+          file.name,
+          content,
+        );
         setInputValue(
           appendChatInput(
             inputValueRef.current,
-            `\n\nFile: ${file.name}\n\`\`\`\n${content}\n\`\`\`\n`,
+            fileContentBlock,
           ),
         );
-        addToast(t('chat.fileAttached', { name: file.name }), 'success');
+        addToast(
+          t(isTruncated ? 'chat.fileAttachedTruncated' : 'chat.fileAttached', {
+            name: file.name,
+          }),
+          'success',
+        );
       } catch (err) {
         console.error(`Failed to read file ${file.name}`, err);
         addToast(t('chat.fileReadFailed'), 'error');
@@ -1924,7 +2926,10 @@ export const UniversalChat = memo(function UniversalChat({
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
+      if (
+        file.size > MAX_IMAGE_UPLOAD_BYTES ||
+        estimateImageUploadDataUrlCharacters(file) > MAX_IMAGE_UPLOAD_DATA_URL_CHARACTERS
+      ) {
         addToast(t('chat.imageTooLarge'), 'error');
         setShowAttachmentMenu(false);
         if (imageInputRef.current) imageInputRef.current.value = '';
@@ -1932,9 +2937,13 @@ export const UniversalChat = memo(function UniversalChat({
       }
       try {
         const base64 = await readFileAsDataUrl(file);
-        setInputValue(
-          appendChatInput(inputValueRef.current, `\n![${file.name}](${base64})\n`),
-        );
+        const imageContentBlock = buildImageUploadContentBlock(file.name, base64);
+        if (!imageContentBlock) {
+          addToast(t('chat.imageTooLarge'), 'error');
+          return;
+        }
+
+        setInputValue(appendChatInput(inputValueRef.current, imageContentBlock));
         addToast(t('chat.imageAttached', { name: file.name }), 'success');
       } catch (err) {
         console.error(`Failed to read image ${file.name}`, err);
@@ -2054,33 +3063,81 @@ export const UniversalChat = memo(function UniversalChat({
       }
     }
   };
-  const [selectedProvider, setSelectedProvider] = useState(resolvedSelectedEngineId);
 
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [tempInput, setTempInput] = useState('');
 
-  const selectedProviderEngine = getWorkbenchCodeEngineDefinition(selectedProvider, preferences);
-  const selectedProviderSupport = resolveWorkbenchServerEngineSupportState(
-    selectedProvider,
-    preferences,
-  );
-  const selectedProviderModelId = resolveWorkbenchCodeEngineSelectedModelId(
-    selectedProvider,
-    preferences,
-    selectedProvider === resolvedSelectedEngineId ? currentModelId : undefined,
-  );
+  useEffect(() => {
+    setComposerSelectionOverride((previousOverride) => {
+      const scopedOverride =
+        previousOverride?.scopeKey === normalizedComposerSelectionScopeKey
+          ? previousOverride
+          : readComposerModelSelectionOverride(normalizedComposerSelectionScopeKey);
+      if (!scopedOverride) {
+        return null;
+      }
+
+      const overrideEngineId = scopedOverride.engineId.trim();
+      const overrideModelId = scopedOverride.modelId.trim();
+
+      if (
+        overrideEngineId === controlledSelectedEngineId &&
+        overrideModelId.toLowerCase() === controlledSelectedModelId.toLowerCase()
+      ) {
+        deleteComposerModelSelectionOverride(normalizedComposerSelectionScopeKey);
+        return null;
+      }
+
+      return scopedOverride;
+    });
+  }, [
+    controlledSelectedEngineId,
+    controlledSelectedModelId,
+    normalizedComposerSelectionScopeKey,
+  ]);
 
   useEffect(() => {
-    setSelectedProvider((previousProvider) =>
-      previousProvider === resolvedSelectedEngineId
-        ? previousProvider
-        : resolvedSelectedEngineId,
+    setSelectedModelVendor((previousVendor) =>
+      previousVendor === currentModelVendor ? previousVendor : currentModelVendor,
     );
-  }, [resolvedSelectedEngineId]);
+  }, [currentModelVendor, resolvedSelectedEngineId]);
+
+  useEffect(() => {
+    if (modelVendorGroups.some((group) => group.vendor === selectedModelVendor)) {
+      return;
+    }
+
+    setSelectedModelVendor(
+      modelVendorGroups.find((group) => group.vendor === currentModelVendor)?.vendor ??
+      modelVendorGroups[0]?.vendor ??
+      'unknown',
+    );
+  }, [currentModelVendor, modelVendorGroups, selectedModelVendor]);
+
+  useEffect(() => {
+    if (!showModelMenu) {
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      selectedModelButtonRef.current?.scrollIntoView({
+        block: 'nearest',
+      });
+    });
+  }, [
+    currentModelId,
+    resolvedSelectedEngineId,
+    selectedModelVendorGroup?.vendor,
+    showModelMenu,
+  ]);
 
   const persistSubmittedPromptHistory = useCallback(
     async (submittedText: string) => {
-      if (!normalizedSessionId) {
+      if (!normalizedSessionStateScopeKey) {
         pendingPromptHistoryEntriesRef.current = [
           ...pendingPromptHistoryEntriesRef.current,
           submittedText,
@@ -2088,14 +3145,17 @@ export const UniversalChat = memo(function UniversalChat({
         return;
       }
 
-      const history = await saveSessionPromptHistoryEntry(submittedText, normalizedSessionId);
+      const history = await saveSessionPromptHistoryEntry(
+        submittedText,
+        normalizedSessionStateScopeKey,
+      );
       syncHistoryPrompts(history);
       const nextChatHistory = promptEntriesToSessionChatInputHistory(history);
       sessionChatInputHistoryRef.current = areStringListsEqual(sessionChatInputHistoryRef.current, nextChatHistory)
         ? sessionChatInputHistoryRef.current
         : nextChatHistory;
     },
-    [normalizedSessionId],
+    [normalizedSessionStateScopeKey],
   );
 
   const dispatchDraftMessage = useCallback(async (
@@ -2123,7 +3183,7 @@ export const UniversalChat = memo(function UniversalChat({
 
     try {
       try {
-        await Promise.resolve(onSendMessage(fullText));
+        await Promise.resolve(onSendMessage(fullText, currentComposerSelection));
       } catch (error) {
         setInputValue((previousInputValue) =>
           resolveComposerInputAfterSendFailure(submittedTextSnapshot, previousInputValue),
@@ -2158,6 +3218,7 @@ export const UniversalChat = memo(function UniversalChat({
     }
   }, [
     addToast,
+    currentComposerSelection,
     disabled,
     markQueuedTurnDispatchStarted,
     onSendMessage,
@@ -2192,7 +3253,12 @@ export const UniversalChat = memo(function UniversalChat({
 
     try {
       try {
-        await Promise.resolve(onSendMessage(fullText));
+        await Promise.resolve(
+          onSendMessage(
+            fullText,
+            submittedQueuedMessage.composerSelection ?? currentComposerSelection,
+          ),
+        );
       } catch (error) {
         restoreQueuedMessagesToFront([submittedQueuedMessage]);
         addToast(
@@ -2222,6 +3288,7 @@ export const UniversalChat = memo(function UniversalChat({
     }
   }, [
     addToast,
+    currentComposerSelection,
     disabled,
     markQueuedTurnDispatchStarted,
     onSendMessage,
@@ -2325,7 +3392,7 @@ export const UniversalChat = memo(function UniversalChat({
         return;
       }
 
-      enqueueQueuedMessage(currentInput);
+      enqueueQueuedMessage(currentInput, currentComposerSelection);
       clearInputValue();
       addToast(t('chat.messageQueued'), 'success');
       return;
@@ -2345,7 +3412,7 @@ export const UniversalChat = memo(function UniversalChat({
       );
 
       if (currentInput) {
-        enqueueQueuedMessage(currentInput);
+        enqueueQueuedMessage(currentInput, currentComposerSelection);
         clearInputValue();
         addToast(t('chat.messageQueued'), 'success');
       }
@@ -2961,94 +4028,103 @@ export const UniversalChat = memo(function UniversalChat({
                       onClick={() => {
                         if (disabled) return;
                         if (!showModelMenu) {
-                          setSelectedProvider(currentEngine.id);
+                          setSelectedModelVendor(currentModelVendor);
                         }
                         setShowModelMenu(!showModelMenu);
                       }}
                     >
-                      <WorkbenchCodeEngineIcon engineId={currentEngine.id} />
-                      <span className="text-[11px] font-medium">{currentEngineSummary}</span>
+                      <span className="text-[11px] font-medium">{currentComposerModelLabel}</span>
                       <ChevronDown size={12} />
                     </div>
                     
                     {showModelMenu && !disabled && (
-                      <div ref={modelMenuRef} className="absolute bottom-full left-8 mb-2 w-[320px] bg-[#18181b] border border-white/10 rounded-xl shadow-2xl z-50 flex overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                        {/* Left pane: Providers */}
-                        <div className="w-1/3 bg-[#0e0e11]/50 border-r border-white/5 py-1.5">
-                          {availableEngines.map((provider) => {
-                            const isImplemented = isWorkbenchServerImplementedEngineId(provider.id);
+                      <div ref={modelMenuRef} className="absolute bottom-full left-8 mb-2 w-[440px] bg-[#18181b] border border-white/10 rounded-xl shadow-2xl z-50 flex overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                        <div className="w-[42%] bg-[#0e0e11]/50 border-r border-white/5 py-1.5">
+                          <div className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                            {t('chat.modelVendors')}
+                          </div>
+                          {modelVendorGroups.map((vendorGroup) => {
+                            const isActive = selectedModelVendorGroup?.vendor === vendorGroup.vendor;
                             return (
-                              <div
-                                key={provider.id}
-                                className={`px-3 py-2 text-xs transition-colors flex items-center justify-between ${
-                                  isImplemented
-                                    ? selectedProvider === provider.id
-                                      ? 'bg-white/10 text-white font-medium cursor-pointer'
-                                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5 cursor-pointer'
-                                    : 'text-gray-500 cursor-not-allowed opacity-70'
+                              <button
+                                key={vendorGroup.vendor}
+                                type="button"
+                                className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs transition-colors ${
+                                  isActive
+                                    ? 'bg-white/10 text-white font-medium'
+                                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                                 }`}
-                                onClick={() => {
-                                  if (!isImplemented) {
-                                    addToast(
-                                      t('settings.engines.serverUnavailable', {
-                                        engine: provider.label,
-                                      }),
-                                      'error',
-                                    );
-                                    return;
-                                  }
-
-                                  setSelectedProvider(provider.id);
-                                  setSelectedEngineId?.(provider.id);
-                                }}
+                                onClick={() => setSelectedModelVendor(vendorGroup.vendor)}
                               >
-                                <div className="flex items-center gap-2">
-                                  <WorkbenchCodeEngineIcon engineId={provider.id} />
-                                  <span>{provider.label}</span>
-                                </div>
-                                {!isImplemented && (
-                                  <span className="ml-2 text-[10px] uppercase tracking-wide text-amber-400">
-                                    {t('settings.engines.serverPlanned')}
+                                <div className="min-w-0 flex items-center gap-2">
+                                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white/10 text-[10px] font-semibold text-gray-300">
+                                    {vendorGroup.label.slice(0, 2).toUpperCase()}
                                   </span>
-                                )}
-                              </div>
+                                  <span className="truncate">{vendorGroup.label}</span>
+                                </div>
+                                <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] ${
+                                  isActive
+                                    ? 'bg-blue-500/15 text-blue-200'
+                                    : 'bg-white/5 text-gray-500'
+                                }`}>
+                                  {vendorGroup.models.length}
+                                </span>
+                              </button>
                             );
                           })}
                         </div>
-                        {/* Right pane: Models */}
-                        <div className="w-2/3 py-1.5 max-h-64 overflow-y-auto">
-                          {selectedProviderSupport.implemented ? (
-                            selectedProviderEngine.modelCatalog.map((model) => (
-                              <div 
-                                key={model.id}
-                                className={`px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center justify-between gap-3 mx-1 rounded-md transition-colors text-xs ${selectedProviderModelId === model.id ? 'text-blue-400 font-medium bg-blue-500/10' : 'text-gray-300'}`}
-                                onClick={() => {
-                                  setSelectedModelId?.(model.id, selectedProvider);
-                                  setShowModelMenu(false);
-                                }}
-                              >
-                                <div className="min-w-0 flex items-center gap-2">
-                                  <span className="truncate">{model.label}</span>
-                                  {model.source === 'custom' ? (
-                                    <span className="shrink-0 rounded bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-violet-300">
-                                      {t('settings.engines.customModel')}
-                                    </span>
-                                  ) : null}
-                                </div>
-                                {selectedProviderModelId === model.id && <Check size={14} className="text-blue-400" />}
+                        <div className="w-[58%] py-1.5 max-h-72 overflow-y-auto">
+                          {selectedModelVendorGroup ? (
+                            <>
+                              <div className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                                {selectedModelVendorGroup.label}
                               </div>
-                            ))
+                              {selectedModelVendorGroup.models.map(({ engine, model }) => {
+                                const isSelected =
+                                  engine.id === resolvedSelectedEngineId &&
+                                  model.id.toLowerCase() === currentModelId.toLowerCase();
+                                return (
+                                  <button
+                                    key={`${engine.id}:${model.id}`}
+                                    ref={isSelected ? selectedModelButtonRef : undefined}
+                                    type="button"
+                                    className={`px-3 py-2 hover:bg-white/10 cursor-pointer flex w-[calc(100%-0.5rem)] items-center justify-between gap-3 mx-1 rounded-md transition-colors text-xs ${isSelected ? 'text-blue-400 font-medium bg-blue-500/10' : 'text-gray-300'}`}
+                                    onClick={() => {
+                                      setComposerSelectionOverride(writeComposerModelSelectionOverride({
+                                        engineId: engine.id,
+                                        modelId: model.id,
+                                        scopeKey: normalizedComposerSelectionScopeKey,
+                                      }));
+                                      if (setSelectedModelId) {
+                                        setSelectedModelId(model.id, engine.id);
+                                      } else {
+                                        setSelectedEngineId?.(engine.id);
+                                      }
+                                      setShowModelMenu(false);
+                                    }}
+                                  >
+                                    <div className="min-w-0 flex items-center gap-2">
+                                      <WorkbenchCodeEngineIcon engineId={engine.id} />
+                                      <span className="min-w-0 flex flex-col">
+                                        <span className="truncate">{model.label}</span>
+                                        <span className="truncate text-[10px] font-normal text-gray-500">
+                                          {engine.label}
+                                        </span>
+                                      </span>
+                                      {model.source === 'custom' ? (
+                                        <span className="shrink-0 rounded bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-violet-300">
+                                          {t('settings.engines.customModel')}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    {isSelected && <Check size={14} className="shrink-0 text-blue-400" />}
+                                  </button>
+                                );
+                              })}
+                            </>
                           ) : (
-                            <div className="flex h-full min-h-40 flex-col justify-center gap-3 px-4 py-6 text-sm text-gray-400">
-                              <div className="flex items-center gap-2 text-gray-200">
-                                <WorkbenchCodeEngineIcon engineId={selectedProvider} />
-                                <span className="font-medium">{selectedProviderSupport.engine.label}</span>
-                              </div>
-                              <div className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-3 text-xs leading-relaxed text-gray-400">
-                                {t('chat.engineUnavailableModels', {
-                                  engine: selectedProviderSupport.engine.label,
-                                })}
-                              </div>
+                            <div className="flex h-full min-h-40 flex-col justify-center px-4 py-6 text-sm text-gray-400">
+                              {t('chat.noModelsForVendor')}
                             </div>
                           )}
                         </div>

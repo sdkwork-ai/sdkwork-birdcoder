@@ -1357,6 +1357,8 @@ export interface BirdCoderCodingSessionTurnOptions {
 
 export interface BirdCoderCreateCodingSessionTurnRequest {
   runtimeId?: string;
+  engineId?: BirdCoderCodeEngineKey;
+  modelId?: string;
   requestKind: BirdCoderCodingSessionTurn['requestKind'];
   inputSummary: string;
   stream?: boolean;
@@ -3051,10 +3053,18 @@ export function createBirdCoderGeneratedCoreWriteApiClient({
         inputSummary: normalizeRequiredIdentifier(request.inputSummary, 'inputSummary'),
       };
       const runtimeId = normalizeOptionalText(request.runtimeId);
+      const engineId = normalizeOptionalText(request.engineId);
+      const modelId = normalizeOptionalText(request.modelId);
       const ideContext = request.ideContext;
 
       if (runtimeId) {
         body.runtimeId = runtimeId;
+      }
+      if (engineId) {
+        body.engineId = engineId;
+      }
+      if (modelId) {
+        body.modelId = modelId;
       }
       if (ideContext) {
         body.ideContext = {

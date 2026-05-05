@@ -57,6 +57,7 @@ interface UseCodePageSurfacePropsOptions {
   filteredProjects: BirdCoderProject[];
   isChatBusy: boolean;
   isChatEngineBusy: boolean;
+  isEngineBusyCurrentSession: boolean;
   isDebugConfigVisible: boolean;
   isFindVisible: boolean;
   isMountRecoveryActionPending: boolean;
@@ -64,7 +65,6 @@ interface UseCodePageSurfacePropsOptions {
   isRunConfigVisible: boolean;
   isRunTaskVisible: boolean;
   isSearchingFiles: boolean;
-  isSelectedSessionEngineBusy: boolean;
   isSidebarVisible: boolean;
   isTerminalOpen: boolean;
   isVisible: boolean;
@@ -81,9 +81,13 @@ interface UseCodePageSurfacePropsOptions {
   selectedEngineId: string;
   selectedFile?: string | null;
   selectedModelId: string;
+  selectedSessionLastTurnAt?: string | null;
   selectedSessionTitle?: string;
   selectedSessionEngineId?: string;
   selectedSessionModelId?: string;
+  selectedSessionRuntimeStatus?: string;
+  selectedSessionTranscriptUpdatedAt?: string | null;
+  selectedSessionUpdatedAt?: string;
   sessionId: string | null;
   showComposerEngineSelector: boolean;
   sidebarWidth: number;
@@ -105,14 +109,16 @@ interface UseCodePageSurfacePropsOptions {
   onCloseTerminal: NonNullable<CodeTerminalIntegrationPanelComponentProps['onClose']>;
   onConfirmDelete: NonNullable<CodePageDialogsComponentProps['onConfirmDelete']>;
   onCopyCodingSessionDeeplink: NonNullable<ProjectExplorerProps['onCopyCodingSessionDeeplink']>;
+  onCopyCodingSessionResumeCommand:
+    NonNullable<ProjectExplorerProps['onCopyCodingSessionResumeCommand']>;
   onCopyCodingSessionSessionId: NonNullable<ProjectExplorerProps['onCopyCodingSessionSessionId']>;
   onCopyCodingSessionWorkingDirectory:
     NonNullable<ProjectExplorerProps['onCopyCodingSessionWorkingDirectory']>;
   onCopyProjectPath: NonNullable<ProjectExplorerProps['onCopyProjectPath']>;
   onCopyWorkingDirectory: NonNullable<ProjectExplorerProps['onCopyWorkingDirectory']>;
+  onCreateCodingSession: TopBarComponentProps['onCreateCodingSession'];
   onCreateFile: CodeEditorWorkspacePanelProps['onCreateFile'];
   onCreateFolder: CodeEditorWorkspacePanelProps['onCreateFolder'];
-  onCreateNewSession: TopBarComponentProps['onCreateNewSession'];
   onCreateRootFile: CodeEditorWorkspacePanelProps['onCreateRootFile'];
   onCloseProjectGitOverviewDrawer: () => void;
   onDeleteCodingSession: NonNullable<ProjectExplorerProps['onDeleteCodingSession']>;
@@ -187,6 +193,7 @@ export function useCodePageSurfaceProps({
   filteredProjects,
   isChatBusy,
   isChatEngineBusy,
+  isEngineBusyCurrentSession,
   isDebugConfigVisible,
   isFindVisible,
   isMountRecoveryActionPending,
@@ -194,7 +201,6 @@ export function useCodePageSurfaceProps({
   isRunConfigVisible,
   isRunTaskVisible,
   isSearchingFiles,
-  isSelectedSessionEngineBusy,
   isSidebarVisible,
   isTerminalOpen,
   isVisible,
@@ -211,9 +217,13 @@ export function useCodePageSurfaceProps({
   selectedEngineId,
   selectedFile,
   selectedModelId,
+  selectedSessionLastTurnAt,
   selectedSessionTitle,
   selectedSessionEngineId,
   selectedSessionModelId,
+  selectedSessionRuntimeStatus,
+  selectedSessionTranscriptUpdatedAt,
+  selectedSessionUpdatedAt,
   sessionId,
   showComposerEngineSelector,
   sidebarWidth,
@@ -235,13 +245,14 @@ export function useCodePageSurfaceProps({
   onCloseTerminal,
   onConfirmDelete,
   onCopyCodingSessionDeeplink,
+  onCopyCodingSessionResumeCommand,
   onCopyCodingSessionSessionId,
   onCopyCodingSessionWorkingDirectory,
   onCopyProjectPath,
   onCopyWorkingDirectory,
+  onCreateCodingSession,
   onCreateFile,
   onCreateFolder,
-  onCreateNewSession,
   onCreateRootFile,
   onCloseProjectGitOverviewDrawer,
   onDeleteCodingSession,
@@ -293,6 +304,7 @@ export function useCodePageSurfaceProps({
   onViewChangesAndOpenEditor,
   setSearchQuery,
 }: UseCodePageSurfacePropsOptions): CodePageSurfacePropsBundle {
+  const shouldShowCodeComposerModelSelector = showComposerEngineSelector;
   const mainChatMessages =
     activeTab === 'ai' ? selectedCodingSessionMessages : EMPTY_CHAT_MESSAGES;
   const editorChatMessages =
@@ -302,16 +314,22 @@ export function useCodePageSurfaceProps({
       ? `${workspaceId}\u0001${currentProjectId}\u0001${sessionId}`
       : sessionId || undefined;
   const pendingInteractionRefreshToken = useMemo(() => {
-    const lastMessage = selectedCodingSessionMessages[selectedCodingSessionMessages.length - 1];
     return [
       sessionId ?? '',
+      selectedSessionRuntimeStatus ?? '',
+      selectedSessionUpdatedAt ?? '',
+      selectedSessionLastTurnAt ?? '',
+      selectedSessionTranscriptUpdatedAt ?? '',
       isChatBusy ? 'busy' : 'idle',
-      selectedCodingSessionMessages.length,
-      lastMessage?.id ?? '',
-      lastMessage?.content.length ?? 0,
-      lastMessage?.commands?.length ?? 0,
     ].join('\u0001');
-  }, [isChatBusy, selectedCodingSessionMessages, sessionId]);
+  }, [
+    isChatBusy,
+    selectedSessionLastTurnAt,
+    selectedSessionRuntimeStatus,
+    selectedSessionTranscriptUpdatedAt,
+    selectedSessionUpdatedAt,
+    sessionId,
+  ]);
   const {
     onSubmitApprovalDecision,
     onSubmitUserQuestionAnswer,
@@ -319,8 +337,10 @@ export function useCodePageSurfaceProps({
     pendingUserQuestions,
   } = useCodePendingInteractions({
     onRefreshCodingSessionMessages,
+    projectId: currentProjectId,
     refreshToken: pendingInteractionRefreshToken,
     sessionId,
+    sessionScopeKey: transcriptSessionScopeKey,
   });
 
   const projectExplorerProps = useMemo<ProjectExplorerProps>(() => ({
@@ -351,6 +371,7 @@ export function useCodePageSurfaceProps({
     onMarkCodingSessionUnread,
     onCopyCodingSessionWorkingDirectory,
     onCopyCodingSessionSessionId,
+    onCopyCodingSessionResumeCommand,
     onCopyCodingSessionDeeplink,
     onForkCodingSessionLocal,
     onForkCodingSessionNewTree,
@@ -366,6 +387,7 @@ export function useCodePageSurfaceProps({
     onArchiveCodingSession,
     onArchiveProject,
     onCopyCodingSessionDeeplink,
+    onCopyCodingSessionResumeCommand,
     onCopyCodingSessionSessionId,
     onCopyCodingSessionWorkingDirectory,
     onCopyProjectPath,
@@ -467,23 +489,23 @@ export function useCodePageSurfaceProps({
     projectName,
     projectGitOverviewState,
     isProjectGitOverviewDrawerOpen,
-    onCreateNewSession,
     onToggleProjectGitOverviewDrawer,
-    selectedSessionTitle,
-    selectedSessionEngineId,
-    selectedSessionModelId,
-    isSelectedSessionEngineBusy,
+    isEngineBusyCurrentSession,
     selectedEngineId,
     selectedModelId,
+    selectedSessionEngineId,
+    selectedSessionModelId,
+    selectedSessionTitle,
     activeTab,
     setActiveTab: onSetActiveTab,
     isTerminalOpen,
     setIsTerminalOpen: onSetIsTerminalOpen,
+    onCreateCodingSession,
   }), [
     activeTab,
-    isSelectedSessionEngineBusy,
+    isEngineBusyCurrentSession,
     isTerminalOpen,
-    onCreateNewSession,
+    onCreateCodingSession,
     onToggleProjectGitOverviewDrawer,
     onSetActiveTab,
     onSetIsTerminalOpen,
@@ -499,8 +521,8 @@ export function useCodePageSurfaceProps({
   ]);
 
   const mainChatProps = useMemo<UniversalChatComponentProps>(() => ({
-    sessionId: activeTab === 'ai' ? (sessionId || undefined) : undefined,
-    sessionScopeKey: activeTab === 'ai' ? transcriptSessionScopeKey : undefined,
+    sessionId: sessionId || undefined,
+    sessionScopeKey: transcriptSessionScopeKey,
     messages: mainChatMessages,
     pendingApprovals: activeTab === 'ai' ? pendingApprovals : [],
     pendingUserQuestions: activeTab === 'ai' ? pendingUserQuestions : [],
@@ -512,7 +534,7 @@ export function useCodePageSurfaceProps({
     selectedEngineId: selectedSessionEngineId ?? selectedEngineId,
     selectedModelId: selectedSessionModelId ?? selectedModelId,
     showEngineHeader: false,
-    showComposerEngineSelector,
+    showComposerEngineSelector: shouldShowCodeComposerModelSelector,
     setSelectedEngineId: onSelectedEngineIdChange,
     setSelectedModelId: onSelectedModelIdChange,
     layout: 'main',
@@ -545,7 +567,7 @@ export function useCodePageSurfaceProps({
     selectedSessionEngineId,
     selectedSessionModelId,
     sessionId,
-    showComposerEngineSelector,
+    shouldShowCodeComposerModelSelector,
     transcriptSessionScopeKey,
   ]);
 
@@ -560,15 +582,15 @@ export function useCodePageSurfaceProps({
     fileContent,
     explorerWidth: editorExplorerWidth,
     chatWidth,
-    selectedCodingSessionId: activeTab === 'editor' ? sessionId : undefined,
-    selectedCodingSessionScopeKey: activeTab === 'editor' ? transcriptSessionScopeKey : undefined,
+    selectedCodingSessionId: sessionId,
+    selectedCodingSessionScopeKey: transcriptSessionScopeKey,
     messages: editorChatMessages,
     pendingApprovals: activeTab === 'editor' ? pendingApprovals : [],
     pendingUserQuestions: activeTab === 'editor' ? pendingUserQuestions : [],
     chatEmptyState: editorChatEmptyState,
     isBusy: isChatBusy,
     isEngineBusy: isChatEngineBusy,
-    showComposerEngineSelector,
+    showComposerEngineSelector: shouldShowCodeComposerModelSelector,
     selectedEngineId: selectedSessionEngineId ?? selectedEngineId,
     selectedModelId: selectedSessionModelId ?? selectedModelId,
     onSelectFile,
@@ -642,7 +664,7 @@ export function useCodePageSurfaceProps({
     selectedSessionEngineId,
     selectedSessionModelId,
     sessionId,
-    showComposerEngineSelector,
+    shouldShowCodeComposerModelSelector,
     transcriptSessionScopeKey,
     viewingDiff,
   ]);

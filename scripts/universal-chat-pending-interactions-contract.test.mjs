@@ -111,8 +111,8 @@ assert.match(
 
 assert.match(
   codePendingInteractionsSource,
-  /useCodingSessionPendingInteractionState\(sessionId, refreshToken\)/,
-  'Code pending interaction hook must consume the shared combined pending interaction projection hook.',
+  /useCodingSessionPendingInteractionState\(\s*sessionId,\s*refreshToken,\s*sessionScopeKey,\s*projectId,\s*\)/,
+  'Code pending interaction hook must consume the shared combined pending interaction projection hook with the scoped session and project keys.',
 );
 
 assert.match(
@@ -141,8 +141,8 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /useCodingSessionPendingInteractionState\(sessionId \|\| null, pendingInteractionRefreshToken\)/,
-  'StudioPage must consume pending approval and user-question state from the shared combined projection hook.',
+  /useCodingSessionPendingInteractionState\(\s*sessionId \|\| null,\s*pendingInteractionRefreshToken,\s*pendingInteractionScopeKey,\s*currentProjectId,\s*\)/,
+  'StudioPage must consume pending approval and user-question state from the shared combined projection hook with the scoped session and project keys.',
 );
 
 assert.match(

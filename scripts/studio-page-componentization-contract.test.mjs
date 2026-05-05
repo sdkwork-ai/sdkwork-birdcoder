@@ -14,6 +14,17 @@ const studioPagePath = path.join(
 );
 
 const studioPageSource = fs.readFileSync(studioPagePath, 'utf8');
+const studioMainContentSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'packages',
+    'sdkwork-birdcoder-studio',
+    'src',
+    'pages',
+    'StudioMainContent.tsx',
+  ),
+  'utf8',
+);
 const studioPageSize = Buffer.byteLength(studioPageSource, 'utf8');
 
 assert.match(
@@ -24,14 +35,20 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /from '\.\/StudioWorkspaceOverlays';/,
-  'StudioPage must move find-in-files and quick-open overlays into StudioWorkspaceOverlays.',
+  /from '\.\/StudioMainContent';/,
+  'StudioPage must move main workspace chrome into StudioMainContent so StudioPage stays focused on orchestration state.',
 );
 
 assert.match(
-  studioPageSource,
+  studioMainContentSource,
+  /from '\.\/StudioWorkspaceOverlays';/,
+  'StudioMainContent must render find-in-files and quick-open overlays through StudioWorkspaceOverlays.',
+);
+
+assert.match(
+  studioMainContentSource,
   /from '\.\/StudioTerminalIntegrationPanel';/,
-  'StudioPage must render terminal integration through StudioTerminalIntegrationPanel instead of inlining the external terminal boundary.',
+  'StudioMainContent must render terminal integration through StudioTerminalIntegrationPanel instead of inlining the external terminal boundary in StudioPage.',
 );
 
 assert.ok(

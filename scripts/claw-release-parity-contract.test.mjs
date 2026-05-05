@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-const rootDir = process.cwd();
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const clawRootDir = path.resolve(rootDir, '..', 'claw-studio');
 
 function readAppFile(appRootDir, relativePath) {
@@ -18,7 +18,14 @@ function normalizeBirdCoderWorkflowSource(source) {
     .replaceAll('@sdkwork/birdcoder-desktop', 'sdkwork-claw-desktop')
     .replaceAll('birdcoder-container-image', 'claw-container-image')
     .replaceAll('sdkwork-birdcoder', 'claw-studio')
-    .replace(/\n      - name: Smoke finalized release assets\n        run: node scripts\/release\/smoke-finalized-release-assets\.mjs --release-assets-dir release-assets\n/g, '\n')
+    .replaceAll(" --bundles ${{ join(matrix.bundles, ',') }}", '')
+    .replace(/\n\n      - name: Preflight Windows desktop signing environment\n        if: matrix\.platform == 'windows'\n        env:\n          BIRDCODER_WINDOWS_SIGNING_CERT_SHA1: \$\{\{ secrets\.BIRDCODER_WINDOWS_SIGNING_CERT_SHA1 \}\}\n          BIRDCODER_WINDOWS_SIGNING_TIMESTAMP_URL: \$\{\{ secrets\.BIRDCODER_WINDOWS_SIGNING_TIMESTAMP_URL \}\}\n        run: node scripts\/release\/preflight-desktop-signing-environment\.mjs --platform \$\{\{ matrix\.platform \}\} --arch \$\{\{ matrix\.arch \}\} --target \$\{\{ matrix\.target \}\}\n/g, '\n')
+    .replace(/\n\n      - name: Preflight macOS desktop signing environment\n        if: matrix\.platform == 'macos'\n        env:\n          BIRDCODER_MACOS_CODESIGN_IDENTITY: \$\{\{ secrets\.BIRDCODER_MACOS_CODESIGN_IDENTITY \}\}\n          APPLE_ID: \$\{\{ secrets\.APPLE_ID \}\}\n          APPLE_TEAM_ID: \$\{\{ secrets\.APPLE_TEAM_ID \}\}\n          APPLE_APP_SPECIFIC_PASSWORD: \$\{\{ secrets\.APPLE_APP_SPECIFIC_PASSWORD \}\}\n          APP_STORE_CONNECT_API_KEY_ID: \$\{\{ secrets\.APP_STORE_CONNECT_API_KEY_ID \}\}\n          APP_STORE_CONNECT_API_ISSUER_ID: \$\{\{ secrets\.APP_STORE_CONNECT_API_ISSUER_ID \}\}\n          APP_STORE_CONNECT_API_KEY: \$\{\{ secrets\.APP_STORE_CONNECT_API_KEY \}\}\n        run: node scripts\/release\/preflight-desktop-signing-environment\.mjs --platform \$\{\{ matrix\.platform \}\} --arch \$\{\{ matrix\.arch \}\} --target \$\{\{ matrix\.target \}\}\n/g, '\n')
+    .replace(/\n\n      - name: Preflight Linux desktop package metadata environment\n        if: matrix\.platform == 'linux'\n        run: node scripts\/release\/preflight-desktop-signing-environment\.mjs --platform \$\{\{ matrix\.platform \}\} --arch \$\{\{ matrix\.arch \}\} --target \$\{\{ matrix\.target \}\}\n/g, '\n')
+    .replace(/\n\n      - name: Verify desktop installer trust\n        run: node scripts\/release\/verify-desktop-installer-trust\.mjs --platform \$\{\{ matrix\.platform \}\} --arch \$\{\{ matrix\.arch \}\} --target \$\{\{ matrix\.target \}\} --release-assets-dir artifacts\/release\n/g, '\n')
+    .replace(/\n\n      - name: Prove release candidate dry-run success path\n        run: pnpm release:candidate:dry-run\n\n      - name: Upload release candidate dry-run evidence\n        uses: actions\/upload-artifact@v4\n        with:\n          name: release-candidate-dry-run-evidence\n          path: artifacts\/release-candidate-dry-run\n          if-no-files-found: error\n          retention-days: 30\n/g, '\n')
+    .replace(/\n      - name: Smoke finalized release assets\n        run: node scripts\/release\/smoke-finalized-release-assets\.mjs --release-assets-dir release-assets\n/g, '')
+    .replace(/\n{3}      - name: Assert release readiness/g, '\n\n      - name: Assert release readiness')
     .replace(/\n{3}      - name: Render release notes/g, '\n\n      - name: Render release notes')
     .replace(/release_profile:\s*sdkwork-birdcoder/g, 'release_profile: claw-studio');
 }
@@ -36,16 +43,46 @@ function normalizeClawOnlyReleaseWorkflowShape(source) {
     .replace(/\n {8}if: contains\(needs\.prepare\.outputs\.package_profile_included_kernel_ids, 'openclaw'\)/g, '');
 }
 
+function assertBirdCoderDesktopBundleIntentIsExplicit(source) {
+  assert.match(
+    source,
+    /run-desktop-release-build\.mjs --profile .* --phase bundle[\s\S]*--bundles \$\{\{ join\(matrix\.bundles, ','\) \}\}/,
+    'BirdCoder release workflow must pass matrix.bundles explicitly before Claw-shape parity normalization so desktop release coverage cannot drift from Tauri build intent.',
+  );
+}
+
+function assertBirdCoderDesktopInstallerTrustGateIsExplicit(source) {
+  assert.match(
+    source,
+    /package-release-assets\.mjs desktop[\s\S]*verify-desktop-installer-trust\.mjs[\s\S]*smoke-desktop-installers\.mjs/,
+    'BirdCoder release workflow must verify desktop installer trust between packaging and smoke before Claw-shape parity normalization removes this BirdCoder hardening delta.',
+  );
+}
+
+function assertBirdCoderDesktopSigningPreflightGateIsExplicit(source) {
+  assert.match(
+    source,
+    /Preflight Windows desktop signing environment[\s\S]*BIRDCODER_WINDOWS_SIGNING_CERT_SHA1[\s\S]*Preflight macOS desktop signing environment[\s\S]*APPLE_APP_SPECIFIC_PASSWORD[\s\S]*Preflight Linux desktop package metadata environment[\s\S]*Build Claw Studio desktop bundle on Windows/,
+    'BirdCoder release workflow must preflight desktop signing and package metadata environments before Claw-shape parity normalization removes this BirdCoder hardening delta.',
+  );
+}
+
 for (const workflowRelativePath of [
   '.github/workflows/ci.yml',
   '.github/workflows/release.yml',
   '.github/workflows/release-reusable.yml',
 ]) {
+  const birdCoderRawSource = readAppFile(rootDir, workflowRelativePath);
+  if (workflowRelativePath === '.github/workflows/release-reusable.yml') {
+    assertBirdCoderDesktopBundleIntentIsExplicit(birdCoderRawSource);
+    assertBirdCoderDesktopSigningPreflightGateIsExplicit(birdCoderRawSource);
+    assertBirdCoderDesktopInstallerTrustGateIsExplicit(birdCoderRawSource);
+  }
   const clawSource = normalizeClawOnlyReleaseWorkflowShape(
     readAppFile(clawRootDir, workflowRelativePath),
   );
   const birdCoderSource = normalizeClawOnlyReleaseWorkflowShape(
-    normalizeBirdCoderWorkflowSource(readAppFile(rootDir, workflowRelativePath)),
+    normalizeBirdCoderWorkflowSource(birdCoderRawSource),
   );
   assert.equal(
     birdCoderSource,

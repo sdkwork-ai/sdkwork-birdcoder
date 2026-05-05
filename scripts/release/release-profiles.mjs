@@ -104,6 +104,10 @@ const SDKWORK_BIRDCODER_RELEASE_PROFILE = Object.freeze({
   }),
   release: Object.freeze({
     manifestFileName: 'release-manifest.json',
+    manifestChecksumFileName: 'release-manifest.json.sha256.txt',
+    attestationEvidenceFileName: 'release-attestations.json',
+    attestationPredicateType: 'https://slsa.dev/provenance/v1',
+    attestationSignerWorkflowPath: '.github/workflows/release-reusable.yml',
     partialManifestFileName: RELEASE_ASSET_MANIFEST_FILE_NAME,
     globalChecksumsFileName: 'SHA256SUMS.txt',
     enableArtifactAttestations: true,

@@ -14,6 +14,7 @@ import { ProjectGitWorktreeMenu } from './ProjectGitWorktreeMenu';
 export type ProjectGitHeaderControlsVariant = 'topbar' | 'studio';
 
 interface ProjectGitHeaderControlsProps {
+  compactControls?: boolean;
   isOverviewDrawerOpen?: boolean;
   onAnyMenuOpen?: () => void;
   onToggleOverviewDrawer?: () => void;
@@ -26,6 +27,7 @@ interface ProjectGitHeaderControlsProps {
 }
 
 export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
+  compactControls = false,
   isOverviewDrawerOpen = false,
   onAnyMenuOpen,
   onToggleOverviewDrawer,
@@ -81,12 +83,12 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
               : 'border-white/10 bg-[#15161b] text-gray-300 hover:border-white/15 hover:bg-[#1a1b22] hover:text-white'
             : 'cursor-not-allowed border-white/10 bg-[#15161b] text-gray-500 opacity-60'
         }`
-      : `inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/5 transition-colors ${
+      : `inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
           normalizedProjectId
             ? isOverviewDrawerOpen
-              ? 'bg-blue-500/15 text-blue-300 hover:bg-blue-500/20'
-              : 'bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white'
-            : 'cursor-not-allowed bg-white/[0.03] text-gray-500 opacity-60'
+              ? 'bg-blue-500/[0.12] text-blue-300 hover:bg-blue-500/[0.16]'
+              : 'text-gray-300 hover:bg-white/[0.06] hover:text-white'
+            : 'cursor-not-allowed text-gray-500 opacity-60'
         }`;
 
   useEffect(() => {
@@ -152,6 +154,9 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
       );
     }
   }, [addToast, pruneWorktrees, t]);
+  const handleRefreshGitOverview = useCallback(() => {
+    void refreshGitOverview();
+  }, [refreshGitOverview]);
 
   return (
     <>
@@ -189,15 +194,14 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
               onAnyMenuOpen?.();
             }
           }}
-          onRefresh={() => {
-            void refreshGitOverview();
-          }}
+          onRefresh={handleRefreshGitOverview}
           onRequestCreateBranch={() => {
             setNewBranchName('');
             setShowBranchModal(true);
           }}
           onSelectBranch={handleSwitchBranch}
           overview={overview}
+          compact={compactControls}
           variant={variant}
         />
       ) : null}
@@ -219,10 +223,9 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
             }
           }}
           onPrune={handlePruneWorktrees}
-          onRefresh={() => {
-            void refreshGitOverview();
-          }}
+          onRefresh={handleRefreshGitOverview}
           overview={overview}
+          compact={compactControls}
           variant={variant}
           worktrees={worktrees}
         />

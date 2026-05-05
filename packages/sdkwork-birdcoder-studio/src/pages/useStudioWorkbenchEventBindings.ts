@@ -1,10 +1,13 @@
 import {
+  useCallback,
   useEffect,
+  useRef,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
 } from 'react';
 import {
+  buildCodingSessionProjectScopedKey,
   buildProjectCodingSessionIndex,
   buildTerminalProfileBlockedMessage,
   emitOpenTerminalRequest,
@@ -12,6 +15,7 @@ import {
   globalEventBus,
   openTauriShellPath,
   resolveRunConfigurationTerminalLaunch,
+  type BirdCoderProjectCodingSessionIndex,
   type RunConfigurationRecord,
   type TerminalCommandRequest,
 } from '@sdkwork/birdcoder-commons';
@@ -60,6 +64,21 @@ export function useStudioWorkbenchEventBindings({
   setViewingDiff,
   t,
 }: UseStudioWorkbenchEventBindingsOptions) {
+  const projectCodingSessionIndexProjectsRef = useRef(projectsRef.current);
+  const projectCodingSessionIndexRef = useRef<BirdCoderProjectCodingSessionIndex | null>(null);
+
+  const resolveProjectCodingSessionIndex = useCallback(() => {
+    if (
+      projectCodingSessionIndexProjectsRef.current !== projectsRef.current ||
+      !projectCodingSessionIndexRef.current
+    ) {
+      projectCodingSessionIndexProjectsRef.current = projectsRef.current;
+      projectCodingSessionIndexRef.current = buildProjectCodingSessionIndex(projectsRef.current);
+    }
+
+    return projectCodingSessionIndexRef.current;
+  }, [projectsRef]);
+
   useEffect(() => {
     if (!isActive) {
       return undefined;
@@ -94,12 +113,17 @@ export function useStudioWorkbenchEventBindings({
         return;
       }
 
-      const previousCodingSessionId =
-        buildProjectCodingSessionIndex(projectsRef.current).previousCodingSessionIdById.get(
-          activeCodingSessionId,
-        ) ?? null;
-      if (previousCodingSessionId) {
-        selectCodingSessionRef.current(previousCodingSessionId);
+      const activeProjectId = currentProjectIdRef.current;
+      const previousCodingSessionReference =
+        activeProjectId
+          ? resolveProjectCodingSessionIndex().previousCodingSessionReferenceByProjectIdAndId.get(
+              buildCodingSessionProjectScopedKey(activeProjectId, activeCodingSessionId),
+            ) ?? null
+          : null;
+      if (previousCodingSessionReference) {
+        selectCodingSessionRef.current(previousCodingSessionReference.codingSessionId, {
+          projectId: previousCodingSessionReference.projectId,
+        });
       }
     };
     const handleNextCodingSession = () => {
@@ -108,12 +132,17 @@ export function useStudioWorkbenchEventBindings({
         return;
       }
 
-      const nextCodingSessionId =
-        buildProjectCodingSessionIndex(projectsRef.current).nextCodingSessionIdById.get(
-          activeCodingSessionId,
-        ) ?? null;
-      if (nextCodingSessionId) {
-        selectCodingSessionRef.current(nextCodingSessionId);
+      const activeProjectId = currentProjectIdRef.current;
+      const nextCodingSessionReference =
+        activeProjectId
+          ? resolveProjectCodingSessionIndex().nextCodingSessionReferenceByProjectIdAndId.get(
+              buildCodingSessionProjectScopedKey(activeProjectId, activeCodingSessionId),
+            ) ?? null
+          : null;
+      if (nextCodingSessionReference) {
+        selectCodingSessionRef.current(nextCodingSessionReference.codingSessionId, {
+          projectId: nextCodingSessionReference.projectId,
+        });
       }
     };
     const handleRevealInExplorer = async (targetPath: string) => {
@@ -232,6 +261,7 @@ export function useStudioWorkbenchEventBindings({
     defaultWorkingDirectoryRef,
     isActive,
     projectsRef,
+    resolveProjectCodingSessionIndex,
     runConfigurationsRef,
     selectedCodingSessionIdRef,
     selectCodingSessionRef,

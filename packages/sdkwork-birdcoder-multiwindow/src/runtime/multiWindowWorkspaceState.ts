@@ -159,6 +159,11 @@ interface SerializedMultiWindowWorkspaceState {
   value: string;
 }
 
+interface MultiWindowWorkspaceStateSerialization {
+  completeValue: string;
+  durableState: SerializedMultiWindowWorkspaceState | null;
+}
+
 function buildCompactDurableWorkspaceState(
   state: MultiWindowWorkspaceState,
 ): MultiWindowWorkspaceState {
@@ -180,24 +185,33 @@ function buildCompactDurableWorkspaceState(
 
 function serializeMultiWindowWorkspaceStateForDurableStorage(
   state: MultiWindowWorkspaceState,
-): SerializedMultiWindowWorkspaceState | null {
+): MultiWindowWorkspaceStateSerialization {
   const completeState = JSON.stringify(state);
   if (getUtf8ByteLength(completeState) <= MAX_MULTI_WINDOW_DURABLE_WORKSPACE_STATE_BYTES) {
     return {
-      isCompleteState: true,
-      value: completeState,
+      completeValue: completeState,
+      durableState: {
+        isCompleteState: true,
+        value: completeState,
+      },
     };
   }
 
   const compactState = JSON.stringify(buildCompactDurableWorkspaceState(state));
   if (getUtf8ByteLength(compactState) <= MAX_MULTI_WINDOW_DURABLE_WORKSPACE_STATE_BYTES) {
     return {
-      isCompleteState: false,
-      value: compactState,
+      completeValue: completeState,
+      durableState: {
+        isCompleteState: false,
+        value: compactState,
+      },
     };
   }
 
-  return null;
+  return {
+    completeValue: completeState,
+    durableState: null,
+  };
 }
 
 function shouldSkipDurableWorkspaceStateWrite(
@@ -347,16 +361,16 @@ export function writeMultiWindowWorkspaceState(
   }
 
   const storageKey = createMultiWindowWorkspaceStateStorageKey(state.workspaceId);
-  const serializedState = JSON.stringify(state);
-  const durableState = serializeMultiWindowWorkspaceStateForDurableStorage(state);
+  const serializedState = serializeMultiWindowWorkspaceStateForDurableStorage(state);
+  const durableState = serializedState.durableState;
   if (!durableState) {
-    writeVolatileWorkspaceStateFallback(storage, storageKey, serializedState);
+    writeVolatileWorkspaceStateFallback(storage, storageKey, serializedState.completeValue);
     return;
   }
 
   const durableStateBytes = getUtf8ByteLength(durableState.value);
   if (shouldSkipDurableWorkspaceStateWrite(storage, storageKey, durableStateBytes)) {
-    writeVolatileWorkspaceStateFallback(storage, storageKey, serializedState);
+    writeVolatileWorkspaceStateFallback(storage, storageKey, serializedState.completeValue);
     return;
   }
 
@@ -366,11 +380,11 @@ export function writeMultiWindowWorkspaceState(
     if (durableState.isCompleteState) {
       clearVolatileWorkspaceStateFallback(storage, storageKey);
     } else {
-      writeVolatileWorkspaceStateFallback(storage, storageKey, serializedState);
+      writeVolatileWorkspaceStateFallback(storage, storageKey, serializedState.completeValue);
     }
   } catch {
     rememberDurableWorkspaceStateWriteFailure(storage, storageKey, durableStateBytes);
-    writeVolatileWorkspaceStateFallback(storage, storageKey, serializedState);
+    writeVolatileWorkspaceStateFallback(storage, storageKey, serializedState.completeValue);
   }
 }
 

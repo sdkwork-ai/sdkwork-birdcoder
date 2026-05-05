@@ -1820,6 +1820,8 @@ struct CodingSessionTurnOptionsPayload {
 #[serde(rename_all = "camelCase")]
 struct CreateCodingSessionTurnRequest {
     runtime_id: Option<String>,
+    engine_id: Option<String>,
+    model_id: Option<String>,
     request_kind: String,
     input_summary: String,
     stream: Option<bool>,
@@ -1847,6 +1849,8 @@ struct NativeSessionLookupQueryParams {
 
 struct CreateCodingSessionTurnInput {
     runtime_id: Option<String>,
+    engine_id: Option<String>,
+    model_id: Option<String>,
     request_kind: String,
     input_summary: String,
     stream: bool,
@@ -1860,6 +1864,7 @@ struct PendingProjectionTurnExecution {
     turn: CodingSessionTurnPayload,
     operation: OperationPayload,
     native_session_id: Option<String>,
+    turn_model_id: String,
     ide_context: Option<CodingSessionTurnIdeContextPayload>,
     options: Option<CodingSessionTurnOptionsPayload>,
     working_directory: Option<PathBuf>,
@@ -4281,6 +4286,8 @@ impl TryFrom<CreateCodingSessionTurnRequest> for CreateCodingSessionTurnInput {
 
         Ok(Self {
             runtime_id: normalize_optional_string(value.runtime_id),
+            engine_id: normalize_optional_string(value.engine_id),
+            model_id: normalize_optional_string(value.model_id),
             request_kind,
             input_summary,
             stream: true,
@@ -10249,6 +10256,7 @@ fn build_initialized_coding_session_turn_events(
     coding_session_id: &str,
     runtime_id: &str,
     turn_id: &str,
+    turn_model_id: &str,
     request_kind: &str,
     input_summary: &str,
     operation_id: &str,
@@ -10258,6 +10266,7 @@ fn build_initialized_coding_session_turn_events(
 ) -> Vec<CodingSessionEventPayload> {
     let mut started_payload = CodingSessionEventPayloadMap::new();
     insert_payload_string(&mut started_payload, "engineId", session.engine_id.clone());
+    insert_payload_string(&mut started_payload, "modelId", turn_model_id);
     insert_payload_string(&mut started_payload, "requestKind", request_kind);
     insert_payload_string(&mut started_payload, "inputSummary", input_summary);
     insert_payload_string(&mut started_payload, "operationId", operation_id);
@@ -15230,6 +15239,14 @@ impl ProjectionAuthorityState {
             .session
             .clone()
             .ok_or_else(|| format!("coding session {coding_session_id} has no session payload"))?;
+        if let Some(requested_engine_id) = input.engine_id.as_deref() {
+            if !requested_engine_id.eq_ignore_ascii_case(session.engine_id.as_str()) {
+                return Err(format!(
+                    "coding session turn engineId must match session engineId \"{}\".",
+                    session.engine_id
+                ));
+            }
+        }
         resolve_authoritative_engine_runtime_profile(
             session.engine_id.as_str(),
             session.host_mode.as_str(),
@@ -15263,6 +15280,10 @@ impl ProjectionAuthorityState {
             .as_ref()
             .and_then(|runtime| runtime.native_session_id.clone())
             .or_else(|| resolve_native_session_id_from_snapshot(&snapshot));
+        let turn_model_id = input
+            .model_id
+            .clone()
+            .unwrap_or_else(|| session.model_id.clone());
         let turn_id = create_identifier("coding-turn");
         let operation_id = format!("{turn_id}:operation");
         let request_kind = input.request_kind;
@@ -15290,6 +15311,7 @@ impl ProjectionAuthorityState {
             coding_session_id,
             runtime_id.as_str(),
             turn_id.as_str(),
+            turn_model_id.as_str(),
             request_kind.as_str(),
             input_summary.as_str(),
             operation_id.as_str(),
@@ -15341,6 +15363,7 @@ impl ProjectionAuthorityState {
             turn,
             operation,
             native_session_id,
+            turn_model_id,
             ide_context: input.ide_context,
             options: input.options,
             working_directory: working_directory.map(FsPath::to_path_buf),
@@ -23594,12 +23617,24 @@ fn create_native_coding_session_turn(
         },
     )?
     .ok_or_else(|| format!("native coding session {coding_session_id} was not found"))?;
+    if let Some(requested_engine_id) = input.engine_id.as_deref() {
+        if !requested_engine_id.eq_ignore_ascii_case(before_detail.summary.engine_id.as_str()) {
+            return Err(format!(
+                "native coding session turn engineId must match session engineId \"{}\".",
+                before_detail.summary.engine_id
+            ));
+        }
+    }
+    let turn_model_id = input
+        .model_id
+        .clone()
+        .unwrap_or_else(|| before_detail.summary.model_id.clone());
     let started_at = current_session_timestamp();
 
     let _turn_result =
         native_sessions::execute_native_session_turn(&native_sessions::NativeSessionTurnRequest {
             engine_id: before_detail.summary.engine_id.clone(),
-            model_id: before_detail.summary.model_id.clone(),
+            model_id: turn_model_id,
             native_session_id: Some(before_detail.summary.id.clone()),
             request_kind: input.request_kind.clone(),
             input_summary: input.input_summary.clone(),
@@ -24504,7 +24539,7 @@ async fn core_create_turn(
     tokio::spawn(async move {
         let turn_request = native_sessions::NativeSessionTurnRequest {
             engine_id: background_turn.session.engine_id.clone(),
-            model_id: background_turn.session.model_id.clone(),
+            model_id: background_turn.turn_model_id.clone(),
             native_session_id: background_turn.native_session_id.clone(),
             request_kind: background_turn.turn.request_kind.clone(),
             input_summary: background_turn.turn.input_summary.clone(),
@@ -29589,6 +29624,7 @@ exit 1\n"
                 .expect("demo coding session operation")
                 .clone(),
             native_session_id: Some("native-session-awaiting-approval".to_owned()),
+            turn_model_id: "gpt-5-codex".to_owned(),
             ide_context: None,
             options: None,
             working_directory: None,

@@ -150,8 +150,8 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /useEffect\(\(\) => \{\s*setSelectedProvider\(\(previousProvider\) =>\s*previousProvider === resolvedSelectedEngineId\s*\?\s*previousProvider\s*:\s*resolvedSelectedEngineId,\s*\);\s*\}, \[resolvedSelectedEngineId\]\);/s,
-  'UniversalChat should resynchronize its internal provider menu state whenever the externally selected engine changes so session switches cannot leave a stale provider highlighted.',
+  /useEffect\(\(\) => \{\s*setSelectedModelVendor\(\(previousVendor\) =>\s*previousVendor === currentModelVendor \? previousVendor : currentModelVendor,\s*\);\s*\}, \[currentModelVendor, resolvedSelectedEngineId\]\);/s,
+  'UniversalChat should resynchronize its internal model-vendor menu state whenever the externally selected engine changes so session switches cannot leave a stale vendor highlighted.',
 );
 
 assert.match(

@@ -8,7 +8,7 @@ import type {
   BirdCoderSubmitApprovalDecisionRequest,
   BirdCoderSubmitUserQuestionAnswerRequest,
 } from '@sdkwork/birdcoder-types';
-import type { FileNode } from '@sdkwork/birdcoder-ui';
+import type { FileNode, UniversalChatComposerSelection } from '@sdkwork/birdcoder-ui';
 
 export interface CodeEditorWorkspacePanelProps {
   isActive: boolean;
@@ -48,7 +48,10 @@ export interface CodeEditorWorkspacePanelProps {
   onChatResize: (delta: number) => void;
   onSelectedEngineIdChange: (engineId: string) => void;
   onSelectedModelIdChange: (modelId: string, engineId?: string) => void;
-  onSendMessage: (text?: string) => void | Promise<void>;
+  onSendMessage: (
+    text?: string,
+    composerSelection?: UniversalChatComposerSelection,
+  ) => void | Promise<void>;
   onSubmitApprovalDecision: (
     approvalId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
@@ -85,7 +88,10 @@ export interface WorkspaceChatProps {
   onRestoreMessage: (messageId: string) => void;
   onSelectedEngineIdChange: (engineId: string) => void;
   onSelectedModelIdChange: (modelId: string, engineId?: string) => void;
-  onSendMessage: (text?: string) => void | Promise<void>;
+  onSendMessage: (
+    text?: string,
+    composerSelection?: UniversalChatComposerSelection,
+  ) => void | Promise<void>;
   onSubmitApprovalDecision: (
     approvalId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,

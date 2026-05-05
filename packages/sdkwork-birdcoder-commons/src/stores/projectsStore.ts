@@ -226,12 +226,20 @@ function filterCodingSessionMessagesForStore(
     return [];
   }
 
-  const scopedMessages = messages.filter(
-    (message) => message.codingSessionId.trim() === normalizedCodingSessionId,
-  );
-  return scopedMessages.length === messages.length
-    ? (messages as BirdCoderChatMessage[])
-    : scopedMessages;
+  let scopedMessages: BirdCoderChatMessage[] | null = null;
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index]!;
+    if (message.codingSessionId.trim() === normalizedCodingSessionId) {
+      scopedMessages?.push(message);
+      continue;
+    }
+
+    if (!scopedMessages) {
+      scopedMessages = messages.slice(0, index) as BirdCoderChatMessage[];
+    }
+  }
+
+  return scopedMessages ?? (messages as BirdCoderChatMessage[]);
 }
 
 function normalizeCodingSessionMessagesForStore(
@@ -245,6 +253,20 @@ function normalizeCodingSessionMessagesForStore(
 
 interface CloneCodingSessionForStoreOptions {
   preserveEmptyMessages?: boolean;
+  projectId?: string;
+}
+
+function normalizeCodingSessionProjectScope(
+  codingSession: BirdCoderCodingSession,
+  projectId?: string,
+): BirdCoderCodingSession {
+  const normalizedProjectId = projectId?.trim() ?? '';
+  return normalizedProjectId && codingSession.projectId !== normalizedProjectId
+    ? {
+        ...codingSession,
+        projectId: normalizedProjectId,
+      }
+    : codingSession;
 }
 
 function cloneCodingSessionForStore(
@@ -253,25 +275,29 @@ function cloneCodingSessionForStore(
   options: CloneCodingSessionForStoreOptions = {},
 ): BirdCoderCodingSession {
   const preserveEmptyMessages = options.preserveEmptyMessages ?? true;
+  const projectScopedCodingSession = normalizeCodingSessionProjectScope(
+    codingSession,
+    options.projectId,
+  );
   const incomingMessages =
-    codingSession.messages.length > 0
+    projectScopedCodingSession.messages.length > 0
       ? normalizeCodingSessionMessagesForStore(
-          codingSession.id,
-          codingSession.messages,
+          projectScopedCodingSession.id,
+          projectScopedCodingSession.messages,
         )
-      : (codingSession.messages as BirdCoderChatMessage[]);
+      : (projectScopedCodingSession.messages as BirdCoderChatMessage[]);
   const scopedCodingSession =
-    incomingMessages === codingSession.messages
-      ? codingSession
+    incomingMessages === projectScopedCodingSession.messages
+      ? projectScopedCodingSession
       : {
-          ...codingSession,
+          ...projectScopedCodingSession,
           messages: incomingMessages,
         };
   const messages =
-    codingSession.messages.length === 0
+    projectScopedCodingSession.messages.length === 0
       ? preserveEmptyMessages
         ? normalizeCodingSessionMessagesForStore(
-            codingSession.id,
+            projectScopedCodingSession.id,
             existingCodingSession?.messages ?? [],
           )
         : []
@@ -341,6 +367,7 @@ function sortProjectsForStore(projects: readonly BirdCoderProject[]): BirdCoderP
 }
 
 function reconcileProjectCodingSessionsForStore(
+  projectId: string,
   incomingCodingSessions: readonly BirdCoderCodingSession[],
   existingCodingSessions: readonly BirdCoderCodingSession[],
 ): BirdCoderCodingSession[] {
@@ -354,6 +381,7 @@ function reconcileProjectCodingSessionsForStore(
       codingSession,
       nextCodingSessionsById.get(codingSession.id) ??
         existingCodingSessionsById.get(codingSession.id),
+      { projectId },
     );
     nextCodingSessionsById.set(codingSession.id, mergedCodingSession);
   });
@@ -371,6 +399,7 @@ function mergeProjectForStore(
       ? existingProject!.codingSessions
       : incomingProject.codingSessions;
   const nextCodingSessions = reconcileProjectCodingSessionsForStore(
+    incomingProject.id,
     incomingProjectCodingSessions,
     existingProject?.codingSessions ?? [],
   );
@@ -463,35 +492,61 @@ export function upsertCodingSessionIntoCollection(
   projectId: string,
   codingSession: BirdCoderCodingSession,
 ): BirdCoderProject[] {
+  const projectIndex = projects.findIndex((project) => project.id === projectId);
+  if (projectIndex < 0) {
+    return projects as BirdCoderProject[];
+  }
+
   const nextTimestamp = new Date().toISOString();
+  const project = projects[projectIndex]!;
+  const existingCodingSessionIndex = project.codingSessions.findIndex(
+    (candidateCodingSession) => candidateCodingSession.id === codingSession.id,
+  );
+  const existingCodingSession =
+    existingCodingSessionIndex >= 0
+      ? project.codingSessions[existingCodingSessionIndex]
+      : undefined;
+  const nextCodingSession = cloneCodingSessionForStore(
+    codingSession,
+    existingCodingSession,
+    { preserveEmptyMessages: false, projectId },
+  );
+  let unsortedCodingSessions: readonly BirdCoderCodingSession[];
+  if (existingCodingSessionIndex >= 0) {
+    if (project.codingSessions[existingCodingSessionIndex] === nextCodingSession) {
+      unsortedCodingSessions = project.codingSessions;
+    } else {
+      const replacedCodingSessions = [...project.codingSessions];
+      replacedCodingSessions[existingCodingSessionIndex] = nextCodingSession;
+      unsortedCodingSessions = replacedCodingSessions;
+    }
+  } else {
+    unsortedCodingSessions = [
+      ...project.codingSessions,
+      nextCodingSession,
+    ];
+  }
+  const nextCodingSessions = sortCodingSessionsForStore(unsortedCodingSessions);
+  const nextProject = {
+    ...project,
+    codingSessions: nextCodingSessions,
+    updatedAt: codingSession.updatedAt || nextTimestamp,
+  };
+  const mergedProject =
+    areProjectScalarsEqual(project, nextProject) &&
+    project.codingSessions === nextProject.codingSessions
+      ? project
+      : nextProject;
+
+  if (mergedProject === project) {
+    return projects as BirdCoderProject[];
+  }
+
+  const nextProjects = [...projects];
+  nextProjects[projectIndex] = mergedProject;
   return reuseProjectCollectionIfUnchanged(
     projects,
-    sortProjectsForStore(
-      projects.map((project) => {
-        if (project.id !== projectId) {
-          return project;
-        }
-
-        const nextCodingSessions = sortCodingSessionsForStore([
-          ...project.codingSessions.filter(
-            (candidateCodingSession) => candidateCodingSession.id !== codingSession.id,
-          ),
-          cloneCodingSessionForStore(
-            codingSession,
-            project.codingSessions.find(
-              (candidateCodingSession) => candidateCodingSession.id === codingSession.id,
-            ),
-            { preserveEmptyMessages: false },
-          ),
-        ]);
-
-        return {
-          ...project,
-          codingSessions: nextCodingSessions,
-          updatedAt: codingSession.updatedAt || nextTimestamp,
-        };
-      }),
-    ),
+    sortProjectsForStore(nextProjects),
   );
 }
 
@@ -520,38 +575,55 @@ export function updateCodingSessionInCollection(
   codingSessionId: string,
   updater: (codingSession: BirdCoderCodingSession) => BirdCoderCodingSession,
 ): BirdCoderProject[] {
+  const projectIndex = projects.findIndex((project) => project.id === projectId);
+  if (projectIndex < 0) {
+    return projects as BirdCoderProject[];
+  }
+
+  const project = projects[projectIndex]!;
+  const currentCodingSessionIndex = project.codingSessions.findIndex(
+    (candidateCodingSession) => candidateCodingSession.id === codingSessionId,
+  );
+  if (currentCodingSessionIndex < 0) {
+    return projects as BirdCoderProject[];
+  }
+
+  const currentCodingSession = project.codingSessions[currentCodingSessionIndex]!;
+  const nextCodingSession = finalizeCodingSessionForStore(
+    normalizeCodingSessionProjectScope(
+      updater(normalizeCodingSessionProjectScope(currentCodingSession, projectId)),
+      projectId,
+    ),
+  );
+  let unsortedCodingSessions: readonly BirdCoderCodingSession[];
+  if (project.codingSessions[currentCodingSessionIndex] === nextCodingSession) {
+    unsortedCodingSessions = project.codingSessions;
+  } else {
+    const replacedCodingSessions = [...project.codingSessions];
+    replacedCodingSessions[currentCodingSessionIndex] = nextCodingSession;
+    unsortedCodingSessions = replacedCodingSessions;
+  }
+  const nextCodingSessions = sortCodingSessionsForStore(unsortedCodingSessions);
+  const nextProject = {
+    ...project,
+    codingSessions: nextCodingSessions,
+    updatedAt: nextCodingSession.updatedAt || project.updatedAt,
+  };
+  const mergedProject =
+    areProjectScalarsEqual(project, nextProject) &&
+    project.codingSessions === nextProject.codingSessions
+      ? project
+      : nextProject;
+
+  if (mergedProject === project) {
+    return projects as BirdCoderProject[];
+  }
+
+  const nextProjects = [...projects];
+  nextProjects[projectIndex] = mergedProject;
   return reuseProjectCollectionIfUnchanged(
     projects,
-    sortProjectsForStore(
-      projects.map((project) => {
-        if (project.id !== projectId) {
-          return project;
-        }
-
-        const currentCodingSession = project.codingSessions.find(
-          (candidateCodingSession) => candidateCodingSession.id === codingSessionId,
-        );
-        if (!currentCodingSession) {
-          return project;
-        }
-
-        const nextCodingSession = finalizeCodingSessionForStore(
-          updater(currentCodingSession),
-        );
-        const nextCodingSessions = sortCodingSessionsForStore([
-          ...project.codingSessions.filter(
-            (candidateCodingSession) => candidateCodingSession.id !== codingSessionId,
-          ),
-          nextCodingSession,
-        ]);
-
-        return {
-          ...project,
-          codingSessions: nextCodingSessions,
-          updatedAt: nextCodingSession.updatedAt || project.updatedAt,
-        };
-      }),
-    ),
+    sortProjectsForStore(nextProjects),
   );
 }
 
@@ -560,20 +632,30 @@ export function removeCodingSessionFromCollection(
   projectId: string,
   codingSessionId: string,
 ): BirdCoderProject[] {
+  const projectIndex = projects.findIndex((project) => project.id === projectId);
+  if (projectIndex < 0) {
+    return projects as BirdCoderProject[];
+  }
+
+  const project = projects[projectIndex]!;
+  const codingSessionIndex = project.codingSessions.findIndex(
+    (codingSession) => codingSession.id === codingSessionId,
+  );
+  if (codingSessionIndex < 0) {
+    return projects as BirdCoderProject[];
+  }
+
+  const nextCodingSessions = [...project.codingSessions];
+  nextCodingSessions.splice(codingSessionIndex, 1);
+  const nextProjects = [...projects];
+  nextProjects[projectIndex] = {
+    ...project,
+    codingSessions: nextCodingSessions,
+  };
+
   return reuseProjectCollectionIfUnchanged(
     projects,
-    sortProjectsForStore(
-      projects.map((project) =>
-        project.id === projectId
-          ? {
-              ...project,
-              codingSessions: project.codingSessions.filter(
-                (codingSession) => codingSession.id !== codingSessionId,
-              ),
-            }
-          : project,
-      ),
-    ),
+    sortProjectsForStore(nextProjects),
   );
 }
 

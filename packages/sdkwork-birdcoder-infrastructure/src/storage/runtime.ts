@@ -11,7 +11,9 @@ import type { BirdCoderSqlExecutionResult } from './sqlExecutor.ts';
 import type { BirdCoderSqlPlan } from './sqlPlans.ts';
 
 const LOCAL_STORE_NAMESPACE = 'sdkwork-birdcoder';
+const LOCAL_STORE_INDEX_NAMESPACE = `${LOCAL_STORE_NAMESPACE}.index`;
 const inMemoryStorageFallback = new Map<string, string>();
+const inflightReadSqlPlanExecutions = new Map<string, Promise<BirdCoderSqlExecutionResult>>();
 
 type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
 type TauriWindow = Window &
@@ -63,6 +65,10 @@ export function buildLocalStoreKey(scope: string, key: string): string {
   return `${LOCAL_STORE_NAMESPACE}:${scope}:${key}`;
 }
 
+function buildLocalStoreIndexKey(scope: string): string {
+  return `${LOCAL_STORE_INDEX_NAMESPACE}:${encodeURIComponent(scope)}`;
+}
+
 function parseLocalStoreKey(value: string): { key: string; scope: string } | null {
   const prefix = `${LOCAL_STORE_NAMESPACE}:`;
   if (!value.startsWith(prefix)) {
@@ -83,6 +89,77 @@ function parseLocalStoreKey(value: string): { key: string; scope: string } | nul
 
 function isReservedAuthorityLocalStoreKey(key: string): boolean {
   return key.startsWith('table.');
+}
+
+function readBrowserLocalStoreKeyIndex(scope: string): string[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(buildLocalStoreIndexKey(scope));
+    if (!rawValue) {
+      return [];
+    }
+
+    const parsedValue = JSON.parse(rawValue) as unknown;
+    if (!Array.isArray(parsedValue)) {
+      return [];
+    }
+
+    const indexedKeys = new Set<string>();
+    for (const value of parsedValue) {
+      if (typeof value === 'string' && value.trim()) {
+        indexedKeys.add(value);
+      }
+    }
+
+    return [...indexedKeys].sort((left, right) => left.localeCompare(right));
+  } catch {
+    return [];
+  }
+}
+
+function writeBrowserLocalStoreKeyIndex(scope: string, keys: readonly string[]): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    const normalizedKeys = [...new Set(keys.filter((key) => key.trim()))].sort((left, right) =>
+      left.localeCompare(right),
+    );
+    const indexKey = buildLocalStoreIndexKey(scope);
+    if (normalizedKeys.length === 0) {
+      window.localStorage.removeItem(indexKey);
+      return;
+    }
+
+    window.localStorage.setItem(indexKey, JSON.stringify(normalizedKeys));
+  } catch {
+    // Ignore browser storage failures and keep callers non-fatal.
+  }
+}
+
+function addBrowserLocalStoreKeyIndexEntry(scope: string, key: string): void {
+  const indexedKeys = readBrowserLocalStoreKeyIndex(scope);
+  if (indexedKeys.includes(key)) {
+    return;
+  }
+
+  writeBrowserLocalStoreKeyIndex(scope, [...indexedKeys, key]);
+}
+
+function removeBrowserLocalStoreKeyIndexEntry(scope: string, key: string): void {
+  const indexedKeys = readBrowserLocalStoreKeyIndex(scope);
+  if (!indexedKeys.includes(key)) {
+    return;
+  }
+
+  writeBrowserLocalStoreKeyIndex(
+    scope,
+    indexedKeys.filter((indexedKey) => indexedKey !== key),
+  );
 }
 
 export function serializeStoredValue<T>(value: T): string {
@@ -120,6 +197,29 @@ export function hasStoredSqlPlanExecution(): boolean {
   return Boolean(resolveTauriInvokeFromWindow());
 }
 
+function normalizeStoredSqlExecutionResult(
+  result: Partial<BirdCoderSqlExecutionResult>,
+): BirdCoderSqlExecutionResult {
+  return {
+    affectedRowCount: Number(result?.affectedRowCount ?? 0),
+    rows: Array.isArray(result?.rows)
+      ? (result.rows as NonNullable<BirdCoderSqlExecutionResult['rows']>)
+      : undefined,
+  };
+}
+
+function buildInflightReadSqlPlanKey(plan: BirdCoderSqlPlan): string | null {
+  if (plan.intent !== 'read') {
+    return null;
+  }
+
+  try {
+    return stringifyBirdCoderApiJson(plan);
+  } catch {
+    return null;
+  }
+}
+
 export async function executeStoredSqlPlan(
   plan: BirdCoderSqlPlan,
 ): Promise<BirdCoderSqlExecutionResult> {
@@ -128,16 +228,30 @@ export async function executeStoredSqlPlan(
     throw new Error('BirdCoder SQL plan storage bridge is unavailable outside Tauri.');
   }
 
-  const result = await invoke<Partial<BirdCoderSqlExecutionResult>>(
-    'local_sql_execute_plan',
-    { plan },
-  );
-  return {
-    affectedRowCount: Number(result?.affectedRowCount ?? 0),
-    rows: Array.isArray(result?.rows)
-      ? (result.rows as NonNullable<BirdCoderSqlExecutionResult['rows']>)
-      : undefined,
-  };
+  const executePlan = async () =>
+    normalizeStoredSqlExecutionResult(
+      await invoke<Partial<BirdCoderSqlExecutionResult>>(
+        'local_sql_execute_plan',
+        { plan },
+      ),
+    );
+  const inflightReadPlanKey = buildInflightReadSqlPlanKey(plan);
+  if (!inflightReadPlanKey) {
+    return executePlan();
+  }
+
+  const inflightExecution = inflightReadSqlPlanExecutions.get(inflightReadPlanKey);
+  if (inflightExecution) {
+    return inflightExecution;
+  }
+
+  const nextExecution = executePlan().finally(() => {
+    if (inflightReadSqlPlanExecutions.get(inflightReadPlanKey) === nextExecution) {
+      inflightReadSqlPlanExecutions.delete(inflightReadPlanKey);
+    }
+  });
+  inflightReadSqlPlanExecutions.set(inflightReadPlanKey, nextExecution);
+  return nextExecution;
 }
 
 export async function getStoredRawValue(scope: string, key: string): Promise<string | null> {
@@ -204,23 +318,13 @@ function listBrowserStoredRawValues(
   }
 
   try {
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const storedKey = window.localStorage.key(index);
-      if (typeof storedKey !== 'string') {
-        continue;
-      }
-
-      const parsedKey = parseLocalStoreKey(storedKey);
-      if (!parsedKey || parsedKey.scope !== scope) {
-        continue;
-      }
-
-      const value = window.localStorage.getItem(storedKey);
+    for (const key of readBrowserLocalStoreKeyIndex(scope)) {
+      const value = window.localStorage.getItem(buildLocalStoreKey(scope, key));
       if (typeof value !== 'string') {
         continue;
       }
 
-      appendEntry(parsedKey.key, value);
+      appendEntry(key, value);
     }
   } catch {
     return [];
@@ -284,6 +388,7 @@ function setBrowserStoredRawValue(scope: string, key: string, value: string): vo
 
   try {
     window.localStorage.setItem(buildLocalStoreKey(scope, key), value);
+    addBrowserLocalStoreKeyIndexEntry(scope, key);
   } catch {
     // Ignore browser storage failures and keep callers non-fatal.
   }
@@ -313,6 +418,7 @@ function removeBrowserStoredValue(scope: string, key: string): void {
 
   try {
     window.localStorage.removeItem(buildLocalStoreKey(scope, key));
+    removeBrowserLocalStoreKeyIndexEntry(scope, key);
   } catch {
     // Ignore browser storage failures and keep callers non-fatal.
   }

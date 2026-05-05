@@ -42,6 +42,43 @@ assert.match(
 
 assert.match(
   universalChatSource,
+  /const userTranscriptScrollAnimationFrameRef = useRef<number \| null>\(null\);/,
+  'UniversalChat must keep a dedicated animation-frame gate for user scroll ownership updates.',
+);
+
+assert.match(
+  universalChatSource,
+  /const scheduleTranscriptUserScrollSync = useCallback\(\(\) => \{[\s\S]*userTranscriptScrollAnimationFrameRef\.current = window\.requestAnimationFrame\(\(\) => \{[\s\S]*markTranscriptUserScrollIntent\(\);[\s\S]*updateTranscriptStickiness\(\);[\s\S]*\}\);[\s\S]*\}/s,
+  'UniversalChat must batch transcript user-scroll stickiness reads onto animation frames so scroll events do not force repeated layout reads.',
+);
+
+const transcriptScrollHandlerMatch = universalChatSource.match(
+  /const handleTranscriptScroll = \(\) => \{([\s\S]*?)\n    \};\n    const handleTranscriptKeyDown/,
+);
+assert.ok(
+  transcriptScrollHandlerMatch,
+  'UniversalChat must keep transcript scroll ownership in a dedicated handleTranscriptScroll listener.',
+);
+const transcriptScrollHandlerBody = transcriptScrollHandlerMatch[1] ?? '';
+assert.match(
+  transcriptScrollHandlerBody,
+  /scheduleTranscriptUserScrollSync\(\);/,
+  'UniversalChat scroll listeners must schedule user scroll synchronization instead of doing it inline.',
+);
+assert.doesNotMatch(
+  transcriptScrollHandlerBody,
+  /markTranscriptUserScrollIntent\(\);[\s\S]*updateTranscriptStickiness\(\);/s,
+  'UniversalChat scroll listeners must not synchronously read transcript layout on every native scroll event.',
+);
+
+assert.match(
+  universalChatSource,
+  /window\.cancelAnimationFrame\(userTranscriptScrollAnimationFrameRef\.current\);/,
+  'UniversalChat must cancel pending user-scroll animation frames during listener cleanup.',
+);
+
+assert.match(
+  universalChatSource,
   /previousSnapshot === null[\s\S]*scrollTranscriptToBottom\(\);[\s\S]*return;/s,
   'UniversalChat must align the initial hydrated transcript to the bottom during layout instead of waiting for a post-paint smooth scroll.',
 );

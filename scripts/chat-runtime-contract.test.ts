@@ -12,14 +12,21 @@ import {
 } from '../packages/sdkwork-birdcoder-codeengine/src/preferences.ts';
 
 assert.deepEqual(getWorkbenchCodeEngineDefinition('gemini').modelIds, [
-  'gemini',
-  'gemini-1.5-pro',
-  'gemini-1.5-flash',
+  'auto-gemini-3',
+  'auto-gemini-2.5',
+  'gemini-3.1-pro-preview',
+  'gemini-3.1-pro-preview-customtools',
+  'gemini-3.1-flash-lite-preview',
+  'gemini-3-pro-preview',
+  'gemini-3-flash-preview',
+  'gemini-2.5-pro',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
 ]);
 
 const codexEngine = getWorkbenchCodeEngineDefinition('codex');
 
-assert.equal(normalizeWorkbenchCodeModelId('claude-code', 'gpt-4o'), 'claude-code');
+assert.equal(normalizeWorkbenchCodeModelId('claude-code', 'gpt-4o'), 'claude-sonnet-4-6');
 assert.equal(
   normalizeWorkbenchCodeModelId('codex', 'gpt-4o'),
   codexEngine.defaultModelId,
@@ -32,7 +39,7 @@ assert.deepEqual(
   }),
   {
     codeEngineId: 'gemini',
-    codeModelId: 'gemini',
+    codeModelId: 'auto-gemini-3',
   },
 );
 

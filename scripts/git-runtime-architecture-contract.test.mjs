@@ -71,12 +71,33 @@ const codeWorkspacePanelSource = readSource(
   'pages',
   'CodeEditorWorkspacePanel.tsx',
 );
+const codePageSurfaceSource = readSource(
+  'packages',
+  'sdkwork-birdcoder-code',
+  'src',
+  'pages',
+  'CodePageSurface.tsx',
+);
 const studioWorkspacePanelSource = readSource(
   'packages',
   'sdkwork-birdcoder-studio',
   'src',
   'pages',
   'StudioCodeWorkspacePanel.tsx',
+);
+const studioPageSource = readSource(
+  'packages',
+  'sdkwork-birdcoder-studio',
+  'src',
+  'pages',
+  'StudioPage.tsx',
+);
+const studioMainContentSource = readSource(
+  'packages',
+  'sdkwork-birdcoder-studio',
+  'src',
+  'pages',
+  'StudioMainContent.tsx',
 );
 const gitOverviewPanelSource = readSource(
   'packages',
@@ -274,27 +295,45 @@ assert.match(
 );
 
 assert.match(
+  codePageSurfaceSource,
+  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-ui';/s,
+  'Code page surface must import the shared Git overview drawer from the shared UI package.',
+);
+
+assert.match(
+  codePageSurfaceSource,
+  /<ProjectGitOverviewDrawer \{\.\.\.gitOverviewDrawerProps\} \/>/,
+  'Code page surface must mount the authoritative Git overview drawer at the page level instead of inside the editor chat rail.',
+);
+
+assert.doesNotMatch(
   codeWorkspacePanelSource,
-  /import \{ FileExplorer, ProjectGitOverviewPanel, UniversalChat \} from '@sdkwork\/birdcoder-ui';/,
-  'Code editor workspace must import the shared Git overview panel from the shared UI package.',
+  /ProjectGitOverviewPanel|projectGitOverviewState/,
+  'Code editor workspace must not inline Git overview UI or accept Git overview state; the drawer preserves stable editor and chat layout.',
 );
 
 assert.match(
-  codeWorkspacePanelSource,
-  /<div className="flex min-w-0 max-w-full flex-col shrink-0 overflow-hidden bg-\[#0e0e11\]" style=\{\{ width: chatWidth \}\}>\s*\{isActive \? \([\s\S]*<ProjectGitOverviewPanel[\s\S]*projectId=\{currentProjectId\}[\s\S]*projectGitOverviewState=\{projectGitOverviewState\}/s,
-  'Code editor workspace must mount the authoritative Git overview panel at the top of the right-side workbench rail.',
+  studioPageSource,
+  /from '\.\/StudioMainContent';/,
+  'Studio page must delegate code workspace presentation into StudioMainContent.',
 );
 
 assert.match(
+  studioMainContentSource,
+  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-ui';/s,
+  'Studio main content must import the shared Git overview drawer from the shared UI package.',
+);
+
+assert.match(
+  studioMainContentSource,
+  /<ProjectGitOverviewDrawer[\s\S]*projectId=\{currentProjectId \|\| undefined\}[\s\S]*projectGitOverviewState=\{projectGitOverviewState\}/s,
+  'Studio main content must mount the authoritative Git overview drawer at the page level instead of inside the code workspace.',
+);
+
+assert.doesNotMatch(
   studioWorkspacePanelSource,
-  /import[\s\S]*ProjectGitOverviewPanel[\s\S]*from '@sdkwork\/birdcoder-ui';/,
-  'Studio code workspace must import the shared Git overview panel from the shared UI package.',
-);
-
-assert.match(
-  studioWorkspacePanelSource,
-  /\{isActive \? \([\s\S]*<ProjectGitOverviewPanel[\s\S]*bodyMaxHeight=\{200\}[\s\S]*projectId=\{currentProjectId\}[\s\S]*projectGitOverviewState=\{projectGitOverviewState\}/s,
-  'Studio code workspace must mount the authoritative Git overview panel inside the shared code workbench column.',
+  /ProjectGitOverviewPanel|projectGitOverviewState/,
+  'Studio code workspace must not inline Git overview UI or accept Git overview state; the drawer preserves stable code workspace layout.',
 );
 
 assert.match(

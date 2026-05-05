@@ -8,7 +8,33 @@ export interface CodePageProps {
   projectId?: string;
   initialCodingSessionId?: string;
   onProjectChange?: (projectId: string) => void;
-  onCodingSessionChange?: (codingSessionId: string) => void;
+  onCodingSessionChange?: (codingSessionId: string, projectId?: string) => void;
+}
+
+export function resolveCodeProjectPath(projectPath?: string): string | null {
+  const normalizedProjectPath = projectPath?.trim() ?? '';
+  return normalizedProjectPath.length > 0 ? normalizedProjectPath : null;
+}
+
+export function resolveCodeProjectActionTarget<TProject extends { name: string; path?: string }>(
+  project: TProject | null | undefined,
+  addToast: (message: string, type: 'error') => void,
+): { project: TProject; projectPath: string } | null {
+  if (!project) {
+    addToast('Project not found', 'error');
+    return null;
+  }
+
+  const projectPath = resolveCodeProjectPath(project.path);
+  if (!projectPath) {
+    addToast(`Project folder path is unavailable: ${project.name}`, 'error');
+    return null;
+  }
+
+  return {
+    project,
+    projectPath,
+  };
 }
 
 export function CodeSessionTranscriptLoadingState() {

@@ -15,10 +15,69 @@ import { BIRDCODER_STANDARD_DEFAULT_ENGINE_ID } from './catalog.ts';
 
 export type WorkbenchCodeEngineTheme = BirdCoderStandardEngineTheme;
 export type WorkbenchCodeEngineModelSource = 'built-in' | 'custom';
+export const MODEL_VENDOR_VALUES = [
+  'openai',
+  'anthropic',
+  'google',
+  'meta',
+  'deepseek',
+  'mistral',
+  'cohere',
+  'moonshot',
+  'zhipu',
+  'alibaba_qwen',
+  'minimax',
+  'zero_one_ai',
+  'xai',
+  'baidu',
+  'tencent',
+  'bytedance',
+  'stability_ai',
+  'black_forest_labs',
+  'suno',
+  'open_source',
+  'custom',
+  'unknown',
+] as const;
+export type ModelVendor = typeof MODEL_VENDOR_VALUES[number];
+
+const MODEL_VENDOR_LABELS: Record<ModelVendor, string> = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  google: 'Google',
+  meta: 'Meta',
+  deepseek: 'DeepSeek',
+  mistral: 'Mistral AI',
+  cohere: 'Cohere',
+  moonshot: 'Moonshot',
+  zhipu: 'Zhipu',
+  alibaba_qwen: 'Alibaba Qwen',
+  minimax: 'MiniMax',
+  zero_one_ai: '01.AI',
+  xai: 'xAI',
+  baidu: 'Baidu',
+  tencent: 'Tencent',
+  bytedance: 'ByteDance',
+  stability_ai: 'Stability AI',
+  black_forest_labs: 'Black Forest Labs',
+  suno: 'Suno',
+  open_source: 'Open Source',
+  custom: 'Custom',
+  unknown: 'Unknown',
+};
+
+interface WorkbenchCodeModelVendorInput {
+  engineVendor?: string | null;
+  modelId?: string | null;
+  modelLabel?: string | null;
+  providerId?: string | null;
+  source?: WorkbenchCodeEngineModelSource | null;
+}
 
 export interface WorkbenchCodeEngineModelDefinition {
   id: string;
   label: string;
+  modelVendor: ModelVendor;
   providerId?: string;
   source: WorkbenchCodeEngineModelSource;
 }
@@ -79,12 +138,117 @@ interface WorkbenchCodeEngineSettingsInput {
   defaultModelId?: string | null;
 }
 
+function normalizeVendorSearchText(value: string | null | undefined): string {
+  return value?.trim().toLowerCase().replace(/[_\s.]+/g, '-') ?? '';
+}
+
+function includesVendorToken(searchText: string, tokens: readonly string[]): boolean {
+  return tokens.some((token) => searchText.includes(token));
+}
+
+export function getWorkbenchModelVendorLabel(modelVendor: ModelVendor): string {
+  return MODEL_VENDOR_LABELS[modelVendor] ?? MODEL_VENDOR_LABELS.unknown;
+}
+
+export function resolveWorkbenchCodeModelVendor({
+  engineVendor,
+  modelId,
+  modelLabel,
+  providerId,
+  source,
+}: WorkbenchCodeModelVendorInput): ModelVendor {
+  if (source === 'custom' || normalizeVendorSearchText(providerId) === 'custom') {
+    return 'custom';
+  }
+
+  const searchText = [
+    providerId,
+    modelId,
+    modelLabel,
+    engineVendor,
+  ]
+    .map(normalizeVendorSearchText)
+    .filter(Boolean)
+    .join(' ');
+
+  if (includesVendorToken(searchText, ['openai', 'gpt-', 'gpt-oss', 'codex', 'o1', 'o3', 'o4'])) {
+    return 'openai';
+  }
+  if (includesVendorToken(searchText, ['anthropic', 'claude'])) {
+    return 'anthropic';
+  }
+  if (includesVendorToken(searchText, ['google', 'gemini'])) {
+    return 'google';
+  }
+  if (includesVendorToken(searchText, ['meta', 'llama'])) {
+    return 'meta';
+  }
+  if (includesVendorToken(searchText, ['deepseek'])) {
+    return 'deepseek';
+  }
+  if (includesVendorToken(searchText, ['mistral', 'pixtral'])) {
+    return 'mistral';
+  }
+  if (includesVendorToken(searchText, ['cohere', 'command-r'])) {
+    return 'cohere';
+  }
+  if (includesVendorToken(searchText, ['moonshot', 'kimi'])) {
+    return 'moonshot';
+  }
+  if (includesVendorToken(searchText, ['zhipu', 'glm'])) {
+    return 'zhipu';
+  }
+  if (includesVendorToken(searchText, ['alibaba', 'qwen'])) {
+    return 'alibaba_qwen';
+  }
+  if (includesVendorToken(searchText, ['minimax'])) {
+    return 'minimax';
+  }
+  if (includesVendorToken(searchText, ['zero-one', 'yi-'])) {
+    return 'zero_one_ai';
+  }
+  if (includesVendorToken(searchText, ['xai', 'grok'])) {
+    return 'xai';
+  }
+  if (includesVendorToken(searchText, ['baidu', 'ernie'])) {
+    return 'baidu';
+  }
+  if (includesVendorToken(searchText, ['tencent', 'hunyuan'])) {
+    return 'tencent';
+  }
+  if (includesVendorToken(searchText, ['bytedance', 'doubao'])) {
+    return 'bytedance';
+  }
+  if (includesVendorToken(searchText, ['stability'])) {
+    return 'stability_ai';
+  }
+  if (includesVendorToken(searchText, ['black-forest', 'flux'])) {
+    return 'black_forest_labs';
+  }
+  if (includesVendorToken(searchText, ['suno'])) {
+    return 'suno';
+  }
+  if (includesVendorToken(searchText, ['open-source', 'oss', 'nemotron'])) {
+    return 'open_source';
+  }
+
+  return 'unknown';
+}
+
 function toWorkbenchCodeEngineModelDefinition(
   value: BirdCoderModelCatalogEntry,
+  engineVendor: string,
 ): WorkbenchCodeEngineModelDefinition {
   return {
     id: value.modelId,
     label: value.displayName,
+    modelVendor: resolveWorkbenchCodeModelVendor({
+      engineVendor,
+      modelId: value.modelId,
+      modelLabel: value.displayName,
+      providerId: value.providerId,
+      source: 'built-in',
+    }),
     providerId: value.providerId,
     source: 'built-in',
   };
@@ -102,7 +266,9 @@ export const WORKBENCH_CODE_ENGINES: ReadonlyArray<WorkbenchCodeEngineDefinition
     vendor: engine.descriptor.vendor,
     defaultModelId: engine.defaultModelId,
     modelIds: [...engine.modelIds],
-    modelCatalog: engine.modelCatalog.map(toWorkbenchCodeEngineModelDefinition),
+    modelCatalog: engine.modelCatalog.map((model) =>
+      toWorkbenchCodeEngineModelDefinition(model, engine.descriptor.vendor),
+    ),
     accessPlan: engine.accessPlan,
     primaryAccessLane: engine.primaryAccessLane,
     executionTopology: engine.executionTopology,
@@ -218,6 +384,7 @@ function buildMergedEngineDefinition(
     ...customModels.map((model) => ({
       id: model.id,
       label: model.label,
+      modelVendor: 'custom' as const,
       source: 'custom' as const,
     })),
   ];

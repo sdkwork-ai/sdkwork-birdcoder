@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { Hexagon } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { ChatSkill } from './UniversalChat';
+import { resolveSafeMarkdownHref } from './markdownLinkSecurity';
 
 export interface UniversalChatMarkdownProps {
   content: string;
@@ -45,14 +46,17 @@ export function UniversalChatMarkdown({
   skills = [],
   mode = 'rich',
 }: UniversalChatMarkdownProps) {
-  if (mode === 'basic') {
-    return <ReactMarkdown>{content}</ReactMarkdown>;
-  }
-
-  const markdownComponents = {
+  const safeLinkComponents = {
     a: ({ node, ...props }: any) => {
-      if (props.href?.startsWith('skill://')) {
-        const skillName = decodeURIComponent(props.href.replace('skill://', '')).trim();
+      const safeHref = resolveSafeMarkdownHref(props.href, {
+        allowSkillLinks: true,
+      });
+      if (!safeHref) {
+        return <span>{props.children}</span>;
+      }
+
+      if (safeHref.startsWith('skill://')) {
+        const skillName = decodeURIComponent(safeHref.replace('skill://', '')).trim();
         const skill =
           skills.find((entry) => entry.name.toLowerCase() === skillName.toLowerCase())
           || {
@@ -70,8 +74,25 @@ export function UniversalChatMarkdown({
         );
       }
 
-      return <a {...props} className="text-blue-400 hover:underline" />;
+      return (
+        <a
+          href={safeHref}
+          rel="noopener noreferrer"
+          target="_blank"
+          className="text-blue-400 hover:underline"
+        >
+          {props.children}
+        </a>
+      );
     },
+  };
+
+  if (mode === 'basic') {
+    return <ReactMarkdown components={safeLinkComponents}>{content}</ReactMarkdown>;
+  }
+
+  const markdownComponents = {
+    ...safeLinkComponents,
     code: ({ node, inline, className, children, ...props }: any) => {
       const match = /language-(\w+)/.exec(className || '');
       const language = match ? match[1] : '';

@@ -1,5 +1,19 @@
 import { memo, useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronDown, CheckCircle2, Share, Upload, Terminal, X, Copy, Globe, Lock, Loader2 } from 'lucide-react';
+import {
+  Bot,
+  ChevronDown,
+  CheckCircle2,
+  Copy,
+  FileCode2,
+  Globe,
+  Loader2,
+  Lock,
+  Share,
+  Smartphone,
+  Terminal,
+  Upload,
+  X,
+} from 'lucide-react';
 import type {
   BirdCoderDeploymentTargetSummary,
   BirdCoderProjectCollaboratorSummary,
@@ -7,9 +21,7 @@ import type {
   BirdCoderReleaseSummary,
 } from '@sdkwork/birdcoder-types';
 import {
-  getWorkbenchCodeEngineSessionSummary,
-} from '@sdkwork/birdcoder-codeengine';
-import {
+  copyTextToClipboard,
   ProjectGitHeaderControls,
   WorkbenchNewSessionButton,
 } from '@sdkwork/birdcoder-ui';
@@ -19,13 +31,13 @@ import {
   type ProjectGitOverviewViewState,
   useProjectGitMutationActions,
   useProjectGitOverview,
-  useWorkbenchPreferences,
   useIDEServices,
   useToast,
 } from '@sdkwork/birdcoder-commons';
 import { useTranslation } from 'react-i18next';
 
 type PublishTargetMode = 'existing' | 'new';
+type TopBarDensity = 'regular' | 'balanced' | 'compact' | 'minimal';
 
 const PUBLISH_ENVIRONMENT_OPTIONS: Array<{
   value: BirdCoderDeploymentTargetSummary['environmentKey'];
@@ -71,58 +83,74 @@ function resolveDefaultPublishTargetName(
   return runtime === 'web' ? 'SDKWORK Cloud Web' : `${projectName?.trim() || 'App'} Production`;
 }
 
+function resolveTopBarDensity(width: number): TopBarDensity {
+  if (width >= 1180) {
+    return 'regular';
+  }
+  if (width >= 960) {
+    return 'balanced';
+  }
+  if (width >= 720) {
+    return 'compact';
+  }
+  return 'minimal';
+}
+
 interface TopBarProps {
   projectId?: string;
   projectName?: string;
   projectPath?: string;
   isProjectGitOverviewDrawerOpen: boolean;
-  onCreateNewSession: (engineId?: string, modelId?: string) => void | Promise<void>;
   onToggleProjectGitOverviewDrawer: () => void;
-  selectedSessionTitle?: string;
-  selectedSessionEngineId?: string;
-  selectedSessionModelId?: string;
-  isSelectedSessionEngineBusy: boolean;
+  isEngineBusyCurrentSession?: boolean;
   selectedEngineId: string;
   selectedModelId: string;
+  selectedSessionEngineId?: string;
+  selectedSessionModelId?: string;
+  selectedSessionTitle?: string;
   projectGitOverviewState?: ProjectGitOverviewViewState;
   activeTab: 'ai' | 'editor' | 'mobile';
   setActiveTab: (tab: 'ai' | 'editor' | 'mobile') => void;
   isTerminalOpen: boolean;
   setIsTerminalOpen: (isOpen: boolean) => void;
+  onCreateCodingSession: (engineId: string, modelId: string) => void | Promise<void>;
 }
 
 function TopBarComponent({
   projectId,
   projectName,
   isProjectGitOverviewDrawerOpen,
-  onCreateNewSession,
   onToggleProjectGitOverviewDrawer,
-  selectedSessionTitle,
-  selectedSessionEngineId,
-  selectedSessionModelId,
-  isSelectedSessionEngineBusy,
+  isEngineBusyCurrentSession = false,
   selectedEngineId,
   selectedModelId,
+  selectedSessionEngineId,
+  selectedSessionModelId,
+  selectedSessionTitle,
   projectGitOverviewState,
   activeTab,
   setActiveTab,
   isTerminalOpen,
   setIsTerminalOpen,
+  onCreateCodingSession,
 }: TopBarProps) {
   const [showSubmitMenu, setShowSubmitMenu] = useState(false);
+  const [topBarDensity, setTopBarDensity] = useState<TopBarDensity>('compact');
+  const topBarRef = useRef<HTMLDivElement>(null);
   const submitMenuRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
   const { t } = useTranslation();
-  const { preferences } = useWorkbenchPreferences();
-  const headerEngineSummary = selectedSessionEngineId?.trim()
-    ? getWorkbenchCodeEngineSessionSummary(
-        selectedSessionEngineId,
-        selectedSessionModelId,
-        preferences,
-      )
-    : getWorkbenchCodeEngineSessionSummary(selectedEngineId, selectedModelId, preferences);
-  const isEngineBusyCurrentSession = isSelectedSessionEngineBusy;
-  const isNewSessionEnabled = !!projectId?.trim();
+  const showSessionTitle = topBarDensity !== 'minimal';
+  const showTabLabels = topBarDensity === 'regular' || topBarDensity === 'balanced';
+  const showGitBranchControl = topBarDensity !== 'minimal';
+  const showGitWorktreeControl = topBarDensity !== 'minimal';
+  const useCompactGitControls = topBarDensity !== 'regular';
+  const showCommitLabel = topBarDensity === 'regular';
+  const showPrimaryActionLabels = topBarDensity === 'regular';
+  const topBarActionGapClassName = topBarDensity === 'regular' ? 'gap-1.5' : 'gap-1';
+  const projectDisplayLabel = projectName || '-';
+  const sessionDisplayLabel = selectedSessionTitle || '-';
+  const headerTitle = `${projectDisplayLabel} / ${sessionDisplayLabel}`;
   const localProjectGitOverviewState = useProjectGitOverview({
     isActive: !projectGitOverviewState,
     projectId,
@@ -175,6 +203,30 @@ function TopBarComponent({
     applyGitOverview,
     projectId,
   });
+
+  useEffect(() => {
+    const element = topBarRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+
+    const updateDensity = (width: number) => {
+      setTopBarDensity((previousDensity) => {
+        const nextDensity = resolveTopBarDensity(width);
+        return previousDensity === nextDensity ? previousDensity : nextDensity;
+      });
+    };
+
+    updateDensity(element.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      updateDensity(entries[0]?.contentRect.width ?? element.getBoundingClientRect().width);
+    });
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   const applyPublishTargetDraft = useCallback(
     (target?: BirdCoderDeploymentTargetSummary | null) => {
@@ -435,90 +487,131 @@ function TopBarComponent({
 
   return (
     <>
-      <div className="h-12 border-b border-white/5 flex items-center justify-between px-4 text-sm shrink-0 bg-[#0e0e11] relative">
-        <div className="min-w-0 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 fill-mode-both" style={{ animationDelay: '100ms' }}>
-          <div className="min-w-0 flex items-center gap-1.5 overflow-hidden whitespace-nowrap font-medium text-gray-200">
-            <span className="truncate text-sm font-semibold text-gray-200 transition-colors">
-              {projectName || '-'}
+      <div
+        ref={topBarRef}
+        className="relative grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-b border-white/5 bg-[#0e0e11] px-3 text-sm text-gray-100 sm:px-4"
+      >
+        <div
+          className="flex min-w-0 w-full items-center gap-2 overflow-hidden whitespace-nowrap animate-in fade-in slide-in-from-top-2 fill-mode-both"
+          style={{ animationDelay: '100ms' }}
+          title={headerTitle}
+        >
+          <div className="flex min-w-0 items-center gap-1.5 overflow-hidden font-medium text-gray-200">
+            <span className="min-w-0 truncate text-sm font-semibold text-gray-100 transition-colors">
+              {projectDisplayLabel}
             </span>
-            <span className="text-gray-600 text-xs">/</span>
-            <span className="max-w-[150px] truncate whitespace-nowrap text-sm text-gray-400 transition-colors">
-              {selectedSessionTitle || '-'}
-            </span>
-          </div>
-          <div className="hidden min-w-0 items-center gap-2 overflow-hidden text-xs md:flex">
-            <span className="text-gray-700">/</span>
-            <div className="min-w-0 flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-gray-300">
-              <span className="truncate whitespace-nowrap font-medium text-gray-200">
-                {headerEngineSummary}
-              </span>
-            </div>
+            {showSessionTitle ? (
+              <>
+                <span className="shrink-0 text-xs text-gray-600">/</span>
+                <span className="min-w-[4rem] max-w-[13rem] truncate text-sm text-gray-400 transition-colors">
+                  {sessionDisplayLabel}
+                </span>
+              </>
+            ) : null}
             {isEngineBusyCurrentSession && (
-              <div className="hidden items-center gap-1.5 text-xs text-emerald-400 xl:flex">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-emerald-400/20 bg-emerald-400/10 px-1.5 py-0.5 text-[11px] font-medium text-emerald-200">
                 <Loader2 size={12} className="animate-spin" />
                 <span>{t('code.executingSession')}</span>
-              </div>
+              </span>
             )}
           </div>
         </div>
-        
-        <div className="flex items-center gap-1 bg-[#18181b] p-1 rounded-lg border border-white/5 animate-in fade-in slide-in-from-top-2 fill-mode-both" style={{ animationDelay: '125ms' }}>
+
+        <div
+          className="z-10 flex shrink-0 justify-self-center items-center gap-0.5 rounded-lg bg-transparent p-0 animate-in fade-in slide-in-from-top-2 fill-mode-both"
+          style={{ animationDelay: '125ms' }}
+          aria-label="Code view mode"
+        >
           <button
+            type="button"
+            title={t('app.menu.aiMode')}
+            aria-label={t('app.menu.aiMode')}
             onClick={() => setActiveTab('ai')}
-            className={`px-4 py-1 rounded-md text-xs font-medium transition-all duration-200 ${activeTab === 'ai' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
+            className={`inline-flex h-8 items-center justify-center rounded-md text-xs font-medium transition-colors duration-150 ${
+              showTabLabels ? 'min-w-[4.5rem] gap-1.5 px-3' : 'w-8 px-0'
+            } ${activeTab === 'ai' ? 'bg-white/[0.07] text-white' : 'text-gray-400 hover:bg-white/[0.05] hover:text-gray-200'}`}
           >
-            {t('app.menu.aiMode')}
+            <Bot size={14} />
+            {showTabLabels ? <span className="truncate">{t('app.menu.aiMode')}</span> : null}
           </button>
           <button
+            type="button"
+            title={t('app.menu.editorMode')}
+            aria-label={t('app.menu.editorMode')}
             onClick={() => setActiveTab('editor')}
-            className={`px-4 py-1 rounded-md text-xs font-medium transition-all duration-200 ${activeTab === 'editor' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
+            className={`inline-flex h-8 items-center justify-center rounded-md text-xs font-medium transition-colors duration-150 ${
+              showTabLabels ? 'min-w-[4.75rem] gap-1.5 px-3' : 'w-8 px-0'
+            } ${activeTab === 'editor' ? 'bg-white/[0.07] text-white' : 'text-gray-400 hover:bg-white/[0.05] hover:text-gray-200'}`}
           >
-            {t('app.menu.editorMode')}
+            <FileCode2 size={14} />
+            {showTabLabels ? <span className="truncate">{t('app.menu.editorMode')}</span> : null}
           </button>
           <button
+            type="button"
+            title={t('app.menu.mobileCodingMode')}
+            aria-label={t('app.menu.mobileCodingMode')}
             onClick={() => setActiveTab('mobile')}
-            className={`px-4 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-all duration-200 ${activeTab === 'mobile' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
+            className={`inline-flex h-8 items-center justify-center rounded-md text-xs font-medium transition-colors duration-150 ${
+              showTabLabels ? 'min-w-[5.5rem] gap-1.5 px-3' : 'w-8 px-0'
+            } ${activeTab === 'mobile' ? 'bg-white/[0.07] text-white' : 'text-gray-400 hover:bg-white/[0.05] hover:text-gray-200'}`}
           >
-            {t('app.menu.mobileCodingMode')}
+            <Smartphone size={14} />
+            {showTabLabels ? (
+              <span className="truncate">{t('app.menu.mobileCodingMode')}</span>
+            ) : null}
           </button>
         </div>
 
-        <div className="flex items-center gap-3 text-gray-400">
-          <WorkbenchNewSessionButton
-            buttonLabel={t('app.menu.newSession')}
-            currentSessionEngineId={selectedSessionEngineId}
-            currentSessionModelId={selectedSessionModelId}
-            disabled={!isNewSessionEnabled}
-            disabledTitle={t('code.selectProjectFirst')}
-            selectedEngineId={selectedEngineId}
-            selectedModelId={selectedModelId}
-            variant="topbar"
-            onCreateSession={(engineId, modelId) => {
-              void onCreateNewSession(engineId, modelId);
-            }}
-          />
+        <div className={`flex min-w-0 w-full items-center justify-end text-gray-400 ${topBarActionGapClassName}`}>
           <ProjectGitHeaderControls
+            compactControls={useCompactGitControls}
             isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
             onToggleOverviewDrawer={onToggleProjectGitOverviewDrawer}
             projectId={projectId}
             projectGitOverviewState={resolvedProjectGitOverviewState}
+            showBranchControl={showGitBranchControl}
             showOverviewDrawerToggle={activeTab === 'editor'}
+            showWorktreeControl={showGitWorktreeControl}
             variant="topbar"
             onAnyMenuOpen={() => {
               setShowSubmitMenu(false);
             }}
           />
-          <div className="relative animate-in fade-in slide-in-from-top-2 fill-mode-both" style={{ animationDelay: '200ms' }}>
-            <div 
-              className="flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors px-2 py-1.5 rounded-md hover:bg-white/10"
+          <WorkbenchNewSessionButton
+            buttonLabel={t('app.menu.newSession')}
+            currentSessionEngineId={selectedSessionEngineId}
+            currentSessionModelId={selectedSessionModelId}
+            disabled={!projectId}
+            disabledTitle={t('code.selectProjectFirst')}
+            selectedEngineId={selectedEngineId}
+            selectedModelId={selectedModelId}
+            variant="topbar"
+            onCreateSession={onCreateCodingSession}
+          />
+          <div
+            className="relative animate-in fade-in slide-in-from-top-2 fill-mode-both"
+            style={{ animationDelay: '200ms' }}
+          >
+            <button
+              type="button"
+              title={t('app.menu.commit')}
+              aria-label={t('app.menu.commit')}
+              aria-expanded={showSubmitMenu}
+              className={`inline-flex h-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white ${
+                showCommitLabel ? 'gap-1.5 px-2 text-xs' : 'w-8 px-0'
+              }`}
               onClick={() => {
                 setShowSubmitMenu(!showSubmitMenu);
               }}
             >
               <CheckCircle2 size={14} className="text-gray-400" />
-              <span className="font-medium">{t('app.menu.commit')}</span>
-              <ChevronDown size={14} className="text-gray-500" />
-            </div>
+              {showCommitLabel ? (
+                <>
+                  <span className="font-medium">{t('app.menu.commit')}</span>
+                  <ChevronDown size={14} className="text-gray-500" />
+                </>
+              ) : null}
+            </button>
 
             {showSubmitMenu && (
               <div ref={submitMenuRef} className="absolute right-0 top-full mt-1.5 w-48 bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
@@ -538,35 +631,49 @@ function TopBarComponent({
               </div>
             )}
           </div>
-          
-          <div className="w-px h-4 bg-white/10 mx-1"></div>
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`h-8 px-2 text-xs transition-colors animate-in fade-in slide-in-from-top-2 fill-mode-both ${isTerminalOpen ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300' : 'text-gray-400 hover:text-gray-200 hover:bg-white/10'}`}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            title={t('app.terminal')}
+            aria-label={t('app.terminal')}
+            className={`h-8 text-xs transition-colors animate-in fade-in slide-in-from-top-2 fill-mode-both ${
+              showPrimaryActionLabels ? 'gap-1.5 px-2.5' : 'w-8 px-0'
+            } ${isTerminalOpen ? 'bg-blue-500/[0.12] text-blue-300 hover:bg-blue-500/[0.16] hover:text-blue-200' : 'text-gray-400 hover:bg-white/[0.06] hover:text-gray-200'}`}
             style={{ animationDelay: '225ms' }}
             onClick={() => setIsTerminalOpen(!isTerminalOpen)}
           >
-            <Terminal size={14} className="mr-1.5" /> {t('app.terminal')}
+            <Terminal size={14} />
+            {showPrimaryActionLabels ? <span>{t('app.terminal')}</span> : null}
           </Button>
 
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-8 bg-white/5 border-white/10 hover:bg-white/10 hover:text-white text-xs animate-in fade-in slide-in-from-top-2 fill-mode-both"
+          <Button
+            variant="ghost"
+            size="sm"
+            title={t('app.menu.share')}
+            aria-label={t('app.menu.share')}
+            className={`h-8 text-xs text-gray-400 hover:bg-white/[0.06] hover:text-white animate-in fade-in slide-in-from-top-2 fill-mode-both ${
+              showPrimaryActionLabels ? 'gap-1.5 px-2.5' : 'w-8 px-0'
+            }`}
             style={{ animationDelay: '250ms' }}
             onClick={() => setShowShareModal(true)}
           >
-            <Share size={14} className="mr-1" /> {t('app.menu.share')}
+            <Share size={14} />
+            {showPrimaryActionLabels ? <span>{t('app.menu.share')}</span> : null}
           </Button>
-          <Button 
-            size="sm" 
-            className="h-8 bg-blue-600 hover:bg-blue-500 text-white text-xs animate-in fade-in slide-in-from-top-2 fill-mode-both shadow-sm shadow-blue-900/20"
+          <Button
+            variant="ghost"
+            size="sm"
+            title={t('app.menu.publish')}
+            aria-label={t('app.menu.publish')}
+            className={`h-8 text-xs text-blue-300 hover:bg-blue-500/[0.12] hover:text-blue-100 animate-in fade-in slide-in-from-top-2 fill-mode-both ${
+              showPrimaryActionLabels ? 'gap-1.5 px-2.5' : 'w-8 px-0'
+            }`}
             style={{ animationDelay: '300ms' }}
             onClick={() => setShowPublishModal(true)}
           >
-            <Upload size={14} className="mr-1" /> {t('app.menu.publish')}
+            <Upload size={14} />
+            {showPrimaryActionLabels ? <span>{t('app.menu.publish')}</span> : null}
           </Button>
         </div>
       </div>
@@ -620,8 +727,13 @@ function TopBarComponent({
                     />
                     <Button 
                       onClick={() => {
-                        navigator.clipboard.writeText(`https://ide.sdkwork.com/p/${projectId || 'demo'}`);
-                        addToast(t('code.linkCopied'), 'success');
+                        void copyTextToClipboard(`https://ide.sdkwork.com/p/${projectId || 'demo'}`)
+                          .then((didCopy) => {
+                            addToast(
+                              didCopy ? t('code.linkCopied') : 'Unable to copy project link',
+                              didCopy ? 'success' : 'error',
+                            );
+                          });
                       }}
                       className="bg-[#18181b] hover:bg-white/10 text-white border border-white/10"
                     >

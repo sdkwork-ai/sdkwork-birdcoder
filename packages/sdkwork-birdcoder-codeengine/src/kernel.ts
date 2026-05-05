@@ -140,10 +140,10 @@ function quoteWorkbenchCodeEngineTerminalArg(value: string): string {
   return `"${value.replace(/["\\]/gu, '\\$&')}"`;
 }
 
-export function buildWorkbenchCodeEngineTerminalResumeCommand(input: {
+function buildWorkbenchCodeEngineResumeCommandArgs(input: {
   engineId: string | null | undefined;
   nativeSessionId: string | null | undefined;
-}): string {
+}): readonly string[] {
   const kernel = getWorkbenchCodeEngineKernel(input.engineId);
   const sessionId = resolveBirdCoderCodeEngineNativeSessionLookupId(
     input.nativeSessionId,
@@ -153,12 +153,36 @@ export function buildWorkbenchCodeEngineTerminalResumeCommand(input: {
     throw new Error(`Cannot build ${kernel.id} terminal resume command without a native session id.`);
   }
 
-  return kernel.cli.resumeArgs
-    .map((arg) =>
-      arg === BIRDCODER_CODE_ENGINE_RESUME_SESSION_ARG_TOKEN
-        ? quoteWorkbenchCodeEngineTerminalArg(sessionId)
-        : arg,
-    )
+  return kernel.cli.resumeArgs.map((arg) =>
+    arg === BIRDCODER_CODE_ENGINE_RESUME_SESSION_ARG_TOKEN ? sessionId : arg,
+  );
+}
+
+export function buildWorkbenchCodeEngineTerminalResumeCommand(input: {
+  engineId: string | null | undefined;
+  nativeSessionId: string | null | undefined;
+}): string {
+  return buildWorkbenchCodeEngineResumeCommandArgs(input)
+    .map(quoteWorkbenchCodeEngineTerminalArg)
+    .join(' ');
+}
+
+export function buildWorkbenchCodeEngineCliResumeCommand(input: {
+  engineId: string | null | undefined;
+  nativeSessionId: string | null | undefined;
+}): string {
+  const kernel = getWorkbenchCodeEngineKernel(input.engineId);
+  const resumeArgs = buildWorkbenchCodeEngineResumeCommandArgs({
+    engineId: kernel.id,
+    nativeSessionId: input.nativeSessionId,
+  });
+
+  return [
+    kernel.cli.executable,
+    ...kernel.cli.startupArgs,
+    ...resumeArgs,
+  ]
+    .map(quoteWorkbenchCodeEngineTerminalArg)
     .join(' ');
 }
 

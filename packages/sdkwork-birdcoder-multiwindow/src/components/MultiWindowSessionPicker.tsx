@@ -343,17 +343,22 @@ export const MultiWindowSessionPicker = memo(function MultiWindowSessionPicker({
                       {t('multiWindow.sessionNoMatches')}
                     </div>
                   ) : (
-                    filteredCodingSessions.map((codingSession) => (
-                      <button
-                        key={codingSession.id}
-                        type="button"
-                        className={`mb-2 flex w-full items-start justify-between gap-3 rounded-lg border px-3 py-3 text-left text-xs transition-colors ${
-                          selectedCodingSessionId === codingSession.id
-                            ? 'border-blue-400/40 bg-blue-500/10 text-blue-100'
-                            : 'border-white/10 bg-white/[0.025] text-gray-400 hover:border-white/20 hover:bg-white/[0.055] hover:text-gray-200'
-                        }`}
-                        onClick={() => onSelectSession(activeProjectId, codingSession.id)}
-                      >
+                    filteredCodingSessions.map((codingSession) => {
+                      const isSelectedSession =
+                        selectedProjectId === activeProjectId &&
+                        selectedCodingSessionId === codingSession.id;
+
+                      return (
+                        <button
+                          key={codingSession.id}
+                          type="button"
+                          className={`mb-2 flex w-full items-start justify-between gap-3 rounded-lg border px-3 py-3 text-left text-xs transition-colors ${
+                            isSelectedSession
+                              ? 'border-blue-400/40 bg-blue-500/10 text-blue-100'
+                              : 'border-white/10 bg-white/[0.025] text-gray-400 hover:border-white/20 hover:bg-white/[0.055] hover:text-gray-200'
+                          }`}
+                          onClick={() => onSelectSession(activeProjectId, codingSession.id)}
+                        >
                         <span className="min-w-0 flex-1">
                           <span className="flex min-w-0 items-center gap-2">
                             <span className="truncate text-sm font-medium text-gray-100">{codingSession.title}</span>
@@ -391,11 +396,12 @@ export const MultiWindowSessionPicker = memo(function MultiWindowSessionPicker({
                             </span>
                           </span>
                         </span>
-                        {selectedCodingSessionId === codingSession.id ? (
-                          <Check size={16} className="mt-0.5 shrink-0 text-blue-300" />
-                        ) : null}
-                      </button>
-                    ))
+                          {isSelectedSession ? (
+                            <Check size={16} className="mt-0.5 shrink-0 text-blue-300" />
+                          ) : null}
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               </>

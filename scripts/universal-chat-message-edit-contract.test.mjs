@@ -127,8 +127,8 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /const handleEditMessage = useWorkbenchCodingSessionMessageEditAction\(\{[\s\S]*editCodingSessionMessage,[\s\S]*resolveCodingSessionLocation: resolveSession,[\s\S]*sessionUnavailableMessage: t\('chat\.sendMessageSessionUnavailable'\),[\s\S]*setSelectionRefreshToken,[\s\S]*\}\);/,
-  'CodePage must reuse the shared workbench message edit action instead of carrying a code-only edit hook.',
+  /const handleEditMessage = useWorkbenchCodingSessionMessageEditAction\(\{[\s\S]*editCodingSessionMessage,[\s\S]*resolveCodingSessionLocation: \(codingSessionId: string\) =>\s*resolveSessionActionLocation\(codingSessionId,\s*currentProjectId\),[\s\S]*sessionUnavailableMessage: t\('chat\.sendMessageSessionUnavailable'\),[\s\S]*setSelectionRefreshToken,[\s\S]*\}\);/,
+  'CodePage must reuse the shared workbench message edit action with the current project-scoped session resolver instead of carrying a code-only edit hook.',
 );
 
 assert.doesNotMatch(
@@ -163,8 +163,8 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /const handleEditMessage = useWorkbenchCodingSessionMessageEditAction\(\{[\s\S]*editCodingSessionMessage,[\s\S]*resolveCodingSessionLocation,[\s\S]*sessionUnavailableMessage: t\('chat\.sendMessageSessionUnavailable'\),[\s\S]*setSelectionRefreshToken,[\s\S]*\}\);/,
-  'StudioPage must reuse the shared workbench message edit action instead of inlining edit behavior.',
+  /const handleEditMessage = useWorkbenchCodingSessionMessageEditAction\(\{[\s\S]*editCodingSessionMessage,[\s\S]*resolveCodingSessionLocation: \(codingSessionId: string\) =>\s*resolveCodingSessionLocation\(codingSessionId,\s*currentProjectId\),[\s\S]*sessionUnavailableMessage: t\('chat\.sendMessageSessionUnavailable'\),[\s\S]*setSelectionRefreshToken,[\s\S]*\}\);/,
+  'StudioPage must reuse the shared workbench message edit action with the current project-scoped session resolver instead of inlining edit behavior.',
 );
 
 assert.doesNotMatch(

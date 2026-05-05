@@ -37,6 +37,7 @@ const INITIAL_VISIBLE_SESSIONS_PER_PROJECT = 5;
 const SESSION_EXPANSION_BATCH_SIZE = 10;
 const CHRONOLOGICAL_SESSION_ROW_HEIGHT = 36;
 const CHRONOLOGICAL_WINDOWED_LIST_THRESHOLD = 60;
+const EMPTY_SIDEBAR_CODING_SESSIONS: BirdCoderCodingSession[] = [];
 
 function renderSidebarContextMenuPortal(content: React.ReactNode) {
   if (typeof document === 'undefined') {
@@ -65,6 +66,148 @@ function clampSidebarContextMenuCoordinates(
     x: Math.min(Math.max(x, SIDEBAR_CONTEXT_MENU_MARGIN), maxX),
     y: Math.min(Math.max(y, SIDEBAR_CONTEXT_MENU_MARGIN), maxY),
   };
+}
+
+function buildSidebarSessionRenderKey(session: BirdCoderCodingSession): string {
+  return `${session.projectId}\u0001${session.id}`;
+}
+
+function buildSidebarSessionScopedKey(projectId: string, sessionId: string): string {
+  return `${projectId}\u0001${sessionId}`;
+}
+
+function resolveSidebarSessionProjectId(
+  session: BirdCoderCodingSession,
+  containingProjectId: string,
+): string {
+  return containingProjectId.trim() || session.projectId;
+}
+
+interface SidebarCodingSessionLookup {
+  byProjectIdAndId: Map<string, BirdCoderCodingSession>;
+  uniqueById: Map<string, BirdCoderCodingSession>;
+}
+
+function buildSidebarCodingSessionLookup(
+  projects: readonly BirdCoderProject[],
+): SidebarCodingSessionLookup {
+  const byProjectIdAndId = new Map<string, BirdCoderCodingSession>();
+  const uniqueById = new Map<string, BirdCoderCodingSession>();
+  const ambiguousSessionIds = new Set<string>();
+  for (const project of projects) {
+    for (const codingSession of project.codingSessions) {
+      const scopedProjectId = resolveSidebarSessionProjectId(codingSession, project.id);
+      const scopedCodingSession =
+        scopedProjectId === codingSession.projectId
+          ? codingSession
+          : {
+              ...codingSession,
+              projectId: scopedProjectId,
+            };
+      byProjectIdAndId.set(
+        buildSidebarSessionScopedKey(scopedProjectId, codingSession.id),
+        scopedCodingSession,
+      );
+      if (uniqueById.has(codingSession.id)) {
+        ambiguousSessionIds.add(codingSession.id);
+        uniqueById.delete(codingSession.id);
+      } else if (!ambiguousSessionIds.has(codingSession.id)) {
+        uniqueById.set(codingSession.id, scopedCodingSession);
+      }
+    }
+  }
+  return {
+    byProjectIdAndId,
+    uniqueById,
+  };
+}
+
+function collectSidebarChronologicalSessions(
+  projects: readonly BirdCoderProject[],
+  showArchived: boolean,
+  normalizedSearchQuery: string,
+): BirdCoderCodingSession[] {
+  const sessions: BirdCoderCodingSession[] = [];
+  for (const project of projects) {
+    for (const codingSession of project.codingSessions) {
+      const scopedProjectId = resolveSidebarSessionProjectId(codingSession, project.id);
+      const scopedCodingSession =
+        scopedProjectId === codingSession.projectId
+          ? codingSession
+          : {
+              ...codingSession,
+              projectId: scopedProjectId,
+            };
+      if (!showArchived && codingSession.archived) {
+        continue;
+      }
+      if (
+        normalizedSearchQuery &&
+        !codingSession.title.toLowerCase().includes(normalizedSearchQuery)
+      ) {
+        continue;
+      }
+      sessions.push(scopedCodingSession);
+    }
+  }
+  return deduplicateBirdCoderCodingSessionsForRender(sessions);
+}
+
+function filterSidebarProjectSessions(
+  codingSessions: readonly BirdCoderCodingSession[],
+  showArchived: boolean,
+  normalizedSearchQuery: string,
+): BirdCoderCodingSession[] {
+  if (showArchived && !normalizedSearchQuery) {
+    return codingSessions as BirdCoderCodingSession[];
+  }
+
+  const filteredSessions: BirdCoderCodingSession[] = [];
+  for (const codingSession of codingSessions) {
+    if (!showArchived && codingSession.archived) {
+      continue;
+    }
+    if (
+      normalizedSearchQuery &&
+      !codingSession.title.toLowerCase().includes(normalizedSearchQuery)
+    ) {
+      continue;
+    }
+    filteredSessions.push(codingSession);
+  }
+
+  return filteredSessions;
+}
+
+function sortSidebarSessionsByCreated(
+  codingSessions: readonly BirdCoderCodingSession[],
+): BirdCoderCodingSession[] {
+  return [...codingSessions].sort(
+    (left, right) =>
+      Math.max(0, Date.parse(right.createdAt)) -
+        Math.max(0, Date.parse(left.createdAt)) ||
+      left.id.localeCompare(right.id),
+  );
+}
+
+function sortSidebarSessionsByUpdated(
+  codingSessions: readonly BirdCoderCodingSession[],
+): BirdCoderCodingSession[] {
+  return [...codingSessions].sort((left, right) =>
+    compareBirdCoderSessionSortTimestamp(right, left) ||
+    left.id.localeCompare(right.id),
+  );
+}
+
+function resolveSidebarProjectViewSessions(
+  codingSessions: readonly BirdCoderCodingSession[],
+  sortBy: ProjectExplorerSortBy,
+): BirdCoderCodingSession[] {
+  if (sortBy === 'updated') {
+    return codingSessions as BirdCoderCodingSession[];
+  }
+
+  return sortSidebarSessionsByCreated(codingSessions);
 }
 
 function areSidebarProjectInventoriesEqual(
@@ -116,6 +259,7 @@ function areSidebarPropsEqual(left: ProjectExplorerProps, right: ProjectExplorer
     left.onOpenCodingSessionInTerminal === right.onOpenCodingSessionInTerminal &&
     left.onCopyCodingSessionWorkingDirectory === right.onCopyCodingSessionWorkingDirectory &&
     left.onCopyCodingSessionSessionId === right.onCopyCodingSessionSessionId &&
+    left.onCopyCodingSessionResumeCommand === right.onCopyCodingSessionResumeCommand &&
     left.onCopyCodingSessionDeeplink === right.onCopyCodingSessionDeeplink &&
     left.onForkCodingSessionLocal === right.onForkCodingSessionLocal &&
     left.onForkCodingSessionNewTree === right.onForkCodingSessionNewTree &&
@@ -133,6 +277,9 @@ type SidebarFilteredProjectSessionsEntry = {
   filteredSessions: BirdCoderCodingSession[];
   project: BirdCoderProject;
 };
+
+const EMPTY_SIDEBAR_FILTERED_PROJECT_SESSIONS: SidebarFilteredProjectSessionsEntry[] = [];
+const EMPTY_SIDEBAR_PROJECT_ENTRIES: SidebarProjectEntry[] = [];
 
 export const Sidebar = React.memo(function Sidebar({
   isVisible = true,
@@ -161,6 +308,7 @@ export const Sidebar = React.memo(function Sidebar({
   onOpenCodingSessionInTerminal,
   onCopyCodingSessionWorkingDirectory,
   onCopyCodingSessionSessionId,
+  onCopyCodingSessionResumeCommand,
   onCopyCodingSessionDeeplink,
   onForkCodingSessionLocal,
   onForkCodingSessionNewTree,
@@ -186,7 +334,12 @@ export const Sidebar = React.memo(function Sidebar({
   const refreshSessionsLabel = t('code.refreshSessions');
   const refreshingSessionsLabel = t('code.refreshingSessions');
 
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, codingSessionId: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    codingSessionId: string;
+    projectId: string;
+  } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const [projectContextMenu, setProjectContextMenu] = useState<{ x: number, y: number, projectId: string } | null>(null);
@@ -195,7 +348,10 @@ export const Sidebar = React.memo(function Sidebar({
   const [rootContextMenu, setRootContextMenu] = useState<{ x: number, y: number } | null>(null);
   const rootContextMenuRef = useRef<HTMLDivElement>(null);
 
-  const [renamingCodingSessionId, setRenamingCodingSessionId] = useState<string | null>(null);
+  const [renamingCodingSession, setRenamingCodingSession] = useState<{
+    id: string;
+    projectId: string;
+  } | null>(null);
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -337,18 +493,30 @@ export const Sidebar = React.memo(function Sidebar({
     );
   }, [onSelectProject]);
 
-  const handleSelectCodingSession = useCallback((codingSessionId: string) => {
-    onSelectCodingSession(codingSessionId);
+  const handleSelectCodingSession = useCallback((
+    codingSessionId: string,
+    projectId?: string | null,
+  ) => {
+    onSelectCodingSession(codingSessionId, projectId);
   }, [onSelectCodingSession]);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent, codingSessionId: string) => {
+  const handleContextMenu = useCallback((
+    e: React.MouseEvent,
+    codingSessionId: string,
+    projectId?: string | null,
+  ) => {
     e.preventDefault();
     e.stopPropagation();
     setProjectContextMenu(null);
     setRootContextMenu(null);
 
+    const normalizedProjectId = projectId?.trim() ?? '';
+    if (!normalizedProjectId) {
+      return;
+    }
+
     const position = clampSidebarContextMenuCoordinates(e.clientX, e.clientY, 224, 350);
-    setContextMenu({ ...position, codingSessionId });
+    setContextMenu({ ...position, codingSessionId, projectId: normalizedProjectId });
   }, []);
 
   const handleProjectContextMenu = useCallback((e: React.MouseEvent, projectId: string) => {
@@ -399,15 +567,7 @@ export const Sidebar = React.memo(function Sidebar({
 
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
   const codingSessionLookup = useMemo(
-    () =>
-      new Map(
-        renderProjects.flatMap((project) =>
-          project.codingSessions.map(
-            (codingSession) =>
-              [codingSession.id, codingSession] satisfies [string, BirdCoderCodingSession],
-          ),
-        ),
-      ),
+    () => buildSidebarCodingSessionLookup(renderProjects),
     [renderProjects],
   );
   const projectLookup = useMemo(
@@ -420,9 +580,19 @@ export const Sidebar = React.memo(function Sidebar({
     [renderProjects],
   );
   const selectedContextMenuSession = useMemo(
-    () =>
-      contextMenu ? codingSessionLookup.get(contextMenu.codingSessionId) : undefined,
-    [codingSessionLookup, contextMenu],
+    () => {
+      if (!contextMenu) {
+        return undefined;
+      }
+
+      const scopedProject = projectLookup.get(contextMenu.projectId);
+      return codingSessionLookup.byProjectIdAndId.get(
+        buildSidebarSessionScopedKey(contextMenu.projectId, contextMenu.codingSessionId),
+      ) ?? scopedProject?.codingSessions.find(
+          (codingSession) => codingSession.id === contextMenu.codingSessionId,
+        );
+    },
+    [codingSessionLookup, contextMenu, projectLookup],
   );
   const selectedProjectContextMenuProject = useMemo(
     () =>
@@ -430,9 +600,25 @@ export const Sidebar = React.memo(function Sidebar({
     [projectContextMenu, projectLookup],
   );
   const selectedSidebarCodingSession = useMemo(
-    () =>
-      selectedCodingSessionId ? codingSessionLookup.get(selectedCodingSessionId) ?? null : null,
-    [codingSessionLookup, selectedCodingSessionId],
+    () => {
+      if (!selectedCodingSessionId) {
+        return null;
+      }
+
+      const scopedProject = selectedProjectId
+        ? projectLookup.get(selectedProjectId)
+        : undefined;
+      if (selectedProjectId) {
+        return codingSessionLookup.byProjectIdAndId.get(
+          buildSidebarSessionScopedKey(selectedProjectId, selectedCodingSessionId),
+        ) ?? scopedProject?.codingSessions.find(
+            (codingSession) => codingSession.id === selectedCodingSessionId,
+          ) ?? null;
+      }
+
+      return codingSessionLookup.uniqueById.get(selectedCodingSessionId) ?? null;
+    },
+    [codingSessionLookup, projectLookup, selectedCodingSessionId, selectedProjectId],
   );
   const newSessionEngineCatalog = useMemo(
     () =>
@@ -506,17 +692,22 @@ export const Sidebar = React.memo(function Sidebar({
     setRenamingProjectId(null);
   }, []);
   const handleCodingSessionRenameSubmit = useCallback(
-    (codingSessionId: string, nextValue: string, currentTitle: string) => {
+    (
+      codingSessionId: string,
+      projectId: string,
+      nextValue: string,
+      currentTitle: string,
+    ) => {
       const normalizedValue = nextValue.trim();
       if (normalizedValue && normalizedValue !== currentTitle) {
-        onRenameCodingSession(codingSessionId, normalizedValue);
+        onRenameCodingSession(codingSessionId, projectId, normalizedValue);
       }
-      setRenamingCodingSessionId(null);
+      setRenamingCodingSession(null);
     },
     [onRenameCodingSession],
   );
   const handleCodingSessionRenameCancel = useCallback(() => {
-    setRenamingCodingSessionId(null);
+    setRenamingCodingSession(null);
   }, []);
   const handleCreateEngineSession = useCallback((engineId: string, modelId: string) => {
     if (!selectedProjectId) {
@@ -569,8 +760,8 @@ export const Sidebar = React.memo(function Sidebar({
     t,
   ]);
   const handleStartRenamingCurrentSession = useCallback(
-    (codingSessionId: string, title: string) => {
-      setRenamingCodingSessionId(codingSessionId);
+    (codingSessionId: string, projectId: string, title: string) => {
+      setRenamingCodingSession({ id: codingSessionId, projectId });
       setRenameValue(title);
     },
     [],
@@ -615,61 +806,77 @@ export const Sidebar = React.memo(function Sidebar({
     setShowFilterMenu(false);
     addToast(t('code.showingRelevantSessions'), 'success');
   }, [addToast, t]);
-  const buildSortedCodingSessions = useCallback(
+  const resolveProjectViewSessions = useCallback(
     (codingSessions: readonly BirdCoderCodingSession[]) =>
-      [...codingSessions].sort((left, right) =>
-        sortBy === 'created'
-          ? Math.max(0, Date.parse(right.createdAt)) -
-            Math.max(0, Date.parse(left.createdAt))
-          : compareBirdCoderSessionSortTimestamp(right, left),
-      ),
+      resolveSidebarProjectViewSessions(codingSessions, sortBy),
+    [sortBy],
+  );
+  const sortChronologicalSessions = useCallback(
+    (codingSessions: readonly BirdCoderCodingSession[]) =>
+      sortBy === 'created'
+        ? sortSidebarSessionsByCreated(codingSessions)
+        : sortSidebarSessionsByUpdated(codingSessions),
     [sortBy],
   );
   const filteredProjectSessions = useMemo<SidebarFilteredProjectSessionsEntry[]>(
-    () =>
-      renderProjects
+    () => {
+      if (organizeBy !== 'project') {
+        return EMPTY_SIDEBAR_FILTERED_PROJECT_SESSIONS;
+      }
+
+      return renderProjects
         .filter((project) => showArchived || !project.archived)
         .map((project) => ({
           project,
-          filteredSessions: buildSortedCodingSessions(
-            project.codingSessions
-              .filter((codingSession) => showArchived || !codingSession.archived)
-              .filter(
-                (codingSession) =>
-                  !normalizedSearchQuery ||
-                  codingSession.title.toLowerCase().includes(normalizedSearchQuery),
-              ),
+          filteredSessions: resolveProjectViewSessions(
+            filterSidebarProjectSessions(
+              project.codingSessions,
+              showArchived,
+              normalizedSearchQuery,
+            ),
           ),
         }))
         .filter(
           (entry) => !normalizedSearchQuery || entry.filteredSessions.length > 0,
-        ),
+        );
+    },
     [
-      buildSortedCodingSessions,
       normalizedSearchQuery,
+      organizeBy,
       renderProjects,
+      resolveProjectViewSessions,
       showArchived,
     ],
   );
   const chronologicalSessions = useMemo(
-    () =>
-      buildSortedCodingSessions(
-        deduplicateBirdCoderCodingSessionsForRender(
-          renderProjects
-            .flatMap((project) => project.codingSessions)
-            .filter((codingSession) => showArchived || !codingSession.archived)
-            .filter(
-              (codingSession) =>
-                !normalizedSearchQuery ||
-                codingSession.title.toLowerCase().includes(normalizedSearchQuery),
-            ),
+    () => {
+      if (organizeBy !== 'chronological') {
+        return EMPTY_SIDEBAR_CODING_SESSIONS;
+      }
+
+      return sortChronologicalSessions(
+        collectSidebarChronologicalSessions(
+          renderProjects,
+          showArchived,
+          normalizedSearchQuery,
         ),
-      ),
-    [buildSortedCodingSessions, normalizedSearchQuery, renderProjects, showArchived],
+      );
+    },
+    [
+      normalizedSearchQuery,
+      organizeBy,
+      renderProjects,
+      showArchived,
+      sortChronologicalSessions,
+    ],
   );
   const projectEntries = useMemo<SidebarProjectEntry[]>(
-    () =>
-      filteredProjectSessions
+    () => {
+      if (organizeBy !== 'project') {
+        return EMPTY_SIDEBAR_PROJECT_ENTRIES;
+      }
+
+      return filteredProjectSessions
         .map(({ project, filteredSessions }) => {
           const visibleSessionCount =
             visibleSessionCountByProjectId[project.id] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
@@ -689,10 +896,12 @@ export const Sidebar = React.memo(function Sidebar({
               ? filteredSessions
               : filteredSessions.slice(0, visibleSessionCount),
           };
-        }),
+        });
+    },
     [
       filteredProjectSessions,
       normalizedSearchQuery,
+      organizeBy,
       visibleSessionCountByProjectId,
     ],
   );
@@ -780,14 +989,18 @@ export const Sidebar = React.memo(function Sidebar({
           {organizeBy === 'project' ? (
             projectEntries.map((entry) => {
               const selectedVisibleSessionId = entry.visibleSessions.some(
-                (session) => session.id === selectedCodingSessionId,
+                (session) =>
+                  entry.project.id === selectedProjectId &&
+                  session.id === selectedCodingSessionId,
               )
                 ? selectedCodingSessionId
                 : null;
               const renamingVisibleSessionId = entry.visibleSessions.some(
-                (session) => session.id === renamingCodingSessionId,
+                (session) =>
+                  entry.project.id === renamingCodingSession?.projectId &&
+                  session.id === renamingCodingSession.id,
               )
-                ? renamingCodingSessionId
+                ? renamingCodingSession.id
                 : null;
 
               return (
@@ -843,12 +1056,27 @@ export const Sidebar = React.memo(function Sidebar({
               {visibleChronologicalSessions.map((session) => {
                 return (
                   <ProjectExplorerSessionRow
-                    key={session.id}
+                    key={buildSidebarSessionRenderKey(session)}
                     relativeTimeNow={relativeTimeNow}
                     session={session}
-                    isSelected={selectedCodingSessionId === session.id}
-                    isRenaming={renamingCodingSessionId === session.id}
-                    renameValue={renamingCodingSessionId === session.id ? renameValue : ''}
+                    sessionProjectId={session.projectId}
+                    isSelected={
+                      selectedProjectId
+                        ? selectedCodingSessionId === session.id &&
+                          selectedProjectId === session.projectId
+                        : selectedSidebarCodingSession?.id === session.id &&
+                          selectedSidebarCodingSession.projectId === session.projectId
+                    }
+                    isRenaming={
+                      renamingCodingSession?.projectId === session.projectId &&
+                      renamingCodingSession.id === session.id
+                    }
+                    renameValue={
+                      renamingCodingSession?.projectId === session.projectId &&
+                      renamingCodingSession.id === session.id
+                        ? renameValue
+                        : ''
+                    }
                     paddingClassName="px-2"
                     awaitingApprovalSessionLabel={t('code.awaitingApprovalSession')}
                     awaitingToolSessionLabel={t('code.awaitingToolSession')}
@@ -897,6 +1125,7 @@ export const Sidebar = React.memo(function Sidebar({
             position={contextMenu}
             zIndex={SIDEBAR_CONTEXT_MENU_Z_INDEX}
             sessionId={contextMenu.codingSessionId}
+            projectId={contextMenu.projectId}
             session={selectedContextMenuSession}
             isRefreshing={refreshingCodingSessionId === contextMenu.codingSessionId}
             onClose={() => setContextMenu(null)}
@@ -908,6 +1137,7 @@ export const Sidebar = React.memo(function Sidebar({
             onCopyWorkingDirectory={onCopyCodingSessionWorkingDirectory}
             onOpenInTerminal={onOpenCodingSessionInTerminal}
             onCopySessionId={onCopyCodingSessionSessionId}
+            onCopyResumeCommand={onCopyCodingSessionResumeCommand}
             onCopyDeeplink={onCopyCodingSessionDeeplink}
             onForkLocal={onForkCodingSessionLocal}
             onForkNewTree={onForkCodingSessionNewTree}

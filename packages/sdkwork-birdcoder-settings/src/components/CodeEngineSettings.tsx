@@ -5,9 +5,9 @@ import {
   BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
   hasWorkbenchCodeModel,
   listWorkbenchCodeEngines,
-  listWorkbenchServerImplementedCodeEngines,
   normalizeWorkbenchServerImplementedCodeEngineId,
   resolveWorkbenchServerEngineSupportState,
+  type WorkbenchCodeEngineId,
 } from '@sdkwork/birdcoder-codeengine';
 import {
   removeWorkbenchCodeEngineCustomModel,
@@ -23,6 +23,27 @@ import type { SettingsProps } from './types';
 interface EngineDraftState {
   label: string;
   modelId: string;
+}
+
+type CodeEngineSettingsSelectionProps = {
+  activeEngineId?: WorkbenchCodeEngineId;
+  setActiveEngineId?: (engineId: WorkbenchCodeEngineId) => void;
+};
+
+function listSortedWorkbenchCodeEngines(
+  workbenchPreferences: SettingsProps['workbenchPreferences'],
+) {
+  const listedEngines = [...listWorkbenchCodeEngines(workbenchPreferences)];
+  listedEngines.sort((left, right) => {
+    if (left.id === BIRDCODER_STANDARD_DEFAULT_ENGINE_ID) {
+      return -1;
+    }
+    if (right.id === BIRDCODER_STANDARD_DEFAULT_ENGINE_ID) {
+      return 1;
+    }
+    return left.label.localeCompare(right.label);
+  });
+  return listedEngines;
 }
 
 function formatStrategyLabel(
@@ -126,38 +147,131 @@ function formatTransportLabel(transportKind: string): string {
     .join(' / ');
 }
 
+export function CodeEngineSettingsSidebar({
+  workbenchPreferences,
+  activeEngineId,
+  setActiveEngineId,
+}: Pick<SettingsProps, 'workbenchPreferences'> & {
+  activeEngineId: WorkbenchCodeEngineId;
+  setActiveEngineId: (engineId: WorkbenchCodeEngineId) => void;
+}) {
+  const { t } = useTranslation();
+  const engines = useMemo(
+    () => listSortedWorkbenchCodeEngines(workbenchPreferences),
+    [workbenchPreferences],
+  );
+  const workspaceDefaultEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+    workbenchPreferences?.codeEngineId,
+    workbenchPreferences,
+  );
+  const fallbackActiveEngineId =
+    engines.find((engine) => engine.id === BIRDCODER_STANDARD_DEFAULT_ENGINE_ID)?.id ??
+    engines[0]?.id ??
+    BIRDCODER_STANDARD_DEFAULT_ENGINE_ID;
+
+  useEffect(() => {
+    if (!engines.some((engine) => engine.id === activeEngineId)) {
+      setActiveEngineId(fallbackActiveEngineId);
+    }
+  }, [activeEngineId, engines, fallbackActiveEngineId, setActiveEngineId]);
+
+  return (
+    <aside
+      className="flex h-full w-[300px] shrink-0 flex-col border-r border-white/5 bg-[#0e0e11] text-sm"
+      aria-label={t('settings.engines.sidebarLabel')}
+    >
+      <div className="border-b border-white/10 px-4 py-4">
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          {t('settings.engines.sidebarTitle')}
+        </div>
+        <div className="mt-2 text-sm leading-5 text-gray-400">
+          {t('settings.engines.description')}
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+        {engines.map((engine) => {
+          const engineSupport = resolveWorkbenchServerEngineSupportState(
+            engine.id,
+            workbenchPreferences,
+          );
+          const isActive = activeEngineId === engine.id;
+          const isWorkspaceDefault = workspaceDefaultEngineId === engine.id;
+          return (
+            <button
+              key={engine.id}
+              type="button"
+              onClick={() => setActiveEngineId(engine.id)}
+              aria-current={isActive ? 'page' : undefined}
+              className={`flex w-full items-start gap-3 rounded-lg border px-3 py-3 text-left transition-colors ${
+                isActive
+                  ? 'border-blue-500/40 bg-blue-500/10 text-white'
+                  : 'border-white/10 bg-[#141417] text-gray-300 hover:border-white/20 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <WorkbenchCodeEngineIcon engineId={engine.id} size="md" />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="truncate text-sm font-medium">{engine.label}</span>
+                  {isWorkspaceDefault ? (
+                    <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-200">
+                      {t('settings.engines.workspaceDefaultBadge')}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-1 truncate text-xs text-gray-500">{engine.vendor}</div>
+                <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-wide">
+                  <span
+                    className={`rounded px-2 py-0.5 font-medium ${
+                      engineSupport.implemented
+                        ? 'bg-emerald-500/10 text-emerald-300'
+                        : 'bg-amber-500/10 text-amber-300'
+                    }`}
+                  >
+                    {engineSupport.implemented
+                      ? t('settings.engines.serverReady')
+                      : t('settings.engines.serverPlanned')}
+                  </span>
+                  <span className="text-gray-500">
+                    {t('settings.engines.modelCount', {
+                      count: engine.modelCatalog.length,
+                    })}
+                  </span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
 export function CodeEngineSettings({
   workbenchPreferences,
   updateWorkbenchPreferences,
-}: Pick<SettingsProps, 'workbenchPreferences' | 'updateWorkbenchPreferences'>) {
+  activeEngineId: controlledActiveEngineId,
+  setActiveEngineId: setControlledActiveEngineId,
+}: Pick<SettingsProps, 'workbenchPreferences' | 'updateWorkbenchPreferences'> &
+  CodeEngineSettingsSelectionProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
   const [draftByEngineId, setDraftByEngineId] = useState<Record<string, EngineDraftState>>({});
-  const [activeEngineId, setActiveEngineId] = useState(BIRDCODER_STANDARD_DEFAULT_ENGINE_ID);
+  const [internalActiveEngineId, setInternalActiveEngineId] = useState(
+    BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
+  );
+  const activeEngineId = controlledActiveEngineId ?? internalActiveEngineId;
+  const setActiveEngineId = setControlledActiveEngineId ?? setInternalActiveEngineId;
 
   const engines = useMemo(() => {
-    const listedEngines = [...listWorkbenchCodeEngines(workbenchPreferences)];
-    listedEngines.sort((left, right) => {
-      if (left.id === BIRDCODER_STANDARD_DEFAULT_ENGINE_ID) {
-        return -1;
-      }
-      if (right.id === BIRDCODER_STANDARD_DEFAULT_ENGINE_ID) {
-        return 1;
-      }
-      return left.label.localeCompare(right.label);
-    });
-    return listedEngines;
+    return listSortedWorkbenchCodeEngines(workbenchPreferences);
   }, [workbenchPreferences]);
-
-  const runnableEngines = useMemo(
-    () => listWorkbenchServerImplementedCodeEngines(workbenchPreferences),
-    [workbenchPreferences],
-  );
 
   const workspaceDefaultEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
     workbenchPreferences?.codeEngineId,
     workbenchPreferences,
   );
+  const workspaceDefaultEngine = engines.find((engine) => engine.id === workspaceDefaultEngineId);
 
   const fallbackActiveEngineId =
     engines.find((engine) => engine.id === BIRDCODER_STANDARD_DEFAULT_ENGINE_ID)?.id ??
@@ -165,12 +279,10 @@ export function CodeEngineSettings({
     BIRDCODER_STANDARD_DEFAULT_ENGINE_ID;
 
   useEffect(() => {
-    setActiveEngineId((previousState) =>
-      engines.some((engine) => engine.id === previousState)
-        ? previousState
-        : fallbackActiveEngineId,
-    );
-  }, [engines, fallbackActiveEngineId]);
+    if (!engines.some((engine) => engine.id === activeEngineId)) {
+      setActiveEngineId(fallbackActiveEngineId);
+    }
+  }, [activeEngineId, engines, fallbackActiveEngineId, setActiveEngineId]);
 
   const activeEngine =
     engines.find((engine) => engine.id === activeEngineId) ??
@@ -221,109 +333,16 @@ export function CodeEngineSettings({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#0e0e11] p-12">
-      <div className="mx-auto max-w-6xl animate-in fade-in slide-in-from-bottom-4 fill-mode-both">
-        <h1 className="mb-4 text-2xl font-semibold text-white">{t('settings.engines.title')}</h1>
-        <div className="mb-8 text-sm text-gray-400">{t('settings.engines.description')}</div>
-
-        <div className="grid gap-6 xl:grid-cols-[280px,minmax(0,1fr)]">
-          <div className="space-y-4">
-            <div className="rounded-xl border border-white/10 bg-[#18181b] p-4">
-              <div className="mb-1 text-sm font-medium text-white">
-                {t('settings.engines.workspaceDefaultEngine')}
-              </div>
-              <div className="mb-3 text-xs text-gray-500">
-                {t('settings.engines.workspaceDefaultEngineDesc')}
-              </div>
-              <select
-                value={workspaceDefaultEngineId}
-                onChange={(event) => {
-                  const nextEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
-                    event.target.value,
-                    workbenchPreferences,
-                  );
-                  setActiveEngineId(nextEngineId);
-                  updateWorkbenchPreferences((previousState) =>
-                    setWorkbenchActiveCodeEngine(previousState, nextEngineId),
-                  );
-                  addToast(
-                    t('settings.engines.workspaceDefaultEngineUpdated', {
-                      engine:
-                        runnableEngines.find((engine) => engine.id === nextEngineId)?.label ??
-                        nextEngineId,
-                    }),
-                    'success',
-                  );
-                }}
-                className="w-full appearance-none rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2 text-sm text-white outline-none transition-colors hover:border-gray-500 focus:border-blue-500"
-              >
-                {runnableEngines.map((engine) => (
-                  <option key={engine.id} value={engine.id}>
-                    {engine.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-[#18181b] p-3">
-              <div className="mb-3 px-1 text-xs font-medium uppercase tracking-wide text-gray-500">
-                {t('settings.engines.engineTabs')}
-              </div>
-              <div className="space-y-2">
-                {engines.map((engine) => {
-                  const engineSupport = resolveWorkbenchServerEngineSupportState(
-                    engine.id,
-                    workbenchPreferences,
-                  );
-                  const isActive = activeEngine.id === engine.id;
-                  const isWorkspaceDefault = workspaceDefaultEngineId === engine.id;
-                  return (
-                    <button
-                      key={engine.id}
-                      type="button"
-                      onClick={() => setActiveEngineId(engine.id)}
-                      className={`flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors ${
-                        isActive
-                          ? 'border-blue-500/40 bg-blue-500/10 text-white'
-                          : 'border-white/10 bg-[#0e0e11] text-gray-300 hover:border-white/20 hover:bg-white/5 hover:text-white'
-                      }`}
-                    >
-                      <WorkbenchCodeEngineIcon engineId={engine.id} size="md" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="truncate text-sm font-medium">{engine.label}</span>
-                          {isWorkspaceDefault ? (
-                            <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-200">
-                              {t('settings.engines.workspaceDefaultBadge')}
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="mt-1 truncate text-xs text-gray-500">{engine.vendor}</div>
-                        <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-wide">
-                          <span
-                            className={`rounded px-2 py-0.5 font-medium ${
-                              engineSupport.implemented
-                                ? 'bg-emerald-500/10 text-emerald-300'
-                                : 'bg-amber-500/10 text-amber-300'
-                            }`}
-                          >
-                            {engineSupport.implemented
-                              ? t('settings.engines.serverReady')
-                              : t('settings.engines.serverPlanned')}
-                          </span>
-                          <span className="text-gray-500">
-                            {t('settings.engines.modelCount', {
-                              count: engine.modelCatalog.length,
-                            })}
-                          </span>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+    <div className="flex min-w-0 flex-1 bg-[#0e0e11]">
+      <CodeEngineSettingsSidebar
+        activeEngineId={activeEngine.id}
+        setActiveEngineId={setActiveEngineId}
+        workbenchPreferences={workbenchPreferences}
+      />
+      <div className="min-w-0 flex-1 overflow-y-auto p-12">
+        <div className="mx-auto max-w-6xl animate-in fade-in slide-in-from-bottom-4 fill-mode-both">
+          <h1 className="mb-4 text-2xl font-semibold text-white">{t('settings.engines.title')}</h1>
+          <div className="mb-8 text-sm text-gray-400">{t('settings.engines.description')}</div>
 
           <div className="rounded-xl border border-white/10 bg-[#18181b] p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -356,38 +375,87 @@ export function CodeEngineSettings({
                 </div>
               </div>
 
-              <div className="w-full max-w-sm rounded-xl border border-white/10 bg-[#141417] p-4">
-                <div className="mb-1 text-sm font-medium text-white">
-                  {t('settings.engines.defaultModel')}
+              <div className="grid w-full gap-3 lg:max-w-sm">
+                <div className="rounded-xl border border-white/10 bg-[#141417] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm font-medium text-white">
+                      {t('settings.engines.workspaceDefaultEngine')}
+                    </div>
+                    {workspaceDefaultEngineId === activeEngine.id ? (
+                      <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-200">
+                        {t('settings.engines.workspaceDefaultBadge')}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-2 text-xs leading-5 text-gray-500">
+                    {t('settings.engines.workspaceDefaultSummary', {
+                      engine: workspaceDefaultEngine?.label ?? workspaceDefaultEngineId,
+                    })}
+                  </div>
+                  {workspaceDefaultEngineId === activeEngine.id ? null : (
+                    <Button
+                      size="sm"
+                      className="mt-3 w-full"
+                      disabled={!activeEngineSupport.implemented}
+                      onClick={() => {
+                        if (!activeEngineSupport.implemented) {
+                          return;
+                        }
+
+                        const nextEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+                          activeEngine.id,
+                          workbenchPreferences,
+                        );
+                        setActiveEngineId(nextEngineId);
+                        updateWorkbenchPreferences((previousState) =>
+                          setWorkbenchActiveCodeEngine(previousState, nextEngineId),
+                        );
+                        addToast(
+                          t('settings.engines.workspaceDefaultEngineUpdated', {
+                            engine: activeEngine.label,
+                          }),
+                          'success',
+                        );
+                      }}
+                    >
+                      {t('settings.engines.makeWorkspaceDefault')}
+                    </Button>
+                  )}
                 </div>
-                <div className="mb-2 text-xs text-gray-500">
-                  {t('settings.engines.defaultModelDesc')}
+
+                <div className="rounded-xl border border-white/10 bg-[#141417] p-4">
+                  <div className="mb-1 text-sm font-medium text-white">
+                    {t('settings.engines.defaultModel')}
+                  </div>
+                  <div className="mb-2 text-xs text-gray-500">
+                    {t('settings.engines.defaultModelDesc')}
+                  </div>
+                  <select
+                    value={activeEngine.defaultModelId}
+                    onChange={(event) => {
+                      updateWorkbenchPreferences((previousState) =>
+                        setWorkbenchCodeEngineDefaultModel(
+                          previousState,
+                          activeEngine.id,
+                          event.target.value,
+                        ),
+                      );
+                      addToast(
+                        t('settings.engines.defaultModelUpdated', {
+                          engine: activeEngine.label,
+                        }),
+                        'success',
+                      );
+                    }}
+                    className="w-full appearance-none rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2 text-sm text-white outline-none transition-colors hover:border-gray-500 focus:border-blue-500"
+                  >
+                    {activeEngine.modelCatalog.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <select
-                  value={activeEngine.defaultModelId}
-                  onChange={(event) => {
-                    updateWorkbenchPreferences((previousState) =>
-                      setWorkbenchCodeEngineDefaultModel(
-                        previousState,
-                        activeEngine.id,
-                        event.target.value,
-                      ),
-                    );
-                    addToast(
-                      t('settings.engines.defaultModelUpdated', {
-                        engine: activeEngine.label,
-                      }),
-                      'success',
-                    );
-                  }}
-                  className="w-full appearance-none rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2 text-sm text-white outline-none transition-colors hover:border-gray-500 focus:border-blue-500"
-                >
-                  {activeEngine.modelCatalog.map((model) => (
-                    <option key={model.id} value={model.id}>
-                      {model.label}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 

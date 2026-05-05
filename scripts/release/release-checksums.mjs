@@ -33,19 +33,76 @@ function toRelativePath(baseDir, targetPath) {
   return path.relative(baseDir, targetPath).split(path.sep).join('/');
 }
 
+function readJsonFile(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function normalizeManifestArtifactTargets({
+  releaseAssetsDir,
+  manifestFileName = 'release-manifest.json',
+} = {}) {
+  const manifestPath = path.join(releaseAssetsDir, manifestFileName);
+  if (!fs.existsSync(manifestPath)) {
+    return null;
+  }
+
+  const manifest = readJsonFile(manifestPath);
+  const artifactTargets = Array.isArray(manifest?.artifacts)
+    ? manifest.artifacts
+      .map((artifact) => String(artifact?.relativePath ?? '').trim().replaceAll('\\', '/'))
+      .filter(Boolean)
+    : [];
+  if (artifactTargets.length === 0) {
+    return null;
+  }
+
+  return artifactTargets.map((relativePath) => {
+    if (
+      path.posix.isAbsolute(relativePath)
+      || path.win32.isAbsolute(relativePath)
+      || relativePath.split('/').includes('..')
+    ) {
+      throw new Error(`Release manifest contains an unsafe artifact path: ${relativePath}`);
+    }
+
+    const absolutePath = path.join(releaseAssetsDir, relativePath);
+    if (!fs.existsSync(absolutePath)) {
+      throw new Error(`Missing release artifact referenced by release-manifest.json: ${relativePath}`);
+    }
+
+    const stat = fs.statSync(absolutePath);
+    if (!stat.isFile()) {
+      throw new Error(`Release artifact referenced by release-manifest.json is not a file: ${relativePath}`);
+    }
+
+    return {
+      absolutePath,
+      relativePath,
+    };
+  });
+}
+
 export function writeReleaseChecksums({
   releaseAssetsDir,
   checksumFileName = 'SHA256SUMS.txt',
+  targets = null,
 } = {}) {
   const normalizedReleaseAssetsDir = path.resolve(String(releaseAssetsDir ?? '').trim() || '.');
   const normalizedChecksumFileName = String(checksumFileName ?? '').trim() || 'SHA256SUMS.txt';
   const checksumsPath = path.join(normalizedReleaseAssetsDir, normalizedChecksumFileName);
 
-  const checksumTargets = walkFiles(normalizedReleaseAssetsDir)
-    .filter((filePath) => path.resolve(filePath) !== path.resolve(checksumsPath));
-  const checksumLines = checksumTargets.map((filePath) => {
-    const digest = computeSha256(filePath);
-    const relativePath = toRelativePath(normalizedReleaseAssetsDir, filePath);
+  const checksumTargets = Array.isArray(targets) && targets.length > 0
+    ? targets
+    : walkFiles(normalizedReleaseAssetsDir)
+      .filter((filePath) => path.resolve(filePath) !== path.resolve(checksumsPath))
+      .map((filePath) => ({
+        absolutePath: filePath,
+        relativePath: toRelativePath(normalizedReleaseAssetsDir, filePath),
+      }));
+  const checksumLines = checksumTargets.map((target) => {
+    const absolutePath = path.resolve(String(target?.absolutePath ?? '').trim());
+    const relativePath = String(target?.relativePath ?? '').trim().replaceAll('\\', '/');
+    const digest = computeSha256(absolutePath);
     return `${digest}  ${relativePath}`;
   });
 
@@ -60,6 +117,7 @@ export function writeReleaseChecksums({
 export function refreshReleaseChecksumsIfPresent({
   releaseAssetsDir,
   checksumFileName = 'SHA256SUMS.txt',
+  manifestFileName = 'release-manifest.json',
 } = {}) {
   const normalizedReleaseAssetsDir = path.resolve(String(releaseAssetsDir ?? '').trim() || '.');
   const normalizedChecksumFileName = String(checksumFileName ?? '').trim() || 'SHA256SUMS.txt';
@@ -68,8 +126,14 @@ export function refreshReleaseChecksumsIfPresent({
     return null;
   }
 
+  const manifestArtifactTargets = normalizeManifestArtifactTargets({
+    releaseAssetsDir: normalizedReleaseAssetsDir,
+    manifestFileName,
+  });
+
   return writeReleaseChecksums({
     releaseAssetsDir: normalizedReleaseAssetsDir,
     checksumFileName: normalizedChecksumFileName,
+    targets: manifestArtifactTargets,
   });
 }

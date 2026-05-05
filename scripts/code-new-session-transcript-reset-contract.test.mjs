@@ -19,6 +19,10 @@ const surfacePropsSource = fs.readFileSync(
   path.join(rootDir, 'packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts'),
   'utf8',
 );
+const sessionSelectionHookSource = fs.readFileSync(
+  path.join(rootDir, 'packages/sdkwork-birdcoder-code/src/pages/useCodePageSessionSelection.ts'),
+  'utf8',
+);
 const engineSelectionCallStart = codePageSource.indexOf('useCodingSessionEngineModelSelection({');
 assert.notEqual(
   engineSelectionCallStart,
@@ -97,21 +101,21 @@ assert.match(
 );
 
 assert.match(
-  codePageSource,
+  sessionSelectionHookSource,
   /const selectSession = useCallback\([\s\S]*if \(!normalizedCodingSessionId\) \{[\s\S]*return;[\s\S]*\}\s*clearPendingNewCodingSessionRequest\(\);[\s\S]*if \([\s\S]*normalizedCodingSessionId ===[\s\S]*setSelectionRefreshToken/s,
-  'CodePage must treat every explicit session selection, including selecting the already-active session, as user navigation that cancels any pending new-session visual request.',
+  'CodePage session-selection hook must treat every explicit session selection, including selecting the already-active session, as user navigation that cancels any pending new-session visual request.',
 );
 
 assert.match(
-  codePageSource,
+  sessionSelectionHookSource,
   /const handleProjectSelect = useCallback\(\(id: string \| null\) => \{[\s\S]*clearPendingNewCodingSessionRequest\(\);/s,
-  'CodePage must treat explicit project selection as user navigation that cancels any pending new-session visual request.',
+  'CodePage session-selection hook must treat explicit project selection as user navigation that cancels any pending new-session visual request.',
 );
 
 assert.match(
-  codePageSource,
-  /const handleSidebarCodingSessionSelect = useCallback\(\(nextCodingSessionId: string \| null\) => \{[\s\S]*clearPendingNewCodingSessionRequest\(\);/s,
-  'CodePage must clear pending new-session state when the user clears or changes the sidebar session selection.',
+  sessionSelectionHookSource,
+  /const handleSidebarCodingSessionSelect = useCallback\(\([\s\S]*nextCodingSessionId: string \| null[\s\S]*\) => \{[\s\S]*clearPendingNewCodingSessionRequest\(\);/s,
+  'CodePage session-selection hook must clear pending new-session state when the user clears or changes the sidebar session selection.',
 );
 
 assert.match(
@@ -158,7 +162,7 @@ assert.match(
 
 assert.match(
   surfacePropsSource,
-  /sessionId: activeTab === 'ai' \? \(sessionId \|\| undefined\) : undefined,/,
+  /const mainChatProps = useMemo<UniversalChatComponentProps>\(\(\) => \(\{[\s\S]*sessionId: sessionId \|\| undefined,/s,
   'CodePage surface props must use the already-masked visible session id when binding the main chat surface.',
 );
 

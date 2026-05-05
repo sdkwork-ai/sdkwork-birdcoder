@@ -24,6 +24,7 @@ interface ProjectGitWorktreeMenuProps extends Pick<
   | 'overview'
   | 'worktrees'
 > {
+  compact?: boolean;
   isOpen: boolean;
   isPruning?: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,18 +62,19 @@ function getVariantStyle(
     default:
       return {
         button:
-          'flex items-center gap-1.5 rounded-md border border-white/5 px-2.5 py-1.5 text-xs transition-colors',
+          'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors',
         buttonIconTone: 'text-emerald-400',
         buttonLabel: 'text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500',
         buttonValue: 'max-w-[160px] truncate font-medium text-gray-200',
         container: 'relative animate-in fade-in slide-in-from-top-2 fill-mode-both',
         menu:
-          'absolute right-0 top-full z-50 mt-1.5 w-80 rounded-lg border border-white/10 bg-[#18181b]/95 py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 origin-top-right',
+          'absolute right-0 top-full z-[80] mt-2 w-[24rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl bg-[#17171b]/98 p-2 text-[13px] text-gray-300 shadow-[0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 origin-top-right',
       };
   }
 }
 
 export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
+  compact = false,
   currentWorktree,
   currentWorktreeLabel,
   isGitRepositoryReady,
@@ -91,10 +93,14 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
   const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
   const variantStyle = getVariantStyle(variant);
+  const isCompactTopbar = variant === 'topbar' && compact;
   const hasPrunableWorktrees = worktrees.some((worktree) => worktree.isPrunable);
   const buttonValue = loadErrorMessage
     ? t('code.gitOverviewUnavailable')
     : currentWorktreeLabel || (isLoading ? '...' : t('app.menu.noRepository'));
+  const topbarButtonBaseClassName = isCompactTopbar
+    ? 'inline-flex h-8 w-8 items-center justify-center rounded-md text-xs transition-colors'
+    : variantStyle.button;
   const buttonClassName =
     variant === 'studio'
       ? `${variantStyle.button} ${
@@ -102,11 +108,14 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
             ? 'border-white/20 bg-[#1a1b22] text-white'
             : 'border-white/10 bg-[#15161b] text-gray-100 hover:border-white/15 hover:bg-[#1a1b22]'
         } ${!normalizedProjectId ? 'cursor-not-allowed opacity-60' : ''}`
-      : `${variantStyle.button} ${
+      : `${topbarButtonBaseClassName} ${
           normalizedProjectId
-            ? 'cursor-pointer bg-white/5 hover:bg-white/10'
-            : 'cursor-not-allowed bg-white/[0.03] text-gray-500 opacity-60'
+            ? isOpen
+              ? 'cursor-pointer bg-white/[0.07] text-white'
+              : 'cursor-pointer text-gray-300 hover:bg-white/[0.06] hover:text-white'
+            : 'cursor-not-allowed text-gray-500 opacity-60'
         }`;
+  const compactTitle = `${t('app.menu.worktree')}: ${buttonValue}`;
 
   useEffect(() => {
     if (normalizedProjectId || !isOpen) {
@@ -147,6 +156,8 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
         type="button"
         disabled={!normalizedProjectId}
         className={buttonClassName}
+        aria-label={isCompactTopbar ? compactTitle : undefined}
+        title={isCompactTopbar ? compactTitle : undefined}
         onClick={() => {
           if (!normalizedProjectId) {
             return;
@@ -157,29 +168,33 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
         <span className={variantStyle.buttonIconTone}>
           <FolderGit2 size={14} />
         </span>
-        <span className={variantStyle.buttonLabel}>{t('app.menu.worktree')}</span>
-        <span className={variantStyle.buttonValue}>{buttonValue}</span>
-        <ChevronDown
-          size={14}
-          className={`shrink-0 text-gray-500 transition-transform ${isOpen ? 'rotate-180 text-gray-300' : ''}`}
-        />
+        {!isCompactTopbar ? (
+          <>
+            <span className={variantStyle.buttonLabel}>{t('app.menu.worktree')}</span>
+            <span className={variantStyle.buttonValue}>{buttonValue}</span>
+            <ChevronDown
+              size={14}
+              className={`shrink-0 text-gray-500 transition-transform ${isOpen ? 'rotate-180 text-gray-300' : ''}`}
+            />
+          </>
+        ) : null}
       </button>
 
       {isOpen ? (
         <div className={variantStyle.menu}>
-          <div className="flex items-start justify-between gap-3 border-b border-white/8 px-3 py-2.5">
+          <div className="flex items-start justify-between gap-3 rounded-lg bg-white/[0.025] px-3 py-2.5">
             <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
                 {t('app.menu.worktree')}
               </div>
-              <div className="truncate text-[11px] text-gray-600">
+              <div className="mt-0.5 truncate text-[11px] text-gray-600">
                 {currentWorktree?.path || overview?.repositoryRootPath || ''}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-gray-400 transition hover:border-white/20 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={() => {
                   void onRefresh();
                 }}
@@ -192,7 +207,7 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
               {onPrune ? (
                 <button
                   type="button"
-                  className="inline-flex h-7 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 text-[11px] text-gray-300 transition hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] text-gray-300 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={() => {
                     void onPrune();
                   }}
@@ -211,7 +226,7 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
               {t('code.selectProjectFirst')}
             </div>
           ) : loadErrorMessage ? (
-            <div className="m-3 flex items-start gap-2 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-3 text-[12px] text-red-200">
+            <div className="m-3 flex items-start gap-2 rounded-lg bg-red-500/[0.12] px-3 py-3 text-[12px] text-red-200">
               <AlertCircle size={14} className="mt-0.5 shrink-0" />
               <span className="min-w-0 break-words">{loadErrorMessage}</span>
             </div>
@@ -220,14 +235,14 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
               {t('app.menu.noRepository')}
             </div>
           ) : (
-            <div className="max-h-80 overflow-y-auto px-1 py-1.5">
+            <div className="mt-1 max-h-80 space-y-1 overflow-y-auto py-1 pr-1">
               {worktrees.map((worktree) => (
                 <div
                   key={worktree.id}
-                  className={`mx-1 rounded-xl border px-3 py-2 ${
+                  className={`group rounded-lg px-3 py-2 transition-colors ${
                     worktree.isCurrent
-                      ? 'border-blue-500/20 bg-blue-500/10'
-                      : 'border-white/8 bg-white/[0.03]'
+                      ? 'bg-blue-500/[0.13]'
+                      : 'hover:bg-white/[0.055]'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -240,11 +255,11 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
                           {worktree.label}
                         </div>
                       </div>
-                      <div className="truncate pl-6 text-[11px] text-gray-500">
+                      <div className="truncate pl-6 text-[11px] text-gray-500 group-hover:text-gray-400">
                         {worktree.path}
                       </div>
                       {worktree.branch || worktree.head ? (
-                        <div className="truncate pl-6 text-[11px] text-gray-400">
+                        <div className="truncate pl-6 text-[11px] text-gray-400 group-hover:text-gray-300">
                           {worktree.branch || worktree.head}
                         </div>
                       ) : null}
@@ -261,13 +276,13 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
                     </div>
                     <div className="flex shrink-0 items-center gap-1 text-[10px] text-gray-400">
                       {worktree.isLocked ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-gray-300">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.07] px-1.5 py-0.5 text-gray-300">
                           <Lock size={10} />
                           {t('code.locked')}
                         </span>
                       ) : null}
                       {worktree.isPrunable ? (
-                        <span className="rounded-full border border-red-400/20 bg-red-500/10 px-1.5 py-0.5 text-red-200">
+                        <span className="rounded-full bg-red-500/[0.13] px-1.5 py-0.5 text-red-200">
                           {t('code.prunable')}
                         </span>
                       ) : null}
