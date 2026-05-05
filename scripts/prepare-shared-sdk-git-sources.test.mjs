@@ -91,6 +91,104 @@ function createGitSpawn(repoStates) {
   };
 }
 
+function createGitCloneSpawn({
+  expectedGithubToken,
+  requiredPathsByRepoRoot,
+}) {
+  const repoStates = new Map();
+  const cloneCalls = [];
+
+  return {
+    cloneCalls,
+    spawnSyncImpl(command, args, options = {}) {
+      assert.match(String(command), /git(?:\.exe)?$/iu);
+      assert.equal(options.encoding, 'utf8');
+      assert.equal(options.shell, false);
+
+      if (args[0] === 'clone') {
+        const repoUrl = String(args[1]);
+        const repoRoot = path.resolve(String(args[2]));
+        cloneCalls.push({ repoUrl, repoRoot, env: options.env });
+
+        assert.equal(
+          repoUrl.includes(expectedGithubToken),
+          false,
+          'shared SDK clone URLs must not embed GitHub tokens',
+        );
+        assert.ok(options.env, 'GitHub HTTPS shared SDK clones must receive a git auth environment');
+        assert.notEqual(
+          options.env.SDKWORK_SHARED_SDK_GITHUB_TOKEN,
+          expectedGithubToken,
+          'raw shared SDK GitHub token must not be forwarded into the git child environment',
+        );
+
+        const configCount = Number.parseInt(String(options.env.GIT_CONFIG_COUNT ?? ''), 10);
+        assert.ok(Number.isInteger(configCount) && configCount > 0, 'git auth env must add an extraheader config entry');
+        const authConfigIndex = Array.from({ length: configCount }, (_, index) => index).find(
+          (index) => options.env[`GIT_CONFIG_KEY_${index}`] === 'http.https://github.com/.extraheader',
+        );
+        assert.notEqual(authConfigIndex, undefined, 'git auth env must target github.com extraheader auth');
+        const authHeader = String(options.env[`GIT_CONFIG_VALUE_${authConfigIndex}`] ?? '');
+        assert.match(authHeader, /^AUTHORIZATION: basic /u);
+        assert.equal(
+          authHeader.includes(expectedGithubToken),
+          false,
+          'git auth extraheader must not expose the raw token text',
+        );
+
+        fs.mkdirSync(repoRoot, { recursive: true });
+        createRequiredFiles(repoRoot, requiredPathsByRepoRoot.get(repoRoot) ?? []);
+        repoStates.set(repoRoot, {
+          topLevel: repoRoot,
+          originUrl: repoUrl,
+          head: FAKE_HEADS[path.basename(repoRoot)] ?? '5555555555555555555555555555555555555555',
+          branch: 'main',
+          dirty: false,
+        });
+
+        return {
+          status: 0,
+          stdout: '',
+          stderr: '',
+        };
+      }
+
+      if (args[0] !== '-C') {
+        throw new Error(`unexpected git command: ${args.join(' ')}`);
+      }
+
+      const repoRoot = path.resolve(String(args[1]));
+      const repoState = repoStates.get(repoRoot);
+      if (!repoState) {
+        return {
+          status: 1,
+          stdout: '',
+          stderr: `unknown repo: ${repoRoot}`,
+        };
+      }
+
+      const commandKey = args.slice(2).join('\u0000');
+      switch (commandKey) {
+        case 'checkout\u0000--force\u0000main':
+          repoState.branch = 'main';
+          return {
+            status: 0,
+            stdout: '',
+            stderr: '',
+          };
+        case 'rev-parse\u0000--show-toplevel':
+          return {
+            status: 0,
+            stdout: `${repoState.topLevel}\n`,
+            stderr: '',
+          };
+        default:
+          throw new Error(`unexpected git command: ${args.join(' ')}`);
+      }
+    },
+  };
+}
+
 function createTempWorkspace() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-shared-sdk-'));
   const workspaceRootDir = path.join(tempRoot, 'sdkwork-birdcoder');
@@ -261,6 +359,50 @@ test('git mode accepts clean sibling repositories pinned to the configured refs'
     assert.ok(
       logs.some((message) => message.includes('Ready sdkwork-appbase')),
       'git mode must report governed shared repository readiness',
+    );
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('git mode authenticates GitHub HTTPS clones without embedding tokens in clone URLs', () => {
+  const { tempRoot, workspaceRootDir } = createTempWorkspace();
+
+  try {
+    const specs = createSharedSdkSourceSpecs(workspaceRootDir);
+    const requiredPathsByRepoRoot = new Map(
+      specs.map((spec) => [spec.repoRoot, spec.requiredPaths]),
+    );
+    createReleaseConfig(workspaceRootDir, Object.fromEntries(
+      specs.map((spec) => [
+        spec.id,
+        {
+          repoUrl: `https://github.com/Sdkwork-Cloud/${spec.id}.git`,
+          ref: 'main',
+        },
+      ]),
+    ));
+    const githubToken = 'github-token-for-private-shared-sdk-repos';
+    const { cloneCalls, spawnSyncImpl } = createGitCloneSpawn({
+      expectedGithubToken: githubToken,
+      requiredPathsByRepoRoot,
+    });
+
+    const result = ensureSharedSdkGitSources({
+      workspaceRootDir,
+      env: {
+        SDKWORK_SHARED_SDK_MODE: 'git',
+        SDKWORK_SHARED_SDK_GITHUB_TOKEN: githubToken,
+      },
+      spawnSyncImpl,
+    });
+
+    assert.equal(result.status, 'ready');
+    assert.equal(result.changed, true);
+    assert.equal(cloneCalls.length, 4);
+    assert.ok(
+      cloneCalls.every((call) => call.repoUrl.startsWith('https://github.com/Sdkwork-Cloud/')),
+      'all governed shared SDK repositories should clone from configured GitHub HTTPS URLs',
     );
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });

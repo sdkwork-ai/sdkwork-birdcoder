@@ -15,6 +15,7 @@ const defaultWorkspaceRootDir = path.resolve(__dirname, '..');
 export const SHARED_SDK_GIT_REF_ENV_VAR = 'SDKWORK_SHARED_SDK_GIT_REF';
 export const SHARED_SDK_GIT_FORCE_SYNC_ENV_VAR = 'SDKWORK_SHARED_SDK_GIT_FORCE_SYNC';
 export const SHARED_SDK_RELEASE_CONFIG_PATH_ENV_VAR = 'SDKWORK_SHARED_SDK_RELEASE_CONFIG_PATH';
+export const SHARED_SDK_GITHUB_TOKEN_ENV_VAR = 'SDKWORK_SHARED_SDK_GITHUB_TOKEN';
 
 export const SHARED_APPBASE_REPO_URL_ENV_VAR = 'SDKWORK_SHARED_APPBASE_REPO_URL';
 export const SHARED_CORE_REPO_URL_ENV_VAR = 'SDKWORK_SHARED_CORE_REPO_URL';
@@ -31,6 +32,11 @@ export const DEFAULT_SHARED_CORE_REPO_URL = 'https://github.com/Sdkwork-Cloud/sd
 export const DEFAULT_SHARED_UI_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-ui.git';
 export const DEFAULT_SHARED_TERMINAL_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-terminal.git';
 export const DEFAULT_SHARED_SDK_RELEASE_CONFIG_PATH = 'config/shared-sdk-release-sources.json';
+const SHARED_SDK_AUTH_TOKEN_ENV_VARS = Object.freeze([
+  SHARED_SDK_GITHUB_TOKEN_ENV_VAR,
+  'GITHUB_TOKEN',
+  'GH_TOKEN',
+]);
 
 function resolveGitCommand() {
   const configuredCandidates = [
@@ -93,12 +99,14 @@ function run(
   {
     cwd = process.cwd(),
     captureStdout = false,
+    env,
     spawnSyncImpl = spawnSync,
   } = {},
 ) {
   const result = spawnSyncImpl(resolveSpawnCommand(command), args, {
     cwd,
     encoding: 'utf8',
+    env: createGitCommandEnvironment(env),
     stdio: captureStdout ? ['ignore', 'pipe', 'pipe'] : 'inherit',
     shell: false,
   });
@@ -116,6 +124,19 @@ function run(
   }
 
   return String(result.stdout ?? '').trim();
+}
+
+function createGitCommandEnvironment(extraEnv = {}) {
+  const commandEnv = {
+    ...process.env,
+    ...extraEnv,
+  };
+
+  for (const tokenEnvVar of SHARED_SDK_AUTH_TOKEN_ENV_VARS) {
+    delete commandEnv[tokenEnvVar];
+  }
+
+  return commandEnv;
 }
 
 function parseBooleanFlag(value) {
@@ -166,6 +187,49 @@ function normalizeGitRepoUrl(repoUrl) {
 
 function areEquivalentGitRepoUrls(left, right) {
   return normalizeGitRepoUrl(left) === normalizeGitRepoUrl(right);
+}
+
+function isGithubHttpsRepoUrl(repoUrl) {
+  try {
+    const parsedUrl = new URL(String(repoUrl ?? '').trim());
+    return parsedUrl.protocol === 'https:' && parsedUrl.hostname.toLowerCase() === 'github.com';
+  } catch {
+    return false;
+  }
+}
+
+function resolveSharedSdkGithubToken(env = process.env) {
+  for (const tokenEnvVar of SHARED_SDK_AUTH_TOKEN_ENV_VARS) {
+    const token = typeof env?.[tokenEnvVar] === 'string' ? env[tokenEnvVar].trim() : '';
+    if (token.length > 0) {
+      return token;
+    }
+  }
+
+  return '';
+}
+
+export function createGithubAuthGitEnv(repoUrl, env = process.env) {
+  if (!isGithubHttpsRepoUrl(repoUrl)) {
+    return {};
+  }
+
+  const token = resolveSharedSdkGithubToken(env);
+  if (!token) {
+    return {};
+  }
+
+  const configIndex = Number.parseInt(String(env?.GIT_CONFIG_COUNT ?? '0'), 10);
+  const nextConfigIndex = Number.isFinite(configIndex) && configIndex >= 0 ? configIndex : 0;
+  const authHeader = Buffer
+    .from(`x-access-token:${token}`, 'utf8')
+    .toString('base64');
+
+  return {
+    GIT_CONFIG_COUNT: String(nextConfigIndex + 1),
+    [`GIT_CONFIG_KEY_${nextConfigIndex}`]: 'http.https://github.com/.extraheader',
+    [`GIT_CONFIG_VALUE_${nextConfigIndex}`]: `AUTHORIZATION: basic ${authHeader}`,
+  };
 }
 
 export function createSharedSdkSourceSpecs(workspaceRootDir = defaultWorkspaceRootDir) {
@@ -389,15 +453,21 @@ function checkoutMatchesTargetRef(repoRoot, targetRef, { spawnSyncImpl } = {}) {
   return resolveCurrentBranch(repoRoot, { spawnSyncImpl }) === targetRef;
 }
 
-function cloneSourceRepo({ repoRoot, repoUrl, targetRef, spawnSyncImpl }) {
+function cloneSourceRepo({ repoRoot, repoUrl, targetRef, env, spawnSyncImpl }) {
   fs.mkdirSync(path.dirname(repoRoot), { recursive: true });
-  run('git', ['clone', repoUrl, repoRoot], { spawnSyncImpl });
+  run('git', ['clone', repoUrl, repoRoot], {
+    env: createGithubAuthGitEnv(repoUrl, env),
+    spawnSyncImpl,
+  });
   run('git', ['-C', repoRoot, 'checkout', '--force', targetRef], { spawnSyncImpl });
 }
 
-function syncExistingSourceRepo({ repoRoot, repoUrl, targetRef, spawnSyncImpl }) {
+function syncExistingSourceRepo({ repoRoot, repoUrl, targetRef, env, spawnSyncImpl }) {
   run('git', ['-C', repoRoot, 'remote', 'set-url', 'origin', repoUrl], { spawnSyncImpl });
-  run('git', ['-C', repoRoot, 'fetch', '--tags', '--prune', 'origin'], { spawnSyncImpl });
+  run('git', ['-C', repoRoot, 'fetch', '--tags', '--prune', 'origin'], {
+    env: createGithubAuthGitEnv(repoUrl, env),
+    spawnSyncImpl,
+  });
   run('git', ['-C', repoRoot, 'checkout', '--force', targetRef], { spawnSyncImpl });
   run('git', ['-C', repoRoot, 'clean', '-fd'], { spawnSyncImpl });
 }
@@ -408,6 +478,7 @@ function ensureSourceSpecReady(
     repoUrl,
     targetRef,
     syncExistingRepos,
+    env,
     logger,
     spawnSyncImpl,
   },
@@ -417,6 +488,7 @@ function ensureSourceSpecReady(
       repoRoot: spec.repoRoot,
       repoUrl,
       targetRef,
+      env,
       spawnSyncImpl,
     });
     assertStandaloneCheckoutRoot(spec, spec.repoRoot, { spawnSyncImpl });
@@ -447,6 +519,7 @@ function ensureSourceSpecReady(
       repoRoot: spec.repoRoot,
       repoUrl,
       targetRef,
+      env,
       spawnSyncImpl,
     });
     assertStandaloneCheckoutRoot(spec, spec.repoRoot, { spawnSyncImpl });
@@ -483,6 +556,7 @@ function ensureSourceSpecReady(
       repoRoot: spec.repoRoot,
       repoUrl,
       targetRef,
+      env,
       spawnSyncImpl,
     });
     changed = true;
@@ -529,6 +603,7 @@ export function ensureSharedSdkGitSources({
     return ensureSourceSpecReady(spec, {
       ...configuredSource,
       syncExistingRepos,
+      env,
       logger,
       spawnSyncImpl,
     });

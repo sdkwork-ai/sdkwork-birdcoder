@@ -29,6 +29,7 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   SDKWORK_SHARED_SDK_MODE: git
+  SDKWORK_SHARED_SDK_GITHUB_TOKEN: ${{ secrets.SDKWORK_SHARED_SDK_GITHUB_TOKEN || github.token }}
 
 jobs:
   prepare:

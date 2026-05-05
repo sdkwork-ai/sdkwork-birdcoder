@@ -39,6 +39,31 @@ function extractWorkflowStepBlock(workflowSource, stepName) {
   return match[0];
 }
 
+function extractWorkflowStepBlocks(workflowSource, stepName) {
+  return [...workflowSource.matchAll(
+    new RegExp(`\\n\\s*- name: ${escapeRegex(stepName)}\\n[\\s\\S]*?(?=\\n\\s*- name: |\\n\\s{2}[A-Za-z0-9_-]+:|\\n\\s*$)`, 'g'),
+  )].map((match) => match[0]);
+}
+
+function assertPrepareSharedSdkStepsUseGithubToken(workflowSource) {
+  assert.match(
+    workflowSource,
+    /SDKWORK_SHARED_SDK_GITHUB_TOKEN:\s*\$\{\{\s*secrets\.SDKWORK_SHARED_SDK_GITHUB_TOKEN\s*\|\|\s*github\.token\s*\}\}/u,
+    'Release workflow must expose a shared SDK GitHub token env with an org secret fallback before private SDK repository clones run.',
+  );
+
+  const prepareSteps = extractWorkflowStepBlocks(workflowSource, 'Prepare shared SDK sources');
+  assert.ok(prepareSteps.length > 0, 'Release workflow must prepare shared SDK sources.');
+
+  for (const prepareStep of prepareSteps) {
+    assert.match(
+      prepareStep,
+      /prepare-shared-sdk-git-sources\.mjs/u,
+      'Release shared SDK preparation must use the governed git-source materializer.',
+    );
+  }
+}
+
 function assertSetupNodeStepsHavePnpmActionSetup(workflowSource) {
   const lines = workflowSource.split(/\r?\n/u);
   const setupNodeLineIndexes = lines
@@ -113,6 +138,7 @@ assert.doesNotMatch(
 assertSetupNodeStepsHavePnpmActionSetup(reusableWorkflow);
 assertSetupNodeCacheMatchesInstallIntent(reusableWorkflow);
 assert.match(reusableWorkflow, /prepare-shared-sdk-git-sources\.mjs/);
+assertPrepareSharedSdkStepsUseGithubToken(reusableWorkflow);
 assert.match(reusableWorkflow, /pnpm prepare:shared-sdk/);
 assert.match(
   reusableWorkflow,

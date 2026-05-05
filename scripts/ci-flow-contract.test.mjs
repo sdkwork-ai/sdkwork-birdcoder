@@ -19,6 +19,35 @@ const qualityReleaseRunnerModule = await import(
   pathToFileURL(path.join(rootDir, 'scripts/run-quality-release-check.mjs')).href
 );
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractWorkflowStepBlocks(workflowSource, stepName) {
+  return [...workflowSource.matchAll(
+    new RegExp(`\\n\\s*- name: ${escapeRegex(stepName)}\\n[\\s\\S]*?(?=\\n\\s*- name: |\\n\\s{2}[A-Za-z0-9_-]+:|\\n\\s*$)`, 'g'),
+  )].map((match) => match[0]);
+}
+
+function assertPrepareSharedSdkStepsUseGithubToken(workflowSource, workflowName) {
+  assert.match(
+    workflowSource,
+    /SDKWORK_SHARED_SDK_GITHUB_TOKEN:\s*\$\{\{\s*secrets\.SDKWORK_SHARED_SDK_GITHUB_TOKEN\s*\|\|\s*github\.token\s*\}\}/u,
+    `${workflowName} must expose a shared SDK GitHub token env with an org secret fallback before private SDK repository clones run.`,
+  );
+
+  const prepareSteps = extractWorkflowStepBlocks(workflowSource, 'Prepare shared SDK sources');
+  assert.ok(prepareSteps.length > 0, `${workflowName} must prepare shared SDK sources.`);
+
+  for (const prepareStep of prepareSteps) {
+    assert.match(
+      prepareStep,
+      /prepare-shared-sdk-git-sources\.mjs/u,
+      `${workflowName} shared SDK preparation must use the governed git-source materializer.`,
+    );
+  }
+}
+
 assert.match(ciWorkflow, /concurrency:/);
 assert.match(ciWorkflow, /pnpm-lock\.yaml/);
 assert.match(ciWorkflow, /SDKWORK_SHARED_SDK_MODE:\s*git/);
@@ -28,6 +57,7 @@ assert.doesNotMatch(
   'CI must let pnpm/action-setup read pnpm@10.30.2 from packageManager instead of specifying a second pnpm version.',
 );
 assert.match(ciWorkflow, /prepare-shared-sdk-git-sources\.mjs/);
+assertPrepareSharedSdkStepsUseGithubToken(ciWorkflow, 'CI workflow');
 assert.match(ciWorkflow, /pnpm prepare:shared-sdk/);
 assert.match(ciWorkflow, /pnpm lint/);
 assert.match(ciWorkflow, /pnpm check:desktop/);
