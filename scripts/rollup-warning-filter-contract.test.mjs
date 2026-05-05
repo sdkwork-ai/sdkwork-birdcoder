@@ -20,11 +20,24 @@ const knownUseClientNoiseIds = [
   '../../../sdkwork-api-router/apps/sdkwork-router-portal/node_modules/.pnpm/react-resizable-panels@4.10.0/node_modules/react-resizable-panels/dist/react-resizable-panels.js',
 ];
 
+const knownReactRouterUseClientNoiseIds = [
+  '../../node_modules/.pnpm/react-router@7.14.2_react-dom@19.2.4_react@19.2.4__react@19.2.4/node_modules/react-router/dist/development/index.mjs',
+  '../../node_modules/.pnpm/react-router-dom@7.14.2_react-dom@19.2.4_react@19.2.4__react@19.2.4/node_modules/react-router-dom/dist/index.mjs',
+];
+
 for (const id of knownUseClientNoiseIds) {
   assert.equal(
     shouldIgnoreBirdcoderRollupWarning(createUseClientWarning(id)),
     true,
     `BirdCoder Rollup warning filtering must ignore known shared-ui "use client" noise for ${id}.`,
+  );
+}
+
+for (const id of knownReactRouterUseClientNoiseIds) {
+  assert.equal(
+    shouldIgnoreBirdcoderRollupWarning(createUseClientWarning(id)),
+    true,
+    `BirdCoder Rollup warning filtering must ignore known React Router "use client" noise for ${id}.`,
   );
 }
 

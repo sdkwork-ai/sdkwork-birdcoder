@@ -447,13 +447,9 @@ function isLucideReactEsmModule(id) {
 
 function isSharedReactRouterModule(id) {
   const normalizedId = normalizeWarningModuleReference(id);
-  if (!normalizedId.includes('/sdkwork-appbase/node_modules/')) {
-    return false;
-  }
-
-  const isReactRouterPackage =
-    normalizedId.includes('/react-router/')
-    || normalizedId.includes('/react-router-dom/');
+  const isReactRouterPackage = /\/node_modules\/(?:\.pnpm\/(?:react-router|react-router-dom)@[^/]+\/node_modules\/)?(?:react-router|react-router-dom)\//u.test(
+    normalizedId,
+  );
   const isJavaScriptModule = /\.[cm]?[jt]sx?$/u.test(normalizedId);
 
   return isReactRouterPackage && isJavaScriptModule;
