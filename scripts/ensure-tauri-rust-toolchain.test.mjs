@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
-import os from 'node:os';
 import path from 'node:path';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 
 import {
   buildMissingRustToolchainMessage,
   ensureTauriRustToolchain,
   withRustToolchainPath,
 } from './ensure-tauri-rust-toolchain.mjs';
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 const successfulChecks = [];
 const successResult = ensureTauriRustToolchain({
@@ -31,22 +33,27 @@ assert.deepEqual(
 );
 assert.equal(successResult.length, 2, 'Rust toolchain guard should return successful inspections');
 
-const fakeRustHome = mkdtempSync(path.join(os.tmpdir(), 'birdcoder-tauri-rust-toolchain-'));
-const fakeRustBinDir = path.join(fakeRustHome, '.cargo', 'bin');
-mkdirSync(fakeRustBinDir, { recursive: true });
-writeFileSync(path.join(fakeRustBinDir, 'cargo.exe'), '', 'utf8');
-writeFileSync(path.join(fakeRustBinDir, 'rustc.exe'), '', 'utf8');
+const fakeRustHome = 'C:\\Users\\birdcoder';
+const fakeRustBinDir = path.win32.join(fakeRustHome, '.cargo', 'bin');
+const fakeRustExecutables = new Set([
+  path.win32.join(fakeRustBinDir, 'cargo.exe').toLowerCase(),
+  path.win32.join(fakeRustBinDir, 'rustc.exe').toLowerCase(),
+]);
+const fakeWindowsPathExists = (candidatePath) => {
+  return fakeRustExecutables.has(path.win32.normalize(candidatePath).toLowerCase());
+};
 
 const fallbackEnv = withRustToolchainPath({
   PATH: 'C:\\Windows\\System32',
   USERPROFILE: fakeRustHome,
 }, {
   platform: 'win32',
+  pathExists: fakeWindowsPathExists,
 });
 
 assert.match(
   fallbackEnv.PATH,
-  new RegExp(`^${fakeRustBinDir.replace(/\\/g, '\\\\')}(;|$)`),
+  new RegExp(`^${escapeRegExp(fakeRustBinDir)}(;|$)`),
   'Rust toolchain PATH helper should prepend the standard rustup bin directory on Windows',
 );
 
@@ -57,6 +64,7 @@ const fallbackResult = ensureTauriRustToolchain({
     USERPROFILE: fakeRustHome,
   },
   platform: 'win32',
+  pathExists: fakeWindowsPathExists,
   inspectCommand(command, args, options) {
     fallbackChecks.push({ command, args, options });
     return {
@@ -83,6 +91,7 @@ const restrictedResult = ensureTauriRustToolchain({
     USERPROFILE: fakeRustHome,
   },
   platform: 'win32',
+  pathExists: fakeWindowsPathExists,
   inspectCommand(command) {
     return {
       available: false,

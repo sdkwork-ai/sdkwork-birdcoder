@@ -158,6 +158,7 @@ export function inspectCommandAvailability(command, args = ['--version'], option
     requiredCommands: Array.isArray(options.requiredCommands) && options.requiredCommands.length > 0
       ? options.requiredCommands
       : [command],
+    pathExists: options.pathExists,
   });
   const result = spawnSync(command, args, {
     cwd: options.cwd ?? process.cwd(),
@@ -267,6 +268,7 @@ export function ensureTauriRustToolchain({
   const resolvedEnv = withRustToolchainPath(env, {
     platform,
     requiredCommands,
+    pathExists,
   });
   const commandPaths = new Map(requiredCommands.map((command) => {
     return [command, resolveCommandBinaryPath(command, resolvedEnv, platform, pathExists)];
@@ -276,6 +278,7 @@ export function ensureTauriRustToolchain({
       env: resolvedEnv,
       platform,
       requiredCommands,
+      pathExists,
     });
     const resolvedCommandPath = commandPaths.get(command);
 
