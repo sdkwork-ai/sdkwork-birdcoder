@@ -12,6 +12,8 @@ function readWorkflowSource(relativePath) {
 
 const reusableWorkflow = readWorkflowSource('.github/workflows/release-reusable.yml');
 const releaseWorkflow = readWorkflowSource('.github/workflows/release.yml');
+const nodeWrapperPath = path.join(rootDir, 'sdkwork-run-node');
+const pnpmWrapperPath = path.join(rootDir, 'sdkwork-run-pnpm');
 const rootPackageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
 const webPackageJson = JSON.parse(
   fs.readFileSync(path.join(rootDir, 'packages/sdkwork-birdcoder-web/package.json'), 'utf8'),
@@ -146,6 +148,26 @@ assert.match(releaseWorkflow, /release_profile:\s*sdkwork-birdcoder/);
 assert.doesNotMatch(releaseWorkflow, /release_profile:\s*claw-studio/);
 
 assert.match(reusableWorkflow, /SDKWORK_SHARED_SDK_MODE:\s*git/);
+assert.equal(
+  fs.existsSync(nodeWrapperPath),
+  true,
+  'release Linux and macOS runners need a POSIX sdkwork-run-node wrapper because package scripts invoke sdkwork-run-node without a .cmd extension.',
+);
+assert.equal(
+  fs.existsSync(pnpmWrapperPath),
+  true,
+  'release Linux and macOS runners need a POSIX sdkwork-run-pnpm wrapper because package scripts invoke sdkwork-run-pnpm without a .cmd extension.',
+);
+assert.match(
+  reusableWorkflow,
+  /Expose workspace command wrappers[\s\S]*command -v cygpath[\s\S]*chmod \+x "\$\{workspace_path\}\/sdkwork-run-node" "\$\{workspace_path\}\/sdkwork-run-pnpm"[\s\S]*printf '%s\\n' "\$GITHUB_WORKSPACE" >> "\$\{github_path_file\}"/,
+  'release jobs must add the checked-out workspace root to PATH before running pnpm scripts that call sdkwork-run-node or sdkwork-run-pnpm.',
+);
+assert.equal(
+  reusableWorkflow.match(/Expose workspace command wrappers/g)?.length ?? 0,
+  5,
+  'release workflow must expose workspace command wrappers in every job that runs pnpm lifecycle scripts.',
+);
 assert.doesNotMatch(
   reusableWorkflow,
   /uses: pnpm\/action-setup@v4[\s\S]{0,80}version:\s*10/,

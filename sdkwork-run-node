@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+set -eu
+
+if [ "$#" -eq 0 ]; then
+  printf '%s\n' 'Usage: sdkwork-run-node <script-or-arg> [more-args...]' >&2
+  exit 1
+fi
+
+NODE_BIN=''
+
+if [ -n "${npm_node_execpath:-}" ] && [ -f "$npm_node_execpath" ]; then
+  NODE_BIN="$npm_node_execpath"
+fi
+
+if [ -z "$NODE_BIN" ] && command -v node >/dev/null 2>&1; then
+  NODE_BIN="$(command -v node)"
+fi
+
+if [ -z "$NODE_BIN" ]; then
+  printf '%s\n' 'Node.js is not available in the current script environment.' >&2
+  exit 1
+fi
+
+exec "$NODE_BIN" "$@"

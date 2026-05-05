@@ -8,6 +8,8 @@ import { pathToFileURL } from 'node:url';
 const rootDir = process.cwd();
 const ciWorkflow = fs.readFileSync(path.join(rootDir, '.github/workflows/ci.yml'), 'utf8');
 const userCenterUpstreamSyncWorkflowPath = path.join(rootDir, '.github/workflows/user-center-upstream-sync.yml');
+const nodeWrapperPath = path.join(rootDir, 'sdkwork-run-node');
+const pnpmWrapperPath = path.join(rootDir, 'sdkwork-run-pnpm');
 const rootPackageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
 const qualityFastRunnerModule = await import(
   pathToFileURL(path.join(rootDir, 'scripts/run-quality-fast-check.mjs')).href
@@ -67,6 +69,26 @@ function assertPrepareSharedSdkStepsUseGithubToken(workflowSource, workflowName)
 assert.match(ciWorkflow, /concurrency:/);
 assert.match(ciWorkflow, /pnpm-lock\.yaml/);
 assert.match(ciWorkflow, /SDKWORK_SHARED_SDK_MODE:\s*git/);
+assert.equal(
+  fs.existsSync(nodeWrapperPath),
+  true,
+  'CI Linux runners need a POSIX sdkwork-run-node wrapper because package scripts invoke sdkwork-run-node without a .cmd extension.',
+);
+assert.equal(
+  fs.existsSync(pnpmWrapperPath),
+  true,
+  'CI Linux runners need a POSIX sdkwork-run-pnpm wrapper because package scripts invoke sdkwork-run-pnpm without a .cmd extension.',
+);
+assert.match(
+  ciWorkflow,
+  /Expose workspace command wrappers[\s\S]*command -v cygpath[\s\S]*chmod \+x "\$\{workspace_path\}\/sdkwork-run-node" "\$\{workspace_path\}\/sdkwork-run-pnpm"[\s\S]*printf '%s\\n' "\$GITHUB_WORKSPACE" >> "\$\{github_path_file\}"/,
+  'CI must add the checked-out workspace root to PATH before running pnpm scripts that call sdkwork-run-node or sdkwork-run-pnpm.',
+);
+assert.equal(
+  ciWorkflow.match(/Expose workspace command wrappers/g)?.length ?? 0,
+  2,
+  'CI must expose workspace command wrappers in each job that runs pnpm lifecycle scripts.',
+);
 assert.doesNotMatch(
   ciWorkflow,
   /uses: pnpm\/action-setup@v4[\s\S]{0,80}version:\s*10/,

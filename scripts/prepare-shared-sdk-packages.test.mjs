@@ -305,6 +305,109 @@ test('prepareSharedSdkPackages prepares source dependency resolution bridges onl
   }
 });
 
+test('prepareSharedSdkPackages bridges shared terminal workspace dependencies in git mode', () => {
+  const { tempRoot, workspaceRootDir } = createTempWorkspace();
+
+  try {
+    const { repoStates, specs } = createSharedRepos(workspaceRootDir);
+    const terminalSpec = specs.find((spec) => spec.id === 'sdkwork-terminal');
+    assert.ok(terminalSpec, 'fixture must include sdkwork-terminal');
+
+    const packageManifests = [
+      [
+        'packages/sdkwork-terminal-infrastructure',
+        {
+          name: '@sdkwork/terminal-infrastructure',
+          dependencies: {
+            '@sdkwork/terminal-commons': 'workspace:*',
+            '@sdkwork/terminal-core': 'workspace:*',
+            '@sdkwork/terminal-contracts': 'workspace:*',
+            '@sdkwork/terminal-types': 'workspace:*',
+            '@xterm/xterm': '^5.5.0',
+          },
+        },
+      ],
+      [
+        'packages/sdkwork-terminal-commons',
+        {
+          name: '@sdkwork/terminal-commons',
+        },
+      ],
+      [
+        'packages/sdkwork-terminal-core',
+        {
+          name: '@sdkwork/terminal-core',
+          dependencies: {
+            '@sdkwork/terminal-types': 'workspace:*',
+          },
+        },
+      ],
+      [
+        'packages/sdkwork-terminal-contracts',
+        {
+          name: '@sdkwork/terminal-contracts',
+          dependencies: {
+            '@sdkwork/terminal-types': 'workspace:*',
+          },
+        },
+      ],
+      [
+        'packages/sdkwork-terminal-types',
+        {
+          name: '@sdkwork/terminal-types',
+        },
+      ],
+    ];
+
+    for (const [relativePackageRoot, manifest] of packageManifests) {
+      const packageRoot = path.join(terminalSpec.repoRoot, relativePackageRoot);
+      fs.mkdirSync(packageRoot, { recursive: true });
+      fs.writeFileSync(
+        path.join(packageRoot, 'package.json'),
+        JSON.stringify({
+          version: '0.2.59',
+          type: 'module',
+          exports: {
+            '.': './src/index.ts',
+          },
+          ...manifest,
+        }, null, 2) + '\n',
+      );
+    }
+
+    prepareSharedSdkPackages({
+      currentWorkingDir: workspaceRootDir,
+      env: {
+        SDKWORK_SHARED_SDK_MODE: 'git',
+      },
+      spawnSyncImpl: createGitSpawn(repoStates),
+      logger: {
+        log() {},
+      },
+    });
+
+    const bridgeDir = path.join(
+      terminalSpec.repoRoot,
+      'packages',
+      'sdkwork-terminal-infrastructure',
+      'node_modules',
+    );
+    for (const packageName of [
+      '@sdkwork/terminal-commons',
+      '@sdkwork/terminal-core',
+      '@sdkwork/terminal-contracts',
+      '@sdkwork/terminal-types',
+    ]) {
+      assert.ok(
+        fs.existsSync(path.join(bridgeDir, ...packageName.split('/'), 'package.json')),
+        `git mode must expose ${packageName} through the terminal infrastructure bridge`,
+      );
+    }
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('prepareSharedSdkPackages chooses dependency versions that satisfy the shared package manifest', () => {
   const { tempRoot, workspaceRootDir } = createTempWorkspace();
 

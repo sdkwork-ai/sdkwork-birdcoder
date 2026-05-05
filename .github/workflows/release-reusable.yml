@@ -92,6 +92,18 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      - name: Expose workspace command wrappers
+        shell: bash
+        run: |
+          workspace_path="$GITHUB_WORKSPACE"
+          github_path_file="$GITHUB_PATH"
+          if command -v cygpath >/dev/null 2>&1; then
+            workspace_path="$(cygpath -u "$GITHUB_WORKSPACE")"
+            github_path_file="$(cygpath -u "$GITHUB_PATH")"
+          fi
+          chmod +x "${workspace_path}/sdkwork-run-node" "${workspace_path}/sdkwork-run-pnpm"
+          printf '%s\n' "$GITHUB_WORKSPACE" >> "${github_path_file}"
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -168,6 +180,18 @@ jobs:
           ref: ${{ needs.prepare.outputs.git_ref }}
           fetch-depth: 0
           submodules: recursive
+
+      - name: Expose workspace command wrappers
+        shell: bash
+        run: |
+          workspace_path="$GITHUB_WORKSPACE"
+          github_path_file="$GITHUB_PATH"
+          if command -v cygpath >/dev/null 2>&1; then
+            workspace_path="$(cygpath -u "$GITHUB_WORKSPACE")"
+            github_path_file="$(cygpath -u "$GITHUB_PATH")"
+          fi
+          chmod +x "${workspace_path}/sdkwork-run-node" "${workspace_path}/sdkwork-run-pnpm"
+          printf '%s\n' "$GITHUB_WORKSPACE" >> "${github_path_file}"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -303,6 +327,18 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      - name: Expose workspace command wrappers
+        shell: bash
+        run: |
+          workspace_path="$GITHUB_WORKSPACE"
+          github_path_file="$GITHUB_PATH"
+          if command -v cygpath >/dev/null 2>&1; then
+            workspace_path="$(cygpath -u "$GITHUB_WORKSPACE")"
+            github_path_file="$(cygpath -u "$GITHUB_PATH")"
+          fi
+          chmod +x "${workspace_path}/sdkwork-run-node" "${workspace_path}/sdkwork-run-pnpm"
+          printf '%s\n' "$GITHUB_WORKSPACE" >> "${github_path_file}"
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -367,6 +403,18 @@ jobs:
           ref: ${{ needs.prepare.outputs.git_ref }}
           fetch-depth: 0
           submodules: recursive
+
+      - name: Expose workspace command wrappers
+        shell: bash
+        run: |
+          workspace_path="$GITHUB_WORKSPACE"
+          github_path_file="$GITHUB_PATH"
+          if command -v cygpath >/dev/null 2>&1; then
+            workspace_path="$(cygpath -u "$GITHUB_WORKSPACE")"
+            github_path_file="$(cygpath -u "$GITHUB_PATH")"
+          fi
+          chmod +x "${workspace_path}/sdkwork-run-node" "${workspace_path}/sdkwork-run-pnpm"
+          printf '%s\n' "$GITHUB_WORKSPACE" >> "${github_path_file}"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -440,6 +488,18 @@ jobs:
           ref: ${{ needs.prepare.outputs.git_ref }}
           fetch-depth: 0
           submodules: recursive
+
+      - name: Expose workspace command wrappers
+        shell: bash
+        run: |
+          workspace_path="$GITHUB_WORKSPACE"
+          github_path_file="$GITHUB_PATH"
+          if command -v cygpath >/dev/null 2>&1; then
+            workspace_path="$(cygpath -u "$GITHUB_WORKSPACE")"
+            github_path_file="$(cygpath -u "$GITHUB_PATH")"
+          fi
+          chmod +x "${workspace_path}/sdkwork-run-node" "${workspace_path}/sdkwork-run-pnpm"
+          printf '%s\n' "$GITHUB_WORKSPACE" >> "${github_path_file}"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4

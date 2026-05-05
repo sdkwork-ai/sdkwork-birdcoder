@@ -322,9 +322,39 @@ function linkDependencyPackage({
   fs.symlinkSync(dependencyRoot, linkPath, 'junction');
 }
 
+function collectPreparedSharedWorkspacePackages(sources) {
+  const sourceById = new Map(sources.map((source) => [source.id, source]));
+  const packageByName = new Map();
+
+  for (const bridgeSpec of SHARED_PACKAGE_BRIDGE_SPECS) {
+    const source = sourceById.get(bridgeSpec.id);
+    if (!source?.repoRoot) {
+      continue;
+    }
+
+    for (const relativePackageRoot of bridgeSpec.relativePackageRoots) {
+      const packageRoot = path.join(source.repoRoot, relativePackageRoot);
+      const packageJson = readPackageJson(packageRoot);
+      const packageName = normalizePackageName(packageJson?.name);
+      if (packageName.length === 0) {
+        continue;
+      }
+
+      packageByName.set(packageName, {
+        packageRoot,
+        sourceId: bridgeSpec.id,
+        relativePackageRoot,
+      });
+    }
+  }
+
+  return packageByName;
+}
+
 function prepareSourceDependencyBridge({
   packageRoot,
   workspaceRootDir,
+  sharedWorkspacePackageByName,
   logger,
 }) {
   const dependencies = collectDeclaredDependencies(packageRoot);
@@ -357,7 +387,18 @@ function prepareSourceDependencyBridge({
   const skippedDependencies = [];
   for (const { name: dependencyName, spec: dependencySpec } of dependencies) {
     if (dependencyName.startsWith('@sdkwork/')) {
-      skippedDependencies.push(dependencyName);
+      const sharedWorkspacePackage = sharedWorkspacePackageByName?.get(dependencyName);
+      if (!sharedWorkspacePackage?.packageRoot) {
+        skippedDependencies.push(dependencyName);
+        continue;
+      }
+
+      linkDependencyPackage({
+        dependencyName,
+        dependencyRoot: sharedWorkspacePackage.packageRoot,
+        bridgeRoot,
+      });
+      linkedDependencies.push(dependencyName);
       continue;
     }
 
@@ -407,6 +448,7 @@ export function prepareSharedSdkDependencyBridges({
   }
 
   const sourceById = new Map(sources.map((source) => [source.id, source]));
+  const sharedWorkspacePackageByName = collectPreparedSharedWorkspacePackages(sources);
   const bridges = [];
 
   for (const bridgeSpec of SHARED_PACKAGE_BRIDGE_SPECS) {
@@ -427,6 +469,7 @@ export function prepareSharedSdkDependencyBridges({
         ...prepareSourceDependencyBridge({
           packageRoot,
           workspaceRootDir,
+          sharedWorkspacePackageByName,
           logger,
         }),
       });
