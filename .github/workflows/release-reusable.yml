@@ -115,7 +115,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.91.1
+        uses: dtolnay/rust-toolchain@1.90.0
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -204,7 +204,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.91.1
+        uses: dtolnay/rust-toolchain@1.90.0
         with:
           targets: ${{ matrix.target }}
 
@@ -427,7 +427,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.91.1
+        uses: dtolnay/rust-toolchain@1.90.0
         with:
           targets: ${{ matrix.target }}
 
@@ -512,7 +512,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.91.1
+        uses: dtolnay/rust-toolchain@1.90.0
         with:
           targets: ${{ matrix.target }}
 

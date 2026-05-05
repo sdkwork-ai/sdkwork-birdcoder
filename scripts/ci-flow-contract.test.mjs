@@ -94,6 +94,16 @@ assert.doesNotMatch(
   /uses: pnpm\/action-setup@v4[\s\S]{0,80}version:\s*10/,
   'CI must let pnpm/action-setup read pnpm@10.30.2 from packageManager instead of specifying a second pnpm version.',
 );
+assert.match(
+  ciWorkflow,
+  /uses:\s*dtolnay\/rust-toolchain@1\.90\.0/,
+  'CI must install the Claw-aligned Rust 1.90.0 toolchain that stabilizes release SDK builds.',
+);
+assert.doesNotMatch(
+  ciWorkflow,
+  /uses:\s*dtolnay\/rust-toolchain@1\.91\.1/,
+  'CI must not drift back to Rust 1.91.1 while the Claw release SDK build baseline is pinned to 1.90.0.',
+);
 assert.match(ciWorkflow, /prepare-shared-sdk-git-sources\.mjs/);
 assertPrepareSharedSdkStepsUseGithubToken(ciWorkflow, 'CI workflow');
 assert.match(ciWorkflow, /pnpm prepare:shared-sdk/);

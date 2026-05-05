@@ -173,6 +173,16 @@ assert.doesNotMatch(
   /uses: pnpm\/action-setup@v4[\s\S]{0,80}version:\s*10/,
   'Release workflow must let pnpm/action-setup read pnpm@10.30.2 from packageManager instead of specifying a second pnpm version.',
 );
+assert.match(
+  reusableWorkflow,
+  /uses:\s*dtolnay\/rust-toolchain@1\.90\.0/,
+  'Release workflow must install the Claw-aligned Rust 1.90.0 toolchain that stabilizes release SDK builds.',
+);
+assert.doesNotMatch(
+  reusableWorkflow,
+  /uses:\s*dtolnay\/rust-toolchain@1\.91\.1/,
+  'Release workflow must not drift back to Rust 1.91.1 while the Claw release SDK build baseline is pinned to 1.90.0.',
+);
 assertSetupNodeStepsHavePnpmActionSetup(reusableWorkflow);
 assertSetupNodeCacheMatchesInstallIntent(reusableWorkflow);
 assert.match(reusableWorkflow, /prepare-shared-sdk-git-sources\.mjs/);
