@@ -31,6 +31,18 @@ assert.match(
   'Task progress rendering must use the normalized display state rather than reading raw payload fields directly.',
 );
 
+assert.match(
+  universalChatSource,
+  /data-chat-task-progress="inline"/,
+  'Task progress must render as an inline transcript activity row instead of a bordered card.',
+);
+
+assert.doesNotMatch(
+  universalChatSource,
+  /data-chat-task-progress="inline"[\s\S]{0,180}border border-white\/5/,
+  'Inline task progress must not use the old bordered card styling.',
+);
+
 assert.doesNotMatch(
   universalChatSource,
   /Math\.floor\(msg\.taskProgress\.(?:total|completed)\)/,

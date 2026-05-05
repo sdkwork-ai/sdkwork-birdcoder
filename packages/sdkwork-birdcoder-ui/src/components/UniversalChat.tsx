@@ -1027,29 +1027,30 @@ function UniversalChatActivitySummary({
 
   return (
     <div
-      className={`mt-2 w-full overflow-hidden rounded-lg border border-white/10 bg-[#121216]/90 shadow-sm ${
+      data-chat-activity-summary="inline"
+      className={`mt-2 w-full overflow-hidden ${
         compact ? 'text-xs' : 'text-sm'
       }`}
     >
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-white/5"
+        className="flex w-full items-center justify-between gap-3 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.04]"
         title={isExpanded ? collapseLabel : expandLabel}
         onClick={() => setIsExpanded((currentValue) => !currentValue)}
       >
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-500/10 text-blue-300">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-blue-300">
             <CheckCircle2 size={compact ? 13 : 14} />
           </span>
           <span className="font-medium text-gray-200">{activitySummaryLabel}</span>
           {fileChanges.length > 0 ? (
-            <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-gray-300">
+            <span className="inline-flex items-center gap-1 rounded-md bg-white/[0.04] px-2 py-0.5 text-[11px] text-gray-300">
               <FileCode2 size={11} className="text-sky-300" />
               {editedFilesLabel}
             </span>
           ) : null}
           {commands.length > 0 ? (
-            <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-gray-300">
+            <span className="inline-flex items-center gap-1 rounded-md bg-white/[0.04] px-2 py-0.5 text-[11px] text-gray-300">
               <Terminal size={11} className="text-blue-300" />
               {ranCommandsLabel}
             </span>
@@ -1070,7 +1071,7 @@ function UniversalChatActivitySummary({
       </button>
 
       {isExpanded ? (
-        <div className="border-t border-white/10 px-2.5 py-2.5">
+        <div className="px-1.5 pb-2 pt-1">
           {commands.length > 0 ? (
             <div className={fileChanges.length > 0 ? 'mb-3' : undefined}>
               <div className="mb-1.5 flex items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">
@@ -1084,8 +1085,8 @@ function UniversalChatActivitySummary({
                   const commandOutputPreview = buildCommandOutputPreview(cmd.output);
                   const commandStatusLabel = resolveCommandExecutionStatusLabel(cmd, environment?.t);
                   return (
-                    <div key={`${cmdIdx}\u0001${cmd.toolCallId ?? cmd.command}`} className="overflow-hidden rounded-md border border-white/10 bg-black/25">
-                      <div className="flex items-center gap-2 px-2.5 py-2">
+                    <div key={`${cmdIdx}\u0001${cmd.toolCallId ?? cmd.command}`} className="overflow-hidden">
+                      <div className="flex items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-white/[0.035]">
                         <button
                           type="button"
                           className="flex min-w-0 flex-1 items-center gap-2 text-left"
@@ -1114,17 +1115,17 @@ function UniversalChatActivitySummary({
                         </button>
                       </div>
                       {isCommandExpanded ? (
-                        <div className="border-t border-white/10 bg-black/20 px-3 py-2">
+                        <div className="px-7 pb-2 pt-1">
                           <div className="mb-1 text-[11px] font-medium text-gray-500">
                             {commandOutputLabel}
                           </div>
                           {commandOutputPreview.text ? (
-                            <pre className="max-h-64 overflow-auto rounded-md bg-black/35 p-2 font-mono text-[11px] leading-relaxed text-gray-300 custom-scrollbar">
+                            <pre className="max-h-64 overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 custom-scrollbar">
                               {commandOutputPreview.text}
                               {commandOutputPreview.isTruncated ? '\n...' : ''}
                             </pre>
                           ) : (
-                            <div className="rounded-md border border-dashed border-white/10 px-2 py-2 text-[11px] text-gray-500">
+                            <div className="rounded-md bg-white/[0.025] px-2 py-2 text-[11px] text-gray-500">
                               {noCommandOutputLabel}
                             </div>
                           )}
@@ -1150,8 +1151,11 @@ function UniversalChatActivitySummary({
                   const diffPreview = buildFileChangeDiffPreview(fileChange);
                   const lineImpact = fileChangeLineImpacts[fileIndex] ?? resolveActivityFileChangeLineImpact(fileChange);
                   return (
-                    <div key={fileKey} className="overflow-hidden rounded-md border border-white/10 bg-black/25">
-                      <div className="flex items-center gap-2 px-2.5 py-2">
+                    <div key={fileKey} className="overflow-hidden">
+                      <div
+                        data-chat-file-change-row="inline"
+                        className="flex items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-white/[0.035]"
+                      >
                         <button
                           type="button"
                           className="flex min-w-0 flex-1 items-center gap-2 text-left"
@@ -1179,7 +1183,7 @@ function UniversalChatActivitySummary({
                               </span>
                             </>
                           ) : (
-                            <span className="shrink-0 rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] text-gray-500">
+                            <span className="shrink-0 rounded-md bg-white/[0.025] px-1.5 py-0.5 text-[10px] text-gray-500">
                               {lineImpactUnknownLabel}
                             </span>
                           )}
@@ -1199,7 +1203,7 @@ function UniversalChatActivitySummary({
                         ) : null}
                       </div>
                       {isFileExpanded ? (
-                        <div className="border-t border-white/10 bg-black/20 px-3 py-2">
+                        <div data-chat-file-inline-diff="true" className="px-7 pb-2 pt-1">
                           <div className="mb-1 flex items-center justify-between gap-2">
                             <span className="text-[11px] font-medium text-gray-500">
                               {diffPreviewLabel}
@@ -1211,7 +1215,7 @@ function UniversalChatActivitySummary({
                             ) : null}
                           </div>
                           {diffPreview.lines.length > 0 ? (
-                            <div className="max-h-72 overflow-auto rounded-md bg-black/35 py-2 font-mono text-[11px] leading-relaxed custom-scrollbar">
+                            <div className="max-h-72 overflow-auto rounded-md bg-black/20 py-2 font-mono text-[11px] leading-relaxed custom-scrollbar">
                               {diffPreview.lines.map((line, lineIndex) => (
                                 <div
                                   key={`${fileKey}\u0001${lineIndex}`}
@@ -1230,7 +1234,7 @@ function UniversalChatActivitySummary({
                               ) : null}
                             </div>
                           ) : (
-                            <div className="rounded-md border border-dashed border-white/10 px-2 py-2 text-[11px] text-gray-500">
+                            <div className="rounded-md bg-white/[0.025] px-2 py-2 text-[11px] text-gray-500">
                               {noInlineDiffLabel}
                             </div>
                           )}
@@ -1516,7 +1520,10 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     const { completed, percent, total } = taskProgressDisplayState;
 
     return (
-      <div className="mt-2 w-full rounded-lg border border-white/5 bg-black/25 px-3 py-2 text-xs text-gray-300">
+      <div
+        data-chat-task-progress="inline"
+        className="mt-2 w-full rounded-md px-1.5 py-1.5 text-xs text-gray-300"
+      >
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <List size={13} className="shrink-0 text-blue-400" />
@@ -1526,7 +1533,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
             {completed}/{total}
           </span>
         </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.08]">
           <div
             className="h-full rounded-full bg-blue-400 transition-[width]"
             style={{ width: `${percent}%` }}

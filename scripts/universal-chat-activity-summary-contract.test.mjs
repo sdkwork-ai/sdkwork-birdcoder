@@ -49,6 +49,36 @@ assert.match(
 
 assert.match(
   universalChatSource,
+  /data-chat-activity-summary="inline"/,
+  'The activity summary must render as an inline transcript block instead of a bordered card.',
+);
+
+assert.match(
+  universalChatSource,
+  /data-chat-file-change-row="inline"/,
+  'Each file change must render as a flat clickable inline row inside the message stream.',
+);
+
+assert.match(
+  universalChatSource,
+  /data-chat-file-inline-diff="true"/,
+  'Clicking an edited-file row must reveal the diff inline below that row.',
+);
+
+assert.doesNotMatch(
+  universalChatSource,
+  /data-chat-activity-summary="inline"[\s\S]{0,160}border border-white\/10/,
+  'The inline activity summary must not use an outer border because the transcript should keep a flat no-frame style.',
+);
+
+assert.doesNotMatch(
+  universalChatSource,
+  /data-chat-file-change-row="inline"[\s\S]{0,180}border border-white\/10/,
+  'Inline file rows must not be rendered as bordered nested cards.',
+);
+
+assert.match(
+  universalChatSource,
   /expandedFileKeys\.has\(fileKey\)/,
   'Each edited-file row must have independent expansion state for inspecting its details.',
 );
