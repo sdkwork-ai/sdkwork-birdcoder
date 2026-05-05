@@ -22,6 +22,11 @@ const qualityReleaseRunnerModule = await import(
 assert.match(ciWorkflow, /concurrency:/);
 assert.match(ciWorkflow, /pnpm-lock\.yaml/);
 assert.match(ciWorkflow, /SDKWORK_SHARED_SDK_MODE:\s*git/);
+assert.doesNotMatch(
+  ciWorkflow,
+  /uses: pnpm\/action-setup@v4[\s\S]{0,80}version:\s*10/,
+  'CI must let pnpm/action-setup read pnpm@10.30.2 from packageManager instead of specifying a second pnpm version.',
+);
 assert.match(ciWorkflow, /prepare-shared-sdk-git-sources\.mjs/);
 assert.match(ciWorkflow, /pnpm prepare:shared-sdk/);
 assert.match(ciWorkflow, /pnpm lint/);

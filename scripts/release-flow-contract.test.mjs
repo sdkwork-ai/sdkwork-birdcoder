@@ -5,14 +5,13 @@ import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
 const rootDir = process.cwd();
-const reusableWorkflow = fs.readFileSync(
-  path.join(rootDir, '.github/workflows/release-reusable.yml'),
-  'utf8',
-);
-const releaseWorkflow = fs.readFileSync(
-  path.join(rootDir, '.github/workflows/release.yml'),
-  'utf8',
-);
+
+function readWorkflowSource(relativePath) {
+  return fs.readFileSync(path.join(rootDir, relativePath), 'utf8').replaceAll('\r\n', '\n');
+}
+
+const reusableWorkflow = readWorkflowSource('.github/workflows/release-reusable.yml');
+const releaseWorkflow = readWorkflowSource('.github/workflows/release.yml');
 const rootPackageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
 const webPackageJson = JSON.parse(
   fs.readFileSync(path.join(rootDir, 'packages/sdkwork-birdcoder-web/package.json'), 'utf8'),
@@ -72,6 +71,11 @@ assert.match(releaseWorkflow, /release_profile:\s*sdkwork-birdcoder/);
 assert.doesNotMatch(releaseWorkflow, /release_profile:\s*claw-studio/);
 
 assert.match(reusableWorkflow, /SDKWORK_SHARED_SDK_MODE:\s*git/);
+assert.doesNotMatch(
+  reusableWorkflow,
+  /uses: pnpm\/action-setup@v4[\s\S]{0,80}version:\s*10/,
+  'Release workflow must let pnpm/action-setup read pnpm@10.30.2 from packageManager instead of specifying a second pnpm version.',
+);
 assertSetupNodeStepsHavePnpmActionSetup(reusableWorkflow);
 assert.match(reusableWorkflow, /prepare-shared-sdk-git-sources\.mjs/);
 assert.match(reusableWorkflow, /pnpm prepare:shared-sdk/);
