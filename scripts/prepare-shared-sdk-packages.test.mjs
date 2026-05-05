@@ -40,7 +40,13 @@ function createRequiredFiles(repoRoot, requiredPaths) {
   for (const relativePath of requiredPaths) {
     const absolutePath = path.join(repoRoot, relativePath);
     fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
-    fs.writeFileSync(absolutePath, `${relativePath}\n`);
+    const content = path.basename(relativePath) === 'package.json'
+      ? JSON.stringify({
+        name: `fixture-${path.dirname(relativePath).replace(/[\\/]/gu, '-')}`,
+        version: '0.0.0',
+      }, null, 2) + '\n'
+      : `${relativePath}\n`;
+    fs.writeFileSync(absolutePath, content);
   }
 }
 
@@ -73,6 +79,7 @@ function createSharedRepos(workspaceRootDir) {
   );
 
   return {
+    specs,
     repoStates,
   };
 }
@@ -205,6 +212,226 @@ test('prepareSharedSdkPackages delegates to governed git-source preparation in g
     assert.ok(
       logs.some((message) => message.includes('Ready sdkwork-appbase')),
       'git mode must surface shared repository readiness',
+    );
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('prepareSharedSdkPackages prepares source dependency resolution bridges only in git mode', () => {
+  const { tempRoot, workspaceRootDir } = createTempWorkspace();
+
+  try {
+    const { repoStates, specs } = createSharedRepos(workspaceRootDir);
+    const uiSpec = specs.find((spec) => spec.id === 'sdkwork-ui');
+    assert.ok(uiSpec, 'fixture must include sdkwork-ui');
+    fs.mkdirSync(path.join(uiSpec.repoRoot, 'sdkwork-ui-pc-react', 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(uiSpec.repoRoot, 'sdkwork-ui-pc-react', 'package.json'),
+      JSON.stringify({
+        name: '@sdkwork/ui-pc-react',
+        dependencies: {
+          '@radix-ui/react-popover': '^1.1.15',
+          'class-variance-authority': '^0.7.1',
+        },
+        peerDependencies: {
+          react: '>=18.0.0 <20.0.0',
+        },
+      }, null, 2) + '\n',
+    );
+    fs.writeFileSync(
+      path.join(uiSpec.repoRoot, 'sdkwork-ui-pc-react', 'src', 'index.ts'),
+      'export {};\n',
+    );
+
+    const pnpmHoistedDependencyDir = path.join(
+      workspaceRootDir,
+      'node_modules',
+      '.pnpm',
+      'node_modules',
+    );
+    const topLevelDependencyDir = path.join(
+      workspaceRootDir,
+      'node_modules',
+    );
+    fs.mkdirSync(path.join(topLevelDependencyDir, 'react'), { recursive: true });
+    fs.writeFileSync(path.join(topLevelDependencyDir, 'react', 'package.json'), '{"name":"react"}\n');
+    fs.mkdirSync(path.join(pnpmHoistedDependencyDir, 'class-variance-authority'), { recursive: true });
+    fs.writeFileSync(
+      path.join(pnpmHoistedDependencyDir, 'class-variance-authority', 'package.json'),
+      '{"name":"class-variance-authority"}\n',
+    );
+    fs.mkdirSync(path.join(pnpmHoistedDependencyDir, '@radix-ui', 'react-popover'), { recursive: true });
+    fs.writeFileSync(
+      path.join(pnpmHoistedDependencyDir, '@radix-ui', 'react-popover', 'package.json'),
+      '{"name":"@radix-ui/react-popover"}\n',
+    );
+
+    const bridgeDir = path.join(uiSpec.repoRoot, 'sdkwork-ui-pc-react', 'node_modules');
+    assert.equal(fs.existsSync(bridgeDir), false);
+
+    const gitResult = prepareSharedSdkPackages({
+      currentWorkingDir: workspaceRootDir,
+      env: {
+        SDKWORK_SHARED_SDK_MODE: 'git',
+      },
+      spawnSyncImpl: createGitSpawn(repoStates),
+      logger: {
+        log() {},
+      },
+    });
+
+    assert.equal(gitResult.mode, 'git');
+    assert.ok(
+      fs.existsSync(path.join(bridgeDir, 'react', 'package.json')),
+      'git mode must expose React to the shared UI source package',
+    );
+    assert.ok(
+      fs.existsSync(path.join(bridgeDir, 'class-variance-authority', 'package.json')),
+      'git mode must expose shared UI direct dependencies to sibling source resolution',
+    );
+    assert.ok(
+      fs.existsSync(path.join(bridgeDir, '@radix-ui', 'react-popover', 'package.json')),
+      'git mode must preserve scoped dependency names when bridging shared UI dependencies',
+    );
+    assert.ok(
+      gitResult.dependencyBridges.some((bridge) => bridge.id === 'sdkwork-ui'),
+      'git mode result must describe prepared dependency bridges',
+    );
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('prepareSharedSdkPackages chooses dependency versions that satisfy the shared package manifest', () => {
+  const { tempRoot, workspaceRootDir } = createTempWorkspace();
+
+  try {
+    const { repoStates, specs } = createSharedRepos(workspaceRootDir);
+    const uiSpec = specs.find((spec) => spec.id === 'sdkwork-ui');
+    assert.ok(uiSpec, 'fixture must include sdkwork-ui');
+    const packageRoot = path.join(uiSpec.repoRoot, 'sdkwork-ui-pc-react');
+    fs.writeFileSync(
+      path.join(packageRoot, 'package.json'),
+      JSON.stringify({
+        name: '@sdkwork/ui-pc-react',
+        dependencies: {
+          'lucide-react': '1.7.0',
+        },
+      }, null, 2) + '\n',
+    );
+
+    const topLevelDependencyDir = path.join(workspaceRootDir, 'node_modules', 'lucide-react');
+    fs.mkdirSync(topLevelDependencyDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(topLevelDependencyDir, 'package.json'),
+      '{"name":"lucide-react","version":"0.546.0"}\n',
+    );
+    const packageStoreDependencyDir = path.join(
+      workspaceRootDir,
+      'node_modules',
+      '.pnpm',
+      'lucide-react@1.7.0_react@19.2.4',
+      'node_modules',
+      'lucide-react',
+    );
+    fs.mkdirSync(packageStoreDependencyDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageStoreDependencyDir, 'package.json'),
+      '{"name":"lucide-react","version":"1.7.0"}\n',
+    );
+
+    prepareSharedSdkPackages({
+      currentWorkingDir: workspaceRootDir,
+      env: {
+        SDKWORK_SHARED_SDK_MODE: 'git',
+      },
+      spawnSyncImpl: createGitSpawn(repoStates),
+      logger: {
+        log() {},
+      },
+    });
+
+    const bridgedPackageJson = JSON.parse(
+      fs.readFileSync(path.join(packageRoot, 'node_modules', 'lucide-react', 'package.json'), 'utf8'),
+    );
+    assert.equal(
+      bridgedPackageJson.version,
+      '1.7.0',
+      'git mode bridge must prefer the installed dependency instance that satisfies the shared package manifest',
+    );
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('prepareSharedSdkPackages does not mutate sibling source package node_modules in source mode', () => {
+  const { tempRoot, workspaceRootDir } = createTempWorkspace();
+
+  try {
+    const { specs } = createSharedRepos(workspaceRootDir);
+    const uiSpec = specs.find((spec) => spec.id === 'sdkwork-ui');
+    assert.ok(uiSpec, 'fixture must include sdkwork-ui');
+    const bridgeDir = path.join(uiSpec.repoRoot, 'sdkwork-ui-pc-react', 'node_modules');
+
+    const sourceResult = prepareSharedSdkPackages({
+      currentWorkingDir: workspaceRootDir,
+      env: {},
+      logger: {
+        log() {},
+      },
+    });
+
+    assert.equal(sourceResult.mode, 'source');
+    assert.equal(sourceResult.prepared, false);
+    assert.equal(fs.existsSync(bridgeDir), false);
+    assert.deepEqual(sourceResult.dependencyBridges, []);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('prepareSharedSdkPackages preserves unmanaged local sibling node_modules in git mode', () => {
+  const { tempRoot, workspaceRootDir } = createTempWorkspace();
+
+  try {
+    const { repoStates, specs } = createSharedRepos(workspaceRootDir);
+    const uiSpec = specs.find((spec) => spec.id === 'sdkwork-ui');
+    assert.ok(uiSpec, 'fixture must include sdkwork-ui');
+    const packageRoot = path.join(uiSpec.repoRoot, 'sdkwork-ui-pc-react');
+    fs.writeFileSync(
+      path.join(packageRoot, 'package.json'),
+      JSON.stringify({
+        name: '@sdkwork/ui-pc-react',
+        dependencies: {
+          'class-variance-authority': '^0.7.1',
+        },
+      }, null, 2) + '\n',
+    );
+    const bridgeDir = path.join(packageRoot, 'node_modules');
+    fs.mkdirSync(path.join(bridgeDir, 'local-only'), { recursive: true });
+    fs.writeFileSync(path.join(bridgeDir, 'local-only', 'marker.txt'), 'preserve me\n');
+
+    const gitResult = prepareSharedSdkPackages({
+      currentWorkingDir: workspaceRootDir,
+      env: {
+        SDKWORK_SHARED_SDK_MODE: 'git',
+      },
+      spawnSyncImpl: createGitSpawn(repoStates),
+      logger: {
+        log() {},
+      },
+    });
+
+    assert.equal(
+      fs.readFileSync(path.join(bridgeDir, 'local-only', 'marker.txt'), 'utf8'),
+      'preserve me\n',
+    );
+    assert.ok(
+      gitResult.dependencyBridges.some((bridge) =>
+        bridge.id === 'sdkwork-ui' && bridge.preservedExistingNodeModules === true,
+      ),
+      'git mode must report when it preserves an unmanaged local node_modules directory',
     );
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
