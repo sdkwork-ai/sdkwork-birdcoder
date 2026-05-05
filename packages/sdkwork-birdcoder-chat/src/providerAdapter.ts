@@ -1,5 +1,6 @@
 import {
   parseBirdCoderApiJson,
+  stringifyBirdCoderLongInteger,
   stringifyBirdCoderApiJson,
 } from '@sdkwork/birdcoder-types';
 import type {
@@ -8,6 +9,9 @@ import type {
   BirdCoderEngineTransportKind,
 } from '@sdkwork/birdcoder-types';
 import type {
+  ChatCanonicalEvent,
+  ChatCanonicalRuntimeDescriptor,
+  ChatContext,
   ChatEngineCapabilityName,
   ChatEngineCapabilitySnapshot,
   ChatEngineHealthReport,
@@ -21,6 +25,8 @@ import type {
   ChatOptions,
   ChatResponse,
   ChatStreamChunk,
+  IChatCodingSession,
+  IChatSession,
   Role,
   ToolCall,
 } from './types.ts';
@@ -147,6 +153,10 @@ export interface StaticIntegrationDescriptorInput {
   notes?: string;
 }
 
+export interface RuntimeIntegrationDescriptorInput extends StaticIntegrationDescriptorInput {
+  packagePresence?: ChatEnginePackagePresence;
+}
+
 export interface StaticHealthReportInput {
   descriptor: ChatEngineIntegrationDescriptor;
   status?: ChatEngineHealthReport['status'];
@@ -198,6 +208,36 @@ export interface RawExtensionDescriptorInput {
   nativeArtifactModel?: readonly string[];
   experimentalFeatures?: readonly string[];
   notes?: string;
+}
+
+export interface DefaultChatEngineRuntimeDescriptorInput {
+  descriptor: ChatEngineIntegrationDescriptor;
+  capabilityMatrix?: Partial<BirdCoderEngineCapabilityMatrix>;
+  health?: ChatEngineHealthReport | null;
+  options?: ChatOptions;
+}
+
+export interface DefaultChatEngineCapabilitySnapshotInput {
+  capabilityMatrix?: Partial<BirdCoderEngineCapabilityMatrix>;
+  health: ChatEngineHealthReport;
+  experimentalCapabilities?: readonly string[];
+}
+
+export interface CanonicalEventsFromChatStreamInput {
+  messages: readonly ChatMessage[];
+  runtime: ChatCanonicalRuntimeDescriptor;
+  stream: AsyncIterable<ChatStreamChunk>;
+}
+
+export interface LocalChatEngineState {
+  createCodingSession(sessionId: string, title?: string): Promise<IChatCodingSession>;
+  createSession(projectId: string): Promise<IChatSession>;
+  getCodingSession(codingSessionId: string): Promise<IChatCodingSession | null>;
+  getContext(): ChatContext | null;
+  getSession(sessionId: string): Promise<IChatSession | null>;
+  onToolCall(toolCall: ToolCall): Promise<string>;
+  updateContext(context: ChatContext): void;
+  addMessageToCodingSession(codingSessionId: string, message: ChatMessage): Promise<void>;
 }
 
 function getRuntimeProcess(): NodeRuntimeProcess | null {
@@ -894,6 +934,213 @@ export function createCapabilitySnapshot(
   };
 }
 
+const DEFAULT_CHAT_ENGINE_CAPABILITY_MATRIX: BirdCoderEngineCapabilityMatrix = {
+  chat: true,
+  streaming: true,
+  structuredOutput: false,
+  toolCalls: true,
+  planning: false,
+  patchArtifacts: true,
+  commandArtifacts: true,
+  todoArtifacts: true,
+  ptyArtifacts: false,
+  previewArtifacts: false,
+  testArtifacts: false,
+  approvalCheckpoints: true,
+  sessionResume: false,
+  remoteBridge: false,
+  mcp: false,
+};
+
+function resolveDefaultCapabilityMatrix(
+  capabilityMatrix?: Partial<BirdCoderEngineCapabilityMatrix>,
+): BirdCoderEngineCapabilityMatrix {
+  return {
+    ...DEFAULT_CHAT_ENGINE_CAPABILITY_MATRIX,
+    ...(capabilityMatrix ?? {}),
+  };
+}
+
+export function createDefaultChatEngineCapabilitySnapshot(
+  input: DefaultChatEngineCapabilitySnapshotInput,
+): ChatEngineCapabilitySnapshot {
+  return createCapabilitySnapshot({
+    capabilityMatrix: resolveDefaultCapabilityMatrix(input.capabilityMatrix),
+    health: input.health,
+    experimentalCapabilities: input.experimentalCapabilities,
+  });
+}
+
+export function createDefaultChatCanonicalRuntimeDescriptor(
+  input: DefaultChatEngineRuntimeDescriptorInput,
+): ChatCanonicalRuntimeDescriptor {
+  const health = input.health ?? null;
+  const runtimeMode = health?.runtimeMode ?? input.descriptor.runtimeMode;
+
+  return {
+    engineId: input.descriptor.engineId,
+    modelId: input.options?.model?.trim() || input.descriptor.engineId,
+    transportKind: resolveTransportKindForRuntimeMode(
+      input.descriptor.transportKinds,
+      runtimeMode,
+    ),
+    approvalPolicy: 'OnRequest',
+    capabilityMatrix: resolveDefaultCapabilityMatrix(input.capabilityMatrix),
+  };
+}
+
+function createCanonicalEvent(
+  sequence: number,
+  kind: ChatCanonicalEvent['kind'],
+  runtimeStatus: ChatCanonicalEvent['runtimeStatus'],
+  payload: Record<string, unknown>,
+): ChatCanonicalEvent {
+  return {
+    kind,
+    sequence: stringifyBirdCoderLongInteger(sequence),
+    runtimeStatus,
+    payload,
+  };
+}
+
+export async function* canonicalEventsFromChatStream(
+  input: CanonicalEventsFromChatStreamInput,
+): AsyncGenerator<ChatCanonicalEvent, void, unknown> {
+  let sequence = 0;
+  let combinedContent = '';
+  let sawTerminalFinishReason = false;
+
+  yield createCanonicalEvent(++sequence, 'session.started', 'ready', {
+    engineId: input.runtime.engineId,
+    modelId: input.runtime.modelId,
+    transportKind: input.runtime.transportKind,
+    approvalPolicy: input.runtime.approvalPolicy,
+  });
+  yield createCanonicalEvent(++sequence, 'turn.started', 'streaming', {
+    messageCount: input.messages.length,
+    lastMessageRole: input.messages.at(-1)?.role ?? null,
+  });
+
+  try {
+    for await (const chunk of input.stream) {
+      const choice = chunk.choices[0];
+      const delta = choice?.delta;
+      if (!choice || !delta) {
+        continue;
+      }
+
+      if (typeof delta.content === 'string' && delta.content.length > 0) {
+        combinedContent += delta.content;
+        yield createCanonicalEvent(++sequence, 'message.delta', 'streaming', {
+          chunkId: chunk.id,
+          model: chunk.model,
+          role: delta.role ?? 'assistant',
+          contentDelta: delta.content,
+        });
+      }
+
+      for (const toolCall of delta.tool_calls ?? []) {
+        yield createCanonicalEvent(++sequence, 'tool.call.requested', 'awaiting_tool', {
+          toolCallId: toolCall.id,
+          toolName: toolCall.function.name,
+          toolArguments: toolCall.function.arguments,
+        });
+      }
+
+      if (choice.finish_reason) {
+        sawTerminalFinishReason = true;
+        yield createCanonicalEvent(++sequence, 'operation.updated', 'completed', {
+          finishReason: choice.finish_reason,
+          status: 'completed',
+        });
+      }
+    }
+  } catch (error) {
+    yield createCanonicalEvent(++sequence, 'turn.failed', 'failed', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+
+  yield createCanonicalEvent(++sequence, 'message.completed', 'completed', {
+    role: 'assistant',
+    content: combinedContent,
+  });
+  if (!sawTerminalFinishReason) {
+    yield createCanonicalEvent(++sequence, 'operation.updated', 'completed', {
+      status: 'completed',
+    });
+  }
+  yield createCanonicalEvent(++sequence, 'turn.completed', 'completed', {
+    contentLength: combinedContent.length,
+    finishReason: 'stop',
+  });
+}
+
+export function createLocalChatEngineState(): LocalChatEngineState {
+  const sessions = new Map<string, IChatSession>();
+  const codingSessions = new Map<string, IChatCodingSession>();
+  let context: ChatContext | null = null;
+
+  return {
+    async createSession(projectId: string): Promise<IChatSession> {
+      const now = Date.now();
+      const session: IChatSession = {
+        id: `chat-session-${now}-${sessions.size + 1}`,
+        projectId,
+        createdAt: now,
+        updatedAt: now,
+      };
+      sessions.set(session.id, session);
+      return session;
+    },
+    async getSession(sessionId: string): Promise<IChatSession | null> {
+      return sessions.get(sessionId) ?? null;
+    },
+    async createCodingSession(sessionId: string, title = 'Coding Session'): Promise<IChatCodingSession> {
+      const now = Date.now();
+      const codingSession: IChatCodingSession = {
+        id: `chat-coding-session-${now}-${codingSessions.size + 1}`,
+        sessionId,
+        title,
+        createdAt: now,
+        updatedAt: now,
+        messages: [],
+      };
+      codingSessions.set(codingSession.id, codingSession);
+      return codingSession;
+    },
+    async getCodingSession(codingSessionId: string): Promise<IChatCodingSession | null> {
+      return codingSessions.get(codingSessionId) ?? null;
+    },
+    async addMessageToCodingSession(codingSessionId: string, message: ChatMessage): Promise<void> {
+      const codingSession = codingSessions.get(codingSessionId);
+      if (!codingSession) {
+        return;
+      }
+
+      codingSession.messages = [...codingSession.messages, message];
+      codingSession.updatedAt = Date.now();
+    },
+    updateContext(nextContext: ChatContext): void {
+      context = {
+        ...(context ?? {}),
+        ...nextContext,
+      };
+    },
+    getContext(): ChatContext | null {
+      return context;
+    },
+    async onToolCall(toolCall: ToolCall): Promise<string> {
+      return stringifyProviderToolArgumentPayload({
+        status: 'unhandled',
+        toolCallId: toolCall.id,
+        toolName: toolCall.function.name,
+      });
+    },
+  };
+}
+
 export function createRawExtensionDescriptor(
   input: RawExtensionDescriptorInput,
 ): ChatEngineRawExtensionDescriptor {
@@ -912,8 +1159,18 @@ export function createRawExtensionDescriptor(
 export function createStaticIntegrationDescriptor(
   input: StaticIntegrationDescriptorInput,
 ): ChatEngineIntegrationDescriptor {
+  return createRuntimeIntegrationDescriptor(input);
+}
+
+export function createRuntimeIntegrationDescriptor(
+  input: RuntimeIntegrationDescriptorInput,
+): ChatEngineIntegrationDescriptor {
   const sourceMirrorPath = input.sourceMirrorPath ?? input.officialEntry.sourceMirrorPath ?? null;
   const sourceMirrorStatus = resolveMirrorPresence(sourceMirrorPath);
+  const packageVersion =
+    input.packagePresence?.installedVersion ??
+    input.packagePresence?.mirrorVersion ??
+    input.officialEntry.packageVersion;
 
   return {
     engineId: input.engineId,
@@ -921,6 +1178,7 @@ export function createStaticIntegrationDescriptor(
     runtimeMode: input.runtimeMode ?? resolveRuntimeModeFromTransport(input.transportKinds),
     officialEntry: {
       ...input.officialEntry,
+      packageVersion,
       sourceMirrorPath,
     },
     transportKinds: [...input.transportKinds],

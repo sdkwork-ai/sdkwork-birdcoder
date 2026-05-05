@@ -1,17 +1,22 @@
 import {
   buildMessageTranscriptPrompt,
+  canonicalEventsFromChatStream,
   canonicalizeBirdCoderCodeEngineProviderToolName,
   createDetectedHealthReport,
+  createDefaultChatCanonicalRuntimeDescriptor,
+  createDefaultChatEngineCapabilitySnapshot,
+  createLocalChatEngineState,
   createModuleBackedOfficialSdkBridgeLoader,
   createRawExtensionDescriptor,
   readRuntimeEnvValue,
-  createStaticIntegrationDescriptor,
+  createRuntimeIntegrationDescriptor,
   resolveRuntimeWorkingDirectory,
   createTextChatResponse,
   createTextStreamChunk,
   createToolCallStreamChunk,
   invokeWithOptionalOfficialSdk,
   normalizeProviderToolArgumentRecord,
+  parseBirdCoderApiJson,
   resolveCumulativeTextDelta,
   resolvePackagePresence,
   streamResponseAsChunks,
@@ -19,41 +24,52 @@ import {
   normalizeBirdCoderCodeEngineToolLifecycleStatus,
   resolveBirdCoderCodeEngineApprovalRuntimeStatus,
   stringifyProviderToolArgumentPayload,
+  type ChatCanonicalEvent,
+  type ChatContext,
   type ChatEngineOfficialSdkBridge,
   type ChatEngineOfficialSdkBridgeLoader,
   type ChatMessage,
   type ChatOptions,
   type ChatResponse,
   type ChatStreamChunk,
+  type IChatCodingSession,
   type IChatEngine,
+  type IChatSession,
   type ToolCall,
 } from '@sdkwork/birdcoder-chat';
 
-const OPENCODE_PACKAGE = resolvePackagePresence({
+const OPENCODE_PACKAGE_PRESENCE_INPUT = {
   packageName: '@opencode-ai/sdk',
   mirrorPackageJsonPath: 'external/opencode/packages/sdk/js/package.json',
-});
+} as const;
+const OPENCODE_SUPPLEMENTAL_LANES = ['OpenAPI', 'SSE', 'server mode'] as const;
 
-const OPENCODE_INTEGRATION = createStaticIntegrationDescriptor({
-  engineId: 'opencode',
-  runtimeMode: 'sdk',
-  transportKinds: ['sdk-stream', 'openapi-http'],
-  sourceMirrorPath: 'external/opencode/packages/sdk/js',
-  officialEntry: {
-    packageName: '@opencode-ai/sdk',
-    packageVersion: OPENCODE_PACKAGE.mirrorVersion,
-    cliPackageName: 'opencode-ai',
-    sdkPath: 'external/opencode/packages/sdk/js',
+function resolveOpenCodePackagePresence() {
+  return resolvePackagePresence(OPENCODE_PACKAGE_PRESENCE_INPUT);
+}
+
+function createOpenCodeIntegrationDescriptor() {
+  return createRuntimeIntegrationDescriptor({
+    engineId: 'opencode',
+    runtimeMode: 'sdk',
+    transportKinds: ['sdk-stream', 'cli-jsonl', 'openapi-http'],
     sourceMirrorPath: 'external/opencode/packages/sdk/js',
-    supplementalLanes: ['OpenAPI', 'SSE', 'server mode'],
-  },
-  notes: 'BirdCoder uses the official OpenCode SDK as the primary client and server adapter lane.',
-});
+    packagePresence: resolveOpenCodePackagePresence(),
+    officialEntry: {
+      packageName: '@opencode-ai/sdk',
+      cliPackageName: 'opencode-ai',
+      sdkPath: 'external/opencode/packages/sdk/js',
+      sourceMirrorPath: 'external/opencode/packages/sdk/js',
+      supplementalLanes: OPENCODE_SUPPLEMENTAL_LANES,
+    },
+    notes: 'BirdCoder uses the official OpenCode SDK as the primary client and server adapter lane.',
+  });
+}
 
 const OPENCODE_RAW_EXTENSIONS = createRawExtensionDescriptor({
   provider: 'opencode',
   primaryLane: 'session-part-artifact-event',
-  supplementalLanes: OPENCODE_INTEGRATION.officialEntry.supplementalLanes,
+  supplementalLanes: OPENCODE_SUPPLEMENTAL_LANES,
   nativeEventModel: ['session.updated', 'part.delta', 'artifact.created', 'event.subscribed'],
   nativeArtifactModel: ['diff', 'todo', 'pty', 'question'],
   experimentalFeatures: ['server-mode', 'sse-subscriptions'],
@@ -62,10 +78,65 @@ const OPENCODE_RAW_EXTENSIONS = createRawExtensionDescriptor({
 
 export interface OpenCodeChatEngineOptions {
   officialSdkBridgeLoader?: ChatEngineOfficialSdkBridgeLoader | null;
+  openCodeCliJsonlTurnExecutor?:
+    | ((prompt: string, options?: ChatOptions) => AsyncIterable<Record<string, unknown>> | Promise<AsyncIterable<Record<string, unknown>>>)
+    | null;
+}
+
+interface NodeRuntimeProcess {
+  cwd(): string;
+  env: NodeJS.ProcessEnv;
+  platform: string;
+  versions?: {
+    node?: string;
+  };
+  getBuiltinModule?: (id: string) => unknown;
+}
+
+interface NodeReadableStreamLike {
+  on(event: 'data', listener: (chunk: unknown) => void): void;
+}
+
+interface NodeWritableStreamLike {
+  write(chunk: string): void;
+  end(): void;
+}
+
+interface NodeChildProcessLike {
+  stdin: NodeWritableStreamLike | null;
+  stdout: NodeReadableStreamLike | null;
+  stderr: NodeReadableStreamLike | null;
+  kill(signal?: NodeJS.Signals | number): boolean;
+  once(event: 'error', listener: (error: Error) => void): this;
+  once(event: 'close', listener: (code: number | null) => void): this;
+}
+
+interface NodeChildProcessModule {
+  spawn(
+    command: string,
+    args?: readonly string[],
+    options?: {
+      cwd?: string;
+      env?: NodeJS.ProcessEnv;
+      stdio?: ['pipe', 'pipe', 'pipe'];
+      windowsHide?: boolean;
+    },
+  ): NodeChildProcessLike;
 }
 
 interface OpenCodeSessionRecord {
   id: string;
+}
+
+interface OpenCodeCliCommandSpec {
+  command: string;
+  prefixArgs: readonly string[];
+}
+
+interface OpenCodeCliInvocation {
+  command: string;
+  args: readonly string[];
+  workingDirectory: string;
 }
 
 interface OpenCodeSseResult {
@@ -85,6 +156,39 @@ interface OpenCodeEventApi {
 interface OpenCodeSdkClient {
   session: OpenCodeSessionApi;
   event?: OpenCodeEventApi;
+}
+
+const OPENCODE_CLI_UNAVAILABLE_MESSAGE =
+  'OpenCode CLI runtime is unavailable. Install OpenCode CLI and ensure the `opencode` command is on PATH, or install `@opencode-ai/sdk`.';
+const OPENCODE_CLI_AUTHENTICATION_MESSAGE =
+  'OpenCode CLI authentication is not configured. Configure the provider API key required by your selected OpenCode model before using the opencode engine.';
+
+function getRuntimeProcess(): NodeRuntimeProcess | null {
+  const runtime = globalThis as typeof globalThis & {
+    process?: NodeRuntimeProcess;
+  };
+  return runtime.process ?? null;
+}
+
+function isNodeRuntime(): boolean {
+  return Boolean(getRuntimeProcess()?.versions?.node);
+}
+
+function getBuiltinModule<T>(id: string): T | null {
+  return getRuntimeProcess()?.getBuiltinModule?.(id) as T | null;
+}
+
+function createOpenCodeCliCommandSpec(): OpenCodeCliCommandSpec {
+  const runtimeProcess = getRuntimeProcess();
+  return runtimeProcess?.platform === 'win32'
+    ? {
+        command: runtimeProcess.env.ComSpec || 'cmd.exe',
+        prefixArgs: ['/d', '/s', '/c', 'opencode'],
+      }
+    : {
+        command: 'opencode',
+        prefixArgs: [],
+      };
 }
 
 function buildOpenCodePrompt(messages: readonly ChatMessage[]): string {
@@ -132,6 +236,235 @@ function normalizeOpenCodePromptModel(
       modelID,
     }
     : null;
+}
+
+function buildOpenCodeCliInvocation(
+  prompt: string,
+  options?: ChatOptions,
+): OpenCodeCliInvocation {
+  const commandSpec = createOpenCodeCliCommandSpec();
+  const workingDirectory =
+    options?.context?.workspaceRoot?.trim() || resolveRuntimeWorkingDirectory();
+  const args = [
+    ...commandSpec.prefixArgs,
+    'run',
+    '--format',
+    'json',
+  ];
+  const promptModel = normalizeOpenCodePromptModel(options?.model);
+  if (promptModel) {
+    args.push('--model', `${promptModel.providerID}/${promptModel.modelID}`);
+  }
+  if (workingDirectory) {
+    args.push('--dir', workingDirectory);
+  }
+  args.push(prompt);
+
+  return {
+    command: commandSpec.command,
+    args,
+    workingDirectory,
+  };
+}
+
+function isOpenCodeCliAuthenticationError(message: string): boolean {
+  const normalizedMessage = message.trim().toLowerCase();
+  return (
+    normalizedMessage.includes('auth') ||
+    normalizedMessage.includes('login') ||
+    normalizedMessage.includes('api key') ||
+    normalizedMessage.includes('unauthorized') ||
+    normalizedMessage.includes('forbidden')
+  );
+}
+
+function isOpenCodeCliUnavailableError(message: string): boolean {
+  const normalizedMessage = message.trim().toLowerCase();
+  return (
+    normalizedMessage.includes('enoent') ||
+    normalizedMessage.includes('not recognized') ||
+    normalizedMessage.includes('not found') ||
+    normalizedMessage.includes('command not found')
+  );
+}
+
+function formatOpenCodeCliError(message: string): string {
+  const normalizedMessage = message.trim();
+  if (!normalizedMessage) {
+    return 'OpenCode CLI turn failed.';
+  }
+
+  if (isOpenCodeCliAuthenticationError(normalizedMessage)) {
+    return OPENCODE_CLI_AUTHENTICATION_MESSAGE;
+  }
+
+  if (isOpenCodeCliUnavailableError(normalizedMessage)) {
+    return OPENCODE_CLI_UNAVAILABLE_MESSAGE;
+  }
+
+  return normalizedMessage;
+}
+
+function parseOpenCodeCliJsonlLine(line: string): Record<string, unknown> {
+  try {
+    return parseBirdCoderApiJson<Record<string, unknown>>(line);
+  } catch (error) {
+    throw new Error(
+      `OpenCode CLI JSONL parse failed: ${error instanceof Error ? error.message : String(error)}. Line: ${line}`,
+    );
+  }
+}
+
+function readOpenCodeCliTurnError(events: readonly Record<string, unknown>[]): string | null {
+  return events
+    .map((event) =>
+      event.type === 'error'
+        ? getOpenCodeCliEventErrorMessage(event)
+        : '',
+    )
+    .find((message) => message.trim().length > 0) ?? null;
+}
+
+async function* streamOpenCodeCliJsonlTurn(
+  prompt: string,
+  options?: ChatOptions,
+): AsyncGenerator<Record<string, unknown>, void, unknown> {
+  if (!isNodeRuntime()) {
+    throw new Error(OPENCODE_CLI_UNAVAILABLE_MESSAGE);
+  }
+
+  const childProcessModule = getBuiltinModule<NodeChildProcessModule>('node:child_process');
+  const runtimeProcess = getRuntimeProcess();
+  if (!childProcessModule || !runtimeProcess) {
+    throw new Error(OPENCODE_CLI_UNAVAILABLE_MESSAGE);
+  }
+
+  const invocation = buildOpenCodeCliInvocation(prompt, options);
+  let child: NodeChildProcessLike;
+  try {
+    child = childProcessModule.spawn(invocation.command, invocation.args, {
+      cwd: invocation.workingDirectory || undefined,
+      env: runtimeProcess.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+  } catch (error) {
+    throw new Error(
+      formatOpenCodeCliError(error instanceof Error ? error.message : String(error)),
+    );
+  }
+
+  if (!child.stdin || !child.stdout || !child.stderr) {
+    throw new Error(OPENCODE_CLI_UNAVAILABLE_MESSAGE);
+  }
+
+  let stdout = '';
+  let stderr = '';
+  let settled = false;
+  const queuedEvents: Record<string, unknown>[] = [];
+  let notifyQueuedEvent: (() => void) | null = null;
+  let streamError: Error | null = null;
+
+  child.stdout.on('data', (chunk) => {
+    stdout += String(chunk);
+    const lines = stdout.split(/\r?\n/);
+    stdout = lines.pop() ?? '';
+    for (const line of lines.map((entry) => entry.trim()).filter(Boolean)) {
+      try {
+        queuedEvents.push(parseOpenCodeCliJsonlLine(line));
+      } catch (error) {
+        streamError = error instanceof Error ? error : new Error(String(error));
+      }
+    }
+    notifyQueuedEvent?.();
+    notifyQueuedEvent = null;
+  });
+  child.stderr.on('data', (chunk) => {
+    stderr += String(chunk);
+  });
+
+  const waitForExit = new Promise<number>((resolve, reject) => {
+    child.once('error', (error) => {
+      settled = true;
+      reject(error);
+    });
+    child.once('close', (code) => {
+      settled = true;
+      resolve(code ?? -1);
+    });
+  });
+
+  const abortSignal = options?.signal;
+  const handleAbort = () => {
+    if (!settled) {
+      child.kill();
+    }
+  };
+
+  abortSignal?.addEventListener('abort', handleAbort);
+
+  try {
+    child.stdin.end();
+
+    let exitCode: number | null = null;
+    const exitCodePromise = waitForExit.then((code) => {
+      exitCode = code;
+      notifyQueuedEvent?.();
+      notifyQueuedEvent = null;
+      return code;
+    });
+    const yieldedEvents: Record<string, unknown>[] = [];
+
+    while (exitCode === null || queuedEvents.length > 0) {
+      if (streamError) {
+        throw streamError;
+      }
+
+      const event = queuedEvents.shift();
+      if (event) {
+        yieldedEvents.push(event);
+        yield event;
+        continue;
+      }
+
+      if (exitCode !== null) {
+        break;
+      }
+
+      await new Promise<void>((resolve) => {
+        notifyQueuedEvent = resolve;
+      });
+    }
+
+    await exitCodePromise;
+
+    if (stdout.trim()) {
+      for (const line of stdout.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean)) {
+        const event = parseOpenCodeCliJsonlLine(line);
+        yieldedEvents.push(event);
+        yield event;
+      }
+    }
+
+    const turnError = readOpenCodeCliTurnError(yieldedEvents);
+    if (turnError) {
+      throw new Error(formatOpenCodeCliError(turnError));
+    }
+
+    if (exitCode !== 0) {
+      throw new Error(
+        formatOpenCodeCliError(
+          stderr.trim() || `OpenCode CLI exited with status ${exitCode}.`,
+        ),
+      );
+    }
+  } catch (error) {
+    throw new Error(
+      formatOpenCodeCliError(error instanceof Error ? error.message : String(error)),
+    );
+  } finally {
+    abortSignal?.removeEventListener('abort', handleAbort);
+  }
 }
 
 function extractOpenCodeText(value: unknown): string {
@@ -396,7 +729,9 @@ function buildOpenCodeToolArguments(
   }
 
   toolArguments.openCodeState = part.state ?? null;
-  toolArguments.metadata = part.metadata ?? null;
+  if (part.metadata !== undefined && part.metadata !== null) {
+    toolArguments.metadata = part.metadata;
+  }
 
   return toolArguments;
 }
@@ -507,10 +842,47 @@ function getOpenCodeEventErrorMessage(
   );
 }
 
+function getOpenCodeCliEventErrorMessage(
+  event: Record<string, unknown>,
+): string {
+  const errorRecord = asRecord(event.error);
+  const errorData = asRecord(errorRecord?.data);
+
+  return String(
+    errorData?.message ??
+    errorRecord?.message ??
+    event.message ??
+    event.error ??
+    'OpenCode CLI stream failed.',
+  );
+}
+
 function createUnavailableOpenCodeSdkError(): Error {
   return new Error(
-    'OpenCode official SDK bridge is unavailable. BirdCoder must use the real native OpenCode integration instead of a synthetic fallback response.',
+    'OpenCode official SDK bridge and OpenCode CLI fallback are unavailable. Install OpenCode CLI and ensure the `opencode` command is on PATH, or install `@opencode-ai/sdk`.',
   );
+}
+
+function normalizeOpenCodeCliEventForPartUpdate(
+  event: Record<string, unknown>,
+): Record<string, unknown> | null {
+  if (event.type !== 'text' && event.type !== 'tool_use') {
+    return null;
+  }
+
+  const part = asRecord(event.part);
+  if (!part) {
+    return null;
+  }
+
+  return {
+    type: 'message.part.updated',
+    properties: {
+      part,
+      partID: part.id,
+      sessionID: event.sessionID,
+    },
+  };
 }
 
 export function createOpenCodeOfficialSdkBridge(
@@ -731,30 +1103,63 @@ export class OpenCodeChatEngine implements IChatEngine {
   version = '1.2.0';
 
   private readonly officialSdkBridgeLoader: ChatEngineOfficialSdkBridgeLoader | null;
+  private readonly openCodeCliJsonlTurnExecutor:
+    | ((prompt: string, options?: ChatOptions) => AsyncIterable<Record<string, unknown>> | Promise<AsyncIterable<Record<string, unknown>>>)
+    | null;
+  private readonly localState = createLocalChatEngineState();
 
   constructor(options: OpenCodeChatEngineOptions = {}) {
     this.officialSdkBridgeLoader =
       'officialSdkBridgeLoader' in options
         ? options.officialSdkBridgeLoader ?? null
         : DEFAULT_OPENCODE_OFFICIAL_SDK_BRIDGE_LOADER;
+    this.openCodeCliJsonlTurnExecutor =
+      options.openCodeCliJsonlTurnExecutor === undefined
+        ? streamOpenCodeCliJsonlTurn
+        : options.openCodeCliJsonlTurnExecutor;
   }
 
   describeIntegration() {
-    return OPENCODE_INTEGRATION;
+    return createOpenCodeIntegrationDescriptor();
   }
 
   describeRawExtensions() {
     return OPENCODE_RAW_EXTENSIONS;
   }
 
+  describeRuntime(options?: ChatOptions) {
+    return createDefaultChatCanonicalRuntimeDescriptor({
+      descriptor: this.describeIntegration(),
+      health: this.getHealth(),
+      options,
+    });
+  }
+
+  getCapabilities() {
+    return createDefaultChatEngineCapabilitySnapshot({
+      health: this.getHealth(),
+      experimentalCapabilities: OPENCODE_RAW_EXTENSIONS.experimentalFeatures,
+    });
+  }
+
   getHealth() {
     return createDetectedHealthReport({
-      descriptor: OPENCODE_INTEGRATION,
-      packagePresence: OPENCODE_PACKAGE,
+      descriptor: this.describeIntegration(),
+      packagePresence: resolveOpenCodePackagePresence(),
       executable: 'opencode',
       authEnvKeys: ['OPENCODE_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY'],
-      fallbackRuntimeMode: null,
-      fallbackAvailable: false,
+      fallbackRuntimeMode: 'headless',
+    });
+  }
+
+  async *sendCanonicalEvents(
+    messages: ChatMessage[],
+    options?: ChatOptions,
+  ): AsyncGenerator<ChatCanonicalEvent, void, unknown> {
+    yield* canonicalEventsFromChatStream({
+      messages,
+      runtime: this.describeRuntime(options),
+      stream: this.sendMessageStream(messages, options),
     });
   }
 
@@ -763,9 +1168,7 @@ export class OpenCodeChatEngine implements IChatEngine {
       loader: this.officialSdkBridgeLoader,
       messages,
       options,
-      fallback: async () => {
-        throw createUnavailableOpenCodeSdkError();
-      },
+      fallback: async () => this.sendMessageViaOpenCodeCli(messages, options),
     });
   }
 
@@ -778,8 +1181,138 @@ export class OpenCodeChatEngine implements IChatEngine {
       messages,
       options,
       fallback: async function* fallbackStream(_streamOptions) {
-        throw createUnavailableOpenCodeSdkError();
-      },
+        yield* this.streamMessageViaOpenCodeCli(messages, _streamOptions);
+      }.bind(this),
     });
+  }
+
+  private async resolveOpenCodeCliEvents(
+    prompt: string,
+    options?: ChatOptions,
+  ): Promise<AsyncIterable<Record<string, unknown>>> {
+    if (!this.openCodeCliJsonlTurnExecutor) {
+      throw createUnavailableOpenCodeSdkError();
+    }
+    return this.openCodeCliJsonlTurnExecutor(prompt, options);
+  }
+
+  private async sendMessageViaOpenCodeCli(
+    messages: ChatMessage[],
+    options?: ChatOptions,
+  ): Promise<ChatResponse> {
+    const prompt = buildOpenCodePrompt(messages);
+    const textByPartId = new Map<string, string>();
+    let responseText = '';
+    const toolCalls: ToolCall[] = [];
+
+    for await (const event of await this.resolveOpenCodeCliEvents(prompt, options)) {
+      if (event.type === 'error') {
+        throw new Error(formatOpenCodeCliError(getOpenCodeCliEventErrorMessage(event)));
+      }
+
+      const partUpdateEvent = normalizeOpenCodeCliEventForPartUpdate(event);
+      if (!partUpdateEvent) {
+        continue;
+      }
+
+      const textDelta = getOpenCodeTextDelta(partUpdateEvent, textByPartId);
+      if (textDelta) {
+        responseText += textDelta;
+      }
+
+      const toolCall = toOpenCodeToolCall(partUpdateEvent);
+      if (toolCall) {
+        toolCalls.push(toolCall);
+      }
+    }
+
+    if (!responseText && toolCalls.length === 0) {
+      throw new Error('OpenCode CLI did not return an assistant response.');
+    }
+
+    return createTextChatResponse({
+      id: `opencode-chat-${Date.now()}`,
+      model: options?.model || 'opencode',
+      content: responseText,
+      toolCalls,
+    });
+  }
+
+  private async *streamMessageViaOpenCodeCli(
+    messages: ChatMessage[],
+    options: ChatOptions,
+  ): AsyncGenerator<ChatStreamChunk, void, unknown> {
+    const id = `opencode-chat-${Date.now()}`;
+    const created = Math.floor(Date.now() / 1000);
+    const model = options.model || 'opencode';
+    const textByPartId = new Map<string, string>();
+    const prompt = buildOpenCodePrompt(messages);
+
+    for await (const event of await this.resolveOpenCodeCliEvents(prompt, options)) {
+      if (event.type === 'error') {
+        throw new Error(formatOpenCodeCliError(getOpenCodeCliEventErrorMessage(event)));
+      }
+
+      const partUpdateEvent = normalizeOpenCodeCliEventForPartUpdate(event);
+      if (!partUpdateEvent) {
+        continue;
+      }
+
+      const textDelta = getOpenCodeTextDelta(partUpdateEvent, textByPartId);
+      if (textDelta) {
+        yield createTextStreamChunk({
+          id,
+          created,
+          model,
+          role: 'assistant',
+          content: textDelta,
+        });
+      }
+
+      const toolCall = toOpenCodeToolCall(partUpdateEvent);
+      if (toolCall) {
+        yield createToolCallStreamChunk({
+          id,
+          created,
+          model,
+          toolCall,
+        });
+      }
+    }
+
+    yield createTextStreamChunk({
+      id,
+      created,
+      model,
+      finishReason: 'stop',
+    });
+  }
+
+  createSession(projectId: string): Promise<IChatSession> {
+    return this.localState.createSession(projectId);
+  }
+
+  getSession(sessionId: string): Promise<IChatSession | null> {
+    return this.localState.getSession(sessionId);
+  }
+
+  createCodingSession(sessionId: string, title?: string): Promise<IChatCodingSession> {
+    return this.localState.createCodingSession(sessionId, title);
+  }
+
+  getCodingSession(codingSessionId: string): Promise<IChatCodingSession | null> {
+    return this.localState.getCodingSession(codingSessionId);
+  }
+
+  addMessageToCodingSession(codingSessionId: string, message: ChatMessage): Promise<void> {
+    return this.localState.addMessageToCodingSession(codingSessionId, message);
+  }
+
+  updateContext(context: ChatContext): void {
+    this.localState.updateContext(context);
+  }
+
+  onToolCall(toolCall: ToolCall): Promise<string> {
+    return this.localState.onToolCall(toolCall);
   }
 }

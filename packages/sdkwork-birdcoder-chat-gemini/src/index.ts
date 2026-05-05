@@ -1,54 +1,71 @@
 import {
   buildMessageTranscriptPrompt,
+  canonicalEventsFromChatStream,
   canonicalizeBirdCoderCodeEngineProviderToolName,
   createDetectedHealthReport,
+  createDefaultChatCanonicalRuntimeDescriptor,
+  createDefaultChatEngineCapabilitySnapshot,
+  createLocalChatEngineState,
   createModuleBackedOfficialSdkBridgeLoader,
   createRawExtensionDescriptor,
   resolveRuntimeWorkingDirectory,
-  createStaticIntegrationDescriptor,
+  createRuntimeIntegrationDescriptor,
   createTextChatResponse,
   createTextStreamChunk,
   createToolCallStreamChunk,
   invokeWithOptionalOfficialSdk,
   normalizeProviderToolArgumentRecord,
+  parseBirdCoderApiJson,
+  resolveCumulativeTextDelta,
   resolvePackagePresence,
   streamWithOptionalOfficialSdk,
   stringifyProviderToolArgumentPayload,
+  type ChatCanonicalEvent,
+  type ChatContext,
   type ChatEngineOfficialSdkBridge,
   type ChatEngineOfficialSdkBridgeLoader,
   type ChatMessage,
   type ChatOptions,
   type ChatResponse,
   type ChatStreamChunk,
+  type IChatCodingSession,
   type IChatEngine,
+  type IChatSession,
   type ToolCall,
 } from '@sdkwork/birdcoder-chat';
 
-const GEMINI_PACKAGE = resolvePackagePresence({
+const GEMINI_PACKAGE_PRESENCE_INPUT = {
   packageName: '@google/gemini-cli-sdk',
   mirrorPackageJsonPath: 'external/gemini/packages/sdk/package.json',
-});
+} as const;
+const GEMINI_SUPPLEMENTAL_LANES = ['CLI core runtime', 'tool and skill registry'] as const;
 
-const GEMINI_INTEGRATION = createStaticIntegrationDescriptor({
-  engineId: 'gemini',
-  runtimeMode: 'sdk',
-  transportKinds: ['sdk-stream'],
-  sourceMirrorPath: 'external/gemini/packages/sdk',
-  officialEntry: {
-    packageName: '@google/gemini-cli-sdk',
-    packageVersion: GEMINI_PACKAGE.mirrorVersion,
-    cliPackageName: '@google/gemini-cli',
-    sdkPath: 'external/gemini/packages/sdk',
+function resolveGeminiPackagePresence() {
+  return resolvePackagePresence(GEMINI_PACKAGE_PRESENCE_INPUT);
+}
+
+function createGeminiIntegrationDescriptor() {
+  return createRuntimeIntegrationDescriptor({
+    engineId: 'gemini',
+    runtimeMode: 'sdk',
+    transportKinds: ['sdk-stream', 'cli-jsonl', 'json-rpc-v2'],
     sourceMirrorPath: 'external/gemini/packages/sdk',
-    supplementalLanes: ['CLI core runtime', 'tool and skill registry'],
-  },
-  notes: 'BirdCoder uses the Gemini CLI SDK as the primary session and tool orchestration lane.',
-});
+    packagePresence: resolveGeminiPackagePresence(),
+    officialEntry: {
+      packageName: '@google/gemini-cli-sdk',
+      cliPackageName: '@google/gemini-cli',
+      sdkPath: 'external/gemini/packages/sdk',
+      sourceMirrorPath: 'external/gemini/packages/sdk',
+      supplementalLanes: GEMINI_SUPPLEMENTAL_LANES,
+    },
+    notes: 'BirdCoder uses the Gemini CLI SDK as the primary session and tool orchestration lane.',
+  });
+}
 
 const GEMINI_RAW_EXTENSIONS = createRawExtensionDescriptor({
   provider: 'gemini',
   primaryLane: 'session-tool-skill-context',
-  supplementalLanes: GEMINI_INTEGRATION.officialEntry.supplementalLanes,
+  supplementalLanes: GEMINI_SUPPLEMENTAL_LANES,
   nativeEventModel: ['session.started', 'tool.called', 'skill.loaded', 'context.updated'],
   nativeArtifactModel: ['diagnostic-bundle', 'todo-list', 'question'],
   experimentalFeatures: ['dynamic-instructions', 'skill-registry-hooks'],
@@ -57,12 +74,101 @@ const GEMINI_RAW_EXTENSIONS = createRawExtensionDescriptor({
 
 export interface GeminiChatEngineOptions {
   officialSdkBridgeLoader?: ChatEngineOfficialSdkBridgeLoader | null;
+  geminiCliJsonlTurnExecutor?:
+    | ((prompt: string, options?: ChatOptions) => AsyncIterable<Record<string, unknown>> | Promise<AsyncIterable<Record<string, unknown>>>)
+    | null;
 }
 
 function createUnavailableGeminiSdkError(): Error {
   return new Error(
-    'Gemini CLI SDK bridge is unavailable. BirdCoder does not synthesize fallback Gemini responses.',
+    'Gemini CLI SDK bridge and Gemini CLI fallback are unavailable. Install Gemini CLI and ensure the `gemini` command is on PATH, or install `@google/gemini-cli-sdk`.',
   );
+}
+
+interface NodeRuntimeProcess {
+  cwd(): string;
+  env: NodeJS.ProcessEnv;
+  platform: string;
+  versions?: {
+    node?: string;
+  };
+  getBuiltinModule?: (id: string) => unknown;
+}
+
+interface NodeReadableStreamLike {
+  on(event: 'data', listener: (chunk: unknown) => void): void;
+}
+
+interface NodeWritableStreamLike {
+  write(chunk: string): void;
+  end(): void;
+}
+
+interface NodeChildProcessLike {
+  stdin: NodeWritableStreamLike | null;
+  stdout: NodeReadableStreamLike | null;
+  stderr: NodeReadableStreamLike | null;
+  kill(signal?: NodeJS.Signals | number): boolean;
+  once(event: 'error', listener: (error: Error) => void): this;
+  once(event: 'close', listener: (code: number | null) => void): this;
+}
+
+interface NodeChildProcessModule {
+  spawn(
+    command: string,
+    args?: readonly string[],
+    options?: {
+      cwd?: string;
+      env?: NodeJS.ProcessEnv;
+      stdio?: ['pipe', 'pipe', 'pipe'];
+      windowsHide?: boolean;
+    },
+  ): NodeChildProcessLike;
+}
+
+interface GeminiCliCommandSpec {
+  command: string;
+  prefixArgs: readonly string[];
+}
+
+interface GeminiCliInvocation {
+  command: string;
+  args: readonly string[];
+  workingDirectory: string;
+}
+
+const GEMINI_CLI_UNAVAILABLE_MESSAGE =
+  'Gemini CLI runtime is unavailable. Install Gemini CLI and ensure the `gemini` command is on PATH, or install `@google/gemini-cli-sdk`.';
+const GEMINI_CLI_AUTHENTICATION_MESSAGE =
+  'Gemini CLI authentication is not configured. Set GOOGLE_API_KEY or GEMINI_API_KEY, or authenticate the Gemini CLI before using the gemini engine.';
+const GEMINI_AUTH_ENV_KEYS = ['GOOGLE_API_KEY', 'GEMINI_API_KEY'] as const;
+
+function getRuntimeProcess(): NodeRuntimeProcess | null {
+  const runtime = globalThis as typeof globalThis & {
+    process?: NodeRuntimeProcess;
+  };
+  return runtime.process ?? null;
+}
+
+function isNodeRuntime(): boolean {
+  return Boolean(getRuntimeProcess()?.versions?.node);
+}
+
+function getBuiltinModule<T>(id: string): T | null {
+  return getRuntimeProcess()?.getBuiltinModule?.(id) as T | null;
+}
+
+function createGeminiCliCommandSpec(): GeminiCliCommandSpec {
+  const runtimeProcess = getRuntimeProcess();
+  return runtimeProcess?.platform === 'win32'
+    ? {
+        command: runtimeProcess.env.ComSpec || 'cmd.exe',
+        prefixArgs: ['/d', '/s', '/c', 'gemini'],
+      }
+    : {
+        command: 'gemini',
+        prefixArgs: [],
+      };
 }
 
 const GEMINI_DEFAULT_PROMPT = 'Inspect the workspace session.';
@@ -84,6 +190,10 @@ function buildGeminiPrompt(messages: readonly ChatMessage[]): string {
     || GEMINI_DEFAULT_PROMPT;
 }
 
+function buildGeminiCliPrompt(messages: readonly ChatMessage[]): string {
+  return buildMessageTranscriptPrompt(messages) || GEMINI_DEFAULT_PROMPT;
+}
+
 function normalizeGeminiRequestedModel(value: string | null | undefined): string | null {
   const normalizedValue = value?.trim();
   if (!normalizedValue) {
@@ -97,6 +207,239 @@ function normalizeGeminiRequestedModel(value: string | null | undefined): string
     || normalizedModelKey === 'google gemini'
     ? null
     : normalizedValue;
+}
+
+function buildGeminiCliInvocation(
+  prompt: string,
+  options?: ChatOptions,
+): GeminiCliInvocation {
+  const commandSpec = createGeminiCliCommandSpec();
+  const workingDirectory =
+    options?.context?.workspaceRoot?.trim() || resolveRuntimeWorkingDirectory();
+  const args = [
+    ...commandSpec.prefixArgs,
+    '--prompt',
+    prompt,
+    '--output-format',
+    'stream-json',
+  ];
+  const model = normalizeGeminiRequestedModel(options?.model);
+  if (model) {
+    args.push('--model', model);
+  }
+
+  return {
+    command: commandSpec.command,
+    args,
+    workingDirectory,
+  };
+}
+
+function isGeminiCliAuthenticationError(message: string): boolean {
+  const normalizedMessage = message.trim().toLowerCase();
+  return (
+    normalizedMessage.includes('auth') ||
+    normalizedMessage.includes('login') ||
+    normalizedMessage.includes('api key') ||
+    normalizedMessage.includes('unauthorized') ||
+    normalizedMessage.includes('oauth')
+  );
+}
+
+function isGeminiCliUnavailableError(message: string): boolean {
+  const normalizedMessage = message.trim().toLowerCase();
+  return (
+    normalizedMessage.includes('enoent') ||
+    normalizedMessage.includes('not recognized') ||
+    normalizedMessage.includes('not found') ||
+    normalizedMessage.includes('command not found')
+  );
+}
+
+function formatGeminiCliError(message: string): string {
+  const normalizedMessage = message.trim();
+  if (!normalizedMessage) {
+    return 'Gemini CLI turn failed.';
+  }
+
+  if (isGeminiCliAuthenticationError(normalizedMessage)) {
+    return GEMINI_CLI_AUTHENTICATION_MESSAGE;
+  }
+
+  if (isGeminiCliUnavailableError(normalizedMessage)) {
+    return GEMINI_CLI_UNAVAILABLE_MESSAGE;
+  }
+
+  return normalizedMessage;
+}
+
+function parseGeminiCliJsonlLine(line: string): Record<string, unknown> {
+  try {
+    return parseBirdCoderApiJson<Record<string, unknown>>(line);
+  } catch (error) {
+    throw new Error(
+      `Gemini CLI JSONL parse failed: ${error instanceof Error ? error.message : String(error)}. Line: ${line}`,
+    );
+  }
+}
+
+function readGeminiCliTurnError(events: readonly Record<string, unknown>[]): string | null {
+  return events
+    .map((event) => {
+      if (event.type === 'error') {
+        const severity = typeof event.severity === 'string' ? event.severity : 'error';
+        return severity === 'warning'
+          ? ''
+          : extractGeminiText(event.message ?? event.error ?? event);
+      }
+      if (event.type === 'result' && event.status === 'error') {
+        return extractGeminiText(event.error ?? event.message ?? event);
+      }
+      return '';
+    })
+    .find((message) => message.trim().length > 0) ?? null;
+}
+
+async function* streamGeminiCliJsonlTurn(
+  prompt: string,
+  options?: ChatOptions,
+): AsyncGenerator<Record<string, unknown>, void, unknown> {
+  if (!isNodeRuntime()) {
+    throw new Error(GEMINI_CLI_UNAVAILABLE_MESSAGE);
+  }
+
+  const childProcessModule = getBuiltinModule<NodeChildProcessModule>('node:child_process');
+  const runtimeProcess = getRuntimeProcess();
+  if (!childProcessModule || !runtimeProcess) {
+    throw new Error(GEMINI_CLI_UNAVAILABLE_MESSAGE);
+  }
+
+  const invocation = buildGeminiCliInvocation(prompt, options);
+  let child: NodeChildProcessLike;
+  try {
+    child = childProcessModule.spawn(invocation.command, invocation.args, {
+      cwd: invocation.workingDirectory || undefined,
+      env: runtimeProcess.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+  } catch (error) {
+    throw new Error(
+      formatGeminiCliError(error instanceof Error ? error.message : String(error)),
+    );
+  }
+
+  if (!child.stdin || !child.stdout || !child.stderr) {
+    throw new Error(GEMINI_CLI_UNAVAILABLE_MESSAGE);
+  }
+
+  let stdout = '';
+  let stderr = '';
+  let settled = false;
+  const queuedEvents: Record<string, unknown>[] = [];
+  let notifyQueuedEvent: (() => void) | null = null;
+  let streamError: Error | null = null;
+
+  child.stdout.on('data', (chunk) => {
+    stdout += String(chunk);
+    const lines = stdout.split(/\r?\n/);
+    stdout = lines.pop() ?? '';
+    for (const line of lines.map((entry) => entry.trim()).filter(Boolean)) {
+      try {
+        queuedEvents.push(parseGeminiCliJsonlLine(line));
+      } catch (error) {
+        streamError = error instanceof Error ? error : new Error(String(error));
+      }
+    }
+    notifyQueuedEvent?.();
+    notifyQueuedEvent = null;
+  });
+  child.stderr.on('data', (chunk) => {
+    stderr += String(chunk);
+  });
+
+  const waitForExit = new Promise<number>((resolve, reject) => {
+    child.once('error', (error) => {
+      settled = true;
+      reject(error);
+    });
+    child.once('close', (code) => {
+      settled = true;
+      resolve(code ?? -1);
+    });
+  });
+
+  const abortSignal = options?.signal;
+  const handleAbort = () => {
+    if (!settled) {
+      child.kill();
+    }
+  };
+
+  abortSignal?.addEventListener('abort', handleAbort);
+
+  try {
+    child.stdin.end();
+
+    let exitCode: number | null = null;
+    const exitCodePromise = waitForExit.then((code) => {
+      exitCode = code;
+      notifyQueuedEvent?.();
+      notifyQueuedEvent = null;
+      return code;
+    });
+    const yieldedEvents: Record<string, unknown>[] = [];
+
+    while (exitCode === null || queuedEvents.length > 0) {
+      if (streamError) {
+        throw streamError;
+      }
+
+      const event = queuedEvents.shift();
+      if (event) {
+        yieldedEvents.push(event);
+        yield event;
+        continue;
+      }
+
+      if (exitCode !== null) {
+        break;
+      }
+
+      await new Promise<void>((resolve) => {
+        notifyQueuedEvent = resolve;
+      });
+    }
+
+    await exitCodePromise;
+
+    if (stdout.trim()) {
+      for (const line of stdout.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean)) {
+        const event = parseGeminiCliJsonlLine(line);
+        yieldedEvents.push(event);
+        yield event;
+      }
+    }
+
+    const turnError = readGeminiCliTurnError(yieldedEvents);
+    if (turnError) {
+      throw new Error(formatGeminiCliError(turnError));
+    }
+
+    if (exitCode !== 0) {
+      throw new Error(
+        formatGeminiCliError(
+          stderr.trim() || `Gemini CLI exited with status ${exitCode}.`,
+        ),
+      );
+    }
+  } catch (error) {
+    throw new Error(
+      formatGeminiCliError(error instanceof Error ? error.message : String(error)),
+    );
+  } finally {
+    abortSignal?.removeEventListener('abort', handleAbort);
+  }
 }
 
 function extractGeminiText(value: unknown): string {
@@ -355,6 +698,34 @@ function createGeminiPermissionRequestCall(value: unknown): ToolCall {
   };
 }
 
+function normalizeGeminiCliToolArguments(
+  parameters: unknown,
+): Record<string, unknown> {
+  return normalizeProviderToolArgumentRecord(parameters);
+}
+
+function toGeminiCliToolCall(event: Record<string, unknown>): ToolCall | null {
+  if (event.type !== 'tool_use') {
+    return null;
+  }
+
+  const toolName = canonicalizeBirdCoderCodeEngineProviderToolName({
+    fallbackToolName: 'tool_use',
+    provider: 'gemini',
+    toolName: event.tool_name ?? event.name,
+  });
+  const args = normalizeGeminiCliToolArguments(event.parameters ?? event.args);
+
+  return {
+    id: String(event.tool_id ?? event.toolId ?? `gemini-tool-${Date.now()}`),
+    type: 'function',
+    function: {
+      name: toolName,
+      arguments: stringifyProviderToolArgumentPayload(args),
+    },
+  };
+}
+
 function normalizeGeminiFiniteNumber(
   value: number | undefined,
   minimum: number,
@@ -571,30 +942,63 @@ export class GeminiChatEngine implements IChatEngine {
   version = '1.2.0';
 
   private readonly officialSdkBridgeLoader: ChatEngineOfficialSdkBridgeLoader | null;
+  private readonly geminiCliJsonlTurnExecutor:
+    | ((prompt: string, options?: ChatOptions) => AsyncIterable<Record<string, unknown>> | Promise<AsyncIterable<Record<string, unknown>>>)
+    | null;
+  private readonly localState = createLocalChatEngineState();
 
   constructor(options: GeminiChatEngineOptions = {}) {
     this.officialSdkBridgeLoader =
       'officialSdkBridgeLoader' in options
         ? options.officialSdkBridgeLoader ?? null
         : DEFAULT_GEMINI_OFFICIAL_SDK_BRIDGE_LOADER;
+    this.geminiCliJsonlTurnExecutor =
+      options.geminiCliJsonlTurnExecutor === undefined
+        ? streamGeminiCliJsonlTurn
+        : options.geminiCliJsonlTurnExecutor;
   }
 
   describeIntegration() {
-    return GEMINI_INTEGRATION;
+    return createGeminiIntegrationDescriptor();
   }
 
   describeRawExtensions() {
     return GEMINI_RAW_EXTENSIONS;
   }
 
+  describeRuntime(options?: ChatOptions) {
+    return createDefaultChatCanonicalRuntimeDescriptor({
+      descriptor: this.describeIntegration(),
+      health: this.getHealth(),
+      options,
+    });
+  }
+
+  getCapabilities() {
+    return createDefaultChatEngineCapabilitySnapshot({
+      health: this.getHealth(),
+      experimentalCapabilities: GEMINI_RAW_EXTENSIONS.experimentalFeatures,
+    });
+  }
+
   getHealth() {
     return createDetectedHealthReport({
-      descriptor: GEMINI_INTEGRATION,
-      packagePresence: GEMINI_PACKAGE,
+      descriptor: this.describeIntegration(),
+      packagePresence: resolveGeminiPackagePresence(),
       executable: 'gemini',
-      authEnvKeys: ['GOOGLE_API_KEY', 'GEMINI_API_KEY'],
-      fallbackRuntimeMode: null,
-      fallbackAvailable: false,
+      authEnvKeys: GEMINI_AUTH_ENV_KEYS,
+      fallbackRuntimeMode: 'headless',
+    });
+  }
+
+  async *sendCanonicalEvents(
+    messages: ChatMessage[],
+    options?: ChatOptions,
+  ): AsyncGenerator<ChatCanonicalEvent, void, unknown> {
+    yield* canonicalEventsFromChatStream({
+      messages,
+      runtime: this.describeRuntime(options),
+      stream: this.sendMessageStream(messages, options),
     });
   }
 
@@ -603,9 +1007,7 @@ export class GeminiChatEngine implements IChatEngine {
       loader: this.officialSdkBridgeLoader,
       messages,
       options,
-      fallback: async () => {
-        throw createUnavailableGeminiSdkError();
-      },
+      fallback: async () => this.sendMessageViaGeminiCli(messages, options),
     });
   }
 
@@ -618,8 +1020,155 @@ export class GeminiChatEngine implements IChatEngine {
       messages,
       options,
       fallback: async function* fallbackStream(_streamOptions) {
-        throw createUnavailableGeminiSdkError();
-      },
+        yield* this.streamMessageViaGeminiCli(messages, _streamOptions);
+      }.bind(this),
     });
+  }
+
+  private async resolveGeminiCliEvents(
+    prompt: string,
+    options?: ChatOptions,
+  ): Promise<AsyncIterable<Record<string, unknown>>> {
+    if (!this.geminiCliJsonlTurnExecutor) {
+      throw createUnavailableGeminiSdkError();
+    }
+    return this.geminiCliJsonlTurnExecutor(prompt, options);
+  }
+
+  private async sendMessageViaGeminiCli(
+    messages: ChatMessage[],
+    options?: ChatOptions,
+  ): Promise<ChatResponse> {
+    const prompt = buildGeminiCliPrompt(messages);
+    let responseText = '';
+    const textByMessageKey = new Map<string, string>();
+    const toolCalls: ToolCall[] = [];
+
+    for await (const event of await this.resolveGeminiCliEvents(prompt, options)) {
+      if (event.type === 'message' && event.role === 'assistant') {
+        const eventText = extractGeminiText(event.content ?? event.message);
+        if (eventText) {
+          if (event.delta === true) {
+            responseText += eventText;
+          } else {
+            const messageKey = String(event.id ?? 'gemini-cli-message');
+            const previousText = textByMessageKey.get(messageKey) ?? '';
+            const textDelta = resolveCumulativeTextDelta(previousText, eventText);
+            textByMessageKey.set(messageKey, eventText);
+            responseText += textDelta || eventText;
+          }
+        }
+        continue;
+      }
+
+      const toolCall = toGeminiCliToolCall(event);
+      if (toolCall) {
+        toolCalls.push(toolCall);
+        continue;
+      }
+
+      const turnError = readGeminiCliTurnError([event]);
+      if (turnError) {
+        throw new Error(formatGeminiCliError(turnError));
+      }
+    }
+
+    if (!responseText && toolCalls.length === 0) {
+      throw new Error('Gemini CLI did not return an assistant response.');
+    }
+
+    return createTextChatResponse({
+      id: `gemini-chat-${Date.now()}`,
+      model: options?.model || 'gemini',
+      content: responseText,
+      toolCalls,
+    });
+  }
+
+  private async *streamMessageViaGeminiCli(
+    messages: ChatMessage[],
+    options: ChatOptions,
+  ): AsyncGenerator<ChatStreamChunk, void, unknown> {
+    const id = `gemini-chat-${Date.now()}`;
+    const created = Math.floor(Date.now() / 1000);
+    const model = options.model || 'gemini';
+    const textByMessageKey = new Map<string, string>();
+    const prompt = buildGeminiCliPrompt(messages);
+
+    for await (const event of await this.resolveGeminiCliEvents(prompt, options)) {
+      if (event.type === 'message' && event.role === 'assistant') {
+        const eventText = extractGeminiText(event.content ?? event.message);
+        const content = event.delta === true
+          ? eventText
+          : (() => {
+              const messageKey = String(event.id ?? 'gemini-cli-message');
+              const previousText = textByMessageKey.get(messageKey) ?? '';
+              const textDelta = resolveCumulativeTextDelta(previousText, eventText);
+              textByMessageKey.set(messageKey, eventText);
+              return textDelta || eventText;
+            })();
+        if (content) {
+          yield createTextStreamChunk({
+            id,
+            created,
+            model,
+            role: 'assistant',
+            content,
+          });
+        }
+        continue;
+      }
+
+      const toolCall = toGeminiCliToolCall(event);
+      if (toolCall) {
+        yield createToolCallStreamChunk({
+          id,
+          created,
+          model,
+          toolCall,
+        });
+        continue;
+      }
+
+      const turnError = readGeminiCliTurnError([event]);
+      if (turnError) {
+        throw new Error(formatGeminiCliError(turnError));
+      }
+    }
+
+    yield createTextStreamChunk({
+      id,
+      created,
+      model,
+      finishReason: 'stop',
+    });
+  }
+
+  createSession(projectId: string): Promise<IChatSession> {
+    return this.localState.createSession(projectId);
+  }
+
+  getSession(sessionId: string): Promise<IChatSession | null> {
+    return this.localState.getSession(sessionId);
+  }
+
+  createCodingSession(sessionId: string, title?: string): Promise<IChatCodingSession> {
+    return this.localState.createCodingSession(sessionId, title);
+  }
+
+  getCodingSession(codingSessionId: string): Promise<IChatCodingSession | null> {
+    return this.localState.getCodingSession(codingSessionId);
+  }
+
+  addMessageToCodingSession(codingSessionId: string, message: ChatMessage): Promise<void> {
+    return this.localState.addMessageToCodingSession(codingSessionId, message);
+  }
+
+  updateContext(context: ChatContext): void {
+    this.localState.updateContext(context);
+  }
+
+  onToolCall(toolCall: ToolCall): Promise<string> {
+    return this.localState.onToolCall(toolCall);
   }
 }

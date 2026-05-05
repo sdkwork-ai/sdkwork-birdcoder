@@ -26,6 +26,28 @@ assert.throws(
 
 const localFallbackGeminiEngine = new GeminiChatEngine({
   officialSdkBridgeLoader: null,
+  geminiCliJsonlTurnExecutor: async function* geminiCliJsonlTurn(prompt, options) {
+    assert.match(
+      prompt,
+      /Use the local workspace index/,
+      'Gemini CLI fallback should receive the canonical transcript prompt.',
+    );
+    assert.equal(
+      options?.model,
+      'gemini',
+      'Gemini CLI fallback should preserve the selected BirdCoder model in ChatOptions.',
+    );
+    yield {
+      type: 'message',
+      role: 'assistant',
+      content: 'Gemini CLI fallback inspected the workspace.',
+      delta: true,
+    };
+    yield {
+      type: 'result',
+      status: 'success',
+    };
+  },
 });
 
 const systemOnlyMessages = [
@@ -37,27 +59,51 @@ const systemOnlyMessages = [
   },
 ];
 
+const localFallbackGeminiResponse = await localFallbackGeminiEngine.sendMessage(systemOnlyMessages, {
+  model: 'gemini',
+});
+assert.equal(
+  localFallbackGeminiResponse.choices[0]?.message.content,
+  'Gemini CLI fallback inspected the workspace.',
+  'Gemini should use the real CLI JSONL fallback when the official SDK bridge is unavailable.',
+);
+const localFallbackGeminiChunks = [];
+for await (const chunk of localFallbackGeminiEngine.sendMessageStream(systemOnlyMessages, {
+  model: 'gemini',
+  context: {
+    workspaceRoot: 'D:\\workspace',
+  },
+})) {
+  localFallbackGeminiChunks.push(chunk);
+}
+assert.equal(
+  localFallbackGeminiChunks.map((chunk) => chunk.choices[0]?.delta.content ?? '').join(''),
+  'Gemini CLI fallback inspected the workspace.',
+  'Gemini streaming should yield deltas from the real CLI JSONL fallback when the official SDK bridge is unavailable.',
+);
+
+const unavailableGeminiEngine = new GeminiChatEngine({
+  officialSdkBridgeLoader: null,
+  geminiCliJsonlTurnExecutor: null,
+});
 await assert.rejects(
   () =>
-    localFallbackGeminiEngine.sendMessage(systemOnlyMessages, {
+    unavailableGeminiEngine.sendMessage(systemOnlyMessages, {
       model: 'gemini',
     }),
-  /bridge is unavailable/i,
-  'Gemini must fail loudly when the official SDK bridge is unavailable instead of synthesizing a local fallback response.',
+  /CLI fallback.*unavailable/i,
+  'Gemini must fail loudly when both the official SDK bridge and CLI fallback are unavailable.',
 );
 await assert.rejects(
   async () => {
-    for await (const _chunk of localFallbackGeminiEngine.sendMessageStream(systemOnlyMessages, {
+    for await (const _chunk of unavailableGeminiEngine.sendMessageStream(systemOnlyMessages, {
       model: 'gemini',
-      context: {
-        workspaceRoot: 'D:\\workspace',
-      },
     })) {
       // Exhaust the stream so the bridge error propagates.
     }
   },
-  /bridge is unavailable/i,
-  'Gemini streaming must fail loudly when the official SDK bridge is unavailable instead of synthesizing local tool calls.',
+  /CLI fallback.*unavailable/i,
+  'Gemini streaming must fail loudly when both the official SDK bridge and CLI fallback are unavailable.',
 );
 
 console.log('gemini engine contract passed.');

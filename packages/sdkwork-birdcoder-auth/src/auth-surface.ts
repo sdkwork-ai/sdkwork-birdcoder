@@ -21,8 +21,6 @@ import {
   resolveBirdCoderRuntimeUserCenterProviderKind,
 } from "@sdkwork/birdcoder-core";
 
-const DEFAULT_BIRDCODER_LOCAL_DEV_ACCOUNT = "local-default@sdkwork-birdcoder.local";
-const DEFAULT_BIRDCODER_LOCAL_DEV_PASSWORD = "dev123456";
 const DEFAULT_BIRDCODER_AUTH_LEFT_RAIL_MODE: SdkworkAuthLeftRailMode = "qr-only";
 
 function readBirdCoderPublicEnvValue(...keys: string[]): string | undefined {
@@ -101,14 +99,11 @@ function resolveBirdCoderAuthDevelopmentPrefill(
   const shouldEnable = explicitEnabled
     ?? (
       isBirdCoderDevelopmentRuntime()
-      && (
-        isBuiltinLocalMode
-        || Boolean(
-          configuredAccount
-          || configuredEmail
-          || configuredPhone
-          || configuredPassword,
-        )
+      && Boolean(
+        configuredAccount
+        || configuredEmail
+        || configuredPhone
+        || configuredPassword,
       )
     );
 
@@ -117,14 +112,8 @@ function resolveBirdCoderAuthDevelopmentPrefill(
   }
 
   return {
-    account:
-      configuredAccount
-      || (
-        isBuiltinLocalMode
-          ? DEFAULT_BIRDCODER_LOCAL_DEV_ACCOUNT
-          : undefined
-      ),
-    email: configuredEmail,
+    account: configuredAccount || configuredEmail,
+    email: configuredEmail || configuredAccount,
     enabled: true,
     loginMethod:
       (
@@ -133,17 +122,11 @@ function resolveBirdCoderAuthDevelopmentPrefill(
           : undefined
       )
       || (
-        isBuiltinLocalMode
+        isBuiltinLocalMode && configuredPassword
           ? "password"
           : undefined
       ),
-    password:
-      configuredPassword
-      || (
-        isBuiltinLocalMode
-          ? DEFAULT_BIRDCODER_LOCAL_DEV_PASSWORD
-          : undefined
-      ),
+    password: configuredPassword,
     phone: configuredPhone,
   };
 }

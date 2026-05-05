@@ -31,6 +31,12 @@ function walkSync(currentDirPath, callback) {
   });
 }
 
+function writeBackupFileSync(filePath, originalContent) {
+  const backupPath = `${filePath}.replace-colors.bak`;
+  fs.writeFileSync(backupPath, originalContent, 'utf8');
+  return backupPath;
+}
+
 directories.forEach(dir => {
   if (fs.existsSync(dir)) {
     walkSync(dir, function(filePath) {
@@ -43,8 +49,9 @@ directories.forEach(dir => {
         });
         
         if (content !== originalContent) {
+          const backupPath = writeBackupFileSync(filePath, originalContent);
           fs.writeFileSync(filePath, content, 'utf8');
-          console.log(`Updated ${filePath}`);
+          console.log(`Updated ${filePath} (backup: ${backupPath})`);
         }
       }
     });

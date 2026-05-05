@@ -1,56 +1,71 @@
 import {
   buildMessageTranscriptPrompt,
+  canonicalEventsFromChatStream,
   canonicalizeBirdCoderCodeEngineProviderToolName,
   createDetectedHealthReport,
+  createDefaultChatCanonicalRuntimeDescriptor,
+  createDefaultChatEngineCapabilitySnapshot,
+  createLocalChatEngineState,
   createModuleBackedOfficialSdkBridgeLoader,
   createRawExtensionDescriptor,
   resolveRuntimeWorkingDirectory,
-  createStaticIntegrationDescriptor,
+  createRuntimeIntegrationDescriptor,
   createTextChatResponse,
   createTextStreamChunk,
   createToolCallStreamChunk,
+  invokeWithOptionalOfficialSdk,
   normalizeProviderToolArgumentRecord,
   parseBirdCoderApiJson,
   resolveCumulativeTextDelta,
   resolvePackagePresence,
-  streamResponseAsChunks,
+  streamWithOptionalOfficialSdk,
   stringifyProviderToolArgumentPayload,
-  withStreamEnabledChatOptions,
+  type ChatCanonicalEvent,
+  type ChatContext,
   type ChatEngineOfficialSdkBridge,
   type ChatEngineOfficialSdkBridgeLoader,
   type ChatMessage,
   type ChatOptions,
   type ChatResponse,
   type ChatStreamChunk,
+  type IChatCodingSession,
   type IChatEngine,
+  type IChatSession,
   type ToolCall,
 } from '@sdkwork/birdcoder-chat';
 
-const CODEX_PACKAGE = resolvePackagePresence({
+const CODEX_PACKAGE_PRESENCE_INPUT = {
   packageName: '@openai/codex-sdk',
   mirrorPackageJsonPath: 'external/codex/sdk/typescript/package.json',
-});
+} as const;
+const CODEX_SUPPLEMENTAL_LANES = ['CLI JSONL'] as const;
 
-const CODEX_INTEGRATION = createStaticIntegrationDescriptor({
-  engineId: 'codex',
-  runtimeMode: 'sdk',
-  transportKinds: ['sdk-stream', 'cli-jsonl'],
-  sourceMirrorPath: 'external/codex/sdk/typescript',
-  officialEntry: {
-    packageName: '@openai/codex-sdk',
-    packageVersion: CODEX_PACKAGE.mirrorVersion,
-    cliPackageName: '@openai/codex',
-    sdkPath: 'external/codex/sdk/typescript',
+function resolveCodexPackagePresence() {
+  return resolvePackagePresence(CODEX_PACKAGE_PRESENCE_INPUT);
+}
+
+function createCodexIntegrationDescriptor() {
+  return createRuntimeIntegrationDescriptor({
+    engineId: 'codex',
+    runtimeMode: 'sdk',
+    transportKinds: ['sdk-stream', 'cli-jsonl'],
     sourceMirrorPath: 'external/codex/sdk/typescript',
-    supplementalLanes: ['CLI JSONL'],
-  },
-  notes: 'BirdCoder uses the official Codex TypeScript SDK as the primary adapter baseline and falls back to the real Codex CLI JSONL lane when the SDK package is unavailable.',
-});
+    packagePresence: resolveCodexPackagePresence(),
+    officialEntry: {
+      packageName: '@openai/codex-sdk',
+      cliPackageName: '@openai/codex',
+      sdkPath: 'external/codex/sdk/typescript',
+      sourceMirrorPath: 'external/codex/sdk/typescript',
+      supplementalLanes: CODEX_SUPPLEMENTAL_LANES,
+    },
+    notes: 'BirdCoder uses the official Codex TypeScript SDK as the primary adapter baseline and falls back to the real Codex CLI JSONL lane when the SDK package is unavailable.',
+  });
+}
 
 const CODEX_RAW_EXTENSIONS = createRawExtensionDescriptor({
   provider: 'codex',
   primaryLane: 'thread-turn-item',
-  supplementalLanes: CODEX_INTEGRATION.officialEntry.supplementalLanes,
+  supplementalLanes: CODEX_SUPPLEMENTAL_LANES,
   nativeEventModel: ['thread.created', 'turn.started', 'item.updated', 'item.completed'],
   nativeArtifactModel: ['structured-output', 'patch', 'command-log'],
   experimentalFeatures: ['structured-output-schema', 'thread-resume'],
@@ -462,10 +477,48 @@ function formatCodexCliError(message: string): string {
   return normalizedMessage;
 }
 
+function parseCodexCliJsonlLine(line: string): Record<string, unknown> {
+  try {
+    return parseBirdCoderApiJson<Record<string, unknown>>(line);
+  } catch (error) {
+    throw new Error(
+      `Codex CLI JSONL parse failed: ${error instanceof Error ? error.message : String(error)}. Line: ${line}`,
+    );
+  }
+}
+
+function readCodexTurnError(events: readonly Record<string, unknown>[]): string | null {
+  return events
+    .map((event) => {
+      switch (event.type) {
+        case 'turn.failed':
+          return event.error && typeof event.error === 'object'
+            ? String((event.error as Record<string, unknown>).message ?? '')
+            : '';
+        case 'error':
+          return String(event.message ?? '');
+        default:
+          return '';
+      }
+    })
+    .find((message) => message.trim().length > 0) ?? null;
+}
+
 async function executeCodexCliJsonlTurn(
   prompt: string,
   options?: ChatOptions,
 ): Promise<Record<string, unknown>[]> {
+  const events: Record<string, unknown>[] = [];
+  for await (const event of streamCodexCliJsonlTurn(prompt, options)) {
+    events.push(event);
+  }
+  return events;
+}
+
+async function* streamCodexCliJsonlTurn(
+  prompt: string,
+  options?: ChatOptions,
+): AsyncGenerator<Record<string, unknown>, void, unknown> {
   if (!isNodeRuntime()) {
     throw new Error(CODEX_CLI_UNAVAILABLE_MESSAGE);
   }
@@ -491,9 +544,23 @@ async function executeCodexCliJsonlTurn(
   let stdout = '';
   let stderr = '';
   let settled = false;
+  const queuedEvents: Record<string, unknown>[] = [];
+  let notifyQueuedEvent: (() => void) | null = null;
+  let streamError: Error | null = null;
 
   child.stdout.on('data', (chunk) => {
     stdout += String(chunk);
+    const lines = stdout.split(/\r?\n/);
+    stdout = lines.pop() ?? '';
+    for (const line of lines.map((entry) => entry.trim()).filter(Boolean)) {
+      try {
+        queuedEvents.push(parseCodexCliJsonlLine(line));
+      } catch (error) {
+        streamError = error instanceof Error ? error : new Error(String(error));
+      }
+    }
+    notifyQueuedEvent?.();
+    notifyQueuedEvent = null;
   });
   child.stderr.on('data', (chunk) => {
     stderr += String(chunk);
@@ -517,7 +584,7 @@ async function executeCodexCliJsonlTurn(
     }
   };
 
-  abortSignal?.addEventListener('abort', handleAbort, { once: true });
+  abortSignal?.addEventListener('abort', handleAbort);
 
   try {
     if (invocation.stdinPrompt !== null) {
@@ -525,35 +592,47 @@ async function executeCodexCliJsonlTurn(
     }
     child.stdin.end();
 
-    const exitCode = await waitForExit;
-    const parsedEvents = stdout
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        try {
-          return parseBirdCoderApiJson<Record<string, unknown>>(line);
-        } catch (error) {
-          throw new Error(
-            `Codex CLI JSONL parse failed: ${error instanceof Error ? error.message : String(error)}. Line: ${line}`,
-          );
-        }
-      });
+    let exitCode: number | null = null;
+    const exitCodePromise = waitForExit.then((code) => {
+      exitCode = code;
+      notifyQueuedEvent?.();
+      notifyQueuedEvent = null;
+      return code;
+    });
+    const yieldedEvents: Record<string, unknown>[] = [];
 
-    const turnError = parsedEvents
-      .map((event) => {
-        switch (event.type) {
-          case 'turn.failed':
-            return event.error && typeof event.error === 'object'
-              ? String((event.error as Record<string, unknown>).message ?? '')
-              : '';
-          case 'error':
-            return String(event.message ?? '');
-          default:
-            return '';
-        }
-      })
-      .find((message) => message.trim().length > 0);
+    while (exitCode === null || queuedEvents.length > 0) {
+      if (streamError) {
+        throw streamError;
+      }
+
+      const event = queuedEvents.shift();
+      if (event) {
+        yieldedEvents.push(event);
+        yield event;
+        continue;
+      }
+
+      if (exitCode !== null) {
+        break;
+      }
+
+      await new Promise<void>((resolve) => {
+        notifyQueuedEvent = resolve;
+      });
+    }
+
+    await exitCodePromise;
+
+    if (stdout.trim()) {
+      for (const line of stdout.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean)) {
+        const event = parseCodexCliJsonlLine(line);
+        yieldedEvents.push(event);
+        yield event;
+      }
+    }
+
+    const turnError = readCodexTurnError(yieldedEvents);
 
     if (turnError) {
       throw new Error(formatCodexCliError(turnError));
@@ -566,8 +645,6 @@ async function executeCodexCliJsonlTurn(
         ),
       );
     }
-
-    return parsedEvents;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
@@ -837,6 +914,10 @@ export class CodexChatEngine implements IChatEngine {
   private readonly cliJsonlTurnExecutor:
     | ((prompt: string, options?: ChatOptions) => Promise<Record<string, unknown>[]>)
     | null;
+  private readonly cliJsonlTurnEventStreamer:
+    | ((prompt: string, options?: ChatOptions) => AsyncGenerator<Record<string, unknown>, void, unknown>)
+    | null;
+  private readonly localState = createLocalChatEngineState();
 
   constructor(options: CodexChatEngineOptions = {}) {
     this.officialSdkBridgeLoader =
@@ -847,21 +928,40 @@ export class CodexChatEngine implements IChatEngine {
       options.cliJsonlTurnExecutor === undefined
         ? executeCodexCliJsonlTurn
         : options.cliJsonlTurnExecutor;
+    this.cliJsonlTurnEventStreamer =
+      options.cliJsonlTurnExecutor === undefined
+        ? streamCodexCliJsonlTurn
+        : null;
   }
 
   describeIntegration() {
-    return CODEX_INTEGRATION;
+    return createCodexIntegrationDescriptor();
   }
 
   describeRawExtensions() {
     return CODEX_RAW_EXTENSIONS;
   }
 
+  describeRuntime(options?: ChatOptions) {
+    return createDefaultChatCanonicalRuntimeDescriptor({
+      descriptor: this.describeIntegration(),
+      health: this.getHealth(),
+      options,
+    });
+  }
+
+  getCapabilities() {
+    return createDefaultChatEngineCapabilitySnapshot({
+      health: this.getHealth(),
+      experimentalCapabilities: CODEX_RAW_EXTENSIONS.experimentalFeatures,
+    });
+  }
+
   getHealth() {
     const localConfiguration = readCodexLocalConfiguration();
     const health = createDetectedHealthReport({
-      descriptor: CODEX_INTEGRATION,
-      packagePresence: CODEX_PACKAGE,
+      descriptor: this.describeIntegration(),
+      packagePresence: resolveCodexPackagePresence(),
       executable: 'codex',
       authEnvKeys: CODEX_AUTH_ENV_KEYS,
       authConfigurationHints: CODEX_AUTH_CONFIGURATION_HINTS,
@@ -888,12 +988,10 @@ export class CodexChatEngine implements IChatEngine {
     };
   }
 
-  async sendMessage(messages: ChatMessage[], options?: ChatOptions): Promise<ChatResponse> {
-    const bridge = await this.officialSdkBridgeLoader?.load();
-    if (bridge?.sendMessage) {
-      return bridge.sendMessage(messages, options);
-    }
-
+  private async sendMessageViaCodexCli(
+    messages: ChatMessage[],
+    options?: ChatOptions,
+  ): Promise<ChatResponse> {
     const prompt = buildCodexCliPrompt(messages, options);
     if (!this.cliJsonlTurnExecutor) {
       throw new Error(CODEX_CLI_UNAVAILABLE_MESSAGE);
@@ -918,85 +1016,127 @@ export class CodexChatEngine implements IChatEngine {
     });
   }
 
+  async sendMessage(messages: ChatMessage[], options?: ChatOptions): Promise<ChatResponse> {
+    return invokeWithOptionalOfficialSdk({
+      loader: this.officialSdkBridgeLoader,
+      messages,
+      options,
+      fallback: async () => this.sendMessageViaCodexCli(messages, options),
+    });
+  }
+
   async *sendMessageStream(
     messages: ChatMessage[],
     options?: ChatOptions,
   ): AsyncGenerator<ChatStreamChunk, void, unknown> {
-    const streamOptions = withStreamEnabledChatOptions(options);
-    const bridge = await this.officialSdkBridgeLoader?.load();
-    if (bridge?.sendMessageStream) {
-      yield* await bridge.sendMessageStream(messages, streamOptions);
-      return;
-    }
+    yield* streamWithOptionalOfficialSdk({
+      loader: this.officialSdkBridgeLoader,
+      messages,
+      options,
+      fallback: async function* fallbackStream(streamOptions) {
+        const id = `codex-chat-${Date.now()}`;
+        const created = Math.floor(Date.now() / 1000);
+        const model = streamOptions.model || 'codex';
+        const itemContentById = new Map<string, string>();
+        if (!this.cliJsonlTurnExecutor && !this.cliJsonlTurnEventStreamer) {
+          throw new Error(CODEX_CLI_UNAVAILABLE_MESSAGE);
+        }
+        const prompt = buildCodexCliPrompt(messages, streamOptions);
+        const events = this.cliJsonlTurnEventStreamer
+          ? this.cliJsonlTurnEventStreamer(prompt, streamOptions)
+          : await this.cliJsonlTurnExecutor!(prompt, streamOptions);
 
-    if (bridge?.sendMessage) {
-      const response = await bridge.sendMessage(messages, streamOptions);
-      yield* streamResponseAsChunks(response);
-      return;
-    }
+        for await (const event of events) {
+          switch (event.type) {
+            case 'item.started':
+            case 'item.updated':
+            case 'item.completed': {
+              const item = event.item;
+              if (!item || typeof item !== 'object') {
+                continue;
+              }
 
-    const id = `codex-chat-${Date.now()}`;
-    const created = Math.floor(Date.now() / 1000);
-    const model = options?.model || 'codex';
-    const itemContentById = new Map<string, string>();
-    if (!this.cliJsonlTurnExecutor) {
-      throw new Error(CODEX_CLI_UNAVAILABLE_MESSAGE);
-    }
-    const events = await this.cliJsonlTurnExecutor(
-      buildCodexCliPrompt(messages, streamOptions),
-      streamOptions,
-    );
+              const itemRecord = item as Record<string, unknown>;
+              if (itemRecord.type === 'agent_message' && typeof itemRecord.text === 'string') {
+                const itemId = String(itemRecord.id ?? 'codex-agent-message');
+                const previousContent = itemContentById.get(itemId) ?? '';
+                const contentDelta = resolveCumulativeTextDelta(previousContent, itemRecord.text);
+                itemContentById.set(itemId, itemRecord.text);
+                if (contentDelta) {
+                  yield createTextStreamChunk({
+                    id,
+                    created,
+                    model,
+                    role: 'assistant',
+                    content: contentDelta,
+                  });
+                }
+                continue;
+              }
 
-    for (const event of events) {
-      switch (event.type) {
-        case 'item.started':
-        case 'item.updated':
-        case 'item.completed': {
-          const item = event.item;
-          if (!item || typeof item !== 'object') {
-            continue;
-          }
-
-          const itemRecord = item as Record<string, unknown>;
-          if (itemRecord.type === 'agent_message' && typeof itemRecord.text === 'string') {
-            const itemId = String(itemRecord.id ?? 'codex-agent-message');
-            const previousContent = itemContentById.get(itemId) ?? '';
-            const contentDelta = resolveCumulativeTextDelta(previousContent, itemRecord.text);
-            itemContentById.set(itemId, itemRecord.text);
-            if (contentDelta) {
+              const toolCall = toCodexToolCall(itemRecord);
+              if (toolCall) {
+                yield createToolCallStreamChunk({
+                  id,
+                  created,
+                  model,
+                  toolCall,
+                });
+              }
+              break;
+            }
+            case 'turn.completed':
               yield createTextStreamChunk({
                 id,
                 created,
                 model,
-                role: 'assistant',
-                content: contentDelta,
+                finishReason: 'stop',
               });
-            }
-            continue;
+              break;
+            default:
+              break;
           }
-
-          const toolCall = toCodexToolCall(itemRecord);
-          if (toolCall) {
-            yield createToolCallStreamChunk({
-              id,
-              created,
-              model,
-              toolCall,
-            });
-          }
-          break;
         }
-        case 'turn.completed':
-          yield createTextStreamChunk({
-            id,
-            created,
-            model,
-            finishReason: 'stop',
-          });
-          break;
-        default:
-          break;
-      }
-    }
+      }.bind(this),
+    });
+  }
+
+  async *sendCanonicalEvents(
+    messages: ChatMessage[],
+    options?: ChatOptions,
+  ): AsyncGenerator<ChatCanonicalEvent, void, unknown> {
+    yield* canonicalEventsFromChatStream({
+      messages,
+      runtime: this.describeRuntime(options),
+      stream: this.sendMessageStream(messages, options),
+    });
+  }
+
+  createSession(projectId: string): Promise<IChatSession> {
+    return this.localState.createSession(projectId);
+  }
+
+  getSession(sessionId: string): Promise<IChatSession | null> {
+    return this.localState.getSession(sessionId);
+  }
+
+  createCodingSession(sessionId: string, title?: string): Promise<IChatCodingSession> {
+    return this.localState.createCodingSession(sessionId, title);
+  }
+
+  getCodingSession(codingSessionId: string): Promise<IChatCodingSession | null> {
+    return this.localState.getCodingSession(codingSessionId);
+  }
+
+  addMessageToCodingSession(codingSessionId: string, message: ChatMessage): Promise<void> {
+    return this.localState.addMessageToCodingSession(codingSessionId, message);
+  }
+
+  updateContext(context: ChatContext): void {
+    this.localState.updateContext(context);
+  }
+
+  onToolCall(toolCall: ToolCall): Promise<string> {
+    return this.localState.onToolCall(toolCall);
   }
 }

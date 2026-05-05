@@ -25,6 +25,7 @@ interface CodeQuickOpenSearchFrame {
 
 const CODE_QUICK_OPEN_SEARCH_CHUNK_SIZE = 250;
 const CODE_QUICK_OPEN_SEARCH_IDLE_TIMEOUT_MS = 80;
+const CODE_QUICK_OPEN_SEARCH_MAX_STACK_DEPTH = 128;
 const CODE_QUICK_OPEN_SEARCH_RESULT_LIMIT = 200;
 
 export function createCodeQuickOpenSearchTask({
@@ -84,11 +85,13 @@ export function createCodeQuickOpenSearchTask({
       }
 
       if (node.children?.length) {
-        searchStack.push({
-          currentPath: nextPath,
-          index: 0,
-          nodes: node.children,
-        });
+        if (searchStack.length < CODE_QUICK_OPEN_SEARCH_MAX_STACK_DEPTH) {
+          searchStack.push({
+            currentPath: nextPath,
+            index: 0,
+            nodes: node.children,
+          });
+        }
       }
     }
 

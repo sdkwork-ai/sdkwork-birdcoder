@@ -225,6 +225,76 @@ async function verifyFallbackStreamOptionsDefaultToTrue() {
     [true, true],
     'Claude CLI stream fallback must receive ChatOptions.stream=true from sendMessageStream.',
   );
+
+  const geminiStreamValues: Array<boolean | undefined> = [];
+  const geminiEngine = new GeminiChatEngine({
+    officialSdkBridgeLoader: {
+      load: async () => null,
+    },
+    geminiCliJsonlTurnExecutor: async function* geminiCliJsonlTurn(_prompt, options) {
+      geminiStreamValues.push(options?.stream);
+      yield {
+        type: 'message',
+        role: 'assistant',
+        content: 'gemini cli stream default response',
+        delta: true,
+      };
+      yield {
+        type: 'result',
+        status: 'success',
+      };
+    },
+  });
+  await collectStream(
+    geminiEngine.sendMessageStream(messages, {
+      model: 'gemini',
+    }),
+  );
+  await collectStream(
+    geminiEngine.sendMessageStream(messages, {
+      model: 'gemini',
+      stream: false,
+    }),
+  );
+  assert.deepEqual(
+    geminiStreamValues,
+    [true, true],
+    'Gemini CLI stream fallback must receive ChatOptions.stream=true from sendMessageStream.',
+  );
+
+  const openCodeStreamValues: Array<boolean | undefined> = [];
+  const openCodeEngine = new OpenCodeChatEngine({
+    officialSdkBridgeLoader: {
+      load: async () => null,
+    },
+    openCodeCliJsonlTurnExecutor: async function* openCodeCliJsonlTurn(_prompt, options) {
+      openCodeStreamValues.push(options?.stream);
+      yield {
+        type: 'text',
+        part: {
+          id: 'opencode-stream-default-text',
+          type: 'text',
+          text: 'opencode cli stream default response',
+        },
+      };
+    },
+  });
+  await collectStream(
+    openCodeEngine.sendMessageStream(messages, {
+      model: 'opencode',
+    }),
+  );
+  await collectStream(
+    openCodeEngine.sendMessageStream(messages, {
+      model: 'opencode',
+      stream: false,
+    }),
+  );
+  assert.deepEqual(
+    openCodeStreamValues,
+    [true, true],
+    'OpenCode CLI stream fallback must receive ChatOptions.stream=true from sendMessageStream.',
+  );
 }
 
 async function verifyClaudeDefaultCliJsonlFallback() {
@@ -234,6 +304,8 @@ async function verifyClaudeDefaultCliJsonlFallback() {
   const originalGetBuiltinModule = runtimeProcess.getBuiltinModule;
   let capturedPrompt = '';
   let spawnCalled = false;
+  let spawnCount = 0;
+  let closeActiveStream: (() => void) | null = null;
 
   class FakeReadable {
     private dataListeners: Array<(chunk: unknown) => void> = [];
@@ -269,6 +341,8 @@ async function verifyClaudeDefaultCliJsonlFallback() {
 
   const fakeChildProcessModule = {
     spawn(command: string, args: readonly string[], options: { cwd?: string }) {
+      spawnCount += 1;
+      const currentSpawn = spawnCount;
       spawnCalled = true;
       assert.equal(
         command,
@@ -317,6 +391,22 @@ async function verifyClaudeDefaultCliJsonlFallback() {
       const child = {
         stdin: new FakeWritable(() => {
           queueMicrotask(() => {
+            if (currentSpawn === 2) {
+              stdout.emitData(
+                '{"type":"assistant","message":{"content":[{"type":"text","text":"Claude "}]}}\n',
+              );
+              closeActiveStream = () => {
+                stdout.emitData(
+                  '{"type":"assistant","message":{"content":[{"type":"text","text":"stream"}]}}\n',
+                );
+                stdout.emitData(
+                  '{"type":"result","result":"Claude stream"}\n',
+                );
+                closeListener?.(0);
+              };
+              return;
+            }
+
             stdout.emitData(
               '{"type":"assistant","message":{"content":[{"type":"text","text":"Claude "}]}}\n',
             );
@@ -362,11 +452,48 @@ async function verifyClaudeDefaultCliJsonlFallback() {
     const response = await engine.sendMessage(messages, {
       model: 'claude-code',
     });
-    const chunks = await collectStream(
-      engine.sendMessageStream(messages, {
-        model: 'claude-code',
+    const streamIterator = engine.sendMessageStream(messages, {
+      model: 'claude-code',
+    });
+    const firstChunkPromise = streamIterator.next();
+    const firstChunkRace = await Promise.race<
+      | { kind: 'chunk'; value: Awaited<ReturnType<typeof streamIterator.next>> }
+      | { kind: 'timeout' }
+    >([
+      firstChunkPromise.then((value) => ({
+        kind: 'chunk' as const,
+        value,
+      })),
+      new Promise((resolve) => {
+        setTimeout(() => resolve({ kind: 'timeout' as const }), 25);
       }),
+    ]);
+
+    if (firstChunkRace.kind !== 'chunk') {
+      closeActiveStream?.();
+      await firstChunkPromise.catch(() => null);
+    }
+    assert.equal(
+      firstChunkRace.kind,
+      'chunk',
+      'Claude default CLI stream fallback must yield assistant JSONL deltas before the CLI process closes.',
     );
+    assert.equal(
+      firstChunkRace.value.done,
+      false,
+      'Claude default CLI stream fallback must yield an assistant chunk before completing.',
+    );
+    assert.equal(
+      firstChunkRace.value.value.choices[0]?.delta.content,
+      'Claude ',
+      'Claude default CLI stream fallback must expose the first assistant JSONL delta immediately.',
+    );
+
+    closeActiveStream?.();
+    const chunks = [firstChunkRace.value.value];
+    for await (const chunk of streamIterator) {
+      chunks.push(chunk);
+    }
 
     assert.equal(spawnCalled, true, 'Claude default CLI fallback should spawn the CLI');
     assert.match(
@@ -381,8 +508,8 @@ async function verifyClaudeDefaultCliJsonlFallback() {
     );
     assert.equal(
       chunks.map((chunk) => chunk.choices[0]?.delta.content ?? '').join(''),
-      'Claude cli jsonl response',
-      'Claude default CLI stream fallback should reuse the same JSONL CLI response',
+      'Claude stream',
+      'Claude default CLI stream fallback should stream assistant JSONL deltas without waiting for process close',
     );
   } finally {
     runtimeProcess.getBuiltinModule = originalGetBuiltinModule;
@@ -498,7 +625,8 @@ const providers = [
   },
   {
     engineId: 'gemini',
-    fallbackBehavior: 'unavailable',
+    fallbackBehavior: 'supported',
+    expectedFallbackText: 'gemini cli fallback response',
     createWithSdk: () =>
       new GeminiChatEngine({
         officialSdkBridgeLoader: {
@@ -515,11 +643,34 @@ const providers = [
         officialSdkBridgeLoader: {
           load: async () => null,
         },
+        geminiCliJsonlTurnExecutor: async function* geminiCliJsonlTurn(prompt, options) {
+          assert.match(
+            prompt,
+            /Use the official SDK lane when available\./,
+            'Gemini CLI fallback should receive the same canonical prompt as the SDK bridge',
+          );
+          assert.equal(
+            options?.model,
+            'gemini',
+            'Gemini CLI fallback should preserve the selected model in chat options',
+          );
+          yield {
+            type: 'message',
+            role: 'assistant',
+            content: 'gemini cli fallback response',
+            delta: true,
+          };
+          yield {
+            type: 'result',
+            status: 'success',
+          };
+        },
       }),
   },
   {
     engineId: 'opencode',
-    fallbackBehavior: 'unavailable',
+    fallbackBehavior: 'supported',
+    expectedFallbackText: 'opencode cli fallback response',
     createWithSdk: () =>
       new OpenCodeChatEngine({
         officialSdkBridgeLoader: {
@@ -535,6 +686,26 @@ const providers = [
       new OpenCodeChatEngine({
         officialSdkBridgeLoader: {
           load: async () => null,
+        },
+        openCodeCliJsonlTurnExecutor: async function* openCodeCliJsonlTurn(prompt, options) {
+          assert.match(
+            prompt,
+            /Use the official SDK lane when available\./,
+            'OpenCode CLI fallback should receive the same canonical prompt as the SDK bridge',
+          );
+          assert.equal(
+            options?.model,
+            'opencode',
+            'OpenCode CLI fallback should preserve the selected model in chat options',
+          );
+          yield {
+            type: 'text',
+            part: {
+              id: 'opencode-cli-fallback-text',
+              type: 'text',
+              text: 'opencode cli fallback response',
+            },
+          };
         },
       }),
   },

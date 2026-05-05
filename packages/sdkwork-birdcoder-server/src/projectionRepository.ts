@@ -71,6 +71,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+const DEFAULT_UNKNOWN_RUNTIME_MODEL_ID = 'unknown-model';
+
 function normalizeRuntimeRecord(value: unknown): BirdCoderCodingSessionRuntime | null {
   if (isRecord(value) && typeof value.id === 'string' && typeof value.codingSessionId === 'string') {
     return value as unknown as BirdCoderCodingSessionRuntime;
@@ -87,9 +89,6 @@ function normalizeRuntimeRecord(value: unknown): BirdCoderCodingSessionRuntime |
     typeof row.model_id === 'string' && row.model_id.trim().length > 0
       ? row.model_id.trim()
       : null;
-  if (!normalizedModelId) {
-    return null;
-  }
 
   return {
     id: String(row.id),
@@ -97,7 +96,7 @@ function normalizeRuntimeRecord(value: unknown): BirdCoderCodingSessionRuntime |
     hostMode: String(row.host_mode ?? 'server') as BirdCoderCodingSessionRuntime['hostMode'],
     status: String(row.status ?? 'ready') as BirdCoderCodingSessionRuntime['status'],
     engineId: String(row.engine_id),
-    modelId: normalizedModelId,
+    modelId: normalizedModelId ?? DEFAULT_UNKNOWN_RUNTIME_MODEL_ID,
     nativeRef: {
       engineId: String(row.engine_id),
       transportKind: String(row.transport_kind ?? 'stdio'),

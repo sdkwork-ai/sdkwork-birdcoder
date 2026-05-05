@@ -349,6 +349,28 @@ const CODEX_NATIVE_TOOL_NAME_ALIASES = new Map<string, string>([
   ['todo_list', 'write_todo'],
 ]);
 
+const GEMINI_NATIVE_TOOL_NAME_ALIASES = new Map<string, string>([
+  ['bash', 'run_command'],
+  ['edit', 'edit_file'],
+  ['glob', 'search_code'],
+  ['grep', 'grep_code'],
+  ['ls', 'list_files'],
+  ['read', 'read_file'],
+  ['shell_command', 'run_command'],
+  ['write', 'write_file'],
+]);
+
+const OPENCODE_NATIVE_TOOL_NAME_ALIASES = new Map<string, string>([
+  ['bash', 'run_command'],
+  ['edit', 'edit_file'],
+  ['glob', 'search_code'],
+  ['grep', 'grep_code'],
+  ['list', 'list_files'],
+  ['read', 'read_file'],
+  ['todowrite', 'write_todo'],
+  ['write', 'write_file'],
+]);
+
 const RUNTIME_STATUS_ALIASES = new Map<string, BirdCoderCodingSessionRuntimeStatus>([
   ['abort', 'terminated'],
   ['aborted', 'terminated'],
@@ -514,6 +536,14 @@ function resolveBirdCoderCodeEngineProviderToolNameAlias(
 
   if (providerKey === 'codex') {
     return CODEX_NATIVE_TOOL_NAME_ALIASES.get(toolNameKey);
+  }
+
+  if (providerKey === 'gemini') {
+    return GEMINI_NATIVE_TOOL_NAME_ALIASES.get(toolNameKey);
+  }
+
+  if (providerKey === 'opencode') {
+    return OPENCODE_NATIVE_TOOL_NAME_ALIASES.get(toolNameKey);
   }
 
   return undefined;

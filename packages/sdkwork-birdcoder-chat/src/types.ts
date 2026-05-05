@@ -299,3 +299,10 @@ export interface IChatEngine {
   // Tool Execution Callback (if engine delegates tool execution to IDE)
   onToolCall?(toolCall: ToolCall): Promise<string>;
 }
+
+export interface ChatEngineRegistryEntry {
+  engineId: BirdCoderCodeEngineKey;
+  title: string;
+  createEngine: () => IChatEngine;
+  integration?: ChatEngineIntegrationDescriptor;
+}

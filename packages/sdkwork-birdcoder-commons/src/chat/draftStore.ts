@@ -2,6 +2,8 @@ import { useCallback, useSyncExternalStore } from 'react';
 
 type ChatInputDraftListener = () => void;
 
+const MAX_CHAT_INPUT_DRAFT_ENTRIES = 200;
+
 const chatInputDrafts = new Map<string, string>();
 const chatInputDraftListeners = new Map<string, Set<ChatInputDraftListener>>();
 
@@ -11,6 +13,19 @@ function normalizeChatInputDraftKey(key: string | null | undefined): string {
 
 function getChatInputDraftSnapshot(key: string): string {
   return chatInputDrafts.get(key) ?? '';
+}
+
+function pruneChatInputDrafts(): void {
+  while (chatInputDrafts.size > MAX_CHAT_INPUT_DRAFT_ENTRIES) {
+    const oldestPrunableKey = Array.from(chatInputDrafts.keys())
+      .find((key) => !chatInputDraftListeners.has(key));
+
+    if (!oldestPrunableKey) {
+      return;
+    }
+
+    chatInputDrafts.delete(oldestPrunableKey);
+  }
 }
 
 function emitChatInputDraftSnapshot(key: string): void {
@@ -80,7 +95,9 @@ export function setWorkbenchChatInputDraft(
   }
 
   if (resolvedValue) {
+    chatInputDrafts.delete(normalizedKey);
     chatInputDrafts.set(normalizedKey, resolvedValue);
+    pruneChatInputDrafts();
   } else {
     chatInputDrafts.delete(normalizedKey);
   }

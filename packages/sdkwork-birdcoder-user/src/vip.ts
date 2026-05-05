@@ -36,6 +36,8 @@ export interface CreateBirdCoderVipWorkspaceManifestOptions {
 export interface CreateBirdCoderVipRouteIntentOptions {
   focusWindow?: boolean;
   routePath?: string;
+  section?: string;
+  /** @deprecated Use section. Kept for older callers that mirrored user center route intents. */
   sectionId?: string;
 }
 
@@ -44,7 +46,7 @@ export interface BirdCoderVipRouteIntent {
   focusWindow: boolean;
   path: string;
   route: string;
-  sectionId?: string;
+  section?: string;
   source: 'vip-workspace';
   sourcePackageName: '@sdkwork/vip-pc-react';
   type: 'vip-route-intent';
@@ -156,10 +158,10 @@ export function createBirdCoderVipRouteIntent(
   options: CreateBirdCoderVipRouteIntentOptions = {},
 ): BirdCoderVipRouteIntent {
   const capability = createBirdCoderVipCapability(options.routePath);
-  const sectionId = normalizeOptionalText(options.sectionId);
+  const section = normalizeOptionalText(options.section ?? options.sectionId);
   const queryParams = new URLSearchParams();
-  if (sectionId) {
-    queryParams.set('section', sectionId);
+  if (section) {
+    queryParams.set('section', section);
   }
   const querySuffix = queryParams.toString() ? `?${queryParams.toString()}` : '';
   const route = `${capability.routePath}${querySuffix}`;
@@ -169,7 +171,7 @@ export function createBirdCoderVipRouteIntent(
     focusWindow: options.focusWindow !== false,
     path: route,
     route,
-    ...(sectionId ? { sectionId } : {}),
+    ...(section ? { section } : {}),
     source: 'vip-workspace',
     sourcePackageName: BIRDCODER_USER_VIP_SOURCE_PACKAGE,
     type: 'vip-route-intent',

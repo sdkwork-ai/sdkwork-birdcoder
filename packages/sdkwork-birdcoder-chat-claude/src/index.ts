@@ -1,10 +1,14 @@
 import {
   buildMessageTranscriptPrompt,
+  canonicalEventsFromChatStream,
   canonicalizeBirdCoderCodeEngineProviderToolName,
   createDetectedHealthReport,
+  createDefaultChatCanonicalRuntimeDescriptor,
+  createDefaultChatEngineCapabilitySnapshot,
+  createLocalChatEngineState,
   createModuleBackedOfficialSdkBridgeLoader,
   createRawExtensionDescriptor,
-  createStaticIntegrationDescriptor,
+  createRuntimeIntegrationDescriptor,
   createTextChatResponse,
   createTextStreamChunk,
   createToolCallStreamChunk,
@@ -17,41 +21,57 @@ import {
   streamResponseAsChunks,
   streamWithOptionalOfficialSdk,
   stringifyProviderToolArgumentPayload,
+  type ChatCanonicalEvent,
+  type ChatContext,
   type ChatEngineOfficialSdkBridge,
   type ChatEngineOfficialSdkBridgeLoader,
   type ChatMessage,
   type ChatOptions,
   type ChatResponse,
   type ChatStreamChunk,
+  type IChatCodingSession,
   type IChatEngine,
+  type IChatSession,
   type ToolCall,
 } from '@sdkwork/birdcoder-chat';
 
-const CLAUDE_PACKAGE = resolvePackagePresence({
+const CLAUDE_PACKAGE_PRESENCE_INPUT = {
   packageName: '@anthropic-ai/claude-agent-sdk',
-});
+} as const;
+const CLAUDE_SUPPLEMENTAL_LANES = [
+  'query stream',
+  'tool progress',
+  'preview sessions',
+  'Claude CLI print',
+] as const;
 
-const CLAUDE_INTEGRATION = createStaticIntegrationDescriptor({
-  engineId: 'claude-code',
-  runtimeMode: 'sdk',
-  transportKinds: ['sdk-stream', 'cli-jsonl'],
-  sourceMirrorPath: 'external/claude-code',
-  officialEntry: {
-    packageName: '@anthropic-ai/claude-agent-sdk',
-    packageVersion: CLAUDE_PACKAGE.installedVersion,
-    cliPackageName: 'claude-code',
-    sdkPath: null,
+function resolveClaudePackagePresence() {
+  return resolvePackagePresence(CLAUDE_PACKAGE_PRESENCE_INPUT);
+}
+
+function createClaudeIntegrationDescriptor() {
+  return createRuntimeIntegrationDescriptor({
+    engineId: 'claude-code',
+    runtimeMode: 'sdk',
+    transportKinds: ['sdk-stream', 'cli-jsonl'],
     sourceMirrorPath: 'external/claude-code',
-    supplementalLanes: ['query stream', 'tool progress', 'preview sessions', 'Claude CLI print'],
-  },
-  notes:
-    'BirdCoder uses the official Claude Agent SDK as the primary stable integration lane and falls back to the real Claude Code CLI print lane when the SDK package is unavailable.',
-});
+    packagePresence: resolveClaudePackagePresence(),
+    officialEntry: {
+      packageName: '@anthropic-ai/claude-agent-sdk',
+      cliPackageName: 'claude-code',
+      sdkPath: null,
+      sourceMirrorPath: 'external/claude-code',
+      supplementalLanes: CLAUDE_SUPPLEMENTAL_LANES,
+    },
+    notes:
+      'BirdCoder uses the official Claude Agent SDK as the primary stable integration lane and falls back to the real Claude Code CLI print lane when the SDK package is unavailable.',
+  });
+}
 
 const CLAUDE_RAW_EXTENSIONS = createRawExtensionDescriptor({
   provider: 'claude-code',
   primaryLane: 'agent-query-tool-progress',
-  supplementalLanes: CLAUDE_INTEGRATION.officialEntry.supplementalLanes,
+  supplementalLanes: CLAUDE_SUPPLEMENTAL_LANES,
   nativeEventModel: ['query.delta', 'tool.progress', 'approval.requested'],
   nativeArtifactModel: ['command-log', 'patch', 'review-note'],
   experimentalFeatures: ['preview-session-api'],
@@ -246,6 +266,34 @@ function formatClaudeCliError(message: string): string {
   }
 
   return normalizedMessage;
+}
+
+function parseClaudeCliJsonlLine(line: string): Record<string, unknown> {
+  try {
+    return parseBirdCoderApiJson<Record<string, unknown>>(line);
+  } catch (error) {
+    throw new Error(
+      `Claude Code CLI JSONL parse failed: ${error instanceof Error ? error.message : String(error)}. Line: ${line}`,
+    );
+  }
+}
+
+function readClaudeCliTurnError(events: readonly Record<string, unknown>[]): string | null {
+  return events
+    .map((event) => {
+      switch (event.type) {
+        case 'assistant_error':
+        case 'error':
+          return extractClaudeText(event.error ?? event.message ?? event);
+        case 'result':
+          return event.subtype === 'error'
+            ? extractClaudeText(event.error ?? event.message ?? event.result ?? event)
+            : '';
+        default:
+          return '';
+      }
+    })
+    .find((message) => message.trim().length > 0) ?? null;
 }
 
 function buildClaudePrompt(messages: readonly ChatMessage[]): string {
@@ -504,10 +552,10 @@ function parseClaudeCliJsonlResponseText(stdout: string): string {
   return mergeClaudeQueryResultText(streamedResponseText, resultResponseText);
 }
 
-async function executeClaudeCliTurn(
+async function* streamClaudeCliJsonlTurn(
   prompt: string,
   options?: ChatOptions,
-): Promise<string> {
+): AsyncGenerator<Record<string, unknown>, void, unknown> {
   if (!isNodeRuntime()) {
     throw new Error(CLAUDE_CLI_UNAVAILABLE_MESSAGE);
   }
@@ -540,9 +588,23 @@ async function executeClaudeCliTurn(
   let stdout = '';
   let stderr = '';
   let settled = false;
+  const queuedEvents: Record<string, unknown>[] = [];
+  let notifyQueuedEvent: (() => void) | null = null;
+  let streamError: Error | null = null;
 
   child.stdout.on('data', (chunk) => {
     stdout += String(chunk);
+    const lines = stdout.split(/\r?\n/);
+    stdout = lines.pop() ?? '';
+    for (const line of lines.map((entry) => entry.trim()).filter(Boolean)) {
+      try {
+        queuedEvents.push(parseClaudeCliJsonlLine(line));
+      } catch (error) {
+        streamError = error instanceof Error ? error : new Error(String(error));
+      }
+    }
+    notifyQueuedEvent?.();
+    notifyQueuedEvent = null;
   });
   child.stderr.on('data', (chunk) => {
     stderr += String(chunk);
@@ -566,31 +628,64 @@ async function executeClaudeCliTurn(
     }
   };
 
-  abortSignal?.addEventListener('abort', handleAbort, { once: true });
+  abortSignal?.addEventListener('abort', handleAbort);
 
   try {
     child.stdin.write(invocation.stdinPrompt);
     child.stdin.end();
 
-    const exitCode = await waitForExit;
+    let exitCode: number | null = null;
+    const exitCodePromise = waitForExit.then((code) => {
+      exitCode = code;
+      notifyQueuedEvent?.();
+      notifyQueuedEvent = null;
+      return code;
+    });
+    const yieldedEvents: Record<string, unknown>[] = [];
+
+    while (exitCode === null || queuedEvents.length > 0) {
+      if (streamError) {
+        throw streamError;
+      }
+
+      const event = queuedEvents.shift();
+      if (event) {
+        yieldedEvents.push(event);
+        yield event;
+        continue;
+      }
+
+      if (exitCode !== null) {
+        break;
+      }
+
+      await new Promise<void>((resolve) => {
+        notifyQueuedEvent = resolve;
+      });
+    }
+
+    await exitCodePromise;
+
+    if (stdout.trim()) {
+      for (const line of stdout.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean)) {
+        const event = parseClaudeCliJsonlLine(line);
+        yieldedEvents.push(event);
+        yield event;
+      }
+    }
+
+    const turnError = readClaudeCliTurnError(yieldedEvents);
+    if (turnError) {
+      throw new Error(formatClaudeCliError(turnError));
+    }
+
     if (exitCode !== 0) {
       throw new Error(
         formatClaudeCliError(
-          stderr.trim() || stdout.trim() || `Claude Code CLI exited with status ${exitCode}.`,
+          stderr.trim() || `Claude Code CLI exited with status ${exitCode}.`,
         ),
       );
     }
-
-    const assistantContent = parseClaudeCliJsonlResponseText(stdout).trim();
-    if (!assistantContent) {
-      throw new Error(
-        stderr.trim()
-          ? formatClaudeCliError(stderr.trim())
-          : 'Claude Code CLI returned an empty assistant response.',
-      );
-    }
-
-    return assistantContent;
   } catch (error) {
     throw new Error(
       formatClaudeCliError(error instanceof Error ? error.message : String(error)),
@@ -598,6 +693,24 @@ async function executeClaudeCliTurn(
   } finally {
     abortSignal?.removeEventListener('abort', handleAbort);
   }
+}
+
+async function executeClaudeCliTurn(
+  prompt: string,
+  options?: ChatOptions,
+): Promise<string> {
+  const events: Record<string, unknown>[] = [];
+  for await (const event of streamClaudeCliJsonlTurn(prompt, options)) {
+    events.push(event);
+  }
+  const assistantContent = parseClaudeCliJsonlResponseText(
+    events.map((event) => JSON.stringify(event)).join('\n'),
+  ).trim();
+  if (!assistantContent) {
+    throw new Error('Claude Code CLI returned an empty assistant response.');
+  }
+
+  return assistantContent;
 }
 
 export function createClaudeOfficialSdkBridge(
@@ -800,6 +913,10 @@ export class ClaudeChatEngine implements IChatEngine {
   private readonly claudeCliTurnExecutor:
     | ((prompt: string, options?: ChatOptions) => Promise<string>)
     | null;
+  private readonly claudeCliTurnEventStreamer:
+    | ((prompt: string, options?: ChatOptions) => AsyncGenerator<Record<string, unknown>, void, unknown>)
+    | null;
+  private readonly localState = createLocalChatEngineState();
 
   constructor(options: ClaudeChatEngineOptions = {}) {
     this.officialSdkBridgeLoader =
@@ -810,23 +927,53 @@ export class ClaudeChatEngine implements IChatEngine {
       options.claudeCliTurnExecutor === undefined
         ? executeClaudeCliTurn
         : options.claudeCliTurnExecutor;
+    this.claudeCliTurnEventStreamer =
+      options.claudeCliTurnExecutor === undefined
+        ? streamClaudeCliJsonlTurn
+        : null;
   }
 
   describeIntegration() {
-    return CLAUDE_INTEGRATION;
+    return createClaudeIntegrationDescriptor();
   }
 
   describeRawExtensions() {
     return CLAUDE_RAW_EXTENSIONS;
   }
 
+  describeRuntime(options?: ChatOptions) {
+    return createDefaultChatCanonicalRuntimeDescriptor({
+      descriptor: this.describeIntegration(),
+      health: this.getHealth(),
+      options,
+    });
+  }
+
+  getCapabilities() {
+    return createDefaultChatEngineCapabilitySnapshot({
+      health: this.getHealth(),
+      experimentalCapabilities: CLAUDE_RAW_EXTENSIONS.experimentalFeatures,
+    });
+  }
+
   getHealth() {
     return createDetectedHealthReport({
-      descriptor: CLAUDE_INTEGRATION,
-      packagePresence: CLAUDE_PACKAGE,
+      descriptor: this.describeIntegration(),
+      packagePresence: resolveClaudePackagePresence(),
       executable: 'claude',
       authEnvKeys: CLAUDE_AUTH_ENV_KEYS,
       authConfigurationHints: CLAUDE_AUTH_CONFIGURATION_HINTS,
+    });
+  }
+
+  async *sendCanonicalEvents(
+    messages: ChatMessage[],
+    options?: ChatOptions,
+  ): AsyncGenerator<ChatCanonicalEvent, void, unknown> {
+    yield* canonicalEventsFromChatStream({
+      messages,
+      runtime: this.describeRuntime(options),
+      stream: this.sendMessageStream(messages, options),
     });
   }
 
@@ -850,6 +997,85 @@ export class ClaudeChatEngine implements IChatEngine {
     });
   }
 
+  private async *streamMessageViaClaudeCli(
+    messages: ChatMessage[],
+    options: ChatOptions,
+  ): AsyncGenerator<ChatStreamChunk, void, unknown> {
+    const id = `claude-chat-${Date.now()}`;
+    const created = Math.floor(Date.now() / 1000);
+    const model = options.model || 'claude-code';
+    const prompt = buildClaudePrompt(messages);
+
+    if (!this.claudeCliTurnEventStreamer) {
+      yield* streamResponseAsChunks(
+        await this.sendMessageViaClaudeCli(messages, options),
+      );
+      return;
+    }
+
+    let streamedResponseText = '';
+    for await (const event of this.claudeCliTurnEventStreamer(prompt, options)) {
+      switch (event.type) {
+        case 'assistant': {
+          const content = extractClaudeText(event.message ?? event);
+          if (content) {
+            streamedResponseText += content;
+            yield createTextStreamChunk({
+              id,
+              created,
+              model,
+              role: 'assistant',
+              content,
+            });
+          }
+          for (const toolCall of extractClaudeToolCalls(event)) {
+            yield createToolCallStreamChunk({
+              id,
+              created,
+              model,
+              toolCall,
+            });
+          }
+          break;
+        }
+        case 'result': {
+          const content = resolveCumulativeTextDelta(
+            streamedResponseText,
+            extractClaudeText(event.result ?? event),
+          );
+          if (content) {
+            streamedResponseText += content;
+            yield createTextStreamChunk({
+              id,
+              created,
+              model,
+              content,
+              finishReason: 'stop',
+            });
+          } else {
+            yield createTextStreamChunk({
+              id,
+              created,
+              model,
+              finishReason: 'stop',
+            });
+          }
+          break;
+        }
+        case 'assistant_error':
+        case 'error':
+          throw new Error(
+            formatClaudeCliError(
+              extractClaudeText(event.error ?? event.message ?? event)
+              || 'Claude Code CLI stream failed.',
+            ),
+          );
+        default:
+          break;
+      }
+    }
+  }
+
   async sendMessage(messages: ChatMessage[], options?: ChatOptions): Promise<ChatResponse> {
     return invokeWithOptionalOfficialSdk({
       loader: this.officialSdkBridgeLoader,
@@ -863,17 +1089,41 @@ export class ClaudeChatEngine implements IChatEngine {
     messages: ChatMessage[],
     options?: ChatOptions,
   ): AsyncGenerator<ChatStreamChunk, void, unknown> {
-    const sendMessageViaClaudeCli = (streamOptions: ChatOptions) =>
-      this.sendMessageViaClaudeCli(messages, streamOptions);
     yield* streamWithOptionalOfficialSdk({
       loader: this.officialSdkBridgeLoader,
       messages,
       options,
       fallback: async function* fallbackStream(streamOptions) {
-        yield* streamResponseAsChunks(
-          await sendMessageViaClaudeCli(streamOptions),
-        );
-      },
+        yield* this.streamMessageViaClaudeCli(messages, streamOptions);
+      }.bind(this),
     });
+  }
+
+  createSession(projectId: string): Promise<IChatSession> {
+    return this.localState.createSession(projectId);
+  }
+
+  getSession(sessionId: string): Promise<IChatSession | null> {
+    return this.localState.getSession(sessionId);
+  }
+
+  createCodingSession(sessionId: string, title?: string): Promise<IChatCodingSession> {
+    return this.localState.createCodingSession(sessionId, title);
+  }
+
+  getCodingSession(codingSessionId: string): Promise<IChatCodingSession | null> {
+    return this.localState.getCodingSession(codingSessionId);
+  }
+
+  addMessageToCodingSession(codingSessionId: string, message: ChatMessage): Promise<void> {
+    return this.localState.addMessageToCodingSession(codingSessionId, message);
+  }
+
+  updateContext(context: ChatContext): void {
+    this.localState.updateContext(context);
+  }
+
+  onToolCall(toolCall: ToolCall): Promise<string> {
+    return this.localState.onToolCall(toolCall);
   }
 }

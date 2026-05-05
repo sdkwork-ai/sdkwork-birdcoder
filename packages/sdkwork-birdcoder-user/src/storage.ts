@@ -17,6 +17,23 @@ import {
 const birdCoderUserProfileRepository = getBirdCoderUserProfileRepository();
 const birdCoderVipMembershipRepository = getBirdCoderVipMembershipRepository();
 
+function createRuntimeUnavailableError(operation: string): Error {
+  return new Error(
+    `BirdCoder user center runtime client is unavailable for ${operation}; using local profile storage only because no remote authority is bound.`,
+  );
+}
+
+function markLocalOnlySnapshot<TSnapshot extends object>(
+  snapshot: TSnapshot,
+  operation: string,
+): TSnapshot {
+  return {
+    ...snapshot,
+    syncMode: 'local-only',
+    syncReason: createRuntimeUnavailableError(operation).message,
+  };
+}
+
 function createRuntimeUserCenterClient() {
   return createBirdCoderRuntimeUserCenterClient();
 }
@@ -62,7 +79,10 @@ export async function readBirdCoderUserProfile(): Promise<BirdCoderUserProfileSn
     return snapshot;
   }
 
-  return birdCoderUserProfileRepository.read();
+  return markLocalOnlySnapshot(
+    await birdCoderUserProfileRepository.read(),
+    'readBirdCoderUserProfile',
+  );
 }
 
 export async function writeBirdCoderUserProfile(
@@ -84,7 +104,10 @@ export async function writeBirdCoderUserProfile(
     return snapshot;
   }
 
-  return birdCoderUserProfileRepository.write(profile);
+  return markLocalOnlySnapshot(
+    await birdCoderUserProfileRepository.write(profile),
+    'writeBirdCoderUserProfile',
+  );
 }
 
 export async function readBirdCoderVipMembership(): Promise<BirdCoderVipMembershipSnapshot> {
@@ -96,7 +119,10 @@ export async function readBirdCoderVipMembership(): Promise<BirdCoderVipMembersh
     return snapshot;
   }
 
-  return birdCoderVipMembershipRepository.read();
+  return markLocalOnlySnapshot(
+    await birdCoderVipMembershipRepository.read(),
+    'readBirdCoderVipMembership',
+  );
 }
 
 export async function writeBirdCoderVipMembership(
@@ -121,7 +147,10 @@ export async function writeBirdCoderVipMembership(
     return snapshot;
   }
 
-  return birdCoderVipMembershipRepository.write(membership);
+  return markLocalOnlySnapshot(
+    await birdCoderVipMembershipRepository.write(membership),
+    'writeBirdCoderVipMembership',
+  );
 }
 
 export {

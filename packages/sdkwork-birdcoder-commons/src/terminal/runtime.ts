@@ -112,6 +112,8 @@ const DEFAULT_TERMINAL_GOVERNANCE_SETTINGS: TerminalGovernanceSettings = {
   sandboxSettings: 'Read only',
 };
 
+const TERMINAL_CLI_PROFILE_AVAILABILITY_CONCURRENCY = 2;
+
 const TERMINAL_APPROVAL_POLICY_ALIASES: Readonly<Record<string, BirdcoderApprovalPolicy>> = {
   autoallow: 'AutoAllow',
   'auto allow': 'AutoAllow',
@@ -302,6 +304,33 @@ async function resolveTauriInvoke() {
   }
 }
 
+async function mapWithConcurrencyLimit<TItem, TResult>(
+  items: readonly TItem[],
+  limit: number,
+  mapper: (item: TItem, index: number) => Promise<TResult>,
+): Promise<TResult[]> {
+  const resolvedLimit = Math.max(1, Math.floor(limit));
+  const results: TResult[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await mapper(items[currentIndex]!, currentIndex);
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(resolvedLimit, items.length) },
+      () => worker(),
+    ),
+  );
+
+  return results;
+}
+
 function normalizeTerminalCliProfileAvailability(
   profileId: TerminalCliProfileId | string,
   value: Partial<TerminalCliProfileAvailability>,
@@ -341,8 +370,10 @@ export async function listTerminalCliProfileAvailability(): Promise<
     );
   }
 
-  const results = await Promise.all(
-    TERMINAL_CLI_PROFILE_REGISTRY.map(async (profile) => {
+  const results = await mapWithConcurrencyLimit(
+    TERMINAL_CLI_PROFILE_REGISTRY,
+    TERMINAL_CLI_PROFILE_AVAILABILITY_CONCURRENCY,
+    async (profile) => {
       try {
         const response = await invoke<TauriTerminalCliProfileAvailabilityResponse>(
           'terminal_cli_profile_detect',
@@ -376,7 +407,7 @@ export async function listTerminalCliProfileAvailability(): Promise<
           detectedVia: 'tauri',
         });
       }
-    }),
+    },
   );
 
   return results.sort(

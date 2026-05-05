@@ -6,6 +6,7 @@ import path from 'node:path';
 import {
   createDetectedHealthReport,
   createStaticIntegrationDescriptor,
+  createRuntimeIntegrationDescriptor,
   resolveExecutablePresence,
   resolveFallbackRuntimeMode,
   resolvePackagePresence,
@@ -26,6 +27,31 @@ const opencodePackage = resolvePackagePresence({
 
 assert.equal(opencodePackage.installed, false);
 assert.equal(opencodePackage.mirrorVersion, '1.4.1');
+
+const opencodeRuntimeIntegration = createRuntimeIntegrationDescriptor({
+  engineId: 'opencode',
+  runtimeMode: 'sdk',
+  transportKinds: ['sdk-stream', 'cli-jsonl'],
+  sourceMirrorPath: 'external/opencode/packages/sdk/js',
+  packagePresence: opencodePackage,
+  officialEntry: {
+    packageName: '@opencode-ai/sdk',
+    cliPackageName: 'opencode',
+    sdkPath: 'external/opencode/packages/sdk/js',
+    sourceMirrorPath: 'external/opencode/packages/sdk/js',
+  },
+});
+
+assert.equal(
+  opencodeRuntimeIntegration.officialEntry.packageVersion,
+  opencodePackage.mirrorVersion,
+  'runtime integration descriptors must resolve package versions at describeIntegration() time instead of freezing stale module-load constants.',
+);
+assert.equal(
+  opencodeRuntimeIntegration.sourceMirrorStatus,
+  'mirrored',
+  'runtime integration descriptors must resolve source mirror status from the current workspace.',
+);
 
 assert.equal(resolveFallbackRuntimeMode(['sdk-stream', 'cli-jsonl', 'json-rpc-v2']), 'headless');
 assert.equal(resolveFallbackRuntimeMode(['sdk-stream', 'remote-control-http']), 'remote-control');
