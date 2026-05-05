@@ -76,8 +76,31 @@ function resolveSdkworkCorePcReactBrowserFacadePath() {
   );
 }
 
+function resolveWorkspacePackageEntryPath(appRootDir, specifier, relativeEntryPath) {
+  const packageJsonPath = resolvePackageJsonPathFromWorkspaceRoot(
+    resolveWorkspaceRootDir(appRootDir),
+    specifier,
+  );
+
+  if (!packageJsonPath) {
+    throw new Error(
+      `Unable to resolve ${specifier} from BirdCoder workspace ${resolveWorkspaceRootDir(appRootDir)}.`,
+    );
+  }
+
+  return path.join(path.dirname(packageJsonPath), ...relativeEntryPath);
+}
+
 function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRootDir) {
   return [
+    {
+      find: /^qrcode\/lib\/browser\.js$/u,
+      replacement: resolveWorkspacePackageEntryPath(
+        appRootDir,
+        'qrcode',
+        ['lib', 'browser.js'],
+      ),
+    },
     {
       find: /^qrcode$/u,
       replacement: path.resolve(

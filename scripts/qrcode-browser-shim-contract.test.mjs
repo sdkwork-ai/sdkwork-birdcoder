@@ -1,5 +1,16 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import {
+  createBirdcoderWorkspaceAliasEntries,
+} from './create-birdcoder-vite-plugins.mjs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const workspaceRootDir = path.resolve(__dirname, '..');
+const webRootDir = path.join(workspaceRootDir, 'packages', 'sdkwork-birdcoder-web');
 
 const mobilePanelSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/src/pages/CodeMobileProgrammingPanel.tsx', import.meta.url),
@@ -79,6 +90,26 @@ assert.match(
   vitePluginSource,
   /BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE[\s\S]*'qrcode',[\s\S]*'qrcode\/lib\/browser\.js'/,
   'BirdCoder web host optimizeDeps include list must prebundle both qrcode and qrcode browser entry for dev runtime safety.',
+);
+
+const webAliasEntries = createBirdcoderWorkspaceAliasEntries(webRootDir);
+const qrcodeBrowserAlias = webAliasEntries.find(
+  (entry) =>
+    entry?.find instanceof RegExp
+    && entry.find.test('qrcode/lib/browser.js'),
+);
+assert.ok(
+  qrcodeBrowserAlias,
+  'BirdCoder Vite aliases must resolve qrcode/lib/browser.js explicitly so the shared qrcode compatibility shim can be prebundled from scripts/vite-shims in dev mode.',
+);
+assert.ok(
+  fs.existsSync(qrcodeBrowserAlias.replacement),
+  'The qrcode/lib/browser.js alias must point at an installed browser entry instead of relying on bare import resolution from scripts/vite-shims.',
+);
+assert.match(
+  path.normalize(qrcodeBrowserAlias.replacement),
+  /[\\/]node_modules[\\/]qrcode[\\/]lib[\\/]browser\.js$/u,
+  'The qrcode/lib/browser.js alias must resolve to the qrcode browser implementation shipped by the workspace dependency.',
 );
 
 assert.match(
