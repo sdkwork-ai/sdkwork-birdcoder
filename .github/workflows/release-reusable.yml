@@ -63,6 +63,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
+          package-manager-cache: false
 
       - name: Resolve release plan
         id: plan
@@ -589,6 +590,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
+          package-manager-cache: false
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
@@ -670,6 +672,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
+          package-manager-cache: false
 
       - name: Download packaged release assets
         uses: actions/download-artifact@v4

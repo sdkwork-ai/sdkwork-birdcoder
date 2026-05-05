@@ -33,6 +33,7 @@ function normalizeBirdCoderWorkflowSource(source) {
 
 function normalizeClawOnlyReleaseWorkflowShape(source) {
   return source
+    .replace(/\n          package-manager-cache: false/g, '')
     .replace(/\n        uses: pnpm\/action-setup@v4\n        with:\n          version: 10/g, '\n        uses: pnpm/action-setup@v4')
     .replace(
       /\n {6}package_profile:\n {8}description: [^\n]+\n {8}required: (?:true|false)\n(?: {8}default: [^\n]+\n)? {8}type: string/g,

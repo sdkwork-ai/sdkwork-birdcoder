@@ -64,6 +64,40 @@ function assertSetupNodeStepsHavePnpmActionSetup(workflowSource) {
   }
 }
 
+function assertSetupNodeCacheMatchesInstallIntent(workflowSource) {
+  const jobBlocks = [...workflowSource.matchAll(/\n  ([A-Za-z0-9_-]+):\n([\s\S]*?)(?=\n  [A-Za-z0-9_-]+:\n|\n\S|$)/g)];
+
+  for (const [, jobName, jobBlock] of jobBlocks) {
+    if (!/- name: Setup Node\.js/u.test(jobBlock)) {
+      continue;
+    }
+
+    const setupNodeStep = extractWorkflowStepBlock(jobBlock, 'Setup Node.js');
+    const installsWorkspaceDependencies =
+      /- name: Install workspace dependencies[\s\S]*?run:\s*pnpm install --frozen-lockfile/u.test(jobBlock);
+
+    if (installsWorkspaceDependencies) {
+      assert.match(
+        setupNodeStep,
+        /cache:\s*pnpm/u,
+        `${jobName} installs dependencies and should retain explicit pnpm cache configuration.`,
+      );
+      assert.doesNotMatch(
+        setupNodeStep,
+        /package-manager-cache:\s*false/u,
+        `${jobName} installs dependencies and must not disable setup-node package-manager caching while also declaring cache: pnpm.`,
+      );
+      continue;
+    }
+
+    assert.match(
+      setupNodeStep,
+      /package-manager-cache:\s*false/u,
+      `${jobName} does not run pnpm install, so setup-node automatic package-manager cache must be disabled to avoid post-job cache path failures.`,
+    );
+  }
+}
+
 assert.match(releaseWorkflow, /name:\s*release/);
 assert.match(releaseWorkflow, /push:\s*[\s\S]*tags:\s*[\s\S]*-\s*'release-\*'/);
 assert.match(releaseWorkflow, /uses:\s*\.\/\.github\/workflows\/release-reusable\.yml/);
@@ -77,6 +111,7 @@ assert.doesNotMatch(
   'Release workflow must let pnpm/action-setup read pnpm@10.30.2 from packageManager instead of specifying a second pnpm version.',
 );
 assertSetupNodeStepsHavePnpmActionSetup(reusableWorkflow);
+assertSetupNodeCacheMatchesInstallIntent(reusableWorkflow);
 assert.match(reusableWorkflow, /prepare-shared-sdk-git-sources\.mjs/);
 assert.match(reusableWorkflow, /pnpm prepare:shared-sdk/);
 assert.match(
