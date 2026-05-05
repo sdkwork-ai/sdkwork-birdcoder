@@ -665,7 +665,8 @@ function resolvePackageJsonPathFromWorkspaceRoot(workspaceRootDir, specifier) {
 
 function resolveAppbaseWorkspacePackageEntryPath(appRootDir, specifier, relativeEntryPath) {
   const appbaseWorkspaceRootDir = path.resolve(appRootDir, '../../../sdkwork-appbase');
-  const packageJsonPath = resolvePackageJsonPathFromWorkspaceRoot(appbaseWorkspaceRootDir, specifier);
+  const packageJsonPath = resolvePackageJsonPathFromWorkspaceRoot(appbaseWorkspaceRootDir, specifier)
+    ?? resolveAppbaseManagedBridgePackageJsonPath(appbaseWorkspaceRootDir, specifier);
 
   if (!packageJsonPath) {
     throw new Error(
@@ -674,6 +675,29 @@ function resolveAppbaseWorkspacePackageEntryPath(appRootDir, specifier, relative
   }
 
   return path.join(path.dirname(packageJsonPath), ...relativeEntryPath);
+}
+
+function resolveAppbaseManagedBridgePackageJsonPath(appbaseWorkspaceRootDir, specifier) {
+  const packageName = resolvePackageNameFromSpecifier(specifier);
+  const bridgePackageRoots = [
+    'packages/pc-react/identity/sdkwork-auth-pc-react',
+    'packages/pc-react/identity/sdkwork-user-center-pc-react',
+  ];
+
+  for (const bridgePackageRoot of bridgePackageRoots) {
+    const candidatePackageJsonPath = path.join(
+      appbaseWorkspaceRootDir,
+      bridgePackageRoot,
+      'node_modules',
+      ...packageName.split('/'),
+      'package.json',
+    );
+    if (existsSync(candidatePackageJsonPath)) {
+      return candidatePackageJsonPath;
+    }
+  }
+
+  return null;
 }
 
 function compareVersionLike(left, right) {

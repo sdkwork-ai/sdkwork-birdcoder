@@ -26,6 +26,7 @@ const FALLBACK_SHARED_SDK_BRIDGE_DEPENDENCIES = Object.freeze([
   'react',
   'react-dom',
   'react-hook-form',
+  'react-router',
   'react-router-dom',
   'typescript',
 ]);

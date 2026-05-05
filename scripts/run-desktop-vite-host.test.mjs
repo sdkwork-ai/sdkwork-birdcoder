@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
@@ -10,6 +12,7 @@ import {
   parseArgs,
 } from './run-desktop-vite-host.mjs';
 import {
+  createBirdcoderWorkspaceAliasEntries,
   resolveBirdcoderTerminalInfrastructureRuntimePath,
   resolveSdkworkTerminalInfrastructureEntryPath,
 } from './create-birdcoder-vite-plugins.mjs';
@@ -128,6 +131,94 @@ assert.match(
   /\/react-router\/dist\/development\/index\.mjs$/u,
   'Desktop host config must point react-router at the shared development index entry.',
 );
+
+const tempWorkspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-appbase-router-alias-'));
+try {
+  const fixtureDesktopRootDir = path.join(
+    tempWorkspaceRoot,
+    'sdkwork-birdcoder',
+    'packages',
+    'sdkwork-birdcoder-desktop',
+  );
+  const fixtureAppbaseAuthNodeModulesDir = path.join(
+    tempWorkspaceRoot,
+    'sdkwork-appbase',
+    'packages',
+    'pc-react',
+    'identity',
+    'sdkwork-auth-pc-react',
+    'node_modules',
+  );
+
+  fs.mkdirSync(path.join(fixtureDesktopRootDir, '..', '..', 'scripts', 'vite-shims'), { recursive: true });
+  fs.writeFileSync(
+    path.join(fixtureDesktopRootDir, '..', '..', 'scripts', 'vite-shims', 'qrcode-compat.mjs'),
+    'export default {};\n',
+  );
+  fs.writeFileSync(
+    path.join(fixtureDesktopRootDir, '..', '..', 'scripts', 'vite-shims', 'cookie-compat.mjs'),
+    'export default {};\n',
+  );
+  fs.writeFileSync(
+    path.join(fixtureDesktopRootDir, '..', '..', 'scripts', 'vite-shims', 'set-cookie-parser-compat.mjs'),
+    'export default {};\n',
+  );
+  const fixtureQrcodePackageRoot = path.join(
+    fixtureDesktopRootDir,
+    '..',
+    '..',
+    'node_modules',
+    'qrcode',
+  );
+  fs.mkdirSync(path.join(fixtureQrcodePackageRoot, 'lib'), { recursive: true });
+  fs.writeFileSync(
+    path.join(fixtureQrcodePackageRoot, 'package.json'),
+    JSON.stringify({ name: 'qrcode', version: '1.5.4' }, null, 2) + '\n',
+  );
+  fs.writeFileSync(
+    path.join(fixtureQrcodePackageRoot, 'lib', 'browser.js'),
+    'module.exports = {};\n',
+  );
+
+  const routerPackages = [
+    ['react-router-dom', ['dist', 'index.mjs']],
+    ['react-router', ['dist', 'development', 'dom-export.mjs']],
+    ['react-router', ['dist', 'development', 'index.mjs']],
+  ];
+  for (const [packageName, relativeEntryPath] of routerPackages) {
+    const packageRoot = path.join(fixtureAppbaseAuthNodeModulesDir, packageName);
+    fs.mkdirSync(path.join(packageRoot, ...relativeEntryPath.slice(0, -1)), { recursive: true });
+    fs.writeFileSync(
+      path.join(packageRoot, 'package.json'),
+      JSON.stringify({ name: packageName, version: '7.14.0' }, null, 2) + '\n',
+    );
+    fs.writeFileSync(path.join(packageRoot, ...relativeEntryPath), 'export {};\n');
+  }
+
+  const appbaseBridgeAliasEntries = createBirdcoderWorkspaceAliasEntries(fixtureDesktopRootDir);
+  const appbaseBridgeRouterDomAlias = appbaseBridgeAliasEntries.find((entry) => entry.find === 'react-router-dom');
+  assert.ok(
+    appbaseBridgeRouterDomAlias,
+    'git-backed release aliases must still resolve react-router-dom when sdkwork-appbase has no root install.',
+  );
+  assert.match(
+    normalizePath(appbaseBridgeRouterDomAlias.replacement),
+    /\/sdkwork-appbase\/packages\/pc-react\/identity\/sdkwork-auth-pc-react\/node_modules\/react-router-dom\/dist\/index\.mjs$/u,
+    'git-backed release aliases must fall back to the managed appbase package dependency bridge for react-router-dom.',
+  );
+  const appbaseBridgeRouterAlias = appbaseBridgeAliasEntries.find((entry) => entry.find === 'react-router');
+  assert.ok(
+    appbaseBridgeRouterAlias,
+    'git-backed release aliases must still resolve react-router when sdkwork-appbase has no root install.',
+  );
+  assert.match(
+    normalizePath(appbaseBridgeRouterAlias.replacement),
+    /\/sdkwork-appbase\/packages\/pc-react\/identity\/sdkwork-auth-pc-react\/node_modules\/react-router\/dist\/development\/index\.mjs$/u,
+    'git-backed release aliases must fall back to the managed appbase package dependency bridge for react-router.',
+  );
+} finally {
+  fs.rmSync(tempWorkspaceRoot, { recursive: true, force: true });
+}
 
 const terminalInfrastructureAlias = findAlias(
   (entry) => entry.find === '@sdkwork/terminal-infrastructure',

@@ -365,6 +365,66 @@ test('prepareSharedSdkPackages chooses dependency versions that satisfy the shar
   }
 });
 
+test('prepareSharedSdkPackages bridges shared appbase router runtime fallbacks in git mode', () => {
+  const { tempRoot, workspaceRootDir } = createTempWorkspace();
+
+  try {
+    const { repoStates, specs } = createSharedRepos(workspaceRootDir);
+    const appbaseSpec = specs.find((spec) => spec.id === 'sdkwork-appbase');
+    assert.ok(appbaseSpec, 'fixture must include sdkwork-appbase');
+    const authPackageRoot = path.join(
+      appbaseSpec.repoRoot,
+      'packages',
+      'pc-react',
+      'identity',
+      'sdkwork-auth-pc-react',
+    );
+    fs.mkdirSync(authPackageRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(authPackageRoot, 'package.json'),
+      JSON.stringify({
+        name: '@sdkwork/auth-pc-react',
+        peerDependencies: {
+          react: '>=18.2.0 <20.0.0',
+        },
+      }, null, 2) + '\n',
+    );
+
+    const hoistedDependencyRoot = path.join(workspaceRootDir, 'node_modules', '.pnpm', 'node_modules');
+    for (const packageName of ['react-router', 'react-router-dom']) {
+      const packageRoot = path.join(hoistedDependencyRoot, packageName);
+      fs.mkdirSync(packageRoot, { recursive: true });
+      fs.writeFileSync(
+        path.join(packageRoot, 'package.json'),
+        JSON.stringify({ name: packageName, version: '7.14.0' }, null, 2) + '\n',
+      );
+    }
+
+    prepareSharedSdkPackages({
+      currentWorkingDir: workspaceRootDir,
+      env: {
+        SDKWORK_SHARED_SDK_MODE: 'git',
+      },
+      spawnSyncImpl: createGitSpawn(repoStates),
+      logger: {
+        log() {},
+      },
+    });
+
+    const bridgeDir = path.join(authPackageRoot, 'node_modules');
+    assert.ok(
+      fs.existsSync(path.join(bridgeDir, 'react-router', 'package.json')),
+      'git mode must expose react-router through the appbase package bridge because Vite aliases react-router from shared appbase source.',
+    );
+    assert.ok(
+      fs.existsSync(path.join(bridgeDir, 'react-router-dom', 'package.json')),
+      'git mode must expose react-router-dom through the appbase package bridge because Vite aliases react-router-dom from shared appbase source.',
+    );
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('prepareSharedSdkPackages does not mutate sibling source package node_modules in source mode', () => {
   const { tempRoot, workspaceRootDir } = createTempWorkspace();
 
