@@ -40,6 +40,21 @@ assert.equal(
 );
 assert.equal(testPlan.shell, false);
 
+const linuxDesktopPlan = createTauriCliPlan({
+  argv: ['dev'],
+  env: {},
+  platform: 'linux',
+  cwd: '/home/runner/work/sdkwork-birdcoder/sdkwork-birdcoder/packages/sdkwork-birdcoder-desktop',
+  execPath: '/usr/bin/node',
+  resolveTauriCliEntrypoint: () => '/home/runner/work/sdkwork-birdcoder/sdkwork-birdcoder/node_modules/@tauri-apps/cli/tauri.js',
+});
+
+assert.equal(
+  linuxDesktopPlan.env.BIRDCODER_CODING_SERVER_SQLITE_FILE,
+  '/home/runner/work/sdkwork-birdcoder/sdkwork-birdcoder/packages/sdkwork-birdcoder-desktop/.local/sdkwork-birdcoder.sqlite3',
+  'desktop dev sqlite fallback should use the target platform path model instead of the host OS path model',
+);
+
 assert.throws(
   () => createTauriCliPlan({
     argv: ['build', '--vite-mode'],
