@@ -37,8 +37,6 @@ export interface CreateBirdCoderVipRouteIntentOptions {
   focusWindow?: boolean;
   routePath?: string;
   section?: string;
-  /** @deprecated Use section. Kept for older callers that mirrored user center route intents. */
-  sectionId?: string;
 }
 
 export interface BirdCoderVipRouteIntent {
@@ -158,7 +156,7 @@ export function createBirdCoderVipRouteIntent(
   options: CreateBirdCoderVipRouteIntentOptions = {},
 ): BirdCoderVipRouteIntent {
   const capability = createBirdCoderVipCapability(options.routePath);
-  const section = normalizeOptionalText(options.section ?? options.sectionId);
+  const section = normalizeOptionalText(options.section);
   const queryParams = new URLSearchParams();
   if (section) {
     queryParams.set('section', section);

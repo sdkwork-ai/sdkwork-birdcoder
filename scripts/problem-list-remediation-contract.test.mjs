@@ -11,6 +11,7 @@ const [
   terminalRuntimeSource,
   projectionRepositorySource,
   replaceColorsSource,
+  vipSource,
   chatIndexSource,
   chatTypesSource,
   chatProviderAdapterSource,
@@ -25,6 +26,7 @@ const [
   readSource('packages/sdkwork-birdcoder-commons/src/terminal/runtime.ts'),
   readSource('packages/sdkwork-birdcoder-server/src/projectionRepository.ts'),
   readSource('replace-colors.cjs'),
+  readSource('packages/sdkwork-birdcoder-user/src/vip.ts'),
   readSource('packages/sdkwork-birdcoder-chat/src/index.ts'),
   readSource('packages/sdkwork-birdcoder-chat/src/types.ts'),
   readSource('packages/sdkwork-birdcoder-chat/src/providerAdapter.ts'),
@@ -103,6 +105,17 @@ assert.match(
   replaceColorsSource,
   /backupPath/,
   'replace-colors.cjs must keep backup path handling explicit.',
+);
+
+assert.doesNotMatch(
+  vipSource,
+  /@deprecated|sectionId/,
+  'VIP route intent must remove deprecated sectionId compatibility debt and expose only the canonical section option.',
+);
+assert.match(
+  vipSource,
+  /const section = normalizeOptionalText\(options\.section\);/,
+  'VIP route intent must resolve only the canonical section option.',
 );
 
 assert.match(
