@@ -401,21 +401,8 @@ function normalizeCodexNativeSessionId(candidate: string | null | undefined): st
   return nativeSessionId || null;
 }
 
-function toLegacyNativeCodexSessionId(candidate: string | null | undefined): string | null {
-  const normalizedCandidate = normalizeOptionalIdentifier(candidate);
-  if (!normalizedCandidate?.startsWith(CODEX_NATIVE_SESSION_ID_PREFIX)) {
-    return null;
-  }
-
-  return normalizeCodexNativeSessionId(normalizedCandidate);
-}
-
 function resolveCodexCliResumeSessionId(options?: ChatOptions): string | null {
-  return (
-    normalizeCodexNativeSessionId(options?.context?.nativeSessionId) ||
-    toLegacyNativeCodexSessionId(options?.context?.sessionId) ||
-    toLegacyNativeCodexSessionId(options?.context?.codingSessionId)
-  );
+  return normalizeCodexNativeSessionId(options?.context?.nativeSessionId);
 }
 
 function buildCodexCliInvocation(

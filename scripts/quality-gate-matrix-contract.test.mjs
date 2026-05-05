@@ -311,6 +311,7 @@ assert.deepEqual(
     'engine-official-sdk-error-propagation',
     'provider-official-sdk-bridge',
     'codeengine-turn-options-provider',
+    'codex-cli-resume-runtime',
     'opencode-official-sdk-bridge',
     'engine-conformance',
     'tool-protocol',

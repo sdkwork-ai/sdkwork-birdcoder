@@ -60,6 +60,7 @@ export const QUALITY_FAST_CHECK_COMMANDS = [
   'node scripts/run-workspace-package-script.mjs . check:package-subpath-exports',
   'node scripts/run-workspace-package-script.mjs . test:user-center-standard',
   'node scripts/run-workspace-package-script.mjs . check:governance-baseline',
+  'node scripts/run-workspace-package-script.mjs . check:technical-debt',
   'node scripts/run-workspace-package-script.mjs . check:governance-regression-contract',
   'node scripts/run-workspace-package-script.mjs . check:live-docs-governance-baseline',
   'node scripts/run-workspace-package-script.mjs . check:quality-matrix',

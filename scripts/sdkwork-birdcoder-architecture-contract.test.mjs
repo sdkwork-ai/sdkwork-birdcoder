@@ -59,6 +59,7 @@ const requiredPaths = [
   'scripts/engine-experimental-capability-gating-contract.test.ts',
   'scripts/engine-canonical-registry-governance-contract.test.ts',
   'scripts/package-governance-contract.test.mjs',
+  'scripts/technical-debt-contract.test.mjs',
   'scripts/run-user-center-standard.mjs',
   'scripts/run-user-center-standard.test.mjs',
   'scripts/birdcoder-identity-standard-contract.test.mjs',
@@ -214,6 +215,11 @@ assert.ok(rootPackageJson.scripts?.['check:vite-host-preflight'], 'Missing check
 assert.ok(rootPackageJson.scripts?.['check:vite-windows-realpath'], 'Missing check:vite-windows-realpath script');
 assert.ok(rootPackageJson.scripts?.['check:governance-regression'], 'Missing check:governance-regression script');
 assert.ok(rootPackageJson.scripts?.['check:governance-regression-contract'], 'Missing check:governance-regression-contract script');
+assert.equal(
+  rootPackageJson.scripts?.['check:technical-debt'],
+  'node scripts/technical-debt-contract.test.mjs',
+  'Root package must expose a dedicated technical debt scan contract.',
+);
 assert.equal(
   rootPackageJson.scripts?.['check:package-script-entrypoints'],
   'node scripts/package-script-entrypoints-contract.test.mjs',

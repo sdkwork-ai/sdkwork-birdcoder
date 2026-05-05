@@ -233,4 +233,46 @@ await withMockChildProcessModule(
   },
 );
 
+for (const legacyContext of [
+  {
+    label: 'sessionId',
+    context: {
+      workspaceRoot: process.cwd(),
+      sessionId: 'codex-native:legacy-session-id',
+    },
+  },
+  {
+    label: 'codingSessionId',
+    context: {
+      workspaceRoot: process.cwd(),
+      codingSessionId: 'codex-native:legacy-coding-session-id',
+    },
+  },
+]) {
+  await withMockChildProcessModule(
+    createFakeSpawnModule({
+      stdoutLines: fakeJsonlLines,
+      onSpawn(invocation) {
+        const resumeIndex = invocation.args.indexOf('resume');
+
+        assert.equal(
+          resumeIndex,
+          -1,
+          `Codex must not treat context.${legacyContext.label} as a native resume id; only context.nativeSessionId may enter the Codex resume lane.`,
+        );
+      },
+    }),
+    async () => {
+      const engine = new CodexChatEngine({
+        officialSdkBridgeLoader: NULL_OFFICIAL_SDK_BRIDGE_LOADER,
+      });
+
+      await engine.sendMessage(createMessageFixture(`Start a fresh Codex turn from ${legacyContext.label}.`), {
+        model: 'codex',
+        context: legacyContext.context,
+      });
+    },
+  );
+}
+
 console.log('codex CLI resume runtime contract passed.');

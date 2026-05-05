@@ -164,6 +164,16 @@ assert.doesNotMatch(
   /const bridge = await this\.officialSdkBridgeLoader\?\.load\(\);/,
   'Codex must not directly load the official SDK bridge in sendMessage/sendMessageStream.',
 );
+assert.doesNotMatch(
+  codexSource,
+  /toLegacyNativeCodexSessionId|context\?\.(?:sessionId|codingSessionId)\)/,
+  'Codex native resume must not keep legacy context.sessionId/context.codingSessionId compatibility; only context.nativeSessionId may enter the provider resume lane.',
+);
+assert.match(
+  codexSource,
+  /return normalizeCodexNativeSessionId\(options\?\.context\?\.nativeSessionId\);/,
+  'Codex native resume must resolve exclusively from the canonical context.nativeSessionId field.',
+);
 
 for (const [engineName, source] of [
   ['Claude', claudeSource],

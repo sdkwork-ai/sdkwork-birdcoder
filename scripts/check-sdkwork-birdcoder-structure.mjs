@@ -64,6 +64,7 @@ const requiredPaths = [
   'scripts/package-script-entrypoints-contract.test.mjs',
   'scripts/package-governance-contract.test.mjs',
   'scripts/prompt-governance-contract.test.mjs',
+  'scripts/technical-debt-contract.test.mjs',
   'scripts/live-docs-governance-baseline.test.mjs',
   'scripts/governance-regression-report.mjs',
   'scripts/governance-regression-report.test.mjs',

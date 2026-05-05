@@ -76,7 +76,7 @@ Remove false governance-regression blockers so the gate fails only on real produ
 - Fresh release-tier evidence on `2026-04-13` now confirms both command surfaces are green with the declared `fast -> standard -> matrix -> release-flow -> ci-flow -> governance` topology unchanged:
   - `cmd /d /s /c "pnpm.cmd check:quality:release"` passes
   - `node scripts/quality-gate-execution-report.mjs` returns `status: passed` with `passedCount: 3`
-- Fresh `node scripts/governance-regression-report.mjs` evidence now returns `110/110` passed checks with the governed bundle sizes:
+- Fresh `node scripts/governance-regression-report.mjs` evidence now returns `111/111` passed checks with the governed bundle sizes:
   - entry `index-DJsuPCYU.js`: `68.1 KiB`
   - largest JS asset `vendor-markdown-DqZNkVdw.js`: `598.2 KiB`
 
