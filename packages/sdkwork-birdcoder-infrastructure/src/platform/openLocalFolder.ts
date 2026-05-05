@@ -15,7 +15,12 @@ type TauriDialogWindow = Window &
     };
   };
 
-type TauriDirectoryDialogResult = string | string[] | null;
+type DesktopWorkingDirectoryPickerRequest = {
+  defaultPath?: string;
+  title?: string;
+};
+
+type TauriDirectoryDialogResult = string | null;
 
 async function resolveTauriInvoke(): Promise<TauriInvoke> {
   const tauriWindow =
@@ -31,16 +36,9 @@ async function resolveTauriInvoke(): Promise<TauriInvoke> {
 
 async function openTauriDirectoryDialog(): Promise<string | null> {
   const invoke = await resolveTauriInvoke();
-  const selectedPath = await invoke<TauriDirectoryDialogResult>('plugin:dialog|open', {
-    options: {
-      directory: true,
-      multiple: false,
-    },
+  const selectedPath = await invoke<TauriDirectoryDialogResult>('desktop_pick_working_directory', {
+    request: {} satisfies DesktopWorkingDirectoryPickerRequest,
   });
-
-  if (Array.isArray(selectedPath)) {
-    return selectedPath.find((path) => typeof path === 'string' && path.length > 0) ?? null;
-  }
 
   return typeof selectedPath === 'string' && selectedPath.length > 0 ? selectedPath : null;
 }
@@ -64,7 +62,7 @@ export async function openLocalFolder(): Promise<LocalFolderMountSource | null> 
         return null;
       }
 
-      console.error('Error opening directory with Tauri dialog API:', pickerError);
+      console.error('Error opening directory with BirdCoder desktop folder picker:', pickerError);
       throw pickerError;
     }
   }

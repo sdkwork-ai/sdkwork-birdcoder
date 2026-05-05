@@ -6,7 +6,6 @@
   "permissions": [
     "core:default",
     "default",
-    "dialog:allow-open",
     "shell:allow-open",
     "core:window:allow-hide",
     "core:window:allow-start-dragging",

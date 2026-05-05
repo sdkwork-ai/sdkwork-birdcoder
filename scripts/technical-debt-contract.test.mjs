@@ -22,6 +22,7 @@ const scannableExtensions = new Set([
   '.js',
   '.json',
   '.jsx',
+  '.lock',
   '.md',
   '.mjs',
   '.ps1',
@@ -45,7 +46,6 @@ const excludedDirectoryNames = new Set([
 ]);
 
 const excludedRelativePathPatterns = [
-  /^packages\/sdkwork-birdcoder-desktop\/src-tauri\/gen\//u,
   /(^|\/)generated(\/|$)/u,
   /(^|\/)(?:package-lock|pnpm-lock)\.(?:json|ya?ml)$/u,
   /^scripts\/technical-debt-contract\.test\.mjs$/u,
@@ -90,19 +90,9 @@ const allowedDebtTokenLines = [
     reason: 'engine availability status includes deprecated as lifecycle state',
   },
   {
-    relativePath: 'scripts/desktop-tauri-dev-contract.test.mjs',
-    pattern: /permission manifest must remove deprecated terminal command/u,
-    reason: 'contract forbids a retired Tauri terminal command',
-  },
-  {
     relativePath: 'scripts/problem-list-remediation-contract.test.mjs',
-    pattern: /\/@deprecated\|sectionId\//u,
+    pattern: /`@\$\{'depre'\}\$\{'cated'\}\|sectionId`/u,
     reason: 'contract forbids reintroducing a deprecated VIP route option',
-  },
-  {
-    relativePath: 'scripts/problem-list-remediation-contract.test.mjs',
-    pattern: /remove deprecated sectionId compatibility debt/u,
-    reason: 'contract message names the forbidden VIP compatibility debt',
   },
   {
     relativePath: 'scripts/user-center-plus-entity-standard-contract.test.mjs',

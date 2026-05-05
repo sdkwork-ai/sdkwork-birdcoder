@@ -25,8 +25,13 @@ assert.doesNotMatch(
 );
 assert.match(
   openLocalFolderSource,
+  /desktop_pick_working_directory/u,
+  'openLocalFolder must call BirdCoder desktop_pick_working_directory instead of the Tauri dialog plugin so generated desktop schemas do not expose retired dialog aliases.',
+);
+assert.doesNotMatch(
+  openLocalFolderSource,
   /plugin:dialog\|open/u,
-  'openLocalFolder must call the registered Tauri dialog plugin command directly through the stable core invoke bridge.',
+  'openLocalFolder must not call the Tauri dialog plugin command after folder-open moves to the BirdCoder desktop picker command.',
 );
 assert.equal(
   rootPackageJson.dependencies?.['@tauri-apps/plugin-dialog'],
@@ -70,14 +75,14 @@ await withWindow(
   {
     __TAURI__: {},
     __TAURI_INTERNALS__: {
-      async invoke(command: string, payload: { options?: Record<string, unknown> }) {
+      async invoke(command: string, payload: { options?: Record<string, unknown>; request?: Record<string, unknown> }) {
         assert.equal(
           command,
-          'plugin:dialog|open',
-          'desktop folder import must route through the Tauri dialog plugin.',
+          'desktop_pick_working_directory',
+          'desktop folder import must route through the BirdCoder desktop picker command.',
         );
-        assert.equal(payload.options?.directory, true);
-        assert.equal(payload.options?.multiple, false);
+        assert.equal(payload.options, undefined);
+        assert.deepEqual(payload.request, {});
         return 'D:/workspace/desktop-project';
       },
     },
@@ -104,14 +109,14 @@ let desktopInternalsOnlyBrowserPickerCalls = 0;
 await withWindow(
   {
     __TAURI_INTERNALS__: {
-      async invoke(command: string, payload: { options?: Record<string, unknown> }) {
+      async invoke(command: string, payload: { options?: Record<string, unknown>; request?: Record<string, unknown> }) {
         assert.equal(
           command,
-          'plugin:dialog|open',
+          'desktop_pick_working_directory',
           'desktop folder import must detect Tauri v2 runtimes even when window.__TAURI__ is absent.',
         );
-        assert.equal(payload.options?.directory, true);
-        assert.equal(payload.options?.multiple, false);
+        assert.equal(payload.options, undefined);
+        assert.deepEqual(payload.request, {});
         return 'D:/workspace/desktop-project-from-internals';
       },
     },

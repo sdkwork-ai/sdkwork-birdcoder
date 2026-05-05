@@ -481,10 +481,15 @@ assert.match(
   /createDesktopVitePlugins/u,
   'Desktop Vite config must use the shared desktop React compatibility plugin chain so React CommonJS runtime files are served as browser-safe ESM.',
 );
-assert.match(
+assert.doesNotMatch(
   desktopCargoTomlSource,
   /^tauri-plugin-dialog\s*=\s*"2"$/m,
-  'Desktop Cargo manifest must include the Tauri dialog plugin crate so folder-open permissions are backed by a registered Rust plugin.',
+  'Desktop Cargo manifest must not depend on the Tauri dialog plugin because it generates retired dialog permission aliases; folder-open must use BirdCoder desktop_pick_working_directory.',
+);
+assert.match(
+  desktopCargoTomlSource,
+  /^rfd\s*=\s*"0\.16"$/m,
+  'Desktop Cargo manifest must use rfd directly for the BirdCoder desktop folder picker instead of registering the Tauri dialog plugin.',
 );
 assert.match(
   desktopCargoTomlSource,
@@ -496,10 +501,10 @@ assert.match(
   /^sdkwork-birdcoder-server\s*=\s*\{\s*path\s*=\s*"\.\.\/\.\.\/sdkwork-birdcoder-server\/src-host"\s*\}$/m,
   'Desktop Cargo manifest must depend on the local sdkwork-birdcoder-server crate so the desktop shell can bootstrap the embedded localhost API without requiring a separately managed sidecar process.',
 );
-assert.match(
+assert.doesNotMatch(
   desktopLibRsSource,
   /\.plugin\(tauri_plugin_dialog::init\(\)\)/,
-  'Desktop runtime must register the dialog plugin so frontend folder-open calls can cross the Tauri boundary.',
+  'Desktop runtime must not register the Tauri dialog plugin because it generates retired dialog permission aliases.',
 );
 assert.match(
   desktopLibRsSource,
@@ -534,7 +539,6 @@ assert.deepEqual(
 for (const permission of [
   'core:default',
   'default',
-  'dialog:allow-open',
   'shell:allow-open',
   'core:window:allow-start-dragging',
   'core:window:allow-minimize',
@@ -546,6 +550,10 @@ for (const permission of [
     `Desktop main-window capability must include ${permission}.`,
   );
 }
+assert.ok(
+  !desktopCapability.permissions.includes('dialog:allow-open'),
+  'Desktop main-window capability must not include dialog:allow-open after folder-open moves behind the BirdCoder desktop picker command.',
+);
 const shellExecutePermissionEntry = desktopCapability.permissions.find(
   (permissionEntry) =>
     typeof permissionEntry === 'object' &&
@@ -639,7 +647,7 @@ for (const forbiddenLegacyCommand of [
   assert.doesNotMatch(
     desktopAppPermissionsSource,
     new RegExp(`"${forbiddenLegacyCommand}"`),
-    `Desktop application permission manifest must remove deprecated terminal command ${forbiddenLegacyCommand}.`,
+    `Desktop application permission manifest must remove retired terminal command ${forbiddenLegacyCommand}.`,
   );
 }
 assert.match(

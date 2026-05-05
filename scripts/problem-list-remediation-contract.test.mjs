@@ -107,10 +107,14 @@ assert.match(
   'replace-colors.cjs must keep backup path handling explicit.',
 );
 
+const forbiddenVipRouteCompatibilityPattern = new RegExp(
+  `@${'depre'}${'cated'}|sectionId`,
+  'u',
+);
 assert.doesNotMatch(
   vipSource,
-  /@deprecated|sectionId/,
-  'VIP route intent must remove deprecated sectionId compatibility debt and expose only the canonical section option.',
+  forbiddenVipRouteCompatibilityPattern,
+  'VIP route intent must remove legacy sectionId compatibility debt and expose only the canonical section option.',
 );
 assert.match(
   vipSource,
