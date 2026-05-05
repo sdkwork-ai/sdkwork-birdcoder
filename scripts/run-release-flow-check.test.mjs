@@ -7,9 +7,9 @@ import {
   runReleaseFlowCheck,
 } from './run-release-flow-check.mjs';
 
-function splitPathEntries(pathValue) {
+function splitPathEntries(pathValue, platform = process.platform) {
   return String(pathValue ?? '')
-    .split(process.platform === 'win32' ? ';' : ':')
+    .split(platform === 'win32' ? ';' : ':')
     .map((entry) => entry.trim())
     .filter(Boolean);
 }
@@ -94,10 +94,11 @@ assert.equal(
 
 {
   const invocations = [];
+  const commandEnv = { TEST_ENV: 'birdcoder' };
   const exitCode = runReleaseFlowCheck({
     commands: ['node first-check.mjs', 'node second-check.mjs'],
     cwd: 'D:/workspace',
-    env: { TEST_ENV: 'birdcoder' },
+    env: commandEnv,
     spawnSyncImpl(command, args, options) {
       invocations.push({ command, args, options });
       return { status: 0 };
@@ -131,9 +132,49 @@ assert.equal(
       continue;
     }
 
-    assert.equal(invocation.command, String(process.env.SHELL ?? '/bin/sh'));
+    assert.equal(invocation.command, String(commandEnv.SHELL ?? '/bin/sh'));
     assert.deepEqual(invocation.args.slice(0, 1), ['-lc']);
   }
+}
+
+{
+  const invocations = [];
+  const exitCode = runReleaseFlowCheck({
+    commands: ['node posix-check.mjs'],
+    cwd: '/workspace',
+    env: {
+      PATH: '/usr/bin',
+      SHELL: '/bin/bash',
+      TEST_ENV: 'birdcoder',
+    },
+    execPath: '/opt/node/bin/node',
+    platform: 'linux',
+    spawnSyncImpl(command, args, options) {
+      invocations.push({ command, args, options });
+      return { status: 0 };
+    },
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(invocations.length, 1);
+  assert.equal(
+    invocations[0].command,
+    '/bin/bash',
+    'release-flow runner must honor the injected POSIX shell instead of reading the host process environment.',
+  );
+  assert.deepEqual(invocations[0].args, ['-lc', 'node posix-check.mjs']);
+  assert.equal(invocations[0].options.cwd, '/workspace');
+  assert.equal(invocations[0].options.env.TEST_ENV, 'birdcoder');
+  assert.equal(invocations[0].options.env.NODE, '/opt/node/bin/node');
+  assert.equal(invocations[0].options.env.npm_node_execpath, '/opt/node/bin/node');
+  assert.deepEqual(
+    splitPathEntries(invocations[0].options.env.PATH, 'linux'),
+    ['/opt/node/bin', '/usr/bin'],
+    'release-flow runner must prepend the injected Node.js directory to POSIX PATH.',
+  );
+  assert.equal(invocations[0].options.shell, false);
+  assert.equal(invocations[0].options.stdio, 'inherit');
+  assert.equal(invocations[0].options.windowsHide, true);
 }
 
 {

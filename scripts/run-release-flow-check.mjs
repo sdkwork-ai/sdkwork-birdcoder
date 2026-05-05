@@ -145,12 +145,16 @@ export function runReleaseFlowCheck({
   commands = RELEASE_FLOW_CHECK_COMMANDS,
   cwd = process.cwd(),
   env = process.env,
+  execPath = process.execPath,
+  platform = process.platform,
   spawnSyncImpl,
 } = {}) {
   return runCommandSequence({
     commands,
     cwd,
     env,
+    execPath,
+    platform,
     spawnSyncImpl,
   });
 }
