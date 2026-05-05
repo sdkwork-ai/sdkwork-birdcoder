@@ -11,15 +11,18 @@ import {
 {
   const resolvedPath = resolveWindowsPowerShellExecutablePath({
     env: {
-      PSHOME: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0',
-      SystemRoot: 'C:\\Windows',
+      PSHOME: 'Z:\\PortablePowerShell',
+      SystemRoot: 'Z:\\Windows',
+    },
+    existsSyncImpl(candidate) {
+      return candidate === 'Z:\\PortablePowerShell\\powershell.exe';
     },
   });
 
   assert.equal(
     resolvedPath,
-    'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
-    'PowerShell runner must prefer the PSHOME executable when it exists.',
+    'Z:\\PortablePowerShell\\powershell.exe',
+    'PowerShell runner must prefer the injected PSHOME executable probe without requiring a real Windows host path.',
   );
 }
 
@@ -28,15 +31,19 @@ import {
     rootDir: 'D:\\workspace\\sdkwork-birdcoder',
     env: {
       Path: `${path.dirname(process.execPath)};C:\\Windows\\System32`,
-      PSHOME: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0',
-      SystemRoot: 'C:\\Windows',
+      PSHOME: 'Z:\\PortablePowerShell',
+      SystemRoot: 'Z:\\Windows',
+    },
+    platform: 'win32',
+    existsSyncImpl(candidate) {
+      return candidate === 'Z:\\PortablePowerShell\\powershell.exe';
     },
     execPath: process.execPath,
   });
 
   assert.equal(
     plan.command,
-    'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+    'Z:\\PortablePowerShell\\powershell.exe',
     'PowerShell unlock check must invoke an explicit PowerShell executable path on Windows.',
   );
   assert.deepEqual(
@@ -85,10 +92,13 @@ import {
     platform: 'win32',
     env: {
       Path: `${path.dirname(process.execPath)};C:\\Windows\\System32`,
-      PSHOME: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0',
-      SystemRoot: 'C:\\Windows',
+      PSHOME: 'Z:\\PortablePowerShell',
+      SystemRoot: 'Z:\\Windows',
     },
     execPath: process.execPath,
+    existsSyncImpl(candidate) {
+      return candidate === 'Z:\\PortablePowerShell\\powershell.exe';
+    },
     spawnSyncImpl(command, args, options) {
       invocations.push({ command, args, options });
       return { status: 0 };
@@ -99,7 +109,7 @@ import {
   assert.equal(invocations.length, 1);
   assert.equal(
     invocations[0].command,
-    'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+    'Z:\\PortablePowerShell\\powershell.exe',
   );
   assert.equal(invocations[0].options.cwd, 'D:\\workspace\\sdkwork-birdcoder');
   assert.equal(invocations[0].options.shell, false);

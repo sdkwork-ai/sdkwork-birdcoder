@@ -17,12 +17,12 @@ export function resolveWindowsPowerShellExecutablePath({
   const candidates = [];
   const psHome = String(env.PSHOME ?? '').trim();
   if (psHome) {
-    candidates.push(path.join(psHome, 'powershell.exe'));
+    candidates.push(path.win32.join(psHome, 'powershell.exe'));
   }
 
   const systemRoot = String(env.SystemRoot ?? env.WINDIR ?? '').trim();
   if (systemRoot) {
-    candidates.push(path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'));
+    candidates.push(path.win32.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'));
   }
 
   candidates.push('C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe');
@@ -42,13 +42,14 @@ export function createTauriDevBinaryUnlockCheckPlan({
   rootDir: workspaceRootDir = rootDir,
   env = process.env,
   execPath = process.execPath,
+  existsSyncImpl = existsSync,
   platform = process.platform,
 } = {}) {
   if (platform !== 'win32') {
     throw new Error('Tauri dev binary unlock check plan is only available on Windows hosts.');
   }
 
-  const command = resolveWindowsPowerShellExecutablePath({ env });
+  const command = resolveWindowsPowerShellExecutablePath({ env, existsSyncImpl });
   return {
     command,
     args: [
@@ -56,7 +57,7 @@ export function createTauriDevBinaryUnlockCheckPlan({
       '-ExecutionPolicy',
       'Bypass',
       '-File',
-      path.join(workspaceRootDir, 'scripts', 'ensure-tauri-dev-binary-unlocked.test.ps1'),
+      path.win32.join(workspaceRootDir, 'scripts', 'ensure-tauri-dev-binary-unlocked.test.ps1'),
     ],
     cwd: workspaceRootDir,
     env: ensureNodeExecPathOnPath({
@@ -73,6 +74,7 @@ export function runTauriDevBinaryUnlockCheck({
   rootDir: workspaceRootDir = rootDir,
   env = process.env,
   execPath = process.execPath,
+  existsSyncImpl = existsSync,
   platform = process.platform,
   spawnSyncImpl = spawnSync,
   stdout = console.log,
@@ -87,6 +89,7 @@ export function runTauriDevBinaryUnlockCheck({
     rootDir: workspaceRootDir,
     env,
     execPath,
+    existsSyncImpl,
     platform,
   });
   const result = spawnSyncImpl(plan.command, plan.args, {
