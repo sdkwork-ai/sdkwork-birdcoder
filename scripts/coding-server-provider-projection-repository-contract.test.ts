@@ -185,7 +185,14 @@ await withMockCodexCliJsonl(async () => {
 
   assert.equal(sqliteSnapshot.runtime?.id, 'runtime-provider-sqlite-1');
   assert.equal(sqliteSnapshot.runtime?.modelId, 'codex');
-  assert.equal(sqliteSnapshot.runtime?.nativeRef.transportKind, 'cli-jsonl');
+  assert.equal(
+    sqliteSnapshot.runtime?.nativeRef.transportKind,
+    sqliteProjection.runtime.nativeRef.transportKind,
+  );
+  assert.ok(
+    ['cli-jsonl', 'sdk-stream'].includes(sqliteSnapshot.runtime?.nativeRef.transportKind ?? ''),
+    'provider projection repository must preserve the selected Codex runtime transport in CLI fallback and official SDK release environments.',
+  );
   assert.equal(sqliteSnapshot.runtime?.nativeRef.nativeSessionId, 'coding-session-provider-1');
   assert.deepEqual(sqliteSnapshot.runtime?.capabilitySnapshot, sqliteProjection.runtime.capabilitySnapshot);
   assert.equal(sqliteSnapshot.events.length, sqliteProjection.events.length);
