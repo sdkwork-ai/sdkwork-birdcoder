@@ -3351,6 +3351,26 @@
                                                     "stopShipSignals":  [
                                                                         ]
                                                 }
+                     },
+                     {
+                         "tag":  "release-2026-05-06-01",
+                         "title":  "SDKWork BirdCoder release-2026-05-06-01",
+                         "date":  "2026-05-06",
+                         "status":  "pending",
+                         "summary":  "Publishes the first GitHub-backed BirdCoder release by carrying forward the entire unpublished registry chain, hardening runtime activity surfaces, remediating active problem-list debt, and confirming shared SDK git-source release readiness.",
+                         "notesFile":  "release-2026-05-06-01.md",
+                         "carryForward":  [
+                                              "release-2026-04-28-01"
+                                          ],
+                         "stopShipSignals":  [
+                                             ],
+                         "promotionReadiness":  {
+                                                    "currentReleaseKind":  "canary",
+                                                    "currentRolloutStage":  "ring-1",
+                                                    "formalOrGaStatus":  "clear",
+                                                    "stopShipSignals":  [
+                                                                        ]
+                                                }
                      }
                  ]
 }
