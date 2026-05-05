@@ -40,6 +40,31 @@ function extractWorkflowStepBlock(workflowSource, stepName) {
   return match[0];
 }
 
+function assertSetupNodeStepsHavePnpmActionSetup(workflowSource) {
+  const lines = workflowSource.split(/\r?\n/u);
+  const setupNodeLineIndexes = lines
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => /^\s*- name: Setup Node\.js\s*$/u.test(line))
+    .map(({ index }) => index);
+
+  assert.ok(setupNodeLineIndexes.length > 0, 'Release workflow must configure Node.js in at least one job.');
+
+  for (const setupNodeLineIndex of setupNodeLineIndexes) {
+    const jobStartLineIndex = lines
+      .slice(0, setupNodeLineIndex)
+      .map((line, index) => ({ line, index }))
+      .filter(({ line }) => /^  [A-Za-z0-9_-]+:\s*$/u.test(line))
+      .at(-1)?.index ?? -1;
+    const priorJobLines = lines.slice(jobStartLineIndex + 1, setupNodeLineIndex);
+    const hasPriorPnpmSetup = priorJobLines.some((line) => /^\s*- name: Setup pnpm\s*$/u.test(line));
+
+    assert.ok(
+      hasPriorPnpmSetup,
+      'Every release workflow job that runs actions/setup-node@v5 must run pnpm/action-setup@v4 earlier in the same job so setup-node package-manager cache resolution can find pnpm.',
+    );
+  }
+}
+
 assert.match(releaseWorkflow, /name:\s*release/);
 assert.match(releaseWorkflow, /push:\s*[\s\S]*tags:\s*[\s\S]*-\s*'release-\*'/);
 assert.match(releaseWorkflow, /uses:\s*\.\/\.github\/workflows\/release-reusable\.yml/);
@@ -47,6 +72,7 @@ assert.match(releaseWorkflow, /release_profile:\s*sdkwork-birdcoder/);
 assert.doesNotMatch(releaseWorkflow, /release_profile:\s*claw-studio/);
 
 assert.match(reusableWorkflow, /SDKWORK_SHARED_SDK_MODE:\s*git/);
+assertSetupNodeStepsHavePnpmActionSetup(reusableWorkflow);
 assert.match(reusableWorkflow, /prepare-shared-sdk-git-sources\.mjs/);
 assert.match(reusableWorkflow, /pnpm prepare:shared-sdk/);
 assert.match(
