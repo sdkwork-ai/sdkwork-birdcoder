@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const profilesModulePath = new URL(
   '../packages/sdkwork-birdcoder-studio/src/build/profiles.ts',
@@ -20,6 +22,24 @@ assert.equal(
   true,
   'Studio build execution runtime must exist.',
 );
+
+for (const modulePath of [profilesModulePath, runtimeModulePath]) {
+  const absoluteModulePath = fileURLToPath(modulePath);
+  const checkIgnoreResult = spawnSync(
+    'git',
+    ['check-ignore', '--quiet', absoluteModulePath],
+    {
+      encoding: 'utf8',
+      shell: false,
+    },
+  );
+
+  assert.notEqual(
+    checkIgnoreResult.status,
+    0,
+    `${absoluteModulePath} must be tracked release source, not ignored build output.`,
+  );
+}
 
 const {
   STUDIO_BUILD_PROFILE_REGISTRY_ADAPTER_ID,

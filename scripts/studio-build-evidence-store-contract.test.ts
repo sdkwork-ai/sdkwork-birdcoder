@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const evidenceStoreModulePath = new URL(
   '../packages/sdkwork-birdcoder-studio/src/build/evidenceStore.ts',
@@ -10,6 +12,22 @@ assert.equal(
   existsSync(evidenceStoreModulePath),
   true,
   'Studio build evidence store must exist.',
+);
+
+const evidenceStoreAbsolutePath = fileURLToPath(evidenceStoreModulePath);
+const checkIgnoreResult = spawnSync(
+  'git',
+  ['check-ignore', '--quiet', evidenceStoreAbsolutePath],
+  {
+    encoding: 'utf8',
+    shell: false,
+  },
+);
+
+assert.notEqual(
+  checkIgnoreResult.status,
+  0,
+  `${evidenceStoreAbsolutePath} must be tracked release source, not ignored build output.`,
 );
 
 const {

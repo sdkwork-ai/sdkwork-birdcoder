@@ -6,10 +6,12 @@ import { createRequire } from 'node:module';
 
 const rootDir = process.cwd();
 const npmrcPath = path.join(rootDir, '.npmrc');
+const reactJsxGlobalCompatPath = path.join(rootDir, 'src', 'react-jsx-global-compat.d.ts');
 const desktopViteConfigPath = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop', 'vite.config.ts');
 const desktopViteHostPath = path.join(rootDir, 'scripts', 'run-desktop-vite-host.mjs');
 
 const npmrcSource = fs.readFileSync(npmrcPath, 'utf8');
+const reactJsxGlobalCompatSource = fs.readFileSync(reactJsxGlobalCompatPath, 'utf8');
 const desktopViteConfigSource = fs.readFileSync(desktopViteConfigPath, 'utf8');
 const desktopViteHostSource = fs.readFileSync(desktopViteHostPath, 'utf8');
 
@@ -43,9 +45,28 @@ assert.match(
   'Desktop Vite host must import the Windows realpath patch so normal Vite realpath resolution remains stable.',
 );
 
+assert.match(
+  reactJsxGlobalCompatSource,
+  /import type React from ['"]react['"]/u,
+  'React JSX global compatibility must import React only as a type so release builds do not add runtime React glue.',
+);
+
+assert.match(
+  reactJsxGlobalCompatSource,
+  /namespace JSX\s*\{[\s\S]*type Element = React\.JSX\.Element;[\s\S]*\}/u,
+  'React JSX global compatibility must expose JSX.Element for shared SDK source that still references the legacy global JSX namespace under React 19 types.',
+);
+
+assert.doesNotMatch(
+  reactJsxGlobalCompatSource,
+  /from ['"]react['"]\s*;[\s\S]*(?:const|let|var|function)\s+/u,
+  'React JSX global compatibility must remain declaration-only and must not introduce React runtime code.',
+);
+
 const rootReactI18nextRuntimeDependencies = {
   '@babel/runtime': '^7.29.2',
   'html-parse-stringify': '^3.0.1',
+  'react-hook-form': '^7.72.1',
   'react-i18next': '^17.0.2',
   'use-sync-external-store': '^1.6.0',
   'void-elements': '^3.1.0',

@@ -121,6 +121,16 @@ assert.ok(
   rootTsconfig.exclude?.includes('scripts/vite-shims/sdkwork-core-pc-react-browser-facade.mjs'),
   'The root TypeScript project must exclude the Vite-only shared core facade so tsc does not recurse into sibling sdkwork-core source and its external SDK workspace dependencies.',
 );
+assert.deepEqual(
+  rootTsconfig.compilerOptions?.paths?.['@sdkwork/terminal-resources/model'],
+  ['../sdkwork-terminal/packages/sdkwork-terminal-resources/src/model.ts'],
+  'The root TypeScript project must resolve sdkwork-terminal resources model subpaths from the sibling source tree, matching the Vite alias contract.',
+);
+assert.deepEqual(
+  rootTsconfig.compilerOptions?.paths?.['@sdkwork/terminal-sessions/model'],
+  ['../sdkwork-terminal/packages/sdkwork-terminal-sessions/src/model.ts'],
+  'The root TypeScript project must resolve sdkwork-terminal sessions model subpaths from the sibling source tree, matching the Vite alias contract.',
+);
 assert.match(
   sharedCoreBrowserFacadeSource,
   /export \* from ['"]\.\.\/\.\.\/\.\.\/sdkwork-core\/sdkwork-core-pc-react\/src\/env\/index\.ts['"]/u,

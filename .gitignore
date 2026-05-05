@@ -1,5 +1,7 @@
 node_modules/
 build/
+!packages/sdkwork-birdcoder-studio/src/build/
+!packages/sdkwork-birdcoder-studio/src/build/**
 dist/
 coverage/
 artifacts/

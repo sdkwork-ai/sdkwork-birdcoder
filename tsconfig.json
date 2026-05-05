@@ -93,6 +93,12 @@
       "@sdkwork/terminal-shell/*": [
         "../sdkwork-terminal/packages/sdkwork-terminal-shell/src/*"
       ],
+      "@sdkwork/terminal-resources/model": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-resources/src/model.ts"
+      ],
+      "@sdkwork/terminal-sessions/model": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-sessions/src/model.ts"
+      ],
       "@sdkwork/terminal-infrastructure": [
         "../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src"
       ],
