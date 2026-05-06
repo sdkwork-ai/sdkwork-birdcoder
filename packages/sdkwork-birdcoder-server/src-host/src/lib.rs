@@ -12075,8 +12075,7 @@ fn persist_edited_coding_session_message_to_provider(
         })
         .and_then(|event| event.runtime_id.clone());
     let sequence_no = next_event_sequence(snapshot);
-    let event_id =
-        format!("{coding_session_id}:{turn_locator}:event:{sequence_no}:message-edited");
+    let event_id = format!("{coding_session_id}:{turn_locator}:event:{sequence_no}:message-edited");
     let event_payload_json = serde_json::to_string(&json!({
         "role": role,
         "editedMessageId": message_id,
@@ -12086,9 +12085,9 @@ fn persist_edited_coding_session_message_to_provider(
     .map_err(|error| {
         format!("serialize edited coding session message event for {message_id} failed: {error}")
     })?;
-    let transaction = connection.transaction().map_err(|error| {
-        format!("open edit coding session message transaction failed: {error}")
-    })?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| format!("open edit coding session message transaction failed: {error}"))?;
 
     let updated_sessions = transaction
         .execute(
@@ -25402,6 +25401,31 @@ mod tests {
     }
 
     #[test]
+    fn fake_codex_path_prepend_preserves_existing_path_entries() {
+        let fixture_directory = PathBuf::from("fake-codex-bin");
+        let existing_path = std::env::join_paths([
+            Path::new("existing-bin-a").as_os_str(),
+            Path::new("existing-bin-b").as_os_str(),
+        ])
+        .expect("create existing PATH fixture");
+
+        let joined_path = prepend_fake_codex_directory_to_path(
+            &fixture_directory,
+            Some(existing_path.as_os_str()),
+        );
+        let path_entries = std::env::split_paths(&joined_path).collect::<Vec<_>>();
+
+        assert_eq!(
+            path_entries,
+            vec![
+                fixture_directory,
+                PathBuf::from("existing-bin-a"),
+                PathBuf::from("existing-bin-b"),
+            ]
+        );
+    }
+
+    #[test]
     fn succeeded_coding_session_turn_events_attach_command_payloads() {
         let commands = vec![native_sessions::NativeSessionCommandPayload {
             command: "pnpm lint".to_owned(),
@@ -25628,14 +25652,8 @@ mod tests {
                 .expect("fake codex fixture directory")
                 .to_path_buf();
             let original_path = std::env::var_os("PATH");
-            let joined_path = match &original_path {
-                Some(existing_path) => {
-                    std::env::join_paths([fixture_directory.as_os_str(), existing_path])
-                        .expect("join fake codex PATH")
-                }
-                None => std::env::join_paths([fixture_directory.as_os_str()])
-                    .expect("create fake codex PATH"),
-            };
+            let joined_path =
+                prepend_fake_codex_directory_to_path(&fixture_directory, original_path.as_deref());
             std::env::set_var("PATH", joined_path);
 
             Self {
@@ -25659,6 +25677,17 @@ mod tests {
         fn project_root(&self) -> &FsPath {
             &self.fixture_directory
         }
+    }
+
+    fn prepend_fake_codex_directory_to_path(
+        fixture_directory: &Path,
+        original_path: Option<&std::ffi::OsStr>,
+    ) -> OsString {
+        let mut path_entries = vec![fixture_directory.to_path_buf()];
+        if let Some(existing_path) = original_path {
+            path_entries.extend(std::env::split_paths(existing_path));
+        }
+        std::env::join_paths(path_entries).expect("join fake codex PATH")
     }
 
     async fn wait_for_projection_turn_events(
@@ -29758,7 +29787,10 @@ exit 1\n"
                 sequence: 2,
                 payload: build_event_payload_strings(&[
                     ("role", "assistant"),
-                    ("content", "Assistant reply completed without an explicit runtime hint."),
+                    (
+                        "content",
+                        "Assistant reply completed without an explicit runtime hint.",
+                    ),
                 ]),
                 created_at: "2026-04-10T00:00:02Z".to_owned(),
             },
