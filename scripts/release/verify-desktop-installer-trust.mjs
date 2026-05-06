@@ -44,6 +44,22 @@ function normalizeArch(arch) {
   return String(arch ?? '').trim().toLowerCase();
 }
 
+function normalizeReleaseKind(releaseKind = '') {
+  return String(releaseKind ?? '').trim().toLowerCase() || 'formal';
+}
+
+function normalizeRolloutStage(rolloutStage = '') {
+  return String(rolloutStage ?? '').trim().toLowerCase();
+}
+
+function requiresStrictTrustEvidence({
+  releaseKind = '',
+  rolloutStage = '',
+} = {}) {
+  return normalizeReleaseKind(releaseKind) === 'formal'
+    || normalizeRolloutStage(rolloutStage) === 'general-availability';
+}
+
 function normalizeRelativePath(relativePath) {
   return String(relativePath ?? '').trim().replaceAll('\\', '/');
 }
@@ -306,6 +322,36 @@ function resolveReportPath({
   return path.join(releaseAssetsDir, 'desktop', platform, arch, DESKTOP_INSTALLER_TRUST_REPORT_FILENAME);
 }
 
+function writePendingDesktopInstallerTrustReport({
+  reportPath,
+  normalizedPlatform,
+  normalizedArch,
+  target,
+  manifestPath,
+  verifiedAt,
+  releaseKind,
+  rolloutStage,
+  installers,
+  pendingReasons,
+}) {
+  const report = {
+    status: 'pending',
+    platform: normalizedPlatform,
+    arch: normalizedArch,
+    target: String(target ?? '').trim(),
+    manifestPath: path.resolve(manifestPath),
+    verifiedAt: String(verifiedAt ?? '').trim(),
+    releaseKind: normalizeReleaseKind(releaseKind),
+    rolloutStage: normalizeRolloutStage(rolloutStage),
+    installerCount: installers.length,
+    pendingReasons: [...pendingReasons],
+    installers,
+  };
+  fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+
+  return report;
+}
+
 function readManifest(manifestPath) {
   if (!fs.existsSync(manifestPath)) {
     throw new Error(`Missing desktop release asset manifest: ${manifestPath}`);
@@ -353,12 +399,16 @@ export function verifyDesktopInstallerTrust({
   platform = process.platform,
   arch = process.arch,
   target = '',
+  releaseKind = 'formal',
+  rolloutStage = '',
   verifiedAt = new Date().toISOString(),
   verifierFn = verifyDesktopInstallerArtifactSignature,
 } = {}) {
   const normalizedReleaseAssetsDir = path.resolve(releaseAssetsDir);
   const normalizedPlatform = normalizePlatform(platform);
   const normalizedArch = normalizeArch(arch);
+  const normalizedReleaseKind = normalizeReleaseKind(releaseKind);
+  const normalizedRolloutStage = normalizeRolloutStage(rolloutStage);
   const manifestPath = resolveManifestPath({
     releaseAssetsDir: normalizedReleaseAssetsDir,
     platform: normalizedPlatform,
@@ -386,6 +436,7 @@ export function verifyDesktopInstallerTrust({
 
   const artifactEvidence = new Map();
   const reportInstallers = [];
+  const pendingReasons = [];
   for (const artifact of installerArtifacts) {
     if (String(target ?? '').trim() && artifact.target !== String(target).trim()) {
       throw new Error(
@@ -404,21 +455,57 @@ export function verifyDesktopInstallerTrust({
       platform: normalizedPlatform,
       bundle: artifact.bundle,
     });
-    const signatureEvidence = normalizeDesktopInstallerSignatureEvidence(verifierFn({
-      artifact: {
-        ...artifact,
-        platform: normalizedPlatform,
-      },
-      artifactPath,
-      expectedScheme,
-      verifiedAt,
-    }));
+    let signatureEvidence;
+    try {
+      signatureEvidence = normalizeDesktopInstallerSignatureEvidence(verifierFn({
+        artifact: {
+          ...artifact,
+          platform: normalizedPlatform,
+        },
+        artifactPath,
+        expectedScheme,
+        verifiedAt,
+      }));
+    } catch (error) {
+      if (requiresStrictTrustEvidence({
+        releaseKind: normalizedReleaseKind,
+        rolloutStage: normalizedRolloutStage,
+      })) {
+        throw error;
+      }
+
+      pendingReasons.push(`${artifact.relativePath}: ${error instanceof Error ? error.message : String(error)}`);
+      reportInstallers.push({
+        relativePath: artifact.relativePath,
+        bundle: artifact.bundle,
+        installerFormat: artifact.installerFormat,
+        target: artifact.target,
+        signatureEvidence: artifact.signatureEvidence,
+      });
+      continue;
+    }
     if (
       !signatureEvidence
       || signatureEvidence.status !== 'passed'
       || signatureEvidence.required !== true
       || signatureEvidence.scheme !== expectedScheme
     ) {
+      if (!requiresStrictTrustEvidence({
+        releaseKind: normalizedReleaseKind,
+        rolloutStage: normalizedRolloutStage,
+      })) {
+        pendingReasons.push(
+          `${artifact.relativePath}: Desktop installer trust verifier did not produce passed ${expectedScheme} evidence.`,
+        );
+        reportInstallers.push({
+          relativePath: artifact.relativePath,
+          bundle: artifact.bundle,
+          installerFormat: artifact.installerFormat,
+          target: artifact.target,
+          signatureEvidence: artifact.signatureEvidence,
+        });
+        continue;
+      }
       throw new Error(
         `Desktop installer trust verifier did not produce passed ${expectedScheme} evidence for ${artifact.relativePath}.`,
       );
@@ -432,6 +519,20 @@ export function verifyDesktopInstallerTrust({
       ],
     });
     if (evidenceSignals.length > 0) {
+      if (!requiresStrictTrustEvidence({
+        releaseKind: normalizedReleaseKind,
+        rolloutStage: normalizedRolloutStage,
+      })) {
+        pendingReasons.push(...evidenceSignals);
+        reportInstallers.push({
+          relativePath: artifact.relativePath,
+          bundle: artifact.bundle,
+          installerFormat: artifact.installerFormat,
+          target: artifact.target,
+          signatureEvidence: artifact.signatureEvidence,
+        });
+        continue;
+      }
       throw new Error(evidenceSignals.join('; '));
     }
 
@@ -443,6 +544,37 @@ export function verifyDesktopInstallerTrust({
       target: artifact.target,
       signatureEvidence,
     });
+  }
+
+  const reportPath = resolveReportPath({
+    releaseAssetsDir: normalizedReleaseAssetsDir,
+    platform: normalizedPlatform,
+    arch: normalizedArch,
+  });
+  if (pendingReasons.length > 0) {
+    writePendingDesktopInstallerTrustReport({
+      reportPath,
+      normalizedPlatform,
+      normalizedArch,
+      target,
+      manifestPath,
+      verifiedAt,
+      releaseKind: normalizedReleaseKind,
+      rolloutStage: normalizedRolloutStage,
+      installers: reportInstallers,
+      pendingReasons,
+    });
+
+    return {
+      status: 'pending',
+      releaseAssetsDir: normalizedReleaseAssetsDir,
+      platform: normalizedPlatform,
+      arch: normalizedArch,
+      target: String(target ?? '').trim(),
+      manifestPath,
+      reportPath,
+      installerCount: reportInstallers.length,
+    };
   }
 
   const nextManifest = {
@@ -461,11 +593,6 @@ export function verifyDesktopInstallerTrust({
   };
   fs.writeFileSync(manifestPath, `${JSON.stringify(nextManifest, null, 2)}\n`, 'utf8');
 
-  const reportPath = resolveReportPath({
-    releaseAssetsDir: normalizedReleaseAssetsDir,
-    platform: normalizedPlatform,
-    arch: normalizedArch,
-  });
   const report = {
     status: 'passed',
     platform: normalizedPlatform,
@@ -473,6 +600,8 @@ export function verifyDesktopInstallerTrust({
     target: String(target ?? '').trim(),
     manifestPath: path.resolve(manifestPath),
     verifiedAt: String(verifiedAt ?? '').trim(),
+    releaseKind: normalizedReleaseKind,
+    rolloutStage: normalizedRolloutStage,
     installerCount: reportInstallers.length,
     installers: reportInstallers,
   };
@@ -496,6 +625,8 @@ export function parseArgs(argv) {
     platform: process.platform,
     arch: process.arch,
     target: '',
+    releaseKind: 'formal',
+    rolloutStage: '',
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -520,6 +651,16 @@ export function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (token === '--release-kind') {
+      options.releaseKind = readOptionValue(argv, index, token);
+      index += 1;
+      continue;
+    }
+    if (token === '--rollout-stage') {
+      options.rolloutStage = readOptionValue(argv, index, token);
+      index += 1;
+      continue;
+    }
 
     throw new Error(`Unsupported option: ${token}`);
   }
@@ -529,6 +670,8 @@ export function parseArgs(argv) {
     platform: normalizePlatform(options.platform),
     arch: normalizeArch(options.arch),
     target: options.target,
+    releaseKind: normalizeReleaseKind(options.releaseKind),
+    rolloutStage: normalizeRolloutStage(options.rolloutStage),
   };
 }
 

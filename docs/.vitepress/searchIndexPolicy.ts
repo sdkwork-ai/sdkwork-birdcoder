@@ -1,11 +1,17 @@
 const INTERNAL_SEARCH_EXCLUDED_PREFIXES = [
+  'prompts/',
   'release/',
+  'step/',
   'superpowers/',
+  `${String.fromCodePoint(0x67b6, 0x6784)}/`,
 ];
 
 export const publicDocsSrcExclude = [
+  'prompts/**',
   'release/**',
+  'step/**',
   'superpowers/**',
+  `${String.fromCodePoint(0x67b6, 0x6784)}/**`,
 ];
 
 export function normalizeSearchPagePath(relativePath: string): string {

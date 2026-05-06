@@ -67,6 +67,22 @@ function normalizeBundles(bundles, platform) {
   return Array.from(new Set(selectedBundles)).sort((left, right) => left.localeCompare(right));
 }
 
+function normalizeReleaseKind(releaseKind = '') {
+  return String(releaseKind ?? '').trim().toLowerCase() || 'formal';
+}
+
+function normalizeRolloutStage(rolloutStage = '') {
+  return String(rolloutStage ?? '').trim().toLowerCase();
+}
+
+function requiresStrictSigningEvidence({
+  releaseKind = '',
+  rolloutStage = '',
+} = {}) {
+  return normalizeReleaseKind(releaseKind) === 'formal'
+    || normalizeRolloutStage(rolloutStage) === 'general-availability';
+}
+
 function hasEnvValue(env, name) {
   return String(env?.[name] ?? '').trim().length > 0;
 }
@@ -334,7 +350,7 @@ function buildMacosChecks({
       id: 'macos-gatekeeper-toolchain',
       label: 'macOS Gatekeeper assessment toolchain',
       command: 'spctl',
-      args: ['--version'],
+      args: ['--status'],
       requiredCapabilities: ['macOS Gatekeeper spctl'],
     },
     {
@@ -489,6 +505,8 @@ export function preflightDesktopSigningEnvironment({
   arch = process.arch,
   target = '',
   bundles = [],
+  releaseKind = 'formal',
+  rolloutStage = '',
   checkedAt = new Date().toISOString(),
   env = process.env,
   commandRunner = runCommand,
@@ -497,6 +515,8 @@ export function preflightDesktopSigningEnvironment({
   const normalizedArch = normalizeArch(arch);
   const normalizedTarget = String(target ?? '').trim();
   const normalizedBundles = normalizeBundles(bundles, normalizedPlatform);
+  const normalizedReleaseKind = normalizeReleaseKind(releaseKind);
+  const normalizedRolloutStage = normalizeRolloutStage(rolloutStage);
 
   if (!normalizedPlatform) {
     throw new Error('Desktop signing environment preflight requires a platform.');
@@ -514,6 +534,24 @@ export function preflightDesktopSigningEnvironment({
       ? buildMacosChecks({ env, commandRunner, failures, sensitiveValues })
       : buildLinuxChecks({ bundles: normalizedBundles, env, commandRunner, failures, sensitiveValues });
 
+  if (failures.length > 0 && !requiresStrictSigningEvidence({
+    releaseKind: normalizedReleaseKind,
+    rolloutStage: normalizedRolloutStage,
+  })) {
+    return {
+      status: 'pending',
+      platform: normalizedPlatform,
+      arch: normalizedArch,
+      target: normalizedTarget,
+      bundles: normalizedBundles,
+      releaseKind: normalizedReleaseKind,
+      rolloutStage: normalizedRolloutStage,
+      checkedAt: String(checkedAt ?? '').trim(),
+      checks,
+      failures: failures.map((failure) => redactSensitiveValues(failure, sensitiveValues)),
+    };
+  }
+
   assertNoFailures(failures, sensitiveValues);
 
   return {
@@ -522,6 +560,8 @@ export function preflightDesktopSigningEnvironment({
     arch: normalizedArch,
     target: normalizedTarget,
     bundles: normalizedBundles,
+    releaseKind: normalizedReleaseKind,
+    rolloutStage: normalizedRolloutStage,
     checkedAt: String(checkedAt ?? '').trim(),
     checks,
   };
@@ -533,6 +573,8 @@ export function parseArgs(argv) {
     arch: process.arch,
     target: '',
     bundles: [],
+    releaseKind: 'formal',
+    rolloutStage: '',
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -557,6 +599,16 @@ export function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (token === '--release-kind') {
+      options.releaseKind = readOptionValue(argv, index, token);
+      index += 1;
+      continue;
+    }
+    if (token === '--rollout-stage') {
+      options.rolloutStage = readOptionValue(argv, index, token);
+      index += 1;
+      continue;
+    }
 
     throw new Error(`Unsupported option: ${token}`);
   }
@@ -567,6 +619,8 @@ export function parseArgs(argv) {
     arch: normalizeArch(options.arch),
     target: String(options.target ?? '').trim(),
     bundles: normalizeBundles(options.bundles, platform),
+    releaseKind: normalizeReleaseKind(options.releaseKind),
+    rolloutStage: normalizeRolloutStage(options.rolloutStage),
   };
 }
 

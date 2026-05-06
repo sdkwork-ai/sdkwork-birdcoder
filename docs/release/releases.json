@@ -3357,18 +3357,20 @@
                          "title":  "SDKWork BirdCoder release-2026-05-06-01",
                          "date":  "2026-05-06",
                          "status":  "pending",
-                         "summary":  "Publishes the first GitHub-backed BirdCoder release by carrying forward the entire unpublished registry chain, hardening runtime activity surfaces, remediating active problem-list debt, and confirming shared SDK git-source release readiness.",
+                         "summary":  "Publishes the first GitHub-backed BirdCoder canary by carrying forward the entire unpublished registry chain, hardening runtime and release packaging surfaces, preserving local SDK links while materializing release SDKs from GitHub over SSH, and carrying pending desktop trust evidence forward for later formal/GA promotion.",
                          "notesFile":  "release-2026-05-06-01.md",
                          "carryForward":  [
                                               "release-2026-04-28-01"
                                           ],
                          "stopShipSignals":  [
+                                                 "pending desktop installer signing/trust evidence blocks formal or general-availability promotion"
                                              ],
                          "promotionReadiness":  {
                                                     "currentReleaseKind":  "canary",
                                                     "currentRolloutStage":  "ring-1",
-                                                    "formalOrGaStatus":  "clear",
+                                                    "formalOrGaStatus":  "blocked",
                                                     "stopShipSignals":  [
+                                                                            "pending desktop installer signing/trust evidence blocks formal or general-availability promotion"
                                                                         ]
                                                 }
                      }

@@ -95,6 +95,24 @@ function copyRequiredBuildOutput({
   fs.cpSync(sourcePath, targetPath, { recursive: true });
 }
 
+function copyRequiredFile({
+  sourcePath,
+  targetPath,
+  label,
+  command,
+  releaseAssetsLabel = 'release assets',
+}) {
+  if (!fs.existsSync(sourcePath)) {
+    throw new Error(`Missing required ${label}: ${sourcePath}. Run \`${command}\` before packaging ${releaseAssetsLabel}.`);
+  }
+  if (!fs.statSync(sourcePath).isFile()) {
+    throw new Error(`Required ${label} must be a file: ${sourcePath}. Run \`${command}\` before packaging ${releaseAssetsLabel}.`);
+  }
+
+  ensureDir(path.dirname(targetPath));
+  fs.copyFileSync(sourcePath, targetPath);
+}
+
 function resolveServerBinaryFileName(binaryName, {
   targetTriple = '',
   platform = '',
@@ -749,10 +767,13 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
       rootDir,
       profile,
     });
-    copyIfExists(
-      path.join(rootDir, 'artifacts', 'openapi', 'coding-server-v1.json'),
-      path.join(bundleRoot, 'openapi', 'coding-server-v1.json'),
-    );
+    copyRequiredFile({
+      sourcePath: path.join(rootDir, 'artifacts', 'openapi', 'coding-server-v1.json'),
+      targetPath: path.join(bundleRoot, 'openapi', 'coding-server-v1.json'),
+      label: 'coding-server OpenAPI snapshot',
+      command: 'pnpm generate:openapi:coding-server',
+      releaseAssetsLabel: 'server release assets',
+    });
     copyRequiredBuildOutput({
       sourcePath: path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist'),
       targetPath: path.join(bundleRoot, 'web'),
@@ -765,7 +786,7 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
   }
 
   if (family === 'container') {
-    copyIfExists(path.join(rootDir, 'deploy', 'docker'), path.join(bundleRoot, 'deploy'));
+    copyIfExists(path.join(rootDir, 'deploy', 'docker'), path.join(bundleRoot, 'deploy', 'docker'));
     copyRequiredServerBinary({
       bundleRoot,
       descriptor,

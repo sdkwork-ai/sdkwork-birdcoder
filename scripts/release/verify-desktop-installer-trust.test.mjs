@@ -112,12 +112,18 @@ assert.deepEqual(
     'x64',
     '--target',
     'x86_64-pc-windows-msvc',
+    '--release-kind',
+    'canary',
+    '--rollout-stage',
+    'ring-1',
   ]),
   {
     releaseAssetsDir: path.resolve('artifacts/release'),
     platform: 'windows',
     arch: 'x64',
     target: 'x86_64-pc-windows-msvc',
+    releaseKind: 'canary',
+    rolloutStage: 'ring-1',
   },
 );
 
@@ -275,6 +281,43 @@ try {
   );
 } finally {
   fs.rmSync(failedReleaseAssetsDir, { recursive: true, force: true });
+}
+
+const pendingReleaseAssetsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-desktop-trust-pending-'));
+try {
+  const { familyDir, manifestPath } = writeDesktopTrustFixture({ releaseAssetsDir: pendingReleaseAssetsDir });
+  const originalManifest = fs.readFileSync(manifestPath, 'utf8');
+  const result = verifyDesktopInstallerTrust({
+    releaseAssetsDir: pendingReleaseAssetsDir,
+    platform: 'windows',
+    arch: 'x64',
+    target: 'x86_64-pc-windows-msvc',
+    releaseKind: 'canary',
+    rolloutStage: 'ring-1',
+    verifierFn() {
+      throw new Error('Authenticode toolchain unavailable.');
+    },
+  });
+
+  assert.equal(result.status, 'pending');
+  assert.equal(result.reportPath, path.join(familyDir, DESKTOP_INSTALLER_TRUST_REPORT_FILENAME));
+  assert.equal(fs.readFileSync(manifestPath, 'utf8'), originalManifest);
+
+  const report = JSON.parse(fs.readFileSync(result.reportPath, 'utf8'));
+  assert.equal(report.status, 'pending');
+  assert.equal(report.installerCount, 2);
+  assert.equal(report.releaseKind, 'canary');
+  assert.equal(report.rolloutStage, 'ring-1');
+  assert.deepEqual(
+    report.installers.map((entry) => entry.signatureEvidence),
+    [pendingWindowsSignatureEvidence, pendingWindowsSignatureEvidence],
+  );
+  assert.ok(
+    report.pendingReasons.every((reason) => reason.includes('Authenticode toolchain unavailable')),
+    'pending trust report must preserve verifier failure reasons for canary evidence review',
+  );
+} finally {
+  fs.rmSync(pendingReleaseAssetsDir, { recursive: true, force: true });
 }
 
 const incompleteEvidenceReleaseAssetsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-desktop-trust-incomplete-'));

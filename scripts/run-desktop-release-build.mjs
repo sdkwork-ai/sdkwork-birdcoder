@@ -113,8 +113,12 @@ function createDirectTauriBuildPlan({
   viteMode = 'production',
   bundleTargets = [],
 } = {}) {
+  const tauriRunnerPath = path.relative(
+    desktopPackageDir,
+    path.join(rootDir, 'scripts', 'run-tauri-cli.mjs'),
+  ).replaceAll('\\', '/');
   const args = [
-    'scripts/run-tauri-cli.mjs',
+    tauriRunnerPath,
     'build',
     '--config',
     path.relative(desktopPackageDir, path.join(rootDir, resolveDesktopTauriConfigPath(viteMode))).replaceAll('\\', '/'),

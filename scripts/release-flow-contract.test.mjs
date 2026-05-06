@@ -47,6 +47,49 @@ function extractWorkflowStepBlocks(workflowSource, stepName) {
   )].map((match) => match[0]);
 }
 
+function extractWorkflowJobBlock(workflowSource, jobName) {
+  const match = workflowSource.match(
+    new RegExp(`\\n  ${escapeRegex(jobName)}:\\n[\\s\\S]*?(?=\\n  [A-Za-z0-9_-]+:\\n|\\n\\S|$)`),
+  );
+  assert.ok(match, `Missing workflow job: ${jobName}`);
+  return match[0];
+}
+
+function assertWindowsLongPathsBeforeEveryCheckout(workflowSource) {
+  const lines = workflowSource.split(/\r?\n/u);
+  const checkoutLineIndexes = lines
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => /uses:\s*actions\/checkout@v5/u.test(line))
+    .map(({ index }) => index);
+
+  assert.ok(checkoutLineIndexes.length > 0, 'release workflow must checkout sources.');
+
+  for (const checkoutLineIndex of checkoutLineIndexes) {
+    const currentStepStart = lines
+      .slice(0, checkoutLineIndex)
+      .map((line, index) => ({ line, index }))
+      .filter(({ line }) => /^\s*- name: /u.test(line))
+      .at(-1)?.index;
+    assert.equal(typeof currentStepStart, 'number', 'checkout must be inside a named workflow step.');
+
+    const previousStepStart = lines
+      .slice(0, currentStepStart)
+      .map((line, index) => ({ line, index }))
+      .filter(({ line }) => /^\s*- name: /u.test(line))
+      .at(-1)?.index;
+    assert.equal(
+      typeof previousStepStart,
+      'number',
+      'actions/checkout@v5 must have an immediate preceding Windows long-path setup step.',
+    );
+
+    const previousStepBlock = lines.slice(previousStepStart, currentStepStart).join('\n');
+    assert.match(previousStepBlock, /- name: Enable Windows git long paths/u);
+    assert.match(previousStepBlock, /if:\s*runner\.os == 'Windows'/u);
+    assert.match(previousStepBlock, /git config --global core\.longpaths true/u);
+  }
+}
+
 function assertPrepareSharedSdkStepsUseGithubToken(workflowSource) {
   assert.match(
     workflowSource,
@@ -143,11 +186,18 @@ function assertSetupNodeCacheMatchesInstallIntent(workflowSource) {
 
 assert.match(releaseWorkflow, /name:\s*release/);
 assert.match(releaseWorkflow, /push:\s*[\s\S]*tags:\s*[\s\S]*-\s*'release-\*'/);
+assert.match(releaseWorkflow, /release_kind:\s*[\s\S]*default:\s*formal/u);
+assert.match(releaseWorkflow, /rollout_stage:\s*[\s\S]*default:\s*general-availability/u);
 assert.match(releaseWorkflow, /uses:\s*\.\/\.github\/workflows\/release-reusable\.yml/);
 assert.match(releaseWorkflow, /release_profile:\s*sdkwork-birdcoder/);
+assert.match(releaseWorkflow, /release_kind:\s*\$\{\{ github\.event_name == 'push' && 'formal' \|\| github\.event\.inputs\.release_kind \}\}/u);
+assert.match(releaseWorkflow, /rollout_stage:\s*\$\{\{ github\.event_name == 'push' && 'general-availability' \|\| github\.event\.inputs\.rollout_stage \}\}/u);
 assert.doesNotMatch(releaseWorkflow, /release_profile:\s*claw-studio/);
 
 assert.match(reusableWorkflow, /SDKWORK_SHARED_SDK_MODE:\s*git/);
+assert.match(reusableWorkflow, /release_kind:\s*[\s\S]*type:\s*string/u);
+assert.match(reusableWorkflow, /rollout_stage:\s*[\s\S]*type:\s*string/u);
+assertWindowsLongPathsBeforeEveryCheckout(reusableWorkflow);
 assert.equal(
   fs.existsSync(nodeWrapperPath),
   true,
@@ -212,6 +262,11 @@ assert.match(
   /preflight-desktop-signing-environment\.mjs[\s\S]*run-desktop-release-build\.mjs --profile .* --phase bundle[\s\S]*package-release-assets\.mjs desktop[\s\S]*verify-desktop-installer-trust\.mjs[\s\S]*smoke-desktop-installers\.mjs/,
   'desktop release workflow must preflight signing credentials and tools before bundling, then verify real platform installer trust after packaging and before installer smoke.',
 );
+assert.match(
+  extractWorkflowStepBlock(reusableWorkflow, 'Resolve release plan'),
+  /--release-kind "\$\{\{ inputs\.release_kind \}\}"[\s\S]*--rollout-stage "\$\{\{ inputs\.rollout_stage \}\}"/u,
+  'release plan resolution must preserve explicit release kind and rollout stage from the dispatch inputs.',
+);
 const windowsDesktopSigningPreflightStep = extractWorkflowStepBlock(
   reusableWorkflow,
   'Preflight Windows desktop signing environment',
@@ -229,6 +284,8 @@ const macosDesktopSigningPreflightStep = extractWorkflowStepBlock(
   'Preflight macOS desktop signing environment',
 );
 assert.match(macosDesktopSigningPreflightStep, /if: matrix\.platform == 'macos'/);
+assert.match(macosDesktopSigningPreflightStep, /--release-kind \$\{\{ needs\.prepare\.outputs\.release_kind \}\}/u);
+assert.match(macosDesktopSigningPreflightStep, /--rollout-stage \$\{\{ needs\.prepare\.outputs\.rollout_stage \}\}/u);
 assert.match(macosDesktopSigningPreflightStep, /BIRDCODER_MACOS_CODESIGN_IDENTITY:\s*\$\{\{ secrets\.BIRDCODER_MACOS_CODESIGN_IDENTITY \}\}/);
 assert.match(macosDesktopSigningPreflightStep, /APPLE_APP_SPECIFIC_PASSWORD:\s*\$\{\{ secrets\.APPLE_APP_SPECIFIC_PASSWORD \}\}/);
 assert.match(macosDesktopSigningPreflightStep, /APP_STORE_CONNECT_API_KEY:\s*\$\{\{ secrets\.APP_STORE_CONNECT_API_KEY \}\}/);
@@ -249,14 +306,29 @@ assert.doesNotMatch(
 );
 assert.match(reusableWorkflow, /smoke-desktop-packaged-launch\.mjs/);
 assert.doesNotMatch(reusableWorkflow, /smoke-desktop-startup-evidence\.mjs/);
+assert.match(
+  extractWorkflowStepBlock(reusableWorkflow, 'Verify desktop installer trust'),
+  /--release-kind \$\{\{ needs\.prepare\.outputs\.release_kind \}\}[\s\S]*--rollout-stage \$\{\{ needs\.prepare\.outputs\.rollout_stage \}\}/u,
+  'desktop trust verification must preserve pending evidence for non-GA releases without weakening formal/GA gates.',
+);
 assert.match(reusableWorkflow, /run-claw-server-build\.mjs/);
+assert.match(
+  extractWorkflowJobBlock(reusableWorkflow, 'server-release'),
+  /Build server binary[\s\S]*Generate coding-server OpenAPI snapshot[\s\S]*Package server release assets/u,
+  'server release packaging must generate the coding-server OpenAPI sidecar after the binary build and before packaging.',
+);
+assert.match(
+  extractWorkflowJobBlock(reusableWorkflow, 'container-release'),
+  /Build server binary[\s\S]*Generate coding-server OpenAPI snapshot[\s\S]*Package container release assets/u,
+  'container release packaging must generate the coding-server OpenAPI snapshot before package assembly so server sidecar parity stays deterministic.',
+);
 assert.match(reusableWorkflow, /smoke-server-release-assets\.mjs/);
 assert.match(reusableWorkflow, /smoke-deployment-release-assets\.mjs --family container/);
 assert.match(reusableWorkflow, /smoke-deployment-release-assets\.mjs --family kubernetes/);
 assert.doesNotMatch(reusableWorkflow, /smoke-release-assets\.mjs web/);
 assert.match(
   reusableWorkflow,
-  /render-release-notes\.mjs --release-tag .* --output release-assets\/release-notes\.md[\s\S]*finalize-release-assets\.mjs[\s\S]*smoke-finalized-release-assets\.mjs --release-assets-dir release-assets[\s\S]*Attest finalized release assets[\s\S]*write-attestation-evidence\.mjs --profile \$\{\{ inputs\.release_profile \}\} --release-assets-dir release-assets --repository \$\{\{ github\.repository \}\} --release-tag \$\{\{ needs\.prepare\.outputs\.release_tag \}\}[\s\S]*assert-release-readiness\.mjs --profile \$\{\{ inputs\.release_profile \}\} --release-assets-dir release-assets/,
+  /render-release-notes\.mjs --release-tag .* --output release-assets\/release-notes\.md[\s\S]*finalize-release-assets\.mjs[\s\S]*--release-kind \$\{\{ needs\.prepare\.outputs\.release_kind \}\}[\s\S]*--rollout-stage \$\{\{ needs\.prepare\.outputs\.rollout_stage \}\}[\s\S]*smoke-finalized-release-assets\.mjs --release-assets-dir release-assets[\s\S]*Attest finalized release assets[\s\S]*write-attestation-evidence\.mjs --profile \$\{\{ inputs\.release_profile \}\} --release-assets-dir release-assets --repository \$\{\{ github\.repository \}\} --release-tag \$\{\{ needs\.prepare\.outputs\.release_tag \}\}[\s\S]*assert-release-readiness\.mjs --profile \$\{\{ inputs\.release_profile \}\} --release-assets-dir release-assets/,
   'publish workflow must render notes before finalization, finalize and smoke immutable assets, attest them, write verified attestation evidence, and assert readiness before publication.',
 );
 assert.doesNotMatch(

@@ -14,6 +14,16 @@ on:
         description: Git ref to build; defaults to refs/tags/<release_tag>
         required: false
         type: string
+      release_kind:
+        description: Release kind; formal is required for tag pushes, canary can be used for ring validation.
+        required: false
+        default: formal
+        type: string
+      rollout_stage:
+        description: Optional rollout stage override such as ring-1 for canary validation.
+        required: false
+        default: general-availability
+        type: string
 
 permissions:
   contents: write
@@ -28,4 +38,6 @@ jobs:
       release_profile: sdkwork-birdcoder
       release_tag: ${{ github.event_name == 'push' && github.ref_name || github.event.inputs.release_tag }}
       git_ref: ${{ github.event_name == 'push' && github.ref || github.event.inputs.git_ref }}
+      release_kind: ${{ github.event_name == 'push' && 'formal' || github.event.inputs.release_kind }}
+      rollout_stage: ${{ github.event_name == 'push' && 'general-availability' || github.event.inputs.rollout_stage }}
     secrets: inherit

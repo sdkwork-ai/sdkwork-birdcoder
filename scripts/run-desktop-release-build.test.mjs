@@ -97,7 +97,7 @@ assert.equal(unixBundlePlan.command, process.execPath);
 assert.deepEqual(
   unixBundlePlan.args.slice(0, 4),
   [
-    'scripts/run-tauri-cli.mjs',
+    '../../scripts/run-tauri-cli.mjs',
     'build',
     '--config',
     'src-tauri/tauri.conf.json',

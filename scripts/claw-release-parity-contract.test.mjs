@@ -28,6 +28,12 @@ function normalizeBirdCoderWorkflowSource(source) {
     .replaceAll('sdkwork-birdcoder', 'claw-studio')
     .replace(/\n      SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY:\n        description: SSH private key with read access to private shared SDK GitHub repositories\n        required: true/g, '')
     .replace(/\n  SDKWORK_SHARED_SDK_GIT_PROTOCOL: ssh/g, '')
+    .replace(/\n      release_kind:\n        description: [^\n]+\n        required: false\n        (?:default: formal\n        type: string|type: string\n        default: formal)\n      rollout_stage:\n        description: [^\n]+\n        required: false\n        (?:default: general-availability\n        type: string|type: string\n        default: general-availability)/g, '')
+    .replace(/\n      release_kind: \$\{\{ (?:github\.event_name == 'push' && 'formal' \|\| github\.event\.inputs\.release_kind|steps\.plan\.outputs\.release_kind) \}\}/g, '')
+    .replace(/\n      rollout_stage: \$\{\{ (?:github\.event_name == 'push' && 'general-availability' \|\| github\.event\.inputs\.rollout_stage|steps\.plan\.outputs\.rollout_stage) \}\}/g, '')
+    .replace(/ --release-kind (?:"\$\{\{ inputs\.release_kind \}\}"|\$\{\{ needs\.prepare\.outputs\.release_kind \}\}) --rollout-stage (?:"\$\{\{ inputs\.rollout_stage \}\}"|\$\{\{ needs\.prepare\.outputs\.rollout_stage \}\})/g, '')
+    .replace(/\n      - name: Enable Windows git long paths\n        if: runner\.os == 'Windows'\n        shell: pwsh\n        run: git config --global core\.longpaths true\n/g, '')
+    .replace(/\n\n      - name: Generate coding-server OpenAPI snapshot\n        run: node --experimental-strip-types scripts\/coding-server-openapi-export\.ts\n/g, '\n')
     .replace(/\n\n      - name: Setup shared SDK SSH\n        uses: webfactory\/ssh-agent@v0\.9\.0\n        with:\n          ssh-private-key: \$\{\{ secrets\.SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY \}\}\n/g, '\n')
     .replace(/\n\n      - name: Setup pnpm\n        uses: pnpm\/action-setup@v4\n(?=\n      - name: Setup Node\.js\n        uses: actions\/setup-node@v5\n        with:\n          node-version: 22\n(?!          cache: pnpm))/g, '\n')
     .replaceAll(" --bundles ${{ join(matrix.bundles, ',') }}", '')
@@ -94,6 +100,67 @@ function assertBirdCoderSharedSdkSshGateIsExplicit(source, workflowRelativePath)
   );
 }
 
+function assertBirdCoderReleaseControlDispatchIsExplicit(source, workflowRelativePath) {
+  if (workflowRelativePath === '.github/workflows/release.yml') {
+    assert.match(
+      source,
+      /release_kind:\s*[\s\S]*default:\s*formal[\s\S]*rollout_stage:\s*[\s\S]*default:\s*general-availability/u,
+      `${workflowRelativePath} must expose release-kind and rollout-stage dispatch inputs before Claw-shape parity normalization removes this BirdCoder canary-governance delta.`,
+    );
+    assert.match(
+      source,
+      /release_kind:\s*\$\{\{ github\.event_name == 'push' && 'formal' \|\| github\.event\.inputs\.release_kind \}\}[\s\S]*rollout_stage:\s*\$\{\{ github\.event_name == 'push' && 'general-availability' \|\| github\.event\.inputs\.rollout_stage \}\}/u,
+      `${workflowRelativePath} must force formal/general-availability on tag pushes while preserving manual canary dispatch inputs before parity normalization.`,
+    );
+    return;
+  }
+
+  assert.match(
+    source,
+    /release_kind:\s*[\s\S]*type:\s*string[\s\S]*rollout_stage:\s*[\s\S]*type:\s*string/u,
+    `${workflowRelativePath} must accept release-kind and rollout-stage from the dispatcher before Claw-shape parity normalization removes this BirdCoder canary-governance delta.`,
+  );
+  assert.match(
+    source,
+    /release_kind:\s*\$\{\{ steps\.plan\.outputs\.release_kind \}\}[\s\S]*rollout_stage:\s*\$\{\{ steps\.plan\.outputs\.rollout_stage \}\}/u,
+    `${workflowRelativePath} must expose normalized release control outputs to downstream jobs before parity normalization.`,
+  );
+  assert.match(
+    source,
+    /resolve-release-plan\.mjs[\s\S]*--release-kind "\$\{\{ inputs\.release_kind \}\}"[\s\S]*--rollout-stage "\$\{\{ inputs\.rollout_stage \}\}"/u,
+    `${workflowRelativePath} must pass release control inputs into release plan resolution before parity normalization.`,
+  );
+}
+
+function assertBirdCoderWindowsLongPathsBeforeCheckoutIsExplicit(source, workflowRelativePath) {
+  if (workflowRelativePath !== '.github/workflows/release-reusable.yml') {
+    return;
+  }
+
+  assert.match(
+    source,
+    /Enable Windows git long paths[\s\S]*git config --global core\.longpaths true[\s\S]*Checkout workflow sources/u,
+    `${workflowRelativePath} must enable Windows git long paths before checkout before Claw-shape parity normalization removes this BirdCoder release hardening delta.`,
+  );
+}
+
+function assertBirdCoderOpenApiSidecarGenerationIsExplicit(source, workflowRelativePath) {
+  if (workflowRelativePath !== '.github/workflows/release-reusable.yml') {
+    return;
+  }
+
+  assert.match(
+    source,
+    /server-release:[\s\S]*Build server binary[\s\S]*Generate coding-server OpenAPI snapshot[\s\S]*Package server release assets/u,
+    `${workflowRelativePath} must export the coding-server OpenAPI sidecar before server packaging before parity normalization removes this BirdCoder release hardening delta.`,
+  );
+  assert.match(
+    source,
+    /container-release:[\s\S]*Build server binary[\s\S]*Generate coding-server OpenAPI snapshot[\s\S]*Package container release assets/u,
+    `${workflowRelativePath} must export the coding-server OpenAPI sidecar before container packaging before parity normalization removes this BirdCoder release hardening delta.`,
+  );
+}
+
 for (const workflowRelativePath of [
   '.github/workflows/ci.yml',
   '.github/workflows/release.yml',
@@ -105,9 +172,15 @@ for (const workflowRelativePath of [
     assertBirdCoderSharedSdkSshGateIsExplicit(birdCoderRawSource, workflowRelativePath);
   }
   if (workflowRelativePath === '.github/workflows/release-reusable.yml') {
+    assertBirdCoderReleaseControlDispatchIsExplicit(birdCoderRawSource, workflowRelativePath);
+    assertBirdCoderWindowsLongPathsBeforeCheckoutIsExplicit(birdCoderRawSource, workflowRelativePath);
+    assertBirdCoderOpenApiSidecarGenerationIsExplicit(birdCoderRawSource, workflowRelativePath);
     assertBirdCoderDesktopBundleIntentIsExplicit(birdCoderRawSource);
     assertBirdCoderDesktopSigningPreflightGateIsExplicit(birdCoderRawSource);
     assertBirdCoderDesktopInstallerTrustGateIsExplicit(birdCoderRawSource);
+  }
+  if (workflowRelativePath === '.github/workflows/release.yml') {
+    assertBirdCoderReleaseControlDispatchIsExplicit(birdCoderRawSource, workflowRelativePath);
   }
   const clawSource = normalizeClawOnlyReleaseWorkflowShape(
     readGitHeadFile({

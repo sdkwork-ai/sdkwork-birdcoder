@@ -444,6 +444,12 @@ withFixture((fixtureRoot) => {
   assert.equal(containerResult.manifest.family, 'container');
   assertServerRuntimeArchiveShape(containerResult, 'sdkwork-birdcoder-container-release-local-linux-x64-cpu');
   assert.ok(fs.existsSync(path.join(path.dirname(containerResult.manifestPath), 'release-metadata.json')));
+  assert.ok(
+    readTarGzEntryPaths(containerResult.archivePath).includes(
+      'sdkwork-birdcoder-container-release-local-linux-x64-cpu/deploy/docker/Dockerfile',
+    ),
+    'container release archive must preserve deploy/docker/Dockerfile for the OCI build context',
+  );
 
   const kubernetesResult = packageReleaseAssets('kubernetes', {
     profile: 'sdkwork-birdcoder',
@@ -493,6 +499,24 @@ withFixture((fixtureRoot) => {
       'output-dir': 'artifacts/release',
     }),
     /Missing required public docs build output.*docs[\\/]\.vitepress[\\/]dist.*Run `pnpm docs:build` before packaging web release assets/u,
+  );
+});
+
+withFixture((fixtureRoot) => {
+  writeWebDistFixture(fixtureRoot);
+  writeServerFixture(fixtureRoot);
+  fs.rmSync(path.join(fixtureRoot, 'artifacts', 'openapi'), { recursive: true, force: true });
+
+  assertThrowsWithMessage(
+    () => packageReleaseAssets('server', {
+      profile: 'sdkwork-birdcoder',
+      'release-tag': 'release-local',
+      platform: 'linux',
+      arch: 'x64',
+      target: SERVER_BINARY_TARGET,
+      'output-dir': 'artifacts/release',
+    }),
+    /Missing required coding-server OpenAPI snapshot.*artifacts[\\/]openapi[\\/]coding-server-v1\.json.*Run `pnpm generate:openapi:coding-server` before packaging server release assets/u,
   );
 });
 

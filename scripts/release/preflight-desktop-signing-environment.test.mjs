@@ -21,12 +21,18 @@ assert.deepEqual(
     'x86_64-pc-windows-msvc',
     '--bundles',
     'nsis,msi,nsis',
+    '--release-kind',
+    'canary',
+    '--rollout-stage',
+    'ring-1',
   ]),
   {
     platform: 'windows',
     arch: 'x64',
     target: 'x86_64-pc-windows-msvc',
     bundles: ['msi', 'nsis'],
+    releaseKind: 'canary',
+    rolloutStage: 'ring-1',
   },
 );
 
@@ -139,7 +145,7 @@ assert.deepEqual(
     commandCalls,
     [
       ['xcrun', '--find', 'codesign'],
-      ['spctl', '--version'],
+      ['spctl', '--status'],
       ['xcrun', '--find', 'stapler'],
       ['xcrun', '--find', 'notarytool'],
       ['security', 'find-identity', '-v', '-p', 'codesigning'],
@@ -282,6 +288,79 @@ assert.deepEqual(
     }),
     /Unsupported linux desktop bundle for signing preflight: flatpak/,
   );
+}
+
+{
+  const report = preflightDesktopSigningEnvironment({
+    platform: 'macos',
+    arch: 'arm64',
+    target: 'aarch64-apple-darwin',
+    bundles: ['dmg'],
+    releaseKind: 'canary',
+    rolloutStage: 'ring-1',
+    env: {},
+    commandRunner(command, args) {
+      if (command === 'spctl' && args[0] === '--status') {
+        return {
+          status: 0,
+          stdout: 'assessments enabled',
+          stderr: '',
+        };
+      }
+
+      return {
+        status: 1,
+        stdout: '',
+        stderr: `${command} unavailable`,
+      };
+    },
+  });
+
+  assert.equal(report.status, 'pending');
+  assert.equal(report.platform, 'macos');
+  assert.equal(report.releaseKind, 'canary');
+  assert.equal(report.rolloutStage, 'ring-1');
+  assert.ok(
+    report.failures.some((failure) => failure.includes('macOS Developer ID code signing identity')),
+    'non-GA preflight should preserve missing macOS identity as pending evidence instead of hiding it',
+  );
+}
+
+{
+  const stderr = [];
+  const stdout = [];
+  const exitCode = await runPreflightDesktopSigningEnvironmentCli(
+    [
+      '--platform',
+      'macos',
+      '--arch',
+      'arm64',
+      '--target',
+      'aarch64-apple-darwin',
+      '--bundles',
+      'dmg',
+      '--release-kind',
+      'canary',
+      '--rollout-stage',
+      'ring-1',
+    ],
+    {
+      env: {},
+      commandRunner() {
+        return {
+          status: 1,
+          stdout: '',
+          stderr: 'missing tool',
+        };
+      },
+      stdout: (message) => stdout.push(message),
+      stderr: (message) => stderr.push(message),
+    },
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.join(''), '');
+  assert.match(stdout.join(''), /"status": "pending"/);
 }
 
 {

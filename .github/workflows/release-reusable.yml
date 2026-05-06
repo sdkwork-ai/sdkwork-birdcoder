@@ -15,6 +15,16 @@ on:
         description: Git ref to build; defaults to refs/tags/<release_tag>
         required: false
         type: string
+      release_kind:
+        description: Release kind for release-control governance.
+        required: false
+        type: string
+        default: formal
+      rollout_stage:
+        description: Optional rollout stage override for release-control governance.
+        required: false
+        type: string
+        default: general-availability
     secrets:
       SDKWORK_SHARED_SDK_GITHUB_TOKEN:
         description: Optional token with read access to private shared SDK GitHub repositories
@@ -45,6 +55,8 @@ jobs:
     outputs:
       release_tag: ${{ steps.plan.outputs.release_tag }}
       git_ref: ${{ steps.plan.outputs.git_ref }}
+      release_kind: ${{ steps.plan.outputs.release_kind }}
+      rollout_stage: ${{ steps.plan.outputs.rollout_stage }}
       product_name: ${{ steps.plan.outputs.product_name }}
       release_name: ${{ steps.plan.outputs.release_name }}
       desktop_matrix: ${{ steps.plan.outputs.desktop_matrix }}
@@ -58,6 +70,11 @@ jobs:
       attestation_evidence_file_name: ${{ steps.plan.outputs.attestation_evidence_file_name }}
       global_checksums_file_name: ${{ steps.plan.outputs.global_checksums_file_name }}
     steps:
+      - name: Enable Windows git long paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --global core.longpaths true
+
       - name: Checkout workflow sources
         uses: actions/checkout@v5
         with:
@@ -78,13 +95,18 @@ jobs:
         id: plan
         shell: bash
         run: |
-          node scripts/release/resolve-release-plan.mjs --profile ${{ inputs.release_profile }} --release-tag "${{ inputs.release_tag }}" --git-ref "${{ inputs.git_ref }}" --github-output
+          node scripts/release/resolve-release-plan.mjs --profile ${{ inputs.release_profile }} --release-tag "${{ inputs.release_tag }}" --git-ref "${{ inputs.git_ref }}" --release-kind "${{ inputs.release_kind }}" --rollout-stage "${{ inputs.rollout_stage }}" --github-output
 
   verify-release:
     name: Verify release inputs
     needs: prepare
     runs-on: ubuntu-latest
     steps:
+      - name: Enable Windows git long paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --global core.longpaths true
+
       - name: Checkout release ref
         uses: actions/checkout@v5
         with:
@@ -174,6 +196,11 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.desktop_matrix) }}
     steps:
+      - name: Enable Windows git long paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --global core.longpaths true
+
       - name: Checkout release ref
         uses: actions/checkout@v5
         with:
@@ -261,7 +288,7 @@ jobs:
         env:
           BIRDCODER_WINDOWS_SIGNING_CERT_SHA1: ${{ secrets.BIRDCODER_WINDOWS_SIGNING_CERT_SHA1 }}
           BIRDCODER_WINDOWS_SIGNING_TIMESTAMP_URL: ${{ secrets.BIRDCODER_WINDOWS_SIGNING_TIMESTAMP_URL }}
-        run: node scripts/release/preflight-desktop-signing-environment.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --bundles ${{ join(matrix.bundles, ',') }}
+        run: node scripts/release/preflight-desktop-signing-environment.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --bundles ${{ join(matrix.bundles, ',') }} --release-kind ${{ needs.prepare.outputs.release_kind }} --rollout-stage ${{ needs.prepare.outputs.rollout_stage }}
 
       - name: Preflight macOS desktop signing environment
         if: matrix.platform == 'macos'
@@ -273,11 +300,11 @@ jobs:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-        run: node scripts/release/preflight-desktop-signing-environment.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --bundles ${{ join(matrix.bundles, ',') }}
+        run: node scripts/release/preflight-desktop-signing-environment.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --bundles ${{ join(matrix.bundles, ',') }} --release-kind ${{ needs.prepare.outputs.release_kind }} --rollout-stage ${{ needs.prepare.outputs.rollout_stage }}
 
       - name: Preflight Linux desktop package metadata environment
         if: matrix.platform == 'linux'
-        run: node scripts/release/preflight-desktop-signing-environment.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --bundles ${{ join(matrix.bundles, ',') }}
+        run: node scripts/release/preflight-desktop-signing-environment.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --bundles ${{ join(matrix.bundles, ',') }} --release-kind ${{ needs.prepare.outputs.release_kind }} --rollout-stage ${{ needs.prepare.outputs.rollout_stage }}
 
       - name: Build Claw Studio desktop bundle on Windows
         if: matrix.platform == 'windows'
@@ -294,7 +321,7 @@ jobs:
         run: node scripts/release/package-release-assets.mjs desktop --profile ${{ inputs.release_profile }} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --output-dir artifacts/release
 
       - name: Verify desktop installer trust
-        run: node scripts/release/verify-desktop-installer-trust.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --release-assets-dir artifacts/release
+        run: node scripts/release/verify-desktop-installer-trust.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --release-assets-dir artifacts/release --release-kind ${{ needs.prepare.outputs.release_kind }} --rollout-stage ${{ needs.prepare.outputs.rollout_stage }}
 
       - name: Smoke packaged desktop installers
         run: node scripts/release/smoke-desktop-installers.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --release-assets-dir artifacts/release
@@ -320,6 +347,11 @@ jobs:
     needs: [prepare, verify-release]
     runs-on: ubuntu-latest
     steps:
+      - name: Enable Windows git long paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --global core.longpaths true
+
       - name: Checkout release ref
         uses: actions/checkout@v5
         with:
@@ -397,6 +429,11 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.server_matrix) }}
     steps:
+      - name: Enable Windows git long paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --global core.longpaths true
+
       - name: Checkout release ref
         uses: actions/checkout@v5
         with:
@@ -454,6 +491,9 @@ jobs:
       - name: Build server binary
         run: node scripts/run-claw-server-build.mjs --target ${{ matrix.target }}
 
+      - name: Generate coding-server OpenAPI snapshot
+        run: node --experimental-strip-types scripts/coding-server-openapi-export.ts
+
       - name: Package server release assets
         run: node scripts/release/package-release-assets.mjs server --profile ${{ inputs.release_profile }} --release-tag ${{ needs.prepare.outputs.release_tag }} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --output-dir artifacts/release
 
@@ -482,6 +522,11 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.container_matrix) }}
     steps:
+      - name: Enable Windows git long paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --global core.longpaths true
+
       - name: Checkout release ref
         uses: actions/checkout@v5
         with:
@@ -538,6 +583,9 @@ jobs:
 
       - name: Build server binary
         run: node scripts/run-claw-server-build.mjs --target ${{ matrix.target }}
+
+      - name: Generate coding-server OpenAPI snapshot
+        run: node --experimental-strip-types scripts/coding-server-openapi-export.ts
 
       - name: Package container release assets
         run: node scripts/release/package-release-assets.mjs container --profile ${{ inputs.release_profile }} --release-tag ${{ needs.prepare.outputs.release_tag }} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --target ${{ matrix.target }} --accelerator ${{ matrix.accelerator }} --output-dir artifacts/release
@@ -670,6 +718,11 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.kubernetes_matrix) }}
     steps:
+      - name: Enable Windows git long paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --global core.longpaths true
+
       - name: Checkout release ref
         uses: actions/checkout@v5
         with:
@@ -752,6 +805,11 @@ jobs:
       - kubernetes-release
     runs-on: ubuntu-latest
     steps:
+      - name: Enable Windows git long paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --global core.longpaths true
+
       - name: Checkout release ref
         uses: actions/checkout@v5
         with:
@@ -779,7 +837,7 @@ jobs:
         run: node scripts/release/render-release-notes.mjs --release-tag ${{ needs.prepare.outputs.release_tag }} --output release-assets/release-notes.md
 
       - name: Finalize release assets
-        run: node scripts/release/finalize-release-assets.mjs --profile ${{ inputs.release_profile }} --release-tag ${{ needs.prepare.outputs.release_tag }} --repository ${{ github.repository }} --release-assets-dir release-assets
+        run: node scripts/release/finalize-release-assets.mjs --profile ${{ inputs.release_profile }} --release-tag ${{ needs.prepare.outputs.release_tag }} --repository ${{ github.repository }} --release-assets-dir release-assets --release-kind ${{ needs.prepare.outputs.release_kind }} --rollout-stage ${{ needs.prepare.outputs.rollout_stage }}
 
       - name: Smoke finalized release assets
         run: node scripts/release/smoke-finalized-release-assets.mjs --release-assets-dir release-assets

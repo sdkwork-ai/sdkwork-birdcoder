@@ -4,6 +4,14 @@ import process from 'node:process';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
+const INTERNAL_SEARCH_EXCLUDED_PREFIXES = [
+  'prompts/',
+  'release/',
+  'step/',
+  'superpowers/',
+  `${String.fromCodePoint(0x67b6, 0x6784)}/`,
+];
+
 export function resolvePnpmCommand(platform = process.platform) {
   return platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 }
@@ -27,6 +35,15 @@ function createHtmlDocument(source) {
 ${markdownToHtml(source)}
   </body>
 </html>`;
+}
+
+function createNotFoundDocument() {
+  return createHtmlDocument([
+    '# Page not found',
+    '',
+    'The requested SDKWork BirdCoder documentation page could not be found.',
+    '',
+  ].join('\n'));
 }
 
 function resolveOutputFileName(markdownFileName) {
@@ -64,6 +81,128 @@ export function markdownToHtml(source) {
     .replace(/(<li>.*<\/li>\n?)+/g, (items) => `<ul>\n${items}\n</ul>`);
 }
 
+function normalizeSearchRelativePath(relativePath) {
+  return String(relativePath ?? '').replaceAll('\\', '/').replace(/^\.\//u, '');
+}
+
+function shouldIndexSearchPage(relativePath) {
+  const normalizedPath = normalizeSearchRelativePath(relativePath);
+  return !INTERNAL_SEARCH_EXCLUDED_PREFIXES.some((prefix) => normalizedPath.startsWith(prefix));
+}
+
+function stripMarkdown(markdown) {
+  return String(markdown ?? '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/!\[[^\]]*]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]+)]\([^)]*\)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^[-*+]\s+/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractSearchTitle(markdown, relativePath) {
+  const heading = String(markdown ?? '').split(/\r?\n/u)
+    .map((line) => line.match(/^#\s+(.+?)\s*$/u)?.[1]?.trim())
+    .find(Boolean);
+  if (heading) {
+    return heading;
+  }
+
+  const normalizedRelativePath = normalizeSearchRelativePath(relativePath);
+  const basename = path.posix.basename(normalizedRelativePath, '.md');
+  return basename === 'index' ? 'Home' : basename.replaceAll('-', ' ');
+}
+
+function resolveSearchUrl(relativePath) {
+  const normalizedRelativePath = normalizeSearchRelativePath(relativePath).replace(/\.md$/u, '');
+  if (normalizedRelativePath === 'index') {
+    return '/';
+  }
+  if (normalizedRelativePath.endsWith('/index')) {
+    return `/${normalizedRelativePath.slice(0, -'/index'.length)}`;
+  }
+
+  return `/${normalizedRelativePath}`;
+}
+
+function collectMarkdownFiles(rootDir) {
+  const files = [];
+  const stack = [rootDir];
+
+  while (stack.length > 0) {
+    const currentDir = stack.pop();
+    for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
+      const absolutePath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== '.vitepress' && entry.name !== 'public') {
+          stack.push(absolutePath);
+        }
+        continue;
+      }
+
+      if (entry.isFile() && entry.name.endsWith('.md')) {
+        files.push(absolutePath);
+      }
+    }
+  }
+
+  return files.sort((left, right) => left.localeCompare(right));
+}
+
+export function writePublicDocsSearchIndex(docsDir) {
+  const outputDir = path.join(docsDir, '.vitepress', 'dist');
+  mkdirSync(outputDir, { recursive: true });
+
+  const entries = collectMarkdownFiles(docsDir)
+    .map((markdownPath) => {
+      const relativePath = normalizeSearchRelativePath(path.relative(docsDir, markdownPath));
+      if (!shouldIndexSearchPage(relativePath)) {
+        return null;
+      }
+
+      const markdown = readFileSync(markdownPath, 'utf8');
+      return {
+        title: extractSearchTitle(markdown, relativePath),
+        url: resolveSearchUrl(relativePath),
+        text: stripMarkdown(markdown),
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.url.localeCompare(right.url));
+  const outputPath = path.join(outputDir, 'search-index.json');
+  writeFileSync(outputPath, `${JSON.stringify(entries, null, 2)}\n`, 'utf8');
+
+  return {
+    outputPath,
+    entries,
+  };
+}
+
+export function writePublicDocsNotFoundPage(docsDir) {
+  const outputDir = path.join(docsDir, '.vitepress', 'dist');
+  mkdirSync(outputDir, { recursive: true });
+
+  const outputPath = path.join(outputDir, '404.html');
+  if (!statSync(outputDir).isDirectory()) {
+    throw new Error(`Docs output directory is not a directory: ${outputDir}`);
+  }
+  writeFileSync(outputPath, createNotFoundDocument(), 'utf8');
+
+  return outputPath;
+}
+
+export function writePublicDocsReleaseSidecars(docsDir) {
+  const searchIndex = writePublicDocsSearchIndex(docsDir);
+  const notFoundPath = writePublicDocsNotFoundPage(docsDir);
+
+  return {
+    searchIndex,
+    notFoundPath,
+  };
+}
+
 export function buildStaticDocs(docsDir) {
   const outputDir = path.join(docsDir, '.vitepress', 'dist');
   rmSync(outputDir, { recursive: true, force: true });
@@ -81,6 +220,8 @@ export function buildStaticDocs(docsDir) {
       createHtmlDocument(source),
     );
   }
+
+  writePublicDocsReleaseSidecars(docsDir);
 }
 
 export function runVitepress({
@@ -101,6 +242,9 @@ export function runVitepress({
   });
 
   if (!result.error && result.status === 0) {
+    if (command === 'build') {
+      writePublicDocsReleaseSidecars(docsDir);
+    }
     return {
       mode: 'vitepress',
       status: 0,
