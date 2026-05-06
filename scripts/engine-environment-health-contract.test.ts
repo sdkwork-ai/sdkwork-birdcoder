@@ -59,7 +59,7 @@ assert.equal(resolveFallbackRuntimeMode(['sdk-stream', 'openapi-http']), 'protoc
 
 const fakeBinDir = await mkdtemp(path.join(os.tmpdir(), 'birdcoder-engine-path-'));
 try {
-  await writeFile(path.join(fakeBinDir, 'codex.cmd'), '@echo off\r\necho codex\r\n', 'utf8');
+  await writeFile(path.join(fakeBinDir, 'codex.CMD'), '@echo off\r\necho codex\r\n', 'utf8');
 
   assert.equal(
     resolveExecutablePresence('codex', {
