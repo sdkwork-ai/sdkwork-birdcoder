@@ -1,21 +1,21 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  readGitHeadFile,
+  resolveClawParityBaseline,
+} from './claw-release-parity-baseline.mjs';
+
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const clawRootDir = path.resolve(rootDir, '..', 'claw-studio');
+const clawBaseline = resolveClawParityBaseline({
+  candidateRootDir: clawRootDir,
+});
 
 function readAppFile(appRootDir, relativePath) {
   return fs.readFileSync(path.join(appRootDir, relativePath), 'utf8').replaceAll('\r\n', '\n');
-}
-
-function readAppGitHeadFile(appRootDir, relativePath) {
-  return execFileSync('git', ['-C', appRootDir, 'show', `HEAD:${relativePath}`], {
-    encoding: 'utf8',
-    windowsHide: true,
-  }).replaceAll('\r\n', '\n');
 }
 
 function normalizeBirdCoderWorkflowSource(source) {
@@ -110,7 +110,11 @@ for (const workflowRelativePath of [
     assertBirdCoderDesktopInstallerTrustGateIsExplicit(birdCoderRawSource);
   }
   const clawSource = normalizeClawOnlyReleaseWorkflowShape(
-    readAppGitHeadFile(clawRootDir, workflowRelativePath),
+    readGitHeadFile({
+      rootDir: clawBaseline.rootDir,
+      ref: clawBaseline.ref,
+      relativePath: workflowRelativePath,
+    }),
   );
   const birdCoderSource = normalizeClawOnlyReleaseWorkflowShape(
     normalizeBirdCoderWorkflowSource(birdCoderRawSource),

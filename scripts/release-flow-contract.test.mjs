@@ -286,6 +286,7 @@ assert.match(releaseFlowCommandsJoined, /studio-simulator-ui-contract\.test\.ts/
 assert.match(releaseFlowCommandsJoined, /studio-evidence-viewer-contract\.test\.ts/);
 assert.match(releaseFlowCommandsJoined, /studio-evidence-viewer-ui-contract\.test\.ts/);
 assert.match(releaseFlowCommandsJoined, /check-release-closure\.mjs/);
+assert.match(releaseFlowCommandsJoined, /claw-release-parity-baseline\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /claw-release-parity-contract\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /claw-docs-ia-contract\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /prompt-governance-contract\.test\.mjs/);

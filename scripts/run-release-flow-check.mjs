@@ -33,6 +33,7 @@ export const RELEASE_FLOW_CHECK_COMMANDS = [
   'node scripts/studio-evidence-viewer-contract.test.ts',
   'node scripts/studio-evidence-viewer-ui-contract.test.ts',
   'node scripts/check-release-closure.mjs',
+  'node scripts/claw-release-parity-baseline.test.mjs',
   'node scripts/claw-release-parity-contract.test.mjs',
   'node scripts/claw-docs-ia-contract.test.mjs',
   'node scripts/prompt-governance-contract.test.mjs',
