@@ -238,6 +238,18 @@ function resolveTransportRepoUrl(repoUrl, env = process.env) {
 }
 
 function resolveEmptyGitConfigPath(env = process.env) {
+  if (process.platform === 'win32') {
+    const tempRoot = typeof env?.RUNNER_TEMP === 'string' && env.RUNNER_TEMP.trim().length > 0
+      ? env.RUNNER_TEMP.trim()
+      : os.tmpdir();
+    const configPath = path.join(tempRoot, 'sdkwork-shared-sdk-empty-gitconfig');
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    if (!fs.existsSync(configPath)) {
+      fs.writeFileSync(configPath, '', 'utf8');
+    }
+    return configPath;
+  }
+
   return os.devNull;
 }
 

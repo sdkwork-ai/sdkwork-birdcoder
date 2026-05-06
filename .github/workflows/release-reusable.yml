@@ -141,6 +141,10 @@ jobs:
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            packages/sdkwork-birdcoder-server/src-host -> target
+            packages/sdkwork-birdcoder-desktop/src-tauri -> target
 
       - name: Install Linux desktop dependencies
         shell: bash
@@ -159,6 +163,7 @@ jobs:
             libwayland-dev \
             libxkbcommon-dev \
             pkg-config \
+            xdg-utils \
             rpm \
             patchelf
 
@@ -237,6 +242,10 @@ jobs:
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            packages/sdkwork-birdcoder-server/src-host -> target
+            packages/sdkwork-birdcoder-desktop/src-tauri -> target
 
       - name: Install Linux desktop dependencies
         if: matrix.platform == 'linux'
@@ -258,7 +267,8 @@ jobs:
             pkg-config \
             rpm \
             patchelf \
-            xvfb
+            xvfb \
+            xdg-utils
 
       - name: Setup shared SDK SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -470,6 +480,10 @@ jobs:
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            packages/sdkwork-birdcoder-server/src-host -> target
+            packages/sdkwork-birdcoder-desktop/src-tauri -> target
 
       - name: Setup shared SDK SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -563,6 +577,10 @@ jobs:
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            packages/sdkwork-birdcoder-server/src-host -> target
+            packages/sdkwork-birdcoder-desktop/src-tauri -> target
 
       - name: Setup shared SDK SSH
         uses: webfactory/ssh-agent@v0.9.0

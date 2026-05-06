@@ -18,6 +18,7 @@ const rootPackageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.j
 const webPackageJson = JSON.parse(
   fs.readFileSync(path.join(rootDir, 'packages/sdkwork-birdcoder-web/package.json'), 'utf8'),
 );
+const dockerfileSource = readWorkflowSource('deploy/docker/Dockerfile');
 const releaseFlowRunnerModule = await import(
   pathToFileURL(path.join(rootDir, 'scripts/run-release-flow-check.mjs')).href
 );
@@ -242,6 +243,13 @@ assert.match(
   reusableWorkflow,
   /node scripts\/run-cargo\.mjs test --manifest-path packages\/sdkwork-birdcoder-desktop\/src-tauri\/Cargo\.toml/,
 );
+for (const rustCacheStep of extractWorkflowStepBlocks(reusableWorkflow, 'Cache Rust dependencies')) {
+  assert.match(
+    rustCacheStep,
+    /workspaces:\s*\|\s*\n(?:\s+.*\n)*\s+packages\/sdkwork-birdcoder-server\/src-host -> target\s*\n(?:\s+.*\n)*\s+packages\/sdkwork-birdcoder-desktop\/src-tauri -> target/u,
+    'release Rust cache steps must point at actual Cargo manifest roots instead of running cargo metadata at the repository root.',
+  );
+}
 assert.match(reusableWorkflow, /actions\/attest-build-provenance@v3/);
 assert.match(reusableWorkflow, /docker\/build-push-action@v6/);
 assert.match(reusableWorkflow, /azure\/setup-helm@v4/);
@@ -299,6 +307,11 @@ const linuxDesktopSigningPreflightStep = extractWorkflowStepBlock(
   'Preflight Linux desktop package metadata environment',
 );
 assert.match(linuxDesktopSigningPreflightStep, /if: matrix\.platform == 'linux'/);
+assert.match(
+  extractWorkflowStepBlock(reusableWorkflow, 'Install Linux desktop dependencies'),
+  /xdg-utils/u,
+  'Linux desktop release dependencies must include xdg-utils because Tauri AppImage bundling requires /usr/bin/xdg-open on hosted runners.',
+);
 assert.doesNotMatch(
   linuxDesktopSigningPreflightStep,
   /secrets\./,
@@ -325,6 +338,11 @@ assert.match(
 assert.match(reusableWorkflow, /smoke-server-release-assets\.mjs/);
 assert.match(reusableWorkflow, /smoke-deployment-release-assets\.mjs --family container/);
 assert.match(reusableWorkflow, /smoke-deployment-release-assets\.mjs --family kubernetes/);
+assert.match(
+  dockerfileSource,
+  /COPY deploy\/docker\/profiles\/default\.env \/opt\/sdkwork-birdcoder\/deploy\/profiles\/default\.env/u,
+  'Container Dockerfile must copy default.env from the packaged bundle-root context path used by docker/build-push-action.',
+);
 assert.doesNotMatch(reusableWorkflow, /smoke-release-assets\.mjs web/);
 assert.match(
   reusableWorkflow,

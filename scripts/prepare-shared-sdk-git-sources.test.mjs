@@ -228,6 +228,18 @@ function createGitSshCloneSpawn({
           options.env?.GIT_CONFIG_GLOBAL,
           'shared SDK SSH clones must ignore runner-level git URL rewrites that can force git@github.com remotes back to HTTPS.',
         );
+        if (process.platform === 'win32') {
+          assert.notEqual(
+            path.normalize(String(options.env.GIT_CONFIG_GLOBAL)),
+            path.normalize(os.devNull),
+            'Windows Git cannot use the device null path as GIT_CONFIG_GLOBAL when cloning SSH shared SDK repositories.',
+          );
+          assert.equal(
+            fs.statSync(String(options.env.GIT_CONFIG_GLOBAL)).isFile(),
+            true,
+            'Windows SSH shared SDK clones must use a real empty gitconfig file to bypass runner-level URL rewrites.',
+          );
+        }
         assert.match(
           String(options.env?.GIT_SSH_COMMAND ?? ''),
           /StrictHostKeyChecking=accept-new/u,

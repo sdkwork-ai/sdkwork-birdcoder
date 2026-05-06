@@ -104,6 +104,27 @@ function writeMismatchedDesktopInstallerBundleFixture(rootDir, targetTriple) {
   );
 }
 
+function writeMacosDesktopInstallerBundleFixture(rootDir, targetTriple, archSuffix) {
+  const releaseRoot = path.join(
+    rootDir,
+    'packages',
+    'sdkwork-birdcoder-desktop',
+    'src-tauri',
+    'target',
+    targetTriple,
+    'release',
+    'bundle',
+  );
+  writeFile(
+    path.join(releaseRoot, 'macos', 'SDKWork BirdCoder.app', 'Contents', 'Info.plist'),
+    '<plist><dict><key>CFBundleName</key><string>SDKWork BirdCoder</string></dict></plist>\n',
+  );
+  writeFile(
+    path.join(releaseRoot, 'dmg', `SDKWork BirdCoder_0.1.0_${archSuffix}.dmg`),
+    'unsigned-macos-dmg\n',
+  );
+}
+
 function writeDocsDistFixture(rootDir) {
   writeFile(
     path.join(rootDir, 'docs', '.vitepress', 'dist', 'index.html'),
@@ -180,6 +201,10 @@ function writeDeploymentFixtures(rootDir) {
   writeFile(
     path.join(rootDir, 'deploy', 'docker', 'Dockerfile'),
     'FROM ubuntu:24.04\n',
+  );
+  writeFile(
+    path.join(rootDir, 'deploy', 'docker', 'profiles', 'default.env'),
+    'BIRDCODER_DATA_DIR=/var/lib/sdkwork-birdcoder\n',
   );
   writeFile(
     path.join(rootDir, 'deploy', 'docker', 'docker-compose.yml'),
@@ -450,6 +475,12 @@ withFixture((fixtureRoot) => {
     ),
     'container release archive must preserve deploy/docker/Dockerfile for the OCI build context',
   );
+  assert.ok(
+    readTarGzEntryPaths(containerResult.archivePath).includes(
+      'sdkwork-birdcoder-container-release-local-linux-x64-cpu/deploy/docker/profiles/default.env',
+    ),
+    'container release archive must preserve deploy/docker/profiles/default.env for Docker build context copies',
+  );
 
   const kubernetesResult = packageReleaseAssets('kubernetes', {
     profile: 'sdkwork-birdcoder',
@@ -565,6 +596,33 @@ withFixture((fixtureRoot) => {
       'output-dir': 'artifacts/release',
     }),
     /Missing required container web build output.*packages[\\/]sdkwork-birdcoder-web[\\/]dist.*Run `pnpm build` before packaging container release assets/u,
+  );
+});
+
+withFixture((fixtureRoot) => {
+  writeDesktopDistFixture(fixtureRoot);
+  writeMacosDesktopInstallerBundleFixture(fixtureRoot, 'aarch64-apple-darwin', 'aarch64');
+
+  const desktopResult = packageReleaseAssets('desktop', {
+    profile: 'sdkwork-birdcoder',
+    platform: 'macos',
+    arch: 'arm64',
+    target: 'aarch64-apple-darwin',
+    'output-dir': 'artifacts/release',
+  });
+
+  assert.equal(desktopResult.manifest.family, 'desktop');
+  assert.ok(
+    fs.existsSync(path.join(path.dirname(desktopResult.manifestPath), 'installers', 'app', 'SDKWork BirdCoder.app.tar.gz')),
+    'macOS desktop packaging must publish the Tauri .app bundle as a file artifact, not leave it as an uncollected directory',
+  );
+  assert.ok(
+    desktopResult.manifest.artifacts.some((artifact) => artifact.relativePath === 'desktop/macos/arm64/installers/app/SDKWork BirdCoder.app.tar.gz'),
+    'macOS desktop manifest must include the archived .app bundle artifact for required app coverage',
+  );
+  assert.ok(
+    desktopResult.manifest.artifacts.some((artifact) => artifact.relativePath === 'desktop/macos/arm64/installers/dmg/SDKWork BirdCoder_0.1.0_aarch64.dmg'),
+    'macOS desktop manifest must keep the native dmg installer artifact alongside the archived .app bundle',
   );
 });
 

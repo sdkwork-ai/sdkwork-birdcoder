@@ -219,9 +219,40 @@ function isDesktopInstallerArtifact(filePath) {
     || normalizedPath.endsWith('.rpm')
     || normalizedPath.endsWith('.appimage')
     || normalizedPath.endsWith('.dmg')
+    || normalizedPath.endsWith('.app')
     || normalizedPath.endsWith('.app.tar.gz')
     || normalizedPath.endsWith('.app.zip')
   );
+}
+
+function listDesktopInstallerArtifacts(bundleOutputRoot) {
+  if (!fs.existsSync(bundleOutputRoot)) {
+    return [];
+  }
+
+  const artifacts = [];
+  const stack = [bundleOutputRoot];
+  while (stack.length > 0) {
+    const currentPath = stack.pop();
+    for (const entry of fs.readdirSync(currentPath, { withFileTypes: true })) {
+      const absolutePath = path.join(currentPath, entry.name);
+      if (entry.isDirectory()) {
+        if (isDesktopInstallerArtifact(absolutePath)) {
+          artifacts.push(absolutePath);
+          continue;
+        }
+
+        stack.push(absolutePath);
+        continue;
+      }
+
+      if (isDesktopInstallerArtifact(absolutePath)) {
+        artifacts.push(absolutePath);
+      }
+    }
+  }
+
+  return artifacts;
 }
 
 function resolveDesktopReleaseTarget({
@@ -283,6 +314,11 @@ function desktopInstallerSatisfiesBundle({
   const firstSegment = relativePath.split('/')[0] ?? '';
   const normalizedBundle = String(bundle ?? '').trim().toLowerCase();
 
+  if (normalizedBundle === 'app') {
+    return (firstSegment === 'app' && (relativePath.endsWith('.app.zip') || relativePath.endsWith('.app.tar.gz')))
+      || (firstSegment === 'macos' && relativePath.endsWith('.app'));
+  }
+
   if (firstSegment !== normalizedBundle) {
     return false;
   }
@@ -300,9 +336,6 @@ function desktopInstallerSatisfiesBundle({
   }
   if (normalizedBundle === 'appimage') {
     return relativePath.endsWith('.appimage');
-  }
-  if (normalizedBundle === 'app') {
-    return relativePath.endsWith('.app.zip') || relativePath.endsWith('.app.tar.gz');
   }
   if (normalizedBundle === 'dmg') {
     return relativePath.endsWith('.dmg');
@@ -360,8 +393,7 @@ function resolveDesktopInstallerArtifacts({
     );
   }
 
-  const installerPaths = listFiles(bundleOutputRoot)
-    .filter(isDesktopInstallerArtifact);
+  const installerPaths = listDesktopInstallerArtifacts(bundleOutputRoot);
   if (installerPaths.length === 0) {
     throw new Error(
       `Missing native desktop installer artifacts under ${bundleOutputRoot}. Run \`pnpm tauri:build\` before packaging desktop release assets.`,
@@ -387,6 +419,10 @@ function resolveDesktopInstallerArtifactRelativePath({
     || relativePath.split('/').includes('..')
   ) {
     throw new Error(`Unsafe desktop installer artifact path under Tauri bundle output: ${installerPath}`);
+  }
+
+  if (relativePath.toLowerCase().endsWith('.app')) {
+    return path.posix.join('installers', 'app', `${path.posix.basename(relativePath)}.tar.gz`);
   }
 
   return path.posix.join('installers', relativePath);
@@ -462,7 +498,7 @@ function copyDesktopInstallerArtifacts({
     }
 
     seenOutputRelativePaths.add(normalizedOutputKey);
-    copyIfExists(
+    copyDesktopInstallerArtifact(
       installerPath,
       path.join(outputFamilyDir, ...installerRelativePath.split('/')),
     );
@@ -603,6 +639,18 @@ function createTarGzArchive({
   const gzipBuffer = zlib.gzipSync(tarBuffer);
   ensureDir(path.dirname(archivePath));
   fs.writeFileSync(archivePath, gzipBuffer);
+}
+
+function copyDesktopInstallerArtifact(installerPath, outputPath) {
+  if (fs.statSync(installerPath).isDirectory() && outputPath.toLowerCase().endsWith('.app.tar.gz')) {
+    createTarGzArchive({
+      sourceDir: installerPath,
+      archivePath: outputPath,
+    });
+    return;
+  }
+
+  copyIfExists(installerPath, outputPath);
 }
 
 function createArchive({
