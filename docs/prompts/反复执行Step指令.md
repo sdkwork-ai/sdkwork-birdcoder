@@ -19,7 +19,7 @@
 - `Terminal` 不在本仓实施主线内；真实 terminal runtime / PTY / CLI session / terminal storage 来自外部独立工程，本仓只保留集成协议、启动映射、治理与 release 回写。
 - Step `08` 的真相已调整为“外部 Terminal 集成边界”，禁止在本仓继续扩张 Terminal UI、CLI Registry、PTY、`terminal_session`、`terminal_execution` 等本体实现。
 - `web / desktop / server` 统一通过 `coding-server -> core / app / admin` 架构演进。
-- `auth / user / vip` 的统一桥接真相只能是 `sdkwork-appbase` 根包能力加 `sdkwork-birdcoder-auth`、`sdkwork-birdcoder-user` 薄适配包；相关改动必须纳入 `check:identity-standard`。
+- `auth / user / vip` 的统一桥接真相只能是 `sdkwork-appbase` 根包能力加 `sdkwork-birdcoder-auth`、`sdkwork-birdcoder-user` 薄适配包；相关改动必须纳入 `check:iam-standard`。
 - Step `15/17` 的最终存储标准只能是共享 `data-kernel` table repository。
 - desktop 共享 SQLite authority 已把 `table.sqlite.*` payload materialize 为真实 provider tables。
 - Rust host 已把 legacy `kv_store` 降级为一次性迁移源；运行时真相只能是 direct provider tables。

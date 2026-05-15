@@ -188,12 +188,12 @@ for (const staleChunkName of [
   'birdcoder-user-root',
   'birdcoder-user-pages',
   'birdcoder-user-center-surface',
-  'birdcoder-identity-runtime',
+  'birdcoder-iam-runtime',
 ]) {
   assert.doesNotMatch(
     webViteConfigSource,
     new RegExp(staleChunkName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'),
-    `Web Vite config must not retain stale ${staleChunkName} chunk governance after platform and identity chunk consolidation.`,
+    `Web Vite config must not retain stale ${staleChunkName} chunk governance after platform and IAM chunk consolidation.`,
   );
 }
 
@@ -205,7 +205,7 @@ for (const requiredChunkName of [
   'birdcoder-platform-filesystem',
   'birdcoder-codeengine',
   'birdcoder-platform-auth-runtime',
-  'birdcoder-identity-surface',
+  'birdcoder-iam-surface',
   'birdcoder-user-center-core',
   'birdcoder-code-surface',
   'birdcoder-studio-surface',
@@ -248,7 +248,7 @@ assert.match(
 );
 for (const filteredChunk of [
   'ui-workbench',
-  'birdcoder-identity-surface',
+  'birdcoder-iam-surface',
   'birdcoder-user-center-core',
   'birdcoder-platform',
   'birdcoder-platform-api-client',

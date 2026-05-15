@@ -29,7 +29,7 @@ const approvedExternalSdkworkLinkDirectories = new Map([
       'sdkwork-appbase',
       'packages',
       'pc-react',
-      'identity',
+      'iam',
       'sdkwork-auth-pc-react',
     ),
   ],
@@ -41,7 +41,7 @@ const approvedExternalSdkworkLinkDirectories = new Map([
       'sdkwork-appbase',
       'packages',
       'pc-react',
-      'identity',
+      'iam',
       'sdkwork-auth-runtime-pc-react',
     ),
   ],
@@ -53,7 +53,7 @@ const approvedExternalSdkworkLinkDirectories = new Map([
       'sdkwork-appbase',
       'packages',
       'pc-react',
-      'identity',
+      'iam',
       'sdkwork-user-center-core-pc-react',
     ),
   ],
@@ -65,7 +65,7 @@ const approvedExternalSdkworkLinkDirectories = new Map([
       'sdkwork-appbase',
       'packages',
       'pc-react',
-      'identity',
+      'iam',
       'sdkwork-user-center-pc-react',
     ),
   ],
@@ -77,7 +77,7 @@ const approvedExternalSdkworkLinkDirectories = new Map([
       'sdkwork-appbase',
       'packages',
       'pc-react',
-      'identity',
+      'iam',
       'sdkwork-user-center-validation-pc-react',
     ),
   ],
@@ -89,7 +89,7 @@ const approvedExternalSdkworkLinkDirectories = new Map([
       'sdkwork-appbase',
       'packages',
       'pc-react',
-      'identity',
+      'iam',
       'sdkwork-user-pc-react',
     ),
   ],
@@ -122,6 +122,67 @@ function collectWorkspaceManifests() {
       relativePath: path.join('packages', dirName, 'package.json'),
       manifest: readJson(path.join('packages', dirName, 'package.json')),
     }));
+}
+
+function readPackageJson(packageJsonPath) {
+  return JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+}
+
+function globSegmentToRegex(segment) {
+  const escaped = segment.replace(/[.+?^${}()|[\]\\]/gu, '\\$&');
+  return new RegExp(`^${escaped.replace(/\*/gu, '.*')}$`, 'u');
+}
+
+function collectWorkspacePackageGlobs(workspaceConfigSource) {
+  const packagesMatch = workspaceConfigSource.match(/^packages:\s*\r?\n(?<body>(?:  - .*(?:\r?\n|$))+)/m);
+  assert.ok(packagesMatch?.groups?.body, 'pnpm-workspace.yaml must define a packages section.');
+
+  const packageGlobs = [];
+  for (const line of packagesMatch.groups.body.split(/\r?\n/)) {
+    const match = line.match(/^  - ['"]([^'"]+)['"]\s*$/u);
+    if (!match) {
+      continue;
+    }
+    packageGlobs.push(match[1]);
+  }
+  return packageGlobs;
+}
+
+function expandWorkspacePackageGlob(packageGlob) {
+  const normalizedGlob = normalizeManifestDependencyPath(packageGlob);
+  const segments = normalizedGlob.split('/');
+  const wildcardIndex = segments.findIndex((segment) => segment.includes('*'));
+
+  if (wildcardIndex === -1) {
+    const packageJsonPath = path.join(rootDir, ...segments, 'package.json');
+    return fs.existsSync(packageJsonPath) ? [packageJsonPath] : [];
+  }
+
+  const baseDir = path.join(rootDir, ...segments.slice(0, wildcardIndex));
+  if (!fs.existsSync(baseDir)) {
+    return [];
+  }
+
+  const segmentRegex = globSegmentToRegex(segments[wildcardIndex]);
+  const remainingSegments = segments.slice(wildcardIndex + 1);
+  return fs.readdirSync(baseDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && segmentRegex.test(entry.name))
+    .map((entry) => path.join(baseDir, entry.name, ...remainingSegments, 'package.json'))
+    .filter((packageJsonPath) => fs.existsSync(packageJsonPath))
+    .sort();
+}
+
+function collectConfiguredWorkspacePackageNames(workspaceConfigSource) {
+  const workspacePackageNames = new Set();
+  for (const packageGlob of collectWorkspacePackageGlobs(workspaceConfigSource)) {
+    for (const packageJsonPath of expandWorkspacePackageGlob(packageGlob)) {
+      const manifest = readPackageJson(packageJsonPath);
+      if (typeof manifest.name === 'string' && manifest.name.length > 0) {
+        workspacePackageNames.add(manifest.name);
+      }
+    }
+  }
+  return workspacePackageNames;
 }
 
 function collectCatalogEntries(workspaceConfigSource) {
@@ -186,7 +247,7 @@ const qualityFastRunnerModule = await import(
 );
 const workspaceConfigSource = fs.readFileSync(workspaceConfigPath, 'utf8');
 const workspacePackages = collectWorkspaceManifests();
-const workspacePackageNames = new Set(workspacePackages.map(({ manifest }) => manifest.name));
+const workspacePackageNames = collectConfiguredWorkspacePackageNames(workspaceConfigSource);
 const catalogEntries = collectCatalogEntries(workspaceConfigSource);
 
 assert.equal(rootPackageJson.name, '@sdkwork/birdcoder-workspace');

@@ -215,7 +215,7 @@ assert.equal(
   rootAuthSurfaceAlias.replacement,
   path.resolve(
     workspaceRootDir,
-    '../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/index.ts',
+    '../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
   ),
   'Root Vite config should resolve @sdkwork/auth-pc-react from the canonical sdkwork-appbase source tree.',
 );
@@ -320,7 +320,7 @@ const webManualChunks = webConfig.build?.rollupOptions?.output?.manualChunks;
 assert.equal(typeof webManualChunks, 'function', 'Web Vite config must expose manual chunk governance.');
 for (const platformRuntimeModuleId of [
   '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
-  '/repo/packages/sdkwork-birdcoder-workbench-state/src/userProfileState.ts',
+  '/repo/packages/sdkwork-birdcoder-workbench-state/src/index.ts',
   '/repo/packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts',
 ]) {
   assert.equal(
@@ -578,18 +578,18 @@ for (const apiRuntimeModuleId of [
   );
 }
 for (const identitySurfaceModuleId of [
-  '/repo/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth.ts',
-  '/repo/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/pages/AuthPage.tsx',
-  '/repo/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-pc-react/src/index.ts',
-  '/repo/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/domain/userCenterSurfaceRouting.ts',
-  '/repo/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/pages/userCenterProfileSurfacePage.tsx',
+  '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
+  '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/pages/AuthPage.tsx',
+  '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/index.ts',
+  '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/domain/userCenterSurfaceRouting.ts',
+  '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/pages/userCenterProfileSurfacePage.tsx',
   '/repo/packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx',
   '/repo/packages/sdkwork-birdcoder-user/src/pages/UserCenterPage.tsx',
 ]) {
   assert.equal(
     webManualChunks(identitySurfaceModuleId),
-    'birdcoder-identity-surface',
-    `Web Vite config must keep mutually dependent auth/user/user-center surfaces in one lazy identity chunk to avoid circular chunk warnings for ${identitySurfaceModuleId}.`,
+    'birdcoder-iam-surface',
+    `Web Vite config must keep mutually dependent auth/user/user-center surfaces in one lazy IAM chunk to avoid circular chunk warnings for ${identitySurfaceModuleId}.`,
   );
 }
 assert.deepEqual(

@@ -1,12 +1,12 @@
 # Environment
 
-BirdCoder keeps identity and release configuration explicit and machine-readable. The canonical deployment-profile, command-matrix, and seed-contract rules come from `sdkwork-appbase`; this page is the BirdCoder operator-facing reference for the env names that those contracts resolve to.
+BirdCoder keeps IAM and release configuration explicit and machine-readable. The canonical deployment-profile, command-matrix, and seed-contract rules come from `sdkwork-appbase`; this page is the BirdCoder operator-facing reference for the env names that those contracts resolve to.
 
 ## Deployment selectors
 
-- `BIRDCODER_IDENTITY_DEPLOYMENT_MODE`
-- `BIRDCODER_USER_CENTER_LOGIN_PROVIDER`
-- `BIRDCODER_USER_CENTER_PROVIDER_KEY`
+- `BIRDCODER_IAM_DEPLOYMENT_MODE`
+- `SDKWORK_USER_CENTER_MODE`
+- `SDKWORK_USER_CENTER_PROVIDER_KEY`
 - `BIRDCODER_API_BASE_URL`
 - `VITE_BIRDCODER_API_BASE_URL`
 - `BIRDCODER_CODING_SERVER_SQLITE_FILE`
@@ -15,14 +15,14 @@ These selectors choose one canonical deployment profile before runtime bootstrap
 
 - `desktop-local`: embedded builtin-local authority, SQLite storage, local bootstrap seed enabled
 - `server-private`: dedicated BirdCoder server with the same facade routes, provider kind can be `builtin-local` or `external-user-center`
-- `cloud-saas`: BirdCoder server delegates identity to `sdkwork-cloud-app-api` and must not fall back to builtin-local authority seed
+- `cloud-saas`: BirdCoder server delegates IAM to `sdkwork-cloud-app-api` and must not fall back to builtin-local authority seed
 
 ## Builtin-local bootstrap and fast-login variables
 
-- `BIRDCODER_LOCAL_BOOTSTRAP_EMAIL`
-- `BIRDCODER_LOCAL_BOOTSTRAP_PHONE`
-- `BIRDCODER_LOCAL_BOOTSTRAP_PASSWORD`
-- `BIRDCODER_LOCAL_VERIFY_CODE_FIXED`
+- `SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_EMAIL`
+- `SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PHONE`
+- `SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD`
+- `SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED`
 - `BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT`
 - `VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED`
 - `VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT`
@@ -36,35 +36,35 @@ These selectors choose one canonical deployment profile before runtime bootstrap
 
 ## Local OAuth sample variables
 
-- `BIRDCODER_LOCAL_OAUTH_PROVIDERS`
-- `BIRDCODER_LOCAL_OAUTH_WECHAT_NAME`
-- `BIRDCODER_LOCAL_OAUTH_WECHAT_EMAIL`
-- `BIRDCODER_LOCAL_OAUTH_DOUYIN_NAME`
-- `BIRDCODER_LOCAL_OAUTH_DOUYIN_EMAIL`
-- `BIRDCODER_LOCAL_OAUTH_GITHUB_NAME`
-- `BIRDCODER_LOCAL_OAUTH_GITHUB_EMAIL`
+- `SDKWORK_USER_CENTER_LOCAL_OAUTH_PROVIDERS`
+- `SDKWORK_USER_CENTER_LOCAL_OAUTH_WECHAT_NAME`
+- `SDKWORK_USER_CENTER_LOCAL_OAUTH_WECHAT_EMAIL`
+- `SDKWORK_USER_CENTER_LOCAL_OAUTH_DOUYIN_NAME`
+- `SDKWORK_USER_CENTER_LOCAL_OAUTH_DOUYIN_EMAIL`
+- `SDKWORK_USER_CENTER_LOCAL_OAUTH_GITHUB_NAME`
+- `SDKWORK_USER_CENTER_LOCAL_OAUTH_GITHUB_EMAIL`
 
 These variables only affect the builtin-local provider lane. The same BirdCoder facade routes stay stable at `/api/app/v1/auth/oauth/url` and `/api/app/v1/auth/oauth/login`.
 
 ## Cloud app-api bridge variables
 
-- `BIRDCODER_USER_CENTER_APP_API_BASE_URL`
-- `BIRDCODER_USER_CENTER_APP_API_TIMEOUT_MS`
-- `BIRDCODER_USER_CENTER_APP_API_APP_ID`
-- `BIRDCODER_USER_CENTER_APP_API_SECRET_ID`
-- `BIRDCODER_USER_CENTER_APP_API_SHARED_SECRET`
-- `BIRDCODER_USER_CENTER_APP_API_OAUTH_PROVIDERS`
+- `SDKWORK_USER_CENTER_APP_API_BASE_URL`
+- `SDKWORK_USER_CENTER_APP_API_TIMEOUT_MS`
+- `SDKWORK_USER_CENTER_APP_ID`
+- `SDKWORK_USER_CENTER_SECRET_ID`
+- `SDKWORK_USER_CENTER_SHARED_SECRET`
+- `SDKWORK_USER_CENTER_APP_API_OAUTH_PROVIDERS`
 
-Cloud mode is fail-closed. If these upstream bridge variables are incomplete, `identity:doctor:*:cloud` and cloud server startup must report the configuration gap instead of synthesizing builtin-local fallback identity data.
+Cloud mode is fail-closed. If these upstream bridge variables are incomplete, `iam:doctor:*:cloud` and cloud server startup must report the configuration gap instead of synthesizing builtin-local fallback IAM data.
 
 ## External user-center bridge variables
 
-- `BIRDCODER_USER_CENTER_EXTERNAL_ID_HEADER`
-- `BIRDCODER_USER_CENTER_EXTERNAL_EMAIL_HEADER`
-- `BIRDCODER_USER_CENTER_EXTERNAL_NAME_HEADER`
-- `BIRDCODER_USER_CENTER_EXTERNAL_AVATAR_HEADER`
+- `SDKWORK_USER_CENTER_EXTERNAL_ID_HEADER`
+- `SDKWORK_USER_CENTER_EXTERNAL_EMAIL_HEADER`
+- `SDKWORK_USER_CENTER_EXTERNAL_NAME_HEADER`
+- `SDKWORK_USER_CENTER_EXTERNAL_AVATAR_HEADER`
 
-The external-provider lane still runs under the `server-private` identity mode, but the provider kind becomes `external-user-center`. Frontend code continues to call the same BirdCoder facade routes and does not branch on provider kind.
+The external-provider lane still runs under the `server-private` IAM mode, but the provider kind becomes `external-user-center`. Frontend code continues to call the same BirdCoder facade routes and does not branch on provider kind.
 
 ## Seed and prefill policy
 
@@ -76,12 +76,12 @@ The external-provider lane still runs under the `server-private` identity mode, 
 Use the canonical inspectors when you need to see or validate the resolved policy:
 
 ```bash
-pnpm identity:show:desktop:local
-pnpm identity:show:web:private
-pnpm identity:show:server:cloud
-pnpm identity:doctor:desktop:local
-pnpm identity:doctor:web:private
-pnpm identity:doctor:server:cloud
+pnpm iam:show:desktop:local
+pnpm iam:show:web:private
+pnpm iam:show:server:cloud
+pnpm iam:doctor:desktop:local
+pnpm iam:doctor:web:private
+pnpm iam:doctor:server:cloud
 ```
 
 ## Common release variables
@@ -99,4 +99,4 @@ pnpm identity:doctor:server:cloud
 
 ## Guidance
 
-Use workspace defaults for normal development. Override variables only when you need to validate a specific deployment slice, point at a real upstream authority, or package a release artifact. For canonical contract ownership and generated deployment-profile semantics, refer back to `sdkwork-appbase/packages/pc-react/identity`.
+Use workspace defaults for normal development. Override variables only when you need to validate a specific deployment slice, point at a real upstream authority, or package a release artifact. For canonical contract ownership and generated deployment-profile semantics, refer back to `sdkwork-appbase/packages/pc-react/iam`.

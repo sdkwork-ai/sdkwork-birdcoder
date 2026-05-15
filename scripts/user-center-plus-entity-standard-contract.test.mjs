@@ -15,15 +15,19 @@ const storageBindingsPath = new URL(
   import.meta.url,
 );
 const userCenterRustPath = new URL(
-  '../packages/sdkwork-birdcoder-server/src-host/src/user_center.rs',
+  '../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/native/tauri-rust/src/user_center_authority.rs',
   import.meta.url,
 );
 
-const serverTypesSource = await readFile(serverTypesPath, 'utf8');
-const openApiSource = await readFile(openApiPath, 'utf8');
-const dataDefinitionsSource = await readFile(dataDefinitionsPath, 'utf8');
-const storageBindingsSource = await readFile(storageBindingsPath, 'utf8');
-const userCenterRustSource = await readFile(userCenterRustPath, 'utf8');
+async function readSource(sourcePath) {
+  return (await readFile(sourcePath, 'utf8')).replace(/\r\n?/g, '\n');
+}
+
+const serverTypesSource = await readSource(serverTypesPath);
+const openApiSource = await readSource(openApiPath);
+const dataDefinitionsSource = await readSource(dataDefinitionsPath);
+const storageBindingsSource = await readSource(storageBindingsPath);
+const userCenterRustSource = await readSource(userCenterRustPath);
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -2156,16 +2160,58 @@ const canonicalJavaExactPhysicalColumns = {
   organization_id: 'INTEGER NOT NULL DEFAULT 0',
   data_scope: 'INTEGER NOT NULL DEFAULT 1',
 };
-const canonicalScopedPhysicalTableNames = [
+const appbaseOwnedIamEntityNames = [
+  'tenant',
+  'organization',
+  'organization_member',
+  'member_relation',
+  'role',
+  'permission',
+  'role_permission',
+  'user_role',
+  'user_account',
+  'oauth_account',
+  'user_profile',
+  'vip_user',
+  'account',
+];
+const canonicalIamCoreTableNames = [
+  'iam_tenant',
+  'iam_organization',
+  'iam_organization_member',
+  'iam_member_relation',
+  'iam_role',
+  'iam_permission',
+  'iam_role_permission',
+  'iam_user_role',
+  'iam_user',
+  'iam_user_identity',
+  'iam_vip_membership',
+  'iam_account',
+  'iam_session',
+  'iam_verification_code',
+  'iam_login_qr',
+];
+const legacyPlusIamCoreTableNames = [
+  'plus_tenant',
   'plus_organization',
   'plus_organization_member',
   'plus_member_relations',
-  'plus_department',
-  'plus_position',
   'plus_role',
   'plus_permission',
+  'plus_role_permission',
+  'plus_user_role',
   'plus_user',
   'plus_oauth_account',
+  'plus_vip_user',
+  'plus_account',
+  'plus_user_auth_session',
+  'plus_user_verify_code',
+  'plus_user_login_qr',
+];
+const canonicalScopedPhysicalTableNames = [
+  'plus_department',
+  'plus_position',
   'plus_user_address',
   'plus_card',
   'plus_user_card',
@@ -2184,8 +2230,6 @@ const canonicalScopedPhysicalTableNames = [
   'plus_payment_webhook_event',
   'plus_order_dispatch_rule',
   'plus_order_worker_dispatch_profile',
-  'plus_vip_user',
-  'plus_account',
   'plus_account_history',
   'plus_account_exchange_config',
   'plus_ledger_bridge',
@@ -2347,22 +2391,22 @@ const dataDefinitionExpectations = [
   {
     anchor: "defineEntity(\n    'tenant'",
     label: 'tenant entity definition',
-    fields: withoutCanonicalBaseFields(canonicalTenantTableFields),
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'organization'",
     label: 'organization entity definition',
-    fields: withoutCanonicalBaseFields(canonicalOrganizationTableFields),
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'organization_member'",
     label: 'organization_member entity definition',
-    fields: withoutCanonicalBaseFields(canonicalOrganizationMemberTableFields),
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'member_relation'",
     label: 'member_relation entity definition',
-    fields: withoutCanonicalBaseFields(canonicalMemberRelationsTableFields),
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'department'",
@@ -2377,32 +2421,32 @@ const dataDefinitionExpectations = [
   {
     anchor: "defineEntity(\n    'role'",
     label: 'role entity definition',
-    fields: withoutCanonicalBaseFields(canonicalRoleTableFields),
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'permission'",
     label: 'permission entity definition',
-    fields: withoutCanonicalBaseFields(canonicalPermissionTableFields),
+    fields: [],
   },
   {
     anchor: "defineExactEntity(\n    'role_permission'",
     label: 'role_permission entity definition',
-    fields: canonicalRolePermissionTableFields,
+    fields: [],
   },
   {
     anchor: "defineExactEntity(\n    'user_role'",
     label: 'user_role entity definition',
-    fields: canonicalUserRoleTableFields,
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'user_account'",
     label: 'user_account entity definition',
-    fields: withoutCanonicalBaseFields(canonicalUserTableFields),
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'oauth_account'",
     label: 'oauth_account entity definition',
-    fields: withoutCanonicalBaseFields(canonicalOAuthAccountTableFields),
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'user_address'",
@@ -2812,12 +2856,12 @@ const dataDefinitionExpectations = [
   {
     anchor: "defineEntity(\n    'vip_user'",
     label: 'vip_user entity definition',
-    fields: withoutCanonicalBaseFields(canonicalVipUserTableFields),
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'account'",
     label: 'account entity definition',
-    fields: withoutCanonicalBaseFields(canonicalAccountTableFields),
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'account_history'",
@@ -2891,11 +2935,19 @@ for (const expectation of dataDefinitionExpectations) {
     assert.doesNotMatch(
       dataDefinitionsSource,
       new RegExp(`${escapeRegExp(expectation.anchor)}[\\s\\S]*?\\);`),
-      `${expectation.label} must not remain as a canonical entity; use vip_user aligned with PlusVipUser.`,
+      `${expectation.label} must not remain as a BirdCoder data-kernel entity; use the appbase IAM/user-center authority.`,
     );
     continue;
   }
   assertFields(dataDefinitionsSource, expectation.anchor, expectation.fields, expectation.label);
+}
+
+for (const appbaseOwnedIamEntityName of appbaseOwnedIamEntityNames) {
+  assert.doesNotMatch(
+    dataDefinitionsSource,
+    new RegExp(`entityName:\\s*'${escapeRegExp(appbaseOwnedIamEntityName)}'`),
+    `${appbaseOwnedIamEntityName} must not remain in BirdCoder data-kernel definitions; appbase owns IAM persistence.`,
+  );
 }
 
 const projectDefinitionBlock = dataDefinitionsSource.slice(
@@ -2916,12 +2968,22 @@ for (const forbiddenProjectColumnName of [
   );
 }
 
-assertNoFields(
-  dataDefinitionsSource,
-  "defineEntity(\n    'vip_user'",
-  forbiddenVipUserColumns,
-  'vip_user entity definition',
-);
+for (const tableName of canonicalIamCoreTableNames) {
+  const bodies = collectCreateTableBodies(userCenterRustSource, tableName);
+  assert(
+    bodies.length > 0,
+    `user_center rust source must declare canonical IAM table ${tableName}.`,
+  );
+}
+
+for (const tableName of legacyPlusIamCoreTableNames) {
+  const bodies = collectCreateTableBodies(userCenterRustSource, tableName);
+  assert.equal(
+    bodies.length,
+    0,
+    `user_center rust source must not declare legacy IAM table ${tableName}; use iam_* tables from IAM_SPEC.`,
+  );
+}
 
 assert.doesNotMatch(
   userCenterRustSource,
@@ -2954,10 +3016,10 @@ assert.doesNotMatch(
   /\bBIRDCODER_APPBASE_VIP_SUBSCRIPTION_STORAGE_BINDING\b/,
   'Appbase storage bindings must expose vip_user naming instead of the legacy VIP subscription constant.',
 );
-assert.match(
+assert.doesNotMatch(
   storageBindingsSource,
-  /\bBIRDCODER_APPBASE_VIP_USER_STORAGE_BINDING\b/,
-  'Appbase storage bindings must expose a canonical vip_user storage binding.',
+  /\bBIRDCODER_APPBASE_(?:AUTH|USER_PROFILE|VIP_USER)_STORAGE_BINDING\b/,
+  'BirdCoder storage bindings must not define appbase-owned IAM auth, profile, or VIP persistence.',
 );
 
 for (const [constantName, entityName, storageScope, storageKey] of [
@@ -3432,19 +3494,19 @@ for (const expectation of rustPayloadExpectations) {
 
 const tableExpectations = [
   {
-    tableName: 'plus_tenant',
+    tableName: 'iam_tenant',
     fields: canonicalTenantTableFields,
   },
   {
-    tableName: 'plus_organization',
+    tableName: 'iam_organization',
     fields: canonicalOrganizationTableFields,
   },
   {
-    tableName: 'plus_organization_member',
+    tableName: 'iam_organization_member',
     fields: canonicalOrganizationMemberTableFields,
   },
   {
-    tableName: 'plus_member_relations',
+    tableName: 'iam_member_relation',
     fields: canonicalMemberRelationsTableFields,
   },
   {
@@ -3456,29 +3518,29 @@ const tableExpectations = [
     fields: canonicalPositionTableFields,
   },
   {
-    tableName: 'plus_role',
+    tableName: 'iam_role',
     fields: canonicalRoleTableFields,
   },
   {
-    tableName: 'plus_permission',
+    tableName: 'iam_permission',
     fields: canonicalPermissionTableFields,
   },
   {
-    tableName: 'plus_role_permission',
+    tableName: 'iam_role_permission',
     fields: canonicalRolePermissionTableFields,
     forbiddenFields: ['tenant_id', 'organization_id', 'data_scope', 'version', 'is_deleted'],
   },
   {
-    tableName: 'plus_user_role',
+    tableName: 'iam_user_role',
     fields: canonicalUserRoleTableFields,
     forbiddenFields: ['tenant_id', 'organization_id', 'data_scope', 'version', 'is_deleted'],
   },
   {
-    tableName: 'plus_user',
+    tableName: 'iam_user',
     fields: canonicalUserTableFields,
   },
   {
-    tableName: 'plus_oauth_account',
+    tableName: 'iam_user_identity',
     fields: canonicalOAuthAccountTableFields,
   },
   {
@@ -3842,12 +3904,12 @@ const tableExpectations = [
     fields: canonicalOrderWorkerDispatchProfileTableFields,
   },
   {
-    tableName: 'plus_vip_user',
+    tableName: 'iam_vip_membership',
     fields: canonicalVipUserTableFields,
     forbiddenFields: forbiddenVipUserColumns,
   },
   {
-    tableName: 'plus_account',
+    tableName: 'iam_account',
     fields: canonicalAccountTableFields,
   },
   {
@@ -3903,28 +3965,28 @@ const tableExpectations = [
     fields: canonicalVipBenefitUsageTableFields,
   },
   {
-    tableName: 'plus_user_auth_session',
+    tableName: 'iam_session',
     fields: [...commonSnakeFields, 'user_id', 'provider_key', 'provider_mode', 'status'],
   },
   {
-    tableName: 'plus_user_verify_code',
+    tableName: 'iam_verification_code',
     fields: [...commonSnakeFields, 'provider_key', 'verify_type', 'scene', 'target', 'status'],
   },
   {
-    tableName: 'plus_user_login_qr',
+    tableName: 'iam_login_qr',
     fields: [...commonSnakeFields, 'provider_key', 'qr_key', 'session_id', 'user_id', 'status'],
   },
 ];
 
 const physicalTableExpectations = [
   {
-    tableName: 'plus_tenant',
+    tableName: 'iam_tenant',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
     },
   },
   {
-    tableName: 'plus_organization',
+    tableName: 'iam_organization',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       tenant_id: 'INTEGER NOT NULL DEFAULT 0',
@@ -3934,7 +3996,7 @@ const physicalTableExpectations = [
     },
   },
   {
-    tableName: 'plus_organization_member',
+    tableName: 'iam_organization_member',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       ...canonicalScopedPhysicalColumns,
@@ -3944,7 +4006,7 @@ const physicalTableExpectations = [
     },
   },
   {
-    tableName: 'plus_member_relations',
+    tableName: 'iam_member_relation',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       ...canonicalScopedPhysicalColumns,
@@ -3978,7 +4040,7 @@ const physicalTableExpectations = [
     },
   },
   {
-    tableName: 'plus_role',
+    tableName: 'iam_role',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       ...canonicalScopedPhysicalColumns,
@@ -3986,7 +4048,7 @@ const physicalTableExpectations = [
     },
   },
   {
-    tableName: 'plus_permission',
+    tableName: 'iam_permission',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       ...canonicalScopedPhysicalColumns,
@@ -3994,7 +4056,7 @@ const physicalTableExpectations = [
     },
   },
   {
-    tableName: 'plus_role_permission',
+    tableName: 'iam_role_permission',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       role_id: 'INTEGER NOT NULL',
@@ -4004,7 +4066,7 @@ const physicalTableExpectations = [
     },
   },
   {
-    tableName: 'plus_user_role',
+    tableName: 'iam_user_role',
     requiredColumns: {
       id: 'INTEGER NULL',
       user_id: 'INTEGER NOT NULL',
@@ -4017,14 +4079,14 @@ const physicalTableExpectations = [
     requiredColumns: canonicalScopedPhysicalColumns,
   })),
   {
-    tableName: 'plus_user',
+    tableName: 'iam_user',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       ...canonicalScopedPhysicalColumns,
     },
   },
   {
-    tableName: 'plus_oauth_account',
+    tableName: 'iam_user_identity',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       ...canonicalScopedPhysicalColumns,
@@ -5687,7 +5749,7 @@ const physicalTableExpectations = [
     },
   },
   {
-    tableName: 'plus_vip_user',
+    tableName: 'iam_vip_membership',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       ...canonicalScopedPhysicalColumns,
@@ -5695,7 +5757,7 @@ const physicalTableExpectations = [
     },
   },
   {
-    tableName: 'plus_user_auth_session',
+    tableName: 'iam_session',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       tenant_id: 'INTEGER NOT NULL DEFAULT 0',
@@ -5704,7 +5766,7 @@ const physicalTableExpectations = [
     },
   },
   {
-    tableName: 'plus_user_verify_code',
+    tableName: 'iam_verification_code',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       tenant_id: 'INTEGER NOT NULL DEFAULT 0',
@@ -5712,7 +5774,7 @@ const physicalTableExpectations = [
     },
   },
   {
-    tableName: 'plus_user_login_qr',
+    tableName: 'iam_login_qr',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       tenant_id: 'INTEGER NOT NULL DEFAULT 0',
@@ -5787,8 +5849,8 @@ for (const expectation of physicalTableExpectations) {
 
 assert.match(
   userCenterRustSource,
-  /CREATE TABLE IF NOT EXISTS plus_oauth_account \([\s\S]*?UNIQUE \(oauth_provider, open_id\)[\s\S]*?UNIQUE \(oauth_provider, union_id\)[\s\S]*?\);/,
-  'plus_oauth_account must preserve Java unique constraints for provider/open_id and provider/union_id.',
+  /CREATE TABLE IF NOT EXISTS iam_user_identity \([\s\S]*?UNIQUE \(oauth_provider, open_id\)[\s\S]*?UNIQUE \(oauth_provider, union_id\)[\s\S]*?\);/,
+  'iam_user_identity must preserve Java unique constraints for provider/open_id and provider/union_id.',
 );
 
 assert.match(

@@ -145,7 +145,7 @@ try {
     'sdkwork-appbase',
     'packages',
     'pc-react',
-    'identity',
+    'iam',
     'sdkwork-auth-pc-react',
     'node_modules',
   );
@@ -203,7 +203,7 @@ try {
   );
   assert.match(
     normalizePath(appbaseBridgeRouterDomAlias.replacement),
-    /\/sdkwork-appbase\/packages\/pc-react\/identity\/sdkwork-auth-pc-react\/node_modules\/react-router-dom\/dist\/index\.mjs$/u,
+    /\/sdkwork-appbase\/packages\/pc-react\/iam\/sdkwork-auth-pc-react\/node_modules\/react-router-dom\/dist\/index\.mjs$/u,
     'git-backed release aliases must fall back to the managed appbase package dependency bridge for react-router-dom.',
   );
   const appbaseBridgeRouterAlias = appbaseBridgeAliasEntries.find((entry) => entry.find === 'react-router');
@@ -213,7 +213,7 @@ try {
   );
   assert.match(
     normalizePath(appbaseBridgeRouterAlias.replacement),
-    /\/sdkwork-appbase\/packages\/pc-react\/identity\/sdkwork-auth-pc-react\/node_modules\/react-router\/dist\/development\/index\.mjs$/u,
+    /\/sdkwork-appbase\/packages\/pc-react\/iam\/sdkwork-auth-pc-react\/node_modules\/react-router\/dist\/development\/index\.mjs$/u,
     'git-backed release aliases must fall back to the managed appbase package dependency bridge for react-router.',
   );
 } finally {

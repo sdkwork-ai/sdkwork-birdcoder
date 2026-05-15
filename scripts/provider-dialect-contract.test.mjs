@@ -50,78 +50,42 @@ function assertSqliteLongIdentifierColumns(statement, tableName, requiredColumns
   }
 }
 
+const appbaseOwnedLegacyIamTableNames = [
+  'plus_tenant',
+  'plus_organization',
+  'plus_organization_member',
+  'plus_member_relations',
+  'plus_role',
+  'plus_permission',
+  'plus_role_permission',
+  'plus_user_role',
+  'plus_user',
+  'plus_oauth_account',
+  'plus_vip_user',
+  'plus_account',
+  'plus_user_auth_session',
+  'plus_user_verify_code',
+  'plus_user_login_qr',
+];
+
 const sqliteWorkspaceMigration = findCreateTableStatement(
   codingServerMigration,
   'sqlite',
   'plus_workspace',
 );
 assert.ok(sqliteWorkspaceMigration, 'SQLite coding server migration must declare plus_workspace.');
-const sqliteOrganizationMigration = findCreateTableStatement(
-  codingServerMigration,
-  'sqlite',
-  'plus_organization',
-);
-assert.ok(sqliteOrganizationMigration, 'SQLite coding server migration must declare plus_organization.');
-assertSqliteLongIdentifierColumns(sqliteOrganizationMigration, 'plus_organization', {
-  id: 'INTEGER PRIMARY KEY',
-  tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-  organization_id: 'INTEGER NOT NULL DEFAULT 0',
-  parent_id: 'INTEGER NULL',
-});
-assert.match(
-  sqliteOrganizationMigration,
-  /\bdata_scope INTEGER NOT NULL DEFAULT 1\b/,
-  'SQLite plus_organization.data_scope must store PlusDataScope.PRIVATE as integer value 1 by default.',
-);
-const sqliteOrganizationMemberMigration = findCreateTableStatement(
-  codingServerMigration,
-  'sqlite',
-  'plus_organization_member',
-);
-assert.ok(
-  sqliteOrganizationMemberMigration,
-  'SQLite coding server migration must declare plus_organization_member.',
-);
-assertSqliteLongIdentifierColumns(sqliteOrganizationMemberMigration, 'plus_organization_member', {
-  id: 'INTEGER PRIMARY KEY',
-  tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-  organization_id: 'INTEGER NOT NULL DEFAULT 0',
-  user_id: 'INTEGER NOT NULL',
-  owner_id: 'INTEGER NOT NULL',
-});
-assert.match(
-  sqliteOrganizationMemberMigration,
-  /\bowner INTEGER NOT NULL\b/,
-  'SQLite plus_organization_member.owner must store PlusPlatformOwner converter values as integer.',
-);
-const sqliteMemberRelationsMigration = findCreateTableStatement(
-  codingServerMigration,
-  'sqlite',
-  'plus_member_relations',
-);
-assert.ok(
-  sqliteMemberRelationsMigration,
-  'SQLite coding server migration must declare plus_member_relations.',
-);
-assertSqliteLongIdentifierColumns(sqliteMemberRelationsMigration, 'plus_member_relations', {
-  id: 'INTEGER PRIMARY KEY',
-  tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-  organization_id: 'INTEGER NOT NULL DEFAULT 0',
-  parent_id: 'INTEGER NULL',
-  member_id: 'INTEGER NOT NULL',
-  owner_id: 'INTEGER NOT NULL',
-  target_id: 'INTEGER NOT NULL',
-});
-assert.match(
-  sqliteMemberRelationsMigration,
-  /\bowner INTEGER NOT NULL\b/,
-  'SQLite plus_member_relations.owner must store PlusPlatformOwner converter values as integer.',
-);
-assert.match(
-  sqliteMemberRelationsMigration,
-  /\brelation_type INTEGER NOT NULL\b/,
-  'SQLite plus_member_relations.relation_type must store MemberRelationType converter values as integer.',
-);
+for (const tableName of appbaseOwnedLegacyIamTableNames) {
+  assert.equal(
+    findCreateTableStatement(codingServerMigration, 'sqlite', tableName),
+    undefined,
+    `SQLite coding server migration must not declare appbase-owned legacy IAM table ${tableName}.`,
+  );
+  assert.equal(
+    findCreateTableStatement(codingServerMigration, 'postgresql', tableName),
+    undefined,
+    `PostgreSQL coding server migration must not declare appbase-owned legacy IAM table ${tableName}.`,
+  );
+}
 const sqliteDepartmentMigration = findCreateTableStatement(
   codingServerMigration,
   'sqlite',
@@ -159,129 +123,6 @@ assert.match(
   /\bowner INTEGER NOT NULL\b/,
   'SQLite plus_position.owner must store PlusPlatformOwner converter values as integer.',
 );
-const sqliteRoleMigration = findCreateTableStatement(
-  codingServerMigration,
-  'sqlite',
-  'plus_role',
-);
-assert.ok(sqliteRoleMigration, 'SQLite coding server migration must declare plus_role.');
-assertSqliteLongIdentifierColumns(sqliteRoleMigration, 'plus_role', {
-  id: 'INTEGER PRIMARY KEY',
-  tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-  organization_id: 'INTEGER NOT NULL DEFAULT 0',
-});
-assert.match(
-  sqliteRoleMigration,
-  /\bstatus INTEGER NOT NULL DEFAULT 1\b/,
-  'SQLite plus_role.status must store RoleStatus converter values as integer.',
-);
-const sqlitePermissionMigration = findCreateTableStatement(
-  codingServerMigration,
-  'sqlite',
-  'plus_permission',
-);
-assert.ok(sqlitePermissionMigration, 'SQLite coding server migration must declare plus_permission.');
-assertSqliteLongIdentifierColumns(sqlitePermissionMigration, 'plus_permission', {
-  id: 'INTEGER PRIMARY KEY',
-  tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-  organization_id: 'INTEGER NOT NULL DEFAULT 0',
-});
-assert.match(
-  sqlitePermissionMigration,
-  /\bstatus INTEGER NOT NULL\b/,
-  'SQLite plus_permission.status must store PermissionStatus converter values as integer.',
-);
-const sqliteRolePermissionMigration = findCreateTableStatement(
-  codingServerMigration,
-  'sqlite',
-  'plus_role_permission',
-);
-assert.ok(
-  sqliteRolePermissionMigration,
-  'SQLite coding server migration must declare plus_role_permission.',
-);
-assertSqliteLongIdentifierColumns(sqliteRolePermissionMigration, 'plus_role_permission', {
-  id: 'INTEGER PRIMARY KEY',
-  role_id: 'INTEGER NOT NULL',
-  permission_id: 'INTEGER NOT NULL',
-  operator_id: 'INTEGER NULL',
-});
-assert.match(
-  sqliteRolePermissionMigration,
-  /\bstatus INTEGER NOT NULL DEFAULT 1\b/,
-  'SQLite plus_role_permission.status must store PlusCommonStatus.ACTIVE as integer value 1 by default.',
-);
-assert.doesNotMatch(
-  sqliteRolePermissionMigration,
-  /\b(?:tenant_id|organization_id|data_scope|version|is_deleted)\b/,
-  'SQLite plus_role_permission must follow Java join-table columns and not emit scoped/base extras.',
-);
-const sqliteUserRoleMigration = findCreateTableStatement(
-  codingServerMigration,
-  'sqlite',
-  'plus_user_role',
-);
-assert.ok(sqliteUserRoleMigration, 'SQLite coding server migration must declare plus_user_role.');
-assertSqliteLongIdentifierColumns(sqliteUserRoleMigration, 'plus_user_role', {
-  id: 'INTEGER NULL',
-  user_id: 'INTEGER NOT NULL',
-  role_id: 'INTEGER NOT NULL',
-  operator_id: 'INTEGER NULL',
-});
-assert.match(
-  sqliteUserRoleMigration,
-  /\bPRIMARY KEY \(user_id, role_id\)/,
-  'SQLite plus_user_role must preserve Java composite primary key user_id, role_id.',
-);
-assert.doesNotMatch(
-  sqliteUserRoleMigration,
-  /\b(?:tenant_id|organization_id|data_scope|version|is_deleted)\b/,
-  'SQLite plus_user_role must follow Java join-table columns and not emit scoped/base extras.',
-);
-const sqliteUserMigration = findCreateTableStatement(codingServerMigration, 'sqlite', 'plus_user');
-assert.ok(sqliteUserMigration, 'SQLite coding server migration must declare plus_user.');
-assertSqliteLongIdentifierColumns(sqliteUserMigration, 'plus_user', {
-  id: 'INTEGER PRIMARY KEY',
-  tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-  organization_id: 'INTEGER NOT NULL DEFAULT 0',
-});
-assert.match(
-  sqliteUserMigration,
-  /\bdata_scope INTEGER NOT NULL DEFAULT 1\b/,
-  'SQLite plus_user.data_scope must store PlusDataScope.PRIVATE as integer value 1 by default.',
-);
-const sqliteOAuthAccountMigration = findCreateTableStatement(
-  codingServerMigration,
-  'sqlite',
-  'plus_oauth_account',
-);
-assert.ok(
-  sqliteOAuthAccountMigration,
-  'SQLite coding server migration must declare plus_oauth_account.',
-);
-assertSqliteLongIdentifierColumns(sqliteOAuthAccountMigration, 'plus_oauth_account', {
-  id: 'INTEGER PRIMARY KEY',
-  tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-  organization_id: 'INTEGER NOT NULL DEFAULT 0',
-  user_id: 'INTEGER NOT NULL',
-  channel_account_id: 'INTEGER NULL',
-});
-assert.ok(
-  codingServerMigration.sqlByProvider.sqlite?.some((statement) =>
-    statement.includes(
-      'CREATE UNIQUE INDEX IF NOT EXISTS idx_user_auth_relations_openid ON plus_oauth_account (oauth_provider, open_id)',
-    ),
-  ),
-  'SQLite plus_oauth_account must preserve Java unique provider/open_id constraint.',
-);
-assert.ok(
-  codingServerMigration.sqlByProvider.sqlite?.some((statement) =>
-    statement.includes(
-      'CREATE UNIQUE INDEX IF NOT EXISTS idx_user_auth_relations_unionid ON plus_oauth_account (oauth_provider, union_id)',
-    ),
-  ),
-  'SQLite plus_oauth_account must preserve Java unique provider/union_id constraint.',
-);
 const sqliteUserAddressMigration = findCreateTableStatement(
   codingServerMigration,
   'sqlite',
@@ -301,8 +142,6 @@ assert.match(
 );
 
 const canonicalUserCenterBusinessTables = [
-  'plus_tenant',
-  'plus_account',
   'plus_account_history',
   'plus_account_exchange_config',
   'plus_ledger_bridge',
@@ -395,7 +234,6 @@ const canonicalUserCenterBusinessTables = [
   'plus_payment_webhook_event',
   'plus_order_dispatch_rule',
   'plus_order_worker_dispatch_profile',
-  'plus_vip_user',
   'plus_vip_level',
   'plus_vip_benefit',
   'plus_vip_level_benefit',
@@ -420,14 +258,6 @@ for (const tableName of canonicalUserCenterBusinessTables) {
 }
 
 const sqliteLongIdentifierColumnsByTable = {
-  plus_tenant: { id: 'INTEGER PRIMARY KEY', biz_id: 'INTEGER NULL', admin_user_id: 'INTEGER NULL' },
-  plus_account: {
-    id: 'INTEGER PRIMARY KEY',
-    tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-    organization_id: 'INTEGER NOT NULL DEFAULT 0',
-    user_id: 'INTEGER NULL',
-    owner_id: 'INTEGER NOT NULL',
-  },
   plus_account_history: {
     id: 'INTEGER PRIMARY KEY',
     tenant_id: 'INTEGER NOT NULL DEFAULT 0',
@@ -1112,13 +942,6 @@ const sqliteLongIdentifierColumnsByTable = {
     organization_id: 'INTEGER NOT NULL DEFAULT 0',
     user_id: 'INTEGER NOT NULL',
   },
-  plus_vip_user: {
-    id: 'INTEGER PRIMARY KEY',
-    tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-    organization_id: 'INTEGER NOT NULL DEFAULT 0',
-    user_id: 'INTEGER NOT NULL',
-    vip_level_id: 'INTEGER NULL',
-  },
   plus_vip_level: {
     id: 'INTEGER PRIMARY KEY',
     tenant_id: 'INTEGER NOT NULL DEFAULT 0',
@@ -1356,8 +1179,6 @@ assert.match(
 );
 
 for (const [tableName, columnName] of [
-  ['plus_account', 'available_balance'],
-  ['plus_account', 'frozen_balance'],
   ['plus_account_history', 'amount'],
   ['plus_account_history', 'balance_before'],
   ['plus_account_history', 'balance_after'],
@@ -2326,76 +2147,6 @@ const postgresProjectMigration = codingServerMigration.sqlByProvider.postgresql?
 assert.ok(postgresProjectMigration, 'PostgreSQL coding server migration must declare plus_project.');
 const postgresWorkspaceMigration = findCreateTableStatement(codingServerMigration, 'postgresql', 'plus_workspace');
 assert.ok(postgresWorkspaceMigration, 'PostgreSQL coding server migration must declare plus_workspace.');
-const postgresOrganizationMigration = findCreateTableStatement(codingServerMigration, 'postgresql', 'plus_organization');
-assert.ok(postgresOrganizationMigration, 'PostgreSQL coding server migration must declare plus_organization.');
-assert.match(
-  postgresOrganizationMigration,
-  /\bid BIGINT PRIMARY KEY\b/,
-  'PostgreSQL plus_organization.id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresOrganizationMigration,
-  /\btenant_id BIGINT NOT NULL DEFAULT 0\b/,
-  'PostgreSQL plus_organization.tenant_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresOrganizationMigration,
-  /\borganization_id BIGINT NOT NULL DEFAULT 0\b/,
-  'PostgreSQL plus_organization.organization_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresOrganizationMigration,
-  /\bparent_id BIGINT NULL\b/,
-  'PostgreSQL plus_organization.parent_id must use Java Long-compatible bigint storage.',
-);
-const postgresOrganizationMemberMigration = findCreateTableStatement(
-  codingServerMigration,
-  'postgresql',
-  'plus_organization_member',
-);
-assert.ok(
-  postgresOrganizationMemberMigration,
-  'PostgreSQL coding server migration must declare plus_organization_member.',
-);
-assert.match(
-  postgresOrganizationMemberMigration,
-  /\buser_id BIGINT NOT NULL\b/,
-  'PostgreSQL plus_organization_member.user_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresOrganizationMemberMigration,
-  /\bowner_id BIGINT NOT NULL\b/,
-  'PostgreSQL plus_organization_member.owner_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresOrganizationMemberMigration,
-  /\bowner INTEGER NOT NULL\b/,
-  'PostgreSQL plus_organization_member.owner must store converter values as integer.',
-);
-const postgresMemberRelationsMigration = findCreateTableStatement(
-  codingServerMigration,
-  'postgresql',
-  'plus_member_relations',
-);
-assert.ok(
-  postgresMemberRelationsMigration,
-  'PostgreSQL coding server migration must declare plus_member_relations.',
-);
-assert.match(
-  postgresMemberRelationsMigration,
-  /\bmember_id BIGINT NOT NULL\b/,
-  'PostgreSQL plus_member_relations.member_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresMemberRelationsMigration,
-  /\btarget_id BIGINT NOT NULL\b/,
-  'PostgreSQL plus_member_relations.target_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresMemberRelationsMigration,
-  /\brelation_type INTEGER NOT NULL\b/,
-  'PostgreSQL plus_member_relations.relation_type must store converter values as integer.',
-);
 const postgresDepartmentMigration = findCreateTableStatement(
   codingServerMigration,
   'postgresql',
@@ -2423,126 +2174,6 @@ assert.match(
   /\bowner_id BIGINT NOT NULL\b/,
   'PostgreSQL plus_position.owner_id must use Java Long-compatible bigint storage.',
 );
-const postgresRoleMigration = findCreateTableStatement(codingServerMigration, 'postgresql', 'plus_role');
-assert.ok(postgresRoleMigration, 'PostgreSQL coding server migration must declare plus_role.');
-assert.match(
-  postgresRoleMigration,
-  /\bstatus INTEGER NOT NULL DEFAULT 1\b/,
-  'PostgreSQL plus_role.status must store RoleStatus converter values as integer.',
-);
-const postgresPermissionMigration = findCreateTableStatement(
-  codingServerMigration,
-  'postgresql',
-  'plus_permission',
-);
-assert.ok(postgresPermissionMigration, 'PostgreSQL coding server migration must declare plus_permission.');
-assert.match(
-  postgresPermissionMigration,
-  /\bstatus INTEGER NOT NULL\b/,
-  'PostgreSQL plus_permission.status must store PermissionStatus converter values as integer.',
-);
-const postgresRolePermissionMigration = findCreateTableStatement(
-  codingServerMigration,
-  'postgresql',
-  'plus_role_permission',
-);
-assert.ok(
-  postgresRolePermissionMigration,
-  'PostgreSQL coding server migration must declare plus_role_permission.',
-);
-assert.match(
-  postgresRolePermissionMigration,
-  /\brole_id BIGINT NOT NULL\b/,
-  'PostgreSQL plus_role_permission.role_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresRolePermissionMigration,
-  /\bpermission_id BIGINT NOT NULL\b/,
-  'PostgreSQL plus_role_permission.permission_id must use Java Long-compatible bigint storage.',
-);
-assert.doesNotMatch(
-  postgresRolePermissionMigration,
-  /\b(?:tenant_id|organization_id|data_scope|version|is_deleted)\b/,
-  'PostgreSQL plus_role_permission must follow Java join-table columns and not emit scoped/base extras.',
-);
-const postgresUserRoleMigration = findCreateTableStatement(
-  codingServerMigration,
-  'postgresql',
-  'plus_user_role',
-);
-assert.ok(postgresUserRoleMigration, 'PostgreSQL coding server migration must declare plus_user_role.');
-assert.match(
-  postgresUserRoleMigration,
-  /\buser_id BIGINT NOT NULL\b/,
-  'PostgreSQL plus_user_role.user_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresUserRoleMigration,
-  /\brole_id BIGINT NOT NULL\b/,
-  'PostgreSQL plus_user_role.role_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresUserRoleMigration,
-  /\bPRIMARY KEY \(user_id, role_id\)/,
-  'PostgreSQL plus_user_role must preserve Java composite primary key user_id, role_id.',
-);
-assert.doesNotMatch(
-  postgresUserRoleMigration,
-  /\b(?:tenant_id|organization_id|data_scope|version|is_deleted)\b/,
-  'PostgreSQL plus_user_role must follow Java join-table columns and not emit scoped/base extras.',
-);
-const postgresUserMigration = findCreateTableStatement(codingServerMigration, 'postgresql', 'plus_user');
-assert.ok(postgresUserMigration, 'PostgreSQL coding server migration must declare plus_user.');
-assert.match(
-  postgresUserMigration,
-  /\bid BIGINT PRIMARY KEY\b/,
-  'PostgreSQL plus_user.id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresUserMigration,
-  /\btenant_id BIGINT NOT NULL DEFAULT 0\b/,
-  'PostgreSQL plus_user.tenant_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresUserMigration,
-  /\borganization_id BIGINT NOT NULL DEFAULT 0\b/,
-  'PostgreSQL plus_user.organization_id must use Java Long-compatible bigint storage.',
-);
-const postgresOAuthAccountMigration = findCreateTableStatement(
-  codingServerMigration,
-  'postgresql',
-  'plus_oauth_account',
-);
-assert.ok(
-  postgresOAuthAccountMigration,
-  'PostgreSQL coding server migration must declare plus_oauth_account.',
-);
-assert.match(
-  postgresOAuthAccountMigration,
-  /\buser_id BIGINT NOT NULL\b/,
-  'PostgreSQL plus_oauth_account.user_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresOAuthAccountMigration,
-  /\bchannel_account_id BIGINT NULL\b/,
-  'PostgreSQL plus_oauth_account.channel_account_id must use Java Long-compatible bigint storage.',
-);
-assert.ok(
-  codingServerMigration.sqlByProvider.postgresql?.some((statement) =>
-    statement.includes(
-      'CREATE UNIQUE INDEX IF NOT EXISTS idx_user_auth_relations_openid ON plus_oauth_account (oauth_provider, open_id)',
-    ),
-  ),
-  'PostgreSQL plus_oauth_account must preserve Java unique provider/open_id constraint.',
-);
-assert.ok(
-  codingServerMigration.sqlByProvider.postgresql?.some((statement) =>
-    statement.includes(
-      'CREATE UNIQUE INDEX IF NOT EXISTS idx_user_auth_relations_unionid ON plus_oauth_account (oauth_provider, union_id)',
-    ),
-  ),
-  'PostgreSQL plus_oauth_account must preserve Java unique provider/union_id constraint.',
-);
 const postgresUserAddressMigration = findCreateTableStatement(
   codingServerMigration,
   'postgresql',
@@ -2564,14 +2195,6 @@ assert.match(
 );
 
 const postgresLongIdentifierColumnsByTable = {
-  plus_tenant: { id: 'BIGINT PRIMARY KEY', biz_id: 'BIGINT NULL', admin_user_id: 'BIGINT NULL' },
-  plus_account: {
-    id: 'BIGINT PRIMARY KEY',
-    tenant_id: 'BIGINT NOT NULL DEFAULT 0',
-    organization_id: 'BIGINT NOT NULL DEFAULT 0',
-    user_id: 'BIGINT NULL',
-    owner_id: 'BIGINT NOT NULL',
-  },
   plus_account_history: {
     id: 'BIGINT PRIMARY KEY',
     tenant_id: 'BIGINT NOT NULL DEFAULT 0',
@@ -2709,13 +2332,6 @@ const postgresLongIdentifierColumnsByTable = {
     tenant_id: 'BIGINT NOT NULL DEFAULT 0',
     organization_id: 'BIGINT NOT NULL DEFAULT 0',
     user_id: 'BIGINT NOT NULL',
-  },
-  plus_vip_user: {
-    id: 'BIGINT PRIMARY KEY',
-    tenant_id: 'BIGINT NOT NULL DEFAULT 0',
-    organization_id: 'BIGINT NOT NULL DEFAULT 0',
-    user_id: 'BIGINT NOT NULL',
-    vip_level_id: 'BIGINT NULL',
   },
   plus_vip_level: {
     id: 'BIGINT PRIMARY KEY',
@@ -3455,8 +3071,6 @@ assert.match(
 );
 
 for (const [tableName, columnName] of [
-  ['plus_account', 'available_balance'],
-  ['plus_account', 'frozen_balance'],
   ['plus_account_history', 'amount'],
   ['plus_account_history', 'balance_before'],
   ['plus_account_history', 'balance_after'],

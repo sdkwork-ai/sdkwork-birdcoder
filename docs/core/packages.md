@@ -1,4 +1,4 @@
-# Packages
+﻿# Packages
 
 BirdCoder uses the same package-first workspace approach as Claw Studio, with BirdCoder-specific product behavior.
 
@@ -32,4 +32,4 @@ BirdCoder uses the same package-first workspace approach as Claw Studio, with Bi
 
 ## Business packages
 
-BirdCoder business modules stay product-specific and remain outside the Claw feature set. The current workspace keeps packages for chat, code, settings, templates, terminal, and skills, while `@sdkwork/birdcoder-auth` and `@sdkwork/birdcoder-user` form the canonical BirdCoder identity surface for `auth`, `user`, and `vip` capability flows. `@sdkwork/birdcoder-auth` owns login-facing route contracts and shared auth UI entrypoints, while `@sdkwork/birdcoder-user` owns the shared user-center runtime, validation bridge, storage-key standards, membership flows, and user-facing pages. `check:identity-standard` protects those boundaries from drifting away from the sibling `sdkwork-appbase` reference architecture.
+BirdCoder business modules stay product-specific and remain outside the Claw feature set. The current workspace keeps packages for chat, code, settings, templates, terminal, and skills, while `@sdkwork/birdcoder-auth` and `@sdkwork/birdcoder-user` form the canonical BirdCoder IAM surface for `auth`, `user`, and `vip` capability flows. `@sdkwork/birdcoder-auth` owns login-facing route contracts and shared auth UI entrypoints, while `@sdkwork/birdcoder-user` owns the shared user-center runtime, validation bridge, storage-key standards, membership flows, and user-facing pages. `check:iam-standard` protects those boundaries from drifting away from the sibling `sdkwork-appbase` reference architecture.

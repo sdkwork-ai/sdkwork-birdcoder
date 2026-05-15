@@ -66,11 +66,11 @@
 **Commands:**
 - `node scripts/user-center-plus-entity-standard-contract.test.mjs`
 - `pnpm.cmd test:user-center-standard`
-- `pnpm.cmd check:identity-standard`
+- `pnpm.cmd check:iam-standard`
 - `pnpm.cmd typecheck`
 
 - [ ] Run targeted contract first.
 - [ ] Run the user-center standard suite.
-- [ ] Run the identity standard suite.
+- [ ] Run the IAM standard suite.
 - [ ] Run TypeScript typecheck.
 - [ ] If full lint is feasible after targeted checks, run `pnpm.cmd lint`; if unrelated dirty-worktree failures block it, report exact failures.

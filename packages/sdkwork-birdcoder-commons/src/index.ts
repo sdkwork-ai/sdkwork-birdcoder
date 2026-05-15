@@ -63,7 +63,7 @@ export {
 export * from './terminal/sessions.ts';
 export * from './terminal/useBirdcoderTerminalLaunchPlanResolver.ts';
 export * from './settings/appSettings.ts';
-export * from './theme/birdcoderIdentityTheme.ts';
+export * from './theme/birdcoderTheme.ts';
 export * from './workbench/editorRecovery.ts';
 export * from './workbench/fileChangeRestore.ts';
 export * from './workbench/fileSearch.ts';

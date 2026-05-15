@@ -114,13 +114,13 @@ for (const [requiredHeader, allowListPattern, preflightPattern] of [
   ],
   [
     'x-sdkwork-user-center-session-id',
-    /HeaderName::from_static\(BIRDCODER_SESSION_HEADER_NAME\)/,
-    /BIRDCODER_SESSION_HEADER_NAME/,
+    /HeaderName::from_static\(USER_CENTER_SESSION_HEADER_NAME\)/,
+    /USER_CENTER_SESSION_HEADER_NAME/,
   ],
   [
-    'access-token',
-    /HeaderName::from_static\("access-token"\)/,
-    /"access-token"/,
+    'Sdkwork-Access-Token',
+    /parse_canonical_user_center_header_name\(USER_CENTER_ACCESS_TOKEN_HEADER_NAME\)/,
+    /USER_CENTER_ACCESS_TOKEN_HEADER_NAME/,
   ],
   [
     'refresh-token',

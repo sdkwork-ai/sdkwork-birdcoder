@@ -2,14 +2,14 @@
 
 [English](./README.md) | **简体中文**
 
-SDKWork BirdCoder 是一个包优先组织的 AI IDE 工作区。它保留 BirdCoder 自身的产品模块，同时把宿主边界、发布流程、CI 规则、部署资产和文档治理统一对齐到 Claw Studio 的架构标准。身份体系、用户中心、认证运行时、部署画像、命令矩阵和 seed 契约统一来自 `sdkwork-appbase`，BirdCoder 只负责承接产品品牌、命名空间、路由和样板基础数据。
+SDKWork BirdCoder 是一个包优先组织的 AI IDE 工作区。它保留 BirdCoder 自身的产品模块，同时把宿主边界、发布流程、CI 规则、部署资产和文档治理统一对齐到 Claw Studio 的架构标准。IAM、用户中心、认证运行时、部署画像、命令矩阵和 seed 契约统一来自 `sdkwork-appbase`，BirdCoder 只负责承接产品品牌、命名空间、路由和样板基础数据。
 
 > BirdCoder 不是通用脚手架模板。这个仓库同时包含多宿主 AI IDE、可执行架构契约、发布自动化和部署资产，并且这些内容都在同一个受治理工作区里持续演进。
 
 ## 仓库交付内容
 
 - 一套共享的 AI IDE 工作区，可从同一套包图运行在 Web、桌面端和原生服务端。
-- 面向产品的工作面，包括代码、Studio、终端、设置、技能、模板，以及共享的身份与会员能力。
+- 面向产品的工作面，包括代码、Studio、终端、设置、技能、模板，以及共享的 IAM 用户中心与会员能力。
 - 通过共享内核元数据和独立适配器接入 Codex、Claude Code、Gemini、OpenCode 四类引擎。
 - 支持 `desktop`、`server`、`container`、`kubernetes`、`web` 五类发布产物，并包含 smoke 与 finalize 流程。
 - Prompt、文档、包结构、发布闭环、质量分层和架构边界全部通过可执行治理规则进行约束。
@@ -122,26 +122,26 @@ pnpm docs:dev
 - Web 工作区：`http://localhost:3000`
 - 文档预览：`http://127.0.0.1:4173`
 
-## 身份部署模式
+## IAM 部署模式
 
-BirdCoder 通过根级 `pnpm` 包装脚本统一暴露三种标准身份部署模式：
+BirdCoder 通过根级 `pnpm` 包装脚本统一暴露三种标准 IAM 部署模式：
 
-| 模式 | 桌面端命令 | 服务端命令 | 身份权威 |
+| 模式 | 桌面端命令 | 服务端命令 | IAM 权威 |
 | --- | --- | --- | --- |
 | `desktop-local` | `pnpm tauri:dev` 或 `pnpm tauri:dev:local` | 不需要单独服务端 | Tauri 内嵌 coding server，并使用本地 sqlite 用户中心 |
 | `server-private` | `pnpm tauri:dev:private` | `pnpm server:dev` 或 `pnpm server:dev:private` | 私有化 BirdCoder Server 承载本地用户中心和认证接口 |
-| `cloud-saas` | `pnpm tauri:dev:cloud` | `pnpm server:dev:cloud` | BirdCoder Server 将身份能力委托给 `sdkwork-cloud-app-api` |
+| `cloud-saas` | `pnpm tauri:dev:cloud` | `pnpm server:dev:cloud` | BirdCoder Server 将 IAM 能力委托给 `sdkwork-cloud-app-api` |
 
-这些包装脚本会通过 Vite 的 env 加载器读取 `.env`、`.env.local`、`.env.development`、`.env.development.local`、`.env.production`、`.env.production.local`，然后按模式补齐 sqlite 路径、远端 API base URL、用户中心 provider、本地 OAuth provider 与开发态快速登录默认值。前端 runtime bridge 也会消费 `VITE_BIRDCODER_IDENTITY_DEPLOYMENT_MODE`，因此远端私有化服务端模式会被明确识别为 `builtin-local`，不会在内部被误判成 cloud 模式。应用加载 `/api/app/v1/auth/config` 之后，还会把服务端返回的 `providerKind` 与 `providerKey` 回灌到 runtime binding，确保前端真实运行时始终以服务端权威配置为准。
+这些包装脚本会通过 Vite 的 env 加载器读取 `.env`、`.env.local`、`.env.development`、`.env.development.local`、`.env.production`、`.env.production.local`，然后按模式补齐 sqlite 路径、远端 API base URL、用户中心 provider、本地 OAuth provider 与开发态快速登录默认值。前端 runtime bridge 也会消费 `VITE_BIRDCODER_IAM_DEPLOYMENT_MODE`，因此远端私有化服务端模式会被明确识别为 `builtin-local`，不会在内部被误判成 cloud 模式。应用加载 `/api/app/v1/auth/config` 之后，还会把服务端返回的 `providerKind` 与 `providerKey` 回灌到 runtime binding，确保前端真实运行时始终以服务端权威配置为准。
 
-作为样板工程，BirdCoder 现在还提供一组 `stack:*` 一键开发栈命令。在需要单独 BirdCoder Server 的模式下，这组命令会先按统一身份配置启动原生服务端，等待 `/api/core/v1/health` 与 `/api/app/v1/auth/config` 这两个标准接口都成功返回后，再启动匹配的桌面端或 Web 宿主，避免接入方手工协调多个终端。
+作为样板工程，BirdCoder 现在还提供一组 `stack:*` 一键开发栈命令。在需要单独 BirdCoder Server 的模式下，这组命令会先按统一 IAM 配置启动原生服务端，等待 `/api/core/v1/health` 与 `/api/app/v1/auth/config` 这两个标准接口都成功返回后，再启动匹配的桌面端或 Web 宿主，避免接入方手工协调多个终端。
 
 `server-private` 和 `cloud-saas` 的桌面开发命令在本地迭代时，会默认把客户端 API base URL 指向 `http://127.0.0.1:10240`。而生产打包场景更严格，`tauri:build:private` 与 `tauri:build:cloud` 必须显式设置 `BIRDCODER_API_BASE_URL` 或 `VITE_BIRDCODER_API_BASE_URL`，避免打包产物误连本地地址。
 
 内置本地用户中心在开发阶段会自动种下这组默认账号：
 
-- 账户：`local-default@sdkwork-birdcoder.local`
-- 邮箱：`local-default@sdkwork-birdcoder.local`
+- 账户：`local-default@sdkwork-user-center.local`
+- 邮箱：`local-default@sdkwork-user-center.local`
 - 手机：`13800000000`
 - 密码：`dev123456`
 - 本地开发固定验证码：`123456`
@@ -153,9 +153,9 @@ Seed 行为现在完全跟随部署画像并且默认 fail-closed。`desktop-loc
 如果需要在启动前检查最终生效的运行参数，可以使用：
 
 ```bash
-pnpm identity:show -- desktop-dev --identity-mode desktop-local
-pnpm identity:show -- server-dev --identity-mode server-private
-pnpm identity:show -- server-dev --identity-mode cloud-saas
+pnpm iam:show -- desktop-dev --iam-mode desktop-local
+pnpm iam:show -- server-dev --iam-mode server-private
+pnpm iam:show -- server-dev --iam-mode cloud-saas
 ```
 
 这个检查器会打印解析后的 `BIRDCODER_*` 与 `VITE_BIRDCODER_*` 变量，并自动掩码敏感字段，方便确认 sqlite 路径、provider 选择、远端 API base URL、开发预填账号、本地 OAuth provider 与云端 OAuth provider 配置。
@@ -163,16 +163,16 @@ pnpm identity:show -- server-dev --identity-mode cloud-saas
 如果希望在看到同一份部署画像的同时完成可执行校验，可以直接使用 doctor 别名：
 
 ```bash
-pnpm identity:doctor:desktop:local
-pnpm identity:doctor:web:private
-pnpm identity:doctor:server:cloud
+pnpm iam:doctor:desktop:local
+pnpm iam:doctor:web:private
+pnpm iam:doctor:server:cloud
 ```
 
 Doctor 命令会验证必需 env、解析后的 provider kind、实际 API base URL、存储目标、就绪检查、seed 行为和开发预填可用性。cloud 与 external-provider 通道在上游配置不完整时会直接 fail-closed。
 
-在统一用户中心标准下，`desktop-local`、`server-private`、`cloud-saas` 始终复用同一套 BirdCoder facade 路由。`desktop-local` 和 `server-private` 由 builtin-local 权威直接提供密码登录、邮箱验证码登录、手机验证码登录、本地 OAuth URL、本地 OAuth 登录、验证码发送、注册、忘记密码、个人资料和会员信息。`cloud-saas` 则把同样的契约桥接到上游 `sdkwork-cloud-app-api`。当需要接入第三方身份网关时，BirdCoder 也可以把同一 facade 切到 `external-user-center` provider，而无需改前端接口层。二维码登录仍然保留在 BirdCoder 自身 facade 上，通过 BirdCoder 的 session confirm 流完成闭环，因此前端不需要因部署模式不同而写分支逻辑，左侧二维码区域也能在所有模式下稳定存在。
+在统一用户中心标准下，`desktop-local`、`server-private`、`cloud-saas` 始终复用同一套 BirdCoder facade 路由。`desktop-local` 和 `server-private` 由 builtin-local 权威直接提供密码登录、邮箱验证码登录、手机验证码登录、本地 OAuth URL、本地 OAuth 登录、验证码发送、注册、忘记密码、个人资料和会员信息。`cloud-saas` 则把同样的契约桥接到上游 `sdkwork-cloud-app-api`。当需要接入第三方用户中心网关时，BirdCoder 也可以把同一 facade 切到 `external-user-center` provider，而无需改前端接口层。二维码登录仍然保留在 BirdCoder 自身 facade 上，通过 BirdCoder 的 session confirm 流完成闭环，因此前端不需要因部署模式不同而写分支逻辑，左侧二维码区域也能在所有模式下稳定存在。
 
-`desktop-local` 和 `server-private` 默认启用 `wechat`、`douyin`、`github` 三个本地 OAuth 样板 provider。它们始终走标准 `/api/app/v1/auth/oauth/url` 与 `/api/app/v1/auth/oauth/login` facade，可通过 `BIRDCODER_LOCAL_OAUTH_PROVIDERS` 关闭或替换，也可以用 `BIRDCODER_LOCAL_OAUTH_GITHUB_NAME`、`BIRDCODER_LOCAL_OAUTH_WECHAT_EMAIL` 之类的 env 做 provider 级覆盖。
+`desktop-local` 和 `server-private` 默认启用 `wechat`、`douyin`、`github` 三个本地 OAuth 样板 provider。它们始终走标准 `/api/app/v1/auth/oauth/url` 与 `/api/app/v1/auth/oauth/login` facade，可通过 `SDKWORK_USER_CENTER_LOCAL_OAUTH_PROVIDERS` 关闭或替换，也可以用 `SDKWORK_USER_CENTER_LOCAL_OAUTH_GITHUB_NAME`、`SDKWORK_USER_CENTER_LOCAL_OAUTH_WECHAT_EMAIL` 之类的 env 做 provider 级覆盖。
 
 ## 常用命令
 
@@ -184,7 +184,7 @@ Doctor 命令会验证必需 env、解析后的 provider kind、实际 API base 
 | 一键启动私有模式 Web 样板栈 | `pnpm stack:web:private` | 先启动原生 BirdCoder Server，待健康检查与认证配置接口成功后再启动 Web 宿主 |
 | 一键启动外部用户中心 Web 样板栈 | `pnpm stack:web:external` | 与私有模式相同的 BirdCoder facade，但服务端 provider 绑定为 `external-user-center` |
 | 启动连接云端 BirdCoder Server 的 Web 工作区 | `pnpm dev:cloud` | 浏览器宿主使用 env 中配置的 cloud 模式 API 地址 |
-| 一键启动云端模式 Web 样板栈 | `pnpm stack:web:cloud` | 启动 `cloud-saas` 模式 BirdCoder Server，再启动 Web 宿主；需要 `BIRDCODER_USER_CENTER_APP_API_BASE_URL` |
+| 一键启动云端模式 Web 样板栈 | `pnpm stack:web:cloud` | 启动 `cloud-saas` 模式 BirdCoder Server，再启动 Web 宿主；需要 `SDKWORK_USER_CENTER_APP_API_BASE_URL` |
 | 启动内嵌本地认证的桌面宿主 | `pnpm tauri:dev` | 默认 `desktop-local` 模式，适合单机样板验证 |
 | 启动连接私有服务端的桌面宿主 | `pnpm tauri:dev:private` | 使用 `BIRDCODER_API_BASE_URL`，未配置时默认连 `http://127.0.0.1:10240` |
 | 启动连接外部用户中心服务端的桌面宿主 | `pnpm tauri:dev:external` | 使用 `external-user-center` provider 的私有服务端部署通道 |
@@ -195,15 +195,15 @@ Doctor 命令会验证必需 env、解析后的 provider kind、实际 API base 
 | 用显式模式矩阵启动桌面宿主 | `pnpm desktop:dev:local`、`pnpm desktop:dev:private`、`pnpm desktop:dev:external`、`pnpm desktop:dev:cloud` | 适合样板工程接入说明与运维手册 |
 | 用显式模式矩阵启动浏览器宿主 | `pnpm web:dev:private`、`pnpm web:dev:external`、`pnpm web:dev:cloud` | 让 Web 命名方式与 desktop、server 保持一致 |
 | 启动本地私有认证的原生服务端 | `pnpm server:dev` | 默认 `server-private` 模式，使用本地 sqlite 用户中心 |
-| 启动外部用户中心 provider 的原生服务端 | `pnpm server:dev:external` | 维持 BirdCoder facade 不变，只切换服务端身份 provider |
+| 启动外部用户中心 provider 的原生服务端 | `pnpm server:dev:external` | 维持 BirdCoder facade 不变，只切换服务端 IAM provider |
 | 用显式模式矩阵启动原生服务端 | `pnpm server:dev:private`、`pnpm server:dev:external`、`pnpm server:dev:cloud` | 适合私有化、外部用户中心与云端集成切换验证 |
-| 启动云端 app-api 身份集成的原生服务端 | `pnpm server:dev:cloud` | 需要配置 `BIRDCODER_USER_CENTER_APP_API_BASE_URL` |
-| 检查任意目标与模式的身份 env | `pnpm identity:show -- <target> --identity-mode <mode>` | 输出 `.env` 加载和模式归一化后的最终 BirdCoder env |
-| 通过标准别名矩阵检查身份 env | `pnpm identity:show:desktop:local`、`pnpm identity:show:web:private`、`pnpm identity:show:server:cloud` | 对标准 env 命令做的薄别名，适合运维文档和 CI 调用 |
-| 通过标准别名矩阵校验身份 env 与部署就绪性 | `pnpm identity:doctor:desktop:local`、`pnpm identity:doctor:web:private`、`pnpm identity:doctor:server:cloud` | 校验必需 env、provider kind、base URL、存储目标、seed 策略和快速登录可用性；远端通道缺少上游配置时直接 fail-closed |
-| 按 canonical appbase 契约运行 BirdCoder 身份治理 | `pnpm check:identity-standard` | 校验 BirdCoder 仍然只是 canonical auth UI、runtime bridge、command matrix 与 plugin 组装的薄封装 |
+| 启动云端 app-api IAM 集成的原生服务端 | `pnpm server:dev:cloud` | 需要配置 `SDKWORK_USER_CENTER_APP_API_BASE_URL` |
+| 检查任意目标与模式的 IAM env | `pnpm iam:show -- <target> --iam-mode <mode>` | 输出 `.env` 加载和模式归一化后的最终 BirdCoder env |
+| 通过标准别名矩阵检查 IAM env | `pnpm iam:show:desktop:local`、`pnpm iam:show:web:private`、`pnpm iam:show:server:cloud` | 对标准 env 命令做的薄别名，适合运维文档和 CI 调用 |
+| 通过标准别名矩阵校验IAM env 与部署就绪性 | `pnpm iam:doctor:desktop:local`、`pnpm iam:doctor:web:private`、`pnpm iam:doctor:server:cloud` | 校验必需 env、provider kind、base URL、存储目标、seed 策略和快速登录可用性；远端通道缺少上游配置时直接 fail-closed |
+| 按 canonical appbase 契约运行 BirdCoder IAM 治理 | `pnpm check:iam-standard` | 校验 BirdCoder 仍然只是 canonical auth UI、runtime bridge、command matrix 与 plugin 组装的薄封装 |
 | 构建私有模式 Web 包 | `pnpm build` 或 `pnpm build:private` | 生成连接私有 BirdCoder Server 的浏览器生产包 |
-| 构建云端模式 Web 包 | `pnpm build:cloud` | 生成连接云端身份集成的浏览器生产包 |
+| 构建云端模式 Web 包 | `pnpm build:cloud` | 生成连接云端 IAM 集成的浏览器生产包 |
 | 构建本地模式桌面包 | `pnpm tauri:build` | 生成内嵌本地部署的桌面应用 |
 | 构建私有服务端模式桌面包 | `pnpm tauri:build:private` | 打包成连接外部 BirdCoder Server 的桌面应用 |
 | 构建云端模式桌面包 | `pnpm tauri:build:cloud` | 打包成连接云端 BirdCoder Server 的桌面应用 |

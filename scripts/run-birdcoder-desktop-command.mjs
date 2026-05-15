@@ -6,10 +6,10 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import {
-  parseBirdcoderIdentityCliOptions,
+  parseBirdcoderIamCliOptions,
   resolveBirdcoderCommandEnv,
 } from './birdcoder-command-options.mjs';
-import { resolveBirdcoderIdentityCommandEnv } from './birdcoder-identity-env.mjs';
+import { resolveBirdcoderIamCommandEnv } from './birdcoder-iam-env.mjs';
 import { createWorkspacePackageScriptPlan } from './run-workspace-package-script.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -58,41 +58,41 @@ function parseArgs(argv = []) {
 
   const {
     demoLogin,
-    identityMode,
+    iamMode,
     userCenterProvider,
-  } = parseBirdcoderIdentityCliOptions(tokens, {
+  } = parseBirdcoderIamCliOptions(tokens, {
     commandName: 'run-birdcoder-desktop-command',
   });
 
   return {
     action,
     demoLogin,
-    identityMode,
+    iamMode,
     userCenterProvider,
   };
 }
 
 function runBirdcoderDesktopCommand() {
-  const { action, demoLogin, identityMode, userCenterProvider } = parseArgs(process.argv.slice(2));
+  const { action, demoLogin, iamMode, userCenterProvider } = parseArgs(process.argv.slice(2));
   const actionConfig = DESKTOP_ACTIONS[action];
   const commandEnv = resolveBirdcoderCommandEnv({
     demoLogin,
     env: process.env,
     userCenterProvider,
   });
-  const resolvedIdentity = resolveBirdcoderIdentityCommandEnv({
+  const resolvedIam = resolveBirdcoderIamCommandEnv({
     env: commandEnv,
-    identityMode,
+    iamMode,
     target: actionConfig.target,
     viteMode: actionConfig.viteMode,
   });
 
-  if (resolvedIdentity.errors.length > 0) {
-    throw new Error(resolvedIdentity.errors.join('\n'));
+  if (resolvedIam.errors.length > 0) {
+    throw new Error(resolvedIam.errors.join('\n'));
   }
 
   const plan = createWorkspacePackageScriptPlan({
-    env: resolvedIdentity.env,
+    env: resolvedIam.env,
     packageDir: 'packages/sdkwork-birdcoder-desktop',
     scriptName: actionConfig.scriptName,
   });

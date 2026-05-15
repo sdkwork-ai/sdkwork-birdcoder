@@ -62,7 +62,7 @@ const requiredPaths = [
   'scripts/technical-debt-contract.test.mjs',
   'scripts/run-user-center-standard.mjs',
   'scripts/run-user-center-standard.test.mjs',
-  'scripts/birdcoder-identity-standard-contract.test.mjs',
+  'scripts/birdcoder-iam-appbase-parity-contract.test.mjs',
   'scripts/user-center-upstream-sync-payload.mjs',
   'scripts/user-center-upstream-sync-payload.test.mjs',
   'scripts/user-center-upstream-sync-workflow.test.mjs',
@@ -194,7 +194,7 @@ assert.match(
 assert.ok(rootPackageJson.scripts?.['docs:build'], 'Missing docs:build script');
 assert.ok(rootPackageJson.scripts?.['check:ci-flow'], 'Missing check:ci-flow script');
 assert.ok(rootPackageJson.scripts?.['check:multi-mode'], 'Missing check:multi-mode script');
-assert.ok(rootPackageJson.scripts?.['check:identity-standard'], 'Missing check:identity-standard script');
+assert.ok(rootPackageJson.scripts?.['check:iam-standard'], 'Missing check:iam-standard script');
 assert.equal(
   rootPackageJson.scripts?.['test:user-center-standard'],
   'node scripts/run-user-center-standard.mjs',
@@ -333,7 +333,6 @@ assert.doesNotMatch(
 
 for (const exportTarget of [
   './pageLoaders.ts',
-  './profileStorage.ts',
   './storage.ts',
   './user-center-runtime.ts',
   './user-center.ts',
@@ -347,6 +346,11 @@ for (const exportTarget of [
     `sdkwork-birdcoder-user/src/index.ts must export ${exportTarget}.`,
   );
 }
+assert.doesNotMatch(
+  userIndexSource,
+  /profileStorage/u,
+  'sdkwork-birdcoder-user/src/index.ts must not export retired local profile/VIP storage.',
+);
 for (const lazyPageTarget of [
   './pages/UserCenterPage.tsx',
   './pages/VipPage.tsx',
@@ -383,7 +387,7 @@ for (const sourcePackageName of [
   assert.match(
     `${authSource}\n${userSource}\n${vipSource}`,
     new RegExp(sourcePackageName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-    `BirdCoder identity adapters must trace the upstream ${sourcePackageName} capability.`,
+    `BirdCoder IAM adapters must trace the upstream ${sourcePackageName} capability.`,
   );
 }
 

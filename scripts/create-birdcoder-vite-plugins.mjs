@@ -196,42 +196,42 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       find: '@sdkwork/auth-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
       ),
     },
     {
       find: '@sdkwork/auth-runtime-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-runtime-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts',
       ),
     },
     {
       find: '@sdkwork/user-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/index.ts',
       ),
     },
     {
       find: '@sdkwork/user-center-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/index.ts',
       ),
     },
     {
       find: '@sdkwork/user-center-core-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/src/index.ts',
       ),
     },
     {
       find: '@sdkwork/user-center-validation-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-validation-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-validation-pc-react/src/index.ts',
       ),
     },
     {
@@ -676,8 +676,8 @@ function resolveAppbaseWorkspacePackageEntryPath(appRootDir, specifier, relative
 function resolveAppbaseManagedBridgePackageJsonPath(appbaseWorkspaceRootDir, specifier) {
   const packageName = resolvePackageNameFromSpecifier(specifier);
   const bridgePackageRoots = [
-    'packages/pc-react/identity/sdkwork-auth-pc-react',
-    'packages/pc-react/identity/sdkwork-user-center-pc-react',
+    'packages/pc-react/iam/sdkwork-auth-pc-react',
+    'packages/pc-react/iam/sdkwork-user-center-pc-react',
   ];
 
   for (const bridgePackageRoot of bridgePackageRoots) {

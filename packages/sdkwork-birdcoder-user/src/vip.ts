@@ -1,6 +1,3 @@
-export type { BirdCoderVipMembershipSnapshot } from './profileStorage.ts';
-import type { BirdCoderVipMembershipSnapshot } from './profileStorage.ts';
-import { BIRDCODER_APPBASE_VIP_USER_STORAGE_BINDING } from '@sdkwork/birdcoder-types';
 import { BIRDCODER_USER_CENTER_ROUTES } from '@sdkwork/birdcoder-core';
 
 type BirdCoderVipManifestHost = 'browser' | 'tauri' | 'server';
@@ -50,55 +47,7 @@ export interface BirdCoderVipRouteIntent {
   type: 'vip-route-intent';
 }
 
-export interface BirdCoderVipPlan {
-  description: string;
-  highlights: string[];
-  id: 'free' | 'pro' | 'team';
-  monthlyPrice: number;
-  title: string;
-}
-
 export const BIRDCODER_USER_VIP_SOURCE_PACKAGE = '@sdkwork/vip-pc-react';
-export const BIRDCODER_USER_VIP_STORAGE_SCOPE =
-  BIRDCODER_APPBASE_VIP_USER_STORAGE_BINDING.storageScope;
-export const BIRDCODER_USER_VIP_MEMBERSHIP_KEY =
-  BIRDCODER_APPBASE_VIP_USER_STORAGE_BINDING.storageKey;
-
-export const BIRDCODER_USER_VIP_PLANS: BirdCoderVipPlan[] = [
-  {
-    description: 'Local AI IDE essentials for solo evaluation and lightweight daily work.',
-    highlights: [
-      '1 active workspace profile',
-      'Basic CLI engine switching',
-      'Local-only history retention',
-    ],
-    id: 'free',
-    monthlyPrice: 0,
-    title: 'Free',
-  },
-  {
-    description: 'Full desktop workflow with richer governance, previews, and release readiness.',
-    highlights: [
-      'Unlimited engine switching',
-      'Evidence-aware preview and simulator workflows',
-      'Priority model governance policies',
-    ],
-    id: 'pro',
-    monthlyPrice: 39,
-    title: 'Pro',
-  },
-  {
-    description: 'Shared governance, seats, entitlements, and release controls for professional teams.',
-    highlights: [
-      '5 included seats',
-      'Shared release evidence retention',
-      'Centralized permission and policy profiles',
-    ],
-    id: 'team',
-    monthlyPrice: 129,
-    title: 'Team',
-  },
-];
 
 function normalizeRoutePath(routePath: string | undefined, fallback: string): string {
   const normalizedRoutePath = routePath?.trim();

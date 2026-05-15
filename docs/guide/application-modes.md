@@ -1,4 +1,4 @@
-# Application Modes
+﻿# Application Modes
 
 BirdCoder keeps one product surface but supports multiple delivery modes through a unified host and release architecture.
 
@@ -10,15 +10,15 @@ BirdCoder keeps one product surface but supports multiple delivery modes through
 - `container`: Docker-oriented deployment bundle
 - `kubernetes`: Helm-compatible deployment bundle
 
-## Identity Deployment Modes
+## IAM Deployment Modes
 
-BirdCoder standardizes runtime identity deployment through three canonical lanes:
+BirdCoder standardizes runtime IAM deployment through three canonical lanes:
 
 | Deployment mode | Standard command family | Standard runtime shape |
 | --- | --- | --- |
 | `desktop-local` | `pnpm dev:local`, `pnpm tauri:dev`, `pnpm tauri:dev:local`, `pnpm desktop:dev:local` | Desktop host embeds the coding server and uses a local sqlite-backed user center |
 | `server-private` | `pnpm dev`, `pnpm dev:private`, `pnpm tauri:dev:private`, `pnpm web:dev:private`, `pnpm server:dev`, `pnpm server:dev:private` | Web or desktop clients connect to a private BirdCoder server that exposes the canonical auth facade |
-| `cloud-saas` | `pnpm dev:cloud`, `pnpm tauri:dev:cloud`, `pnpm web:dev:cloud`, `pnpm server:dev:cloud` | BirdCoder server keeps the same auth facade but delegates identity to `sdkwork-cloud-app-api` |
+| `cloud-saas` | `pnpm dev:cloud`, `pnpm tauri:dev:cloud`, `pnpm web:dev:cloud`, `pnpm server:dev:cloud` | BirdCoder server keeps the same auth facade but delegates IAM to `sdkwork-cloud-app-api` |
 
 ## User-Center Provider Modes
 
@@ -27,8 +27,8 @@ Provider binding is standardized separately from deployment mode so the frontend
 | Provider kind | Standard command family | Authority behavior |
 | --- | --- | --- |
 | `builtin-local` | Default `desktop-local` and `server-private` commands | Local sqlite authority with seeded bootstrap account, starter workspace project, local OAuth samples, and fixed dev verify-code support |
-| `external-user-center` | `pnpm dev:external`, `pnpm tauri:dev:external`, `pnpm desktop:dev:external`, `pnpm web:dev:external`, `pnpm server:dev:external` | BirdCoder server keeps `/api/app/v1/auth/*` and related facade routes but resolves identity from a third-party bridge |
-| `sdkwork-cloud-app-api` | `pnpm dev:cloud`, `pnpm tauri:dev:cloud`, `pnpm web:dev:cloud`, `pnpm server:dev:cloud` | BirdCoder server delegates identity and membership to the cloud `sdkwork-cloud-app-api` authority |
+| `external-user-center` | `pnpm dev:external`, `pnpm tauri:dev:external`, `pnpm desktop:dev:external`, `pnpm web:dev:external`, `pnpm server:dev:external` | BirdCoder server keeps `/api/app/v1/auth/*` and related facade routes but resolves IAM from a third-party bridge |
+| `sdkwork-cloud-app-api` | `pnpm dev:cloud`, `pnpm tauri:dev:cloud`, `pnpm web:dev:cloud`, `pnpm server:dev:cloud` | BirdCoder server delegates IAM and membership to the cloud `sdkwork-cloud-app-api` authority |
 
 ## Standard
 

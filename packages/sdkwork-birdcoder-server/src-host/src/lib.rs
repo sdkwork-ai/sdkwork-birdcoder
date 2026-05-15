@@ -9,8 +9,6 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 mod native_sessions;
-mod user_center;
-mod user_center_validation;
 
 use axum::{
     extract::{
@@ -42,18 +40,6 @@ use sdkwork_birdcoder_git::{
     remove_project_git_worktree, switch_project_git_branch, GitMutationError, GitProjectOverview,
 };
 use sdkwork_user_center_native::{
-    USER_CENTER_AUTH_CONFIG_PATH, USER_CENTER_AUTH_EMAIL_LOGIN_PATH, USER_CENTER_AUTH_LOGIN_PATH,
-    USER_CENTER_AUTH_LOGOUT_PATH, USER_CENTER_AUTH_PASSWORD_RESET_PATH,
-    USER_CENTER_AUTH_PASSWORD_RESET_REQUEST_PATH, USER_CENTER_AUTH_PHONE_LOGIN_PATH,
-    USER_CENTER_AUTH_REGISTER_PATH, USER_CENTER_AUTH_SESSION_EXCHANGE_PATH,
-    USER_CENTER_AUTH_SESSION_PATH, USER_CENTER_AUTH_VERIFY_SEND_PATH,
-    USER_CENTER_USER_PROFILE_PATH, USER_CENTER_VIP_INFO_PATH,
-};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::json;
-use tokio::sync::broadcast;
-use tower_http::cors::{AllowOrigin, CorsLayer};
-use user_center::{
     ensure_sqlite_user_center_bootstrap_user, ensure_sqlite_user_center_schema,
     UpdateUserCenterProfileRequest, UpdateUserCenterVipMembershipRequest,
     UserCenterEmailCodeLoginRequest, UserCenterLoginQrCodePayload, UserCenterLoginQrConfirmRequest,
@@ -62,14 +48,22 @@ use user_center::{
     UserCenterPasswordResetChallengeRequest, UserCenterPasswordResetRequest,
     UserCenterPhoneCodeLoginRequest, UserCenterProfilePayload, UserCenterRegisterRequest,
     UserCenterSendVerifyCodeRequest, UserCenterSessionExchangeRequest, UserCenterSessionPayload,
-    UserCenterState, UserCenterVipMembershipPayload, BIRDCODER_AUTHORIZATION_SCHEME,
-    BIRDCODER_SESSION_HEADER_NAME,
-};
-use user_center_validation::{
-    USER_CENTER_APP_ID_HEADER_NAME, USER_CENTER_HANDSHAKE_MODE_HEADER_NAME,
+    UserCenterState, UserCenterVipMembershipPayload, USER_CENTER_AUTHORIZATION_SCHEME,
+    USER_CENTER_SESSION_HEADER_NAME, USER_CENTER_ACCESS_TOKEN_HEADER_NAME,
+    USER_CENTER_APP_ID_HEADER_NAME, USER_CENTER_AUTH_CONFIG_PATH, USER_CENTER_AUTH_EMAIL_LOGIN_PATH,
+    USER_CENTER_AUTH_LOGIN_PATH, USER_CENTER_AUTH_LOGOUT_PATH,
+    USER_CENTER_AUTH_PASSWORD_RESET_PATH, USER_CENTER_AUTH_PASSWORD_RESET_REQUEST_PATH,
+    USER_CENTER_AUTH_PHONE_LOGIN_PATH, USER_CENTER_AUTH_REGISTER_PATH,
+    USER_CENTER_AUTH_SESSION_EXCHANGE_PATH, USER_CENTER_AUTH_SESSION_PATH,
+    USER_CENTER_AUTH_VERIFY_SEND_PATH, USER_CENTER_HANDSHAKE_MODE_HEADER_NAME,
     USER_CENTER_PROVIDER_KEY_HEADER_NAME, USER_CENTER_SECRET_ID_HEADER_NAME,
     USER_CENTER_SIGNATURE_HEADER_NAME, USER_CENTER_SIGNED_AT_HEADER_NAME,
+    USER_CENTER_USER_PROFILE_PATH, USER_CENTER_VIP_INFO_PATH,
 };
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::json;
+use tokio::sync::broadcast;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use uuid::Uuid;
 
 pub const BIRD_SERVER_DEFAULT_HOST: &str = "127.0.0.1";
@@ -9552,9 +9546,9 @@ fn load_provider_workspace_member_payloads(
                 workspace_members.organization_id,
                 workspace_members.workspace_id,
                 workspace_members.user_id,
-                plus_user.email,
-                plus_user.nickname,
-                plus_user.avatar_url,
+                iam_user.email,
+                iam_user.nickname,
+                iam_user.avatar_url,
                 workspace_members.team_id,
                 workspace_members.role,
                 workspace_members.created_by_user_id,
@@ -9563,9 +9557,9 @@ fn load_provider_workspace_member_payloads(
                 workspace_members.created_at,
                 workspace_members.updated_at
             FROM workspace_members
-            LEFT JOIN plus_user
-                ON plus_user.id = workspace_members.user_id
-               AND plus_user.is_deleted = 0
+            LEFT JOIN iam_user
+                ON iam_user.id = workspace_members.user_id
+               AND iam_user.is_deleted = 0
             WHERE workspace_members.is_deleted = 0
             ORDER BY workspace_members.updated_at DESC, workspace_members.id ASC
             "#,
@@ -9631,9 +9625,9 @@ fn load_provider_project_collaborator_payloads(
                 project_collaborators.project_id,
                 project_collaborators.workspace_id,
                 project_collaborators.user_id,
-                plus_user.email,
-                plus_user.nickname,
-                plus_user.avatar_url,
+                iam_user.email,
+                iam_user.nickname,
+                iam_user.avatar_url,
                 project_collaborators.team_id,
                 project_collaborators.role,
                 project_collaborators.created_by_user_id,
@@ -9642,9 +9636,9 @@ fn load_provider_project_collaborator_payloads(
                 project_collaborators.created_at,
                 project_collaborators.updated_at
             FROM project_collaborators
-            LEFT JOIN plus_user
-                ON plus_user.id = project_collaborators.user_id
-               AND plus_user.is_deleted = 0
+            LEFT JOIN iam_user
+                ON iam_user.id = project_collaborators.user_id
+               AND iam_user.is_deleted = 0
             WHERE project_collaborators.is_deleted = 0
             ORDER BY project_collaborators.updated_at DESC, project_collaborators.id ASC
             "#,
@@ -13397,92 +13391,44 @@ fn upsert_bootstrap_team_member(
     bootstrap_timestamp: &str,
 ) -> Result<(), String> {
     let team_member_uuid = Uuid::new_v4().to_string();
-    if sqlite_column_exists(transaction, PROVIDER_TEAM_MEMBERS_TABLE, "identity_id")? {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO team_members (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    team_id, identity_id, user_id, role, created_by_identity_id, granted_by_identity_id,
-                    created_by_user_id, granted_by_user_id, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
-                ON CONFLICT(id)
-                DO UPDATE SET
-                    uuid = COALESCE(team_members.uuid, excluded.uuid),
-                    tenant_id = COALESCE(team_members.tenant_id, excluded.tenant_id),
-                    organization_id = COALESCE(team_members.organization_id, excluded.organization_id),
-                    updated_at = excluded.updated_at,
-                    is_deleted = 0,
-                    team_id = excluded.team_id,
-                    identity_id = excluded.identity_id,
-                    user_id = excluded.user_id,
-                    role = excluded.role,
-                    created_by_identity_id = excluded.created_by_identity_id,
-                    granted_by_identity_id = excluded.granted_by_identity_id,
-                    created_by_user_id = excluded.created_by_user_id,
-                    granted_by_user_id = excluded.granted_by_user_id,
-                    status = excluded.status
-                "#,
-                params![
-                    BOOTSTRAP_TEAM_MEMBER_ID,
-                    &team_member_uuid,
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    bootstrap_timestamp,
-                    bootstrap_timestamp,
-                    BOOTSTRAP_TEAM_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "active",
-                ],
+    transaction
+        .execute(
+            r#"
+            INSERT INTO team_members (
+                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                team_id, user_id, role, created_by_user_id, granted_by_user_id, status
             )
-            .map_err(|error| format!("upsert bootstrap team member failed: {error}"))?;
-    } else {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO team_members (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    team_id, user_id, role, created_by_user_id, granted_by_user_id, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12)
-                ON CONFLICT(id)
-                DO UPDATE SET
-                    uuid = COALESCE(team_members.uuid, excluded.uuid),
-                    tenant_id = COALESCE(team_members.tenant_id, excluded.tenant_id),
-                    organization_id = COALESCE(team_members.organization_id, excluded.organization_id),
-                    updated_at = excluded.updated_at,
-                    is_deleted = 0,
-                    team_id = excluded.team_id,
-                    user_id = excluded.user_id,
-                    role = excluded.role,
-                    created_by_user_id = excluded.created_by_user_id,
-                    granted_by_user_id = excluded.granted_by_user_id,
-                    status = excluded.status
-                "#,
-                params![
-                    BOOTSTRAP_TEAM_MEMBER_ID,
-                    &team_member_uuid,
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    bootstrap_timestamp,
-                    bootstrap_timestamp,
-                    BOOTSTRAP_TEAM_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "active",
-                ],
-            )
-            .map_err(|error| format!("upsert bootstrap team member failed: {error}"))?;
-    }
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12)
+            ON CONFLICT(id)
+            DO UPDATE SET
+                uuid = COALESCE(team_members.uuid, excluded.uuid),
+                tenant_id = COALESCE(team_members.tenant_id, excluded.tenant_id),
+                organization_id = COALESCE(team_members.organization_id, excluded.organization_id),
+                updated_at = excluded.updated_at,
+                is_deleted = 0,
+                team_id = excluded.team_id,
+                user_id = excluded.user_id,
+                role = excluded.role,
+                created_by_user_id = excluded.created_by_user_id,
+                granted_by_user_id = excluded.granted_by_user_id,
+                status = excluded.status
+            "#,
+            params![
+                BOOTSTRAP_TEAM_MEMBER_ID,
+                &team_member_uuid,
+                SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                bootstrap_timestamp,
+                bootstrap_timestamp,
+                BOOTSTRAP_TEAM_ID,
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                "owner",
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                "active",
+            ],
+        )
+        .map_err(|error| format!("upsert bootstrap team member failed: {error}"))?;
 
     Ok(())
 }
@@ -13493,96 +13439,46 @@ fn upsert_bootstrap_workspace_member(
     bootstrap_timestamp: &str,
 ) -> Result<(), String> {
     let workspace_member_uuid = Uuid::new_v4().to_string();
-    if sqlite_column_exists(transaction, "workspace_members", "identity_id")? {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO workspace_members (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
-                    granted_by_identity_id, created_by_user_id, granted_by_user_id, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
-                ON CONFLICT(id)
-                DO UPDATE SET
-                    uuid = COALESCE(workspace_members.uuid, excluded.uuid),
-                    tenant_id = COALESCE(workspace_members.tenant_id, excluded.tenant_id),
-                    organization_id = COALESCE(workspace_members.organization_id, excluded.organization_id),
-                    updated_at = excluded.updated_at,
-                    is_deleted = 0,
-                    workspace_id = excluded.workspace_id,
-                    identity_id = excluded.identity_id,
-                    user_id = excluded.user_id,
-                    team_id = excluded.team_id,
-                    role = excluded.role,
-                    created_by_identity_id = excluded.created_by_identity_id,
-                    granted_by_identity_id = excluded.granted_by_identity_id,
-                    created_by_user_id = excluded.created_by_user_id,
-                    granted_by_user_id = excluded.granted_by_user_id,
-                    status = excluded.status
-                "#,
-                params![
-                    BOOTSTRAP_WORKSPACE_MEMBER_ID,
-                    &workspace_member_uuid,
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    bootstrap_timestamp,
-                    bootstrap_timestamp,
-                    preferred_workspace_id,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_TEAM_ID,
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "active",
-                ],
+    transaction
+        .execute(
+            r#"
+            INSERT INTO workspace_members (
+                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
             )
-            .map_err(|error| format!("upsert bootstrap workspace member failed: {error}"))?;
-    } else {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO workspace_members (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-                ON CONFLICT(id)
-                DO UPDATE SET
-                    uuid = COALESCE(workspace_members.uuid, excluded.uuid),
-                    tenant_id = COALESCE(workspace_members.tenant_id, excluded.tenant_id),
-                    organization_id = COALESCE(workspace_members.organization_id, excluded.organization_id),
-                    updated_at = excluded.updated_at,
-                    is_deleted = 0,
-                    workspace_id = excluded.workspace_id,
-                    user_id = excluded.user_id,
-                    team_id = excluded.team_id,
-                    role = excluded.role,
-                    created_by_user_id = excluded.created_by_user_id,
-                    granted_by_user_id = excluded.granted_by_user_id,
-                    status = excluded.status
-                "#,
-                params![
-                    BOOTSTRAP_WORKSPACE_MEMBER_ID,
-                    &workspace_member_uuid,
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    bootstrap_timestamp,
-                    bootstrap_timestamp,
-                    preferred_workspace_id,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_TEAM_ID,
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "active",
-                ],
-            )
-            .map_err(|error| format!("upsert bootstrap workspace member failed: {error}"))?;
-    }
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+            ON CONFLICT(id)
+            DO UPDATE SET
+                uuid = COALESCE(workspace_members.uuid, excluded.uuid),
+                tenant_id = COALESCE(workspace_members.tenant_id, excluded.tenant_id),
+                organization_id = COALESCE(workspace_members.organization_id, excluded.organization_id),
+                updated_at = excluded.updated_at,
+                is_deleted = 0,
+                workspace_id = excluded.workspace_id,
+                user_id = excluded.user_id,
+                team_id = excluded.team_id,
+                role = excluded.role,
+                created_by_user_id = excluded.created_by_user_id,
+                granted_by_user_id = excluded.granted_by_user_id,
+                status = excluded.status
+            "#,
+            params![
+                BOOTSTRAP_WORKSPACE_MEMBER_ID,
+                &workspace_member_uuid,
+                SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                bootstrap_timestamp,
+                bootstrap_timestamp,
+                preferred_workspace_id,
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                BOOTSTRAP_TEAM_ID,
+                "owner",
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                "active",
+            ],
+        )
+        .map_err(|error| format!("upsert bootstrap workspace member failed: {error}"))?;
 
     Ok(())
 }
@@ -13778,101 +13674,49 @@ fn upsert_bootstrap_project(
             ],
         )
         .map_err(|error| format!("upsert bootstrap project content failed: {error}"))?;
-    if sqlite_column_exists(transaction, "project_collaborators", "identity_id")? {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO project_collaborators (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    project_id, workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
-                    granted_by_identity_id, created_by_user_id, granted_by_user_id, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
-                ON CONFLICT(id)
-                DO UPDATE SET
-                    uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
-                    tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
-                    organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
-                    updated_at = excluded.updated_at,
-                    is_deleted = 0,
-                    project_id = excluded.project_id,
-                    workspace_id = excluded.workspace_id,
-                    identity_id = excluded.identity_id,
-                    user_id = excluded.user_id,
-                    team_id = excluded.team_id,
-                    role = excluded.role,
-                    created_by_identity_id = excluded.created_by_identity_id,
-                    granted_by_identity_id = excluded.granted_by_identity_id,
-                    created_by_user_id = excluded.created_by_user_id,
-                    granted_by_user_id = excluded.granted_by_user_id,
-                    status = excluded.status
-                "#,
-                params![
-                    BOOTSTRAP_PROJECT_COLLABORATOR_ID,
-                    &project_collaborator_uuid,
-                    &tenant_id,
-                    &organization_id,
-                    bootstrap_timestamp,
-                    bootstrap_timestamp,
-                    BOOTSTRAP_PROJECT_ID,
-                    preferred_workspace_id,
-                    &owner_id,
-                    &owner_id,
-                    &project_owner_team_id,
-                    "owner",
-                    &created_by_user_id,
-                    &created_by_user_id,
-                    &created_by_user_id,
-                    &created_by_user_id,
-                    "active",
-                ],
+    transaction
+        .execute(
+            r#"
+            INSERT INTO project_collaborators (
+                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
+                status
             )
-            .map_err(|error| format!("upsert bootstrap project collaborator failed: {error}"))?;
-    } else {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO project_collaborators (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
-                    status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
-                ON CONFLICT(id)
-                DO UPDATE SET
-                    uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
-                    tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
-                    organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
-                    updated_at = excluded.updated_at,
-                    is_deleted = 0,
-                    project_id = excluded.project_id,
-                    workspace_id = excluded.workspace_id,
-                    user_id = excluded.user_id,
-                    team_id = excluded.team_id,
-                    role = excluded.role,
-                    created_by_user_id = excluded.created_by_user_id,
-                    granted_by_user_id = excluded.granted_by_user_id,
-                    status = excluded.status
-                "#,
-                params![
-                    BOOTSTRAP_PROJECT_COLLABORATOR_ID,
-                    &project_collaborator_uuid,
-                    &tenant_id,
-                    &organization_id,
-                    bootstrap_timestamp,
-                    bootstrap_timestamp,
-                    BOOTSTRAP_PROJECT_ID,
-                    preferred_workspace_id,
-                    &owner_id,
-                    &project_owner_team_id,
-                    "owner",
-                    &created_by_user_id,
-                    &created_by_user_id,
-                    "active",
-                ],
-            )
-            .map_err(|error| format!("upsert bootstrap project collaborator failed: {error}"))?;
-    }
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+            ON CONFLICT(id)
+            DO UPDATE SET
+                uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
+                tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
+                organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
+                updated_at = excluded.updated_at,
+                is_deleted = 0,
+                project_id = excluded.project_id,
+                workspace_id = excluded.workspace_id,
+                user_id = excluded.user_id,
+                team_id = excluded.team_id,
+                role = excluded.role,
+                created_by_user_id = excluded.created_by_user_id,
+                granted_by_user_id = excluded.granted_by_user_id,
+                status = excluded.status
+            "#,
+            params![
+                BOOTSTRAP_PROJECT_COLLABORATOR_ID,
+                &project_collaborator_uuid,
+                &tenant_id,
+                &organization_id,
+                bootstrap_timestamp,
+                bootstrap_timestamp,
+                BOOTSTRAP_PROJECT_ID,
+                preferred_workspace_id,
+                &owner_id,
+                &project_owner_team_id,
+                "owner",
+                &created_by_user_id,
+                &created_by_user_id,
+                "active",
+            ],
+        )
+        .map_err(|error| format!("upsert bootstrap project collaborator failed: {error}"))?;
 
     Ok(())
 }
@@ -13898,10 +13742,6 @@ fn backfill_sqlite_authority_access_context(connection: &mut Connection) -> Resu
     let transaction = connection
         .transaction()
         .map_err(|error| format!("open authority access backfill transaction failed: {error}"))?;
-    let workspace_members_use_identity_columns =
-        sqlite_column_exists(&transaction, "workspace_members", "identity_id")?;
-    let project_collaborators_use_identity_columns =
-        sqlite_column_exists(&transaction, "project_collaborators", "identity_id")?;
 
     for (workspace_id, (owner_user_id, created_by_user_id)) in workspace_authority_pairs.iter() {
         let workspace_member_count: i64 = transaction
@@ -13913,69 +13753,34 @@ fn backfill_sqlite_authority_access_context(connection: &mut Connection) -> Resu
             .map_err(|error| format!("count workspace members during backfill failed: {error}"))?;
         if workspace_member_count == 0 {
             let workspace_member_id = create_identifier("workspace-member");
-            if workspace_members_use_identity_columns {
-                transaction
-                    .execute(
-                        r#"
+            transaction
+                .execute(
+                    r#"
                     INSERT INTO workspace_members (
-                            id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                            workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
-                            granted_by_identity_id, created_by_user_id, granted_by_user_id, status
-                        )
-                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
-                        "#,
-                        params![
-                            &workspace_member_id,
-                            Uuid::new_v4().to_string(),
-                            SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                            SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                            &now,
-                            &now,
-                            workspace_id,
-                            owner_user_id,
-                            owner_user_id,
-                            Option::<String>::None,
-                            "owner",
-                            created_by_user_id,
-                            created_by_user_id,
-                            created_by_user_id,
-                            created_by_user_id,
-                            "active",
-                        ],
+                        id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                        workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
                     )
-                    .map_err(|error| {
-                        format!("insert workspace access backfill member failed: {error}")
-                    })?;
-            } else {
-                transaction
-                    .execute(
-                        r#"
-                    INSERT INTO workspace_members (
-                            id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                            workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
-                        )
-                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-                        "#,
-                        params![
-                            &workspace_member_id,
-                            Uuid::new_v4().to_string(),
-                            SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                            SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                            &now,
-                            &now,
-                            workspace_id,
-                            owner_user_id,
-                            Option::<String>::None,
-                            "owner",
-                            created_by_user_id,
-                            created_by_user_id,
-                            "active",
-                        ],
-                    )
-                    .map_err(|error| {
-                        format!("insert workspace access backfill member failed: {error}")
-                    })?;
-            }
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                    "#,
+                    params![
+                        &workspace_member_id,
+                        Uuid::new_v4().to_string(),
+                        SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                        SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                        &now,
+                        &now,
+                        workspace_id,
+                        owner_user_id,
+                        Option::<String>::None,
+                        "owner",
+                        created_by_user_id,
+                        created_by_user_id,
+                        "active",
+                    ],
+                )
+                .map_err(|error| {
+                    format!("insert workspace access backfill member failed: {error}")
+                })?;
         }
     }
 
@@ -14005,180 +13810,86 @@ fn backfill_sqlite_authority_access_context(connection: &mut Connection) -> Resu
                 create_identifier("project-collaborator")
             };
             if is_bootstrap_project {
-                if project_collaborators_use_identity_columns {
-                    transaction
-                        .execute(
-                            r#"
-                            INSERT INTO project_collaborators (
-                                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                                project_id, workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
-                                granted_by_identity_id, created_by_user_id, granted_by_user_id, status
-                            )
-                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
-                            ON CONFLICT(id)
-                            DO UPDATE SET
-                                uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
-                                tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
-                                organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
-                                updated_at = excluded.updated_at,
-                                is_deleted = 0,
-                                project_id = excluded.project_id,
-                                workspace_id = excluded.workspace_id,
-                                identity_id = excluded.identity_id,
-                                user_id = excluded.user_id,
-                                team_id = excluded.team_id,
-                                role = excluded.role,
-                                created_by_identity_id = excluded.created_by_identity_id,
-                                granted_by_identity_id = excluded.granted_by_identity_id,
-                                created_by_user_id = excluded.created_by_user_id,
-                                granted_by_user_id = excluded.granted_by_user_id,
-                                status = excluded.status
-                            "#,
-                            params![
-                                &project_collaborator_id,
-                                Uuid::new_v4().to_string(),
-                                project.tenant_id
-                                    .clone()
-                                    .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
-                                &project.organization_id,
-                                &now,
-                                &now,
-                                &project.id,
-                                &project.workspace_id,
-                                &owner_user_id,
-                                &owner_user_id,
-                                Option::<String>::None,
-                                "owner",
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                "active",
-                            ],
+                transaction
+                    .execute(
+                        r#"
+                        INSERT INTO project_collaborators (
+                            id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                            project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
+                            status
                         )
-                        .map_err(|error| {
-                            format!("upsert project access backfill bootstrap collaborator failed: {error}")
-                        })?;
-                } else {
-                    transaction
-                        .execute(
-                            r#"
-                            INSERT INTO project_collaborators (
-                                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                                project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
-                                status
-                            )
-                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
-                            ON CONFLICT(id)
-                            DO UPDATE SET
-                                uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
-                                tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
-                                organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
-                                updated_at = excluded.updated_at,
-                                is_deleted = 0,
-                                project_id = excluded.project_id,
-                                workspace_id = excluded.workspace_id,
-                                user_id = excluded.user_id,
-                                team_id = excluded.team_id,
-                                role = excluded.role,
-                                created_by_user_id = excluded.created_by_user_id,
-                                granted_by_user_id = excluded.granted_by_user_id,
-                                status = excluded.status
-                            "#,
-                            params![
-                                &project_collaborator_id,
-                                Uuid::new_v4().to_string(),
-                                project.tenant_id
-                                    .clone()
-                                    .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
-                                &project.organization_id,
-                                &now,
-                                &now,
-                                &project.id,
-                                &project.workspace_id,
-                                &owner_user_id,
-                                Option::<String>::None,
-                                "owner",
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                "active",
-                            ],
-                        )
-                        .map_err(|error| {
-                            format!("upsert project access backfill bootstrap collaborator failed: {error}")
-                        })?;
-                }
+                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                        ON CONFLICT(id)
+                        DO UPDATE SET
+                            uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
+                            tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
+                            organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
+                            updated_at = excluded.updated_at,
+                            is_deleted = 0,
+                            project_id = excluded.project_id,
+                            workspace_id = excluded.workspace_id,
+                            user_id = excluded.user_id,
+                            team_id = excluded.team_id,
+                            role = excluded.role,
+                            created_by_user_id = excluded.created_by_user_id,
+                            granted_by_user_id = excluded.granted_by_user_id,
+                            status = excluded.status
+                        "#,
+                        params![
+                            &project_collaborator_id,
+                            Uuid::new_v4().to_string(),
+                            project.tenant_id
+                                .clone()
+                                .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
+                            &project.organization_id,
+                            &now,
+                            &now,
+                            &project.id,
+                            &project.workspace_id,
+                            &owner_user_id,
+                            Option::<String>::None,
+                            "owner",
+                            &created_by_user_id,
+                            &created_by_user_id,
+                            "active",
+                        ],
+                    )
+                    .map_err(|error| {
+                        format!("upsert project access backfill bootstrap collaborator failed: {error}")
+                    })?;
             } else {
-                if project_collaborators_use_identity_columns {
-                    transaction
-                        .execute(
-                            r#"
-                            INSERT INTO project_collaborators (
-                                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                                project_id, workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
-                                granted_by_identity_id, created_by_user_id, granted_by_user_id, status
-                            )
-                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
-                            "#,
-                            params![
-                                &project_collaborator_id,
-                                Uuid::new_v4().to_string(),
-                                project.tenant_id
-                                    .clone()
-                                    .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
-                                &project.organization_id,
-                                &now,
-                                &now,
-                                &project.id,
-                                &project.workspace_id,
-                                &owner_user_id,
-                                &owner_user_id,
-                                Option::<String>::None,
-                                "owner",
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                "active",
-                            ],
+                transaction
+                    .execute(
+                        r#"
+                        INSERT INTO project_collaborators (
+                            id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                            project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
+                            status
                         )
-                        .map_err(|error| {
-                            format!("insert project access backfill collaborator failed: {error}")
-                        })?;
-                } else {
-                    transaction
-                        .execute(
-                            r#"
-                            INSERT INTO project_collaborators (
-                                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                                project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
-                                status
-                            )
-                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
-                            "#,
-                            params![
-                                &project_collaborator_id,
-                                Uuid::new_v4().to_string(),
-                                project.tenant_id
-                                    .clone()
-                                    .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
-                                &project.organization_id,
-                                &now,
-                                &now,
-                                &project.id,
-                                &project.workspace_id,
-                                &owner_user_id,
-                                Option::<String>::None,
-                                "owner",
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                "active",
-                            ],
-                        )
-                        .map_err(|error| {
-                            format!("insert project access backfill collaborator failed: {error}")
-                        })?;
-                }
+                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                        "#,
+                        params![
+                            &project_collaborator_id,
+                            Uuid::new_v4().to_string(),
+                            project.tenant_id
+                                .clone()
+                                .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
+                            &project.organization_id,
+                            &now,
+                            &now,
+                            &project.id,
+                            &project.workspace_id,
+                            &owner_user_id,
+                            Option::<String>::None,
+                            "owner",
+                            &created_by_user_id,
+                            &created_by_user_id,
+                            "active",
+                        ],
+                    )
+                    .map_err(|error| {
+                        format!("insert project access backfill collaborator failed: {error}")
+                    })?;
             }
         }
     }
@@ -17551,7 +17262,7 @@ fn resolve_headers_with_optional_session_query(
     query_session_id: Option<&str>,
 ) -> Result<HeaderMap, String> {
     let mut resolved_headers = headers.clone();
-    if resolved_headers.contains_key(BIRDCODER_SESSION_HEADER_NAME) {
+    if resolved_headers.contains_key(USER_CENTER_SESSION_HEADER_NAME) {
         return Ok(resolved_headers);
     }
 
@@ -17563,7 +17274,7 @@ fn resolve_headers_with_optional_session_query(
     let session_header_value = HeaderValue::from_str(session_id.as_str())
         .map_err(|error| format!("Invalid realtime sessionId query parameter: {error}"))?;
     resolved_headers.insert(
-        HeaderName::from_static(BIRDCODER_SESSION_HEADER_NAME),
+        HeaderName::from_static(USER_CENTER_SESSION_HEADER_NAME),
         session_header_value,
     );
     Ok(resolved_headers)
@@ -17599,7 +17310,7 @@ fn render_user_center_qr_entry_html(qr_key: &str) -> String {
     let confirm_path_json = serde_json::to_string(USER_CENTER_AUTH_QR_CONFIRM_PATH)
         .unwrap_or_else(|_| "\"\"".to_owned());
     let session_header_name_json =
-        serde_json::to_string(BIRDCODER_SESSION_HEADER_NAME).unwrap_or_else(|_| "\"\"".to_owned());
+        serde_json::to_string(USER_CENTER_SESSION_HEADER_NAME).unwrap_or_else(|_| "\"\"".to_owned());
     let session_storage_key_json =
         serde_json::to_string(BIRDCODER_USER_CENTER_SESSION_TOKEN_STORAGE_KEY)
             .unwrap_or_else(|_| "\"\"".to_owned());
@@ -22627,6 +22338,11 @@ fn insert_optional_response_header(
     headers.insert(header_name, header_value);
 }
 
+fn parse_canonical_user_center_header_name(header_name: &str) -> HeaderName {
+    HeaderName::from_bytes(header_name.as_bytes())
+        .expect("sdkwork-appbase user-center header name must be a valid HTTP header name")
+}
+
 fn create_user_center_session_response_headers(
     session: Option<&UserCenterSessionPayload>,
 ) -> HeaderMap {
@@ -22637,12 +22353,12 @@ fn create_user_center_session_response_headers(
 
     insert_optional_response_header(
         &mut headers,
-        HeaderName::from_static(BIRDCODER_SESSION_HEADER_NAME),
+        HeaderName::from_static(USER_CENTER_SESSION_HEADER_NAME),
         Some(session.session_id.as_str()),
     );
     insert_optional_response_header(
         &mut headers,
-        HeaderName::from_static("access-token"),
+        parse_canonical_user_center_header_name(USER_CENTER_ACCESS_TOKEN_HEADER_NAME),
         Some(session.access_token.as_str()),
     );
     insert_optional_response_header(
@@ -22655,7 +22371,7 @@ fn create_user_center_session_response_headers(
     let authorization_token = session.auth_token.trim();
     if !authorization_token.is_empty() {
         let normalized_scheme = if authorization_scheme.is_empty() {
-            BIRDCODER_AUTHORIZATION_SCHEME
+            USER_CENTER_AUTHORIZATION_SCHEME
         } else {
             authorization_scheme
         };
@@ -25304,20 +25020,20 @@ fn build_local_cors_layer() -> CorsLayer {
             header::ACCEPT,
             header::AUTHORIZATION,
             header::CONTENT_TYPE,
-            HeaderName::from_static(BIRDCODER_SESSION_HEADER_NAME),
+            HeaderName::from_static(USER_CENTER_SESSION_HEADER_NAME),
             HeaderName::from_static(USER_CENTER_APP_ID_HEADER_NAME),
             HeaderName::from_static(USER_CENTER_PROVIDER_KEY_HEADER_NAME),
             HeaderName::from_static(USER_CENTER_HANDSHAKE_MODE_HEADER_NAME),
             HeaderName::from_static(USER_CENTER_SECRET_ID_HEADER_NAME),
             HeaderName::from_static(USER_CENTER_SIGNATURE_HEADER_NAME),
             HeaderName::from_static(USER_CENTER_SIGNED_AT_HEADER_NAME),
-            HeaderName::from_static("access-token"),
+            parse_canonical_user_center_header_name(USER_CENTER_ACCESS_TOKEN_HEADER_NAME),
             HeaderName::from_static("refresh-token"),
         ])
         .expose_headers([
             header::AUTHORIZATION,
-            HeaderName::from_static(BIRDCODER_SESSION_HEADER_NAME),
-            HeaderName::from_static("access-token"),
+            HeaderName::from_static(USER_CENTER_SESSION_HEADER_NAME),
+            parse_canonical_user_center_header_name(USER_CENTER_ACCESS_TOKEN_HEADER_NAME),
             HeaderName::from_static("refresh-token"),
         ])
         .allow_origin(AllowOrigin::predicate(
@@ -26922,83 +26638,6 @@ exit 1\n"
             Connection::open(&path).expect("open minimal direct sqlite provider fixture");
         rewrite_provider_authority_business_tables_to_legacy_text_identifiers(&connection);
         path
-    }
-
-    fn rewrite_provider_authority_collaboration_tables_to_legacy_identity_columns(
-        connection: &Connection,
-    ) {
-        connection
-            .execute_batch(
-                r#"
-                DROP TABLE project_collaborators;
-                DROP TABLE workspace_members;
-                DROP TABLE team_members;
-
-                CREATE TABLE team_members (
-                    id TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    team_id TEXT NOT NULL,
-                    identity_id TEXT NOT NULL,
-                    role TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    created_by_identity_id TEXT NULL,
-                    granted_by_identity_id TEXT NULL,
-                    uuid TEXT NULL,
-                    tenant_id INTEGER NOT NULL DEFAULT 0,
-                    organization_id INTEGER NOT NULL DEFAULT 0,
-                    user_id INTEGER NULL,
-                    created_by_user_id INTEGER NULL,
-                    granted_by_user_id INTEGER NULL
-                );
-
-                CREATE TABLE workspace_members (
-                    id TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    workspace_id TEXT NOT NULL,
-                    identity_id TEXT NOT NULL,
-                    team_id TEXT NULL,
-                    role TEXT NOT NULL,
-                    created_by_identity_id TEXT NULL,
-                    granted_by_identity_id TEXT NULL,
-                    status TEXT NOT NULL,
-                    uuid TEXT NULL,
-                    tenant_id INTEGER NOT NULL DEFAULT 0,
-                    organization_id INTEGER NOT NULL DEFAULT 0,
-                    user_id INTEGER NULL,
-                    created_by_user_id INTEGER NULL,
-                    granted_by_user_id INTEGER NULL
-                );
-
-                CREATE TABLE project_collaborators (
-                    id TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    project_id TEXT NOT NULL,
-                    workspace_id TEXT NOT NULL,
-                    identity_id TEXT NOT NULL,
-                    team_id TEXT NULL,
-                    role TEXT NOT NULL,
-                    created_by_identity_id TEXT NULL,
-                    granted_by_identity_id TEXT NULL,
-                    status TEXT NOT NULL,
-                    uuid TEXT NULL,
-                    tenant_id INTEGER NOT NULL DEFAULT 0,
-                    organization_id INTEGER NOT NULL DEFAULT 0,
-                    user_id INTEGER NULL,
-                    created_by_user_id INTEGER NULL,
-                    granted_by_user_id INTEGER NULL
-                );
-                "#,
-            )
-            .expect("rewrite provider authority collaboration tables to legacy identity columns");
     }
 
     fn write_sqlite_provider_authority_fixture(file_name: &str) -> std::path::PathBuf {
@@ -33149,275 +32788,46 @@ exit 1\n"
     }
 
     #[tokio::test]
-    async fn build_app_from_sqlite_file_bootstraps_legacy_identity_collaboration_tables() {
-        let sqlite_path = write_minimal_direct_provider_authority_fixture(
-            "birdcoder-coding-server-legacy-identity-collaboration.sqlite3",
-        );
-        let connection =
-            Connection::open(&sqlite_path).expect("open legacy identity collaboration fixture");
-        rewrite_provider_authority_collaboration_tables_to_legacy_identity_columns(&connection);
-        connection
-            .execute(
-                r#"
-                INSERT INTO plus_workspace AS workspaces (
-                    id, uuid, tenant_id, organization_id, data_scope, created_at, updated_at, version, is_deleted,
-                    name, code, title, description, owner_id, leader_id, created_by_user_id, settings_json,
-                    is_public, is_template, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, 0, 0, ?16)
-                "#,
-                params![
-                    "workspace-existing",
-                    "workspace-uuid-existing",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    DEFAULT_PRIVATE_DATA_SCOPE,
-                    "2026-04-24T09:00:00Z",
-                    "2026-04-24T09:00:00Z",
-                    "Existing Workspace",
-                    "existing.workspace",
-                    "Existing Workspace",
-                    "Legacy identity workspace",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "{}",
-                    "active",
-                ],
-            )
-            .expect("insert existing workspace");
-        insert_plus_project_fixture(
-            &connection,
-            "project-existing",
-            "project-uuid-existing",
-            "workspace-existing",
-            "workspace-uuid-existing",
-            "Existing Project",
-            "existing.project",
-            "Existing Project",
-            "Legacy identity project",
-            None,
-            BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-            "2026-04-24T09:00:00Z",
-            "2026-04-24T09:00:00Z",
-            0_i64,
-            "active",
-        );
-        connection
-            .execute(
-                r#"
-                INSERT INTO teams (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    workspace_id, name, code, title, description, owner_id, leader_id, created_by_user_id, metadata_json, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
-                "#,
-                params![
-                    "team-existing",
-                    "team-uuid-existing",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    "2026-04-24T09:00:00Z",
-                    "2026-04-24T09:00:00Z",
-                    "workspace-existing",
-                    "Existing Team",
-                    "existing.team",
-                    "Existing Team",
-                    "Legacy identity team",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "{}",
-                    "active",
-                ],
-            )
-            .expect("insert existing team");
-        connection
-            .execute(
-                r#"
-                INSERT INTO team_members (
-                    id, created_at, updated_at, version, is_deleted, team_id, identity_id, role, status,
-                    created_by_identity_id, granted_by_identity_id, uuid, tenant_id, organization_id, user_id,
-                    created_by_user_id, granted_by_user_id
-                )
-                VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
-                "#,
-                params![
-                    "team-member-existing",
-                    "2026-04-24T09:00:00Z",
-                    "2026-04-24T09:00:00Z",
-                    "team-existing",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "owner",
-                    "active",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "team-member-uuid-existing",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                ],
-            )
-            .expect("insert existing team member");
-        connection
-            .execute(
-                r#"
-                INSERT INTO workspace_members (
-                    id, created_at, updated_at, version, is_deleted, workspace_id, identity_id, team_id, role,
-                    created_by_identity_id, granted_by_identity_id, status, uuid, tenant_id, organization_id, user_id,
-                    created_by_user_id, granted_by_user_id
-                )
-                VALUES (?1, ?2, ?3, 0, 1, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
-                "#,
-                params![
-                    "workspace-member-existing",
-                    "2026-04-24T09:00:00Z",
-                    "2026-04-24T09:00:00Z",
-                    "workspace-existing",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "team-existing",
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "active",
-                    "workspace-member-uuid-existing",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                ],
-            )
-            .expect("insert existing workspace member");
-        connection
-            .execute(
-                r#"
-                INSERT INTO project_collaborators (
-                    id, created_at, updated_at, version, is_deleted, project_id, workspace_id, identity_id, team_id,
-                    role, created_by_identity_id, granted_by_identity_id, status, uuid, tenant_id, organization_id,
-                    user_id, created_by_user_id, granted_by_user_id
-                )
-                VALUES (?1, ?2, ?3, 0, 1, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
-                "#,
-                params![
-                    "project-collaborator-existing",
-                    "2026-04-24T09:00:00Z",
-                    "2026-04-24T09:00:00Z",
-                    "project-existing",
-                    "workspace-existing",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "team-existing",
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "active",
-                    "project-collaborator-uuid-existing",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                ],
-            )
-            .expect("insert existing project collaborator");
-        drop(connection);
-
-        let _ = build_app_from_sqlite_file(&sqlite_path)
-            .expect("load sqlite app with legacy identity collaboration tables");
-
-        let connection =
-            Connection::open(&sqlite_path).expect("reopen legacy identity collaboration fixture");
-        let team_member_identity: (String, String) = connection
-            .query_row(
-                "SELECT identity_id, user_id FROM team_members WHERE id = ?1",
-                params![BOOTSTRAP_TEAM_MEMBER_ID],
-                |row| {
-                    Ok((
-                        row.get(0)?,
-                        sqlite_row_required_string_value(row, 1, "team_members.user_id")?,
-                    ))
-                },
-            )
-            .expect("read bootstrapped team member");
-        let workspace_member_identity: (String, String) = connection
-            .query_row(
-                "SELECT identity_id, user_id FROM workspace_members WHERE id = ?1",
-                params![BOOTSTRAP_WORKSPACE_MEMBER_ID],
-                |row| {
-                    Ok((
-                        row.get(0)?,
-                        sqlite_row_required_string_value(row, 1, "workspace_members.user_id")?,
-                    ))
-                },
-            )
-            .expect("read bootstrapped workspace member");
-        assert!(
-            sqlite_column_exists(&connection, "project_collaborators", "identity_id")
-                .expect("probe project collaborator identity column"),
-            "legacy identity collaborator table should preserve identity_id column"
-        );
-        drop(connection);
-        fs::remove_file(&sqlite_path).expect("remove legacy identity collaboration fixture");
-
-        assert_eq!(
-            team_member_identity,
-            (
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_string(),
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_string(),
-            )
-        );
-        assert_eq!(
-            workspace_member_identity,
-            (
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_string(),
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_string(),
-            )
-        );
-    }
-
-    #[tokio::test]
     async fn build_app_from_sqlite_file_initializes_user_center_for_direct_provider_authority() {
         let _guard = ENV_LOCK.lock().expect("lock env");
         let sqlite_path = write_empty_sqlite_provider_authority_fixture(
             "birdcoder-coding-server-direct-user-center.sqlite3",
         );
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
 
         let _ = build_app_from_sqlite_file(&sqlite_path).expect("load direct sqlite authority");
 
         let connection = Connection::open(&sqlite_path).expect("open direct sqlite authority");
         let user_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_user WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM iam_user WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
             .expect("read bootstrap user count");
         let profile_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_user WHERE is_deleted = 0 AND bio IS NOT NULL AND TRIM(bio) <> ''",
+                "SELECT COUNT(*) FROM iam_user WHERE is_deleted = 0 AND bio IS NOT NULL AND TRIM(bio) <> ''",
                 [],
                 |row| row.get(0),
             )
             .expect("read bootstrap profile count");
         let membership_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_vip_user WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM iam_vip_membership WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
             .expect("read bootstrap membership count");
         let bootstrap_user: (String, String, String) = connection
             .query_row(
-                "SELECT id, email, provider_key FROM plus_user WHERE id = ?1",
+                "SELECT id, email, provider_key FROM iam_user WHERE id = ?1",
                 params![BOOTSTRAP_WORKSPACE_OWNER_USER_ID],
                 |row| {
                     Ok((
-                        sqlite_row_required_string_value(row, 0, "plus_user.id")?,
+                        sqlite_row_required_string_value(row, 0, "iam_user.id")?,
                         row.get(1)?,
                         row.get(2)?,
                     ))
@@ -33427,15 +32837,15 @@ exit 1\n"
 
         drop(connection);
         fs::remove_file(sqlite_path).expect("remove direct sqlite authority fixture");
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
 
         assert_eq!(user_count, 1);
         assert_eq!(profile_count, 1);
         assert_eq!(membership_count, 1);
         assert_eq!(bootstrap_user.0, BOOTSTRAP_WORKSPACE_OWNER_USER_ID);
-        assert_eq!(bootstrap_user.1, "local-default@sdkwork-birdcoder.local");
+        assert_eq!(bootstrap_user.1, "local-default@sdkwork-user-center.local");
         assert_eq!(bootstrap_user.2, "local");
     }
 
@@ -33447,30 +32857,30 @@ exit 1\n"
         );
 
         std::env::set_var(
-            "BIRDCODER_USER_CENTER_LOGIN_PROVIDER",
+            "SDKWORK_USER_CENTER_MODE",
             "sdkwork-cloud-app-api",
         );
         std::env::set_var(
-            "BIRDCODER_USER_CENTER_APP_API_BASE_URL",
+            "SDKWORK_USER_CENTER_APP_API_BASE_URL",
             "https://cloud.sdkwork.test/app",
         );
 
         let _ = build_app_from_sqlite_file(&sqlite_path).expect("load cloud sqlite authority");
 
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
 
         let connection = Connection::open(&sqlite_path).expect("open cloud sqlite authority");
         let user_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_user WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM iam_user WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
             .expect("read cloud user count");
         let membership_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_vip_user WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM iam_vip_membership WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
@@ -33486,9 +32896,9 @@ exit 1\n"
     #[tokio::test]
     async fn app_user_center_config_route_exposes_canonical_builtin_local_mode() {
         let _guard = ENV_LOCK.lock().expect("lock env");
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
         let response = build_app()
             .oneshot(
                 Request::builder()
@@ -33507,9 +32917,9 @@ exit 1\n"
         let json: serde_json::Value =
             serde_json::from_slice(&body).expect("parse auth config response");
 
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
 
         assert_eq!(json["data"]["mode"], "builtin-local");
         assert_eq!(json["data"]["integrationKind"], "builtin-local");
@@ -33540,11 +32950,11 @@ exit 1\n"
         let sqlite_path = write_empty_sqlite_provider_authority_fixture(
             "birdcoder-coding-server-auth-login.sqlite3",
         );
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
         let request_body = serde_json::json!({
-            "email": "local-default@sdkwork-birdcoder.local",
+            "email": "local-default@sdkwork-user-center.local",
             "password": "dev123456"
         });
 
@@ -33562,9 +32972,9 @@ exit 1\n"
             .expect("serve auth login request");
 
         fs::remove_file(sqlite_path).expect("remove auth login sqlite fixture");
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
 
         assert_eq!(response.status(), StatusCode::OK);
 
@@ -33577,7 +32987,7 @@ exit 1\n"
         assert_eq!(json["data"]["providerMode"], "builtin-local");
         assert_eq!(
             json["data"]["user"]["email"],
-            "local-default@sdkwork-birdcoder.local"
+            "local-default@sdkwork-user-center.local"
         );
     }
 
@@ -33588,11 +32998,11 @@ exit 1\n"
         let sqlite_path = write_empty_sqlite_provider_authority_fixture(
             "birdcoder-coding-server-membership-long-integer.sqlite3",
         );
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
         let login_request = serde_json::json!({
-            "email": "local-default@sdkwork-birdcoder.local",
+            "email": "local-default@sdkwork-user-center.local",
             "password": "dev123456"
         });
         let app = build_app_from_sqlite_file(&sqlite_path).expect("load membership sqlite app");
@@ -33612,7 +33022,7 @@ exit 1\n"
         assert_eq!(login_response.status(), StatusCode::OK);
         let session_header = login_response
             .headers()
-            .get(BIRDCODER_SESSION_HEADER_NAME)
+            .get(USER_CENTER_SESSION_HEADER_NAME)
             .cloned()
             .expect("login response session header");
 
@@ -33627,7 +33037,7 @@ exit 1\n"
                     .method("PATCH")
                     .uri(USER_CENTER_VIP_INFO_PATH)
                     .header("content-type", "application/json")
-                    .header(BIRDCODER_SESSION_HEADER_NAME, session_header)
+                    .header(USER_CENTER_SESSION_HEADER_NAME, session_header)
                     .body(Body::from(membership_request.to_string()))
                     .expect("build membership update request"),
             )
@@ -33642,9 +33052,9 @@ exit 1\n"
             serde_json::from_slice(&body).expect("parse membership update response");
 
         fs::remove_file(sqlite_path).expect("remove membership sqlite fixture");
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
 
         assert_eq!(json["data"]["pointBalance"], "101777208078558104");
         assert_eq!(json["data"]["totalRechargedPoints"], "101777208078558105");
@@ -33902,8 +33312,8 @@ exit 1\n"
                         [
                             header::CONTENT_TYPE.as_str(),
                             header::AUTHORIZATION.as_str(),
-                            BIRDCODER_SESSION_HEADER_NAME,
-                            "access-token",
+                            USER_CENTER_SESSION_HEADER_NAME,
+                            USER_CENTER_ACCESS_TOKEN_HEADER_NAME,
                             "refresh-token",
                             USER_CENTER_APP_ID_HEADER_NAME,
                             USER_CENTER_PROVIDER_KEY_HEADER_NAME,
@@ -33953,8 +33363,8 @@ exit 1\n"
         for expected_header in [
             header::CONTENT_TYPE.as_str(),
             header::AUTHORIZATION.as_str(),
-            BIRDCODER_SESSION_HEADER_NAME,
-            "access-token",
+            USER_CENTER_SESSION_HEADER_NAME,
+            USER_CENTER_ACCESS_TOKEN_HEADER_NAME,
             "refresh-token",
             USER_CENTER_APP_ID_HEADER_NAME,
             USER_CENTER_PROVIDER_KEY_HEADER_NAME,
@@ -33963,8 +33373,9 @@ exit 1\n"
             USER_CENTER_SIGNATURE_HEADER_NAME,
             USER_CENTER_SIGNED_AT_HEADER_NAME,
         ] {
+            let expected_header = expected_header.to_ascii_lowercase();
             assert!(
-                allowed_headers.contains(expected_header),
+                allowed_headers.contains(&expected_header),
                 "preflight responses must allow user-center app API header {expected_header} used by browser-hosted local clients.",
             );
         }

@@ -61,12 +61,12 @@
     }
   },
   "dependencies": {
-    "@sdkwork/auth-runtime-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-runtime-pc-react",
+    "@sdkwork/auth-runtime-pc-react": "workspace:*",
     "@sdkwork/birdcoder-codeengine": "workspace:*",
     "@sdkwork/birdcoder-core": "workspace:*",
     "@sdkwork/birdcoder-host-core": "workspace:*",
-    "@sdkwork/user-center-core-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react",
-    "@sdkwork/user-center-validation-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-validation-pc-react",
+    "@sdkwork/user-center-core-pc-react": "workspace:*",
+    "@sdkwork/user-center-validation-pc-react": "workspace:*",
     "@tauri-apps/api": "catalog:",
     "@sdkwork/birdcoder-types": "workspace:*"
   }

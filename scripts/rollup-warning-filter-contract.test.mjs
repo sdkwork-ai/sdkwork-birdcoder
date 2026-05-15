@@ -75,7 +75,7 @@ for (const staleCircularChunkWarning of [
   'Circular chunk: birdcoder-shell-runtime -> birdcoder-platform-services -> birdcoder-shell-bootstrap -> birdcoder-shell-runtime. Please adjust the manual chunk logic for these chunks.',
   'Circular chunk: birdcoder-auth-root -> birdcoder-platform-transport -> birdcoder-auth-root. Please adjust the manual chunk logic for these chunks.',
   'Circular chunk: birdcoder-shell-runtime -> birdcoder-platform-runtime -> birdcoder-shell-bootstrap -> birdcoder-shell-runtime. Please adjust the manual chunk logic for these chunks.',
-  'Circular chunk: birdcoder-identity-runtime -> birdcoder-platform-runtime -> birdcoder-identity-runtime. Please adjust the manual chunk logic for these chunks.',
+  'Circular chunk: birdcoder-iam-runtime -> birdcoder-platform-runtime -> birdcoder-iam-runtime. Please adjust the manual chunk logic for these chunks.',
 ]) {
   assert.equal(
     shouldIgnoreBirdcoderRollupWarning({

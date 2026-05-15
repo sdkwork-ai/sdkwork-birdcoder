@@ -20,12 +20,11 @@
     "@sdkwork/birdcoder-core": "workspace:*",
     "@sdkwork/birdcoder-infrastructure-runtime": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
-    "@sdkwork/birdcoder-workbench-state": "workspace:*",
-    "@sdkwork/user-center-core-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react",
-    "@sdkwork/user-center-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react",
-    "@sdkwork/user-center-validation-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-validation-pc-react",
-    "@sdkwork/user-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-pc-react",
-    "@sdkwork/vip-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/commerce/sdkwork-vip-pc-react",
+    "@sdkwork/user-center-core-pc-react": "workspace:*",
+    "@sdkwork/user-center-pc-react": "workspace:*",
+    "@sdkwork/user-center-validation-pc-react": "workspace:*",
+    "@sdkwork/user-pc-react": "workspace:*",
+    "@sdkwork/vip-pc-react": "workspace:*",
     "react-i18next": "catalog:"
   },
   "peerDependencies": {

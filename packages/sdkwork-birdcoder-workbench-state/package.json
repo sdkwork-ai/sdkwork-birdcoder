@@ -13,8 +13,6 @@
     }
   },
   "dependencies": {
-    "@sdkwork/birdcoder-commons": "workspace:*",
-    "@sdkwork/birdcoder-types": "workspace:*",
-    "@sdkwork/birdcoder-workbench-storage": "workspace:*"
+    "@sdkwork/birdcoder-commons": "workspace:*"
   }
 }

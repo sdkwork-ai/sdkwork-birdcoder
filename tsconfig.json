@@ -31,10 +31,10 @@
         "packages/sdkwork-birdcoder-commons/src/shell.ts"
       ],
       "@sdkwork/auth-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/index.ts"
+        "../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts"
       ],
       "@sdkwork/auth-runtime-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-runtime-pc-react/src/index.ts"
+        "../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts"
       ],
       "@sdkwork/appbase-pc-react": [
         "../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts"
@@ -49,19 +49,19 @@
         "../sdkwork-appbase/packages/pc-react/foundation/sdkwork-search-pc-react/src/index.ts"
       ],
       "@sdkwork/user-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-pc-react/src/index.ts"
+        "../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/index.ts"
       ],
       "@sdkwork/birdcoder-shell/runtime": [
         "packages/sdkwork-birdcoder-shell/src/runtime.ts"
       ],
       "@sdkwork/user-center-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/index.ts"
+        "../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/index.ts"
       ],
       "@sdkwork/user-center-core-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react/src/index.ts"
+        "../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/src/index.ts"
       ],
       "@sdkwork/user-center-validation-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-validation-pc-react/src/index.ts"
+        "../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-validation-pc-react/src/index.ts"
       ],
       "@sdkwork/vip-pc-react": [
         "../sdkwork-appbase/packages/pc-react/commerce/sdkwork-vip-pc-react/src/index.ts"

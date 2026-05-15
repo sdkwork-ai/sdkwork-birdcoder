@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useBirdcoderIdentityTheme } from "@sdkwork/birdcoder-commons";
+import { useBirdcoderTheme } from "@sdkwork/birdcoder-commons";
 
 export function ThemeManager() {
   const {
@@ -10,7 +10,7 @@ export function ThemeManager() {
     themeColor,
     uiFontFamily,
     uiFontSize,
-  } = useBirdcoderIdentityTheme();
+  } = useBirdcoderTheme();
 
   useEffect(() => {
     if (typeof document === "undefined") {

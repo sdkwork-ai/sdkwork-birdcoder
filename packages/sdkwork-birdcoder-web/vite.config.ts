@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
 
           return deps.filter(
             (dependency) =>
-              !/^assets\/(?:birdcoder-identity-surface|birdcoder-user-center-core|birdcoder-platform|birdcoder-shell-bootstrap|birdcoder-code-surface|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-skills-surface|birdcoder-templates-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight)-/u.test(
+              !/^assets\/(?:birdcoder-iam-surface|birdcoder-user-center-core|birdcoder-platform|birdcoder-shell-bootstrap|birdcoder-code-surface|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-skills-surface|birdcoder-templates-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight)-/u.test(
                 dependency,
               ),
           );
@@ -416,25 +416,25 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/index.ts',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth.ts',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-definition.ts',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-appearance.ts',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-config.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-definition.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-appearance.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-config.ts',
             ])
           ) {
-            return 'birdcoder-identity-surface';
+            return 'birdcoder-iam-surface';
           }
 
           if (
             isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-authority.ts',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-controller.ts',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-copy.ts',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-local-service.ts',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-runtime-config.ts',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-runtime-authority.ts',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-service.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-authority.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-controller.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-copy.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-local-service.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-runtime-config.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-runtime-authority.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-service.ts',
             ])
           ) {
             return 'birdcoder-platform-auth-runtime';
@@ -442,31 +442,31 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-intl.tsx',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/components/auth/',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/components/auth-page-shell.tsx',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/components/oauth-provider-grid.tsx',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/components/qr-login-panel.tsx',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/pages/',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/pages/userCenterAuthSurfacePage.tsx',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-intl.tsx',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/components/auth/',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/components/auth-page-shell.tsx',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/components/oauth-provider-grid.tsx',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/components/qr-login-panel.tsx',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/pages/',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/pages/userCenterAuthSurfacePage.tsx',
             ])
           ) {
-            return 'birdcoder-identity-surface';
+            return 'birdcoder-iam-surface';
           }
 
           if (
             isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/domain/userCenterAppearance.ts',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/domain/userCenterSurfaceRouting.ts',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/types/userCenterSurfaceTypes.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/domain/userCenterAppearance.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/domain/userCenterSurfaceRouting.ts',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/types/userCenterSurfaceTypes.ts',
             ])
           ) {
-            return 'birdcoder-identity-surface';
+            return 'birdcoder-iam-surface';
           }
 
           if (
             isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react/src/',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/src/',
             ])
           ) {
             return 'birdcoder-user-center-core';
@@ -474,43 +474,43 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-pc-react/src/',
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/pages/canonicalSurfacePages.tsx',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/pages/canonicalSurfacePages.tsx',
             ])
           ) {
-            return 'birdcoder-identity-surface';
+            return 'birdcoder-iam-surface';
           }
 
           if (
             isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/pages/userCenterProfileSurfacePage.tsx',
+              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/pages/userCenterProfileSurfacePage.tsx',
             ])
           ) {
-            return 'birdcoder-identity-surface';
+            return 'birdcoder-iam-surface';
           }
 
           if (isSourcePath('/packages/sdkwork-birdcoder-auth/src/index.ts')) {
-            return 'birdcoder-identity-surface';
+            return 'birdcoder-iam-surface';
           }
 
           if (isSourcePath('/packages/sdkwork-birdcoder-auth/src/pages/')) {
-            return 'birdcoder-identity-surface';
+            return 'birdcoder-iam-surface';
           }
 
           if (isSourcePath('/packages/sdkwork-birdcoder-auth/src/')) {
-            return 'birdcoder-identity-surface';
+            return 'birdcoder-iam-surface';
           }
 
           if (isSourcePath('/packages/sdkwork-birdcoder-user/src/index.ts')) {
-            return 'birdcoder-identity-surface';
+            return 'birdcoder-iam-surface';
           }
 
           if (isSourcePath('/packages/sdkwork-birdcoder-user/src/pages/')) {
-            return 'birdcoder-identity-surface';
+            return 'birdcoder-iam-surface';
           }
 
           if (isSourcePath('/packages/sdkwork-birdcoder-user/src/')) {
-            return 'birdcoder-identity-surface';
+            return 'birdcoder-iam-surface';
           }
 
           if (isSourcePath('/packages/sdkwork-birdcoder-git/src/')) {
@@ -527,11 +527,11 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/packages/sdkwork-birdcoder-identity/src/index.ts',
-              '/packages/sdkwork-birdcoder-identity/src/identityIntegration.ts',
+              '/packages/sdkwork-birdcoder-iam/src/index.ts',
+              '/packages/sdkwork-birdcoder-iam/src/iamIntegration.ts',
             ])
           ) {
-            return 'birdcoder-identity-integration';
+            return 'birdcoder-iam-integration';
           }
 
           if (

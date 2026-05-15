@@ -60,7 +60,6 @@
     "@sdkwork/birdcoder-i18n": "workspace:*",
     "@sdkwork/birdcoder-infrastructure-runtime": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
-    "@sdkwork/user-center-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react",
     "@sdkwork/terminal-infrastructure": "link:../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure",
     "@sdkwork/terminal-shell": "link:../../../sdkwork-terminal/packages/sdkwork-terminal-shell",
     "lucide-react": "catalog:"

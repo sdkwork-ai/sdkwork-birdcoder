@@ -15,6 +15,7 @@ const desktopHostSourcePath = new URL(
 );
 
 const dataModule = await import(`${dataModulePath.href}?t=${Date.now()}`);
+const dataModuleSource = await readFile(dataModulePath, 'utf8');
 const serverHostSource = await readFile(serverHostSourcePath, 'utf8');
 const desktopHostSource = await readFile(desktopHostSourcePath, 'utf8');
 
@@ -22,14 +23,9 @@ assert.deepEqual(dataModule.BIRDCODER_DATABASE_PROVIDER_IDS, ['sqlite', 'postgre
 assert.equal(dataModule.BIRDCODER_SCHEMA_MIGRATION_HISTORY_TABLE, 'schema_migration_history');
 
 const requiredEntityNames = [
-  'tenant',
-  'user_account',
-  'user_profile',
-  'account',
   'account_history',
   'account_exchange_config',
   'ledger_bridge',
-  'vip_user',
   'vip_level',
   'vip_benefit',
   'vip_level_benefit',
@@ -71,6 +67,21 @@ const requiredEntityNames = [
   'release_record',
   'schema_migration_history',
 ];
+const appbaseOwnedIamEntityNames = [
+  'tenant',
+  'organization',
+  'organization_member',
+  'member_relation',
+  'role',
+  'permission',
+  'role_permission',
+  'user_role',
+  'user_account',
+  'oauth_account',
+  'user_profile',
+  'vip_user',
+  'account',
+];
 
 for (const entityName of requiredEntityNames) {
   const definition = dataModule.getBirdCoderEntityDefinition(entityName);
@@ -100,6 +111,20 @@ for (const entityName of requiredEntityNames) {
     );
   }
 }
+
+for (const entityName of appbaseOwnedIamEntityNames) {
+  assert.throws(
+    () => dataModule.getBirdCoderEntityDefinition(entityName),
+    /Unknown BirdCoder entity definition/u,
+    `BirdCoder data kernel must not own appbase IAM entity ${entityName}.`,
+  );
+}
+
+assert.doesNotMatch(
+  dataModuleSource,
+  /\bplus_user\b/u,
+  'BirdCoder data-kernel descriptions must reference appbase IAM users instead of the retired plus_user core table.',
+);
 
 const terminalExecution = dataModule.getBirdCoderEntityDefinition('terminal_execution');
 assert.equal(terminalExecution.tableName, 'terminal_executions');

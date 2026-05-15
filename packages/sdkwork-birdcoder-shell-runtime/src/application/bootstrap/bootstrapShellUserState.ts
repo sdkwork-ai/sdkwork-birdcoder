@@ -8,8 +8,6 @@ import {
 import {
   DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
   ensureStoredRunConfigurations,
-  getBirdCoderUserProfileRepository,
-  getBirdCoderVipMembershipRepository,
   getWorkbenchPreferencesRepository,
   normalizeWorkbenchRecoverySnapshot,
   syncWorkbenchCodeEngineModelConfig,
@@ -168,8 +166,6 @@ function ensureCodeEngineModelConfigSynchronized(
 
 function persistLocalUserState(): Promise<void> {
   return Promise.all([
-    ensureJsonRecordRepositoryPersisted(getBirdCoderUserProfileRepository()),
-    ensureJsonRecordRepositoryPersisted(getBirdCoderVipMembershipRepository()),
     ensureJsonRecordRepositoryPersisted<WorkbenchPreferences>(getWorkbenchPreferencesRepository()),
     ensureRecoverySnapshotPersisted(),
   ]).then(() => undefined);

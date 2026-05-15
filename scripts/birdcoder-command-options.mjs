@@ -11,7 +11,7 @@ function readOptionValue(argv, index, flag) {
   return nextValue;
 }
 
-export function parseBirdcoderIdentityCliOptions(
+export function parseBirdcoderIamCliOptions(
   argv = [],
   {
     allowViteMode = false,
@@ -19,15 +19,15 @@ export function parseBirdcoderIdentityCliOptions(
   } = {},
 ) {
   const tokens = Array.isArray(argv) ? [...argv] : [];
-  let identityMode;
+  let iamMode;
   let userCenterProvider;
   let viteMode;
   let demoLogin = false;
 
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
-    if (token === '--identity-mode') {
-      identityMode = readOptionValue(tokens, index, '--identity-mode');
+    if (token === '--iam-mode') {
+      iamMode = readOptionValue(tokens, index, '--iam-mode');
       index += 1;
       continue;
     }
@@ -51,7 +51,7 @@ export function parseBirdcoderIdentityCliOptions(
 
   return {
     demoLogin,
-    identityMode,
+    iamMode,
     userCenterProvider,
     viteMode,
   };
@@ -70,7 +70,7 @@ export function resolveBirdcoderCommandEnv({
     ...env,
   };
   if (userCenterProvider) {
-    nextEnv.BIRDCODER_USER_CENTER_LOGIN_PROVIDER = userCenterProvider;
+    nextEnv.SDKWORK_USER_CENTER_MODE = userCenterProvider;
   }
   if (demoLogin) {
     nextEnv.BIRDCODER_ENABLE_RELEASE_DEMO_LOGIN = 'true';
@@ -79,14 +79,14 @@ export function resolveBirdcoderCommandEnv({
   return nextEnv;
 }
 
-export function createBirdcoderIdentityCliFlags({
-  identityMode,
+export function createBirdcoderIamCliFlags({
+  iamMode,
   providerKind,
 } = {}) {
   const flags = [];
-  const normalizedIdentityMode = String(identityMode ?? '').trim();
-  if (normalizedIdentityMode) {
-    flags.push('--identity-mode', normalizedIdentityMode);
+  const normalizedIamMode = String(iamMode ?? '').trim();
+  if (normalizedIamMode) {
+    flags.push('--iam-mode', normalizedIamMode);
   }
 
   if (providerKind === 'external-user-center') {

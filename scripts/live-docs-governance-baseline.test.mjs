@@ -174,7 +174,7 @@ assert.match(
 
 assert.match(
   releaseAndDeploymentSource,
-  /pnpm check:identity-standard/,
+  /pnpm check:iam-standard/,
   'core release-and-deployment doc must include the appbase parity command when release-facing changes touch the unified auth, user, and vip boundary.',
 );
 assert.match(
@@ -505,7 +505,7 @@ assert.match(
 
 assert.match(
   commandsReferenceSource,
-  /pnpm check:identity-standard/,
+  /pnpm check:iam-standard/,
   'commands reference must list the appbase parity command.',
 );
 assert.match(
@@ -581,7 +581,7 @@ assert.match(
 
 assert.match(
   developmentGuideSource,
-  /`pnpm check:identity-standard`/,
+  /`pnpm check:iam-standard`/,
   'development guide must describe the appbase parity command in prose, not only list it in the release-oriented verification block.',
 );
 assert.match(
@@ -694,7 +694,7 @@ assert.match(
 
 assert.match(
   developmentGuideSource,
-  /pnpm check:identity-standard/,
+  /pnpm check:iam-standard/,
   'development guide must include the appbase parity command in the release-oriented verification flow.',
 );
 assert.match(

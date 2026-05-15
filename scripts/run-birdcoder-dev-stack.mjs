@@ -6,15 +6,15 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import {
-  parseBirdcoderIdentityCliOptions,
+  parseBirdcoderIamCliOptions,
   resolveBirdcoderCommandEnv,
 } from './birdcoder-command-options.mjs';
 import {
-  DEFAULT_BIRDCODER_LOCAL_BOOTSTRAP_ACCOUNT,
-  DEFAULT_BIRDCODER_LOCAL_BOOTSTRAP_PASSWORD,
-  DEFAULT_BIRDCODER_LOCAL_VERIFY_CODE,
-  resolveBirdcoderIdentityCommandEnv,
-} from './birdcoder-identity-env.mjs';
+  DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_ACCOUNT,
+  DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD,
+  DEFAULT_SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE,
+  resolveBirdcoderIamCommandEnv,
+} from './birdcoder-iam-env.mjs';
 import { createWorkspacePackageScriptPlan } from './run-workspace-package-script.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -72,7 +72,7 @@ function parseArgs(argv = []) {
 
   let dryRun = false;
   let passthroughMode = false;
-  const identityTokens = [];
+  const iamTokens = [];
   const clientArgs = [];
   for (const token of tokens) {
     if (token === '--') {
@@ -90,20 +90,20 @@ function parseArgs(argv = []) {
       continue;
     }
 
-    identityTokens.push(token);
+    iamTokens.push(token);
   }
 
   const {
-    identityMode,
+    iamMode,
     userCenterProvider,
-  } = parseBirdcoderIdentityCliOptions(identityTokens, {
+  } = parseBirdcoderIamCliOptions(iamTokens, {
     commandName: 'run-birdcoder-dev-stack',
   });
 
   return {
     clientArgs,
     dryRun,
-    identityMode,
+    iamMode,
     target,
     userCenterProvider,
   };
@@ -143,18 +143,18 @@ function appendPlanArgs(plan, extraArgs = []) {
 function resolveStackPlans({
   clientArgs = [],
   env = process.env,
-  identityMode,
+  iamMode,
   target,
   userCenterProvider,
 } = {}) {
-  if (target === 'web' && identityMode === 'desktop-local') {
+  if (target === 'web' && iamMode === 'desktop-local') {
     throw new Error(
-      'The web sample stack does not support desktop-local. Use desktop with --identity-mode desktop-local instead.',
+      'The web sample stack does not support desktop-local. Use desktop with --iam-mode desktop-local instead.',
     );
   }
 
   if (
-    identityMode === 'desktop-local'
+    iamMode === 'desktop-local'
     && userCenterProvider
     && userCenterProvider !== 'builtin-local'
   ) {
@@ -168,55 +168,55 @@ function resolveStackPlans({
     env,
     userCenterProvider,
   });
-  const clientResolvedIdentity = resolveBirdcoderIdentityCommandEnv({
+  const clientResolvedIam = resolveBirdcoderIamCommandEnv({
     env: commandEnv,
-    identityMode,
+    iamMode,
     target: stackSurfaceConfig.target,
     viteMode: 'development',
   });
-  const needsServer = clientResolvedIdentity.identityMode !== 'desktop-local';
-  const serverResolvedIdentity = needsServer
-    ? resolveBirdcoderIdentityCommandEnv({
+  const needsServer = clientResolvedIam.iamMode !== 'desktop-local';
+  const serverResolvedIam = needsServer
+    ? resolveBirdcoderIamCommandEnv({
         env: commandEnv,
-        identityMode,
+        iamMode,
         target: SERVER_DEV_CONFIG.target,
         viteMode: 'development',
       })
     : null;
   const errors = [
-    ...clientResolvedIdentity.errors,
-    ...(serverResolvedIdentity?.errors || []),
+    ...clientResolvedIam.errors,
+    ...(serverResolvedIam?.errors || []),
   ];
   if (errors.length > 0) {
     throw new Error(errors.join('\n'));
   }
 
   const clientPlan = createWorkspacePackageScriptPlan({
-    env: clientResolvedIdentity.env,
+    env: clientResolvedIam.env,
     packageDir: stackSurfaceConfig.clientPackageDir,
     scriptName: stackSurfaceConfig.clientScriptName,
   });
-  const serverPlan = serverResolvedIdentity
+  const serverPlan = serverResolvedIam
     ? createWorkspacePackageScriptPlan({
-        env: serverResolvedIdentity.env,
+        env: serverResolvedIam.env,
         packageDir: SERVER_DEV_CONFIG.packageDir,
         scriptName: SERVER_DEV_CONFIG.scriptName,
       })
     : null;
   const providerKind =
-    readTrimmedValue(clientResolvedIdentity.env.BIRDCODER_USER_CENTER_LOGIN_PROVIDER)
-    || readTrimmedValue(serverResolvedIdentity?.env.BIRDCODER_USER_CENTER_LOGIN_PROVIDER)
+    readTrimmedValue(clientResolvedIam.env.SDKWORK_USER_CENTER_MODE)
+    || readTrimmedValue(serverResolvedIam?.env.SDKWORK_USER_CENTER_MODE)
     || 'builtin-local';
-  const apiOriginUrl = resolveApiOriginUrl(clientResolvedIdentity.env);
+  const apiOriginUrl = resolveApiOriginUrl(clientResolvedIam.env);
 
   return {
     apiOriginUrl,
     clientPlan: appendPlanArgs(clientPlan, clientArgs),
-    clientResolvedIdentity,
+    clientResolvedIam,
     needsServer,
     providerKind,
     serverPlan,
-    serverResolvedIdentity,
+    serverResolvedIam,
     target,
   };
 }
@@ -224,13 +224,13 @@ function resolveStackPlans({
 function printStackSummary({
   apiOriginUrl,
   clientPlan,
-  clientResolvedIdentity,
+  clientResolvedIam,
   providerKind,
   serverPlan,
   target,
 } = {}) {
   console.log(`[birdcoder-stack] surface=${target}`);
-  console.log(`[birdcoder-stack] identityMode=${clientResolvedIdentity.identityMode}`);
+  console.log(`[birdcoder-stack] iamMode=${clientResolvedIam.iamMode}`);
   console.log(`[birdcoder-stack] provider=${providerKind}`);
   if (apiOriginUrl) {
     console.log(`[birdcoder-stack] apiBaseUrl=${apiOriginUrl.origin}${apiOriginUrl.pathname === '/' ? '' : apiOriginUrl.pathname}`);
@@ -244,14 +244,14 @@ function printStackSummary({
 
   if (isBuiltinLocalProvider(providerKind)) {
     const bootstrapAccount =
-      readTrimmedValue(clientResolvedIdentity.env.BIRDCODER_LOCAL_BOOTSTRAP_EMAIL)
-      || DEFAULT_BIRDCODER_LOCAL_BOOTSTRAP_ACCOUNT;
+      readTrimmedValue(clientResolvedIam.env.SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_EMAIL)
+      || DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_ACCOUNT;
     const bootstrapPassword =
-      readTrimmedValue(clientResolvedIdentity.env.BIRDCODER_LOCAL_BOOTSTRAP_PASSWORD)
-      || DEFAULT_BIRDCODER_LOCAL_BOOTSTRAP_PASSWORD;
+      readTrimmedValue(clientResolvedIam.env.SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD)
+      || DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD;
     const verifyCode =
-      readTrimmedValue(clientResolvedIdentity.env.BIRDCODER_LOCAL_VERIFY_CODE_FIXED)
-      || DEFAULT_BIRDCODER_LOCAL_VERIFY_CODE;
+      readTrimmedValue(clientResolvedIam.env.SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED)
+      || DEFAULT_SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE;
 
     console.log(`[birdcoder-stack] sampleAccount=${bootstrapAccount}`);
     console.log(`[birdcoder-stack] samplePassword=${bootstrapPassword}`);
@@ -406,7 +406,7 @@ export async function runBirdcoderDevStack({
   const stackPlans = resolveStackPlans({
     clientArgs: options.clientArgs,
     env,
-    identityMode: options.identityMode,
+    iamMode: options.iamMode,
     target: options.target,
     userCenterProvider: options.userCenterProvider,
   });

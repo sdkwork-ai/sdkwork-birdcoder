@@ -1,6 +1,6 @@
 @source "../../../../src";
 @source "../../../../packages";
-@source "../../../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src";
-@source "../../../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-pc-react/src";
+@source "../../../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src";
+@source "../../../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src";
 @source "../../../../../sdkwork-ui/sdkwork-ui-pc-react/src";
 @import "../../../../src/index.css";

@@ -9,7 +9,6 @@ import {
   type SdkworkCanonicalUserSectionRouteIntent,
   type SdkworkCanonicalUserWorkspaceManifest,
 } from '@sdkwork/user-pc-react';
-import { BIRDCODER_APPBASE_USER_PROFILE_STORAGE_BINDING } from '@sdkwork/birdcoder-types';
 import { BIRDCODER_USER_CENTER_ROUTES } from '@sdkwork/birdcoder-core';
 
 export type BirdCoderUserSectionId = 'overview' | 'profile' | 'security' | 'membership';
@@ -51,10 +50,6 @@ const birdCoderUserDefinition = createSdkworkCanonicalUserDefinition({
 
 export const BIRDCODER_USER_DEFINITION = birdCoderUserDefinition;
 export const BIRDCODER_USER_SOURCE_PACKAGE = birdCoderUserDefinition.sourcePackageName;
-export const BIRDCODER_USER_STORAGE_SCOPE =
-  BIRDCODER_APPBASE_USER_PROFILE_STORAGE_BINDING.storageScope;
-export const BIRDCODER_USER_PROFILE_KEY =
-  BIRDCODER_APPBASE_USER_PROFILE_STORAGE_BINDING.storageKey;
 
 export function createBirdCoderUserCapability(
   routePath: string = BIRDCODER_USER_CENTER_ROUTES.userRoutePath,

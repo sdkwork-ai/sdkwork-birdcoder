@@ -8,10 +8,6 @@ const localStoreModulePath = new URL(
   '../packages/sdkwork-birdcoder-commons/src/storage/localStore.ts',
   import.meta.url,
 );
-const userStorageModulePath = new URL(
-  '../packages/sdkwork-birdcoder-user/src/storage.ts',
-  import.meta.url,
-);
 const preferencesModulePath = new URL(
   '../packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts',
   import.meta.url,
@@ -54,7 +50,6 @@ Object.defineProperty(globalThis, 'window', {
 try {
   const bootstrapModule = await import(`${bootstrapModulePath.href}?t=${Date.now()}`);
   const localStoreModule = await import(`${localStoreModulePath.href}?t=${Date.now()}`);
-  const userStorageModule = await import(`${userStorageModulePath.href}?t=${Date.now()}`);
   const preferencesModule = await import(`${preferencesModulePath.href}?t=${Date.now()}`);
   const runConfigsModule = await import(`${runConfigsModulePath.href}?t=${Date.now()}`);
   const recoveryModule = await import(`${recoveryModulePath.href}?t=${Date.now()}`);
@@ -64,15 +59,15 @@ try {
 
   await bootstrapModule.bootstrapShellUserState();
 
-  assert.notEqual(
+  assert.equal(
     await localStoreModule.getStoredRawValue('appbase.user-center.user', 'profile'),
     null,
-    'shell bootstrap must persist a default user profile snapshot on first launch',
+    'shell bootstrap must not persist duplicate local user profile snapshots; IAM profile state is owned by appbase runtime.',
   );
-  assert.notEqual(
+  assert.equal(
     await localStoreModule.getStoredRawValue('appbase.commerce.vip', 'membership'),
     null,
-    'shell bootstrap must persist a default VIP membership snapshot on first launch',
+    'shell bootstrap must not persist duplicate local VIP membership snapshots; IAM membership state is owned by appbase runtime.',
   );
   assert.notEqual(
     await localStoreModule.getStoredRawValue(
@@ -90,8 +85,6 @@ try {
     'shell bootstrap must persist a workbench recovery snapshot on first launch',
   );
 
-  const bootstrappedProfile = await userStorageModule.readBirdCoderUserProfile();
-  const bootstrappedMembership = await userStorageModule.readBirdCoderVipMembership();
   const bootstrappedPreferences = await preferencesModule.readWorkbenchPreferences();
   const bootstrappedRecoverySnapshot = recoveryModule.normalizeWorkbenchRecoverySnapshot(
     await localStoreModule.getStoredJson(
@@ -101,19 +94,15 @@ try {
     ),
   );
 
-  assert.equal(bootstrappedProfile.company, 'SDKWork');
-  assert.equal(bootstrappedMembership.status, 'inactive');
-  assert.equal(bootstrappedMembership.pointBalance, '0');
   assert.equal(bootstrappedPreferences.codeEngineId, 'codex');
   assert.equal(bootstrappedRecoverySnapshot.activeTab, 'code');
   assert.equal(bootstrappedRecoverySnapshot.cleanExit, true);
 
-  await userStorageModule.writeBirdCoderUserProfile({
-    bio: 'Custom profile bio',
-    company: 'Acme',
-    displayName: 'Acme',
-    location: 'Shenzhen',
-    website: 'https://example.com',
+  await localStoreModule.setStoredJson('appbase.user-center.user', 'profile', {
+    company: 'Legacy local profile',
+  });
+  await localStoreModule.setStoredJson('appbase.commerce.vip', 'membership', {
+    status: 'legacy-local-membership',
   });
   await preferencesModule.writeWorkbenchPreferences({
     codeEngineId: 'gemini',
@@ -133,7 +122,6 @@ try {
 
   await bootstrapModule.bootstrapShellUserState();
 
-  const preservedProfile = await userStorageModule.readBirdCoderUserProfile();
   const preservedPreferences = await preferencesModule.readWorkbenchPreferences();
   const preservedRecoverySnapshot = recoveryModule.normalizeWorkbenchRecoverySnapshot(
     await localStoreModule.getStoredJson(
@@ -143,10 +131,15 @@ try {
     ),
   );
 
-  assert.equal(
-    preservedProfile.company,
-    'Acme',
-    'shell bootstrap must preserve an existing user profile',
+  assert.deepEqual(
+    await localStoreModule.getStoredJson('appbase.user-center.user', 'profile', {}),
+    { company: 'Legacy local profile' },
+    'shell bootstrap must not mutate retired local profile records.',
+  );
+  assert.deepEqual(
+    await localStoreModule.getStoredJson('appbase.commerce.vip', 'membership', {}),
+    { status: 'legacy-local-membership' },
+    'shell bootstrap must not mutate retired local membership records.',
   );
   assert.equal(
     preservedPreferences.codeEngineId,

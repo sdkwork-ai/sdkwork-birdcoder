@@ -147,16 +147,14 @@ export function createBirdCoderCanonicalUserCenterRuntimeBridge(
 
   return {
     ...bridge,
-    runtimeClient: bridge.apiBaseUrl
-      ? createUserCenterRuntimeClient(
-          bridge.runtimeConfig,
-          {
-            ...resolvedRuntimeClientOptions,
-            tokenStore:
-              runtimeClientOptions.tokenStore ?? createRuntimeServerTokenStore(),
-          },
-        )
-      : null,
+    runtimeClient: createUserCenterRuntimeClient(
+      bridge.runtimeConfig,
+      {
+        ...resolvedRuntimeClientOptions,
+        tokenStore:
+          runtimeClientOptions.tokenStore ?? createRuntimeServerTokenStore(),
+      },
+    ),
   };
 }
 

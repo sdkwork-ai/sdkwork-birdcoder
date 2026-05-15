@@ -16,6 +16,9 @@ This workspace keeps the `packages/sdkwork-birdcoder-*` directory layout, but pa
 ## Coding Style & Naming Conventions
 Use TypeScript with 2-space indentation and keep exports centered in each package `src/index.ts`. React components and providers use `PascalCase`; hooks and helpers use `camelCase`. Directory names stay on `sdkwork-birdcoder-*`, package manifest names and import specifiers use `@sdkwork/birdcoder-*`, internal workspace dependencies use `workspace:*`, and repeated third-party versions must be governed from the root `pnpm-workspace.yaml` `catalog` instead of being re-versioned per package. Prefer editing standardized package layers instead of adding new root-level glue. Keep deployment and release metadata explicit: `platform`, `arch`, and `accelerator` are required naming dimensions.
 
+## SDKWork Standards
+Before changing domains, APIs, SDK contracts, database schemas, reusable modules, frontend UI/service logic, app manifests, IAM/auth/permission behavior, deployment/runtime configuration, external integrations, events, observability, performance, privacy, or generated-client integration, read the canonical standards in `../../specs/README.md` and then the relevant spec files under `../../specs/`. Local conventions may extend these standards but must not contradict them.
+
 ## Testing Guidelines
 Contract tests are script-based and live in `scripts/*.test.mjs` and `scripts/release/*.test.mjs`. Add focused tests beside the release or architecture script you change. Before submitting work, run at least `pnpm lint`; for release or deployment changes also run `pnpm check:release-flow` and the relevant `pnpm release:smoke:*` command.
 

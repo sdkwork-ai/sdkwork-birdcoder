@@ -1,5 +1,11 @@
 packages:
   - 'packages/sdkwork-birdcoder-*'
+  - '../sdkwork-appbase/packages/common/iam/*'
+  - '../sdkwork-appbase/packages/pc-react/foundation/*'
+  - '../sdkwork-appbase/packages/pc-react/iam/*'
+  - '../sdkwork-appbase/packages/pc-react/commerce/sdkwork-vip-pc-react'
+  - '../sdkwork-core/sdkwork-core-pc-react'
+  - '../sdkwork-ui/sdkwork-ui-pc-react'
 
 catalog:
   '@anthropic-ai/claude-agent-sdk': ^0.2.87
@@ -95,4 +101,5 @@ catalog:
   vfile: ^6.0.3
   vfile-message: ^4.0.3
   vite: ^6.2.0
+  vite-plugin-dts: ^4.5.4
   yaml: ^2.4.2

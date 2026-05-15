@@ -25,11 +25,9 @@ import {
 } from '../../sdkwork-birdcoder-host-core/src/index.ts';
 import {
   createUserCenterBridgeConfig,
-} from '../../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react/src/domain/userCenterBridge.ts';
-import {
   createUserCenterStandardAppRouteProjection,
   type CreateUserCenterStandardAppRouteProjectionOptions,
-} from '../../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react/src/domain/userCenterStandardAppRoutes.ts';
+} from '@sdkwork/user-center-core-pc-react';
 import type {
   BirdCoderApiEnvelope,
   BirdCoderApiGatewaySummary,

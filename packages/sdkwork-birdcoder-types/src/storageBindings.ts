@@ -2,30 +2,6 @@ import type { BirdCoderEntityStorageBinding } from './data.ts';
 
 export type { BirdCoderEntityStorageBinding } from './data.ts';
 
-export const BIRDCODER_APPBASE_AUTH_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
-  entityName: 'user_account',
-  storageScope: 'appbase.user-center.auth',
-  storageKey: 'session',
-  preferredProvider: 'sqlite',
-  storageMode: 'key-value',
-};
-
-export const BIRDCODER_APPBASE_USER_PROFILE_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
-  entityName: 'user_profile',
-  storageScope: 'appbase.user-center.user',
-  storageKey: 'profile',
-  preferredProvider: 'sqlite',
-  storageMode: 'key-value',
-};
-
-export const BIRDCODER_APPBASE_VIP_USER_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
-  entityName: 'vip_user',
-  storageScope: 'appbase.commerce.vip',
-  storageKey: 'membership',
-  preferredProvider: 'sqlite',
-  storageMode: 'key-value',
-};
-
 export const BIRDCODER_APPBASE_AGENT_PLUGIN_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
   entityName: 'agent_plugin',
   storageScope: 'appbase.plugin.agent',
