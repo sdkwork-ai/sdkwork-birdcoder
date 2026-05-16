@@ -1,9 +1,11 @@
+import type {
+  BirdCoderAppRuntimeReadSdkApiClient,
+  BirdCoderAppRuntimeWriteSdkApiClient,
+  BirdCoderAppSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderCodingSessionSummary,
-  BirdCoderCoreReadApiClient,
-  BirdCoderCoreWriteApiClient,
 } from '@sdkwork/birdcoder-types';
 import {
   TEST_CODE_ENGINE_MODEL_CONFIG,
@@ -19,11 +21,15 @@ const consoleRepositoryModulePath = new URL(
   import.meta.url,
 );
 const consoleQueriesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminConsoleQueries.ts',
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts',
   import.meta.url,
 );
-const appAdminApiClientModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
+const appSdkTransportModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/appSdkTransport.ts',
+  import.meta.url,
+);
+const sdkClientsModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts',
   import.meta.url,
 );
 const typesEntryModulePath = new URL(
@@ -70,14 +76,14 @@ try {
   const { createBirdCoderConsoleRepositories } = await import(
     `${consoleRepositoryModulePath.href}?t=${Date.now()}`
   );
-  const { createBirdCoderAppAdminConsoleQueries } = await import(
+  const { createBirdCoderConsoleQueries } = await import(
     `${consoleQueriesModulePath.href}?t=${Date.now()}`
   );
   const {
-    createBirdCoderInProcessAppAdminApiTransport,
-  } = await import(`${appAdminApiClientModulePath.href}?t=${Date.now()}`);
-  const { createBirdCoderGeneratedAppAdminApiClient } = await import(
-    `${typesEntryModulePath.href}?t=${Date.now()}`
+    createBirdCoderInProcessAppSdkTransport,
+  } = await import(`${appSdkTransportModulePath.href}?t=${Date.now()}`);
+  const { createBirdCoderAppSdkApiClient } = await import(
+    `${sdkClientsModulePath.href}?t=${Date.now()}`
   );
   const { createDefaultBirdCoderIdeServices } = await import(
     `${defaultServicesModulePath.href}?t=${Date.now()}`
@@ -88,7 +94,7 @@ try {
     providerId: provider.providerId,
     storage: provider,
   });
-  const queries = createBirdCoderAppAdminConsoleQueries({ repositories });
+  const queries = createBirdCoderConsoleQueries({ repositories });
 
   await Promise.all([
     repositories.workspaces.clear(),
@@ -127,15 +133,15 @@ try {
     updatedAt: '2026-04-20T12:01:00.250Z',
   });
 
-  const appAdminClient: BirdCoderAppAdminApiClient = createBirdCoderGeneratedAppAdminApiClient({
-    transport: createBirdCoderInProcessAppAdminApiTransport({
+  const appClient: BirdCoderAppSdkApiClient = createBirdCoderAppSdkApiClient({
+    transport: createBirdCoderInProcessAppSdkTransport({
       queries,
     }),
   });
 
   let remoteCodingSessions: BirdCoderCodingSessionSummary[] = [];
 
-  const coreReadClient: BirdCoderCoreReadApiClient = {
+  const codingRuntimeReadClient: BirdCoderAppRuntimeReadSdkApiClient = {
     async getCodingSession(codingSessionId) {
       const codingSession = remoteCodingSessions.find((candidate) => candidate.id === codingSessionId);
       if (!codingSession) {
@@ -201,7 +207,7 @@ try {
     },
   };
 
-  const coreWriteClient: BirdCoderCoreWriteApiClient = {
+  const codingRuntimeWriteClient: BirdCoderAppRuntimeWriteSdkApiClient = {
     async createCodingSession(request) {
       const createdSession: BirdCoderCodingSessionSummary = {
         id: 'coding-session-summary-cache-contract',
@@ -254,9 +260,11 @@ try {
   };
 
   const services = createDefaultBirdCoderIdeServices({
-    appAdminClient,
-    coreReadClient,
-    coreWriteClient,
+    appClient,
+    appRuntimeClient: {
+      ...codingRuntimeReadClient,
+      ...codingRuntimeWriteClient,
+    },
     storageProvider: provider,
   });
 

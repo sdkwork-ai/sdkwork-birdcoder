@@ -7,7 +7,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_EVIDENCE = {
   ],
   "openapi": "3.1.0",
   "releaseTag": "release-local",
-  "sha256": "013c91c1f2d2a89c0ee02427bd3cc72449ff21c8f3c19bd69a5dd54305664b5e",
+  "sha256": "4ec08bf3e9bb336fb706558da33e59ea91559c7e467b8b7eb79701bf5081c6ed",
   "targetCount": 1,
   "targets": [
     "windows/x64"
@@ -19,577 +19,563 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_EVIDENCE = {
 export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   {
     "method": "GET",
-    "operationId": "admin.listAuditEvents",
-    "path": "/api/admin/v1/audit",
-    "summary": "List audit events",
-    "surface": "admin"
-  },
-  {
-    "method": "GET",
-    "operationId": "admin.listDeployments",
-    "path": "/api/admin/v1/deployments",
-    "summary": "List governed deployments",
-    "surface": "admin"
-  },
-  {
-    "method": "GET",
-    "operationId": "admin.listPolicies",
-    "path": "/api/admin/v1/policies",
-    "summary": "List governance policies",
-    "surface": "admin"
-  },
-  {
-    "method": "GET",
-    "operationId": "admin.listDeploymentTargets",
-    "path": "/api/admin/v1/projects/{projectId}/deployment-targets",
-    "summary": "List deployment targets",
-    "surface": "admin"
-  },
-  {
-    "method": "GET",
-    "operationId": "admin.listReleases",
-    "path": "/api/admin/v1/releases",
-    "summary": "List releases",
-    "surface": "admin"
-  },
-  {
-    "method": "GET",
-    "operationId": "admin.listTeams",
-    "path": "/api/admin/v1/teams",
-    "summary": "List teams",
-    "surface": "admin"
-  },
-  {
-    "method": "GET",
-    "operationId": "admin.listTeamMembers",
-    "path": "/api/admin/v1/teams/{teamId}/members",
-    "summary": "List team members",
-    "surface": "admin"
-  },
-  {
-    "method": "GET",
-    "operationId": "app.listAppTemplates",
-    "path": "/api/app/v1/app-templates",
+    "operationId": "appTemplates.list",
+    "path": "/app/v3/api/app_templates",
     "summary": "List app templates",
     "surface": "app"
   },
   {
+    "method": "POST",
+    "operationId": "approvals.decisions.create",
+    "path": "/app/v3/api/approvals/{approvalId}/decision",
+    "summary": "Submit approval decision",
+    "surface": "app"
+  },
+  {
     "method": "GET",
-    "operationId": "app.getUserCenterConfig",
-    "path": "/api/app/v1/auth/config",
+    "operationId": "config.retrieve",
+    "path": "/app/v3/api/auth/config",
     "summary": "Get active user-center provider metadata and login capability switches.",
     "surface": "app"
   },
   {
-    "method": "POST",
-    "operationId": "app.loginWithEmailCode",
-    "path": "/api/app/v1/auth/email/login",
-    "summary": "Create a login session with email verification credentials.",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.login",
-    "path": "/api/app/v1/auth/login",
-    "summary": "Create a login session with account and password credentials.",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.logout",
-    "path": "/api/app/v1/auth/logout",
-    "summary": "Revoke the current user-center login session and its token shadows.",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.loginWithOAuth",
-    "path": "/api/app/v1/auth/oauth/login",
-    "summary": "Create user center session with OAuth authorization code",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.getOAuthAuthorizationUrl",
-    "path": "/api/app/v1/auth/oauth/url",
+    "method": "GET",
+    "operationId": "oauthAuthorizationUrls.retrieve",
+    "path": "/app/v3/api/auth/oauth_authorization_urls",
     "summary": "Resolve OAuth authorization URL for social sign-in",
     "surface": "app"
   },
   {
     "method": "POST",
-    "operationId": "app.resetPassword",
-    "path": "/api/app/v1/auth/password/reset",
-    "summary": "Reset the current account password using a verified recovery challenge.",
+    "operationId": "oauthSessions.create",
+    "path": "/app/v3/api/auth/oauth_sessions",
+    "summary": "Create user center session with OAuth authorization code",
     "surface": "app"
   },
   {
     "method": "POST",
-    "operationId": "app.requestPasswordReset",
-    "path": "/api/app/v1/auth/password/reset/request",
+    "operationId": "passwordResetRequests.create",
+    "path": "/app/v3/api/auth/password_reset_requests",
     "summary": "Request a password-reset challenge through the configured verification channel.",
     "surface": "app"
   },
   {
     "method": "POST",
-    "operationId": "app.loginWithPhoneCode",
-    "path": "/api/app/v1/auth/phone/login",
-    "summary": "Create a login session with phone verification credentials.",
+    "operationId": "passwordResets.create",
+    "path": "/app/v3/api/auth/password_resets",
+    "summary": "Reset the current account password using a verified recovery challenge.",
     "surface": "app"
   },
   {
     "method": "POST",
-    "operationId": "app.generateLoginQrCode",
-    "path": "/api/app/v1/auth/qr/generate",
+    "operationId": "qrLoginCodes.create",
+    "path": "/app/v3/api/auth/qr_login_codes",
     "summary": "Generate user center login QR code",
     "surface": "app"
   },
   {
     "method": "GET",
-    "operationId": "app.checkLoginQrCodeStatus",
-    "path": "/api/app/v1/auth/qr/status/{qrKey}",
+    "operationId": "qrLoginCodes.retrieve",
+    "path": "/app/v3/api/auth/qr_login_codes/{qrKey}",
     "summary": "Check user center login QR code status",
     "surface": "app"
   },
   {
     "method": "POST",
-    "operationId": "app.register",
-    "path": "/api/app/v1/auth/register",
+    "operationId": "registrations.create",
+    "path": "/app/v3/api/auth/registrations",
     "summary": "Register a local user and return the initial account projection when enabled.",
     "surface": "app"
   },
   {
-    "method": "GET",
-    "operationId": "app.getCurrentUserSession",
-    "path": "/api/app/v1/auth/session",
-    "summary": "Get the current login session snapshot for the active principal.",
-    "surface": "app"
-  },
-  {
     "method": "POST",
-    "operationId": "app.exchangeUserCenterSession",
-    "path": "/api/app/v1/auth/session/exchange",
+    "operationId": "sessionExchanges.create",
+    "path": "/app/v3/api/auth/session_exchanges",
     "summary": "Exchange an upstream or third-party session into the local AuthToken and AccessToken bundle.",
     "surface": "app"
   },
   {
     "method": "POST",
-    "operationId": "app.sendVerifyCode",
-    "path": "/api/app/v1/auth/verify/send",
+    "operationId": "sessions.create",
+    "path": "/app/v3/api/auth/sessions",
+    "summary": "Create a login session with account and password credentials.",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "sessions.current.retrieve",
+    "path": "/app/v3/api/auth/sessions/current",
+    "summary": "Get the current login session snapshot for the active principal.",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "sessions.current.delete",
+    "path": "/app/v3/api/auth/sessions/current",
+    "summary": "Revoke the current user-center login session and its token shadows.",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "verificationCodes.create",
+    "path": "/app/v3/api/auth/verification_codes",
     "summary": "Send a verification challenge for login, registration, or password reset.",
     "surface": "app"
   },
   {
     "method": "GET",
-    "operationId": "app.listDeployments",
-    "path": "/api/app/v1/deployments",
-    "summary": "List deployments",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
-    "operationId": "app.listDocuments",
-    "path": "/api/app/v1/documents",
-    "summary": "List project documents",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
-    "operationId": "app.listProjects",
-    "path": "/api/app/v1/projects",
-    "summary": "List projects",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.createProject",
-    "path": "/api/app/v1/projects",
-    "summary": "Create project",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
-    "operationId": "app.getProject",
-    "path": "/api/app/v1/projects/{projectId}",
-    "summary": "Get project",
-    "surface": "app"
-  },
-  {
-    "method": "PATCH",
-    "operationId": "app.updateProject",
-    "path": "/api/app/v1/projects/{projectId}",
-    "summary": "Update project",
-    "surface": "app"
-  },
-  {
-    "method": "DELETE",
-    "operationId": "app.deleteProject",
-    "path": "/api/app/v1/projects/{projectId}",
-    "summary": "Delete project",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
-    "operationId": "app.listProjectCollaborators",
-    "path": "/api/app/v1/projects/{projectId}/collaborators",
-    "summary": "List project collaborators",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.upsertProjectCollaborator",
-    "path": "/api/app/v1/projects/{projectId}/collaborators",
-    "summary": "Upsert project collaborator",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.switchProjectGitBranch",
-    "path": "/api/app/v1/projects/{projectId}/git/branch-switch",
-    "summary": "Switch project Git branch",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.createProjectGitBranch",
-    "path": "/api/app/v1/projects/{projectId}/git/branches",
-    "summary": "Create project Git branch",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.commitProjectGitChanges",
-    "path": "/api/app/v1/projects/{projectId}/git/commits",
-    "summary": "Commit project Git changes",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
-    "operationId": "app.getProjectGitOverview",
-    "path": "/api/app/v1/projects/{projectId}/git/overview",
-    "summary": "Get project Git overview",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.pushProjectGitBranch",
-    "path": "/api/app/v1/projects/{projectId}/git/pushes",
-    "summary": "Push project Git branch",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.pruneProjectGitWorktrees",
-    "path": "/api/app/v1/projects/{projectId}/git/worktree-prune",
-    "summary": "Prune project Git worktrees",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.removeProjectGitWorktree",
-    "path": "/api/app/v1/projects/{projectId}/git/worktree-removals",
-    "summary": "Remove project Git worktree",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.createProjectGitWorktree",
-    "path": "/api/app/v1/projects/{projectId}/git/worktrees",
-    "summary": "Create project Git worktree",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.publishProject",
-    "path": "/api/app/v1/projects/{projectId}/publish",
-    "summary": "Publish project release flow",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
-    "operationId": "app.listSkillPackages",
-    "path": "/api/app/v1/skill-packages",
-    "summary": "List skill packages",
-    "surface": "app"
-  },
-  {
-    "method": "POST",
-    "operationId": "app.installSkillPackage",
-    "path": "/api/app/v1/skill-packages/{packageId}/installations",
-    "summary": "Install skill package for a scope",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
-    "operationId": "app.listTeams",
-    "path": "/api/app/v1/teams",
-    "summary": "List workspace teams",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
-    "operationId": "app.getCurrentUserProfile",
-    "path": "/api/app/v1/user/profile",
-    "summary": "Get the current user's canonical profile projection.",
-    "surface": "app"
-  },
-  {
-    "method": "PATCH",
-    "operationId": "app.updateCurrentUserProfile",
-    "path": "/api/app/v1/user/profile",
-    "summary": "Update the current user's canonical profile projection.",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
-    "operationId": "app.getCurrentUserMembership",
-    "path": "/api/app/v1/vip/info",
+    "operationId": "vip.info.retrieve",
+    "path": "/app/v3/api/billing/vip/info",
     "summary": "Get the current user's VIP or membership projection.",
     "surface": "app"
   },
   {
     "method": "PATCH",
-    "operationId": "app.updateCurrentUserMembership",
-    "path": "/api/app/v1/vip/info",
+    "operationId": "vip.info.update",
+    "path": "/app/v3/api/billing/vip/info",
     "summary": "Update the current user's VIP or membership projection for local authority mode.",
     "surface": "app"
   },
   {
     "method": "GET",
-    "operationId": "app.listWorkspaces",
-    "path": "/api/app/v1/workspaces",
+    "operationId": "codingSessions.list",
+    "path": "/app/v3/api/coding_sessions",
+    "summary": "List coding sessions",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "codingSessions.create",
+    "path": "/app/v3/api/coding_sessions",
+    "summary": "Create coding session",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "codingSessions.retrieve",
+    "path": "/app/v3/api/coding_sessions/{id}",
+    "summary": "Get coding session",
+    "surface": "app"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "codingSessions.update",
+    "path": "/app/v3/api/coding_sessions/{id}",
+    "summary": "Update coding session",
+    "surface": "app"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "codingSessions.delete",
+    "path": "/app/v3/api/coding_sessions/{id}",
+    "summary": "Delete coding session",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "codingSessions.artifacts.list",
+    "path": "/app/v3/api/coding_sessions/{id}/artifacts",
+    "summary": "List coding session artifacts",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "codingSessions.checkpoints.list",
+    "path": "/app/v3/api/coding_sessions/{id}/checkpoints",
+    "summary": "List coding session checkpoints",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "codingSessions.events.list",
+    "path": "/app/v3/api/coding_sessions/{id}/events",
+    "summary": "Replay or subscribe to coding session events",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "codingSessions.forks.create",
+    "path": "/app/v3/api/coding_sessions/{id}/fork",
+    "summary": "Fork coding session",
+    "surface": "app"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "codingSessions.messages.update",
+    "path": "/app/v3/api/coding_sessions/{id}/messages/{messageId}",
+    "summary": "Edit coding session message",
+    "surface": "app"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "codingSessions.messages.delete",
+    "path": "/app/v3/api/coding_sessions/{id}/messages/{messageId}",
+    "summary": "Delete coding session message",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "codingSessions.turns.create",
+    "path": "/app/v3/api/coding_sessions/{id}/turns",
+    "summary": "Create coding session turn",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "deployments.list",
+    "path": "/app/v3/api/deployments",
+    "summary": "List deployments",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "documents.list",
+    "path": "/app/v3/api/documents",
+    "summary": "List project documents",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "engines.list",
+    "path": "/app/v3/api/engines",
+    "summary": "List available engines",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "engines.capabilities.retrieve",
+    "path": "/app/v3/api/engines/{engineKey}/capabilities",
+    "summary": "Get runtime capabilities for one engine",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "users.current.retrieve",
+    "path": "/app/v3/api/iam/users/current",
+    "summary": "Get the current user's canonical profile projection.",
+    "surface": "app"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "users.current.update",
+    "path": "/app/v3/api/iam/users/current",
+    "summary": "Update the current user's canonical profile projection.",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "modelConfig.retrieve",
+    "path": "/app/v3/api/model_config",
+    "summary": "Get code engine model configuration",
+    "surface": "app"
+  },
+  {
+    "method": "PUT",
+    "operationId": "modelConfig.sync",
+    "path": "/app/v3/api/model_config",
+    "summary": "Sync code engine model configuration",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "models.list",
+    "path": "/app/v3/api/models",
+    "summary": "List model catalog",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "nativeSessionProviders.list",
+    "path": "/app/v3/api/native_session_providers",
+    "summary": "List registered native engine session providers",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "nativeSessions.list",
+    "path": "/app/v3/api/native_sessions",
+    "summary": "List discovered native engine sessions",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "nativeSessions.retrieve",
+    "path": "/app/v3/api/native_sessions/{id}",
+    "summary": "Get discovered native engine session detail",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "operations.retrieve",
+    "path": "/app/v3/api/operations/{operationId}",
+    "summary": "Get operation status",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "projects.list",
+    "path": "/app/v3/api/projects",
+    "summary": "List projects",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "projects.create",
+    "path": "/app/v3/api/projects",
+    "summary": "Create project",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "projects.retrieve",
+    "path": "/app/v3/api/projects/{projectId}",
+    "summary": "Get project",
+    "surface": "app"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "projects.update",
+    "path": "/app/v3/api/projects/{projectId}",
+    "summary": "Update project",
+    "surface": "app"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "projects.delete",
+    "path": "/app/v3/api/projects/{projectId}",
+    "summary": "Delete project",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "projects.collaborators.list",
+    "path": "/app/v3/api/projects/{projectId}/collaborators",
+    "summary": "List project collaborators",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "projects.collaborators.upsert",
+    "path": "/app/v3/api/projects/{projectId}/collaborators",
+    "summary": "Upsert project collaborator",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "projects.git.branchSwitch.create",
+    "path": "/app/v3/api/projects/{projectId}/git/branch_switch",
+    "summary": "Switch project Git branch",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "projects.git.branches.create",
+    "path": "/app/v3/api/projects/{projectId}/git/branches",
+    "summary": "Create project Git branch",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "projects.git.commits.create",
+    "path": "/app/v3/api/projects/{projectId}/git/commits",
+    "summary": "Commit project Git changes",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "projects.git.overview.retrieve",
+    "path": "/app/v3/api/projects/{projectId}/git/overview",
+    "summary": "Get project Git overview",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "projects.git.pushes.create",
+    "path": "/app/v3/api/projects/{projectId}/git/pushes",
+    "summary": "Push project Git branch",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "projects.git.worktreePrune.create",
+    "path": "/app/v3/api/projects/{projectId}/git/worktree_prune",
+    "summary": "Prune project Git worktrees",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "projects.git.worktreeRemovals.create",
+    "path": "/app/v3/api/projects/{projectId}/git/worktree_removals",
+    "summary": "Remove project Git worktree",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "projects.git.worktrees.create",
+    "path": "/app/v3/api/projects/{projectId}/git/worktrees",
+    "summary": "Create project Git worktree",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "projects.publish.create",
+    "path": "/app/v3/api/projects/{projectId}/publish",
+    "summary": "Publish project release flow",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "questions.answers.create",
+    "path": "/app/v3/api/questions/{questionId}/answer",
+    "summary": "Submit user-question answer",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "skillPackages.list",
+    "path": "/app/v3/api/skill_packages",
+    "summary": "List skill packages",
+    "surface": "app"
+  },
+  {
+    "method": "POST",
+    "operationId": "skillPackages.installations.create",
+    "path": "/app/v3/api/skill_packages/{packageId}/installations",
+    "summary": "Install skill package for a scope",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "descriptor.retrieve",
+    "path": "/app/v3/api/system/descriptor",
+    "summary": "Get coding-server descriptor",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "health.retrieve",
+    "path": "/app/v3/api/system/health",
+    "summary": "Get coding-server health",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "routes.list",
+    "path": "/app/v3/api/system/routes",
+    "summary": "List unified API routes",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "runtime.retrieve",
+    "path": "/app/v3/api/system/runtime",
+    "summary": "Get runtime metadata",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "teams.list",
+    "path": "/app/v3/api/teams",
+    "summary": "List workspace teams",
+    "surface": "app"
+  },
+  {
+    "method": "GET",
+    "operationId": "workspaces.list",
+    "path": "/app/v3/api/workspaces",
     "summary": "List workspaces",
     "surface": "app"
   },
   {
     "method": "POST",
-    "operationId": "app.createWorkspace",
-    "path": "/api/app/v1/workspaces",
+    "operationId": "workspaces.create",
+    "path": "/app/v3/api/workspaces",
     "summary": "Create workspace",
     "surface": "app"
   },
   {
     "method": "PATCH",
-    "operationId": "app.updateWorkspace",
-    "path": "/api/app/v1/workspaces/{workspaceId}",
+    "operationId": "workspaces.update",
+    "path": "/app/v3/api/workspaces/{workspaceId}",
     "summary": "Update workspace",
     "surface": "app"
   },
   {
     "method": "DELETE",
-    "operationId": "app.deleteWorkspace",
-    "path": "/api/app/v1/workspaces/{workspaceId}",
+    "operationId": "workspaces.delete",
+    "path": "/app/v3/api/workspaces/{workspaceId}",
     "summary": "Delete workspace",
     "surface": "app"
   },
   {
     "method": "GET",
-    "operationId": "app.listWorkspaceMembers",
-    "path": "/api/app/v1/workspaces/{workspaceId}/members",
+    "operationId": "workspaces.members.list",
+    "path": "/app/v3/api/workspaces/{workspaceId}/members",
     "summary": "List workspace members",
     "surface": "app"
   },
   {
     "method": "POST",
-    "operationId": "app.upsertWorkspaceMember",
-    "path": "/api/app/v1/workspaces/{workspaceId}/members",
+    "operationId": "workspaces.members.upsert",
+    "path": "/app/v3/api/workspaces/{workspaceId}/members",
     "summary": "Upsert workspace member",
     "surface": "app"
   },
   {
     "method": "GET",
-    "operationId": "app.subscribeWorkspaceRealtime",
-    "path": "/api/app/v1/workspaces/{workspaceId}/realtime",
+    "operationId": "workspaces.realtime.subscribe",
+    "path": "/app/v3/api/workspaces/{workspaceId}/realtime",
     "summary": "Subscribe to workspace realtime invalidation events",
     "surface": "app"
   },
   {
-    "method": "POST",
-    "operationId": "core.submitApprovalDecision",
-    "path": "/api/core/v1/approvals/{approvalId}/decision",
-    "summary": "Submit approval decision",
-    "surface": "core"
+    "method": "GET",
+    "operationId": "deploymentGovernance.list",
+    "path": "/backend/v3/api/deployments",
+    "summary": "List governed deployments",
+    "surface": "backend"
   },
   {
     "method": "GET",
-    "operationId": "core.listCodingSessions",
-    "path": "/api/core/v1/coding-sessions",
-    "summary": "List coding sessions",
-    "surface": "core"
-  },
-  {
-    "method": "POST",
-    "operationId": "core.createCodingSession",
-    "path": "/api/core/v1/coding-sessions",
-    "summary": "Create coding session",
-    "surface": "core"
+    "operationId": "auditEvents.list",
+    "path": "/backend/v3/api/iam/audit_events",
+    "summary": "List audit events",
+    "surface": "backend"
   },
   {
     "method": "GET",
-    "operationId": "core.getCodingSession",
-    "path": "/api/core/v1/coding-sessions/{id}",
-    "summary": "Get coding session",
-    "surface": "core"
-  },
-  {
-    "method": "PATCH",
-    "operationId": "core.updateCodingSession",
-    "path": "/api/core/v1/coding-sessions/{id}",
-    "summary": "Update coding session",
-    "surface": "core"
-  },
-  {
-    "method": "DELETE",
-    "operationId": "core.deleteCodingSession",
-    "path": "/api/core/v1/coding-sessions/{id}",
-    "summary": "Delete coding session",
-    "surface": "core"
+    "operationId": "policies.list",
+    "path": "/backend/v3/api/iam/policies",
+    "summary": "List governance policies",
+    "surface": "backend"
   },
   {
     "method": "GET",
-    "operationId": "core.listCodingSessionArtifacts",
-    "path": "/api/core/v1/coding-sessions/{id}/artifacts",
-    "summary": "List coding session artifacts",
-    "surface": "core"
+    "operationId": "teamGovernance.list",
+    "path": "/backend/v3/api/iam/teams",
+    "summary": "List teams",
+    "surface": "backend"
   },
   {
     "method": "GET",
-    "operationId": "core.listCodingSessionCheckpoints",
-    "path": "/api/core/v1/coding-sessions/{id}/checkpoints",
-    "summary": "List coding session checkpoints",
-    "surface": "core"
+    "operationId": "teamGovernance.members.list",
+    "path": "/backend/v3/api/iam/teams/{teamId}/members",
+    "summary": "List team members",
+    "surface": "backend"
   },
   {
     "method": "GET",
-    "operationId": "core.listCodingSessionEvents",
-    "path": "/api/core/v1/coding-sessions/{id}/events",
-    "summary": "Replay or subscribe to coding session events",
-    "surface": "core"
-  },
-  {
-    "method": "POST",
-    "operationId": "core.forkCodingSession",
-    "path": "/api/core/v1/coding-sessions/{id}/fork",
-    "summary": "Fork coding session",
-    "surface": "core"
-  },
-  {
-    "method": "PATCH",
-    "operationId": "core.editCodingSessionMessage",
-    "path": "/api/core/v1/coding-sessions/{id}/messages/{messageId}",
-    "summary": "Edit coding session message",
-    "surface": "core"
-  },
-  {
-    "method": "DELETE",
-    "operationId": "core.deleteCodingSessionMessage",
-    "path": "/api/core/v1/coding-sessions/{id}/messages/{messageId}",
-    "summary": "Delete coding session message",
-    "surface": "core"
-  },
-  {
-    "method": "POST",
-    "operationId": "core.createCodingSessionTurn",
-    "path": "/api/core/v1/coding-sessions/{id}/turns",
-    "summary": "Create coding session turn",
-    "surface": "core"
+    "operationId": "projects.deploymentTargets.list",
+    "path": "/backend/v3/api/projects/{projectId}/deployment_targets",
+    "summary": "List deployment targets",
+    "surface": "backend"
   },
   {
     "method": "GET",
-    "operationId": "core.getDescriptor",
-    "path": "/api/core/v1/descriptor",
-    "summary": "Get coding-server descriptor",
-    "surface": "core"
-  },
-  {
-    "method": "GET",
-    "operationId": "core.listEngines",
-    "path": "/api/core/v1/engines",
-    "summary": "List available engines",
-    "surface": "core"
-  },
-  {
-    "method": "GET",
-    "operationId": "core.getEngineCapabilities",
-    "path": "/api/core/v1/engines/{engineKey}/capabilities",
-    "summary": "Get runtime capabilities for one engine",
-    "surface": "core"
-  },
-  {
-    "method": "GET",
-    "operationId": "core.getHealth",
-    "path": "/api/core/v1/health",
-    "summary": "Get coding-server health",
-    "surface": "core"
-  },
-  {
-    "method": "GET",
-    "operationId": "core.getModelConfig",
-    "path": "/api/core/v1/model-config",
-    "summary": "Get code engine model configuration",
-    "surface": "core"
-  },
-  {
-    "method": "GET",
-    "operationId": "core.listModels",
-    "path": "/api/core/v1/models",
-    "summary": "List model catalog",
-    "surface": "core"
-  },
-  {
-    "method": "GET",
-    "operationId": "core.listNativeSessionProviders",
-    "path": "/api/core/v1/native-session-providers",
-    "summary": "List registered native engine session providers",
-    "surface": "core"
-  },
-  {
-    "method": "GET",
-    "operationId": "core.listNativeSessions",
-    "path": "/api/core/v1/native-sessions",
-    "summary": "List discovered native engine sessions",
-    "surface": "core"
-  },
-  {
-    "method": "GET",
-    "operationId": "core.getNativeSession",
-    "path": "/api/core/v1/native-sessions/{id}",
-    "summary": "Get discovered native engine session detail",
-    "surface": "core"
-  },
-  {
-    "method": "GET",
-    "operationId": "core.getOperation",
-    "path": "/api/core/v1/operations/{operationId}",
-    "summary": "Get operation status",
-    "surface": "core"
-  },
-  {
-    "method": "POST",
-    "operationId": "core.submitUserQuestionAnswer",
-    "path": "/api/core/v1/questions/{questionId}/answer",
-    "summary": "Submit user-question answer",
-    "surface": "core"
-  },
-  {
-    "method": "PUT",
-    "operationId": "core.syncModelConfig",
-    "path": "/api/core/v1/model-config",
-    "summary": "Sync code engine model configuration",
-    "surface": "core"
-  },
-  {
-    "method": "GET",
-    "operationId": "core.listRoutes",
-    "path": "/api/core/v1/routes",
-    "summary": "List unified API routes",
-    "surface": "core"
-  },
-  {
-    "method": "GET",
-    "operationId": "core.getRuntime",
-    "path": "/api/core/v1/runtime",
-    "summary": "Get runtime metadata",
-    "surface": "core"
+    "operationId": "releases.list",
+    "path": "/backend/v3/api/releases",
+    "summary": "List releases",
+    "surface": "backend"
   }
 ] as const;
 

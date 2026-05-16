@@ -48,28 +48,28 @@ assert.equal(sqliteExecutor.history.length, 3);
 assert.equal(sqliteExecutor.history[0].intent, 'write');
 assert.equal(
   sqliteExecutor.history[0].statements.some((statement) =>
-    statement.sql.includes('CREATE TABLE IF NOT EXISTS terminal_executions'),
+    statement.sql.includes('CREATE TABLE IF NOT EXISTS ops_terminal_execution'),
   ),
   true,
 );
 assert.equal(
   sqliteExecutor.history[0].statements.some((statement) =>
-    statement.sql.includes('CREATE TABLE IF NOT EXISTS coding_session_prompt_entries'),
+    statement.sql.includes('CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry'),
   ),
   true,
 );
 assert.equal(
   sqliteExecutor.history[0].statements.some((statement) =>
-    statement.sql.includes('CREATE TABLE IF NOT EXISTS saved_prompt_entries'),
+    statement.sql.includes('CREATE TABLE IF NOT EXISTS ai_saved_prompt_entry'),
   ),
   true,
 );
 assert.equal(
-  sqliteExecutor.history[1].statements[0].sql.includes('INSERT INTO schema_migration_history'),
+  sqliteExecutor.history[1].statements[0].sql.includes('INSERT INTO ops_schema_migration_history'),
   true,
 );
 assert.equal(
-  sqliteExecutor.history[2].statements[0].sql.includes('INSERT INTO schema_migration_history'),
+  sqliteExecutor.history[2].statements[0].sql.includes('INSERT INTO ops_schema_migration_history'),
   true,
 );
 
@@ -93,9 +93,9 @@ assert.equal(postgresExecutor.history.length, 3);
 assert.equal(postgresExecutor.history[0].providerId, 'postgresql');
 assert.equal(
   postgresExecutor.history[0].statements.some((statement) =>
-    statement.sql.includes('CREATE TABLE IF NOT EXISTS terminal_executions') ||
-    statement.sql.includes('CREATE TABLE IF NOT EXISTS coding_sessions') ||
-    statement.sql.includes('CREATE TABLE IF NOT EXISTS saved_prompt_entries'),
+    statement.sql.includes('CREATE TABLE IF NOT EXISTS ops_terminal_execution') ||
+    statement.sql.includes('CREATE TABLE IF NOT EXISTS ai_coding_session') ||
+    statement.sql.includes('CREATE TABLE IF NOT EXISTS ai_saved_prompt_entry'),
   ),
   true,
 );

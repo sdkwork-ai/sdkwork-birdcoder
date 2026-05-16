@@ -75,7 +75,7 @@ export const createAuthRouteIntent = createBirdCoderAuthRouteIntent;
 export const authPackageMeta = {
   architecture: 'birdcoder-auth',
   bridgePackage: '@sdkwork/birdcoder-auth',
-  domain: 'user_center',
+  domain: 'iam',
   package: BIRDCODER_AUTH_SOURCE_PACKAGE,
   status: 'ready',
 } as const;

@@ -2,13 +2,13 @@
 
 ## Goal
 
-Close the host bootstrap loop so default workspace/project reads on web / desktop follow one shared runtime-aware app/admin client path.
+Close the host bootstrap loop so default workspace/project reads on web / desktop follow one shared runtime-aware app/backend client path.
 
 ## Closed Scope
 
 - packages/sdkwork-birdcoder-shell/src/application/bootstrap/bootstrapShellRuntime.ts
 - packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts
-- packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts
+- packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts
 - packages/sdkwork-birdcoder-commons/src/context/IDEContext.tsx
 - packages/sdkwork-birdcoder-commons/src/context/ServiceContext.tsx
 - packages/sdkwork-birdcoder-web/src/web/resolveWebRuntime.ts
@@ -26,7 +26,7 @@ Close the host bootstrap loop so default workspace/project reads on web / deskto
 
 - `pnpm.cmd run test:shell-runtime-app-client-contract`
 - `node scripts/host-runtime-contract.test.ts`
-- `pnpm.cmd run test:app-admin-sdk-consumer-contract`
+- `pnpm.cmd run test:split-sdk-consumer-contract`
 - `pnpm.cmd run test:provider-backed-console-contract`
 - `pnpm.cmd run typecheck`
 

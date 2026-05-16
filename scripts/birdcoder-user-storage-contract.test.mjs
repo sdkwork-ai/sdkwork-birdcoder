@@ -1,7 +1,24 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 const userStoragePath = new URL(
   '../packages/sdkwork-birdcoder-user/src/storage.ts',
+  import.meta.url,
+);
+const userIndexPath = new URL(
+  '../packages/sdkwork-birdcoder-user/src/index.ts',
+  import.meta.url,
+);
+const userProfileStoragePath = new URL(
+  '../packages/sdkwork-birdcoder-user/src/profileStorage.ts',
+  import.meta.url,
+);
+const workbenchUserProfileStatePath = new URL(
+  '../packages/sdkwork-birdcoder-workbench-state/src/userProfileState.ts',
+  import.meta.url,
+);
+const workbenchStateIndexPath = new URL(
+  '../packages/sdkwork-birdcoder-workbench-state/src/index.ts',
   import.meta.url,
 );
 
@@ -27,53 +44,42 @@ Object.defineProperty(globalThis, 'window', {
 
 try {
   const userStorage = await import(`${userStoragePath.href}?t=${Date.now()}`);
+  const userStorageSource = fs.readFileSync(userStoragePath, 'utf8');
+  const userIndexSource = fs.readFileSync(userIndexPath, 'utf8');
+  const workbenchStateIndexSource = fs.readFileSync(workbenchStateIndexPath, 'utf8');
 
-  assert.equal(typeof userStorage.getBirdCoderUserProfileRepository, 'function');
-  assert.equal(typeof userStorage.getBirdCoderVipMembershipRepository, 'function');
-
-  const defaultProfile = await userStorage.readBirdCoderUserProfile();
-  assert.equal(defaultProfile.company, 'SDKWork');
-
-  await userStorage.writeBirdCoderUserProfile({
-    bio: 'Ship a provider-neutral IDE data kernel.',
-    company: 'SDKWork Cloud',
-    displayName: 'SDKWork Cloud',
-    location: 'Shanghai',
-    website: 'https://sdkwork.com/birdcoder',
-  });
-  const storedProfile = await userStorage.readBirdCoderUserProfile();
-  assert.equal(storedProfile.company, 'SDKWork Cloud');
-
-  await userStorage.writeBirdCoderVipMembership({
-    vipLevelId: '1',
-    pointBalance: '101777208078558101',
-    totalRechargedPoints: '101777208078558103',
-    validTo: '2026-06-01',
-    status: 'active',
-  });
-  const storedMembership = await userStorage.readBirdCoderVipMembership();
-  assert.equal(storedMembership.vipLevelId, '1');
   assert.equal(
-    storedMembership.pointBalance,
-    '101777208078558101',
-    'VIP pointBalance maps to Java Long/BIGINT and must remain an exact decimal string.',
+    fs.existsSync(userProfileStoragePath),
+    false,
+    'BirdCoder user package must not retain a local profile/VIP storage module after appbase IAM integration.',
   );
   assert.equal(
-    storedMembership.totalRechargedPoints,
-    '101777208078558103',
-    'VIP totalRechargedPoints maps to Java Long/BIGINT and must remain an exact decimal string.',
+    fs.existsSync(workbenchUserProfileStatePath),
+    false,
+    'Workbench state must not retain duplicate IAM profile/VIP repository state.',
   );
-  await assert.rejects(
-    () =>
-      userStorage.writeBirdCoderVipMembership({
-        pointBalance: Number('101777208078558101'),
-        totalRechargedPoints: '0',
-        status: 'active',
-      }),
-    /unsafe JavaScript number/u,
-    'VIP Long/BIGINT fields must reject unsafe JavaScript numbers instead of falling back to zero.',
+
+  assert.equal(typeof userStorage.createBirdCoderRuntimeUserCenterClient, 'function');
+  assert.equal(userStorage.getBirdCoderUserProfileRepository, undefined);
+  assert.equal(userStorage.getBirdCoderVipMembershipRepository, undefined);
+  assert.equal(userStorage.readBirdCoderUserProfile, undefined);
+  assert.equal(userStorage.writeBirdCoderUserProfile, undefined);
+  assert.equal(userStorage.readBirdCoderVipMembership, undefined);
+  assert.equal(userStorage.writeBirdCoderVipMembership, undefined);
+
+  for (const source of [userStorageSource, userIndexSource, workbenchStateIndexSource]) {
+    assert.doesNotMatch(
+      source,
+      /profileStorage|getBirdCoderUserProfileRepository|getBirdCoderVipMembershipRepository|readBirdCoderUserProfile|writeBirdCoderUserProfile|readBirdCoderVipMembership|writeBirdCoderVipMembership/u,
+      'BirdCoder must not expose retired local IAM profile/VIP storage APIs.',
+    );
+  }
+
+  assert.deepEqual(
+    Array.from(backingStore.keys()),
+    [],
+    'Importing BirdCoder user storage must not create local IAM profile/VIP records.',
   );
-  assert.equal(userStorage.getBirdCoderVipMembershipRepository().binding.entityName, 'vip_user');
 } finally {
   if (originalWindowDescriptor) {
     Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
@@ -82,4 +88,4 @@ try {
   }
 }
 
-console.log('birdcoder user storage contract passed.');
+console.log('birdcoder retired user storage contract passed.');

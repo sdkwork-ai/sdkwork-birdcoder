@@ -184,12 +184,12 @@ function writeServerFixture(rootDir) {
         },
       ],
       'x-sdkwork-api-gateway': {
-        routeCatalogPath: '/api/core/v1/routes',
+        routeCatalogPath: '/app/v3/api/system/routes',
       },
       paths: {
-        '/api/core/v1/routes': {
+        '/app/v3/api/system/routes': {
           get: {
-            operationId: 'core.listRoutes',
+            operationId: 'routes.list',
           },
         },
       },

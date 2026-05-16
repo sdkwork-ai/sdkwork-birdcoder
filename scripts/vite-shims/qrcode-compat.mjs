@@ -1,4 +1,4 @@
-import qrcodeBrowserModule from 'qrcode/lib/browser.js';
+import * as qrcodeBrowserModule from 'qrcode/lib/browser.js';
 
 const qrcodeCompat = qrcodeBrowserModule?.default ?? qrcodeBrowserModule;
 

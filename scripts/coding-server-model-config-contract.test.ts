@@ -1,62 +1,61 @@
 import assert from 'node:assert/strict';
 
-import {
-  createBirdCoderGeneratedCoreReadApiClient,
-  createBirdCoderGeneratedCoreWriteApiClient,
-  type BirdCoderApiEnvelope,
-  type BirdCoderApiTransport,
-  type BirdCoderCodeEngineModelConfig,
-  type BirdCoderCodeEngineModelConfigSyncResult,
+import { createBirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+import type {
+  BirdCoderApiEnvelope,
+  BirdCoderApiTransport,
+  BirdCoderCodeEngineModelConfig,
+  BirdCoderCodeEngineModelConfigSyncResult,
 } from '../packages/sdkwork-birdcoder-types/src/index.ts';
 import {
   buildBirdCoderCodingServerOpenApiDocumentSeed,
-  getBirdCoderCoreApiContract,
+  getBirdCoderAppRuntimeApiContract,
   listBirdCoderCodingServerRouteCatalogEntries,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
 import {
-  createBirdCoderInProcessCoreApiTransport,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/services/coreApiClient.ts';
+  createBirdCoderInProcessAppRuntimeTransport,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/appRuntimeTransport.ts';
 
-const core = getBirdCoderCoreApiContract();
-assert.equal(core.modelConfig.method, 'GET');
-assert.equal(core.modelConfig.path, '/api/core/v1/model-config');
-assert.equal(core.syncModelConfig.method, 'PUT');
-assert.equal(core.syncModelConfig.path, '/api/core/v1/model-config');
+const appRuntime = getBirdCoderAppRuntimeApiContract();
+assert.equal(appRuntime.modelConfig.method, 'GET');
+assert.equal(appRuntime.modelConfig.path, '/app/v3/api/model_config');
+assert.equal(appRuntime.syncModelConfig.method, 'PUT');
+assert.equal(appRuntime.syncModelConfig.path, '/app/v3/api/model_config');
 
 const routeCatalog = listBirdCoderCodingServerRouteCatalogEntries();
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'core.getModelConfig'),
+  routeCatalog.find((route) => route.operationId === 'modelConfig.retrieve'),
   {
-    authMode: 'host',
+    authMode: 'user',
     method: 'GET',
-    openApiPath: '/api/core/v1/model-config',
-    operationId: 'core.getModelConfig',
-    path: '/api/core/v1/model-config',
-    surface: 'core',
+    openApiPath: '/app/v3/api/model_config',
+    operationId: 'modelConfig.retrieve',
+    path: '/app/v3/api/model_config',
+    surface: 'app',
     summary: 'Get code engine model configuration',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'core.syncModelConfig'),
+  routeCatalog.find((route) => route.operationId === 'modelConfig.sync'),
   {
-    authMode: 'host',
+    authMode: 'user',
     method: 'PUT',
-    openApiPath: '/api/core/v1/model-config',
-    operationId: 'core.syncModelConfig',
-    path: '/api/core/v1/model-config',
-    surface: 'core',
+    openApiPath: '/app/v3/api/model_config',
+    operationId: 'modelConfig.sync',
+    path: '/app/v3/api/model_config',
+    surface: 'app',
     summary: 'Sync code engine model configuration',
   },
 );
 
 const openApiSeed = buildBirdCoderCodingServerOpenApiDocumentSeed();
 assert.equal(
-  openApiSeed.paths['/api/core/v1/model-config']?.get?.operationId,
-  'core.getModelConfig',
+  openApiSeed.paths['/app/v3/api/model_config']?.get?.operationId,
+  'modelConfig.retrieve',
 );
 assert.equal(
-  openApiSeed.paths['/api/core/v1/model-config']?.put?.operationId,
-  'core.syncModelConfig',
+  openApiSeed.paths['/app/v3/api/model_config']?.put?.operationId,
+  'modelConfig.sync',
 );
 assert.ok(openApiSeed.components.schemas?.BirdCoderCodeEngineModelConfig);
 assert.ok(openApiSeed.components.schemas?.BirdCoderCodeEngineModelConfigSyncResult);
@@ -86,7 +85,7 @@ const transport: BirdCoderApiTransport = {
       ...(request.body !== undefined ? { body: request.body } : {}),
     });
 
-    if (request.path === '/api/core/v1/model-config' && request.method === 'GET') {
+    if (request.path === '/app/v3/api/model_config' && request.method === 'GET') {
       return {
         requestId: 'req.model-config',
         timestamp: '2026-04-28T00:00:00.000Z',
@@ -95,7 +94,7 @@ const transport: BirdCoderApiTransport = {
       } satisfies BirdCoderApiEnvelope<BirdCoderCodeEngineModelConfig> as TResponse;
     }
 
-    if (request.path === '/api/core/v1/model-config' && request.method === 'PUT') {
+    if (request.path === '/app/v3/api/model_config' && request.method === 'PUT') {
       return {
         requestId: 'req.sync-model-config',
         timestamp: '2026-04-28T00:00:01.000Z',
@@ -114,21 +113,20 @@ const transport: BirdCoderApiTransport = {
   },
 };
 
-const readClient = createBirdCoderGeneratedCoreReadApiClient({ transport });
-const writeClient = createBirdCoderGeneratedCoreWriteApiClient({ transport });
-const readConfig = await readClient.getModelConfig();
-const syncResult = await writeClient.syncModelConfig({ localConfig: fixtureConfig });
+const appClient = createBirdCoderAppSdkApiClient({ transport });
+const readConfig = await appClient.getModelConfig();
+const syncResult = await appClient.syncModelConfig({ localConfig: fixtureConfig });
 
 assert.equal(readConfig.engines.codex.defaultModelId, 'gpt-5-codex');
 assert.equal(syncResult.action, 'noop');
 assert.deepEqual(observedRequests, [
   {
     method: 'GET',
-    path: '/api/core/v1/model-config',
+    path: '/app/v3/api/model_config',
   },
   {
     method: 'PUT',
-    path: '/api/core/v1/model-config',
+    path: '/app/v3/api/model_config',
     body: {
       localConfig: fixtureConfig,
     },
@@ -167,13 +165,10 @@ const unusedProjectService = {
     throw new Error('not used');
   },
 };
-const inProcessTransport = createBirdCoderInProcessCoreApiTransport({
+const inProcessTransport = createBirdCoderInProcessAppRuntimeTransport({
   projectService: unusedProjectService,
 });
-const inProcessReadClient = createBirdCoderGeneratedCoreReadApiClient({
-  transport: inProcessTransport,
-});
-const inProcessWriteClient = createBirdCoderGeneratedCoreWriteApiClient({
+const inProcessAppClient = createBirdCoderAppSdkApiClient({
   transport: inProcessTransport,
 });
 const localNewerConfig: BirdCoderCodeEngineModelConfig = {
@@ -181,15 +176,15 @@ const localNewerConfig: BirdCoderCodeEngineModelConfig = {
   version: 'v2',
   updatedAt: '2026-04-28T00:10:00.000Z',
 };
-const inProcessSyncResult = await inProcessWriteClient.syncModelConfig({
+const inProcessSyncResult = await inProcessAppClient.syncModelConfig({
   localConfig: localNewerConfig,
 });
-const inProcessSyncedConfig = await inProcessReadClient.getModelConfig();
+const inProcessSyncedConfig = await inProcessAppClient.getModelConfig();
 assert.equal(inProcessSyncResult.action, 'push-local');
 assert.equal(
   inProcessSyncedConfig.version,
   'v2',
-  'In-process core model-config sync must overwrite the server copy when the local config is newer.',
+  'In-process app runtime model-config sync must overwrite the server copy when the local config is newer.',
 );
 
 console.log('coding server model config contract passed.');

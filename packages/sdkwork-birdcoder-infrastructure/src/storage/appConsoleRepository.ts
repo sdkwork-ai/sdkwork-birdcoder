@@ -274,7 +274,7 @@ export interface BirdCoderRepresentativePolicyRecord {
   status: string;
 }
 
-export interface BirdCoderRepresentativeAppAdminRepositories {
+interface BirdCoderConsoleBaseRepositories {
   audits: BirdCoderTableRecordRepository<BirdCoderRepresentativeAuditRecord>;
   deployments: BirdCoderTableRecordRepository<BirdCoderRepresentativeDeploymentRecord>;
   targets: BirdCoderTableRecordRepository<BirdCoderRepresentativeDeploymentTargetRecord>;
@@ -288,11 +288,11 @@ export interface BirdCoderRepresentativeAppAdminRepositories {
 }
 
 export interface BirdCoderConsoleRepositories
-  extends BirdCoderRepresentativeAppAdminRepositories {
+  extends BirdCoderConsoleBaseRepositories {
   workspaces: BirdCoderTableRecordRepository<BirdCoderWorkspaceRecord>;
 }
 
-export interface CreateBirdCoderRepresentativeAppAdminRepositoriesOptions {
+export interface CreateBirdCoderConsoleRepositoriesOptions {
   providerId: BirdCoderDatabaseProviderId;
   storage: BirdCoderStorageAccess;
 }
@@ -1151,7 +1151,7 @@ function buildProjectContentListByProjectIdsPlan(
 function createBirdCoderProjectRepository({
   providerId,
   storage,
-}: CreateBirdCoderRepresentativeAppAdminRepositoriesOptions): BirdCoderProjectRepository {
+}: CreateBirdCoderConsoleRepositoriesOptions): BirdCoderProjectRepository {
   const repository = createBirdCoderTableRecordRepository({
     binding: BIRDCODER_PROJECT_STORAGE_BINDING,
     definition: getBirdCoderEntityDefinition('project'),
@@ -1194,7 +1194,7 @@ function createBirdCoderProjectRepository({
 function createBirdCoderProjectContentRepository({
   providerId,
   storage,
-}: CreateBirdCoderRepresentativeAppAdminRepositoriesOptions): BirdCoderProjectContentRepository {
+}: CreateBirdCoderConsoleRepositoriesOptions): BirdCoderProjectContentRepository {
   const repository = createBirdCoderTableRecordRepository({
     binding: BIRDCODER_PROJECT_CONTENT_STORAGE_BINDING,
     definition: getBirdCoderEntityDefinition('project_content'),
@@ -1836,7 +1836,7 @@ function policyToRow(value: BirdCoderRepresentativePolicyRecord): Record<string,
 export function createBirdCoderWorkspaceRepository({
   providerId,
   storage,
-}: CreateBirdCoderRepresentativeAppAdminRepositoriesOptions): BirdCoderTableRecordRepository<BirdCoderWorkspaceRecord> {
+}: CreateBirdCoderConsoleRepositoriesOptions): BirdCoderTableRecordRepository<BirdCoderWorkspaceRecord> {
   return createBirdCoderTableRecordRepository({
     binding: BIRDCODER_WORKSPACE_STORAGE_BINDING,
     definition: getBirdCoderEntityDefinition('workspace'),
@@ -1851,10 +1851,10 @@ export function createBirdCoderWorkspaceRepository({
   });
 }
 
-export function createBirdCoderRepresentativeAppAdminRepositories({
+function createBirdCoderConsoleBaseRepositories({
   providerId,
   storage,
-}: CreateBirdCoderRepresentativeAppAdminRepositoriesOptions): BirdCoderRepresentativeAppAdminRepositories {
+}: CreateBirdCoderConsoleRepositoriesOptions): BirdCoderConsoleBaseRepositories {
   return {
     audits: createBirdCoderTableRecordRepository({
       binding: BIRDCODER_AUDIT_EVENT_STORAGE_BINDING,
@@ -1964,9 +1964,9 @@ export function createBirdCoderRepresentativeAppAdminRepositories({
 }
 
 export function createBirdCoderConsoleRepositories(
-  options: CreateBirdCoderRepresentativeAppAdminRepositoriesOptions,
+  options: CreateBirdCoderConsoleRepositoriesOptions,
 ): BirdCoderConsoleRepositories {
-  const representativeRepositories = createBirdCoderRepresentativeAppAdminRepositories(options);
+  const representativeRepositories = createBirdCoderConsoleBaseRepositories(options);
   return {
     ...representativeRepositories,
     workspaces: createBirdCoderWorkspaceRepository(options),

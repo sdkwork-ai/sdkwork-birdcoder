@@ -4,17 +4,16 @@ export type BirdCoderDatabaseProviderId =
   (typeof BIRDCODER_DATABASE_PROVIDER_IDS)[number] | (string & {});
 
 export type BirdCoderAggregateName =
-  | 'user_center'
-  | 'workspace'
-  | 'coding_session'
-  | 'engine'
-  | 'prompt'
-  | 'skillhub'
-  | 'template'
-  | 'collaboration'
-  | 'delivery'
-  | 'runtime'
-  | 'governance';
+  | 'ai'
+  | 'commerce'
+  | 'comms'
+  | 'content'
+  | 'data'
+  | 'iam'
+  | 'integration'
+  | 'media'
+  | 'ops'
+  | 'studio';
 
 export type BirdCoderLogicalColumnType =
   | 'id'
@@ -30,18 +29,8 @@ export type BirdCoderLogicalColumnType =
   | 'timestamp';
 
 export type BirdCoderEntityName =
-  | 'tenant'
-  | 'organization'
-  | 'organization_member'
-  | 'member_relation'
   | 'department'
   | 'position'
-  | 'role'
-  | 'permission'
-  | 'role_permission'
-  | 'user_role'
-  | 'user_account'
-  | 'oauth_account'
   | 'user_address'
   | 'card'
   | 'user_card'
@@ -132,12 +121,9 @@ export type BirdCoderEntityName =
   | 'payment_webhook_event'
   | 'order_dispatch_rule'
   | 'order_worker_dispatch_profile'
-  | 'user_profile'
-  | 'account'
   | 'account_history'
   | 'account_exchange_config'
   | 'ledger_bridge'
-  | 'vip_user'
   | 'vip_level'
   | 'vip_benefit'
   | 'vip_level_benefit'
@@ -257,7 +243,7 @@ export type BirdCoderLongIdString = BirdCoderLongIntegerString;
 
 export type BirdCoderCanonicalEntityId = BirdCoderLongIdString;
 
-export const BIRDCODER_DATA_SCOPES = ['DEFAULT', 'PRIVATE', 'SHARED', 'PUBLIC'] as const;
+export const BIRDCODER_DATA_SCOPES = ['DEFAULT', 'PRIVATE', 'ORGANIZATION', 'TENANT', 'PUBLIC'] as const;
 
 export type BirdCoderDataScope =
   (typeof BIRDCODER_DATA_SCOPES)[number] | (string & {});
@@ -458,217 +444,28 @@ function defineExactEntity(
   };
 }
 
-export const BIRDCODER_SCHEMA_MIGRATION_HISTORY_TABLE = 'schema_migration_history';
+export const BIRDCODER_SCHEMA_MIGRATION_HISTORY_TABLE = 'ops_schema_migration_history';
+
+const APPBASE_IAM_LONG_INTEGER_JSON_SCALAR_KEYS = [
+  'availablePoints',
+  'available_points',
+  'frozenPoints',
+  'frozen_points',
+  'frozenToken',
+  'frozen_token',
+  'pointBalance',
+  'point_balance',
+  'tokenBalance',
+  'token_balance',
+  'totalRechargedPoints',
+  'total_recharged_points',
+];
 
 export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefinition[] = [
   defineEntity(
-    'tenant',
-    'plus_tenant',
-    'user_center',
-    'Tenant root aligned with spring-ai-plus PlusTenant.',
-    [
-      { name: 'name', logicalType: 'text', description: 'Tenant display name.' },
-      { name: 'code', logicalType: 'text', description: 'Tenant unique code.' },
-      { name: 'type', logicalType: 'enum', description: 'Tenant type.' },
-      { name: 'biz_type', logicalType: 'enum', nullable: true, description: 'Tenant business type.' },
-      { name: 'biz_id', logicalType: 'id', nullable: true, description: 'Tenant business owner id.' },
-      { name: 'jwt_secret_key', logicalType: 'text', description: 'Tenant JWT secret key.' },
-      { name: 'token_expiration_ms', logicalType: 'bigint', nullable: true, description: 'Access token expiration in milliseconds.' },
-      {
-        name: 'refresh_token_expiration_ms',
-        logicalType: 'bigint',
-        nullable: true,
-        description: 'Refresh token expiration in milliseconds.',
-      },
-      { name: 'status', logicalType: 'enum', description: 'Tenant lifecycle status.' },
-      { name: 'description', logicalType: 'text', nullable: true, description: 'Tenant description.' },
-      { name: 'admin_user_id', logicalType: 'id', nullable: true, description: 'Tenant administrator user id.' },
-      { name: 'install_app_list', logicalType: 'json', nullable: true, description: 'Installed application list JSON.' },
-      { name: 'expire_time', logicalType: 'timestamp', nullable: true, description: 'Tenant expiration time.' },
-      { name: 'metadata', logicalType: 'json', nullable: true, description: 'Tenant metadata JSON.' },
-      { name: 'contact_person', logicalType: 'text', nullable: true, description: 'Tenant contact person.' },
-      { name: 'contact_phone', logicalType: 'text', nullable: true, description: 'Tenant contact phone.' },
-    ],
-    [
-      {
-        name: 'idx_plus_tenant_code',
-        columns: ['code'],
-        description: 'Uniqueness for tenant code.',
-        unique: true,
-      },
-    ],
-  ),
-  defineEntity(
-    'organization',
-    'plus_organization',
-    'user_center',
-    'Organization root aligned with spring-ai-plus PlusOrganization.',
-    [
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      {
-        name: 'organization_id',
-        logicalType: 'id',
-        description: 'Organization ownership id.',
-      },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'parent_id', logicalType: 'id', nullable: true, description: 'Parent organization id.' },
-      { name: 'parent_uuid', logicalType: 'text', nullable: true, description: 'Parent organization UUID.' },
-      {
-        name: 'parent_metadata',
-        logicalType: 'json',
-        nullable: true,
-        description: 'Parent tree metadata JSON.',
-      },
-      { name: 'name', logicalType: 'text', description: 'Organization display name.' },
-      { name: 'jwt_secret_key', logicalType: 'text', description: 'Organization JWT secret key.' },
-      {
-        name: 'token_expiration_ms',
-        logicalType: 'bigint',
-        nullable: true,
-        description: 'Access token expiration in milliseconds.',
-      },
-      {
-        name: 'refresh_token_expiration_ms',
-        logicalType: 'bigint',
-        nullable: true,
-        description: 'Refresh token expiration in milliseconds.',
-      },
-      { name: 'code', logicalType: 'text', description: 'Organization unique code.' },
-      { name: 'install_app_list', logicalType: 'json', nullable: true, description: 'Installed application list JSON.' },
-      { name: 'status', logicalType: 'enum', description: 'Organization lifecycle status.' },
-      { name: 'metadata', logicalType: 'json', nullable: true, description: 'Organization metadata JSON.' },
-      { name: 'description', logicalType: 'text', nullable: true, description: 'Organization description.' },
-      { name: 'contact_person', logicalType: 'text', nullable: true, description: 'Organization contact person.' },
-      { name: 'contact_phone', logicalType: 'text', nullable: true, description: 'Organization contact phone.' },
-      { name: 'contact_email', logicalType: 'text', nullable: true, description: 'Organization contact email.' },
-      { name: 'address', logicalType: 'text', nullable: true, description: 'Organization address.' },
-      { name: 'website', logicalType: 'text', nullable: true, description: 'Organization website.' },
-      { name: 'logo_url', logicalType: 'text', nullable: true, description: 'Organization logo URL.' },
-    ],
-    [
-      {
-        name: 'idx_plus_organization_code',
-        columns: ['code'],
-        description: 'Lookup by organization code.',
-        unique: true,
-      },
-      {
-        name: 'idx_plus_organization_status',
-        columns: ['status'],
-        description: 'Lookup by organization status.',
-      },
-      {
-        name: 'idx_plus_organization_parent_id',
-        columns: ['parent_id'],
-        description: 'Lookup by organization parent id.',
-      },
-      {
-        name: 'uk_plus_organization_jwt_secret_key',
-        columns: ['jwt_secret_key'],
-        description: 'Uniqueness for organization JWT secret key.',
-        unique: true,
-      },
-    ],
-  ),
-  defineEntity(
-    'organization_member',
-    'plus_organization_member',
-    'user_center',
-    'Organization membership aligned with spring-ai-plus PlusOrganizationMember.',
-    [
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Linked plus_user id.' },
-      { name: 'owner', logicalType: 'enum', description: 'PlusPlatformOwner value.' },
-      { name: 'owner_id', logicalType: 'id', description: 'Owning organization id.' },
-      { name: 'is_active', logicalType: 'bool', description: 'Whether the member is active.' },
-      { name: 'joined_at', logicalType: 'timestamp', nullable: true, description: 'Membership join time.' },
-      { name: 'left_at', logicalType: 'timestamp', nullable: true, description: 'Membership leave time.' },
-      { name: 'remark', logicalType: 'text', nullable: true, description: 'Membership remark.' },
-    ],
-    [
-      {
-        name: 'idx_org_member_user_id',
-        columns: ['user_id'],
-        description: 'Lookup organization members by user id.',
-      },
-      {
-        name: 'idx_org_member_owner_id',
-        columns: ['owner_id'],
-        description: 'Lookup organization members by owner id.',
-      },
-      {
-        name: 'idx_org_member_user_owner',
-        columns: ['user_id', 'owner_id'],
-        description: 'Lookup organization membership by user and owner.',
-      },
-    ],
-  ),
-  defineEntity(
-    'member_relation',
-    'plus_member_relations',
-    'user_center',
-    'Organization member relation aligned with spring-ai-plus PlusMemberRelations.',
-    [
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'parent_id', logicalType: 'id', nullable: true, description: 'Parent relation id.' },
-      { name: 'parent_uuid', logicalType: 'text', nullable: true, description: 'Parent relation UUID.' },
-      {
-        name: 'parent_metadata',
-        logicalType: 'json',
-        nullable: true,
-        description: 'Parent tree metadata JSON.',
-      },
-      { name: 'member_id', logicalType: 'id', description: 'Linked organization member id.' },
-      { name: 'owner', logicalType: 'enum', description: 'PlusPlatformOwner value.' },
-      { name: 'owner_id', logicalType: 'id', description: 'Owning organization id.' },
-      { name: 'relation_type', logicalType: 'enum', description: 'MemberRelationType converter value.' },
-      { name: 'target_id', logicalType: 'id', description: 'Target role, department, or position id.' },
-      { name: 'is_primary', logicalType: 'bool', description: 'Whether this is the primary relation.' },
-      { name: 'is_active', logicalType: 'bool', description: 'Whether the relation is active.' },
-      { name: 'effective_at', logicalType: 'timestamp', nullable: true, description: 'Relation effective time.' },
-      { name: 'expired_at', logicalType: 'timestamp', nullable: true, description: 'Relation expiration time.' },
-      { name: 'sort_order', logicalType: 'int', nullable: true, description: 'Relation sort order.' },
-      { name: 'remark', logicalType: 'text', nullable: true, description: 'Relation remark.' },
-    ],
-    [
-      {
-        name: 'idx_member_rel_member_id',
-        columns: ['member_id'],
-        description: 'Lookup relations by member id.',
-      },
-      {
-        name: 'idx_member_rel_target_id',
-        columns: ['target_id'],
-        description: 'Lookup relations by target id.',
-      },
-      {
-        name: 'idx_member_rel_relation_type',
-        columns: ['relation_type'],
-        description: 'Lookup relations by type.',
-      },
-      {
-        name: 'idx_member_rel_owner_id',
-        columns: ['owner_id'],
-        description: 'Lookup relations by owner id.',
-      },
-      {
-        name: 'idx_member_rel_member_owner',
-        columns: ['member_id', 'owner_id'],
-        description: 'Lookup member relations by member and owner.',
-      },
-    ],
-  ),
-  defineEntity(
     'department',
     'plus_department',
-    'user_center',
+    'iam',
     'Organization department aligned with spring-ai-plus PlusDepartment.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -732,7 +529,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'position',
     'plus_position',
-    'user_center',
+    'iam',
     'Organization position aligned with spring-ai-plus PlusPosition.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -795,225 +592,9 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
   ),
   defineEntity(
-    'role',
-    'plus_role',
-    'user_center',
-    'RBAC role aligned with spring-ai-plus PlusRole.',
-    [
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'code', logicalType: 'text', description: 'Unique role code.' },
-      { name: 'name', logicalType: 'text', description: 'Role display name.' },
-      { name: 'description', logicalType: 'text', nullable: true, description: 'Role description.' },
-      { name: 'status', logicalType: 'enum', description: 'RoleStatus converter value.' },
-    ],
-    [
-      {
-        name: 'uk_plus_role_code',
-        columns: ['code'],
-        description: 'Uniqueness for role code.',
-        unique: true,
-      },
-    ],
-  ),
-  defineEntity(
-    'permission',
-    'plus_permission',
-    'user_center',
-    'RBAC permission aligned with spring-ai-plus PlusPermission.',
-    [
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'name', logicalType: 'text', description: 'Permission display name.' },
-      { name: 'code', logicalType: 'text', description: 'Unique permission code.' },
-      { name: 'description', logicalType: 'text', nullable: true, description: 'Permission description.' },
-      { name: 'status', logicalType: 'enum', description: 'PermissionStatus converter value.' },
-      { name: 'sort_order', logicalType: 'int', nullable: true, description: 'Permission display sort order.' },
-      { name: 'resource_url', logicalType: 'text', nullable: true, description: 'Permission resource URL.' },
-      { name: 'http_method', logicalType: 'text', nullable: true, description: 'Permission HTTP method.' },
-    ],
-    [
-      {
-        name: 'uk_plus_permission_code',
-        columns: ['code'],
-        description: 'Uniqueness for permission code.',
-        unique: true,
-      },
-    ],
-  ),
-  defineExactEntity(
-    'role_permission',
-    'plus_role_permission',
-    'user_center',
-    'RBAC role-permission join aligned with spring-ai-plus PlusRolePermission.',
-    [
-      { name: 'id', logicalType: 'id', description: 'Snowflake assignment id.' },
-      { name: 'uuid', logicalType: 'text', nullable: true, description: 'Assignment UUID.' },
-      { name: 'created_at', logicalType: 'timestamp', description: 'Creation timestamp.' },
-      { name: 'updated_at', logicalType: 'timestamp', description: 'Last update timestamp.' },
-      { name: 'role_id', logicalType: 'id', description: 'Linked role id.' },
-      { name: 'role_uuid', logicalType: 'text', description: 'Linked role UUID.' },
-      { name: 'permission_id', logicalType: 'id', description: 'Linked permission id.' },
-      { name: 'permission_uuid', logicalType: 'text', description: 'Linked permission UUID.' },
-      { name: 'status', logicalType: 'enum', description: 'PlusCommonStatus converter value.' },
-      { name: 'description', logicalType: 'text', nullable: true, description: 'Assignment description.' },
-      { name: 'operator_id', logicalType: 'id', nullable: true, description: 'Operator plus_user id.' },
-    ],
-    [
-      {
-        name: 'idx_role_permission1',
-        columns: ['role_id', 'permission_id'],
-        description: 'Prevent duplicate role-permission assignments.',
-        unique: true,
-      },
-    ],
-  ),
-  defineExactEntity(
-    'user_role',
-    'plus_user_role',
-    'user_center',
-    'RBAC user-role join aligned with spring-ai-plus PlusUserRole.',
-    [
-      { name: 'id', logicalType: 'id', nullable: true, description: 'Auxiliary assignment id.' },
-      { name: 'uuid', logicalType: 'text', nullable: true, description: 'Assignment UUID.' },
-      { name: 'created_at', logicalType: 'timestamp', description: 'Creation timestamp.' },
-      { name: 'updated_at', logicalType: 'timestamp', description: 'Last update timestamp.' },
-      { name: 'user_id', logicalType: 'id', description: 'Composite key user id.' },
-      { name: 'role_id', logicalType: 'id', description: 'Composite key role id.' },
-      { name: 'operator_id', logicalType: 'id', nullable: true, description: 'Operator plus_user id.' },
-    ],
-    [
-      {
-        name: 'idx_user_role1',
-        columns: ['user_id', 'role_id'],
-        description: 'Prevent duplicate user-role assignments.',
-        unique: true,
-      },
-    ],
-  ),
-  defineEntity(
-    'user_account',
-    'plus_user',
-    'user_center',
-    'Primary plus_user account root aligned with spring-ai-plus PlusUser.',
-    [
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      {
-        name: 'organization_id',
-        logicalType: 'id',
-        description: 'Organization ownership id.',
-      },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'username', logicalType: 'text', description: 'Login username.' },
-      { name: 'nickname', logicalType: 'text', description: 'Preferred display name.' },
-      { name: 'password', logicalType: 'text', description: 'Encrypted password hash.' },
-      { name: 'platform', logicalType: 'enum', description: 'User platform.' },
-      { name: 'type', logicalType: 'enum', nullable: true, description: 'User type.' },
-      { name: 'gender', logicalType: 'enum', nullable: true, description: 'User gender.' },
-      { name: 'face_image', logicalType: 'json', nullable: true, description: 'Face image resource.' },
-      { name: 'face_video', logicalType: 'json', nullable: true, description: 'Face video resource.' },
-      { name: 'salt', logicalType: 'text', nullable: true, description: 'Password salt.' },
-      { name: 'scene', logicalType: 'text', nullable: true, description: 'Registration/login scene.' },
-      { name: 'email', logicalType: 'text', nullable: true, description: 'Primary user email.' },
-      { name: 'phone', logicalType: 'text', nullable: true, description: 'Primary phone number.' },
-      { name: 'country_code', logicalType: 'text', nullable: true, description: 'Country code.' },
-      { name: 'province_code', logicalType: 'text', nullable: true, description: 'Province code.' },
-      { name: 'city_code', logicalType: 'text', nullable: true, description: 'City code.' },
-      { name: 'district_code', logicalType: 'text', nullable: true, description: 'District code.' },
-      { name: 'address', logicalType: 'text', nullable: true, description: 'Detailed address.' },
-      { name: 'bio', logicalType: 'text', nullable: true, description: 'User bio.' },
-      { name: 'birth_date', logicalType: 'timestamp', nullable: true, description: 'Birth date.' },
-      {
-        name: 'oauth_user_info',
-        logicalType: 'json',
-        nullable: true,
-        description: 'OAuth user information JSON.',
-      },
-      {
-        name: 'metadata',
-        logicalType: 'json',
-        nullable: true,
-        description: 'User metadata JSON.',
-      },
-      {
-        name: 'social_info_list',
-        logicalType: 'json',
-        nullable: true,
-        description: 'Social account information JSON.',
-      },
-      { name: 'status', logicalType: 'enum', description: 'User lifecycle state.' },
-    ],
-    [
-      {
-        name: 'uk_plus_user_username',
-        columns: ['username'],
-        description: 'Uniqueness for username.',
-        unique: true,
-      },
-    ],
-  ),
-  defineEntity(
-    'oauth_account',
-    'plus_oauth_account',
-    'user_center',
-    'OAuth account binding aligned with spring-ai-plus PlusUserOAuthAccount.',
-    [
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      {
-        name: 'organization_id',
-        logicalType: 'id',
-        description: 'Organization ownership id.',
-      },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Linked plus_user id.' },
-      { name: 'oauth_provider', logicalType: 'enum', description: 'OAuth provider identifier.' },
-      { name: 'open_id', logicalType: 'text', description: 'Provider open id.' },
-      { name: 'union_id', logicalType: 'text', nullable: true, description: 'Provider union id.' },
-      { name: 'app_id', logicalType: 'text', nullable: true, description: 'Provider app id.' },
-      {
-        name: 'channel_account_id',
-        logicalType: 'id',
-        nullable: true,
-        description: 'Linked channel account id.',
-      },
-      {
-        name: 'access_token_expires_at',
-        logicalType: 'timestamp',
-        nullable: true,
-        description: 'OAuth access token expiration time.',
-      },
-      {
-        name: 'oauth_user_info',
-        logicalType: 'json',
-        nullable: true,
-        description: 'OAuth user information JSON.',
-      },
-    ],
-    [
-      {
-        name: 'idx_user_auth_relations_openid',
-        columns: ['oauth_provider', 'open_id'],
-        description: 'Uniqueness for provider open id.',
-        unique: true,
-      },
-      {
-        name: 'idx_user_auth_relations_unionid',
-        columns: ['oauth_provider', 'union_id'],
-        description: 'Uniqueness for provider union id.',
-        unique: true,
-      },
-    ],
-  ),
-  defineEntity(
     'user_address',
     'plus_user_address',
-    'user_center',
+    'iam',
     'User address book entry aligned with spring-ai-plus PlusUserAddress.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -1024,7 +605,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         description: 'Organization ownership id.',
       },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Linked plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Linked iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'Consignee name.' },
       { name: 'phone', logicalType: 'text', description: 'Consignee mobile phone number.' },
       { name: 'country_code', logicalType: 'text', nullable: true, description: 'Country code.' },
@@ -1047,7 +628,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'card',
     'plus_card',
-    'user_center',
+    'commerce',
     'Membership card root aligned with spring-ai-plus PlusCard.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -1085,14 +666,14 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'user_card',
     'plus_user_card',
-    'user_center',
+    'commerce',
     'User-card binding aligned with spring-ai-plus PlusUserCard.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Linked plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Linked iam_user id.' },
       { name: 'card_id', logicalType: 'id', nullable: true, description: 'Linked plus_card id.' },
       { name: 'card_code', logicalType: 'text', nullable: true, description: 'User card code.' },
       { name: 'acquire_time', logicalType: 'timestamp', nullable: true, description: 'Acquire time.' },
@@ -1112,7 +693,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'member_card',
     'plus_member_card',
-    'user_center',
+    'commerce',
     'Member card rules aligned with spring-ai-plus PlusMemberCard.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -1155,7 +736,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'member_level',
     'plus_member_level',
-    'user_center',
+    'commerce',
     'Member level aligned with spring-ai-plus PlusMemberLevel.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -1172,7 +753,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'card_template',
     'plus_card_template',
-    'user_center',
+    'commerce',
     'Membership card template aligned with spring-ai-plus PlusCardTemplate.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -1219,7 +800,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'coupon',
     'plus_coupon',
-    'user_center',
+    'commerce',
     'Coupon root aligned with spring-ai-plus PlusCoupon.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -1262,7 +843,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'coupon_template',
     'plus_coupon_template',
-    'user_center',
+    'commerce',
     'Coupon template aligned with spring-ai-plus PlusCouponTemplate.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -1307,14 +888,14 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'user_coupon',
     'plus_user_coupon',
-    'user_center',
+    'commerce',
     'User coupon binding aligned with spring-ai-plus PlusUserCoupon.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Linked plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Linked iam_user id.' },
       { name: 'coupon_id', logicalType: 'id', description: 'Linked plus_coupon id.' },
       { name: 'coupon_code', logicalType: 'text', description: 'Unique user coupon code.' },
       { name: 'acquire_at', logicalType: 'timestamp', description: 'Acquire time.' },
@@ -1352,14 +933,14 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'product',
     'plus_product',
-    'user_center',
+    'commerce',
     'Product catalog root aligned with spring-ai-plus PlusProduct.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Owner plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Owner iam_user id.' },
       { name: 'title', logicalType: 'text', description: 'Product name.' },
       { name: 'code', logicalType: 'text', nullable: true, description: 'Product code/SKU.' },
       { name: 'subtitle', logicalType: 'text', nullable: true, description: 'Product subtitle.' },
@@ -1388,7 +969,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'sku',
     'plus_sku',
-    'user_center',
+    'commerce',
     'Stock keeping unit aligned with spring-ai-plus PlusSku.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -1429,7 +1010,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'currency',
     'plus_currency',
-    'user_center',
+    'commerce',
     'Currency catalog aligned with spring-ai-plus PlusCurrency.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -1451,7 +1032,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'UK_plus_currency_name',
+        name: 'uk_plus_currency_name',
         columns: ['name'],
         description: 'Uniqueness for currency name.',
         unique: true,
@@ -1461,7 +1042,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'exchange_rate',
     'plus_exchange_rate',
-    'user_center',
+    'commerce',
     'Exchange rate aligned with spring-ai-plus PlusExchangeRate.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -1487,7 +1068,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'UK_exchange_rate_base_target_date',
+        name: 'uk_exchange_rate_base_target_date',
         columns: ['base_currency_id', 'target_currency_id', 'effective_date'],
         description: 'Uniqueness for base currency, target currency, and effective date.',
         unique: true,
@@ -1497,14 +1078,14 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'agent_skill_package',
     'plus_agent_skill_package',
-    'user_center',
+    'ai',
     'Agent skill package aligned with spring-ai-plus PlusSkillBundle and PlusAgentSkillPackage.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Owner plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Owner iam_user id.' },
       { name: 'package_key', logicalType: 'text', description: 'Package machine key.' },
       { name: 'name', logicalType: 'text', description: 'Package name.' },
       { name: 'summary', logicalType: 'text', nullable: true, description: 'Package summary.' },
@@ -1550,7 +1131,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'agent_skill',
     'plus_agent_skill',
-    'user_center',
+    'ai',
     'Agent skill aligned with spring-ai-plus PlusSkill and PlusAgentSkill.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -1562,7 +1143,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'updated_at', logicalType: 'timestamp', description: 'Last update timestamp.' },
       { name: 'v', logicalType: 'bigint', description: 'Java PlusBaseEntity optimistic lock version.' },
       { name: 'is_deleted', logicalType: 'bool', description: 'Soft-delete flag.' },
-      { name: 'user_id', logicalType: 'id', description: 'Owner plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Owner iam_user id.' },
       { name: 'skill_key', logicalType: 'text', description: 'Skill machine key.' },
       { name: 'name', logicalType: 'text', description: 'Skill name.' },
       { name: 'summary', logicalType: 'text', nullable: true, description: 'Skill summary.' },
@@ -1586,7 +1167,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'visibility', logicalType: 'enum', description: 'Visibility enum name.' },
       { name: 'review_status', logicalType: 'enum', description: 'Review status enum name.' },
       { name: 'review_comment', logicalType: 'text', nullable: true, description: 'Review comment.' },
-      { name: 'reviewed_by', logicalType: 'id', nullable: true, description: 'Reviewer plus_user id.' },
+      { name: 'reviewed_by', logicalType: 'id', nullable: true, description: 'Reviewer iam_user id.' },
       { name: 'reviewed_at', logicalType: 'timestamp', nullable: true, description: 'Review time.' },
       { name: 'builtin', logicalType: 'bool', description: 'Whether skill is builtin.' },
       { name: 'is_builtin', logicalType: 'bool', description: 'Whether agent skill is builtin.' },
@@ -1646,14 +1227,14 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'user_agent_skill',
     'plus_user_agent_skill',
-    'user_center',
+    'ai',
     'User installed agent skill aligned with spring-ai-plus PlusUserSkillInstall and PlusUserAgentSkill.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Owner plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Owner iam_user id.' },
       { name: 'skill_id', logicalType: 'id', description: 'Installed agent skill id.' },
       { name: 'enabled', logicalType: 'bool', description: 'Whether installation is enabled.' },
       { name: 'config', logicalType: 'json', nullable: true, description: 'User skill config.' },
@@ -1689,7 +1270,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'agent_plugin',
     'plus_agent_plugin',
-    'user_center',
+    'ai',
     'Agent plugin aligned with spring-ai-plus PlusAgentPlugin v1.0.4.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -1729,7 +1310,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'datasource',
     'plus_datasource',
-    'user_center',
+    'data',
     'Datasource aligned with spring-ai-plus PlusDatasource v1.0.4.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -1740,7 +1321,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'project_id', logicalType: 'id', description: 'Owning project id.' },
       { name: 'name', logicalType: 'text', description: 'Datasource name.' },
       { name: 'channel', logicalType: 'text', description: 'Datasource channel.' },
@@ -1801,7 +1382,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'datasource_schema',
     'plus_schema',
-    'user_center',
+    'data',
     'Datasource schema aligned with spring-ai-plus PlusSchema v1.0.4.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -1847,7 +1428,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'datasource_table',
     'plus_table',
-    'user_center',
+    'data',
     'Datasource table aligned with spring-ai-plus PlusTable v1.0.4.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -1897,7 +1478,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'datasource_column',
     'plus_column',
-    'user_center',
+    'data',
     'Datasource column aligned with spring-ai-plus PlusColumn v1.0.4.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -1949,7 +1530,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_generation',
     'plus_ai_generation',
-    'user_center',
+    'ai',
     'AI generation task aligned with spring-ai-plus PlusAiGeneration v1.0.4.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -1960,7 +1541,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'title', logicalType: 'text', nullable: true, description: 'Generation title.' },
       { name: 'request_id', logicalType: 'text', description: 'Unique request id.' },
       { name: 'idempotency_key', logicalType: 'text', nullable: true, description: 'Idempotency key.' },
@@ -2034,7 +1615,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_generation_content',
     'plus_ai_generation_content',
-    'user_center',
+    'ai',
     'AI generation content aligned with spring-ai-plus PlusAiGenerationContent v1.0.4.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2045,7 +1626,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'channel', logicalType: 'text', description: 'Provider channel.' },
       { name: 'type', logicalType: 'text', description: 'Generation type string.' },
       { name: 'generation_id', logicalType: 'id', description: 'Associated generation id.' },
@@ -2106,7 +1687,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_generation_style',
     'plus_ai_generation_style',
-    'user_center',
+    'ai',
     'AI generation style aligned with spring-ai-plus PlusAiGenerationStyle v1.0.4.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2117,7 +1698,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'Style name.' },
       { name: 'description', logicalType: 'text', nullable: true, description: 'Style description.' },
       { name: 'type', logicalType: 'enum', description: 'Style type integer value.' },
@@ -2156,7 +1737,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'channel',
     'plus_channel',
-    'user_center',
+    'integration',
     'Platform integration channel aligned with spring-ai-plus PlusChannel.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2167,7 +1748,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'Channel display name.' },
       { name: 'channel', logicalType: 'enum', description: 'PlusChannelEnum integer value.' },
       { name: 'types', logicalType: 'json', nullable: true, description: 'Supported channel types.' },
@@ -2196,7 +1777,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'channel_account',
     'plus_channel_account',
-    'user_center',
+    'integration',
     'Platform channel account aligned with spring-ai-plus PlusChannelAccount.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2207,7 +1788,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'Channel account name.' },
       { name: 'account_key', logicalType: 'text', description: 'Unique channel account key.' },
       { name: 'channel', logicalType: 'enum', description: 'PlusChannelEnum integer value.' },
@@ -2250,7 +1831,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'channel_proxy',
     'plus_channel_proxy',
-    'user_center',
+    'integration',
     'Platform channel proxy aligned with spring-ai-plus PlusChannelProxy.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2261,7 +1842,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'Channel proxy name.' },
       { name: 'channel', logicalType: 'enum', description: 'PlusChannelEnum integer value.' },
       { name: 'proxy', logicalType: 'enum', description: 'ApiProviderProxy ordinal value.' },
@@ -2285,7 +1866,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'channel_resource',
     'plus_channel_resource',
-    'user_center',
+    'integration',
     'Platform channel resource aligned with spring-ai-plus PlusChannelResource.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2311,7 +1892,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'api_key',
     'plus_api_key',
-    'user_center',
+    'iam',
     'Platform API key aligned with spring-ai-plus PlusApiKey.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2322,7 +1903,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'API key name.' },
       { name: 'key_value', logicalType: 'text', description: 'Encrypted API key value.' },
       { name: 'key_type', logicalType: 'enum', description: 'ApiKeyType integer value.' },
@@ -2354,7 +1935,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'app',
     'plus_app',
-    'user_center',
+    'studio',
     'Application root aligned with spring-ai-plus PlusApp.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2365,7 +1946,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'Application name.' },
       { name: 'icon', logicalType: 'json', nullable: true, description: 'Application icon resource.' },
       {
@@ -2374,7 +1955,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         nullable: true,
         description: 'Application resource list.',
       },
-      { name: 'project_id', logicalType: 'id', nullable: true, description: 'Linked plus_project id.' },
+      { name: 'project_id', logicalType: 'id', nullable: true, description: 'Linked studio_project id.' },
       { name: 'description', logicalType: 'text', nullable: true, description: 'Application description.' },
       { name: 'version', logicalType: 'text', nullable: true, description: 'Application version string.' },
       { name: 'icon_url', logicalType: 'text', nullable: true, description: 'Application icon URL.' },
@@ -2418,7 +1999,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_model_availability',
     'plus_ai_model_availability',
-    'user_center',
+    'ai',
     'AI model availability matrix aligned with spring-ai-plus PlusAiModelAvailability.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2495,7 +2076,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_model_compliance_profile',
     'plus_ai_model_compliance_profile',
-    'user_center',
+    'ai',
     'AI model compliance profile aligned with spring-ai-plus PlusAiModelComplianceProfile.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2572,7 +2153,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_model_info',
     'plus_ai_model_info',
-    'user_center',
+    'ai',
     'AI model registry aligned with spring-ai-plus PlusAiModelInfo.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2711,7 +2292,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_model_price',
     'plus_ai_model_price',
-    'user_center',
+    'ai',
     'AI model pricing rule aligned with spring-ai-plus PlusAiModelPrice.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2790,7 +2371,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_model_price_metric',
     'plus_ai_model_price_metric',
-    'user_center',
+    'ai',
     'AI model detailed pricing metric aligned with spring-ai-plus PlusAiModelPriceMetric.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2857,7 +2438,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_model_taxonomy',
     'plus_ai_model_taxonomy',
-    'user_center',
+    'ai',
     'AI model taxonomy dictionary aligned with spring-ai-plus PlusAiModelTaxonomy.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2900,7 +2481,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_model_taxonomy_rel',
     'plus_ai_model_taxonomy_rel',
-    'user_center',
+    'ai',
     'AI model taxonomy relation aligned with spring-ai-plus PlusAiModelTaxonomyRel.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -2955,7 +2536,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_tenant_model_policy',
     'plus_ai_tenant_model_policy',
-    'user_center',
+    'ai',
     'Tenant model policy aligned with spring-ai-plus PlusAiTenantModelPolicy.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3031,7 +2612,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_agent_tool_relation',
     'plus_ai_agent_tool_relation',
-    'user_center',
+    'ai',
     'AI agent tool relation aligned with spring-ai-plus PlusAgentToolRelation.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3065,7 +2646,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_agent',
     'plus_ai_agent',
-    'user_center',
+    'ai',
     'AI agent aligned with spring-ai-plus PlusAiAgentEntity.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3076,7 +2657,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'Agent name.' },
       { name: 'face_image', logicalType: 'json', nullable: true, description: 'Agent face image resource.' },
       { name: 'face_video', logicalType: 'json', nullable: true, description: 'Agent face video resource.' },
@@ -3112,13 +2693,14 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         name: 'uk_ai_agent_user_id_name',
         columns: ['tenant_id', 'organization_id', 'user_id', 'name'],
         description: 'Lookup agents by tenant, organization, user, and name.',
+        unique: true,
       },
     ],
   ),
   defineExactEntity(
     'ai_prompt',
     'plus_ai_prompt',
-    'user_center',
+    'ai',
     'AI prompt aligned with spring-ai-plus PlusAiPrompt.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3129,7 +2711,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'title', logicalType: 'text', description: 'Prompt title.' },
       { name: 'content', logicalType: 'text', description: 'Prompt content.' },
       { name: 'type', logicalType: 'text', description: 'PlusAiPromptType string value.' },
@@ -3172,7 +2754,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_prompt_history',
     'plus_ai_prompt_history',
-    'user_center',
+    'ai',
     'AI prompt history aligned with spring-ai-plus PlusAiPromptHistory.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3183,7 +2765,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'prompt_id', logicalType: 'id', nullable: true, description: 'Linked plus_ai_prompt id.' },
       { name: 'prompt_title', logicalType: 'text', nullable: true, description: 'Prompt title snapshot.' },
       { name: 'prompt_content', logicalType: 'text', nullable: true, description: 'Prompt content snapshot.' },
@@ -3217,7 +2799,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'ai_tool',
     'plus_ai_tool',
-    'user_center',
+    'ai',
     'AI tool aligned with spring-ai-plus PlusToolEntity.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3228,7 +2810,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'Tool name.' },
       { name: 'owner', logicalType: 'enum', nullable: true, description: 'PlusPlatformOwner integer value.' },
       { name: 'owner_id', logicalType: 'id', description: 'Owner id.' },
@@ -3249,7 +2831,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'api_security_policy',
     'plus_api_security_policy',
-    'user_center',
+    'iam',
     'API security policy aligned with spring-ai-plus PlusApiSecurityPolicyEntity.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3290,7 +2872,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'category',
     'plus_category',
-    'user_center',
+    'content',
     'Category tree aligned with spring-ai-plus PlusCategory.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3334,7 +2916,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'attribute',
     'plus_attribute',
-    'user_center',
+    'content',
     'Category/content attribute aligned with spring-ai-plus PlusAttribute.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3379,7 +2961,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'tags',
     'plus_tags',
-    'user_center',
+    'content',
     'User tag aligned with spring-ai-plus PlusTags.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3390,7 +2972,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', nullable: true, description: 'Tag name.' },
       { name: 'type', logicalType: 'enum', nullable: true, description: 'PlusTagsType ordinal value.' },
       { name: 'description', logicalType: 'text', nullable: true, description: 'Tag description.' },
@@ -3399,7 +2981,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'memory',
     'plus_memory',
-    'user_center',
+    'data',
     'Agent memory profile aligned with spring-ai-plus PlusMemory.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3410,7 +2992,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', nullable: true, description: 'Memory name.' },
       { name: 'agent_id', logicalType: 'id', nullable: true, description: 'Linked plus_ai_agent id.' },
       { name: 'conversation_id', logicalType: 'id', nullable: true, description: 'Linked conversation id.' },
@@ -3420,7 +3002,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'memory_item',
     'plus_memory_item',
-    'user_center',
+    'data',
     'Agent memory item aligned with spring-ai-plus PlusMemoryItem.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3431,7 +3013,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'agent_id', logicalType: 'id', nullable: true, description: 'Linked plus_ai_agent id.' },
       { name: 'conversation_id', logicalType: 'id', nullable: true, description: 'Linked conversation id.' },
       { name: 'name', logicalType: 'text', nullable: true, description: 'Memory item name.' },
@@ -3442,7 +3024,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'notification',
     'plus_notification',
-    'user_center',
+    'ops',
     'Notification envelope aligned with spring-ai-plus PlusNotification.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3454,9 +3036,9 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
       { name: 'role', logicalType: 'enum', description: 'MessageRole integer value.' },
-      { name: 'sender_id', logicalType: 'id', nullable: true, description: 'Sender plus_user id.' },
+      { name: 'sender_id', logicalType: 'id', nullable: true, description: 'Sender iam_user id.' },
       { name: 'sender', logicalType: 'json', nullable: true, description: 'Sender participant payload.' },
-      { name: 'receiver_id', logicalType: 'id', nullable: true, description: 'Receiver plus_user id.' },
+      { name: 'receiver_id', logicalType: 'id', nullable: true, description: 'Receiver iam_user id.' },
       { name: 'receiver', logicalType: 'json', nullable: true, description: 'Receiver participant payload.' },
       { name: 'group_id', logicalType: 'id', nullable: true, description: 'Target group id.' },
       { name: 'title', logicalType: 'text', nullable: true, description: 'Notification title.' },
@@ -3502,7 +3084,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'notification_content',
     'plus_notification_content',
-    'user_center',
+    'ops',
     'Notification content aligned with spring-ai-plus PlusNotificationContent.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3521,8 +3103,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'type', logicalType: 'enum', description: 'PlusNotificationType integer value.' },
       { name: 'channel_type', logicalType: 'enum', description: 'PlusNotifyChannelType integer value.' },
       { name: 'body', logicalType: 'json', description: 'MessageBody payload.' },
-      { name: 'sender_id', logicalType: 'id', nullable: true, description: 'Sender plus_user id.' },
-      { name: 'receiver_id', logicalType: 'id', nullable: true, description: 'Receiver plus_user id.' },
+      { name: 'sender_id', logicalType: 'id', nullable: true, description: 'Sender iam_user id.' },
+      { name: 'receiver_id', logicalType: 'id', nullable: true, description: 'Receiver iam_user id.' },
       { name: 'group_id', logicalType: 'id', nullable: true, description: 'Target group id.' },
       {
         name: 'metadata',
@@ -3582,7 +3164,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'push_device_endpoint',
     'plus_push_device_endpoint',
-    'user_center',
+    'ops',
     'Push device endpoint aligned with spring-ai-plus PlusPushDeviceEndpoint.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3594,7 +3176,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
       { name: 'endpoint_id', logicalType: 'text', description: 'Unique push endpoint id.' },
-      { name: 'user_id', logicalType: 'id', description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Owning iam_user id.' },
       { name: 'workspace_id', logicalType: 'id', nullable: true, description: 'Linked workspace id.' },
       { name: 'installation_id', logicalType: 'text', description: 'Client installation id.' },
       { name: 'device_type', logicalType: 'text', nullable: true, description: 'Device type.' },
@@ -3639,7 +3221,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'push_topic_subscription',
     'plus_push_topic_subscription',
-    'user_center',
+    'ops',
     'Push topic subscription aligned with spring-ai-plus PlusPushTopicSubscription.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3650,7 +3232,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Owning iam_user id.' },
       { name: 'endpoint_id', logicalType: 'text', nullable: true, description: 'Linked push endpoint id.' },
       { name: 'topic', logicalType: 'text', description: 'Push topic.' },
       { name: 'status', logicalType: 'text', description: 'Subscription status.' },
@@ -3678,7 +3260,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'conversation',
     'plus_conversation',
-    'user_center',
+    'comms',
     'AI conversation aligned with spring-ai-plus PlusConversation.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3689,7 +3271,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'title', logicalType: 'text', nullable: true, description: 'Conversation title.' },
       { name: 'type', logicalType: 'enum', nullable: true, description: 'PlusConversationType integer value.' },
       { name: 'channel_id', logicalType: 'text', nullable: true, description: 'Channel id.' },
@@ -3758,7 +3340,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'chat_message',
     'plus_chat_message',
-    'user_center',
+    'comms',
     'Chat message aligned with spring-ai-plus PlusChatMessage.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3770,9 +3352,9 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
       { name: 'role', logicalType: 'enum', description: 'MessageRole integer value.' },
-      { name: 'sender_id', logicalType: 'id', nullable: true, description: 'Sender plus_user id.' },
+      { name: 'sender_id', logicalType: 'id', nullable: true, description: 'Sender iam_user id.' },
       { name: 'sender', logicalType: 'json', nullable: true, description: 'Sender participant payload.' },
-      { name: 'receiver_id', logicalType: 'id', nullable: true, description: 'Receiver plus_user id.' },
+      { name: 'receiver_id', logicalType: 'id', nullable: true, description: 'Receiver iam_user id.' },
       { name: 'receiver', logicalType: 'json', nullable: true, description: 'Receiver participant payload.' },
       { name: 'group_id', logicalType: 'id', nullable: true, description: 'Target group id.' },
       { name: 'type', logicalType: 'enum', description: 'MessageType integer value.' },
@@ -3791,7 +3373,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'datasource_id', logicalType: 'id', nullable: true, description: 'Linked datasource id.' },
       { name: 'agent_type', logicalType: 'enum', nullable: true, description: 'AgentType integer value.' },
       { name: 'agent_biz_type', logicalType: 'bigint', nullable: true, description: 'AgentBizType long value.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'channel_msg_id', logicalType: 'text', description: 'Channel message id.' },
       { name: 'channel_client_msg_id', logicalType: 'text', description: 'Channel client message id.' },
       { name: 'channel_msg_seq', logicalType: 'bigint', nullable: true, description: 'Channel message sequence.' },
@@ -3851,7 +3433,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'chat_message_content',
     'plus_chat_message_content',
-    'user_center',
+    'comms',
     'Chat message content aligned with spring-ai-plus PlusChatMessageContent.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3907,7 +3489,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'detail',
     'plus_detail',
-    'user_center',
+    'content',
     'Generic content detail aligned with spring-ai-plus PlusDetail.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -3925,234 +3507,9 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
   ),
   defineExactEntity(
-    'conversation',
-    'plus_conversation',
-    'user_center',
-    'Conversation root aligned with spring-ai-plus PlusConversation.',
-    [
-      { name: 'id', logicalType: 'id', description: 'Primary key.' },
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'created_at', logicalType: 'timestamp', description: 'Creation timestamp.' },
-      { name: 'updated_at', logicalType: 'timestamp', description: 'Last update timestamp.' },
-      { name: 'v', logicalType: 'bigint', description: 'Java PlusBaseEntity optimistic lock version.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
-      { name: 'title', logicalType: 'text', nullable: true, description: 'Conversation title.' },
-      { name: 'type', logicalType: 'enum', nullable: true, description: 'Conversation type integer value.' },
-      { name: 'channel_id', logicalType: 'text', nullable: true, description: 'Conversation channel id.' },
-      { name: 'description', logicalType: 'text', nullable: true, description: 'Conversation description.' },
-      { name: 'knowledge_config', logicalType: 'json', nullable: true, description: 'Knowledge configuration.' },
-      { name: 'memory_config', logicalType: 'json', nullable: true, description: 'Memory configuration.' },
-      { name: 'status', logicalType: 'enum', description: 'Conversation status integer value.' },
-      { name: 'agent_id', logicalType: 'id', nullable: true, description: 'Linked plus_ai_agent id.' },
-      { name: 'agent_type', logicalType: 'enum', nullable: true, description: 'Agent type integer value.' },
-      { name: 'agent_biz_type', logicalType: 'id', nullable: true, description: 'Agent business type id.' },
-      { name: 'scene', logicalType: 'text', nullable: true, description: 'Conversation scene.' },
-      { name: 'summary', logicalType: 'text', nullable: true, description: 'Conversation summary.' },
-      { name: 'last_message_id', logicalType: 'id', nullable: true, description: 'Last message id.' },
-      { name: 'message_count', logicalType: 'int', description: 'Message count.' },
-      { name: 'unread_count', logicalType: 'int', description: 'Unread message count.' },
-      { name: 'tags', logicalType: 'json', nullable: true, description: 'Conversation tags payload.' },
-      { name: 'content_type', logicalType: 'enum', nullable: true, description: 'Content type integer value.' },
-      { name: 'content_id', logicalType: 'id', nullable: true, description: 'Linked content id.' },
-      { name: 'system_context', logicalType: 'text', nullable: true, description: 'System context.' },
-      { name: 'user_context', logicalType: 'text', nullable: true, description: 'User context.' },
-      {
-        name: 'last_interaction_time',
-        logicalType: 'timestamp',
-        nullable: true,
-        description: 'Last interaction timestamp.',
-      },
-      { name: 'model_id', logicalType: 'id', nullable: true, description: 'Linked model id.' },
-      { name: 'model', logicalType: 'text', nullable: true, description: 'Model key.' },
-      { name: 'knowledge_base_id', logicalType: 'id', nullable: true, description: 'Linked knowledge base id.' },
-      { name: 'data_source_id', logicalType: 'id', nullable: true, description: 'Linked datasource id.' },
-      { name: 'chat_options', logicalType: 'json', nullable: true, description: 'Chat options payload.' },
-      { name: 'pinned', logicalType: 'int', nullable: true, description: 'Pinned flag.' },
-      { name: 'sort_order', logicalType: 'int', nullable: true, description: 'Sort order.' },
-    ],
-    [
-      { name: 'idx_plus_conversation_user_id', columns: ['user_id'], description: 'Lookup conversations by user.' },
-      { name: 'idx_plus_conversation_agent_id', columns: ['agent_id'], description: 'Lookup conversations by agent.' },
-      { name: 'idx_plus_conversation_status', columns: ['status'], description: 'Lookup conversations by status.' },
-      {
-        name: 'idx_plus_conversation_channel_id',
-        columns: ['channel_id'],
-        description: 'Lookup conversations by channel.',
-      },
-      {
-        name: 'idx_plus_conversation_user_sort',
-        columns: ['user_id', 'pinned', 'sort_order', 'updated_at'],
-        description: 'Lookup user conversations in pinned/sort order.',
-      },
-      {
-        name: 'idx_plus_conversation_agent_user_updated_at',
-        columns: ['agent_id', 'user_id', 'updated_at'],
-        description: 'Lookup conversations by agent, user, and update time.',
-      },
-      {
-        name: 'idx_plus_conversation_last_interaction_time',
-        columns: ['last_interaction_time'],
-        description: 'Lookup conversations by last interaction time.',
-      },
-    ],
-  ),
-  defineExactEntity(
-    'chat_message',
-    'plus_chat_message',
-    'user_center',
-    'Chat message aligned with spring-ai-plus PlusChatMessage.',
-    [
-      { name: 'id', logicalType: 'id', description: 'Primary key.' },
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'created_at', logicalType: 'timestamp', description: 'Creation timestamp.' },
-      { name: 'updated_at', logicalType: 'timestamp', description: 'Last update timestamp.' },
-      { name: 'v', logicalType: 'bigint', description: 'Java PlusBaseEntity optimistic lock version.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'role', logicalType: 'enum', description: 'Message role integer value.' },
-      { name: 'sender_id', logicalType: 'id', nullable: true, description: 'Sender plus_user id.' },
-      { name: 'sender', logicalType: 'json', nullable: true, description: 'Sender participant payload.' },
-      { name: 'receiver_id', logicalType: 'id', nullable: true, description: 'Receiver plus_user id.' },
-      { name: 'receiver', logicalType: 'json', nullable: true, description: 'Receiver participant payload.' },
-      { name: 'group_id', logicalType: 'id', nullable: true, description: 'Target group id.' },
-      { name: 'type', logicalType: 'enum', description: 'Message type integer value.' },
-      { name: 'status', logicalType: 'enum', description: 'Message status integer value.' },
-      { name: 'conversation_type', logicalType: 'enum', nullable: true, description: 'Conversation type value.' },
-      { name: 'conversation_id', logicalType: 'id', description: 'Linked plus_conversation id.' },
-      { name: 'conversation_uuid', logicalType: 'text', description: 'Linked plus_conversation uuid.' },
-      { name: 'channel_id', logicalType: 'text', nullable: true, description: 'Conversation channel id.' },
-      { name: 'agent_id', logicalType: 'id', nullable: true, description: 'Linked plus_ai_agent id.' },
-      { name: 'knowledge_base_id', logicalType: 'id', nullable: true, description: 'Linked knowledge base id.' },
-      { name: 'datasource_id', logicalType: 'id', nullable: true, description: 'Linked datasource id.' },
-      { name: 'agent_type', logicalType: 'enum', nullable: true, description: 'Agent type integer value.' },
-      { name: 'agent_biz_type', logicalType: 'id', nullable: true, description: 'Agent business type id.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
-      { name: 'channel_msg_id', logicalType: 'text', description: 'External channel message id.' },
-      { name: 'channel_client_msg_id', logicalType: 'text', description: 'External client message id.' },
-      { name: 'channel_msg_seq', logicalType: 'bigint', nullable: true, description: 'External message sequence.' },
-      { name: 'parent_message_id', logicalType: 'id', nullable: true, description: 'Parent message id.' },
-      { name: 'token_count', logicalType: 'int', nullable: true, description: 'Token count.' },
-      { name: 'send_at', logicalType: 'timestamp', nullable: true, description: 'Send timestamp.' },
-      { name: 'receive_at', logicalType: 'timestamp', nullable: true, description: 'Receive timestamp.' },
-      { name: 'read_at', logicalType: 'timestamp', nullable: true, description: 'Read timestamp.' },
-      { name: 'processing_time', logicalType: 'bigint', nullable: true, description: 'Processing time in ms.' },
-      { name: 'is_error', logicalType: 'bool', nullable: true, description: 'Error flag.' },
-      { name: 'error_code', logicalType: 'text', nullable: true, description: 'Error code.' },
-      { name: 'error_message', logicalType: 'text', nullable: true, description: 'Error message.' },
-      { name: 'model_id', logicalType: 'id', nullable: true, description: 'Linked model id.' },
-      { name: 'model', logicalType: 'text', nullable: true, description: 'Model key.' },
-      { name: 'temperature', logicalType: 'double', nullable: true, description: 'Sampling temperature.' },
-      { name: 'used_rag', logicalType: 'bool', nullable: true, description: 'Whether RAG was used.' },
-      { name: 'chat_options', logicalType: 'json', nullable: true, description: 'Chat options payload.' },
-      { name: 'feedback_metadata', logicalType: 'json', nullable: true, description: 'Feedback metadata payload.' },
-    ],
-    [
-      { name: 'idx_plus_chat_message_user_id', columns: ['user_id'], description: 'Lookup messages by user.' },
-      {
-        name: 'idx_plus_chat_message_conversation_id',
-        columns: ['conversation_id'],
-        description: 'Lookup messages by conversation.',
-      },
-      { name: 'idx_plus_chat_message_status', columns: ['status'], description: 'Lookup messages by status.' },
-      { name: 'idx_plus_chat_message_sender_id', columns: ['sender_id'], description: 'Lookup messages by sender.' },
-      {
-        name: 'idx_plus_chat_message_receiver_id',
-        columns: ['receiver_id'],
-        description: 'Lookup messages by receiver.',
-      },
-      { name: 'idx_plus_chat_message_group_id', columns: ['group_id'], description: 'Lookup messages by group.' },
-      {
-        name: 'idx_plus_chat_message_parent_message_id',
-        columns: ['parent_message_id'],
-        description: 'Lookup messages by parent.',
-      },
-      {
-        name: 'idx_plus_chat_message_channel_msg_id',
-        columns: ['channel_msg_id'],
-        description: 'Lookup messages by external channel id.',
-      },
-      { name: 'idx_plus_chat_message_created_at', columns: ['created_at'], description: 'Lookup messages by time.' },
-    ],
-  ),
-  defineExactEntity(
-    'chat_message_content',
-    'plus_chat_message_content',
-    'user_center',
-    'Chat message content aligned with spring-ai-plus PlusChatMessageContent.',
-    [
-      { name: 'id', logicalType: 'id', description: 'Primary key.' },
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'created_at', logicalType: 'timestamp', description: 'Creation timestamp.' },
-      { name: 'updated_at', logicalType: 'timestamp', description: 'Last update timestamp.' },
-      { name: 'v', logicalType: 'bigint', description: 'Java PlusBaseEntity optimistic lock version.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'message_id', logicalType: 'id', description: 'Linked plus_chat_message id.' },
-      { name: 'channel_msg_id', logicalType: 'text', description: 'External channel message id.' },
-      { name: 'role', logicalType: 'enum', description: 'Message role integer value.' },
-      { name: 'type', logicalType: 'enum', description: 'Message content type integer value.' },
-      { name: 'status', logicalType: 'enum', description: 'Message content status integer value.' },
-      { name: 'conversation_id', logicalType: 'id', description: 'Linked plus_conversation id.' },
-      { name: 'conversation_uuid', logicalType: 'text', description: 'Linked plus_conversation uuid.' },
-      { name: 'agent_id', logicalType: 'id', nullable: true, description: 'Linked plus_ai_agent id.' },
-      { name: 'agent_type', logicalType: 'enum', description: 'Agent type integer value.' },
-      { name: 'agent_biz_type', logicalType: 'id', nullable: true, description: 'Agent business type id.' },
-      { name: 'content', logicalType: 'json', description: 'Message content payload.' },
-      { name: 'metadata', logicalType: 'json', nullable: true, description: 'Message metadata payload.' },
-    ],
-    [
-      {
-        name: 'uk_plus_chat_message_content_message_id',
-        columns: ['message_id'],
-        description: 'Unique content per message.',
-        unique: true,
-      },
-      {
-        name: 'idx_plus_chat_message_content_channel_msg_id',
-        columns: ['channel_msg_id'],
-        description: 'Lookup content by external channel id.',
-      },
-      {
-        name: 'idx_plus_chat_message_content_conversation_id',
-        columns: ['conversation_id'],
-        description: 'Lookup content by conversation.',
-      },
-      {
-        name: 'idx_plus_chat_message_content_status',
-        columns: ['status'],
-        description: 'Lookup content by status.',
-      },
-    ],
-  ),
-  defineExactEntity(
-    'detail',
-    'plus_detail',
-    'user_center',
-    'Generic content detail aligned with spring-ai-plus PlusDetail.',
-    [
-      { name: 'id', logicalType: 'id', description: 'Primary key.' },
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'created_at', logicalType: 'timestamp', description: 'Creation timestamp.' },
-      { name: 'updated_at', logicalType: 'timestamp', description: 'Last update timestamp.' },
-      { name: 'v', logicalType: 'bigint', description: 'Java PlusBaseEntity optimistic lock version.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'content_type', logicalType: 'enum', description: 'Content type integer value.' },
-      { name: 'content_id', logicalType: 'id', description: 'Linked content id.' },
-      { name: 'content', logicalType: 'json', nullable: true, description: 'Detail content payload.' },
-      { name: 'metadata', logicalType: 'json', nullable: true, description: 'Detail metadata payload.' },
-    ],
-  ),
-  defineExactEntity(
     'collection',
     'plus_collection',
-    'user_center',
+    'content',
     'Collection tree aligned with spring-ai-plus PlusCollection.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4166,7 +3523,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'parent_id', logicalType: 'id', nullable: true, description: 'Parent collection id.' },
       { name: 'parent_uuid', logicalType: 'text', nullable: true, description: 'Parent collection uuid.' },
       { name: 'parent_metadata', logicalType: 'json', nullable: true, description: 'Tree parent metadata.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'Collection name.' },
       { name: 'description', logicalType: 'text', nullable: true, description: 'Collection description.' },
       { name: 'type', logicalType: 'enum', description: 'PlusCollectionType integer value.' },
@@ -4191,7 +3548,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'collection_item',
     'plus_collection_item',
-    'user_center',
+    'content',
     'Collection item aligned with spring-ai-plus PlusCollectionItem.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4202,7 +3559,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'collection_id', logicalType: 'id', description: 'Linked plus_collection id.' },
       { name: 'collection_uuid', logicalType: 'text', nullable: true, description: 'Linked plus_collection uuid.' },
       { name: 'type', logicalType: 'enum', description: 'PlusCollectionType integer value.' },
@@ -4231,7 +3588,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'favorite',
     'plus_favorite',
-    'user_center',
+    'content',
     'Favorite item aligned with spring-ai-plus PlusFavorite.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4242,7 +3599,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'title', logicalType: 'text', nullable: true, description: 'Favorite title.' },
       { name: 'image', logicalType: 'json', nullable: true, description: 'Cover image payload.' },
       { name: 'content_type', logicalType: 'enum', description: 'PlusContentType integer value.' },
@@ -4258,7 +3615,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_favorite_user_content',
+        name: 'uk_favorite_user_content',
         columns: ['user_id', 'content_type', 'content_id'],
         description: 'Unique favorite per user and content.',
         unique: true,
@@ -4276,7 +3633,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'favorite_folder',
     'plus_favorite_folder',
-    'user_center',
+    'content',
     'Favorite folder aligned with spring-ai-plus PlusFavoriteFolder.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4287,7 +3644,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'Folder name.' },
       { name: 'description', logicalType: 'text', nullable: true, description: 'Folder description.' },
       { name: 'parent_id', logicalType: 'id', nullable: true, description: 'Parent favorite folder id.' },
@@ -4306,7 +3663,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'share',
     'plus_share',
-    'user_center',
+    'content',
     'Share link aligned with spring-ai-plus PlusShare.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4317,7 +3674,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'title', logicalType: 'text', nullable: true, description: 'Share title.' },
       { name: 'description', logicalType: 'text', nullable: true, description: 'Share description.' },
       { name: 'type', logicalType: 'enum', description: 'ShareType enum name.' },
@@ -4344,7 +3701,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'share_visit_record',
     'plus_share_visit_record',
-    'user_center',
+    'content',
     'Share visit record aligned with spring-ai-plus PlusShareVisitRecord.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4355,7 +3712,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'share_id', logicalType: 'id', description: 'Linked plus_share id.' },
       { name: 'ip_address', logicalType: 'text', nullable: true, description: 'Visitor IP address.' },
       { name: 'user_agent', logicalType: 'text', nullable: true, description: 'Visitor user agent.' },
@@ -4371,7 +3728,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'invitation_code',
     'plus_invitation_code',
-    'user_center',
+    'iam',
     'Invitation code aligned with spring-ai-plus InvitationCode.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4383,7 +3740,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
       { name: 'code', logicalType: 'text', description: 'Unique invitation code.' },
-      { name: 'creator_user_id', logicalType: 'id', description: 'Creator plus_user id.' },
+      { name: 'creator_user_id', logicalType: 'id', description: 'Creator iam_user id.' },
       { name: 'status', logicalType: 'enum', description: 'InvitationCodeStatus integer value.' },
       { name: 'expire_time', logicalType: 'timestamp', nullable: true, description: 'Expiration timestamp.' },
       { name: 'usage_limit', logicalType: 'int', nullable: true, description: 'Maximum allowed usage count.' },
@@ -4401,7 +3758,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'invitation_relation',
     'plus_invitation_relation',
-    'user_center',
+    'iam',
     'Invitation relation aligned with spring-ai-plus InvitationRelation.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4412,8 +3769,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'inviter_user_id', logicalType: 'id', description: 'Inviter plus_user id.' },
-      { name: 'invitee_user_id', logicalType: 'id', description: 'Invitee plus_user id.' },
+      { name: 'inviter_user_id', logicalType: 'id', description: 'Inviter iam_user id.' },
+      { name: 'invitee_user_id', logicalType: 'id', description: 'Invitee iam_user id.' },
       { name: 'invite_code', logicalType: 'text', description: 'Invitation code.' },
       { name: 'used_time', logicalType: 'timestamp', description: 'Invitation binding timestamp.' },
       { name: 'relation_level', logicalType: 'int', description: 'Invitation relation level.' },
@@ -4425,7 +3782,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'sns_follow_relation',
     'plus_sns_follow_relation',
-    'user_center',
+    'comms',
     'SNS follow relation aligned with spring-ai-plus PlusFollowRelation.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4449,7 +3806,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'UK_sns_follow_relation',
+        name: 'uk_sns_follow_relation',
         columns: ['follower_id', 'following_id'],
         description: 'Preserve Java unique follower/following relation.',
         unique: true,
@@ -4467,7 +3824,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'sns_follow_statistics',
     'plus_sns_follow_statistics',
-    'user_center',
+    'comms',
     'SNS follow statistics aligned with spring-ai-plus PlusFollowStatistics.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4490,7 +3847,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'UK_sns_follow_statistics',
+        name: 'uk_sns_follow_statistics',
         columns: ['user_id', 'owner_id'],
         description: 'Preserve Java unique user/owner statistics row.',
         unique: true,
@@ -4505,7 +3862,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'comments',
     'plus_comments',
-    'user_center',
+    'content',
     'Content comments aligned with spring-ai-plus PlusComments.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4519,7 +3876,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'parent_id', logicalType: 'id', nullable: true, description: 'Parent comment id.' },
       { name: 'parent_uuid', logicalType: 'text', nullable: true, description: 'Parent comment uuid.' },
       { name: 'parent_metadata', logicalType: 'json', nullable: true, description: 'Tree parent metadata.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Comment author plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Comment author iam_user id.' },
       { name: 'content', logicalType: 'text', description: 'Comment content.' },
       { name: 'content_type', logicalType: 'enum', description: 'PlusContentType integer value.' },
       { name: 'content_id', logicalType: 'id', description: 'Commented content id.' },
@@ -4541,7 +3898,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'content_vote',
     'plus_content_vote',
-    'user_center',
+    'content',
     'Content vote aligned with spring-ai-plus ContentVote.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4552,7 +3909,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Voting plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Voting iam_user id.' },
       { name: 'content_type', logicalType: 'enum', description: 'PlusContentType integer value.' },
       { name: 'content_id', logicalType: 'id', description: 'Voted content id.' },
       { name: 'rating', logicalType: 'enum', description: 'VoteRatingType integer value.' },
@@ -4563,7 +3920,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_vote_user_content',
+        name: 'uk_vote_user_content',
         columns: ['user_id', 'content_type', 'content_id'],
         description: 'One vote per user and content.',
         unique: true,
@@ -4576,7 +3933,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'visit_history',
     'plus_visit_history',
-    'user_center',
+    'ops',
     'Content visit history aligned with spring-ai-plus PlusVisitHistory.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4587,7 +3944,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Visiting plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Visiting iam_user id.' },
       { name: 'content_type', logicalType: 'enum', description: 'PlusContentType integer value.' },
       { name: 'content_id', logicalType: 'id', description: 'Visited content id.' },
       { name: 'visit_count', logicalType: 'int', nullable: true, description: 'Visit count.' },
@@ -4605,7 +3962,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'feeds',
     'plus_feeds',
-    'user_center',
+    'content',
     'Content feed item aligned with spring-ai-plus PlusFeeds.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4616,7 +3973,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Feed owner plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Feed owner iam_user id.' },
       { name: 'title', logicalType: 'text', description: 'Feed title.' },
       { name: 'summary', logicalType: 'text', nullable: true, description: 'Feed summary.' },
       { name: 'category_id', logicalType: 'id', description: 'Linked plus_category id.' },
@@ -4652,7 +4009,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'short_url',
     'plus_short_url',
-    'user_center',
+    'ops',
     'Short URL aligned with spring-ai-plus ShortUrl.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4668,7 +4025,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'expires_at', logicalType: 'timestamp', nullable: true, description: 'Expiration timestamp.' },
       { name: 'click_count', logicalType: 'int', description: 'Click count.' },
       { name: 'status', logicalType: 'enum', description: 'ShortUrlStatus integer value.' },
-      { name: 'created_by', logicalType: 'id', nullable: true, description: 'Creator plus_user id.' },
+      { name: 'created_by', logicalType: 'id', nullable: true, description: 'Creator iam_user id.' },
       { name: 'description', logicalType: 'text', nullable: true, description: 'Short URL description.' },
     ],
     [
@@ -4683,7 +4040,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'feedback',
     'plus_feedback',
-    'user_center',
+    'ops',
     'Feedback aligned with spring-ai-plus PlusFeedback.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4694,7 +4051,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Feedback plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Feedback iam_user id.' },
       { name: 'title', logicalType: 'text', description: 'Feedback title.' },
       { name: 'feedback_content', logicalType: 'text', description: 'Feedback content.' },
       { name: 'feedback_type', logicalType: 'enum', description: 'FeedbackType integer value.' },
@@ -4733,7 +4090,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'email_message',
     'plus_email_message',
-    'user_center',
+    'ops',
     'Email message aligned with spring-ai-plus PlusEmailMessage.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4744,7 +4101,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Owner plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Owner iam_user id.' },
       { name: 'folder', logicalType: 'text', description: 'Email folder.' },
       { name: 'direction', logicalType: 'text', description: 'Email direction.' },
       { name: 'external_message_id', logicalType: 'text', description: 'External provider message id.' },
@@ -4774,7 +4131,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'events',
     'plus_events',
-    'user_center',
+    'ops',
     'Event record aligned with spring-ai-plus PlusEvents.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4798,7 +4155,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'disk',
     'plus_disk',
-    'user_center',
+    'media',
     'Cloud disk root aligned with spring-ai-plus PlusDisk.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4826,7 +4183,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         unique: true,
       },
       {
-        name: 'idx_plus_disk_owner_id2',
+        name: 'uk_plus_disk_owner_type',
         columns: ['owner', 'owner_id', 'type'],
         description: 'Unique disk per owner and type.',
         unique: true,
@@ -4851,7 +4208,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'disk_member',
     'plus_disk_member',
-    'user_center',
+    'media',
     'Cloud disk member aligned with spring-ai-plus PlusDiskMember.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4863,7 +4220,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
       { name: 'disk_id', logicalType: 'id', description: 'Linked plus_disk id.' },
-      { name: 'user_id', logicalType: 'id', description: 'Member plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Member iam_user id.' },
       { name: 'permission', logicalType: 'json', description: 'Disk permission payload.' },
       { name: 'remark', logicalType: 'text', nullable: true, description: 'Member remark.' },
       { name: 'is_owner', logicalType: 'bool', description: 'Whether the member owns the disk.' },
@@ -4872,7 +4229,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_disk_member_disk_user',
+        name: 'uk_disk_member_disk_user',
         columns: ['disk_id', 'user_id'],
         description: 'Unique disk membership per user.',
         unique: true,
@@ -4902,7 +4259,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'file',
     'plus_file',
-    'user_center',
+    'media',
     'File metadata aligned with spring-ai-plus PlusFile.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -4913,7 +4270,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'File name.' },
       { name: 'type', logicalType: 'enum', description: 'File type integer value.' },
       { name: 'disk_id', logicalType: 'id', description: 'Linked plus_disk id.' },
@@ -4971,7 +4328,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_file_disk_parent_path',
+        name: 'uk_file_disk_parent_path',
         columns: ['disk_id', 'parent_id', 'path'],
         description: 'Unique file path under a disk parent.',
         unique: true,
@@ -5011,7 +4368,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'file_content',
     'plus_file_content',
-    'user_center',
+    'media',
     'File content aligned with spring-ai-plus PlusFileContent.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -5046,7 +4403,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'file_part',
     'plus_file_part',
-    'user_center',
+    'media',
     'File multipart upload part aligned with spring-ai-plus PlusFilePart.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -5069,7 +4426,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineExactEntity(
     'oss_bucket',
     'plus_oss_bucket',
-    'user_center',
+    'media',
     'Object storage bucket aligned with spring-ai-plus PlusOssBucket.',
     [
       { name: 'id', logicalType: 'id', description: 'Primary key.' },
@@ -5080,7 +4437,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning plus_user id.' },
+      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
       { name: 'name', logicalType: 'text', description: 'Bucket name.' },
       { name: 'region', logicalType: 'text', nullable: true, description: 'Bucket region.' },
       { name: 'channel', logicalType: 'enum', nullable: true, description: 'Storage channel integer value.' },
@@ -5117,7 +4474,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'order',
     'plus_order',
-    'user_center',
+    'commerce',
     'Order aggregate aligned with spring-ai-plus PlusOrder.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5212,7 +4569,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'order_item',
     'plus_order_item',
-    'user_center',
+    'commerce',
     'Order item aligned with spring-ai-plus PlusOrderItem.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5258,7 +4615,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'payment',
     'plus_payment',
-    'user_center',
+    'commerce',
     'Payment record aligned with spring-ai-plus PlusPayment.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5296,7 +4653,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'refund',
     'plus_refund',
-    'user_center',
+    'commerce',
     'Refund record aligned with spring-ai-plus PlusRefund.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5334,14 +4691,14 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'shopping_cart',
     'plus_shopping_cart',
-    'user_center',
+    'commerce',
     'Shopping cart aligned with spring-ai-plus PlusShoppingCart.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Linked plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Linked iam_user id.' },
       { name: 'owner', logicalType: 'enum', description: 'Shopping cart owner type.' },
       { name: 'owner_id', logicalType: 'id', description: 'Shopping cart owner id.' },
       { name: 'name', logicalType: 'text', nullable: true, description: 'Shopping cart name.' },
@@ -5353,7 +4710,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'shopping_cart_item',
     'plus_shopping_cart_item',
-    'user_center',
+    'commerce',
     'Shopping cart item aligned with spring-ai-plus PlusShoppingCartItem.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5380,7 +4737,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'payment_webhook_event',
     'plus_payment_webhook_event',
-    'user_center',
+    'commerce',
     'Payment webhook idempotency record aligned with spring-ai-plus PlusPaymentWebhookEvent.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5432,7 +4789,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'order_dispatch_rule',
     'plus_order_dispatch_rule',
-    'user_center',
+    'commerce',
     'Service order dispatch rule aligned with spring-ai-plus PlusOrderDispatchRule.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5473,7 +4830,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'order_worker_dispatch_profile',
     'plus_order_worker_dispatch_profile',
-    'user_center',
+    'commerce',
     'Worker dispatch profile aligned with spring-ai-plus PlusOrderWorkerDispatchProfile.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5515,100 +4872,9 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
   ),
   defineEntity(
-    'user_profile',
-    'plus_user',
-    'user_center',
-    'Profile projection stored on plus_user and metadata_json.',
-    [
-      { name: 'id', logicalType: 'id', description: 'Linked plus_user id.' },
-      { name: 'bio', logicalType: 'text', nullable: true, description: 'User bio.' },
-      {
-        name: 'metadata_json',
-        logicalType: 'json',
-        nullable: true,
-        description: 'Structured profile metadata with company, location, and website.',
-      },
-    ],
-    [
-      {
-        name: 'uk_plus_user_profile_projection',
-        columns: ['id'],
-        description: 'One profile projection per plus_user record.',
-        unique: true,
-      },
-    ],
-  ),
-  defineEntity(
-    'vip_user',
-    'plus_vip_user',
-    'user_center',
-    'VIP membership and entitlement state aligned with spring-ai-plus PlusVipUser.',
-    [
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      {
-        name: 'organization_id',
-        logicalType: 'id',
-        description: 'Organization ownership id.',
-      },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Linked plus_user id.' },
-      { name: 'vip_level_id', logicalType: 'id', nullable: true, description: 'Current VIP level id.' },
-      { name: 'status', logicalType: 'enum', description: 'Membership lifecycle state.' },
-      { name: 'point_balance', logicalType: 'bigint', description: 'Current VIP point balance.' },
-      {
-        name: 'total_recharged_points',
-        logicalType: 'bigint',
-        description: 'Accumulated recharged VIP points.',
-      },
-      { name: 'valid_from', logicalType: 'timestamp', nullable: true, description: 'Membership start time.' },
-      { name: 'valid_to', logicalType: 'timestamp', nullable: true, description: 'Membership end time.' },
-      { name: 'last_active_time', logicalType: 'timestamp', nullable: true, description: 'Last active time.' },
-      { name: 'remark', logicalType: 'text', nullable: true, description: 'Membership remark.' },
-    ],
-    [
-      {
-        name: 'idx_plus_vip_user_user_status',
-        columns: ['user_id', 'status'],
-        description: 'Lookup by user and entitlement state.',
-      },
-    ],
-  ),
-  defineEntity(
-    'account',
-    'plus_account',
-    'user_center',
-    'Account balance root aligned with spring-ai-plus PlusAccountEntity.',
-    [
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owner plus_user id.' },
-      { name: 'account_type', logicalType: 'enum', description: 'Account type.' },
-      { name: 'owner', logicalType: 'enum', nullable: true, description: 'Owner type.' },
-      { name: 'owner_id', logicalType: 'id', description: 'Owner id.' },
-      { name: 'available_balance', logicalType: 'decimal', description: 'Available cash balance.' },
-      { name: 'frozen_balance', logicalType: 'decimal', description: 'Frozen cash balance.' },
-      { name: 'available_points', logicalType: 'bigint', description: 'Available points.' },
-      { name: 'frozen_points', logicalType: 'bigint', description: 'Frozen points.' },
-      { name: 'token_balance', logicalType: 'bigint', description: 'Token balance.' },
-      { name: 'frozen_token', logicalType: 'bigint', description: 'Frozen token balance.' },
-      { name: 'status', logicalType: 'enum', description: 'Account lifecycle state.' },
-    ],
-    [
-      {
-        name: 'uk_plus_account_tenant_org_user_type',
-        columns: ['tenant_id', 'organization_id', 'user_id', 'account_type'],
-        description: 'One account of each type per tenant/organization/user.',
-        unique: true,
-      },
-    ],
-  ),
-  defineEntity(
     'account_history',
     'plus_account_history',
-    'user_center',
+    'commerce',
     'Account ledger history aligned with spring-ai-plus PlusAccountHistoryEntity.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5641,7 +4907,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'account_exchange_config',
     'plus_account_exchange_config',
-    'user_center',
+    'commerce',
     'Account exchange configuration aligned with spring-ai-plus PlusAccountExchangeConfigEntity.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5656,14 +4922,14 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'ledger_bridge',
     'plus_ledger_bridge',
-    'user_center',
+    'commerce',
     'Explicit bridge between VIP and account ledgers.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Linked plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Linked iam_user id.' },
       { name: 'bridge_type', logicalType: 'enum', description: 'Bridge type.' },
       { name: 'source_ledger', logicalType: 'enum', description: 'Source ledger.' },
       { name: 'target_ledger', logicalType: 'enum', description: 'Target ledger.' },
@@ -5683,7 +4949,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'vip_level',
     'plus_vip_level',
-    'user_center',
+    'commerce',
     'VIP level aligned with spring-ai-plus PlusVipLevel.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5700,7 +4966,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'vip_benefit',
     'plus_vip_benefit',
-    'user_center',
+    'commerce',
     'VIP benefit aligned with spring-ai-plus PlusVipBenefit.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5717,7 +4983,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'vip_level_benefit',
     'plus_vip_level_benefit',
-    'user_center',
+    'commerce',
     'VIP level benefit binding aligned with spring-ai-plus PlusVipLevelBenefit.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5737,7 +5003,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'vip_pack_group',
     'plus_vip_pack_group',
-    'user_center',
+    'commerce',
     'VIP pack group aligned with spring-ai-plus PlusVipPackGroup.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5759,7 +5025,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'vip_pack',
     'plus_vip_pack',
-    'user_center',
+    'commerce',
     'VIP pack aligned with spring-ai-plus PlusVipPack.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5787,7 +5053,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'vip_recharge_method',
     'plus_vip_recharge_method',
-    'user_center',
+    'commerce',
     'VIP recharge method aligned with spring-ai-plus PlusVipRechargeMethod.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5805,7 +5071,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'vip_recharge_pack',
     'plus_vip_recharge_pack',
-    'user_center',
+    'commerce',
     'VIP recharge pack aligned with spring-ai-plus PlusVipRechargePack.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
@@ -5829,14 +5095,14 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'vip_recharge',
     'plus_vip_recharge',
-    'user_center',
+    'commerce',
     'VIP recharge record aligned with spring-ai-plus PlusVipRecharge.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Linked plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Linked iam_user id.' },
       { name: 'vip_level_id', logicalType: 'id', nullable: true, description: 'VIP level id.' },
       { name: 'amount', logicalType: 'decimal', description: 'Recharge amount.' },
       { name: 'point_amount', logicalType: 'bigint', description: 'Point amount.' },
@@ -5852,14 +5118,14 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'vip_point_change',
     'plus_vip_point_change',
-    'user_center',
+    'commerce',
     'VIP point change record aligned with spring-ai-plus PlusVipPointChange.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Linked plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Linked iam_user id.' },
       { name: 'change_type', logicalType: 'enum', description: 'Change type.' },
       { name: 'change_amount', logicalType: 'bigint', description: 'Change amount.' },
       { name: 'before_balance', logicalType: 'bigint', description: 'Balance before.' },
@@ -5872,14 +5138,14 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'vip_benefit_usage',
     'plus_vip_benefit_usage',
-    'user_center',
+    'commerce',
     'VIP benefit usage aligned with spring-ai-plus PlusVipBenefitUsage.',
     [
       { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
       { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Linked plus_user id.' },
+      { name: 'user_id', logicalType: 'id', description: 'Linked iam_user id.' },
       { name: 'benefit_type', logicalType: 'enum', description: 'Benefit type.' },
       { name: 'usage_time', logicalType: 'timestamp', description: 'Usage time.' },
       { name: 'usage_count', logicalType: 'bigint', description: 'Usage count.' },
@@ -5891,9 +5157,9 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'workspace',
-    'plus_workspace',
-    'workspace',
-    'Top-level workspace container with plus-style canonical business fields.',
+    'studio_workspace',
+    'studio',
+    'Top-level workspace container with SDKWork studio-domain business fields.',
     [
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
       {
@@ -5984,9 +5250,9 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineExactEntity(
     'project',
-    'plus_project',
-    'workspace',
-    'Project aligned exactly with spring-ai-plus PlusProject.',
+    'studio_project',
+    'studio',
+    'Project aligned with SDKWork studio-domain project storage.',
     [
       { name: 'id', logicalType: 'id', description: 'PlusProject primary key.' },
       { name: 'uuid', logicalType: 'text', description: 'PlusBaseEntity UUID.' },
@@ -6018,7 +5284,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         name: 'user_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Owning plus_user id.',
+        description: 'Owning iam_user id.',
       },
       { name: 'name', logicalType: 'text', description: 'Project unique business name.' },
       { name: 'title', logicalType: 'text', description: 'Project title.' },
@@ -6066,19 +5332,19 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         name: 'workspace_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Referenced plus_workspace id.',
+        description: 'Referenced studio_workspace id.',
       },
       {
         name: 'workspace_uuid',
         logicalType: 'text',
         nullable: true,
-        description: 'Referenced plus_workspace UUID.',
+        description: 'Referenced studio_workspace UUID.',
       },
       {
         name: 'leader_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Project leader plus_user id.',
+        description: 'Project leader iam_user id.',
       },
       {
         name: 'start_time',
@@ -6103,24 +5369,24 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'uk_plus_project_name',
+        name: 'uk_studio_project_name',
         columns: ['name'],
-        description: 'Unique PlusProject name.',
+        description: 'Unique studio project name.',
         unique: true,
       },
       {
-        name: 'uk_plus_project_code',
+        name: 'uk_studio_project_code',
         columns: ['code'],
-        description: 'Unique PlusProject business code.',
+        description: 'Unique studio project business code.',
         unique: true,
       },
     ],
   ),
   defineExactEntity(
     'project_content',
-    'plus_project_content',
-    'workspace',
-    'Project content aligned exactly with spring-ai-plus PlusProjectContent.',
+    'studio_project_content',
+    'studio',
+    'Project content aligned with SDKWork studio-domain project content storage.',
     [
       { name: 'id', logicalType: 'id', description: 'PlusProjectContent primary key.' },
       { name: 'uuid', logicalType: 'text', description: 'PlusBaseEntity UUID.' },
@@ -6134,11 +5400,11 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         name: 'user_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Owning plus_user id.',
+        description: 'Owning iam_user id.',
       },
       { name: 'parent_id', logicalType: 'id', nullable: true, description: 'Parent node id.' },
-      { name: 'project_id', logicalType: 'id', description: 'Associated plus_project id.' },
-      { name: 'project_uuid', logicalType: 'text', description: 'Associated plus_project UUID.' },
+      { name: 'project_id', logicalType: 'id', description: 'Associated studio_project id.' },
+      { name: 'project_uuid', logicalType: 'text', description: 'Associated studio_project UUID.' },
       {
         name: 'config_data',
         logicalType: 'text',
@@ -6171,21 +5437,21 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_plus_project_content_project_id',
+        name: 'idx_studio_project_content_project_id',
         columns: ['project_id'],
-        description: 'Lookup project content by plus_project id.',
+        description: 'Lookup project content by studio_project id.',
       },
       {
-        name: 'idx_plus_project_content_project_uuid',
+        name: 'idx_studio_project_content_project_uuid',
         columns: ['project_uuid'],
-        description: 'Lookup project content by plus_project UUID.',
+        description: 'Lookup project content by studio_project UUID.',
       },
     ],
   ),
   defineEntity(
     'file_asset',
-    'file_assets',
-    'coding_session',
+    'media_file_asset',
+    'media',
     'Referenced files, outputs, screenshots, or archives emitted during coding execution.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
@@ -6197,8 +5463,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'coding_session',
-    'coding_sessions',
-    'coding_session',
+    'ai_coding_session',
+    'ai',
     'Stable IDE coding session container.',
     [
       { name: 'workspace_id', logicalType: 'id', description: 'Owning workspace.' },
@@ -6260,12 +5526,12 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_coding_sessions_project_updated',
+        name: 'idx_ai_coding_session_project_updated',
         columns: ['project_id', 'updated_at'],
         description: 'Recent coding sessions by project.',
       },
       {
-        name: 'idx_coding_sessions_project_sort',
+        name: 'idx_ai_coding_session_project_sort',
         columns: ['project_id', 'sort_timestamp'],
         description: 'Sorted coding session activity by project.',
       },
@@ -6273,8 +5539,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'coding_session_runtime',
-    'coding_session_runtimes',
-    'coding_session',
+    'ai_coding_session_runtime',
+    'ai',
     'Native engine runtime instances bound to a coding session.',
     [
       { name: 'coding_session_id', logicalType: 'id', description: 'Owning coding session.' },
@@ -6304,7 +5570,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_coding_session_runtimes_session_updated',
+        name: 'idx_ai_coding_session_runtime_session_updated',
         columns: ['coding_session_id', 'updated_at'],
         description: 'Runtime ordering within a coding session.',
       },
@@ -6312,8 +5578,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'coding_session_turn',
-    'coding_session_turns',
-    'coding_session',
+    'ai_coding_session_turn',
+    'ai',
     'Turn-level execution records.',
     [
       { name: 'coding_session_id', logicalType: 'id', description: 'Owning coding session.' },
@@ -6326,7 +5592,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_coding_session_turns_session_created',
+        name: 'idx_ai_coding_session_turn_session_created',
         columns: ['coding_session_id', 'created_at'],
         description: 'Turn ordering within a coding session.',
       },
@@ -6334,8 +5600,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'coding_session_message',
-    'coding_session_messages',
-    'coding_session',
+    'ai_coding_session_message',
+    'ai',
     'Projected UI messages for a coding session.',
     [
       { name: 'coding_session_id', logicalType: 'id', description: 'Owning coding session.' },
@@ -6388,7 +5654,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_coding_session_messages_session_created',
+        name: 'idx_ai_coding_session_message_session_created',
         columns: ['coding_session_id', 'created_at'],
         description: 'Message ordering within a coding session.',
       },
@@ -6396,8 +5662,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'coding_session_prompt_entry',
-    'coding_session_prompt_entries',
-    'coding_session',
+    'ai_coding_session_prompt_entry',
+    'ai',
     'Prompt history entries scoped to a coding session composer.',
     [
       { name: 'coding_session_id', logicalType: 'id', description: 'Owning coding session.' },
@@ -6420,12 +5686,12 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_coding_session_prompt_entries_session_last_used',
+        name: 'idx_ai_coding_session_prompt_entry_session_last_used',
         columns: ['coding_session_id', 'last_used_at'],
         description: 'Recent prompt history ordering within a coding session.',
       },
       {
-        name: 'uk_coding_session_prompt_entries_session_normalized_prompt',
+        name: 'uk_ai_coding_session_prompt_entry_session_normalized_prompt',
         columns: ['coding_session_id', 'normalized_prompt_text'],
         description: 'Deduplicated prompt history within a coding session.',
         unique: true,
@@ -6434,8 +5700,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'saved_prompt_entry',
-    'saved_prompt_entries',
-    'prompt',
+    'ai_saved_prompt_entry',
+    'ai',
     'Reusable saved prompt snippets available across coding sessions in the local IDE runtime.',
     [
       { name: 'prompt_text', logicalType: 'text', description: 'Saved prompt text.' },
@@ -6457,12 +5723,12 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_saved_prompt_entries_last_saved',
+        name: 'idx_ai_saved_prompt_entry_last_saved',
         columns: ['last_saved_at'],
         description: 'Recent saved prompt ordering.',
       },
       {
-        name: 'uk_saved_prompt_entries_normalized_prompt',
+        name: 'uk_ai_saved_prompt_entry_normalized_prompt',
         columns: ['normalized_prompt_text'],
         description: 'Deduplicated saved prompts.',
         unique: true,
@@ -6471,8 +5737,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'coding_session_event',
-    'coding_session_events',
-    'coding_session',
+    'ai_coding_session_event',
+    'ai',
     'Raw event stream preserved from engine and runtime operations.',
     [
       { name: 'coding_session_id', logicalType: 'id', description: 'Owning coding session.' },
@@ -6484,7 +5750,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_coding_session_events_session_sequence',
+        name: 'idx_ai_coding_session_event_session_sequence',
         columns: ['coding_session_id', 'sequence_no'],
         description: 'Event ordering within a coding session.',
       },
@@ -6492,8 +5758,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'coding_session_artifact',
-    'coding_session_artifacts',
-    'coding_session',
+    'ai_coding_session_artifact',
+    'ai',
     'Diffs, logs, evidence, and files emitted by a coding session.',
     [
       { name: 'coding_session_id', logicalType: 'id', description: 'Owning coding session.' },
@@ -6510,7 +5776,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_coding_session_artifacts_session_created',
+        name: 'idx_ai_coding_session_artifact_session_created',
         columns: ['coding_session_id', 'created_at'],
         description: 'Artifact ordering within a coding session.',
       },
@@ -6518,8 +5784,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'coding_session_checkpoint',
-    'coding_session_checkpoints',
-    'coding_session',
+    'ai_coding_session_checkpoint',
+    'ai',
     'Resume, approval, and handoff checkpoints.',
     [
       { name: 'coding_session_id', logicalType: 'id', description: 'Owning coding session.' },
@@ -6530,7 +5796,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_coding_session_checkpoints_session_created',
+        name: 'idx_ai_coding_session_checkpoint_session_created',
         columns: ['coding_session_id', 'created_at'],
         description: 'Checkpoint ordering within a coding session.',
       },
@@ -6538,8 +5804,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'coding_session_operation',
-    'coding_session_operations',
-    'coding_session',
+    'ai_coding_session_operation',
+    'ai',
     'Projected long-running operation state for coding session turns.',
     [
       { name: 'coding_session_id', logicalType: 'id', description: 'Owning coding session.' },
@@ -6551,12 +5817,12 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_coding_session_operations_session_created',
+        name: 'idx_ai_coding_session_operation_session_created',
         columns: ['coding_session_id', 'created_at'],
         description: 'Operation ordering within a coding session.',
       },
       {
-        name: 'uk_coding_session_operations_turn',
+        name: 'uk_ai_coding_session_operation_turn',
         columns: ['turn_id'],
         description: 'One operation projection per turn.',
         unique: true,
@@ -6565,8 +5831,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'prompt_asset',
-    'prompt_assets',
-    'prompt',
+    'ai_prompt_asset',
+    'ai',
     'Prompt asset root.',
     [
       { name: 'scope_type', logicalType: 'enum', description: 'Asset scope type.' },
@@ -6578,8 +5844,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'prompt_asset_version',
-    'prompt_asset_versions',
-    'prompt',
+    'ai_prompt_asset_version',
+    'ai',
     'Versioned prompt asset content.',
     [
       { name: 'prompt_asset_id', logicalType: 'id', description: 'Parent prompt asset.' },
@@ -6591,8 +5857,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'prompt_bundle',
-    'prompt_bundles',
-    'prompt',
+    'ai_prompt_bundle',
+    'ai',
     'Prompt bundle root.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
@@ -6603,8 +5869,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'prompt_bundle_item',
-    'prompt_bundle_items',
-    'prompt',
+    'ai_prompt_bundle_item',
+    'ai',
     'Bundle to prompt version mapping.',
     [
       { name: 'prompt_bundle_id', logicalType: 'id', description: 'Owning bundle.' },
@@ -6615,8 +5881,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'prompt_run',
-    'prompt_runs',
-    'prompt',
+    'ai_prompt_run',
+    'ai',
     'Prompt execution run.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
@@ -6630,8 +5896,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'prompt_evaluation',
-    'prompt_evaluations',
-    'prompt',
+    'ai_prompt_evaluation',
+    'ai',
     'Prompt evaluation result.',
     [
       { name: 'prompt_run_id', logicalType: 'id', description: 'Linked prompt run.' },
@@ -6643,8 +5909,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'skill_package',
-    'skill_packages',
-    'skillhub',
+    'ai_skill_package',
+    'ai',
     'Skill package root.',
     [
       { name: 'slug', logicalType: 'text', description: 'Skill package slug.' },
@@ -6655,8 +5921,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'skill_version',
-    'skill_versions',
-    'skillhub',
+    'ai_skill_version',
+    'ai',
     'Skill package version.',
     [
       { name: 'skill_package_id', logicalType: 'id', description: 'Parent skill package.' },
@@ -6667,8 +5933,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'skill_capability',
-    'skill_capabilities',
-    'skillhub',
+    'ai_skill_capability',
+    'ai',
     'Declared capability of a skill version.',
     [
       { name: 'skill_version_id', logicalType: 'id', description: 'Parent skill version.' },
@@ -6679,8 +5945,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'skill_installation',
-    'skill_installations',
-    'skillhub',
+    'ai_skill_installation',
+    'ai',
     'Installed skill version for a scope.',
     [
       { name: 'scope_type', logicalType: 'enum', description: 'Installation scope type.' },
@@ -6692,8 +5958,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'skill_binding',
-    'skill_bindings',
-    'skillhub',
+    'ai_skill_binding',
+    'ai',
     'Bound skill installation to a project or coding context.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
@@ -6705,8 +5971,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'skill_runtime_config',
-    'skill_runtime_configs',
-    'skillhub',
+    'ai_skill_runtime_config',
+    'ai',
     'Runtime configuration for a skill binding.',
     [
       { name: 'skill_binding_id', logicalType: 'id', description: 'Linked skill binding.' },
@@ -6717,8 +5983,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'app_template',
-    'app_templates',
-    'template',
+    'studio_app_template',
+    'studio',
     'Application template root.',
     [
       { name: 'slug', logicalType: 'text', description: 'Template slug.' },
@@ -6729,8 +5995,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'app_template_version',
-    'app_template_versions',
-    'template',
+    'studio_app_template_version',
+    'studio',
     'Application template version.',
     [
       { name: 'app_template_id', logicalType: 'id', description: 'Parent template.' },
@@ -6741,8 +6007,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'app_template_target_profile',
-    'app_template_target_profiles',
-    'template',
+    'studio_app_template_target_profile',
+    'studio',
     'Target profile of a template version.',
     [
       { name: 'app_template_version_id', logicalType: 'id', description: 'Parent template version.' },
@@ -6754,8 +6020,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'app_template_preset',
-    'app_template_presets',
-    'template',
+    'studio_app_template_preset',
+    'studio',
     'Template preset variant.',
     [
       { name: 'app_template_version_id', logicalType: 'id', description: 'Parent template version.' },
@@ -6766,8 +6032,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'app_template_instantiation',
-    'app_template_instantiations',
-    'template',
+    'studio_app_template_instantiation',
+    'studio',
     'Concrete project instantiated from a template.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
@@ -6779,8 +6045,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'team',
-    'teams',
-    'collaboration',
+    'studio_team',
+    'studio',
     'Team root for workspace collaboration with canonical business fields.',
     [
       { name: 'uuid', logicalType: 'text', nullable: true, description: 'Stable business UUID.' },
@@ -6814,28 +6080,28 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'team_member',
-    'team_members',
-    'collaboration',
-    'Team membership and role aligned to plus_user user semantics.',
+    'studio_team_member',
+    'studio',
+    'Team membership and role aligned to iam_user user semantics.',
     [
       { name: 'team_id', logicalType: 'id', description: 'Owning team.' },
       {
         name: 'user_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Canonical linked plus_user id.',
+        description: 'Canonical linked iam_user id.',
       },
       {
         name: 'created_by_user_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Canonical creator plus_user id.',
+        description: 'Canonical creator iam_user id.',
       },
       {
         name: 'granted_by_user_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Canonical grantor plus_user id.',
+        description: 'Canonical grantor iam_user id.',
       },
       { name: 'role', logicalType: 'enum', description: 'Member role.' },
       { name: 'status', logicalType: 'enum', description: 'Membership status.' },
@@ -6843,29 +6109,29 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'workspace_member',
-    'workspace_members',
-    'collaboration',
-    'Workspace membership projection aligned to plus_user ownership semantics.',
+    'studio_workspace_member',
+    'studio',
+    'Workspace membership projection aligned to iam_user ownership semantics.',
     [
       { name: 'workspace_id', logicalType: 'id', description: 'Owning workspace.' },
       {
         name: 'user_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Canonical linked plus_user id.',
+        description: 'Canonical linked iam_user id.',
       },
       { name: 'team_id', logicalType: 'id', nullable: true, description: 'Owning team id.' },
       {
         name: 'created_by_user_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Canonical creator plus_user id.',
+        description: 'Canonical creator iam_user id.',
       },
       {
         name: 'granted_by_user_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Canonical grantor plus_user id.',
+        description: 'Canonical grantor iam_user id.',
       },
       { name: 'role', logicalType: 'enum', description: 'Member role.' },
       { name: 'status', logicalType: 'enum', description: 'Membership status.' },
@@ -6873,9 +6139,9 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'project_collaborator',
-    'project_collaborators',
-    'collaboration',
-    'Project collaborator projection aligned to plus_user ownership semantics.',
+    'studio_project_collaborator',
+    'studio',
+    'Project collaborator projection aligned to iam_user ownership semantics.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
       { name: 'workspace_id', logicalType: 'id', description: 'Owning workspace.' },
@@ -6883,20 +6149,20 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
         name: 'user_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Canonical linked plus_user id.',
+        description: 'Canonical linked iam_user id.',
       },
       { name: 'team_id', logicalType: 'id', nullable: true, description: 'Owning team id.' },
       {
         name: 'created_by_user_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Canonical creator plus_user id.',
+        description: 'Canonical creator iam_user id.',
       },
       {
         name: 'granted_by_user_id',
         logicalType: 'id',
         nullable: true,
-        description: 'Canonical grantor plus_user id.',
+        description: 'Canonical grantor iam_user id.',
       },
       { name: 'role', logicalType: 'enum', description: 'Collaborator role.' },
       { name: 'status', logicalType: 'enum', description: 'Collaboration status.' },
@@ -6904,8 +6170,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'project_document',
-    'project_documents',
-    'collaboration',
+    'studio_project_document',
+    'studio',
     'Project lifecycle documents.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
@@ -6918,8 +6184,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'deployment_target',
-    'deployment_targets',
-    'delivery',
+    'studio_deployment_target',
+    'studio',
     'Deployment target definition.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
@@ -6931,8 +6197,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'deployment_record',
-    'deployment_records',
-    'delivery',
+    'studio_deployment_record',
+    'studio',
     'Deployment execution record.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
@@ -6946,8 +6212,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'workbench_preference',
-    'workbench_preferences',
-    'workspace',
+    'studio_workbench_preference',
+    'studio',
     'Shared workbench preference state.',
     [
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
@@ -6965,7 +6231,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'uk_workbench_preferences_scope',
+        name: 'uk_studio_workbench_preference_scope',
         columns: ['scope_type', 'scope_id'],
         description: 'One preference row per scope.',
         unique: true,
@@ -6974,8 +6240,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'engine_registry',
-    'engine_registry',
-    'engine',
+    'ai_engine_registry',
+    'ai',
     'Available engine descriptors and capabilities.',
     [
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
@@ -6995,7 +6261,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'uk_engine_registry_engine_id',
+        name: 'uk_ai_engine_registry_engine_id',
         columns: ['engine_id'],
         description: 'Unique engine identifier.',
         unique: true,
@@ -7004,8 +6270,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'model_catalog',
-    'model_catalog',
-    'engine',
+    'ai_model_catalog',
+    'ai',
     'Model catalog entries grouped by engine.',
     [
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
@@ -7025,7 +6291,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'uk_model_catalog_engine_model',
+        name: 'uk_ai_model_catalog_engine_model',
         columns: ['engine_id', 'model_id'],
         description: 'Unique model identifier within an engine.',
         unique: true,
@@ -7034,8 +6300,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'engine_binding',
-    'engine_bindings',
-    'engine',
+    'ai_engine_binding',
+    'ai',
     'Per-project or per-workspace engine binding.',
     [
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
@@ -7052,7 +6318,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'uk_engine_bindings_scope_engine',
+        name: 'uk_ai_engine_binding_scope_engine',
         columns: ['scope_type', 'scope_id', 'engine_id'],
         description: 'Unique binding per scope and engine.',
         unique: true,
@@ -7061,8 +6327,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'run_configuration',
-    'run_configurations',
-    'runtime',
+    'ops_run_configuration',
+    'ops',
     'Unified run configuration model.',
     [
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
@@ -7089,12 +6355,12 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_run_configurations_scope_group',
+        name: 'idx_ops_run_configuration_scope_group',
         columns: ['scope_type', 'scope_id', 'group_name'],
         description: 'Query configurations by scope/group.',
       },
       {
-        name: 'uk_run_configurations_scope_config_key',
+        name: 'uk_ops_run_configuration_scope_config_key',
         columns: ['scope_type', 'scope_id', 'config_key'],
         description: 'Logical configuration key unique within a scope.',
         unique: true,
@@ -7103,8 +6369,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'terminal_execution',
-    'terminal_executions',
-    'runtime',
+    'ops_terminal_execution',
+    'ops',
     'Terminal command execution records.',
     [
       { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
@@ -7127,7 +6393,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_terminal_executions_session_started',
+        name: 'idx_ops_terminal_execution_session_started',
         columns: ['session_id', 'started_at'],
         description: 'Execution ordering within a session.',
       },
@@ -7135,8 +6401,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'build_execution',
-    'build_executions',
-    'runtime',
+    'ops_build_execution',
+    'ops',
     'Build execution records.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
@@ -7149,8 +6415,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'preview_session',
-    'preview_sessions',
-    'runtime',
+    'ops_preview_session',
+    'ops',
     'Preview runtime sessions.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
@@ -7162,8 +6428,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'simulator_session',
-    'simulator_sessions',
-    'runtime',
+    'ops_simulator_session',
+    'ops',
     'Simulator launch sessions.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
@@ -7176,8 +6442,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'test_execution',
-    'test_executions',
-    'runtime',
+    'ops_test_execution',
+    'ops',
     'Test execution results.',
     [
       { name: 'project_id', logicalType: 'id', description: 'Owning project.' },
@@ -7189,8 +6455,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'audit_event',
-    'audit_events',
-    'governance',
+    'ops_audit_event',
+    'ops',
     'Audit trail for runtime and governance operations.',
     [
       { name: 'scope_type', logicalType: 'enum', description: 'Audit scope type.' },
@@ -7200,7 +6466,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_audit_events_scope_created',
+        name: 'idx_ops_audit_event_scope_created',
         columns: ['scope_type', 'scope_id', 'created_at'],
         description: 'Scope audit ordering.',
       },
@@ -7208,8 +6474,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'governance_policy',
-    'governance_policies',
-    'governance',
+    'ops_governance_policy',
+    'ops',
     'Governed approval and execution policy authority.',
     [
       { name: 'scope_type', logicalType: 'enum', description: 'Policy scope type.' },
@@ -7232,12 +6498,12 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'idx_governance_policies_scope_updated',
+        name: 'idx_ops_governance_policy_scope_updated',
         columns: ['scope_type', 'scope_id', 'updated_at'],
         description: 'Recent policies by governance scope.',
       },
       {
-        name: 'uk_governance_policies_scope_target',
+        name: 'uk_ops_governance_policy_scope_target',
         columns: ['scope_type', 'scope_id', 'policy_category', 'target_type', 'target_id'],
         description: 'Unique policy target per governance scope.',
         unique: true,
@@ -7246,8 +6512,8 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'release_record',
-    'release_records',
-    'governance',
+    'ops_release_record',
+    'ops',
     'Release manifests and evidence.',
     [
       { name: 'release_version', logicalType: 'text', description: 'Release version.' },
@@ -7258,7 +6524,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'uk_release_records_version',
+        name: 'uk_ops_release_record_version',
         columns: ['release_version'],
         description: 'Unique release version.',
         unique: true,
@@ -7268,7 +6534,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   defineEntity(
     'schema_migration_history',
     BIRDCODER_SCHEMA_MIGRATION_HISTORY_TABLE,
-    'governance',
+    'ops',
     'Applied schema migrations by provider.',
     [
       { name: 'migration_id', logicalType: 'text', description: 'Logical migration identifier.' },
@@ -7279,7 +6545,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
     [
       {
-        name: 'uk_schema_migration_history_provider_migration',
+        name: 'uk_ops_schema_migration_history_provider_migration',
         columns: ['provider_id', 'migration_id'],
         description: 'Unique migration application per provider.',
         unique: true,
@@ -7310,6 +6576,9 @@ function createBirdCoderLongIntegerJsonScalarKeys(): ReadonlySet<string> {
 
   keys.add('sequence');
   keys.add('sourceSequence');
+  for (const key of APPBASE_IAM_LONG_INTEGER_JSON_SCALAR_KEYS) {
+    keys.add(key);
+  }
 
   return keys;
 }

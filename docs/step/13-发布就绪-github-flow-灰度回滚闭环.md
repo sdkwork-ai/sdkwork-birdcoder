@@ -8,7 +8,7 @@
 
 - `/docs/架构/09`、`10`、`11`、`14`
 - Step `10-12` 的治理、交付、质量门禁
-- Step `17` 的统一 `core/app/admin` API 与控制台
+- Step `17` 的统一 `app/backend` API 与控制台
 
 ## 3. 本步非目标
 

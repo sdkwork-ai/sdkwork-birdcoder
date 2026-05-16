@@ -24,11 +24,11 @@ Close the remaining `runtime-data-kernel-v2` schema-only entities by promoting `
   - `BirdCoderAdminApiModel.deploymentTargets`
 - `team_member` is now closed on a real shared authority path:
   - shared console repositories and queries now materialize `team_members`
-  - the shared generated facade now exposes `listTeamMembers(teamId)` on `/api/admin/v1/teams/:teamId/members`
+  - the shared generated facade now exposes `listTeamMembers(teamId)` on `/backend/v3/api/teams/:teamId/members`
   - the in-process transport and Rust host demo/sqlite authorities now serve the same admin member route
 - `deployment_target` is now also closed on a real shared authority path:
   - shared console repositories and queries now materialize `deployment_targets`
-  - the shared generated facade now exposes `listDeploymentTargets(projectId)` on `/api/admin/v1/projects/:projectId/deployment-targets`
+  - the shared generated facade now exposes `listDeploymentTargets(projectId)` on `/backend/v3/api/projects/:projectId/deployment_targets`
   - the in-process transport and Rust host demo/sqlite authorities now serve the same project-scoped admin target route
 - Step `17Z` explicitly avoided forcing `deployment_target` into the earlier deployment-record lane, so the Step `20B` closure is a deliberate new authority slice, not a regression in an already-closed deployment-record path.
 - Step `20` no longer has an open schema-only authority entity in `runtime-data-kernel-v2`.

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { ProviderBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts';
 import {
-  createBirdCoderRepresentativeAppAdminRepositories,
+  createBirdCoderConsoleRepositories,
   type BirdCoderProjectContentRecord,
   type BirdCoderRepresentativeProjectRecord,
 } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
@@ -44,7 +44,7 @@ const sqlExecutor = createBirdCoderInMemorySqlExecutor('sqlite');
 const storageProvider = createBirdCoderStorageProvider('sqlite', {
   sqlExecutor,
 });
-const appRepositories = createBirdCoderRepresentativeAppAdminRepositories({
+const appRepositories = createBirdCoderConsoleRepositories({
   providerId: storageProvider.providerId,
   storage: storageProvider,
 });
@@ -79,22 +79,22 @@ const hydratedProject = await service.getProjectById('project-content-hydration-
 assert.equal(
   hydratedProject?.path,
   'D:/workspace/project-content-hydration-target',
-  'single-project hydration must still resolve the canonical rootPath from plus_project_content.',
+  'single-project hydration must still resolve the canonical rootPath from studio_project_content.',
 );
 assert.deepEqual(
   sqlExecutor.history.map((plan) => [plan.meta?.kind, readPlanTableName(plan)]),
   [
-    ['table-find-by-id', 'plus_project'],
-    ['table-find-by-id', 'plus_project_content'],
+    ['table-find-by-id', 'studio_project'],
+    ['table-find-by-id', 'studio_project_content'],
   ],
   'single-project hydration must use id-based project and project_content reads instead of scanning project_content.',
 );
 assert.equal(
   sqlExecutor.history.some(
-    (plan) => plan.meta?.kind === 'table-list' && plan.meta.tableName === 'plus_project_content',
+    (plan) => plan.meta?.kind === 'table-list' && plan.meta.tableName === 'studio_project_content',
   ),
   false,
-  'single-project hydration must not full-scan plus_project_content.',
+  'single-project hydration must not full-scan studio_project_content.',
 );
 
 const providerBackedProjectServiceSource = fs.readFileSync(
@@ -124,17 +124,17 @@ assert.deepEqual(
 assert.deepEqual(
   sqlExecutor.history.map((plan) => [plan.meta?.kind, readPlanTableName(plan)]),
   [
-    ['project-list-by-workspace-ids', 'plus_project'],
-    ['project-content-list-by-project-ids', 'plus_project_content'],
+    ['project-list-by-workspace-ids', 'studio_project'],
+    ['project-content-list-by-project-ids', 'studio_project_content'],
   ],
   'workspace-scoped project listing must use batched workspace project and project_content reads after workspace filtering.',
 );
 assert.equal(
   sqlExecutor.history.some(
-    (plan) => plan.meta?.kind === 'table-list' && plan.meta.tableName === 'plus_project',
+    (plan) => plan.meta?.kind === 'table-list' && plan.meta.tableName === 'studio_project',
   ),
   false,
-  'workspace-scoped project listing must not full-scan plus_project before filtering workspace projects.',
+  'workspace-scoped project listing must not full-scan studio_project before filtering workspace projects.',
 );
 assert.doesNotMatch(
   providerBackedProjectServiceSource,
@@ -165,8 +165,8 @@ assert.equal(
 assert.deepEqual(
   sqlExecutor.history.map((plan) => [plan.meta?.kind, readPlanTableName(plan)]),
   [
-    ['project-list-by-workspace-ids', 'plus_project'],
-    ['project-content-list-by-project-ids', 'plus_project_content'],
+    ['project-list-by-workspace-ids', 'studio_project'],
+    ['project-content-list-by-project-ids', 'studio_project_content'],
   ],
   'workspace path lookup must not full-scan all projects before matching a canonical rootPath.',
 );
@@ -186,16 +186,16 @@ await service.deleteProject('project-content-hydration-target-b');
 assert.deepEqual(
   sqlExecutor.history.map((plan) => [plan.meta?.kind, readPlanTableName(plan)]),
   [
-    ['table-delete', 'plus_project'],
-    ['table-find-by-id', 'plus_project_content'],
-    ['table-delete', 'plus_project_content'],
+    ['table-delete', 'studio_project'],
+    ['table-find-by-id', 'studio_project_content'],
+    ['table-delete', 'studio_project_content'],
   ],
-  'project deletion must delete canonical project_content by id without scanning plus_project_content.',
+  'project deletion must delete canonical project_content by id without scanning studio_project_content.',
 );
 assert.doesNotMatch(
   providerBackedProjectServiceSource,
   /deleteProjectRootPathContent\([\s\S]*?projectContentRepository\.list\(\)/,
-  'ProviderBackedProjectService.deleteProjectRootPathContent must not full-scan plus_project_content for one project deletion.',
+  'ProviderBackedProjectService.deleteProjectRootPathContent must not full-scan studio_project_content for one project deletion.',
 );
 
 console.log('provider-backed project content hydration performance contract passed.');

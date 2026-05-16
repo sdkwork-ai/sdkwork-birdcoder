@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "node ../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
-    "@sdkwork/user-center-core-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react",
+    "@sdkwork/user-center-core-pc-react": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*"
   },
   "devDependencies": {

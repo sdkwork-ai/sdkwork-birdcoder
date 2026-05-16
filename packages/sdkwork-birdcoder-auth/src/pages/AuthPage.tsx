@@ -1,14 +1,11 @@
 import { useMemo } from "react";
 import {
-  mergeSdkworkAuthAppearanceConfigs,
   type SdkworkAuthUser,
 } from "@sdkwork/auth-pc-react";
 import {
   createSdkworkCanonicalAuthSurfacePage,
-  mergeUserCenterSurfaceAppearanceInputs,
   type SdkworkCanonicalAuthSurfacePageProps,
 } from "@sdkwork/user-center-pc-react";
-import { useTranslation } from "react-i18next";
 import {
   useIDEServices,
 } from "@sdkwork/birdcoder-commons";
@@ -19,22 +16,8 @@ import {
   resolveBirdCoderAuthRuntimeConfig,
 } from "../auth-surface.ts";
 import { useAuth } from "../auth-context.ts";
-import {
-  useBirdcoderIdentitySurfaceAppearance,
-  type BirdcoderIdentityThemeState,
-} from "../auth-theme.ts";
 
-export interface AuthPageProps
-  extends Omit<SdkworkCanonicalAuthSurfacePageProps, "surfaceAppearance"> {
-  surfaceAppearance?: BirdcoderIdentityThemeState["surfaceAppearance"];
-}
-
-const BIRDCODER_AUTH_SURFACE_RUNTIME_INVARIANT = Object.freeze({
-  // BirdCoder sample requirement:
-  // login/register/forgot-password must all keep the QR panel on the left rail.
-  // Do not revert this sample to the legacy password/email-code/phone-code cards.
-  qrLoginEnabled: true,
-});
+export interface AuthPageProps extends SdkworkCanonicalAuthSurfacePageProps {}
 
 function mapBirdCoderQrAuthenticatedUser(user: SdkworkAuthUser): User {
   const email = user.email?.trim() ?? '';
@@ -156,10 +139,6 @@ function useBirdCoderAuthConfig() {
   return useAuth().authConfig;
 }
 
-function useBirdCoderAuthLocale() {
-  return useTranslation().i18n.language;
-}
-
 function useBirdCoderAuthService() {
   return useBirdCoderAuthSurfaceService();
 }
@@ -169,56 +148,20 @@ const BirdCoderCanonicalAuthPage = createSdkworkCanonicalAuthSurfacePage({
   defaultHomePath: "/",
   resolveRuntimeConfig: resolveBirdCoderAuthRuntimeConfig,
   useAuthConfig: useBirdCoderAuthConfig,
-  useLocale: useBirdCoderAuthLocale,
   useService: useBirdCoderAuthService,
-  createController({ authConfig, locale, messages, service }) {
+  createController({ authConfig, service }) {
     return createBirdCoderAuthController({
       authConfig,
-      locale,
-      messages,
       service,
       serviceExtensions: createBirdCoderAuthServiceExtensions(service),
     });
   },
 });
 
-export function AuthPage({
-  appearance,
-  runtimeConfig,
-  surfaceAppearance,
-  ...props
-}: AuthPageProps = {}) {
-  const identitySurfaceAppearance = useBirdcoderIdentitySurfaceAppearance();
-  const resolvedSurfaceAppearance = useMemo(
-    () =>
-      mergeUserCenterSurfaceAppearanceInputs(
-        identitySurfaceAppearance,
-        surfaceAppearance,
-      ),
-    [identitySurfaceAppearance, surfaceAppearance],
-  );
-  const resolvedAppearance = useMemo(
-    () =>
-      mergeSdkworkAuthAppearanceConfigs(
-        resolvedSurfaceAppearance?.auth,
-        appearance,
-      ),
-    [appearance, resolvedSurfaceAppearance],
-  );
-  const resolvedRuntimeConfig = useMemo(
-    () => ({
-      ...(runtimeConfig ?? {}),
-      ...BIRDCODER_AUTH_SURFACE_RUNTIME_INVARIANT,
-    }),
-    [runtimeConfig],
-  );
-
+export function AuthPage(props: AuthPageProps = {}) {
   return (
     <BirdCoderCanonicalAuthPage
       {...props}
-      appearance={resolvedAppearance}
-      runtimeConfig={resolvedRuntimeConfig}
-      surfaceAppearance={resolvedSurfaceAppearance}
     />
   );
 }

@@ -1,0 +1,110 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ],
+      "@sdkwork/birdcoder-codeengine/*": [
+        "packages/sdkwork-birdcoder-codeengine/src/*"
+      ],
+      "@sdkwork/birdcoder-host-core": [
+        "packages/sdkwork-birdcoder-host-core/src/index.ts"
+      ],
+      "@sdkwork/birdcoder-host-studio": [
+        "packages/sdkwork-birdcoder-host-studio/src/index.ts"
+      ],
+      "@sdkwork/birdcoder-app-sdk": [
+        "sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/birdcoder-backend-sdk": [
+        "sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/birdcoder-commons/*": [
+        "packages/sdkwork-birdcoder-commons/src/*"
+      ],
+      "@sdkwork/birdcoder-infrastructure/*": [
+        "packages/sdkwork-birdcoder-infrastructure/src/*"
+      ],
+      "@sdkwork/birdcoder-shell/*": [
+        "packages/sdkwork-birdcoder-shell/src/*"
+      ],
+      "@sdkwork/birdcoder-types/*": [
+        "packages/sdkwork-birdcoder-types/src/*"
+      ],
+      "@sdkwork/birdcoder-commons/shell": [
+        "packages/sdkwork-birdcoder-commons/src/shell.ts"
+      ],
+      "@sdkwork/app-sdk": [
+        "../spring-ai-plus-app-api/sdkwork-sdk-app/sdkwork-app-sdk-typescript/dist/index.d.ts"
+      ],
+      "@sdkwork/core-pc-react": [
+        "../sdkwork-core/sdkwork-core-pc-react/dist/index.d.ts"
+      ],
+      "@sdkwork/birdcoder-shell/runtime": [
+        "packages/sdkwork-birdcoder-shell/src/runtime.ts"
+      ],
+      "@sdkwork/ui-pc-react": [
+        "../sdkwork-ui/sdkwork-ui-pc-react/src/index.ts"
+      ],
+      "@sdkwork/ui-pc-react/theme": [
+        "../sdkwork-ui/sdkwork-ui-pc-react/src/theme/index.ts"
+      ],
+      "@sdkwork/birdcoder-*": [
+        "packages/sdkwork-birdcoder-*/src"
+      ],
+      "@sdkwork/terminal-desktop": [
+        "../sdkwork-terminal/apps/desktop/src/index.ts"
+      ],
+      "lucide-react": [
+        "node_modules/lucide-react"
+      ],
+      "@sdkwork/terminal-*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-*/src"
+      ],
+      "@sdkwork/terminal-shell": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-shell/src"
+      ],
+      "@sdkwork/terminal-shell/*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-shell/src/*"
+      ],
+      "@sdkwork/terminal-resources/model": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-resources/src/model.ts"
+      ],
+      "@sdkwork/terminal-sessions/model": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-sessions/src/model.ts"
+      ],
+      "@sdkwork/terminal-infrastructure": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src"
+      ],
+      "@sdkwork/terminal-infrastructure/*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/*"
+      ],
+      "@sdkwork/terminal-core": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-core/src"
+      ],
+      "@sdkwork/terminal-core/*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-core/src/*"
+      ],
+      "@sdkwork/terminal-contracts": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-contracts/src"
+      ],
+      "@sdkwork/terminal-contracts/*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-contracts/src/*"
+      ],
+      "@sdkwork/terminal-types": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-types/src"
+      ],
+      "@sdkwork/terminal-types/*": [
+        "../sdkwork-terminal/packages/sdkwork-terminal-types/src/*"
+      ],
+      "sdkwork-birdcoder-commons/shell": [
+        "packages/sdkwork-birdcoder-commons/src/shell.ts"
+      ],
+      "sdkwork-birdcoder-*": [
+        "packages/sdkwork-birdcoder-*/src"
+      ]
+    }
+  }
+}

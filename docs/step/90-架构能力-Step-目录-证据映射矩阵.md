@@ -24,7 +24,7 @@
 | 多数据库 Provider 与迁移 | `07` `18` | `15` | `03` `11` `12` `17` | `packages/sdkwork-birdcoder-infrastructure` `packages/sdkwork-birdcoder-types` | Provider Contract、迁移回放、authority 模式说明 |
 | 剩余 schema-only collaboration/delivery authority 实体 | `07` `18` `20` | `20` | `15` `17` | `packages/sdkwork-birdcoder-types` `packages/sdkwork-birdcoder-infrastructure` `packages/sdkwork-birdcoder-server` | `team_member` 与 `deployment_target` 闭环；共享仓储、project-scoped admin route、Facade、消费者、Rust host 证据 |
 | Prompt/SkillHub/AppTemplate/项目模板 | `13` `19` | `16` | `05` `07` `17` | `packages/sdkwork-birdcoder-types` `packages/sdkwork-birdcoder-skills` `packages/sdkwork-birdcoder-templates` `docs/prompts` | 注入顺序、绑定表、实例化验证 |
-| Rust `coding-server` / `core/app/admin` API / 控制台 | `09` `20` | `17` | `09` `14` `16` `18` | `packages/sdkwork-birdcoder-server` `packages/sdkwork-birdcoder-types` `packages/sdkwork-birdcoder-shell` `packages/sdkwork-birdcoder-web` `packages/sdkwork-birdcoder-desktop` | 路由矩阵、OpenAPI、Console Contract |
+| Rust `coding-server` / `app/backend` API / 控制台 | `09` `20` | `17` | `09` `14` `16` `18` | `packages/sdkwork-birdcoder-server` `packages/sdkwork-birdcoder-types` `packages/sdkwork-birdcoder-shell` `packages/sdkwork-birdcoder-web` `packages/sdkwork-birdcoder-desktop` | 路由矩阵、OpenAPI、Console Contract |
 | 多 Engine Adapter 与统一工具协议 | `05` `12` `21` | `18` | `05` `08` `17` | `packages/sdkwork-birdcoder-codeengine` `packages/sdkwork-birdcoder-server` | Conformance Matrix、Canonical Event、Approval/Tool Contract |
 | 性能/安全/观测/审计 | `08` `10` `12` | `10` | `12` `17` `18` | `scripts` `packages/sdkwork-birdcoder-server` | 基准结果、审计日志、阻断记录 |
 | Docker/K8s/多平台打包 | `09` `10` | `11` | `13` `15` `17` | `deploy` `scripts/release` `artifacts` | 产物矩阵、Smoke、校验和 |
@@ -54,7 +54,7 @@
 | `17-appbase-auth-user-vip-统一接入标准` | `14` | Auth/User/VIP 主边界已切到 appbase |
 | `18-多数据库抽象-Provider-迁移标准` | `15` `20` | Provider/Dialect/Migration/BlobStore 闭环 |
 | `19-统一会话运行时-Prompt-SkillHub-AppTemplate标准` | `16` | Session 命名、Prompt/Skill/Template 注入闭环 |
-| `20-统一Rust-Coding-Server-API-协议标准` | `09` `17` `20` | `coding-server` 双模底座与 `core/app/admin` API 闭环 |
+| `20-统一Rust-Coding-Server-API-协议标准` | `09` `17` `20` | `coding-server` 双模底座与 `app/backend` API 闭环 |
 | `21-多Code-Engine协议-SDK-适配标准` | `18` | Adapter、Transport、Canonical Event、Conformance 闭环 |
 
 ## 5. 检查点

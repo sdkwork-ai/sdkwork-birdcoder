@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-sdk-family",
+    "displayName": "SDKWork BirdCoder SDK Family",
+    "version": "0.1.0",
+    "type": "sdk-family",
+    "root": "sdkwork-birdcoder/sdks",
+    "domain": "platform",
+    "capability": "sdk",
+    "status": "standardizing",
+    "languages": [
+      "typescript",
+      "rust"
+    ],
+    "generated": true,
+    "private": true,
+    "manifests": [
+      ".sdkwork-assembly.json"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "README.md",
+      "path": "../../../../specs/README.md",
+      "purpose": "SDKWork root standards entrypoint."
+    },
+    {
+      "file": "API_SPEC.md",
+      "path": "../../../../specs/API_SPEC.md",
+      "purpose": "OpenAPI source-of-truth, app/backend surface, path, tag, operationId, error, auth, and version rules."
+    },
+    {
+      "file": "SDK_SPEC.md",
+      "path": "../../../../specs/SDK_SPEC.md",
+      "purpose": "SDK generation manifest, generated output, resource-style client surface, auth headers, and SDK verification rules."
+    },
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../specs/COMPONENT_SPEC.md",
+      "purpose": "Local component specs directory and sdk-family manifest rules."
+    },
+    {
+      "file": "DOCUMENTATION_SPEC.md",
+      "path": "../../../../specs/DOCUMENTATION_SPEC.md",
+      "purpose": "README and generated SDK example documentation rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../specs/TEST_SPEC.md",
+      "purpose": "Executable API, SDK, generated output, and documentation verification rules."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../../../../specs/DOMAIN_SPEC.md",
+      "purpose": "Canonical domain ownership and iam/platform/intelligence naming rules."
+    }
+  ],
+  "contracts": {
+    "publicExports": [
+      "@sdkwork/birdcoder-app-sdk",
+      "@sdkwork/birdcoder-backend-sdk",
+      "sdkwork_birdcoder_app_sdk",
+      "sdkwork_birdcoder_backend_sdk"
+    ],
+    "runtimeEntrypoints": [
+      ".sdkwork-assembly.json",
+      "package.json#scripts.generate:sdk:birdcoder",
+      "package.json#scripts.check:sdk-family-standard",
+      "package.json#scripts.check:sdk-family-generated"
+    ],
+    "sdkClients": [
+      "@sdkwork/birdcoder-app-sdk#createBirdcoderAppSdkClient",
+      "@sdkwork/birdcoder-backend-sdk#createBirdcoderBackendSdkClient",
+      "sdkwork_birdcoder_app_sdk",
+      "sdkwork_birdcoder_backend_sdk"
+    ],
+    "events": [],
+    "configKeys": [
+      ".sdkwork-assembly.json#standardProfile",
+      ".sdkwork-assembly.json#surfaces"
+    ]
+  },
+  "integration": {
+    "authority": "OpenAPI documents under sdks/specs/openapi are the SDK source of truth and must follow API_SPEC.md.",
+    "dependencyPolicy": "Consumers integrate through generated SDK package exports or injected service facades; raw HTTP, manual token headers, local DTO forks, and hand-edited generated output are forbidden.",
+    "sdkPolicy": "Generation uses --standard-profile sdkwork-v3 and exposes resource-oriented clients derived from OpenAPI tags and dotted operationIds.",
+    "iamPolicy": "IAM and auth capabilities use the canonical iam/auth API domains and Sdkwork-Access-Token handling; identity naming is not allowed."
+  },
+  "verification": {
+    "commands": [
+      "pnpm check:sdk-family-standard",
+      "pnpm generate:sdk:birdcoder",
+      "pnpm check:sdk-family-generated"
+    ]
+  },
+  "metadata": {
+    "managedBy": "scripts/generate-birdcoder-sdk-family.mjs",
+    "standardVersion": "2026-05-15"
+  }
+}

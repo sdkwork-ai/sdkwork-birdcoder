@@ -42,7 +42,7 @@ Use Option A.
 
 ### Server turn execution
 
-- The Rust host keeps the existing route surface, but `POST /api/core/v1/coding-sessions/{id}/turns` must no longer stop at `turn.started`.
+- The Rust host keeps the existing route surface, but `POST /app/v3/api/coding_sessions/{id}/turns` must no longer stop at `turn.started`.
 - Turn execution will emit a deterministic minimal runtime sequence based on the selected engine descriptor:
   - `turn.started`
   - `message.delta` or `message.completed`

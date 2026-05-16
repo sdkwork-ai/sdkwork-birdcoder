@@ -10,8 +10,10 @@ import {
   type SdkworkUserProfile,
   type SdkworkUserService,
 } from '@sdkwork/user-pc-react';
-import type { User } from '@sdkwork/birdcoder-types';
-import { readBirdCoderUserProfile, writeBirdCoderUserProfile } from './storage.ts';
+import type {
+  BirdCoderUserCenterProfileSummary,
+  User,
+} from '@sdkwork/birdcoder-types';
 import { BIRDCODER_USER_CENTER_STORAGE_PLAN } from './user-center.ts';
 import { createBirdCoderRuntimeUserCenterClient } from './user-center-runtime.ts';
 
@@ -37,6 +39,26 @@ const DEFAULT_BIRDCODER_USER_PREFERENCES: SdkworkUserPreferences = {
     twoFactorAuth: false,
   },
 };
+
+interface BirdCoderRuntimeUserProfileSnapshot {
+  avatarUrl?: string;
+  bio?: string;
+  displayName?: string;
+  email?: string;
+  location?: string;
+  website?: string;
+}
+
+function requireRuntimeUserCenterClient() {
+  const runtimeClient = createBirdCoderRuntimeUserCenterClient();
+  if (!runtimeClient) {
+    throw new Error(
+      'BirdCoder user-center runtime client is unavailable; check the appbase IAM runtime binding.',
+    );
+  }
+
+  return runtimeClient;
+}
 
 function createBirdCoderUserMessagesOverrides(
   locale?: string | null,
@@ -67,6 +89,19 @@ function createBirdCoderUserMessagesOverrides(
   };
 }
 
+function mapRuntimeProfileToSnapshot(
+  profile: BirdCoderUserCenterProfileSummary,
+): BirdCoderRuntimeUserProfileSnapshot {
+  return {
+    avatarUrl: profile.avatarUrl,
+    bio: profile.bio,
+    displayName: profile.displayName,
+    email: profile.email,
+    location: profile.location,
+    website: profile.website,
+  };
+}
+
 export function createBirdCoderUserCenterService(user: User | null): SdkworkUserService {
   return createSdkworkCanonicalUserService({
     capabilities: {
@@ -81,54 +116,60 @@ export function createBirdCoderUserCenterService(user: User | null): SdkworkUser
     preferences: {
       defaults: DEFAULT_BIRDCODER_USER_PREFERENCES,
       key: BIRDCODER_USER_CENTER_STORAGE_PLAN.preferencesKey,
-      async read() {
-        const runtimeClient = createBirdCoderRuntimeUserCenterClient();
-        if (!runtimeClient) {
-          return undefined;
-        }
-
-        return runtimeClient.getPreferences<Partial<SdkworkUserPreferences>>();
-      },
-      async write(preferences) {
-        const runtimeClient = createBirdCoderRuntimeUserCenterClient();
-        if (!runtimeClient) {
-          return preferences;
-        }
-
-        return runtimeClient.updatePreferences<
-          Partial<SdkworkUserPreferences>,
-          SdkworkUserPreferences
-        >(preferences);
-      },
+      read: () =>
+        requireRuntimeUserCenterClient()
+          .getPreferences<Partial<SdkworkUserPreferences>>(),
+      write: (preferences) =>
+        requireRuntimeUserCenterClient()
+          .updatePreferences<
+            Partial<SdkworkUserPreferences>,
+            SdkworkUserPreferences
+          >(preferences),
     },
     profile: createSdkworkCanonicalUserProfileAdapter({
       async mapUserProfileToSnapshot(
         profile: SdkworkUserProfile,
-        currentSnapshot: Awaited<ReturnType<typeof readBirdCoderUserProfile>>,
+        currentSnapshot: BirdCoderRuntimeUserProfileSnapshot,
         resolvedUser: User,
       ) {
+        const displayName = resolveSdkworkCanonicalUserDisplayName(
+          profile,
+          resolvedUser.email,
+        );
+
         return {
           ...currentSnapshot,
-          displayName: resolveSdkworkCanonicalUserDisplayName(
-            profile,
-            resolvedUser.email,
-          ),
+          displayName,
+          email: resolvedUser.email,
         };
       },
-      read: () => readBirdCoderUserProfile(),
+      async read() {
+        return mapRuntimeProfileToSnapshot(
+          await requireRuntimeUserCenterClient()
+            .getProfile<BirdCoderUserCenterProfileSummary>(),
+        );
+      },
       resolveIdentity(userSnapshot, profileSnapshot) {
         return {
-          avatarUrl: userSnapshot.avatarUrl,
+          avatarUrl: profileSnapshot.avatarUrl || userSnapshot.avatarUrl,
           displayName:
             profileSnapshot.displayName?.trim()
             || userSnapshot.name.trim()
             || userSnapshot.email.trim(),
-          email: userSnapshot.email.trim(),
+          email: profileSnapshot.email?.trim() || userSnapshot.email.trim(),
           id: userSnapshot.id || userSnapshot.email.trim(),
           username: userSnapshot.email.trim(),
         };
       },
-      write: (profileSnapshot) => writeBirdCoderUserProfile(profileSnapshot),
+      async write(profileSnapshot) {
+        return mapRuntimeProfileToSnapshot(
+          await requireRuntimeUserCenterClient()
+            .updateProfile<
+              BirdCoderUserCenterProfileSummary,
+              BirdCoderRuntimeUserProfileSnapshot
+            >(profileSnapshot),
+        );
+      },
     }),
     requireAuthenticatedMessage:
       'BirdCoder user-center surface requires an authenticated user session.',
@@ -140,7 +181,7 @@ export interface CreateBirdCoderUserCenterControllerOptions
   extends Omit<
     CreateSdkworkCanonicalUserControllerOptions<
       User,
-      Awaited<ReturnType<typeof readBirdCoderUserProfile>>
+      BirdCoderRuntimeUserProfileSnapshot
     >,
     'messageDefaults' | 'service'
   > {

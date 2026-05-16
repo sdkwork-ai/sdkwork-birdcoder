@@ -57,7 +57,7 @@
 1. 冻结双模运行时、`apiBaseUrl`、Host Identity 字段。
 2. 冻结 OpenAPI 生成与 SDK 消费链。
 3. 收敛统一错误模型、Operation Descriptor、SSE 事件基线。
-4. 输出 `17` 继续扩展 `core/app/admin` API 的稳定底座。
+4. 输出 `17` 继续扩展 `app/backend` API 的稳定底座。
 
 ## 11. 测试计划
 
@@ -95,11 +95,11 @@
 
 ## 17. 下一步准入条件
 
-- `17` 可在统一服务底座上落地 `core/app/admin` API 与控制台
+- `17` 可在统一服务底座上落地 `app/backend` API 与控制台
 
 ## 18. Current Loop Addendum - Architecture 09 Maturity Alignment
 
-- Step 09 的统一服务底座已在后续 Step 17/18 闭环中继续落地为代表性 `core / app / admin` 实路由、canonical OpenAPI 导出与发布侧证据链。
-- `docs/架构/README.md` 也必须复用同一成熟度摘要，不得回退到“最小 host 骨架、`core / app / admin` 仍属后续主线”的过时总览叙述。
+- Step 09 的统一服务底座已在后续 Step 17/18 闭环中继续落地为代表性 `app / backend` 实路由、canonical OpenAPI 导出与发布侧证据链。
+- `docs/架构/README.md` 也必须复用同一成熟度摘要，不得回退到“最小 host 骨架、`app / backend` 仍属后续主线”的过时总览叙述。
 - 活跃架构文档不得再把 Rust host 描述成仅暴露 `/health` 的最小占位态。
 - PostgreSQL live smoke 已在当前主机记录 DSN-backed `passed` 报告；Step 09 当前只保留历史基线职责，不再作为活跃未闭环主线。

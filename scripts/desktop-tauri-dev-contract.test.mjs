@@ -26,6 +26,13 @@ const desktopCargoTomlPath = path.join(
   'src-tauri',
   'Cargo.toml',
 );
+const desktopCargoLockPath = path.join(
+  rootDir,
+  'packages',
+  'sdkwork-birdcoder-desktop',
+  'src-tauri',
+  'Cargo.lock',
+);
 const desktopBuildRsPath = path.join(
   rootDir,
   'packages',
@@ -129,6 +136,7 @@ const desktopPackageJson = JSON.parse(fs.readFileSync(desktopPackageJsonPath, 'u
 const tauriConfig = JSON.parse(fs.readFileSync(tauriConfigPath, 'utf8'));
 const tauriTestConfig = JSON.parse(fs.readFileSync(tauriTestConfigPath, 'utf8'));
 const desktopCargoTomlSource = fs.readFileSync(desktopCargoTomlPath, 'utf8');
+const desktopCargoLockSource = fs.readFileSync(desktopCargoLockPath, 'utf8');
 const desktopBuildRsSource = fs.readFileSync(desktopBuildRsPath, 'utf8');
 const desktopLibRsSource = fs.readFileSync(desktopLibRsPath, 'utf8');
 const desktopViteConfigSource = fs.readFileSync(desktopViteConfigPath, 'utf8');
@@ -140,6 +148,72 @@ const desktopIndexHtmlSource = fs.readFileSync(desktopIndexHtmlPath, 'utf8');
 const workspacePackageScriptRunnerSource = fs.existsSync(workspacePackageScriptRunnerPath)
   ? fs.readFileSync(workspacePackageScriptRunnerPath, 'utf8')
   : '';
+
+function parseCatalogVersion(packageName) {
+  const escapedPackageName = packageName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  const match = fs.readFileSync(path.join(rootDir, 'pnpm-workspace.yaml'), 'utf8').match(
+    new RegExp(`^  ['"]?${escapedPackageName}['"]?:\\s*([^\\r\\n]+)`, 'm'),
+  );
+
+  assert.ok(match, `pnpm-workspace.yaml catalog must define ${packageName}.`);
+  return match[1].trim();
+}
+
+function parseRustPackageVersion(lockSource, packageName) {
+  const escapedPackageName = packageName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  const match = lockSource.match(
+    new RegExp(`\\[\\[package\\]\\]\\r?\\nname = "${escapedPackageName}"\\r?\\nversion = "([^"]+)"`, 'u'),
+  );
+
+  assert.ok(match, `Cargo.lock must include ${packageName}.`);
+  return match[1];
+}
+
+function parseCargoDependencyVersion(manifestSource, packageName) {
+  const escapedPackageName = packageName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  const tableDependencyMatch = manifestSource.match(
+    new RegExp(`^${escapedPackageName}\\s*=\\s*\\{[^\\n]*version\\s*=\\s*"([^"]+)"`, 'm'),
+  );
+  if (tableDependencyMatch) {
+    return tableDependencyMatch[1];
+  }
+
+  const stringDependencyMatch = manifestSource.match(
+    new RegExp(`^${escapedPackageName}\\s*=\\s*"([^"]+)"`, 'm'),
+  );
+  assert.ok(stringDependencyMatch, `Cargo.toml must define ${packageName}.`);
+  return stringDependencyMatch[1];
+}
+
+function parseSemver(value) {
+  const match = String(value ?? '').trim().match(/(\d+)\.(\d+)\.(\d+)/u);
+  assert.ok(match, `Expected a semver version in ${value}.`);
+
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+  };
+}
+
+function assertSameMajorMinor(leftVersion, rightVersion, message) {
+  const left = parseSemver(leftVersion);
+  const right = parseSemver(rightVersion);
+
+  assert.deepEqual(
+    [left.major, left.minor],
+    [right.major, right.minor],
+    message,
+  );
+}
+
+function assertMinorBoundTauriVersionRange(range, packageName) {
+  assert.match(
+    range,
+    /^~\d+\.\d+\.\d+$/u,
+    `${packageName} must use a minor-bound Tauri version range so package managers cannot silently upgrade only one side of the Rust/Node Tauri runtime.`,
+  );
+}
 
 assert.match(
   npmrcSource,
@@ -238,6 +312,39 @@ assert.match(
   desktopPackageJson.scripts['dev:tauri'],
   /run-vite-host\.mjs\s+serve/,
   'Desktop dev:tauri must use the standard workspace Vite host so desktop startup stays aligned with the claw-studio baseline.',
+);
+
+assert.equal(
+  desktopPackageJson.dependencies?.['@tauri-apps/api'],
+  'catalog:',
+  'Desktop package must consume @tauri-apps/api from the workspace catalog so the Node Tauri runtime version stays governed centrally.',
+);
+assert.equal(
+  desktopPackageJson.devDependencies?.['@tauri-apps/cli'],
+  'catalog:',
+  'Desktop package must consume @tauri-apps/cli from the workspace catalog so the CLI and API package versions stay governed together.',
+);
+const lockedTauriRustVersion = parseRustPackageVersion(desktopCargoLockSource, 'tauri');
+const cargoTauriVersionRange = parseCargoDependencyVersion(desktopCargoTomlSource, 'tauri');
+const tauriApiCatalogVersion = parseCatalogVersion('@tauri-apps/api');
+const tauriCliCatalogVersion = parseCatalogVersion('@tauri-apps/cli');
+assertMinorBoundTauriVersionRange(cargoTauriVersionRange, 'tauri');
+assertMinorBoundTauriVersionRange(tauriApiCatalogVersion, '@tauri-apps/api');
+assertMinorBoundTauriVersionRange(tauriCliCatalogVersion, '@tauri-apps/cli');
+assertSameMajorMinor(
+  tauriApiCatalogVersion,
+  lockedTauriRustVersion,
+  '@tauri-apps/api must use the same major/minor release as the locked Rust tauri crate because Tauri rejects mismatched frontend/backend runtime pairs.',
+);
+assertSameMajorMinor(
+  tauriCliCatalogVersion,
+  lockedTauriRustVersion,
+  '@tauri-apps/cli must use the same major/minor release as the locked Rust tauri crate so dev/build commands do not run with a different Tauri runtime contract.',
+);
+assertSameMajorMinor(
+  tauriApiCatalogVersion,
+  tauriCliCatalogVersion,
+  '@tauri-apps/api and @tauri-apps/cli must stay on the same major/minor release.',
 );
 
 assert.match(

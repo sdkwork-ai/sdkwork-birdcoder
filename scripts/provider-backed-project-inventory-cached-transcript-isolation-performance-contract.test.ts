@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { ProviderBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts';
-import { createBirdCoderRepresentativeAppAdminRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
+import { createBirdCoderConsoleRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
 import {
   createBirdCoderCodingSessionRepositories,
   type BirdCoderPersistedCodingSessionRecord,
@@ -59,7 +59,7 @@ const sqlExecutor = createBirdCoderInMemorySqlExecutor('sqlite');
 const storageProvider = createBirdCoderStorageProvider('sqlite', {
   sqlExecutor,
 });
-const appRepositories = createBirdCoderRepresentativeAppAdminRepositories({
+const appRepositories = createBirdCoderConsoleRepositories({
   providerId: storageProvider.providerId,
   storage: storageProvider,
 });

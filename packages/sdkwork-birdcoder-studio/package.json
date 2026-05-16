@@ -14,7 +14,7 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "node ../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
     "@ungap/structured-clone": "catalog:",

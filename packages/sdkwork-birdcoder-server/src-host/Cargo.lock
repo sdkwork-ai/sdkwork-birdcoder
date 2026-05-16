@@ -1048,6 +1048,19 @@ dependencies = [
 [[package]]
 name = "sdkwork_user_center_native"
 version = "0.1.0"
+dependencies = [
+ "argon2",
+ "axum",
+ "base64",
+ "hmac",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "time",
+ "ureq",
+ "uuid",
+]
 
 [[package]]
 name = "semver"

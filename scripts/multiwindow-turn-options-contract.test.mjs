@@ -5,6 +5,10 @@ const typesSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-types/src/server-api.ts', import.meta.url),
   'utf8',
 );
+const sdkClientsSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts', import.meta.url),
+  'utf8',
+);
 const apiBackedProjectServiceSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts', import.meta.url),
   'utf8',
@@ -29,7 +33,7 @@ const codeEngineTurnsSource = fs.readFileSync(
 assert.match(
   typesSource,
   /export interface BirdCoderCodingSessionTurnOptions[\s\S]*temperature\?: number;[\s\S]*topP\?: number;[\s\S]*maxTokens\?: number;/,
-  'Core turn API types must expose standard model sampling options.',
+  'App runtime turn API types must expose standard model sampling options.',
 );
 assert.match(
   typesSource,
@@ -37,9 +41,9 @@ assert.match(
   'Create coding-session turn requests must carry standard turn options.',
 );
 assert.match(
-  typesSource,
-  /if \(request\.options\)[\s\S]*body\.options = buildBirdCoderCodingSessionTurnOptionsBody\(request\.options\);/,
-  'Generated core write facade must serialize standard turn options into the request body.',
+  sdkClientsSource,
+  /client\.intelligence\.codingSessions\.turns\.create\(\s*\{\s*id: codingSessionId\s*\},\s*request as unknown as GeneratedBirdCoderCreateCodingSessionTurnRequest,/,
+  'App runtime SDK wrapper must pass standard turn options through the generated app SDK request body.',
 );
 
 assert.match(

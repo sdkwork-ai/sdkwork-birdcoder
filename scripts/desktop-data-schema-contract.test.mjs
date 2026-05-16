@@ -9,24 +9,56 @@ const rustLibPath = new URL(
 const rustSource = await readFile(rustLibPath, 'utf8');
 
 for (const requiredTable of [
-  'CREATE TABLE IF NOT EXISTS schema_migration_history',
-  'CREATE TABLE IF NOT EXISTS run_configurations',
-  'CREATE TABLE IF NOT EXISTS terminal_executions',
-  'CREATE TABLE IF NOT EXISTS coding_session_prompt_entries',
-  'CREATE TABLE IF NOT EXISTS saved_prompt_entries',
+  'CREATE TABLE IF NOT EXISTS ops_schema_migration_history',
+  'CREATE TABLE IF NOT EXISTS ops_run_configuration',
+  'CREATE TABLE IF NOT EXISTS ops_terminal_execution',
+  'CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry',
+  'CREATE TABLE IF NOT EXISTS ai_saved_prompt_entry',
+  'CREATE TABLE IF NOT EXISTS ops_release_record',
 ]) {
   assert.match(rustSource, new RegExp(requiredTable), `Missing schema table: ${requiredTable}`);
 }
 
 for (const requiredIndex of [
-  'idx_run_configurations_scope_group',
-  'idx_terminal_executions_session_started',
-  'idx_coding_session_prompt_entries_session_last_used',
-  'uk_coding_session_prompt_entries_session_normalized_prompt',
-  'idx_saved_prompt_entries_last_saved',
-  'uk_saved_prompt_entries_normalized_prompt',
+  'idx_ops_run_configuration_scope_group',
+  'idx_ops_terminal_execution_session_started',
+  'idx_ai_coding_session_prompt_entry_session_last_used',
+  'uk_ai_coding_session_prompt_entry_session_normalized_prompt',
+  'idx_ai_saved_prompt_entry_last_saved',
+  'uk_ai_saved_prompt_entry_normalized_prompt',
+  'uk_ops_release_record_version',
 ]) {
   assert.match(rustSource, new RegExp(requiredIndex), `Missing schema index: ${requiredIndex}`);
 }
+
+assert.doesNotMatch(
+  rustSource,
+  /\buk_release_records_version\b|CREATE TABLE(?: IF NOT EXISTS)? release_records\b|"release_records"/u,
+  'Desktop schema must use ops_release_record table and uk_ops_release_record_version index only.',
+);
+
+assert.doesNotMatch(
+  rustSource,
+  /LEGACY_DESKTOP_SQLITE_FILE_NAME|backfill_legacy_run_configuration_config_keys|derive_legacy_run_configuration_config_key|legacy_desktop_local_sibling_database_path|read_legacy_desktop_local_projects|import_legacy_desktop_local_projects_from_sibling|LegacyDesktopLocalProject/u,
+  'Desktop runtime is a new app and must not retain legacy sqlite import or run-configuration backfill paths.',
+);
+
+assert.doesNotMatch(
+  rustSource,
+  /legacy authority local-store|legacy authority backfill/u,
+  'Desktop runtime must describe reserved authority-table cleanup without legacy compatibility wording.',
+);
+
+assert.doesNotMatch(
+  rustSource,
+  /app_dir\.push\("sdkwork-birdcoder\.sqlite3"\)|with_file_name\(LEGACY_DESKTOP_SQLITE_FILE_NAME\)/u,
+  'Desktop runtime must use sdkwork-birdcoder-desktop-local.sqlite3 as the canonical local sqlite file name.',
+);
+
+assert.match(
+  rustSource,
+  /app_dir\.push\(DESKTOP_LOCAL_SQLITE_FILE_NAME\)/u,
+  'Desktop runtime must resolve the default local sqlite path through DESKTOP_LOCAL_SQLITE_FILE_NAME.',
+);
 
 console.log('desktop data schema contract passed.');

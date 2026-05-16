@@ -6,7 +6,7 @@
 
 ## Goal
 
-Make Rust host `/api/core/v1/engines`, `/api/core/v1/engines/:engineKey/capabilities`, and `/api/core/v1/models` auditable against promoted `coding-server` engine truth by replacing local manual fixtures with a generated shared engine-catalog artifact.
+Make Rust host `/app/v3/api/engines`, `/app/v3/api/engines/:engineKey/capabilities`, and `/app/v3/api/models` auditable against promoted `coding-server` engine truth by replacing local manual fixtures with a generated shared engine-catalog artifact.
 
 ## Scope
 

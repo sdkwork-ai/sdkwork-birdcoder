@@ -1,9 +1,11 @@
+import type {
+  BirdCoderAppRuntimeReadSdkApiClient,
+  BirdCoderAppSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderCodingSession,
   BirdCoderCodingSessionSummary,
-  BirdCoderCoreReadApiClient,
   BirdCoderProject,
   BirdCoderProjectSummary,
 } from '@sdkwork/birdcoder-types';
@@ -92,21 +94,21 @@ const authoritativeCompletedSession: BirdCoderCodingSessionSummary = {
 
 const client = {
   async listProjects(
-    options?: Parameters<BirdCoderAppAdminApiClient['listProjects']>[0],
-  ): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>> {
+    options?: Parameters<BirdCoderAppSdkApiClient['listProjects']>[0],
+  ): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>> {
     assert.equal(options?.workspaceId, workspaceId);
     return [projectSummary];
   },
-} as unknown as BirdCoderAppAdminApiClient;
+} as unknown as BirdCoderAppSdkApiClient;
 
 const coreReadClient = {
   async listCodingSessions(
-    request?: Parameters<BirdCoderCoreReadApiClient['listCodingSessions']>[0],
+    request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listCodingSessions']>[0],
   ): Promise<BirdCoderCodingSessionSummary[]> {
     assert.equal(request?.workspaceId, workspaceId);
     return [authoritativeCompletedSession];
   },
-} as unknown as BirdCoderCoreReadApiClient;
+} as unknown as BirdCoderAppRuntimeReadSdkApiClient;
 
 const writeService = {
   async getProjectMirrorSnapshots() {
@@ -115,8 +117,8 @@ const writeService = {
 } as unknown as IProjectService;
 
 const service = new ApiBackedProjectService({
-  client,
-  coreReadClient,
+  appClient: client,
+  codingRuntimeClient: coreReadClient,
   writeService,
 });
 
@@ -188,22 +190,22 @@ async function readRuntimeUnknownStartupSession(options: {
   } satisfies BirdCoderCodingSessionSummary;
 
   const runtimeUnknownService = new ApiBackedProjectService({
-    client: {
+    appClient: {
       async listProjects(
-        request?: Parameters<BirdCoderAppAdminApiClient['listProjects']>[0],
+        request?: Parameters<BirdCoderAppSdkApiClient['listProjects']>[0],
       ) {
         assert.equal(request?.workspaceId, options.workspaceId);
         return [runtimeUnknownProjectSummary];
       },
-    } as unknown as BirdCoderAppAdminApiClient,
-    coreReadClient: {
+    } as unknown as BirdCoderAppSdkApiClient,
+    codingRuntimeClient: {
       async listCodingSessions(
-        request?: Parameters<BirdCoderCoreReadApiClient['listCodingSessions']>[0],
+        request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listCodingSessions']>[0],
       ) {
         assert.equal(request?.workspaceId, options.workspaceId);
         return [runtimeUnknownSummary];
       },
-    } as unknown as BirdCoderCoreReadApiClient,
+    } as unknown as BirdCoderAppRuntimeReadSdkApiClient,
     writeService: {
       async getProjectMirrorSnapshots() {
         return [structuredClone(runtimeUnknownProject)];
@@ -267,14 +269,19 @@ async function readLocalOnlyStartupSession(options: {
   };
 
   const localOnlyService = new ApiBackedProjectService({
-    client: {
+    appClient: {
       async listProjects(
-        request?: Parameters<BirdCoderAppAdminApiClient['listProjects']>[0],
+        request?: Parameters<BirdCoderAppSdkApiClient['listProjects']>[0],
       ) {
         assert.equal(request?.workspaceId, options.workspaceId);
         return [localOnlyProjectSummary];
       },
-    } as unknown as BirdCoderAppAdminApiClient,
+    } as unknown as BirdCoderAppSdkApiClient,
+    codingRuntimeClient: {
+      async listCodingSessions() {
+        return [];
+      },
+    } as unknown as BirdCoderAppRuntimeReadSdkApiClient,
     writeService: {
       async getProjectMirrorSnapshots() {
         return [structuredClone(localOnlyProject)];
@@ -344,11 +351,11 @@ async function readTransientFallbackProjectSession(options: {
   };
 
   const fallbackService = new ApiBackedProjectService({
-    client: {
+    appClient: {
       async listProjects() {
         throw new Error('Failed to fetch');
       },
-    } as unknown as BirdCoderAppAdminApiClient,
+    } as unknown as BirdCoderAppSdkApiClient,
     writeService: {
       async getProjects(requestedWorkspaceId?: string) {
         assert.equal(requestedWorkspaceId, options.workspaceId);
@@ -425,14 +432,14 @@ async function readTransientProjectDetailFallbackSession(options: {
   };
 
   const fallbackService = new ApiBackedProjectService({
-    client: {
+    appClient: {
       async getProject() {
         throw new Error('Failed to fetch');
       },
       async listProjects() {
         throw new Error('Failed to fetch');
       },
-    } as unknown as BirdCoderAppAdminApiClient,
+    } as unknown as BirdCoderAppSdkApiClient,
     writeService: {
       async getProjectById(projectId: string) {
         assert.equal(projectId, options.projectId);

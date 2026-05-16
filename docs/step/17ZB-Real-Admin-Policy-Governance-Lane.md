@@ -6,32 +6,32 @@
 
 ## Goal
 
-Turn `GET /api/admin/v1/policies` from a `not_implemented` placeholder into a real representative admin governance read by first defining a dedicated policy authority model, then wiring the shared facade and first consumer path without overloading deployment or audit truth.
+Turn `GET /backend/v3/api/policies` from a `not_implemented` placeholder into a real representative admin governance read by first defining a dedicated policy authority model, then wiring the shared facade and first consumer path without overloading deployment or audit truth.
 
 ## Scope
 
 - dedicated policy entity, storage binding, and repository truth on shared provider/UoW
 - `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
 - `packages/sdkwork-birdcoder-types/src/server-api.ts`
-- shared app/admin facade governance for `admin.listPolicies`
+- shared app/backend facade governance for `admin.listPolicies`
 - first admin policy-facing consumer in `packages/sdkwork-birdcoder-commons` or `packages/sdkwork-birdcoder-studio`
 - governance scripts and release-flow writeback
 
 ## Checkpoints
 
 - `CP17ZB-1` policy governance must have its own modeled authority entity before any route promotion.
-- `CP17ZB-2` Rust host must stop returning `not_implemented` for `GET /api/admin/v1/policies`.
-- `CP17ZB-3` the shared typed app/admin facade must promote `admin.listPolicies` only after server behavior is real.
+- `CP17ZB-2` Rust host must stop returning `not_implemented` for `GET /backend/v3/api/policies`.
+- `CP17ZB-3` the shared typed app/backend facade must promote `admin.listPolicies` only after server behavior is real.
 - `CP17ZB-4` one real consumer path must read policies through the shared service/facade instead of rebuilding the route locally.
 - `CP17ZB-5` docs/release must record policy truth separately from deployment and audit truth.
 
 ## Verification
 
-- `pnpm.cmd run test:generated-app-admin-client-facade-contract`
-- `pnpm.cmd run test:app-admin-sdk-consumer-contract`
+- `pnpm.cmd run test:split-sdk-client-facade-contract`
+- `pnpm.cmd run test:split-sdk-consumer-contract`
 - `pnpm.cmd run test:default-ide-services-admin-policy-service-contract`
 - `pnpm.cmd run test:admin-policy-consumer-contract`
-- `pnpm.cmd run test:sqlite-app-admin-repository-contract`
+- `pnpm.cmd run test:sqlite-console-repository-contract`
 - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
 - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
 - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
@@ -43,11 +43,11 @@ Turn `GET /api/admin/v1/policies` from a `not_implemented` placeholder into a re
 ## Closure Facts
 
 - Dedicated policy authority is now modeled as `governance_policy -> governance_policies`, not reused from `deployment_records` or `audit_events`.
-- Rust host now serves real `GET /api/admin/v1/policies` authority truth across:
+- Rust host now serves real `GET /backend/v3/api/policies` authority truth across:
   - demo host state
   - legacy sqlite materialization from `table.sqlite.governance-policies.v1`
   - direct sqlite provider reads from `governance_policies`
-- The shared app/admin facade now promotes `listPolicies()` as the only approved high-level policy read entry.
+- The shared app/backend facade now promotes `listPolicies()` as the only approved high-level policy read entry.
 - The first reusable consumer lane is closed through:
   - `IAdminPolicyService`
   - `ApiBackedAdminPolicyService`

@@ -1,4 +1,4 @@
-﻿# 反复执行Step指令
+# 反复执行Step指令
 
 你是 `sdkwork-birdcoder` 的持续交付代理。每次收到这条指令，都必须继续上一次闭环，自动决策、自动迭代、自动回写，直到所有 Step 真正落地。
 
@@ -18,13 +18,13 @@
 - 当前仓库的产品主线只聚焦 `Code / Studio / coding-server / release-governance`。
 - `Terminal` 不在本仓实施主线内；真实 terminal runtime / PTY / CLI session / terminal storage 来自外部独立工程，本仓只保留集成协议、启动映射、治理与 release 回写。
 - Step `08` 的真相已调整为“外部 Terminal 集成边界”，禁止在本仓继续扩张 Terminal UI、CLI Registry、PTY、`terminal_session`、`terminal_execution` 等本体实现。
-- `web / desktop / server` 统一通过 `coding-server -> core / app / admin` 架构演进。
-- `auth / user / vip` 的统一桥接真相只能是 `sdkwork-appbase` 根包能力加 `sdkwork-birdcoder-auth`、`sdkwork-birdcoder-user` 薄适配包；相关改动必须纳入 `check:identity-standard`。
+- `web / desktop / server` 统一通过 `coding-server -> app / backend` 架构演进。
+- `auth / user / vip` 的统一桥接真相只能是 `sdkwork-appbase` 根包能力加 `sdkwork-birdcoder-auth`、`sdkwork-birdcoder-user` 薄适配包；相关改动必须纳入 `check:iam-standard`。
 - Step `15/17` 的最终存储标准只能是共享 `data-kernel` table repository。
 - desktop 共享 SQLite authority 已把 `table.sqlite.*` payload materialize 为真实 provider tables。
 - Rust host 已把 legacy `kv_store` 降级为一次性迁移源；运行时真相只能是 direct provider tables。
 - `snapshot file` 只允许 fallback-only；Node in-memory 只允许合同执行，不计入最终 authority。
-- 独立的 admin policy governance 闭环已关闭：`/api/admin/v1/policies` 已真实化，authority 真相收敛到 `governance_policies`，高层只允许走 `listPolicies()` / `adminPolicyService`。
+- 独立的 admin policy governance 闭环已关闭：`/backend/v3/api/policies` 已真实化，authority 真相收敛到 `governance_policies`，高层只允许走 `listPolicies()` / `adminPolicyService`。
 
 ## 3. 闭环顺序
 
@@ -34,7 +34,7 @@
 - 在当前状态下，优先顺序固定为：
   1. provider/UoW 抽象收敛
   2. sqlite/postgresql 一致性与 migration
-  3. app/admin 实体与 SDK 闭环
+  3. app/backend 实体与 SDK 闭环
   4. OpenAPI/SDK/console 对齐
   5. release / deployment / governance 收口
 - 不允许跳过未闭环的核心能力去做外围美化。
@@ -160,14 +160,14 @@
 - `coding-server` projection persistence for `runtime / event / artifact / operation` can now reuse the same executor/UoW path instead of staying on fallback-only storage semantics.
 - `sqlBackendExecutors.ts` is now closed for the first real backend slice: true SQLite file execution, forked transaction visibility, and backend-ready PostgreSQL client transaction semantics.
 - Representative `project / team / release_record` repositories are now closed on the same provider/UoW plus row/plan contract used by `coding-server` projection persistence.
-- `appConsoleRepository.ts`, `appAdminConsoleQueries.ts`, and `createDefaultBirdCoderIdeServices()` now close the first console-side consumer path for `workspace / project / team / release_record`, so default workspace/project catalog reads no longer stay on mock-only service truth.
-- `server-api.ts`, `appAdminApiClient.ts`, `ApiBackedWorkspaceService.ts`, `ApiBackedProjectService.ts`, `ApiBackedTeamService.ts`, and `createDefaultBirdCoderIdeServices()` now close the first unified app/admin SDK/OpenAPI consumer boundary for default workspace/project/team catalog reads; local writes and coding-session memory state stay on the existing sidecars.
-- The shared app/admin facade now splits workspace team reads from admin team reads:
+- `appConsoleRepository.ts`, `consoleQueries.ts`, and `createDefaultBirdCoderIdeServices()` now close the first console-side consumer path for `workspace / project / team / release_record`, so default workspace/project catalog reads no longer stay on mock-only service truth.
+- `server-api.ts`, `sdkClients.ts`, `ApiBackedWorkspaceService.ts`, `ApiBackedProjectService.ts`, `ApiBackedTeamService.ts`, and `createDefaultBirdCoderIdeServices()` now close the first unified app/backend SDK/OpenAPI consumer boundary for default workspace/project/team catalog reads; local writes and coding-session memory state stay on the existing sidecars.
+- The shared app/backend facade now splits workspace team reads from admin team reads:
   - `listTeams()` -> `/api/app/v1/teams`
   - `listAdminTeams()` -> `/api/admin/v1/teams`
   - default IDE/runtime team reads must stay on the app surface
-- `BirdCoderAppAdminApiClient.listReleases()` remains the explicit admin release catalog surface on `/api/admin/v1/releases`.
-- `IReleaseService`, `ApiBackedReleaseService`, `createDefaultBirdCoderIdeServices()`, `IDEContext`, `ServiceContext`, and `useReleases()` now close the first default IDE/app consumer slice for governed release catalogs on the shared app/admin facade.
+- `BirdCoderBackendSdkApiClient.listReleases()` remains the explicit admin release catalog surface on `/api/admin/v1/releases`.
+- `IReleaseService`, `ApiBackedReleaseService`, `createDefaultBirdCoderIdeServices()`, `IDEContext`, `ServiceContext`, and `useReleases()` now close the first default IDE/app consumer slice for governed release catalogs on the shared app/backend facade.
 - `ICoreReadService`, `ApiBackedCoreReadService`, `createDefaultBirdCoderIdeServices()`, `IDEContext`, `ServiceContext`, and `useCodingServerOverview()` now close the first default IDE/app consumer slice for the implemented shared core read facade.
 - `loadCodingSessionProjection()` and `useCodingSessionProjection()` now close the first default IDE/app consumer slice for implemented coding-session detail / events / artifacts / checkpoints on top of `coreReadService`.
 - `BIRDCODER_SHARED_CORE_FACADE_OPERATION_IDS` and `BIRDCODER_SHARED_CORE_FACADE_EXCLUDED_OPERATION_IDS` now make promoted vs blocked core high-level operations explicit in `@sdkwork/birdcoder-types`.
@@ -204,27 +204,27 @@
 - The second release-backed SDK/codegen lane is now closed:
   - `scripts/generate-coding-server-client-types.ts` consumes `packages/sdkwork-birdcoder-types/src/generated/coding-server-openapi.ts`
   - `packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts` is the fixed generated output
-  - representative shared app/admin consumers now build requests through generated helpers instead of handwritten route strings
+  - representative shared app/backend consumers now build requests through generated helpers instead of handwritten route strings
   - type governance proves route-less operations do not require `pathParams`
-- The first shared high-level representative app/admin facade is now closed:
-  - `packages/sdkwork-birdcoder-types/src/server-api.ts` owns `createBirdCoderGeneratedAppAdminApiClient({ transport })`
-  - `packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts` may only contribute transport implementations and must not reassemble representative app/admin request paths
-  - `scripts/generated-app-admin-client-facade-contract.test.ts` is part of `check:release-flow`
+- The first shared high-level representative app/backend facade is now closed:
+  - `packages/sdkwork-birdcoder-types/src/server-api.ts` owns `createBirdCoderSplitSdkApiClients({ appTransport, backendTransport })`
+  - `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` may only contribute transport implementations and must not reassemble representative app/backend request paths
+  - `scripts/generated-app/backend-client-facade-contract.test.ts` is part of `check:release-flow`
 - Default IDE service composition is now also closed on that shared facade:
-  - `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts` must compose runtime HTTP and in-process fallback clients directly through `createBirdCoderGeneratedAppAdminApiClient({ transport })`
-  - `scripts/default-ide-services-generated-app-admin-facade-contract.test.ts` is part of `check:release-flow`
-- The redundant infrastructure-side app/admin high-level wrapper is now deleted:
-  - `packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts` keeps transport factories only
-  - `scripts/app-admin-sdk-consumer-contract.test.ts` now consumes the shared generated facade directly
-  - `scripts/no-app-admin-client-wrapper-contract.test.ts` is part of `check:release-flow`
+  - `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts` must compose runtime HTTP and in-process fallback clients directly through `createBirdCoderSplitSdkApiClients({ appTransport, backendTransport })`
+  - `scripts/default-ide-services-generated-app/backend-facade-contract.test.ts` is part of `check:release-flow`
+- The redundant infrastructure-side app/backend high-level wrapper is now deleted:
+  - `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` keeps transport factories only
+  - `scripts/app/backend-sdk-consumer-contract.test.ts` now consumes the shared generated facade directly
+  - `scripts/no-app/backend-client-wrapper-contract.test.ts` is part of `check:release-flow`
 - The first shared core read facade is now closed:
   - `packages/sdkwork-birdcoder-types/src/server-api.ts` owns `createBirdCoderGeneratedCoreReadApiClient({ transport })`
   - current scope is limited to implemented representative core routes: `descriptor / runtime / health / engines / operation`
-  - `scripts/generated-core-read-client-facade-contract.test.ts` is part of `check:release-flow`
+  - `scripts/app-runtime-read-sdk-client-contract.test.ts` is part of `check:release-flow`
   - unimplemented core routes must stay outside the shared facade until they stop returning `not_implemented`
 - The shared core projection read facade is now also closed:
   - `packages/sdkwork-birdcoder-types/src/server-api.ts` extends `createBirdCoderGeneratedCoreReadApiClient({ transport })` to implemented projection reads: `coding-session detail / events / artifacts / checkpoints`
-  - `scripts/generated-core-projection-read-client-facade-contract.test.ts` is part of `check:release-flow`
+  - `scripts/app-runtime-projection-read-sdk-client-contract.test.ts` is part of `check:release-flow`
   - projection reads must stay on the shared generated-client-based facade; not-yet-promoted core writes and unimplemented reads must stay outside
 - Rust host `POST /api/core/v1/coding-sessions` is now real:
   - it returns `201 Created`
@@ -266,27 +266,27 @@
 - The representative app document catalog lane is now closed end-to-end:
   - Rust host serves real `GET /api/app/v1/documents`
   - demo host, legacy sqlite `kv_store`, and direct sqlite provider tables now converge on `project_documents` truth
-  - app/admin shared facade exposes `listDocuments()`
+  - app/backend shared facade exposes `listDocuments()`
   - `documentService` plus `loadDocuments()` / `useDocuments()` close the first document-facing consumer path
 - The representative admin audit lane is now closed end-to-end:
   - Rust host serves real `GET /api/admin/v1/audit`
   - demo host, legacy sqlite `kv_store`, and direct sqlite provider tables now converge on `audit_events` truth
-  - app/admin shared facade exposes `listAuditEvents()`
+  - app/backend shared facade exposes `listAuditEvents()`
   - `auditService` plus `loadAuditEvents()` / `useAuditEvents()` close the first audit-facing consumer path
 - The representative app deployment catalog lane is now closed end-to-end:
   - Rust host serves real `GET /api/app/v1/deployments`
   - demo host, legacy sqlite `kv_store`, and direct sqlite provider tables now converge on `deployment_records` truth
-  - app/admin shared facade exposes `listDeployments()`
+  - app/backend shared facade exposes `listDeployments()`
   - `deploymentService` plus `loadDeployments()` / `useDeployments()` close the first deployment-facing consumer path
 - The representative admin deployment governance lane is now closed end-to-end:
   - Rust host serves real `GET /api/admin/v1/deployments`
   - demo host, legacy sqlite `kv_store`, and direct sqlite provider tables now converge on `deployment_records` truth
-  - app/admin shared facade exposes `listAdminDeployments()`
+  - app/backend shared facade exposes `listAdminDeployments()`
   - `adminDeploymentService` plus `loadAdminDeployments()` / `useAdminDeployments()` close the first admin deployment-facing consumer path
 - The representative admin policy governance lane is now closed end-to-end:
   - Rust host serves real `GET /api/admin/v1/policies`
   - demo host, legacy sqlite `kv_store`, and direct sqlite provider tables now converge on `governance_policies` truth
-  - app/admin shared facade exposes `listPolicies()`
+  - app/backend shared facade exposes `listPolicies()`
   - `adminPolicyService` plus `loadAdminPolicies()` / `useAdminPolicies()` close the first admin policy-facing consumer path
 - The first Step 18 engine-source-truth slice is now closed:
   - `workbench/kernel.ts` freezes real mirror truth for `codex / claude-code / gemini / opencode`
@@ -341,12 +341,12 @@
   - `runBirdCoderPostgresqlLiveSmoke()` now standardizes PostgreSQL smoke outcomes as `blocked | passed | failed`.
   - DSN lookup priority is fixed to `BIRDCODER_POSTGRESQL_DSN -> BIRDCODER_DATABASE_URL -> DATABASE_URL -> PGURL`.
 - Mandatory verification when touching this area:
-  - `pnpm.cmd run test:app-admin-sdk-consumer-contract`
+  - `pnpm.cmd run test:app/backend-sdk-consumer-contract`
   - `pnpm.cmd run test:shell-runtime-app-client-contract`
   - `pnpm.cmd run test:server-runtime-transport-contract`
-  - `pnpm.cmd run test:generated-core-write-client-facade-contract`
-  - `pnpm.cmd run test:default-ide-services-generated-core-write-facade-contract`
-  - `pnpm.cmd run test:default-ide-services-generated-core-read-facade-contract`
+  - `pnpm.cmd run test:app-runtime-write-sdk-client-contract`
+  - `pnpm.cmd run test:default-ide-services-app-runtime-write-sdk-contract`
+  - `pnpm.cmd run test:default-ide-services-app-runtime-read-sdk-contract`
   - `pnpm.cmd run test:default-ide-services-core-read-service-contract`
   - `pnpm.cmd run test:api-backed-project-service-core-create-coding-session-contract`
   - `pnpm.cmd run test:api-backed-project-service-core-create-coding-session-turn-contract`
@@ -360,8 +360,8 @@
   - `pnpm.cmd run test:engine-conformance`
   - `pnpm.cmd run test:tool-protocol-contract`
   - `pnpm.cmd run test:engine-resume-recovery-contract`
-  - `pnpm.cmd run test:shared-core-facade-governance-contract`
-  - `pnpm.cmd run test:generated-app-admin-client-facade-contract`
+  - `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
+  - `pnpm.cmd run test:generated-app/backend-client-facade-contract`
   - `pnpm.cmd run test:default-ide-services-document-service-contract`
   - `pnpm.cmd run test:document-app-consumer-contract`
   - `pnpm.cmd run test:default-ide-services-audit-service-contract`
@@ -386,9 +386,9 @@
   3. the Step 18 server-side canonical-runtime sink into `coding-server` / Core projection is now also closed; do not reopen it without a fresh failing contract
   4. if no lower-score unresolved Step is evidenced by current code/tests/docs, stop feature expansion, backwrite the alignment, and define the next Step before writing new production code
   5. the second-stage typed SDK/client generation lane is already closed on top of `packages/sdkwork-birdcoder-types/src/generated/coding-server-openapi.ts`
-  6. the shared generated app/admin facade is already closed on top of `packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts`
+  6. the shared generated app/backend facade is already closed on top of `packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts`
   7. default IDE services already consume that shared facade directly for runtime HTTP and in-process fallback composition, and now expose governed release catalogs through `releaseService`
-  8. the redundant infrastructure-side app/admin high-level wrapper is already removed; only transport factories remain in infrastructure
+  8. the redundant infrastructure-side app/backend high-level wrapper is already removed; only transport factories remain in infrastructure
   9. the first shared core read facade is already closed for implemented representative core routes only
   10. default IDE services, shared contexts, and `useCodingServerOverview()` now adopt the implemented shared core read facade for overview reads without fabricating local in-process core authority
   11. the shared core projection read facade is already closed for implemented session detail / events / artifacts / checkpoints
@@ -399,7 +399,7 @@
   16. the representative admin audit lane is already closed end-to-end on top of `audit_events` truth and the shared audit service/consumer boundary
   17. the representative app deployment lane is already closed end-to-end on top of `deployment_records` truth and the shared deployment service/consumer boundary
   18. the representative admin deployment governance lane is already closed end-to-end on top of the same `deployment_records` truth and the shared admin deployment service/consumer boundary
-  19. the dedicated admin policy governance lane is already closed: `/api/admin/v1/policies` is real, truth converges on `governance_policies`, and high-level policy consumption must stay on `listPolicies()` / `adminPolicyService` / `loadAdminPolicies()` / `useAdminPolicies()`
+  19. the dedicated admin policy governance lane is already closed: `/backend/v3/api/policies` is real, truth converges on `governance_policies`, and high-level policy consumption must stay on `listPolicies()` / `adminPolicyService` / `loadAdminPolicies()` / `useAdminPolicies()`
   20. PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`
   21. the first Step 18 source-mirror-truth slice is already closed through `engine-kernel-contract` plus `engine-source-mirror-contract`
   22. the second Step 18 coding-server-engine-truth slice is already closed through `coding-server-engine-truth-contract`
@@ -553,13 +553,13 @@
   - `team_member` and `deployment_target` are both closed on shared repository, real route, shared facade, first consumer, and Rust host authority truth
   - future loops must not reopen Step `20` unless fresh failing evidence appears on those already-closed lanes
 56. The first Step 20 `team_member` authority slice remains closed:
-  - `packages/sdkwork-birdcoder-types/src/server-api.ts` exposes `listTeamMembers(teamId)` on the shared generated app/admin facade
+  - `packages/sdkwork-birdcoder-types/src/server-api.ts` exposes `listTeamMembers(teamId)` on the shared generated app/backend facade
   - `/api/admin/v1/teams/:teamId/members` is real across shared TS route contracts, generated client requests, in-process transport, and Rust host demo/sqlite authorities
-  - `packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts` and `packages/sdkwork-birdcoder-infrastructure/src/services/appAdminConsoleQueries.ts` now materialize `team_members` on the shared provider/UoW repository boundary
+  - `packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts` and `packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts` now materialize `team_members` on the shared provider/UoW repository boundary
 57. The second Step 20 `deployment_target` authority slice is now also closed:
-  - `packages/sdkwork-birdcoder-types/src/server-api.ts` exposes `listDeploymentTargets(projectId)` on the shared generated app/admin facade
+  - `packages/sdkwork-birdcoder-types/src/server-api.ts` exposes `listDeploymentTargets(projectId)` on the shared generated app/backend facade
   - `/api/admin/v1/projects/:projectId/deployment-targets` is real across shared TS route contracts, generated client requests, in-process transport, and Rust host demo/sqlite authorities
-  - `packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts` and `packages/sdkwork-birdcoder-infrastructure/src/services/appAdminConsoleQueries.ts` now materialize `deployment_targets` on the shared provider/UoW repository boundary
+  - `packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts` and `packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts` now materialize `deployment_targets` on the shared provider/UoW repository boundary
   - the next autonomous loop must select a new lowest-score Step from fresh evidence instead of continuing Step `20`
 58. The remaining release-tier contract-tail drift is now also closed:
   - `scripts/ci-flow-contract.test.mjs` and `scripts/quality-gate-matrix-contract.test.mjs` now freeze the same direct web-host `check:quality:standard` chain already used by `build`, `build:prod`, `check:quality:standard`, and governance regression
@@ -568,7 +568,7 @@
   - the declared `fast -> standard -> matrix -> release-flow -> ci-flow -> governance` topology remains unchanged; only the last stale contract expectations were realigned to the already-governed command truth
 59. The Step 17 live-docs truth-drift closure is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now freezes that Step 17 and architecture docs must not preserve already-closed OpenAPI/codegen, shared-facade, representative-placeholder-route, or PostgreSQL-blocker language
-  - `docs/step/17-Coding-Server-Core-App-Admin-API与控制台实现.md` and `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md` now backwrite the final Step 17 truth: representative placeholder routes are `none`, Step 17 has no remaining non-environmental representative-route gap, and PostgreSQL live smoke already has a recorded DSN-backed `passed` report on this host
+  - `docs/step/17-Coding-Server-Core-App/Backend-API与控制台实现.md` and `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md` now backwrite the final Step 17 truth: representative placeholder routes are `none`, Step 17 has no remaining non-environmental representative-route gap, and PostgreSQL live smoke already has a recorded DSN-backed `passed` report on this host
   - future loops must not reopen Step 17 doc drift without fresh failing evidence from the live docs contract or a fresh PostgreSQL rerun regression
 60. The PostgreSQL host-pass live-docs alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now freezes the current host-pass truth across architecture `09/10` and step `12/13/17D/17E-17ZB/18A-18G/19/19A` live docs and rejects stale current-state phrases such as `active environment gate`, `remains environment-gated`, `remains an independent environment gate`, or `blocked until first passed`

@@ -1,6 +1,6 @@
+import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   IWorkspace,
 } from '@sdkwork/birdcoder-types';
 import { ApiBackedWorkspaceService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedWorkspaceService.ts';
@@ -34,12 +34,12 @@ const userBWorkspace = createLocalWorkspace(
 );
 
 const service = new ApiBackedWorkspaceService({
-  client: {
-    async listWorkspaces(): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['listWorkspaces']>>> {
+  appClient: {
+    async listWorkspaces(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listWorkspaces']>>> {
       throw new Error('Failed to fetch workspace catalog');
     },
-  } as unknown as BirdCoderAppAdminApiClient,
-  identityProvider: {
+  } as unknown as BirdCoderAppSdkApiClient,
+  currentUserProvider: {
     async getCurrentUser() {
       return {
         id: 'user-b',

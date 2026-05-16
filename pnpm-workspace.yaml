@@ -1,5 +1,13 @@
 packages:
   - 'packages/sdkwork-birdcoder-*'
+  - 'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript'
+  - 'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript'
+  - '../sdkwork-appbase/packages/common/iam/*'
+  - '../sdkwork-appbase/packages/pc-react/foundation/*'
+  - '../sdkwork-appbase/packages/pc-react/iam/*'
+  - '../sdkwork-appbase/packages/pc-react/commerce/sdkwork-vip-pc-react'
+  - '../sdkwork-core/sdkwork-core-pc-react'
+  - '../sdkwork-ui/sdkwork-ui-pc-react'
 
 catalog:
   '@anthropic-ai/claude-agent-sdk': ^0.2.87
@@ -9,7 +17,8 @@ catalog:
   '@opencode-ai/sdk': ^1.4.1
   '@radix-ui/react-slot': ^1.2.4
   '@tailwindcss/vite': ^4.1.14
-  '@tauri-apps/api': ^2.10.1
+  '@tauri-apps/api': ~2.11.0
+  '@tauri-apps/cli': ~2.11.0
   '@xterm/addon-canvas': ^0.7.0
   '@xterm/addon-fit': ^0.10.0
   '@xterm/addon-search': ^0.16.0
@@ -95,4 +104,5 @@ catalog:
   vfile: ^6.0.3
   vfile-message: ^4.0.3
   vite: ^6.2.0
+  vite-plugin-dts: ^4.5.4
   yaml: ^2.4.2

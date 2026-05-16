@@ -243,19 +243,19 @@ assertFields(
 
 for (const expectation of [
   {
-    tableName: 'workbench_preferences',
+    tableName: 'studio_workbench_preference',
     fields: [...commonSnakeFields, 'scope_type', 'scope_id', 'code_engine_id', 'code_model_id', 'terminal_profile_id', 'payload_json'],
   },
   {
-    tableName: 'engine_registry',
+    tableName: 'ai_engine_registry',
     fields: [...commonSnakeFields, 'engine_id', 'display_name', 'vendor', 'installation_kind', 'default_model_id', 'transport_kinds_json', 'capability_matrix_json', 'status'],
   },
   {
-    tableName: 'model_catalog',
+    tableName: 'ai_model_catalog',
     fields: [...commonSnakeFields, 'engine_id', 'model_id', 'display_name', 'provider_id', 'transport_kinds_json', 'capability_matrix_json', 'is_default', 'status'],
   },
   {
-    tableName: 'engine_bindings',
+    tableName: 'ai_engine_binding',
     fields: [...commonSnakeFields, 'scope_type', 'scope_id', 'engine_id', 'model_id', 'host_modes_json'],
   },
 ]) {
@@ -274,22 +274,22 @@ for (const expectation of [
 
 assert.match(
   desktopRustSource,
-  /\buk_workbench_preferences_scope\b/,
+  /\buk_studio_workbench_preference_scope\b/,
   'desktop rust schema must declare the workbench preference scope unique index.',
 );
 assert.match(
   desktopRustSource,
-  /\buk_engine_registry_engine_id\b/,
+  /\buk_ai_engine_registry_engine_id\b/,
   'desktop rust schema must declare the engine registry unique index.',
 );
 assert.match(
   desktopRustSource,
-  /\buk_model_catalog_engine_model\b/,
+  /\buk_ai_model_catalog_engine_model\b/,
   'desktop rust schema must declare the model catalog unique index.',
 );
 assert.match(
   desktopRustSource,
-  /\buk_engine_bindings_scope_engine\b/,
+  /\buk_ai_engine_binding_scope_engine\b/,
   'desktop rust schema must declare the engine binding scope/engine unique index.',
 );
 

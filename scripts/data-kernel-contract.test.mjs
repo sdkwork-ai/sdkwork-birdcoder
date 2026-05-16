@@ -15,21 +15,101 @@ const desktopHostSourcePath = new URL(
 );
 
 const dataModule = await import(`${dataModulePath.href}?t=${Date.now()}`);
+const dataModuleSource = await readFile(dataModulePath, 'utf8');
 const serverHostSource = await readFile(serverHostSourcePath, 'utf8');
 const desktopHostSource = await readFile(desktopHostSourcePath, 'utf8');
 
 assert.deepEqual(dataModule.BIRDCODER_DATABASE_PROVIDER_IDS, ['sqlite', 'postgresql']);
-assert.equal(dataModule.BIRDCODER_SCHEMA_MIGRATION_HISTORY_TABLE, 'schema_migration_history');
+assert.equal(dataModule.BIRDCODER_SCHEMA_MIGRATION_HISTORY_TABLE, 'ops_schema_migration_history');
+
+assert.deepEqual(
+  new Set(dataModule.BIRDCODER_DATA_ENTITY_DEFINITIONS.map((definition) => definition.aggregate)),
+  new Set([
+    'ai',
+    'commerce',
+    'comms',
+    'content',
+    'data',
+    'iam',
+    'integration',
+    'media',
+    'ops',
+    'studio',
+  ]),
+  'BirdCoder data kernel must use DATABASE_SPEC controlled module prefixes as logical aggregates.',
+);
+
+const duplicateEntityNames = dataModule.BIRDCODER_DATA_ENTITY_DEFINITIONS
+  .map((definition) => definition.entityName)
+  .filter((entityName, index, entityNames) => entityNames.indexOf(entityName) !== index);
+assert.deepEqual(
+  duplicateEntityNames,
+  [],
+  'BirdCoder data kernel must not define duplicate entity names; duplicate definitions hide schema drift.',
+);
+
+for (const [entityName, expectedAggregate] of [
+  ['department', 'iam'],
+  ['card', 'commerce'],
+  ['agent_skill_package', 'ai'],
+  ['datasource', 'data'],
+  ['channel_account', 'integration'],
+  ['app', 'studio'],
+  ['category', 'content'],
+  ['file', 'media'],
+  ['conversation', 'comms'],
+  ['notification', 'ops'],
+  ['order', 'commerce'],
+  ['workspace', 'studio'],
+  ['project_content', 'studio'],
+  ['file_asset', 'media'],
+  ['coding_session', 'ai'],
+  ['prompt_asset', 'ai'],
+  ['skill_package', 'ai'],
+  ['app_template', 'studio'],
+  ['team', 'studio'],
+  ['deployment_target', 'studio'],
+  ['workbench_preference', 'studio'],
+  ['engine_registry', 'ai'],
+  ['run_configuration', 'ops'],
+  ['audit_event', 'ops'],
+  ['schema_migration_history', 'ops'],
+]) {
+  assert.equal(
+    dataModule.getBirdCoderEntityDefinition(entityName).aggregate,
+    expectedAggregate,
+    `${entityName} must use DATABASE_SPEC standard aggregate ${expectedAggregate}.`,
+  );
+}
+
+for (const definition of dataModule.BIRDCODER_DATA_ENTITY_DEFINITIONS) {
+  if (definition.tableName.startsWith('plus_')) {
+    continue;
+  }
+
+  assert.equal(
+    definition.tableName,
+    `${definition.aggregate}_${definition.entityName}`,
+    `${definition.entityName} must use <module_prefix>_<entity_name> physical table naming.`,
+  );
+}
+
+for (const [entityName, expectedTableName] of [
+  ['workspace', 'studio_workspace'],
+  ['project', 'studio_project'],
+  ['project_content', 'studio_project_content'],
+]) {
+  assert.equal(
+    dataModule.getBirdCoderEntityDefinition(entityName).tableName,
+    expectedTableName,
+    `${entityName} must not keep the legacy plus_* project/workspace physical table name.`,
+  );
+}
 
 const requiredEntityNames = [
-  'tenant',
-  'user_account',
-  'user_profile',
-  'account',
   'account_history',
   'account_exchange_config',
   'ledger_bridge',
-  'vip_user',
   'vip_level',
   'vip_benefit',
   'vip_level_benefit',
@@ -71,6 +151,21 @@ const requiredEntityNames = [
   'release_record',
   'schema_migration_history',
 ];
+const appbaseOwnedIamEntityNames = [
+  'tenant',
+  'organization',
+  'organization_member',
+  'member_relation',
+  'role',
+  'permission',
+  'role_permission',
+  'user_role',
+  'user_account',
+  'oauth_account',
+  'user_profile',
+  'vip_user',
+  'account',
+];
 
 for (const entityName of requiredEntityNames) {
   const definition = dataModule.getBirdCoderEntityDefinition(entityName);
@@ -101,29 +196,43 @@ for (const entityName of requiredEntityNames) {
   }
 }
 
+for (const entityName of appbaseOwnedIamEntityNames) {
+  assert.throws(
+    () => dataModule.getBirdCoderEntityDefinition(entityName),
+    /Unknown BirdCoder entity definition/u,
+    `BirdCoder data kernel must not own appbase IAM entity ${entityName}.`,
+  );
+}
+
+assert.doesNotMatch(
+  dataModuleSource,
+  /\bplus_user\b/u,
+  'BirdCoder data-kernel descriptions must reference appbase IAM users instead of the retired plus_user core table.',
+);
+
 const terminalExecution = dataModule.getBirdCoderEntityDefinition('terminal_execution');
-assert.equal(terminalExecution.tableName, 'terminal_executions');
+assert.equal(terminalExecution.tableName, 'ops_terminal_execution');
 assert.ok(
-  terminalExecution.indexes.some((index) => index.name === 'idx_terminal_executions_session_started'),
+  terminalExecution.indexes.some((index) => index.name === 'idx_ops_terminal_execution_session_started'),
   'terminal_execution should define a session/timestamp index',
 );
 
 const codingSession = dataModule.getBirdCoderEntityDefinition('coding_session');
-assert.equal(codingSession.tableName, 'coding_sessions');
+assert.equal(codingSession.tableName, 'ai_coding_session');
 assert.ok(
   codingSession.columns.some((column) => column.name === 'native_session_id' && column.nullable === true),
   'coding_session must denormalize native_session_id so local session mirrors can preserve provider-native resume ids.',
 );
 assert.ok(
-  codingSession.indexes.some((index) => index.name === 'idx_coding_sessions_project_updated'),
+  codingSession.indexes.some((index) => index.name === 'idx_ai_coding_session_project_updated'),
   'coding_session should define a project/updated index',
 );
 
 const fileAsset = dataModule.getBirdCoderEntityDefinition('file_asset');
-assert.equal(fileAsset.aggregate, 'coding_session');
+assert.equal(fileAsset.aggregate, 'media');
 assert.ok(
   fileAsset.columns.some((column) => column.name === 'coding_session_id'),
-  'file_asset should stay attached to the coding_session aggregate',
+  'file_asset should stay attached to coding_session through a stable foreign key while media owns the asset table.',
 );
 
 const providerCatalog = dataModule.BIRDCODER_DATABASE_PROVIDERS;
@@ -132,7 +241,7 @@ assert.equal(providerCatalog.postgresql.capabilities.jsonb, true);
 
 const modelCatalog = dataModule.getBirdCoderEntityDefinition('model_catalog');
 assert.ok(
-  modelCatalog.indexes.some((index) => index.name === 'uk_model_catalog_engine_model'),
+  modelCatalog.indexes.some((index) => index.name === 'uk_ai_model_catalog_engine_model'),
   'model_catalog should define a unique engine/model index',
 );
 

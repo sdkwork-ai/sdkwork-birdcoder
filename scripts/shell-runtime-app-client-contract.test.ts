@@ -1,3 +1,4 @@
+import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -50,12 +51,12 @@ const defaultIdeServicesRuntimeModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesRuntime.ts',
   import.meta.url,
 );
-const appAdminApiClientModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
+const sdkTransportSharedModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkTransportShared.ts',
   import.meta.url,
 );
-const typesEntryModulePath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/index.ts',
+const sdkClientsModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts',
   import.meta.url,
 );
 const apiBackedWorkspaceServiceModulePath = new URL(
@@ -185,7 +186,7 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
     url,
   });
 
-  if (url.includes('/api/app/v1/workspaces')) {
+  if (url.includes('/app/v3/api/workspaces')) {
     return new Response(
       JSON.stringify(
         createListEnvelope([
@@ -207,7 +208,7 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
     );
   }
 
-  if (url.includes('/api/app/v1/projects')) {
+  if (url.includes('/app/v3/api/projects')) {
     return new Response(
       JSON.stringify(
         createListEnvelope([
@@ -232,7 +233,7 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
     );
   }
 
-  if (url.includes('/api/core/v1/coding-sessions')) {
+  if (url.includes('/app/v3/api/coding_sessions')) {
     return new Response(
       JSON.stringify(createListEnvelope([])),
       {
@@ -264,12 +265,11 @@ try {
     resetDefaultBirdCoderIdeServicesRuntimeForTests: resetDefaultBirdCoderIdeServicesRuntime,
   } = await import(defaultIdeServicesRuntimeModulePath.href);
   const { createBirdCoderHttpApiTransport } = await import(
-    `${appAdminApiClientModulePath.href}?t=${Date.now()}`
+    `${sdkTransportSharedModulePath.href}?t=${Date.now()}`
   );
   const {
-    createBirdCoderGeneratedAppAdminApiClient,
-    createBirdCoderGeneratedCoreReadApiClient,
-  } = await import(`${typesEntryModulePath.href}?t=${Date.now()}`);
+    createBirdCoderAppSdkApiClient,
+  } = await import(`${sdkClientsModulePath.href}?t=${Date.now()}`);
   const { ApiBackedWorkspaceService } = await import(
     `${apiBackedWorkspaceServiceModulePath.href}?t=${Date.now()}`
   );
@@ -349,22 +349,19 @@ try {
     baseUrl: runtimeConfig.apiBaseUrl!,
     fetchImpl: globalThis.fetch,
   });
-  const appAdminClient = createBirdCoderGeneratedAppAdminApiClient({
-    transport,
-  });
-  const coreReadClient = createBirdCoderGeneratedCoreReadApiClient({
+  const appClient = createBirdCoderAppSdkApiClient({
     transport,
   });
   const workspaceMirror = createWorkspaceMirror();
   const projectMirror = createProjectMirror();
   const workspaceService = new ApiBackedWorkspaceService({
-    client: appAdminClient,
+    appClient: appClient,
     workspaceMirror,
     writeService: workspaceMirror.writeService,
   });
   const projectService = new ApiBackedProjectService({
-    client: appAdminClient,
-    coreReadClient,
+    appClient: appClient,
+    codingRuntimeClient: appClient,
     projectMirror,
     writeService: projectMirror.writeService,
   });
@@ -377,15 +374,15 @@ try {
     [
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/workspaces',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/workspaces',
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/projects?workspaceId=workspace-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/projects?workspaceId=workspace-runtime-contract',
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/api/core/v1/coding-sessions?workspaceId=workspace-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/coding_sessions?workspaceId=workspace-runtime-contract',
       },
     ],
     'shell runtime defaults must normalize the host apiBaseUrl and route app/core authority HTTP transport without duplicating the /api prefix.',

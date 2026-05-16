@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { createBirdCoderHttpApiTransport } from '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts';
+import { createBirdCoderHttpApiTransport } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkTransportShared.ts';
 import { parseBirdCoderApiJson } from '../packages/sdkwork-birdcoder-infrastructure/src/services/apiJson.ts';
+import { createBirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import {
   BIRDCODER_DATA_ENTITY_DEFINITIONS,
   BIRDCODER_LONG_INTEGER_JSON_SCALAR_KEYS,
-  createBirdCoderGeneratedCoreWriteApiClient,
   mergeBirdCoderProjectionMessages,
   normalizeBirdCoderCodeEngineExitCode,
   resolveBirdCoderCodeEngineToolCallId,
@@ -91,7 +91,7 @@ const transport = createBirdCoderHttpApiTransport({
   baseUrl: 'http://127.0.0.1:13001',
   fetchImpl,
 });
-const coreWriteClient = createBirdCoderGeneratedCoreWriteApiClient({ transport });
+const appClient = createBirdCoderAppSdkApiClient({ transport });
 
 const missingLongIntegerJsonKeys = BIRDCODER_DATA_ENTITY_DEFINITIONS.flatMap((definition) =>
   definition.columns.flatMap((column) => {
@@ -109,7 +109,7 @@ assert.deepEqual(
   'every schema bigint column must be registered as a canonical API JSON Long key in both snake_case and lowerCamelCase forms.',
 );
 
-const createdSession = await coreWriteClient.createCodingSession({
+const createdSession = await appClient.createCodingSession({
   workspaceId: unsafeWorkspaceId,
   projectId: unsafeProjectId,
   engineId: 'codex',
@@ -150,10 +150,10 @@ assert.equal(
   'code engine numeric status normalization must reject unsafe Long-sized strings instead of parsing them into rounded JavaScript numbers.',
 );
 assert.deepEqual(observedRequests.map((request) => request.path), [
-  '/api/core/v1/coding-sessions',
+  '/app/v3/api/coding_sessions',
 ]);
 
-const createdTurn = await coreWriteClient.createCodingSessionTurn(createdSession.id, {
+const createdTurn = await appClient.createCodingSessionTurn(createdSession.id, {
   requestKind: 'chat',
   inputSummary: 'Check exact long id routing.',
 });
@@ -161,12 +161,12 @@ const createdTurn = await coreWriteClient.createCodingSessionTurn(createdSession
 assert.equal(createdTurn.id, unsafeTurnId);
 assert.equal(createdTurn.codingSessionId, unsafeSessionId);
 assert.deepEqual(observedRequests.map((request) => request.path), [
-  '/api/core/v1/coding-sessions',
-  `/api/core/v1/coding-sessions/${unsafeSessionId}/turns`,
+  '/app/v3/api/coding_sessions',
+  `/app/v3/api/coding_sessions/${unsafeSessionId}/turns`,
 ]);
 assert.notEqual(
   observedRequests[1]?.path,
-  `/api/core/v1/coding-sessions/${String(Number(unsafeSessionId))}/turns`,
+  `/app/v3/api/coding_sessions/${String(Number(unsafeSessionId))}/turns`,
   'create-turn must route with the exact server-created session id, not the rounded Java/Rust Long value that causes session-not-found toasts.',
 );
 
@@ -359,7 +359,7 @@ assert.deepEqual(
 
 await transport.request({
   method: 'POST',
-  path: '/api/core/v1/long-outbound-standardization',
+  path: '/app/v3/api/long_outbound_standardization',
   body: {
     data: {
       id: BigInt(unsafeSessionId),
@@ -388,7 +388,7 @@ assert.deepEqual(
 
 await transport.request({
   method: 'GET',
-  path: '/api/core/v1/query-long-standardization',
+  path: '/app/v3/api/query_long_standardization',
   query: {
     active: true,
     limit: 25,
@@ -413,7 +413,7 @@ await assert.rejects(
   () =>
     transport.request({
       method: 'GET',
-      path: '/api/core/v1/query-long-standardization',
+      path: '/app/v3/api/query_long_standardization',
       query: {
         workspaceId: Number(unsafeWorkspaceId),
       },
@@ -432,7 +432,7 @@ await assert.rejects(
   () =>
     transport.request({
       method: 'POST',
-      path: '/api/core/v1/body-long-standardization',
+      path: '/app/v3/api/body_long_standardization',
       body: {
         data: {
           requestCorrelation: Number(unsafeToolCallId),

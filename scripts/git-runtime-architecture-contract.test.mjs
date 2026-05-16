@@ -243,13 +243,13 @@ assert.match(
 assert.match(
   apiBackedGitServiceSource,
   /return this\.client\.getProjectGitOverview\(projectId\);/,
-  'API-backed Git service must proxy authoritative Git overview reads through the generated app/admin client.',
+  'API-backed Git service must proxy authoritative Git overview reads through the generated app SDK client.',
 );
 
 assert.match(
   defaultIdeServicesSource,
-  /gitService: new ApiBackedGitService\(\{\s*client: appAdminClient,\s*\}\),/s,
-  'Default IDE services must compose the dedicated Git service from the authoritative app/admin client.',
+  /gitService: new ApiBackedGitService\(\{\s*appClient: appClient,\s*\}\),/s,
+  'Default IDE services must compose the dedicated Git service from the authoritative app SDK client.',
 );
 
 assert.match(

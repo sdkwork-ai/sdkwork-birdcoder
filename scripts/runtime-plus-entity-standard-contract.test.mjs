@@ -171,15 +171,15 @@ assert.doesNotMatch(
 
 for (const expectation of [
   {
-    tableName: 'workbench_preferences',
+    tableName: 'studio_workbench_preference',
     fields: ['uuid', 'tenant_id', 'organization_id', 'created_at', 'updated_at'],
   },
   {
-    tableName: 'run_configurations',
+    tableName: 'ops_run_configuration',
     fields: ['uuid', 'tenant_id', 'organization_id', 'config_key', 'created_at', 'updated_at'],
   },
   {
-    tableName: 'terminal_executions',
+    tableName: 'ops_terminal_execution',
     fields: ['uuid', 'tenant_id', 'organization_id', 'created_at', 'updated_at'],
   },
 ]) {
@@ -200,7 +200,7 @@ for (const expectation of [
 
 assert.match(
   desktopRustSource,
-  /\buk_run_configurations_scope_config_key\b/,
+  /\buk_ops_run_configuration_scope_config_key\b/,
   'desktop rust schema must declare the scoped run configuration logical-key unique index.',
 );
 

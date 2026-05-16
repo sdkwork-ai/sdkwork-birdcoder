@@ -1,8 +1,18 @@
 import assert from 'node:assert/strict';
 import {
   BIRDCODER_DATA_ENTITY_DEFINITIONS,
+  BIRDCODER_DATA_SCOPES,
   getBirdCoderEntityDefinition,
 } from '@sdkwork/birdcoder-types';
+
+const lowerSnakeCasePattern = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u;
+const standardDataScopes = ['DEFAULT', 'PRIVATE', 'ORGANIZATION', 'TENANT', 'PUBLIC'] as const;
+
+assert.deepEqual(
+  BIRDCODER_DATA_SCOPES,
+  standardDataScopes,
+  'BirdCoder data_scope enum must follow DATABASE_SPEC.md DEFAULT/PRIVATE/ORGANIZATION/TENANT/PUBLIC values.',
+);
 
 function collectColumnNames(entityName: Parameters<typeof getBirdCoderEntityDefinition>[0]) {
   return new Set(
@@ -12,6 +22,11 @@ function collectColumnNames(entityName: Parameters<typeof getBirdCoderEntityDefi
 
 for (const definition of BIRDCODER_DATA_ENTITY_DEFINITIONS) {
   const columnNames = new Set(definition.columns.map((column) => column.name));
+  assert.match(
+    definition.tableName,
+    lowerSnakeCasePattern,
+    `${definition.entityName} table name must use lower_snake_case.`,
+  );
   assert(
     columnNames.has('id'),
     `${definition.entityName} must expose canonical id column.`,
@@ -28,6 +43,49 @@ for (const definition of BIRDCODER_DATA_ENTITY_DEFINITIONS) {
     columnNames.has('updated_at'),
     `${definition.entityName} must expose canonical updated_at column.`,
   );
+
+  for (const column of definition.columns) {
+    assert.match(
+      column.name,
+      lowerSnakeCasePattern,
+      `${definition.entityName}.${column.name} column name must use lower_snake_case.`,
+    );
+  }
+
+  for (const index of definition.indexes) {
+    assert.match(
+      index.name,
+      lowerSnakeCasePattern,
+      `${definition.entityName}.${index.name} index name must use lower_snake_case.`,
+    );
+    assert(
+      index.name.startsWith('uk_') || index.name.startsWith('idx_'),
+      `${definition.entityName}.${index.name} index name must use uk_ or idx_ prefix.`,
+    );
+    if (index.unique) {
+      assert(
+        index.name.startsWith('uk_'),
+        `${definition.entityName}.${index.name} unique index name must use uk_ prefix.`,
+      );
+    }
+    if (index.name.startsWith('uk_')) {
+      assert.equal(
+        index.unique,
+        true,
+        `${definition.entityName}.${index.name} uk_ index must declare unique: true.`,
+      );
+    }
+    assert(
+      index.columns.length > 0,
+      `${definition.entityName}.${index.name} index must reference at least one column.`,
+    );
+    for (const indexColumn of index.columns) {
+      assert(
+        columnNames.has(indexColumn),
+        `${definition.entityName}.${index.name} index references unknown column "${indexColumn}".`,
+      );
+    }
+  }
 }
 
 const workspaceColumnNames = collectColumnNames('workspace');
@@ -79,7 +137,7 @@ for (const requiredColumn of [
   'leader_id',
   'author',
   'file_id',
-  'cover_image_json',
+  'cover_image',
   'start_time',
   'end_time',
   'budget_amount',

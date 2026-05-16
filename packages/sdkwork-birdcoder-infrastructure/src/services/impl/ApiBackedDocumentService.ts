@@ -1,21 +1,21 @@
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderProjectDocumentSummary,
 } from '@sdkwork/birdcoder-types';
 import type { IDocumentService } from '../interfaces/IDocumentService.ts';
+import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
 
 export interface ApiBackedDocumentServiceOptions {
-  client: BirdCoderAppAdminApiClient;
+  appClient: BirdCoderAppSdkApiClient;
 }
 
 export class ApiBackedDocumentService implements IDocumentService {
-  private readonly client: BirdCoderAppAdminApiClient;
+  private readonly appClient: BirdCoderAppSdkApiClient;
 
-  constructor({ client }: ApiBackedDocumentServiceOptions) {
-    this.client = client;
+  constructor({ appClient }: ApiBackedDocumentServiceOptions) {
+    this.appClient = appClient;
   }
 
   async getDocuments(): Promise<BirdCoderProjectDocumentSummary[]> {
-    return this.client.listDocuments();
+    return this.appClient.listDocuments();
   }
 }

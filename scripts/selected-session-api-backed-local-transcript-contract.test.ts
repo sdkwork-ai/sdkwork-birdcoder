@@ -1,10 +1,10 @@
+import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { ApiBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderProject,
@@ -126,11 +126,11 @@ const writeService = {
 } satisfies IProjectService;
 
 const service = new ApiBackedProjectService({
-  client: {
+  appClient: {
     async listProjects() {
       throw new Error('remote project list should not be called for local transcript hydration');
     },
-  } as unknown as BirdCoderAppAdminApiClient,
+  } as unknown as BirdCoderAppSdkApiClient,
   writeService,
 });
 

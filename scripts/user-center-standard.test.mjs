@@ -25,29 +25,29 @@ assert.equal(
   'BirdCoder must expose the Rust-side validation contract as a first-class root script.',
 );
 assert.equal(
-  rootPackageJson.scripts['test:identity-seed-parity-contract'],
-  'node scripts/identity-seed-parity-contract.test.mjs',
+  rootPackageJson.scripts['test:iam-seed-parity-contract'],
+  'node scripts/iam-seed-parity-contract.test.mjs',
   'BirdCoder must expose the seed parity contract as a first-class root script.',
 );
 assert.match(
-  rootPackageJson.scripts['check:identity-standard'] ?? '',
-  /birdcoder-identity-standard-contract\.test\.mjs/,
-  'BirdCoder identity standard must keep the shared identity contract in the standard lane.',
+  rootPackageJson.scripts['check:iam-standard'] ?? '',
+  /birdcoder-iam-appbase-parity-contract\.test\.mjs/,
+  'BirdCoder IAM standard must keep the shared appbase parity contract in the standard lane.',
 );
 assert.match(
-  rootPackageJson.scripts['check:identity-standard'] ?? '',
-  /identity-command-matrix-contract\.test\.mjs/,
-  'BirdCoder identity standard must keep the identity command matrix contract in the standard lane.',
+  rootPackageJson.scripts['check:iam-standard'] ?? '',
+  /iam-command-matrix-contract\.test\.mjs/,
+  'BirdCoder IAM standard must keep the IAM command matrix contract in the standard lane.',
 );
 assert.match(
-  rootPackageJson.scripts['check:identity-standard'] ?? '',
+  rootPackageJson.scripts['check:iam-standard'] ?? '',
   /user-center-plus-entity-standard-contract\.test\.mjs/,
-  'BirdCoder identity standard must keep the user-center plus entity contract in the standard lane.',
+  'BirdCoder IAM standard must keep the user-center plus entity contract in the standard lane.',
 );
 assert.match(
-  rootPackageJson.scripts['check:identity-standard'] ?? '',
+  rootPackageJson.scripts['check:iam-standard'] ?? '',
   /user-center-plugin-contract\.test\.ts/,
-  'BirdCoder identity standard must keep the user-center plugin contract in the standard lane.',
+  'BirdCoder IAM standard must keep the user-center plugin contract in the standard lane.',
 );
 
 const governedSubchecks = [
@@ -56,8 +56,8 @@ const governedSubchecks = [
     args: ['scripts/runtime-user-center-bridge-contract.test.mjs'],
   },
   {
-    label: 'birdcoder identity standard contract',
-    args: ['scripts/birdcoder-identity-standard-contract.test.mjs'],
+    label: 'birdcoder IAM standard contract',
+    args: ['scripts/birdcoder-iam-appbase-parity-contract.test.mjs'],
   },
   {
     label: 'user-center plus entity standard contract',
@@ -68,16 +68,16 @@ const governedSubchecks = [
     args: ['--experimental-strip-types', 'scripts/user-center-plugin-contract.test.ts'],
   },
   {
-    label: 'identity command matrix contract',
-    args: ['scripts/identity-command-matrix-contract.test.mjs'],
+    label: 'IAM command matrix contract',
+    args: ['scripts/iam-command-matrix-contract.test.mjs'],
   },
   {
     label: 'rust user-center validation contract',
     args: ['scripts/birdcoder-rust-user-center-validation-contract.test.mjs'],
   },
   {
-    label: 'identity seed parity contract',
-    args: ['scripts/identity-seed-parity-contract.test.mjs'],
+    label: 'IAM seed parity contract',
+    args: ['scripts/iam-seed-parity-contract.test.mjs'],
   },
 ];
 

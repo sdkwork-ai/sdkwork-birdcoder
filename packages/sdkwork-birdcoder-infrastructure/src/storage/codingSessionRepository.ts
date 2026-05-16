@@ -589,14 +589,14 @@ function buildCodingSessionListByProjectIdsPlan(
         { column: 'id', direction: 'asc' },
       ],
       projectIds,
-      tableName: 'coding_sessions',
+      tableName: 'ai_coding_session',
     },
     providerId,
     statements: [
       {
         params: [defaultSoftDeleteValue(providerId), ...projectIds],
         sql:
-          `SELECT * FROM coding_sessions ` +
+          `SELECT * FROM ai_coding_session ` +
           `WHERE is_deleted = ${dialect.buildPlaceholder(1)} ` +
           `AND project_id IN (${buildPlaceholderList(providerId, 2, projectIds.length)}) ` +
           `ORDER BY updated_at DESC, id ASC;`,
@@ -621,14 +621,14 @@ function buildCodingSessionMessagesBySessionIdsPlan(
         { column: 'created_at', direction: 'asc' },
         { column: 'id', direction: 'asc' },
       ],
-      tableName: 'coding_session_messages',
+      tableName: 'ai_coding_session_message',
     },
     providerId,
     statements: [
       {
         params: [defaultSoftDeleteValue(providerId), ...codingSessionIds],
         sql:
-          `SELECT * FROM coding_session_messages ` +
+          `SELECT * FROM ai_coding_session_message ` +
           `WHERE is_deleted = ${dialect.buildPlaceholder(1)} ` +
           `AND coding_session_id IN (${buildPlaceholderList(providerId, 2, codingSessionIds.length)}) ` +
           `ORDER BY created_at ASC, id ASC;`,
@@ -650,7 +650,7 @@ function buildCodingSessionMessageMetadataBySessionIdsPlan(
       excludeDeleted: true,
       kind: 'coding-session-message-metadata-by-session-ids',
       nativeMessageIdSegment: CODEX_NATIVE_MESSAGE_ID_SEGMENT,
-      tableName: 'coding_session_messages',
+      tableName: 'ai_coding_session_message',
     },
     providerId,
     statements: [
@@ -665,7 +665,7 @@ function buildCodingSessionMessageMetadataBySessionIdsPlan(
           `COUNT(id) AS message_count, ` +
           `MAX(created_at) AS latest_transcript_updated_at, ` +
           `MAX(CASE WHEN id LIKE ${dialect.buildPlaceholder(1)} THEN created_at ELSE NULL END) AS native_transcript_updated_at ` +
-          `FROM coding_session_messages ` +
+          `FROM ai_coding_session_message ` +
           `WHERE is_deleted = ${dialect.buildPlaceholder(2)} ` +
           `AND coding_session_id IN (${buildPlaceholderList(providerId, 3, codingSessionIds.length)}) ` +
           `GROUP BY coding_session_id ` +
@@ -685,17 +685,17 @@ function buildCodingSessionMessagesDeleteByProjectIdsPlan(
     meta: {
       kind: 'coding-session-messages-delete-by-project-ids',
       projectIds,
-      sessionTableName: 'coding_sessions',
-      tableName: 'coding_session_messages',
+      sessionTableName: 'ai_coding_session',
+      tableName: 'ai_coding_session_message',
     },
     providerId,
     statements: [
       {
         params: [...projectIds],
         sql:
-          `DELETE FROM coding_session_messages ` +
+          `DELETE FROM ai_coding_session_message ` +
           `WHERE coding_session_id IN (` +
-          `SELECT id FROM coding_sessions ` +
+          `SELECT id FROM ai_coding_session ` +
           `WHERE project_id IN (${buildPlaceholderList(providerId, 1, projectIds.length)})` +
           `);`,
       },
@@ -713,14 +713,14 @@ function buildCodingSessionMessagesDeleteBySessionIdsPlan(
     meta: {
       codingSessionIds,
       kind: 'coding-session-messages-delete-by-session-ids',
-      tableName: 'coding_session_messages',
+      tableName: 'ai_coding_session_message',
     },
     providerId,
     statements: [
       {
         params: [...codingSessionIds],
         sql:
-          `DELETE FROM coding_session_messages ` +
+          `DELETE FROM ai_coding_session_message ` +
           `WHERE coding_session_id IN (${buildPlaceholderList(providerId, 1, codingSessionIds.length)});`,
       },
     ],
@@ -737,14 +737,14 @@ function buildCodingSessionsDeleteByProjectIdsPlan(
     meta: {
       kind: 'coding-session-delete-by-project-ids',
       projectIds,
-      tableName: 'coding_sessions',
+      tableName: 'ai_coding_session',
     },
     providerId,
     statements: [
       {
         params: [...projectIds],
         sql:
-          `DELETE FROM coding_sessions ` +
+          `DELETE FROM ai_coding_session ` +
           `WHERE project_id IN (${buildPlaceholderList(providerId, 1, projectIds.length)});`,
       },
     ],

@@ -1,21 +1,21 @@
 import type {
   BirdCoderAdminAuditEventSummary,
-  BirdCoderAppAdminApiClient,
 } from '@sdkwork/birdcoder-types';
 import type { IAuditService } from '../interfaces/IAuditService.ts';
+import type { BirdCoderBackendSdkApiClient } from '../sdkClients.ts';
 
 export interface ApiBackedAuditServiceOptions {
-  client: BirdCoderAppAdminApiClient;
+  backendClient: BirdCoderBackendSdkApiClient;
 }
 
 export class ApiBackedAuditService implements IAuditService {
-  private readonly client: BirdCoderAppAdminApiClient;
+  private readonly backendClient: BirdCoderBackendSdkApiClient;
 
-  constructor({ client }: ApiBackedAuditServiceOptions) {
-    this.client = client;
+  constructor({ backendClient }: ApiBackedAuditServiceOptions) {
+    this.backendClient = backendClient;
   }
 
   async getAuditEvents(): Promise<BirdCoderAdminAuditEventSummary[]> {
-    return this.client.listAuditEvents();
+    return this.backendClient.listAuditEvents();
   }
 }

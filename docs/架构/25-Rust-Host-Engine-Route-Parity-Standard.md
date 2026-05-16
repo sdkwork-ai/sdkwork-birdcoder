@@ -11,9 +11,9 @@ Rust host must prove that the live HTTP engine/model routes emit the same JSON t
 - Artifact generator:
   - `scripts/generate-rust-host-engine-catalog.ts`
 - Route parity rules:
-  - `GET /api/core/v1/engines` -> `items === generated.engines`
-  - `GET /api/core/v1/models` -> `items === generated.models`
-  - `GET /api/core/v1/engines/:engineKey/capabilities` -> `data === generated.engines[*].capabilityMatrix`
+  - `GET /app/v3/api/engines` -> `items === generated.engines`
+  - `GET /app/v3/api/models` -> `items === generated.models`
+  - `GET /app/v3/api/engines/:engineKey/capabilities` -> `data === generated.engines[*].capabilityMatrix`
   - `meta.version === CODING_SERVER_API_VERSION`
 - Serialization rule:
   - absent optionals must be omitted, not serialized as `null`

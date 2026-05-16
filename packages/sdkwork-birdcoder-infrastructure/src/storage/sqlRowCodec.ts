@@ -139,9 +139,12 @@ function coerceDataScopeValue(value: unknown): string | null {
     case 'PRIVATE':
       return 'PRIVATE';
     case '2':
-    case 'SHARED':
-      return 'SHARED';
+    case 'ORGANIZATION':
+      return 'ORGANIZATION';
     case '3':
+    case 'TENANT':
+      return 'TENANT';
+    case '4':
     case 'PUBLIC':
       return 'PUBLIC';
     default:

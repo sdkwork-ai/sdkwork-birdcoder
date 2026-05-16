@@ -6,29 +6,29 @@
 
 ## Goal
 
-Turn `GET /api/app/v1/documents` from a `not_implemented` placeholder into a real representative app-surface authority read, then wire the first shared facade and first consumer path without reopening already-closed core lanes.
+Turn `GET /app/v3/api/documents` from a `not_implemented` placeholder into a real representative app-surface authority read, then wire the first shared facade and first consumer path without reopening already-closed core lanes.
 
 ## Scope
 
 - `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
 - representative document authority slice on shared provider/UoW truth
 - `packages/sdkwork-birdcoder-types/src/server-api.ts`
-- default IDE app/admin service wiring for document reads
+- default IDE app/backend service wiring for document reads
 - first document-facing consumer in `packages/sdkwork-birdcoder-commons` or `packages/sdkwork-birdcoder-studio`
 - governance scripts and release-flow writeback
 
 ## Checkpoints
 
-- `CP17X-1` Rust host must stop returning `not_implemented` for `GET /api/app/v1/documents`.
+- `CP17X-1` Rust host must stop returning `not_implemented` for `GET /app/v3/api/documents`.
 - `CP17X-2` document catalog truth must come from one replayable authority path, not a page-local mock list.
-- `CP17X-3` the shared typed app/admin facade must promote `app.listDocuments` only after server behavior is real.
+- `CP17X-3` the shared typed app/backend facade must promote `app.listDocuments` only after server behavior is real.
 - `CP17X-4` one real consumer path must read documents through the shared service/facade instead of rebuilding the route locally.
-- `CP17X-5` docs/release must state which representative app/admin routes remain blocked after the document lane closes.
+- `CP17X-5` docs/release must state which representative app/backend routes remain blocked after the document lane closes.
 
 ## Verification
 
 - targeted Rust app-document route tests
-- generated app/admin facade contract for `app.listDocuments`
+- generated app/backend facade contract for `app.listDocuments`
 - provider-backed console contract for `project_documents`
 - first document consumer contracts
 - `pnpm.cmd run typecheck`
@@ -37,15 +37,15 @@ Turn `GET /api/app/v1/documents` from a `not_implemented` placeholder into a rea
 
 ## Result
 
-- Rust host now serves a real `GET /api/app/v1/documents` authority read route instead of `not_implemented`.
+- Rust host now serves a real `GET /app/v3/api/documents` authority read route instead of `not_implemented`.
 - Document catalog truth now converges on one replayable authority path in all current execution modes:
   - demo host: in-process `AppState.documents`
   - legacy sqlite `kv_store`: materialized into provider-side `project_documents`
   - direct sqlite provider: loaded from `project_documents`
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now promotes `app.listDocuments` into the shared generated app/admin facade through `listDocuments()`.
-- `appConsoleRepository.ts`, `appAdminConsoleQueries.ts`, and `appAdminApiClient.ts` now close the representative document repository/query/transport slice on top of shared provider truth.
+- `packages/sdkwork-birdcoder-types/src/server-api.ts` now promotes `app.listDocuments` into the shared generated app/backend facade through `listDocuments()`.
+- `appConsoleRepository.ts`, `consoleQueries.ts`, and `sdkClients.ts` now close the representative document repository/query/transport slice on top of shared provider truth.
 - `IDocumentService`, `ApiBackedDocumentService`, `createDefaultBirdCoderIdeServices()`, shared contexts, `loadDocuments()`, and `useDocuments()` now close the first document-facing consumer path on the shared facade boundary.
-- `check:release-flow` now executes document service and document consumer governance alongside the existing app/admin facade contracts.
+- `check:release-flow` now executes document service and document consumer governance alongside the existing app/backend facade contracts.
 
 ## Next Serial Path
 
@@ -55,6 +55,6 @@ Turn `GET /api/app/v1/documents` from a `not_implemented` placeholder into a rea
 
 ## Serial Notes
 
-1. This lane is serial because it changes representative app-surface route truth, shared app/admin facade governance, and consumer adoption together.
+1. This lane is serial because it changes representative app-surface route truth, shared app/backend facade governance, and consumer adoption together.
 2. Keep `app.listDeployments`, `admin.listAuditEvents`, `admin.listPolicies`, and `admin.listDeployments` blocked until their own real authority lanes close.
 3. Future reruns must preserve executable PostgreSQL smoke truth as `blocked`, `failed`, or `passed`; do not fabricate closure.

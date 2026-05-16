@@ -1,6 +1,6 @@
+import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import { ApiBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts';
@@ -19,7 +19,7 @@ const remoteProject = {
   status: 'active',
   createdAt,
   updatedAt: createdAt,
-} satisfies Awaited<ReturnType<BirdCoderAppAdminApiClient['createProject']>>;
+} satisfies Awaited<ReturnType<BirdCoderAppSdkApiClient['createProject']>>;
 
 let capturedEvidenceSnapshot:
   | Pick<BirdCoderProject, 'createdAt' | 'id' | 'path' | 'updatedAt'>
@@ -41,11 +41,11 @@ const writeService = {
 } as IProjectService;
 
 const service = new ApiBackedProjectService({
-  client: {
+  appClient: {
     async createProject() {
       return remoteProject;
     },
-  } as unknown as BirdCoderAppAdminApiClient,
+  } as unknown as BirdCoderAppSdkApiClient,
   writeService,
 });
 
@@ -63,15 +63,15 @@ assert.equal(project.id, 'project-authoritative-create');
 assert.equal(
   project.name,
   'Authoritative project',
-  'api-backed project service must expose project title as the UI display name while plus_project.name remains a unique business key.',
+  'api-backed project service must expose project title as the UI display name while studio_project.name remains a unique business key.',
 );
 
 const resilientService = new ApiBackedProjectService({
-  client: {
+  appClient: {
     async createProject() {
       return remoteProject;
     },
-  } as unknown as BirdCoderAppAdminApiClient,
+  } as unknown as BirdCoderAppSdkApiClient,
   writeService: {
     async recordProjectCreationEvidence(
       _projectId: string,

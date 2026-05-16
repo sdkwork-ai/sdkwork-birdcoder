@@ -1,10 +1,10 @@
+import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderProjectDocumentSummary,
 } from '@sdkwork/birdcoder-types';
 import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
-import { createAppAdminClientContractStub } from './app-admin-client-contract-stub.ts';
+import { createAppSdkClientContractStub, createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
 
 const documentFixtures: BirdCoderProjectDocumentSummary[] = [
   {
@@ -20,7 +20,7 @@ const documentFixtures: BirdCoderProjectDocumentSummary[] = [
 
 let listDocumentsCalls = 0;
 
-const appAdminClient: BirdCoderAppAdminApiClient = createAppAdminClientContractStub({
+const appClient: BirdCoderAppSdkApiClient = createAppSdkClientContractStub({
   async listDocuments() {
     listDocumentsCalls += 1;
     return documentFixtures;
@@ -28,7 +28,7 @@ const appAdminClient: BirdCoderAppAdminApiClient = createAppAdminClientContractS
 });
 
 const services = createDefaultBirdCoderIdeServices({
-  appAdminClient,
+  appClient,
 });
 
 const documents = await services.documentService.getDocuments();
@@ -36,13 +36,13 @@ const documents = await services.documentService.getDocuments();
 assert.deepEqual(
   documents,
   documentFixtures,
-  'default IDE services must expose document reads through the shared app/admin facade.',
+  'default IDE services must expose document reads through the shared app SDK facade.',
 );
 
 assert.equal(
   listDocumentsCalls,
   1,
-  'documentService must delegate exactly one read to BirdCoderAppAdminApiClient.listDocuments().',
+  'documentService must delegate exactly one read to BirdCoderAppSdkApiClient.listDocuments().',
 );
 
 console.log('default IDE services document service contract passed.');

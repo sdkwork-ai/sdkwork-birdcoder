@@ -6,7 +6,7 @@
 
 ## Goal
 
-Make actual Rust host `/api/core/v1/engines`, `/api/core/v1/engines/:engineKey/capabilities`, and `/api/core/v1/models` responses auditable against the generated shared engine-catalog artifact end-to-end, not only by shared-source adoption.
+Make actual Rust host `/app/v3/api/engines`, `/app/v3/api/engines/:engineKey/capabilities`, and `/app/v3/api/models` responses auditable against the generated shared engine-catalog artifact end-to-end, not only by shared-source adoption.
 
 ## Scope
 
@@ -20,9 +20,9 @@ Make actual Rust host `/api/core/v1/engines`, `/api/core/v1/engines/:engineKey/c
 
 ## Checkpoints
 
-- `CP18D-1` `/api/core/v1/engines` must return `items` exactly equal to generated `engines`.
-- `CP18D-2` `/api/core/v1/models` must return `items` exactly equal to generated `models`.
-- `CP18D-3` `/api/core/v1/engines/:engineKey/capabilities` must return `data` exactly equal to the matching generated `capabilityMatrix`.
+- `CP18D-1` `/app/v3/api/engines` must return `items` exactly equal to generated `engines`.
+- `CP18D-2` `/app/v3/api/models` must return `items` exactly equal to generated `models`.
+- `CP18D-3` `/app/v3/api/engines/:engineKey/capabilities` must return `data` exactly equal to the matching generated `capabilityMatrix`.
 - `CP18D-4` optional engine/model fields must preserve artifact JSON shape; `null` placeholders must not reappear on the Rust route surface.
 - `CP18D-5` route-parity verification must be part of release-blocking governance.
 
@@ -31,9 +31,9 @@ Make actual Rust host `/api/core/v1/engines`, `/api/core/v1/engines/:engineKey/c
 - Rust host now exposes an executable route-parity test:
   - `core_engine_catalog_routes_match_generated_shared_engine_catalog`
 - That test proves:
-  - `/api/core/v1/engines` equals generated `engines`
-  - `/api/core/v1/models` equals generated `models`
-  - each `/api/core/v1/engines/:engineKey/capabilities` response equals the corresponding generated `capabilityMatrix`
+  - `/app/v3/api/engines` equals generated `engines`
+  - `/app/v3/api/models` equals generated `models`
+  - each `/app/v3/api/engines/:engineKey/capabilities` response equals the corresponding generated `capabilityMatrix`
 - Rust route payload structs now omit absent optionals so route JSON stays byte-shape compatible with the generated artifact:
   - `EngineDescriptorPayload.default_model_id`
   - `EngineDescriptorPayload.homepage`

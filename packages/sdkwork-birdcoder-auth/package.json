@@ -12,16 +12,16 @@
     }
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "node ../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
     "@babel/runtime": "catalog:",
-    "@sdkwork/auth-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react",
+    "@sdkwork/auth-pc-react": "workspace:*",
     "@sdkwork/birdcoder-commons": "workspace:*",
     "@sdkwork/birdcoder-core": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
-    "@sdkwork/ui-pc-react": "file:../../../sdkwork-ui/sdkwork-ui-pc-react",
-    "@sdkwork/user-center-pc-react": "link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react",
+    "@sdkwork/ui-pc-react": "workspace:*",
+    "@sdkwork/user-center-pc-react": "workspace:*",
     "react-i18next": "catalog:"
   },
   "peerDependencies": {

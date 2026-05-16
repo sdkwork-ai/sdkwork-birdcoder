@@ -9,8 +9,6 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 mod native_sessions;
-mod user_center;
-mod user_center_validation;
 
 use axum::{
     extract::{
@@ -42,34 +40,24 @@ use sdkwork_birdcoder_git::{
     remove_project_git_worktree, switch_project_git_branch, GitMutationError, GitProjectOverview,
 };
 use sdkwork_user_center_native::{
-    USER_CENTER_AUTH_CONFIG_PATH, USER_CENTER_AUTH_EMAIL_LOGIN_PATH, USER_CENTER_AUTH_LOGIN_PATH,
-    USER_CENTER_AUTH_LOGOUT_PATH, USER_CENTER_AUTH_PASSWORD_RESET_PATH,
-    USER_CENTER_AUTH_PASSWORD_RESET_REQUEST_PATH, USER_CENTER_AUTH_PHONE_LOGIN_PATH,
-    USER_CENTER_AUTH_REGISTER_PATH, USER_CENTER_AUTH_SESSION_EXCHANGE_PATH,
-    USER_CENTER_AUTH_SESSION_PATH, USER_CENTER_AUTH_VERIFY_SEND_PATH,
-    USER_CENTER_USER_PROFILE_PATH, USER_CENTER_VIP_INFO_PATH,
+    ensure_sqlite_user_center_bootstrap_user, ensure_sqlite_user_center_schema,
+    UpdateUserCenterProfileRequest, UpdateUserCenterVipMembershipRequest,
+    UserCenterLoginQrCodePayload, UserCenterLoginQrConfirmRequest,
+    UserCenterLoginQrStatusPayload, UserCenterLoginRequest, UserCenterMetadataPayload,
+    UserCenterOAuthAuthorizationRequest, UserCenterOAuthLoginRequest, UserCenterOAuthUrlPayload,
+    UserCenterPasswordResetChallengeRequest, UserCenterPasswordResetRequest,
+    UserCenterProfilePayload, UserCenterRegisterRequest,
+    UserCenterSendVerifyCodeRequest, UserCenterSessionExchangeRequest, UserCenterSessionPayload,
+    UserCenterState, UserCenterVipMembershipPayload, USER_CENTER_AUTHORIZATION_SCHEME,
+    USER_CENTER_SESSION_HEADER_NAME, USER_CENTER_ACCESS_TOKEN_HEADER_NAME,
+    USER_CENTER_APP_ID_HEADER_NAME, USER_CENTER_HANDSHAKE_MODE_HEADER_NAME,
+    USER_CENTER_PROVIDER_KEY_HEADER_NAME, USER_CENTER_SECRET_ID_HEADER_NAME,
+    USER_CENTER_SIGNATURE_HEADER_NAME, USER_CENTER_SIGNED_AT_HEADER_NAME,
 };
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::json;
 use tokio::sync::broadcast;
 use tower_http::cors::{AllowOrigin, CorsLayer};
-use user_center::{
-    ensure_sqlite_user_center_bootstrap_user, ensure_sqlite_user_center_schema,
-    UpdateUserCenterProfileRequest, UpdateUserCenterVipMembershipRequest,
-    UserCenterEmailCodeLoginRequest, UserCenterLoginQrCodePayload, UserCenterLoginQrConfirmRequest,
-    UserCenterLoginQrStatusPayload, UserCenterLoginRequest, UserCenterMetadataPayload,
-    UserCenterOAuthAuthorizationRequest, UserCenterOAuthLoginRequest, UserCenterOAuthUrlPayload,
-    UserCenterPasswordResetChallengeRequest, UserCenterPasswordResetRequest,
-    UserCenterPhoneCodeLoginRequest, UserCenterProfilePayload, UserCenterRegisterRequest,
-    UserCenterSendVerifyCodeRequest, UserCenterSessionExchangeRequest, UserCenterSessionPayload,
-    UserCenterState, UserCenterVipMembershipPayload, BIRDCODER_AUTHORIZATION_SCHEME,
-    BIRDCODER_SESSION_HEADER_NAME,
-};
-use user_center_validation::{
-    USER_CENTER_APP_ID_HEADER_NAME, USER_CENTER_HANDSHAKE_MODE_HEADER_NAME,
-    USER_CENTER_PROVIDER_KEY_HEADER_NAME, USER_CENTER_SECRET_ID_HEADER_NAME,
-    USER_CENTER_SIGNATURE_HEADER_NAME, USER_CENTER_SIGNED_AT_HEADER_NAME,
-};
 use uuid::Uuid;
 
 pub const BIRD_SERVER_DEFAULT_HOST: &str = "127.0.0.1";
@@ -80,53 +68,64 @@ pub const CODING_SERVER_API_VERSION: &str = "v1";
 pub const CODING_SERVER_OPENAPI_PATH: &str = "/openapi/coding-server-v1.json";
 pub const CODING_SERVER_LIVE_OPENAPI_PATH: &str = "/openapi.json";
 pub const CODING_SERVER_DOCS_PATH: &str = "/docs";
-pub const CODING_SERVER_GATEWAY_BASE_PATH: &str = "/api";
-pub const CODING_SERVER_CORE_API_PREFIX: &str = "/api/core/v1";
-pub const CODING_SERVER_APP_API_PREFIX: &str = "/api/app/v1";
-pub const CODING_SERVER_ADMIN_API_PREFIX: &str = "/api/admin/v1";
-pub const CODING_SERVER_ROUTE_CATALOG_PATH: &str = "/api/core/v1/routes";
+pub const CODING_SERVER_APP_API_PREFIX: &str = "/app/v3/api";
+pub const CODING_SERVER_BACKEND_API_PREFIX: &str = "/backend/v3/api";
+pub const CODING_SERVER_ROUTE_CATALOG_PATH: &str = "/app/v3/api/system/routes";
 pub const BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV: &str = "BIRDCODER_CODING_SERVER_SQLITE_FILE";
 pub const BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT_ENV: &str =
     "BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT";
 pub const BIRDCODER_CODING_SERVER_SNAPSHOT_FILE_ENV: &str = "BIRDCODER_CODING_SERVER_SNAPSHOT_FILE";
 pub const BIRDCODER_CODING_SERVER_ALLOWED_ORIGINS_ENV: &str =
     "BIRDCODER_CODING_SERVER_ALLOWED_ORIGINS";
-const USER_CENTER_AUTH_QR_GENERATE_PATH: &str = "/api/app/v1/auth/qr/generate";
-const USER_CENTER_AUTH_QR_STATUS_PATH: &str = "/api/app/v1/auth/qr/status/{qr_key}";
-const USER_CENTER_AUTH_QR_ENTRY_PATH: &str = "/api/app/v1/auth/qr/entry/{qr_key}";
-const USER_CENTER_AUTH_QR_CALLBACK_PATH: &str = "/api/app/v1/auth/qr/callback/{qr_key}";
-const USER_CENTER_AUTH_QR_CONFIRM_PATH: &str = "/api/app/v1/auth/qr/confirm";
-const USER_CENTER_AUTH_OAUTH_URL_PATH: &str = "/api/app/v1/auth/oauth/url";
-const USER_CENTER_AUTH_OAUTH_LOGIN_PATH: &str = "/api/app/v1/auth/oauth/login";
+const USER_CENTER_AUTH_CONFIG_PATH: &str = "/app/v3/api/auth/config";
+const USER_CENTER_AUTH_SESSION_PATH: &str = "/app/v3/api/auth/sessions/current";
+const USER_CENTER_AUTH_LOGIN_PATH: &str = "/app/v3/api/auth/sessions";
+const USER_CENTER_AUTH_LOGOUT_PATH: &str = "/app/v3/api/auth/sessions/current";
+const USER_CENTER_AUTH_SESSION_EXCHANGE_PATH: &str = "/app/v3/api/auth/session_exchanges";
+const USER_CENTER_AUTH_REGISTER_PATH: &str = "/app/v3/api/auth/registrations";
+const USER_CENTER_AUTH_VERIFICATION_CODES_PATH: &str = "/app/v3/api/auth/verification_codes";
+const USER_CENTER_AUTH_PASSWORD_RESET_REQUEST_PATH: &str =
+    "/app/v3/api/auth/password_reset_requests";
+const USER_CENTER_AUTH_PASSWORD_RESET_PATH: &str = "/app/v3/api/auth/password_resets";
+const USER_CENTER_AUTH_QR_GENERATE_PATH: &str = "/app/v3/api/auth/qr_login_codes";
+const USER_CENTER_AUTH_QR_LOGIN_CODE_PATH: &str = "/app/v3/api/auth/qr_login_codes/{qrKey}";
+const USER_CENTER_AUTH_QR_ENTRY_PATH: &str = "/app/v3/api/auth/qr_login_codes/{qrKey}/entry";
+const USER_CENTER_AUTH_QR_CALLBACK_PATH: &str =
+    "/app/v3/api/auth/qr_login_codes/{qrKey}/callback";
+const USER_CENTER_AUTH_QR_CONFIRM_PATH: &str = "/app/v3/api/auth/qr_login_codes/confirm";
+const USER_CENTER_AUTH_OAUTH_URL_PATH: &str = "/app/v3/api/auth/oauth_authorization_urls";
+const USER_CENTER_AUTH_OAUTH_LOGIN_PATH: &str = "/app/v3/api/auth/oauth_sessions";
+const USER_CENTER_USER_PROFILE_PATH: &str = "/app/v3/api/iam/users/current";
+const USER_CENTER_BILLING_VIP_MEMBERSHIP_PATH: &str = "/app/v3/api/billing/vip/info";
 const BIRDCODER_USER_CENTER_SESSION_TOKEN_STORAGE_KEY: &str =
     "sdkwork-birdcoder.user-center.session-token";
 
-const PROVIDER_CODING_SESSIONS_TABLE: &str = "coding_sessions";
-const PROVIDER_CODING_SESSION_RUNTIMES_TABLE: &str = "coding_session_runtimes";
-const PROVIDER_CODING_SESSION_TURNS_TABLE: &str = "coding_session_turns";
-const PROVIDER_CODING_SESSION_EVENTS_TABLE: &str = "coding_session_events";
-const PROVIDER_CODING_SESSION_ARTIFACTS_TABLE: &str = "coding_session_artifacts";
-const PROVIDER_CODING_SESSION_CHECKPOINTS_TABLE: &str = "coding_session_checkpoints";
-const PROVIDER_CODING_SESSION_OPERATIONS_TABLE: &str = "coding_session_operations";
-const PROVIDER_WORKSPACES_TABLE: &str = "plus_workspace";
-const PROVIDER_PROJECTS_TABLE: &str = "plus_project";
-const PROVIDER_SKILL_PACKAGES_TABLE: &str = "skill_packages";
-const PROVIDER_SKILL_VERSIONS_TABLE: &str = "skill_versions";
-const PROVIDER_SKILL_CAPABILITIES_TABLE: &str = "skill_capabilities";
-const PROVIDER_SKILL_INSTALLATIONS_TABLE: &str = "skill_installations";
-const PROVIDER_APP_TEMPLATES_TABLE: &str = "app_templates";
-const PROVIDER_APP_TEMPLATE_VERSIONS_TABLE: &str = "app_template_versions";
-const PROVIDER_APP_TEMPLATE_TARGET_PROFILES_TABLE: &str = "app_template_target_profiles";
-const PROVIDER_APP_TEMPLATE_PRESETS_TABLE: &str = "app_template_presets";
-const PROVIDER_APP_TEMPLATE_INSTANTIATIONS_TABLE: &str = "app_template_instantiations";
-const PROVIDER_PROJECT_DOCUMENTS_TABLE: &str = "project_documents";
-const PROVIDER_DEPLOYMENT_TARGETS_TABLE: &str = "deployment_targets";
-const PROVIDER_DEPLOYMENT_RECORDS_TABLE: &str = "deployment_records";
-const PROVIDER_TEAMS_TABLE: &str = "teams";
-const PROVIDER_TEAM_MEMBERS_TABLE: &str = "team_members";
-const PROVIDER_RELEASE_RECORDS_TABLE: &str = "release_records";
-const PROVIDER_AUDIT_EVENTS_TABLE: &str = "audit_events";
-const PROVIDER_GOVERNANCE_POLICIES_TABLE: &str = "governance_policies";
+const PROVIDER_CODING_SESSIONS_TABLE: &str = "ai_coding_session";
+const PROVIDER_CODING_SESSION_RUNTIMES_TABLE: &str = "ai_coding_session_runtime";
+const PROVIDER_CODING_SESSION_TURNS_TABLE: &str = "ai_coding_session_turn";
+const PROVIDER_CODING_SESSION_EVENTS_TABLE: &str = "ai_coding_session_event";
+const PROVIDER_CODING_SESSION_ARTIFACTS_TABLE: &str = "ai_coding_session_artifact";
+const PROVIDER_CODING_SESSION_CHECKPOINTS_TABLE: &str = "ai_coding_session_checkpoint";
+const PROVIDER_CODING_SESSION_OPERATIONS_TABLE: &str = "ai_coding_session_operation";
+const PROVIDER_WORKSPACES_TABLE: &str = "studio_workspace";
+const PROVIDER_PROJECTS_TABLE: &str = "studio_project";
+const PROVIDER_SKILL_PACKAGES_TABLE: &str = "ai_skill_package";
+const PROVIDER_SKILL_VERSIONS_TABLE: &str = "ai_skill_version";
+const PROVIDER_SKILL_CAPABILITIES_TABLE: &str = "ai_skill_capability";
+const PROVIDER_SKILL_INSTALLATIONS_TABLE: &str = "ai_skill_installation";
+const PROVIDER_APP_TEMPLATES_TABLE: &str = "studio_app_template";
+const PROVIDER_APP_TEMPLATE_VERSIONS_TABLE: &str = "studio_app_template_version";
+const PROVIDER_APP_TEMPLATE_TARGET_PROFILES_TABLE: &str = "studio_app_template_target_profile";
+const PROVIDER_APP_TEMPLATE_PRESETS_TABLE: &str = "studio_app_template_preset";
+const PROVIDER_APP_TEMPLATE_INSTANTIATIONS_TABLE: &str = "studio_app_template_instantiation";
+const PROVIDER_PROJECT_DOCUMENTS_TABLE: &str = "studio_project_document";
+const PROVIDER_DEPLOYMENT_TARGETS_TABLE: &str = "studio_deployment_target";
+const PROVIDER_DEPLOYMENT_RECORDS_TABLE: &str = "studio_deployment_record";
+const PROVIDER_TEAMS_TABLE: &str = "studio_team";
+const PROVIDER_TEAM_MEMBERS_TABLE: &str = "studio_team_member";
+const PROVIDER_RELEASE_RECORDS_TABLE: &str = "ops_release_record";
+const PROVIDER_AUDIT_EVENTS_TABLE: &str = "ops_audit_event";
+const PROVIDER_GOVERNANCE_POLICIES_TABLE: &str = "ops_governance_policy";
 const BOOTSTRAP_WORKSPACE_ID: &str = "100000000000000101";
 const BOOTSTRAP_WORKSPACE_NAME: &str = "Default Workspace";
 const BOOTSTRAP_WORKSPACE_DESCRIPTION: &str = "Primary local workspace for BirdCoder.";
@@ -149,7 +148,7 @@ const TAURI_LOCALHOST_ORIGIN: &str = "tauri://localhost";
 const TAURI_WEBVIEW_HTTP_ORIGIN: &str = "http://tauri.localhost";
 const TAURI_WEBVIEW_HTTPS_ORIGIN: &str = "https://tauri.localhost";
 const SQLITE_PROVIDER_AUTHORITY_SCHEMA: &str = r#"
-CREATE TABLE IF NOT EXISTS coding_sessions (
+CREATE TABLE IF NOT EXISTS ai_coding_session (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     created_at TEXT NOT NULL,
@@ -173,7 +172,7 @@ CREATE TABLE IF NOT EXISTS coding_sessions (
     unread INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS coding_session_messages (
+CREATE TABLE IF NOT EXISTS ai_coding_session_message (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     created_at TEXT NOT NULL,
@@ -194,7 +193,7 @@ CREATE TABLE IF NOT EXISTS coding_session_messages (
     task_progress_json TEXT NULL
 );
 
-CREATE TABLE IF NOT EXISTS coding_session_runtimes (
+CREATE TABLE IF NOT EXISTS ai_coding_session_runtime (
     id TEXT PRIMARY KEY,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -212,7 +211,7 @@ CREATE TABLE IF NOT EXISTS coding_session_runtimes (
     metadata_json TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS coding_session_turns (
+CREATE TABLE IF NOT EXISTS ai_coding_session_turn (
     id TEXT PRIMARY KEY,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -227,7 +226,7 @@ CREATE TABLE IF NOT EXISTS coding_session_turns (
     completed_at TEXT NULL
 );
 
-CREATE TABLE IF NOT EXISTS coding_session_events (
+CREATE TABLE IF NOT EXISTS ai_coding_session_event (
     id TEXT PRIMARY KEY,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -241,7 +240,7 @@ CREATE TABLE IF NOT EXISTS coding_session_events (
     payload_json TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS coding_session_artifacts (
+CREATE TABLE IF NOT EXISTS ai_coding_session_artifact (
     id TEXT PRIMARY KEY,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -255,7 +254,7 @@ CREATE TABLE IF NOT EXISTS coding_session_artifacts (
     metadata_json TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS coding_session_checkpoints (
+CREATE TABLE IF NOT EXISTS ai_coding_session_checkpoint (
     id TEXT PRIMARY KEY,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -268,7 +267,7 @@ CREATE TABLE IF NOT EXISTS coding_session_checkpoints (
     state_json TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS coding_session_operations (
+CREATE TABLE IF NOT EXISTS ai_coding_session_operation (
     id TEXT PRIMARY KEY,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -282,7 +281,7 @@ CREATE TABLE IF NOT EXISTS coding_session_operations (
     artifact_refs_json TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS coding_session_prompt_entries (
+CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry (
     id TEXT PRIMARY KEY,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -295,19 +294,19 @@ CREATE TABLE IF NOT EXISTS coding_session_prompt_entries (
     use_count INTEGER NOT NULL DEFAULT 1
 );
 
-CREATE INDEX IF NOT EXISTS idx_coding_sessions_project_updated
-ON coding_sessions(project_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_project_updated
+ON ai_coding_session(project_id, updated_at);
 
-CREATE INDEX IF NOT EXISTS idx_coding_session_messages_session_created
-ON coding_session_messages(coding_session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_message_session_created
+ON ai_coding_session_message(coding_session_id, created_at);
 
-CREATE INDEX IF NOT EXISTS idx_coding_session_prompt_entries_session_last_used
-ON coding_session_prompt_entries(coding_session_id, last_used_at);
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_prompt_entry_session_last_used
+ON ai_coding_session_prompt_entry(coding_session_id, last_used_at);
 
-CREATE UNIQUE INDEX IF NOT EXISTS uk_coding_session_prompt_entries_session_normalized_prompt
-ON coding_session_prompt_entries(coding_session_id, normalized_prompt_text);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_prompt_entry_session_normalized_prompt
+ON ai_coding_session_prompt_entry(coding_session_id, normalized_prompt_text);
 
-CREATE TABLE IF NOT EXISTS saved_prompt_entries (
+CREATE TABLE IF NOT EXISTS ai_saved_prompt_entry (
     id TEXT PRIMARY KEY,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -319,13 +318,13 @@ CREATE TABLE IF NOT EXISTS saved_prompt_entries (
     use_count INTEGER NOT NULL DEFAULT 1
 );
 
-CREATE INDEX IF NOT EXISTS idx_saved_prompt_entries_last_saved
-ON saved_prompt_entries(last_saved_at);
+CREATE INDEX IF NOT EXISTS idx_ai_saved_prompt_entry_last_saved
+ON ai_saved_prompt_entry(last_saved_at);
 
-CREATE UNIQUE INDEX IF NOT EXISTS uk_saved_prompt_entries_normalized_prompt
-ON saved_prompt_entries(normalized_prompt_text);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_saved_prompt_entry_normalized_prompt
+ON ai_saved_prompt_entry(normalized_prompt_text);
 
-CREATE TABLE IF NOT EXISTS plus_workspace (
+CREATE TABLE IF NOT EXISTS studio_workspace (
     id INTEGER PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -358,7 +357,7 @@ CREATE TABLE IF NOT EXISTS plus_workspace (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS plus_project (
+CREATE TABLE IF NOT EXISTS studio_project (
     id INTEGER PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
@@ -393,13 +392,13 @@ CREATE TABLE IF NOT EXISTS plus_project (
     is_template INTEGER NOT NULL
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_project_name
-ON plus_project(name);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_name
+ON studio_project(name);
 
-CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_project_code
-ON plus_project(code);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_code
+ON studio_project(code);
 
-CREATE TABLE IF NOT EXISTS plus_project_content (
+CREATE TABLE IF NOT EXISTS studio_project_content (
     id INTEGER PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
@@ -419,13 +418,13 @@ CREATE TABLE IF NOT EXISTS plus_project_content (
     content_hash TEXT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_plus_project_content_project_id
-ON plus_project_content(project_id);
+CREATE INDEX IF NOT EXISTS idx_studio_project_content_project_id
+ON studio_project_content(project_id);
 
-CREATE INDEX IF NOT EXISTS idx_plus_project_content_project_uuid
-ON plus_project_content(project_uuid);
+CREATE INDEX IF NOT EXISTS idx_studio_project_content_project_uuid
+ON studio_project_content(project_uuid);
 
-CREATE TABLE IF NOT EXISTS skill_packages (
+CREATE TABLE IF NOT EXISTS ai_skill_package (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -440,7 +439,7 @@ CREATE TABLE IF NOT EXISTS skill_packages (
     manifest_json TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS skill_versions (
+CREATE TABLE IF NOT EXISTS ai_skill_version (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -455,7 +454,7 @@ CREATE TABLE IF NOT EXISTS skill_versions (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS skill_capabilities (
+CREATE TABLE IF NOT EXISTS ai_skill_capability (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -470,7 +469,7 @@ CREATE TABLE IF NOT EXISTS skill_capabilities (
     payload_json TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS skill_installations (
+CREATE TABLE IF NOT EXISTS ai_skill_installation (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -486,7 +485,7 @@ CREATE TABLE IF NOT EXISTS skill_installations (
     installed_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS app_templates (
+CREATE TABLE IF NOT EXISTS studio_app_template (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -501,7 +500,7 @@ CREATE TABLE IF NOT EXISTS app_templates (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS app_template_versions (
+CREATE TABLE IF NOT EXISTS studio_app_template_version (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -516,7 +515,7 @@ CREATE TABLE IF NOT EXISTS app_template_versions (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS app_template_target_profiles (
+CREATE TABLE IF NOT EXISTS studio_app_template_target_profile (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -532,7 +531,7 @@ CREATE TABLE IF NOT EXISTS app_template_target_profiles (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS app_template_presets (
+CREATE TABLE IF NOT EXISTS studio_app_template_preset (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -547,7 +546,7 @@ CREATE TABLE IF NOT EXISTS app_template_presets (
     payload_json TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS app_template_instantiations (
+CREATE TABLE IF NOT EXISTS studio_app_template_instantiation (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -563,7 +562,7 @@ CREATE TABLE IF NOT EXISTS app_template_instantiations (
     output_root TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS project_documents (
+CREATE TABLE IF NOT EXISTS studio_project_document (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -580,7 +579,7 @@ CREATE TABLE IF NOT EXISTS project_documents (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS deployment_targets (
+CREATE TABLE IF NOT EXISTS studio_deployment_target (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -596,7 +595,7 @@ CREATE TABLE IF NOT EXISTS deployment_targets (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS deployment_records (
+CREATE TABLE IF NOT EXISTS studio_deployment_record (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -614,7 +613,7 @@ CREATE TABLE IF NOT EXISTS deployment_records (
     completed_at TEXT NULL
 );
 
-CREATE TABLE IF NOT EXISTS teams (
+CREATE TABLE IF NOT EXISTS studio_team (
     id INTEGER PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -635,7 +634,7 @@ CREATE TABLE IF NOT EXISTS teams (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS team_members (
+CREATE TABLE IF NOT EXISTS studio_team_member (
     id INTEGER PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -652,7 +651,7 @@ CREATE TABLE IF NOT EXISTS team_members (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS workspace_members (
+CREATE TABLE IF NOT EXISTS studio_workspace_member (
     id INTEGER PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -670,7 +669,7 @@ CREATE TABLE IF NOT EXISTS workspace_members (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS project_collaborators (
+CREATE TABLE IF NOT EXISTS studio_project_collaborator (
     id INTEGER PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -689,7 +688,7 @@ CREATE TABLE IF NOT EXISTS project_collaborators (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS release_records (
+CREATE TABLE IF NOT EXISTS ops_release_record (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -705,7 +704,7 @@ CREATE TABLE IF NOT EXISTS release_records (
     status TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS audit_events (
+CREATE TABLE IF NOT EXISTS ops_audit_event (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -720,7 +719,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
     payload_json TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS governance_policies (
+CREATE TABLE IF NOT EXISTS ops_governance_policy (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -785,28 +784,26 @@ struct DescriptorPayload {
     host_mode: &'static str,
     module_id: &'static str,
     open_api_path: &'static str,
-    surfaces: [&'static str; 3],
+    surfaces: [&'static str; 2],
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct GatewayDescriptorPayload {
-    base_path: &'static str,
     docs_path: &'static str,
     live_open_api_path: &'static str,
     open_api_path: &'static str,
     route_catalog_path: &'static str,
     route_count: usize,
     routes_by_surface: GatewayRoutesBySurfacePayload,
-    surfaces: [GatewaySurfaceDescriptorPayload; 3],
+    surfaces: [GatewaySurfaceDescriptorPayload; 2],
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct GatewayRoutesBySurfacePayload {
-    admin: usize,
     app: usize,
-    core: usize,
+    backend: usize,
 }
 
 #[derive(Serialize)]
@@ -2115,7 +2112,7 @@ struct AppState {
 }
 
 #[derive(Clone)]
-struct AppAdminReadState {
+struct ConsoleReadState {
     audits: Vec<AuditPayload>,
     deployments: Vec<DeploymentPayload>,
     targets: Vec<DeploymentTargetPayload>,
@@ -2188,22 +2185,20 @@ struct OpenApiGatewaySurface {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct OpenApiGatewayRoutesBySurface {
-    admin: usize,
     app: usize,
-    core: usize,
+    backend: usize,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct OpenApiGatewayMetadata {
-    base_path: &'static str,
     versioned_open_api_paths: [&'static str; 1],
     docs_path: &'static str,
     live_open_api_path: &'static str,
     route_catalog_path: &'static str,
     route_count: usize,
     routes_by_surface: OpenApiGatewayRoutesBySurface,
-    surfaces: [OpenApiGatewaySurface; 3],
+    surfaces: [OpenApiGatewaySurface; 2],
 }
 
 #[derive(Serialize)]
@@ -2244,21 +2239,96 @@ struct RouteSpec {
 
 fn surface_description(surface: &str) -> &'static str {
     match surface {
-        "core" => "Core coding runtime, engine catalog, session execution, and operation control.",
-        "app" => "Application-facing workspace, project, collaboration, and user-center routes.",
-        "admin" => {
-            "Administrative governance, audit, release, deployment, and team-management routes."
+        "app" => {
+            "Application-facing coding runtime, workspace, project, collaboration, and user-center routes."
         }
+        "backend" => "Backend governance, audit, release, deployment, and team-management routes.",
         _ => "Unified BirdCoder API surface.",
     }
 }
 
+fn openapi_tag_description(tag: &str) -> &'static str {
+    match tag {
+        "audit" => "Audit and operational evidence resources.",
+        "auth" => "Appbase IAM authentication and session resources.",
+        "billing" => "Membership, VIP, and billing-facing app resources.",
+        "coding" => "Coding session, checkpoint, approval, and question resources.",
+        "content" => "Project document and content resources.",
+        "iam" => "IAM user, team, member, and policy resources.",
+        "platform" => "Workspace, project, release, deployment, and delivery resources.",
+        "runtime" => "Runtime engine, model, native session, and local operation resources.",
+        "skills" => "Skill package catalog and installation resources.",
+        "system" => "System descriptor, health, route catalog, and runtime metadata resources.",
+        "templates" => "Application template catalog resources.",
+        _ => "Unified BirdCoder API resources.",
+    }
+}
+
+fn openapi_tag_for_operation_id(operation_id: &str) -> &'static str {
+    if operation_id.starts_with("config.")
+        || operation_id.starts_with("sessions.")
+        || operation_id.starts_with("sessionExchanges.")
+        || operation_id.starts_with("qrLoginCodes.")
+        || operation_id.starts_with("oauthAuthorizationUrls.")
+        || operation_id.starts_with("oauthSessions.")
+        || operation_id.starts_with("registrations.")
+        || operation_id.starts_with("verificationCodes.")
+        || operation_id.starts_with("passwordResetRequests.")
+        || operation_id.starts_with("passwordResets.")
+    {
+        return "auth";
+    }
+    if operation_id.starts_with("vip.") {
+        return "billing";
+    }
+    if operation_id.starts_with("codingSessions.")
+        || operation_id.starts_with("approvals.")
+        || operation_id.starts_with("questions.")
+    {
+        return "coding";
+    }
+    if operation_id.starts_with("documents.") {
+        return "content";
+    }
+    if operation_id.starts_with("users.")
+        || operation_id.starts_with("teams.")
+        || operation_id.starts_with("workspaces.members.")
+        || operation_id.starts_with("policies.")
+        || operation_id.starts_with("auditEvents.")
+        || operation_id.starts_with("teamGovernance.")
+    {
+        return "iam";
+    }
+    if operation_id.starts_with("workspaces.")
+        || operation_id.starts_with("projects.")
+        || operation_id.starts_with("deployments.")
+        || operation_id.starts_with("releases.")
+        || operation_id.starts_with("deploymentGovernance.")
+    {
+        return "platform";
+    }
+    if operation_id.starts_with("engines.")
+        || operation_id.starts_with("nativeSessionProviders.")
+        || operation_id.starts_with("nativeSessions.")
+        || operation_id.starts_with("models.")
+        || operation_id.starts_with("modelConfig.")
+    {
+        return "runtime";
+    }
+    if operation_id.starts_with("skillPackages.") {
+        return "skills";
+    }
+    if operation_id.starts_with("appTemplates.") {
+        return "templates";
+    }
+    "system"
+}
+
 fn surface_auth_mode(surface: &str) -> &'static str {
     match surface {
-        "core" => "host",
         "app" => "user",
-        "admin" => "admin",
-        _ => "host",
+        "backend" => "admin",
+        _ => "user",
     }
 }
 
@@ -2323,30 +2393,20 @@ fn openapi_operation_security(
 }
 
 fn build_openapi_gateway_metadata() -> OpenApiGatewayMetadata {
-    let core_route_count = count_routes_for_surface("core");
     let app_route_count = count_routes_for_surface("app");
-    let admin_route_count = count_routes_for_surface("admin");
+    let backend_route_count = count_routes_for_surface("backend");
 
     OpenApiGatewayMetadata {
-        base_path: CODING_SERVER_GATEWAY_BASE_PATH,
         versioned_open_api_paths: [CODING_SERVER_OPENAPI_PATH],
         docs_path: CODING_SERVER_DOCS_PATH,
         live_open_api_path: CODING_SERVER_LIVE_OPENAPI_PATH,
         route_catalog_path: CODING_SERVER_ROUTE_CATALOG_PATH,
         route_count: CODING_SERVER_OPENAPI_ROUTE_SPECS.len(),
         routes_by_surface: OpenApiGatewayRoutesBySurface {
-            admin: admin_route_count,
             app: app_route_count,
-            core: core_route_count,
+            backend: backend_route_count,
         },
         surfaces: [
-            OpenApiGatewaySurface {
-                auth_mode: "host",
-                base_path: CODING_SERVER_CORE_API_PREFIX,
-                description: surface_description("core"),
-                name: "core",
-                route_count: core_route_count,
-            },
             OpenApiGatewaySurface {
                 auth_mode: "user",
                 base_path: CODING_SERVER_APP_API_PREFIX,
@@ -2356,10 +2416,10 @@ fn build_openapi_gateway_metadata() -> OpenApiGatewayMetadata {
             },
             OpenApiGatewaySurface {
                 auth_mode: "admin",
-                base_path: CODING_SERVER_ADMIN_API_PREFIX,
-                description: surface_description("admin"),
-                name: "admin",
-                route_count: admin_route_count,
+                base_path: CODING_SERVER_BACKEND_API_PREFIX,
+                description: surface_description("backend"),
+                name: "backend",
+                route_count: backend_route_count,
             },
         ],
     }
@@ -2373,30 +2433,20 @@ fn count_routes_for_surface(surface: &str) -> usize {
 }
 
 fn build_gateway_descriptor_payload() -> GatewayDescriptorPayload {
-    let core_route_count = count_routes_for_surface("core");
     let app_route_count = count_routes_for_surface("app");
-    let admin_route_count = count_routes_for_surface("admin");
+    let backend_route_count = count_routes_for_surface("backend");
 
     GatewayDescriptorPayload {
-        base_path: CODING_SERVER_GATEWAY_BASE_PATH,
         docs_path: CODING_SERVER_DOCS_PATH,
         live_open_api_path: CODING_SERVER_LIVE_OPENAPI_PATH,
         open_api_path: CODING_SERVER_OPENAPI_PATH,
         route_catalog_path: CODING_SERVER_ROUTE_CATALOG_PATH,
         route_count: CODING_SERVER_OPENAPI_ROUTE_SPECS.len(),
         routes_by_surface: GatewayRoutesBySurfacePayload {
-            admin: admin_route_count,
             app: app_route_count,
-            core: core_route_count,
+            backend: backend_route_count,
         },
         surfaces: [
-            GatewaySurfaceDescriptorPayload {
-                auth_mode: "host",
-                base_path: CODING_SERVER_CORE_API_PREFIX,
-                description: surface_description("core"),
-                name: "core",
-                route_count: core_route_count,
-            },
             GatewaySurfaceDescriptorPayload {
                 auth_mode: "user",
                 base_path: CODING_SERVER_APP_API_PREFIX,
@@ -2406,10 +2456,10 @@ fn build_gateway_descriptor_payload() -> GatewayDescriptorPayload {
             },
             GatewaySurfaceDescriptorPayload {
                 auth_mode: "admin",
-                base_path: CODING_SERVER_ADMIN_API_PREFIX,
-                description: surface_description("admin"),
-                name: "admin",
-                route_count: admin_route_count,
+                base_path: CODING_SERVER_BACKEND_API_PREFIX,
+                description: surface_description("backend"),
+                name: "backend",
+                route_count: backend_route_count,
             },
         ],
     }
@@ -2531,7 +2581,7 @@ fn build_coding_server_docs_html() -> String {
     <section class="hero">
       <span class="eyebrow">OpenAPI 3.1</span>
       <h1>SDKWork BirdCoder Coding Server API</h1>
-      <p>The live schema follows the same single-port API gateway exposed by the BirdCoder host. Use the unified prefixes for core, app, and admin traffic.</p>
+      <p>The live schema follows the same single-port API gateway exposed by the BirdCoder host. Use the canonical app and backend prefixes for all HTTP traffic.</p>
       <div class="grid">
         <div class="panel">
           <strong>Live Schema</strong>
@@ -2542,21 +2592,21 @@ fn build_coding_server_docs_html() -> String {
           <p><a href="{versioned_openapi_path}"><code>{versioned_openapi_path}</code></a></p>
         </div>
         <div class="panel">
-          <strong>Unified Gateway</strong>
-          <p><code>{gateway_base_path}</code></p>
+          <strong>App API</strong>
+          <p><code>{app_prefix}</code></p>
         </div>
         <div class="panel">
-          <strong>Route Catalog</strong>
-          <p><a href="{route_catalog_path}"><code>{route_catalog_path}</code></a></p>
+          <strong>Backend API</strong>
+          <p><code>{backend_prefix}</code></p>
         </div>
       </div>
     </section>
     <section class="panel">
       <strong>Gateway Surfaces</strong>
       <ul>
-        <li><code>{core_prefix}</code> core runtime, engines, sessions, events, approvals, and operations</li>
-        <li><code>{app_prefix}</code> auth, user center, workspaces, projects, collaborators, teams, and deployments</li>
-        <li><code>{admin_prefix}</code> audit, policies, teams, releases, deployments, and governed targets</li>
+        <li><code>{app_prefix}</code> auth, user center, coding runtime, workspaces, projects, collaborators, teams, and deployments</li>
+        <li><code>{backend_prefix}</code> audit, policies, teams, releases, deployments, and governed targets</li>
+        <li><code>{route_catalog_path}</code> route catalog and generated SDK route evidence</li>
       </ul>
     </section>
   </main>
@@ -2564,46 +2614,38 @@ fn build_coding_server_docs_html() -> String {
 </html>"#,
         live_openapi_path = CODING_SERVER_LIVE_OPENAPI_PATH,
         versioned_openapi_path = CODING_SERVER_OPENAPI_PATH,
-        gateway_base_path = CODING_SERVER_GATEWAY_BASE_PATH,
         route_catalog_path = CODING_SERVER_ROUTE_CATALOG_PATH,
-        core_prefix = CODING_SERVER_CORE_API_PREFIX,
         app_prefix = CODING_SERVER_APP_API_PREFIX,
-        admin_prefix = CODING_SERVER_ADMIN_API_PREFIX,
+        backend_prefix = CODING_SERVER_BACKEND_API_PREFIX,
     )
 }
 
 pub fn build_coding_server_startup_summary_lines(api_base_url: &str) -> Vec<String> {
     let normalized_base_url = api_base_url.trim().trim_end_matches('/');
-    let gateway_base_url = format!("{normalized_base_url}{CODING_SERVER_GATEWAY_BASE_PATH}");
     let live_openapi_url = format!("{normalized_base_url}{CODING_SERVER_LIVE_OPENAPI_PATH}");
     let versioned_openapi_url = format!("{normalized_base_url}{CODING_SERVER_OPENAPI_PATH}");
     let docs_url = format!("{normalized_base_url}{CODING_SERVER_DOCS_PATH}");
     let route_catalog_url = format!("{normalized_base_url}{CODING_SERVER_ROUTE_CATALOG_PATH}");
-    let core_url = format!("{normalized_base_url}{CODING_SERVER_CORE_API_PREFIX}");
     let app_url = format!("{normalized_base_url}{CODING_SERVER_APP_API_PREFIX}");
-    let admin_url = format!("{normalized_base_url}{CODING_SERVER_ADMIN_API_PREFIX}");
-    let core_route_count = count_routes_for_surface("core");
+    let backend_url = format!("{normalized_base_url}{CODING_SERVER_BACKEND_API_PREFIX}");
     let app_route_count = count_routes_for_surface("app");
-    let admin_route_count = count_routes_for_surface("admin");
+    let backend_route_count = count_routes_for_surface("backend");
 
     vec![
         "------------------------------------------------------------".to_owned(),
         "SDKWork BirdCoder Unified API Gateway".to_owned(),
         format!("  Base URL: {normalized_base_url}"),
-        format!("  Unified Gateway Base: {gateway_base_url}"),
         format!("  Live OpenAPI 3.x Schema: {live_openapi_url}"),
         format!("  Versioned OpenAPI Schema: {versioned_openapi_url}"),
         format!("  API Docs: {docs_url}"),
         format!("  Route Catalog: {route_catalog_url}"),
-        format!("  Core API Prefix: {core_url}"),
         format!("  App API Prefix: {app_url}"),
-        format!("  Admin API Prefix: {admin_url}"),
+        format!("  Backend API Prefix: {backend_url}"),
         format!(
-            "  Route Counts: total={} core={} app={} admin={}",
+            "  Route Counts: total={} app={} backend={}",
             CODING_SERVER_OPENAPI_ROUTE_SPECS.len(),
-            core_route_count,
             app_route_count,
-            admin_route_count
+            backend_route_count
         ),
     ]
 }
@@ -2891,7 +2933,7 @@ const SEED_SKILLS_BIRDCODER: &[SeedSkillEntry] = &[
         icon: "AU",
         author: "SDKWork",
         install_count: 3900,
-        long_description: "Support user-center plugin design, authentication wiring, and identity-aware API flows.",
+        long_description: "Support user-center plugin design, authentication wiring, and IAM-scoped API flows.",
         tags: &["BirdCoder", "Auth", "User Center"],
         license: Some("Apache-2.0"),
         repository_url: Some("https://github.com/sdkwork/birdcoder-auth"),
@@ -3031,7 +3073,7 @@ const SEED_TEMPLATES: &[SeedTemplate] = &[
 fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String> {
     let seeded_skill_packages = connection
         .query_row(
-            "SELECT COUNT(*) FROM skill_packages WHERE is_deleted = 0",
+            "SELECT COUNT(*) FROM ai_skill_package WHERE is_deleted = 0",
             [],
             |row| row.get::<_, i64>(0),
         )
@@ -3071,7 +3113,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
             connection
                 .execute(
                     r#"
-                    INSERT INTO skill_packages (
+                    INSERT INTO ai_skill_package (
                         id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                         slug, source_uri, status, manifest_json
                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10)
@@ -3094,7 +3136,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
             connection
                 .execute(
                     r#"
-                    INSERT INTO skill_versions (
+                    INSERT INTO ai_skill_version (
                         id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                         skill_package_id, version_label, manifest_json, status
                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10)
@@ -3125,7 +3167,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
                 connection
                     .execute(
                         r#"
-                        INSERT INTO skill_capabilities (
+                        INSERT INTO ai_skill_capability (
                             id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                             skill_version_id, capability_key, description_text, payload_json
                         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10)
@@ -3150,7 +3192,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
 
     let seeded_templates = connection
         .query_row(
-            "SELECT COUNT(*) FROM app_templates WHERE is_deleted = 0",
+            "SELECT COUNT(*) FROM studio_app_template WHERE is_deleted = 0",
             [],
             |row| row.get::<_, i64>(0),
         )
@@ -3181,7 +3223,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
             connection
                 .execute(
                     r#"
-                    INSERT INTO app_templates (
+                    INSERT INTO studio_app_template (
                         id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                         slug, name, category, status
                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10)
@@ -3204,7 +3246,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
             connection
                 .execute(
                     r#"
-                    INSERT INTO app_template_versions (
+                    INSERT INTO studio_app_template_version (
                         id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                         app_template_id, version_label, manifest_json, status
                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10)
@@ -3227,7 +3269,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
             connection
                 .execute(
                     r#"
-                    INSERT INTO app_template_presets (
+                    INSERT INTO studio_app_template_preset (
                         id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                         app_template_version_id, preset_key, description_text, payload_json
                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10)
@@ -3252,7 +3294,7 @@ fn ensure_sqlite_catalog_seed_data(connection: &Connection) -> Result<(), String
                 connection
                     .execute(
                         r#"
-                        INSERT INTO app_template_target_profiles (
+                        INSERT INTO studio_app_template_target_profile (
                             id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                             app_template_version_id, profile_key, runtime, deployment_mode, status
                         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11)
@@ -3288,7 +3330,7 @@ fn build_engine_catalog() -> Vec<EngineDescriptorPayload> {
     list_codeengine_descriptors()
 }
 
-fn build_model_catalog() -> Vec<ModelCatalogEntryPayload> {
+fn build_ai_model_catalog() -> Vec<ModelCatalogEntryPayload> {
     list_codeengine_model_catalog_entries()
 }
 
@@ -3338,7 +3380,7 @@ struct SyncModelConfigResultPayload {
 }
 
 fn build_model_config() -> CodeEngineModelConfigPayload {
-    let models = build_model_catalog();
+    let models = build_ai_model_catalog();
     let updated_at = models
         .iter()
         .map(|model| model.updated_at.as_str())
@@ -3846,9 +3888,10 @@ fn normalize_data_scope(value: Option<String>) -> Result<Option<String>, &'stati
     let normalized_scope = match scope.to_ascii_uppercase().as_str() {
         "0" | "DEFAULT" => "DEFAULT",
         "1" | "PRIVATE" => "PRIVATE",
-        "2" | "SHARED" => "SHARED",
-        "3" | "PUBLIC" => "PUBLIC",
-        _ => return Err("dataScope must be DEFAULT, PRIVATE, SHARED, PUBLIC, or 0-3."),
+        "2" | "ORGANIZATION" => "ORGANIZATION",
+        "3" | "TENANT" => "TENANT",
+        "4" | "PUBLIC" => "PUBLIC",
+        _ => return Err("dataScope must be DEFAULT, PRIVATE, ORGANIZATION, TENANT, PUBLIC, or 0-4."),
     };
 
     Ok(Some(normalized_scope.to_owned()))
@@ -3857,8 +3900,9 @@ fn normalize_data_scope(value: Option<String>) -> Result<Option<String>, &'stati
 fn data_scope_storage_value(value: &str) -> i64 {
     match value.to_ascii_uppercase().as_str() {
         "0" | "DEFAULT" => 0,
-        "2" | "SHARED" => 2,
-        "3" | "PUBLIC" => 3,
+        "2" | "ORGANIZATION" => 2,
+        "3" | "TENANT" => 3,
+        "4" | "PUBLIC" => 4,
         _ => SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
     }
 }
@@ -3867,8 +3911,9 @@ fn data_scope_name_from_storage_value(value: i64) -> Option<&'static str> {
     match value {
         0 => Some("DEFAULT"),
         1 => Some("PRIVATE"),
-        2 => Some("SHARED"),
-        3 => Some("PUBLIC"),
+        2 => Some("ORGANIZATION"),
+        3 => Some("TENANT"),
+        4 => Some("PUBLIC"),
         _ => None,
     }
 }
@@ -4450,788 +4495,6 @@ fn ensure_sqlite_table_column_is_not_null(
     ))
 }
 
-const SQLITE_INTEGER_IDENTIFIER_TABLE_RULES: &[(&str, &[(&str, bool)])] = &[
-    (PROVIDER_WORKSPACES_TABLE, &[("id", false)]),
-    (
-        PROVIDER_PROJECTS_TABLE,
-        &[("id", false), ("workspace_id", true)],
-    ),
-    (
-        PROVIDER_TEAMS_TABLE,
-        &[("id", false), ("workspace_id", false)],
-    ),
-    (
-        PROVIDER_TEAM_MEMBERS_TABLE,
-        &[("id", false), ("team_id", false)],
-    ),
-    (
-        "workspace_members",
-        &[("id", false), ("workspace_id", false), ("team_id", true)],
-    ),
-    (
-        "project_collaborators",
-        &[
-            ("id", false),
-            ("project_id", false),
-            ("workspace_id", false),
-            ("team_id", true),
-        ],
-    ),
-];
-
-fn load_sqlite_table_column_types(
-    connection: &Connection,
-    table_name: &str,
-) -> Result<BTreeMap<String, String>, String> {
-    let pragma = format!("PRAGMA table_info({table_name})");
-    let mut statement = connection
-        .prepare(&pragma)
-        .map_err(|error| format!("prepare sqlite table info for {table_name} failed: {error}"))?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?.unwrap_or_default(),
-            ))
-        })
-        .map_err(|error| format!("query sqlite table info for {table_name} failed: {error}"))?;
-    let mut columns = BTreeMap::new();
-    for row in rows {
-        let (column_name, column_type) = row
-            .map_err(|error| format!("read sqlite table info for {table_name} failed: {error}"))?;
-        columns.insert(column_name, column_type);
-    }
-    Ok(columns)
-}
-
-fn sqlite_declared_type_is_integer(column_type: &str) -> bool {
-    column_type.trim().eq_ignore_ascii_case("INTEGER")
-}
-
-fn sqlite_table_requires_integer_identifier_upgrade(
-    connection: &Connection,
-    table_name: &str,
-    required_columns: &[(&str, bool)],
-) -> Result<bool, String> {
-    if !sqlite_table_exists(connection, table_name)? {
-        return Ok(false);
-    }
-
-    let column_types = load_sqlite_table_column_types(connection, table_name)?;
-    for (column_name, _) in required_columns {
-        let Some(column_type) = column_types.get(*column_name) else {
-            continue;
-        };
-        if !sqlite_declared_type_is_integer(column_type) {
-            return Ok(true);
-        }
-    }
-
-    Ok(false)
-}
-
-fn sqlite_table_identifier_columns_are_decimal_compatible(
-    connection: &Connection,
-    table_name: &str,
-    required_columns: &[(&str, bool)],
-) -> Result<bool, String> {
-    for (column_name, allow_nullish) in required_columns {
-        let query =
-            format!("SELECT {column_name} FROM {table_name} WHERE {column_name} IS NOT NULL");
-        let mut statement = connection.prepare(&query).map_err(|error| {
-            format!("prepare identifier compatibility probe for {table_name}.{column_name} failed: {error}")
-        })?;
-        let mut rows = statement.query([]).map_err(|error| {
-            format!("query identifier compatibility probe for {table_name}.{column_name} failed: {error}")
-        })?;
-
-        while let Some(row) = rows.next().map_err(|error| {
-            format!(
-                "read identifier compatibility row for {table_name}.{column_name} failed: {error}"
-            )
-        })? {
-            let Some(raw_value) = sqlite_value_ref_to_string(row.get_ref(0).map_err(|error| {
-                format!("read identifier compatibility value for {table_name}.{column_name} failed: {error}")
-            })?) else {
-                return Ok(false);
-            };
-            let trimmed_value = raw_value.trim();
-            if trimmed_value.is_empty() && *allow_nullish {
-                continue;
-            }
-            if normalize_decimal_string_identifier(Some(trimmed_value)).is_none() {
-                return Ok(false);
-            }
-        }
-    }
-
-    Ok(true)
-}
-
-fn upgrade_sqlite_provider_authority_integer_identifier_table(
-    connection: &mut Connection,
-    table_name: &str,
-    required_columns: &[(&str, bool)],
-    insert_select_sql: String,
-) -> Result<bool, String> {
-    if !sqlite_table_requires_integer_identifier_upgrade(connection, table_name, required_columns)?
-    {
-        return Ok(false);
-    }
-
-    if !sqlite_table_identifier_columns_are_decimal_compatible(
-        connection,
-        table_name,
-        required_columns,
-    )? {
-        eprintln!(
-            "sqlite authority integer identifier upgrade skipped for table {table_name}: existing rows contain non-decimal identifiers."
-        );
-        return Ok(false);
-    }
-
-    let legacy_table_name = format!("{table_name}__legacy_integer_identifiers");
-    let transaction = connection.transaction().map_err(|error| {
-        format!("open integer identifier upgrade transaction for {table_name} failed: {error}")
-    })?;
-
-    transaction
-        .execute(
-            &format!("ALTER TABLE {table_name} RENAME TO {legacy_table_name}"),
-            [],
-        )
-        .map_err(|error| format!("rename legacy {table_name} table failed: {error}"))?;
-    transaction
-        .execute_batch(SQLITE_PROVIDER_AUTHORITY_SCHEMA)
-        .map_err(|error| {
-            format!(
-                "recreate {table_name} schema during integer identifier upgrade failed: {error}"
-            )
-        })?;
-    transaction
-        .execute(&insert_select_sql, [])
-        .map_err(|error| format!("copy upgraded {table_name} rows failed: {error}"))?;
-    transaction
-        .execute(&format!("DROP TABLE {legacy_table_name}"), [])
-        .map_err(|error| format!("drop legacy {table_name} table failed: {error}"))?;
-    transaction.commit().map_err(|error| {
-        format!("commit integer identifier upgrade for {table_name} failed: {error}")
-    })?;
-
-    Ok(true)
-}
-
-fn ensure_sqlite_provider_authority_integer_identifier_upgrade(
-    connection: &mut Connection,
-) -> Result<(), String> {
-    let workspaces_legacy_table =
-        format!("{PROVIDER_WORKSPACES_TABLE}__legacy_integer_identifiers");
-    let projects_legacy_table = format!("{PROVIDER_PROJECTS_TABLE}__legacy_integer_identifiers");
-    let teams_legacy_table = format!("{PROVIDER_TEAMS_TABLE}__legacy_integer_identifiers");
-    let team_members_legacy_table =
-        format!("{PROVIDER_TEAM_MEMBERS_TABLE}__legacy_integer_identifiers");
-    let workspace_members_legacy_table = "workspace_members__legacy_integer_identifiers";
-    let project_collaborators_legacy_table = "project_collaborators__legacy_integer_identifiers";
-    let project_version_expr = if sqlite_column_exists(connection, PROVIDER_PROJECTS_TABLE, "v")? {
-        "v"
-    } else if sqlite_column_exists(connection, PROVIDER_PROJECTS_TABLE, "version")? {
-        "version"
-    } else {
-        "0"
-    };
-    let project_cover_image_expr =
-        if sqlite_column_exists(connection, PROVIDER_PROJECTS_TABLE, "cover_image")? {
-            "cover_image"
-        } else if sqlite_column_exists(connection, PROVIDER_PROJECTS_TABLE, "cover_image_json")? {
-            "cover_image_json"
-        } else {
-            "NULL"
-        };
-
-    let _ = upgrade_sqlite_provider_authority_integer_identifier_table(
-        connection,
-        PROVIDER_WORKSPACES_TABLE,
-        SQLITE_INTEGER_IDENTIFIER_TABLE_RULES[0].1,
-        format!(
-            r#"
-            INSERT INTO plus_workspace AS workspaces (
-                id, uuid, tenant_id, organization_id, data_scope, created_at, updated_at, version,
-                is_deleted, name, code, title, description, owner_id, leader_id,
-                created_by_user_id, icon, color, type, start_time, end_time, max_members,
-                current_members, member_count, max_storage, used_storage, settings_json,
-                is_public, is_template, status
-            )
-            SELECT
-                CAST(id AS INTEGER), uuid, tenant_id, organization_id, data_scope, created_at,
-                updated_at, version, is_deleted, name, code, title, description, owner_id,
-                leader_id, created_by_user_id, icon, color, type, start_time, end_time,
-                max_members, current_members, member_count, max_storage, used_storage,
-                settings_json, is_public, is_template, status
-            FROM {workspaces_legacy_table}
-            "#
-        ),
-    )?;
-    let _ = upgrade_sqlite_provider_authority_integer_identifier_table(
-        connection,
-        PROVIDER_PROJECTS_TABLE,
-        SQLITE_INTEGER_IDENTIFIER_TABLE_RULES[1].1,
-        format!(
-            r#"
-            INSERT INTO plus_project AS projects (
-                id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
-                parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
-                author, file_id, code, type, site_path, domain_prefix, description, status,
-                conversation_id, workspace_id, workspace_uuid, leader_id, start_time, end_time,
-                budget_amount, is_deleted, is_template
-            )
-            SELECT
-                CAST(id AS INTEGER),
-                COALESCE(NULLIF(TRIM(uuid), ''), 'project-' || CAST(id AS TEXT)),
-                created_at,
-                updated_at,
-                {project_version_expr},
-                tenant_id,
-                organization_id,
-                data_scope,
-                parent_id,
-                parent_uuid,
-                parent_metadata,
-                user_id,
-                name,
-                COALESCE(NULLIF(TRIM(title), ''), name),
-                {project_cover_image_expr},
-                author,
-                file_id,
-                COALESCE(NULLIF(TRIM(code), ''), 'PROJECT-' || CAST(id AS TEXT)),
-                1,
-                site_path,
-                domain_prefix,
-                description,
-                1,
-                conversation_id,
-                CAST(workspace_id AS INTEGER),
-                workspace_uuid,
-                leader_id,
-                start_time,
-                end_time,
-                budget_amount,
-                is_deleted,
-                is_template
-            FROM {projects_legacy_table}
-            "#
-        ),
-    )?;
-    let _ = upgrade_sqlite_provider_authority_integer_identifier_table(
-        connection,
-        PROVIDER_TEAMS_TABLE,
-        SQLITE_INTEGER_IDENTIFIER_TABLE_RULES[2].1,
-        format!(
-            r#"
-            INSERT INTO teams (
-                id, uuid, tenant_id, organization_id, created_at, updated_at, version,
-                is_deleted, workspace_id, name, code, title, description, owner_id, leader_id,
-                created_by_user_id, metadata_json, status
-            )
-            SELECT
-                CAST(id AS INTEGER), uuid, tenant_id, organization_id, created_at, updated_at,
-                version, is_deleted, CAST(workspace_id AS INTEGER), name, code, title,
-                description, owner_id, leader_id, created_by_user_id, metadata_json, status
-            FROM {teams_legacy_table}
-            "#
-        ),
-    )?;
-    let _ = upgrade_sqlite_provider_authority_integer_identifier_table(
-        connection,
-        PROVIDER_TEAM_MEMBERS_TABLE,
-        SQLITE_INTEGER_IDENTIFIER_TABLE_RULES[3].1,
-        format!(
-            r#"
-            INSERT INTO team_members (
-                id, uuid, tenant_id, organization_id, created_at, updated_at, version,
-                is_deleted, team_id, user_id, role, created_by_user_id, granted_by_user_id, status
-            )
-            SELECT
-                CAST(id AS INTEGER), uuid, tenant_id, organization_id, created_at, updated_at,
-                version, is_deleted, CAST(team_id AS INTEGER), user_id, role, created_by_user_id,
-                granted_by_user_id, status
-            FROM {team_members_legacy_table}
-            "#
-        ),
-    )?;
-    let _ = upgrade_sqlite_provider_authority_integer_identifier_table(
-        connection,
-        "workspace_members",
-        SQLITE_INTEGER_IDENTIFIER_TABLE_RULES[4].1,
-        format!(
-            r#"
-            INSERT INTO workspace_members (
-                id, uuid, tenant_id, organization_id, created_at, updated_at, version,
-                is_deleted, workspace_id, user_id, team_id, role, created_by_user_id,
-                granted_by_user_id, status
-            )
-            SELECT
-                CAST(id AS INTEGER), uuid, tenant_id, organization_id, created_at, updated_at,
-                version, is_deleted, CAST(workspace_id AS INTEGER), user_id,
-                CASE
-                    WHEN team_id IS NULL OR TRIM(CAST(team_id AS TEXT)) = '' THEN NULL
-                    ELSE CAST(team_id AS INTEGER)
-                END,
-                role, created_by_user_id, granted_by_user_id, status
-            FROM {workspace_members_legacy_table}
-            "#
-        ),
-    )?;
-    let _ = upgrade_sqlite_provider_authority_integer_identifier_table(
-        connection,
-        "project_collaborators",
-        SQLITE_INTEGER_IDENTIFIER_TABLE_RULES[5].1,
-        format!(
-            r#"
-            INSERT INTO project_collaborators (
-                id, uuid, tenant_id, organization_id, created_at, updated_at, version,
-                is_deleted, project_id, workspace_id, user_id, team_id, role,
-                created_by_user_id, granted_by_user_id, status
-            )
-            SELECT
-                CAST(id AS INTEGER), uuid, tenant_id, organization_id, created_at, updated_at,
-                version, is_deleted, CAST(project_id AS INTEGER), CAST(workspace_id AS INTEGER),
-                user_id,
-                CASE
-                    WHEN team_id IS NULL OR TRIM(CAST(team_id AS TEXT)) = '' THEN NULL
-                    ELSE CAST(team_id AS INTEGER)
-                END,
-                role, created_by_user_id, granted_by_user_id, status
-            FROM {project_collaborators_legacy_table}
-            "#
-        ),
-    )?;
-
-    Ok(())
-}
-
-fn resolve_sqlite_authority_default_model_id(engine_id: &str) -> Result<String, String> {
-    find_codeengine_descriptor(engine_id)
-        .map(|descriptor| descriptor.default_model_id)
-        .ok_or_else(|| {
-            format!(
-                "sqlite authority schema upgrade could not resolve a default model_id for engine {engine_id}"
-            )
-        })
-}
-
-fn resolve_sqlite_authority_default_transport_kind(engine_id: &str) -> Result<String, String> {
-    find_codeengine_descriptor(engine_id)
-        .and_then(|descriptor| descriptor.transport_kinds.first().cloned())
-        .ok_or_else(|| {
-            format!(
-                "sqlite authority schema upgrade could not resolve a default transport_kind for engine {engine_id}"
-            )
-        })
-}
-
-fn resolve_sqlite_authority_backfill_model_id(
-    engine_id: &str,
-    persisted_model_id: Option<String>,
-    fallback_model_id: Option<String>,
-) -> Result<String, String> {
-    if let Some(model_id) = normalize_optional_string(persisted_model_id) {
-        return Ok(model_id);
-    }
-
-    if let Some(model_id) = normalize_optional_string(fallback_model_id) {
-        return Ok(model_id);
-    }
-
-    resolve_sqlite_authority_default_model_id(engine_id)
-}
-
-fn resolve_sqlite_authority_backfill_transport_kind(
-    engine_id: &str,
-    persisted_transport_kind: Option<String>,
-) -> Result<String, String> {
-    if let Some(transport_kind) = normalize_optional_string(persisted_transport_kind) {
-        return Ok(transport_kind);
-    }
-
-    resolve_sqlite_authority_default_transport_kind(engine_id)
-}
-
-fn load_sqlite_authority_runtime_model_map(
-    connection: &Connection,
-    table_name: &str,
-) -> Result<BTreeMap<String, String>, String> {
-    let query = format!(
-        r#"
-        SELECT coding_session_id, model_id
-        FROM {table_name}
-        WHERE model_id IS NOT NULL AND TRIM(model_id) <> ''
-        ORDER BY updated_at DESC, id ASC
-        "#
-    );
-    let mut statement = connection.prepare(&query).map_err(|error| {
-        format!("prepare runtime model_id fallback query for {table_name} failed: {error}")
-    })?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
-        })
-        .map_err(|error| {
-            format!("query runtime model_id fallback rows for {table_name} failed: {error}")
-        })?;
-    let mut models_by_session_id = BTreeMap::new();
-
-    for row in rows {
-        let (coding_session_id, model_id) = row.map_err(|error| {
-            format!("read runtime model_id fallback row for {table_name} failed: {error}")
-        })?;
-        let Some(model_id) = normalize_optional_string(model_id) else {
-            continue;
-        };
-        if !models_by_session_id.contains_key(&coding_session_id) {
-            models_by_session_id.insert(coding_session_id, model_id);
-        }
-    }
-
-    Ok(models_by_session_id)
-}
-
-fn load_sqlite_authority_session_model_map(
-    connection: &Connection,
-    table_name: &str,
-) -> Result<BTreeMap<String, String>, String> {
-    let query = format!(
-        r#"
-        SELECT id, model_id
-        FROM {table_name}
-        WHERE model_id IS NOT NULL AND TRIM(model_id) <> ''
-        ORDER BY updated_at DESC, id ASC
-        "#
-    );
-    let mut statement = connection.prepare(&query).map_err(|error| {
-        format!("prepare session model_id fallback query for {table_name} failed: {error}")
-    })?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
-        })
-        .map_err(|error| {
-            format!("query session model_id fallback rows for {table_name} failed: {error}")
-        })?;
-    let mut models_by_session_id = BTreeMap::new();
-
-    for row in rows {
-        let (coding_session_id, model_id) = row.map_err(|error| {
-            format!("read session model_id fallback row for {table_name} failed: {error}")
-        })?;
-        let Some(model_id) = normalize_optional_string(model_id) else {
-            continue;
-        };
-        if !models_by_session_id.contains_key(&coding_session_id) {
-            models_by_session_id.insert(coding_session_id, model_id);
-        }
-    }
-
-    Ok(models_by_session_id)
-}
-
-fn upgrade_sqlite_provider_authority_coding_sessions_model_id_column(
-    connection: &mut Connection,
-) -> Result<(), String> {
-    if sqlite_column_is_not_null(connection, PROVIDER_CODING_SESSIONS_TABLE, "model_id")? {
-        return Ok(());
-    }
-
-    let runtime_models_by_session_id = load_sqlite_authority_runtime_model_map(
-        connection,
-        PROVIDER_CODING_SESSION_RUNTIMES_TABLE,
-    )?;
-    let legacy_table_name = "coding_sessions__legacy_nullable_model_id";
-    let transaction = connection.transaction().map_err(|error| {
-        format!("open coding_sessions schema upgrade transaction failed: {error}")
-    })?;
-
-    transaction
-        .execute(
-            &format!("ALTER TABLE {PROVIDER_CODING_SESSIONS_TABLE} RENAME TO {legacy_table_name}"),
-            [],
-        )
-        .map_err(|error| format!("rename legacy coding_sessions table failed: {error}"))?;
-    transaction
-        .execute_batch(SQLITE_PROVIDER_AUTHORITY_SCHEMA)
-        .map_err(|error| {
-            format!(
-                "recreate coding_sessions schema during provider authority upgrade failed: {error}"
-            )
-        })?;
-
-    let mut select_statement = transaction
-        .prepare(&format!(
-            r#"
-            SELECT
-                id,
-                created_at,
-                updated_at,
-                version,
-                is_deleted,
-                workspace_id,
-                project_id,
-                title,
-                status,
-                entry_surface,
-                engine_id,
-                model_id,
-                last_turn_at
-            FROM {legacy_table_name}
-            "#
-        ))
-        .map_err(|error| {
-            format!("prepare legacy coding_sessions read during upgrade failed: {error}")
-        })?;
-    let rows = select_statement
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, i64>(3)?,
-                row.get::<_, i64>(4)?,
-                row.get::<_, String>(5)?,
-                row.get::<_, String>(6)?,
-                row.get::<_, String>(7)?,
-                row.get::<_, String>(8)?,
-                row.get::<_, String>(9)?,
-                row.get::<_, String>(10)?,
-                row.get::<_, Option<String>>(11)?,
-                row.get::<_, Option<String>>(12)?,
-            ))
-        })
-        .map_err(|error| {
-            format!("query legacy coding_sessions rows during upgrade failed: {error}")
-        })?;
-
-    for row in rows {
-        let (
-            id,
-            created_at,
-            updated_at,
-            version,
-            is_deleted,
-            workspace_id,
-            project_id,
-            title,
-            status,
-            entry_surface,
-            engine_id,
-            model_id,
-            last_turn_at,
-        ) = row.map_err(|error| {
-            format!("read legacy coding_sessions row during upgrade failed: {error}")
-        })?;
-        let resolved_model_id = resolve_sqlite_authority_backfill_model_id(
-            engine_id.as_str(),
-            model_id,
-            runtime_models_by_session_id.get(&id).cloned(),
-        )?;
-
-        transaction
-            .execute(
-                r#"
-                INSERT INTO coding_sessions (
-                    id, created_at, updated_at, version, is_deleted, workspace_id, project_id, title, status, entry_surface, engine_id, model_id, last_turn_at
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-                "#,
-                params![
-                    id,
-                    created_at,
-                    updated_at,
-                    version,
-                    is_deleted,
-                    workspace_id,
-                    project_id,
-                    title,
-                    status,
-                    entry_surface,
-                    engine_id,
-                    resolved_model_id,
-                    last_turn_at,
-                ],
-            )
-            .map_err(|error| format!("insert upgraded coding_sessions row failed: {error}"))?;
-    }
-
-    drop(select_statement);
-
-    transaction
-        .execute(&format!("DROP TABLE {legacy_table_name}"), [])
-        .map_err(|error| format!("drop legacy coding_sessions table failed: {error}"))?;
-    transaction
-        .commit()
-        .map_err(|error| format!("commit coding_sessions schema upgrade failed: {error}"))?;
-
-    Ok(())
-}
-
-fn upgrade_sqlite_provider_authority_coding_session_runtimes_model_id_column(
-    connection: &mut Connection,
-) -> Result<(), String> {
-    if sqlite_column_is_not_null(
-        connection,
-        PROVIDER_CODING_SESSION_RUNTIMES_TABLE,
-        "model_id",
-    )? {
-        return Ok(());
-    }
-
-    let session_models_by_session_id =
-        load_sqlite_authority_session_model_map(connection, PROVIDER_CODING_SESSIONS_TABLE)?;
-    let legacy_table_name = "coding_session_runtimes__legacy_nullable_model_id";
-    let transaction = connection.transaction().map_err(|error| {
-        format!("open coding_session_runtimes schema upgrade transaction failed: {error}")
-    })?;
-
-    transaction
-        .execute(
-            &format!(
-                "ALTER TABLE {PROVIDER_CODING_SESSION_RUNTIMES_TABLE} RENAME TO {legacy_table_name}"
-            ),
-            [],
-        )
-        .map_err(|error| format!("rename legacy coding_session_runtimes table failed: {error}"))?;
-    transaction
-        .execute_batch(SQLITE_PROVIDER_AUTHORITY_SCHEMA)
-        .map_err(|error| {
-            format!("recreate coding_session_runtimes schema during provider authority upgrade failed: {error}")
-        })?;
-
-    let mut select_statement = transaction
-        .prepare(&format!(
-            r#"
-            SELECT
-                id,
-                created_at,
-                updated_at,
-                version,
-                is_deleted,
-                coding_session_id,
-                engine_id,
-                model_id,
-                host_mode,
-                status,
-                transport_kind,
-                native_session_id,
-                native_turn_container_id,
-                capability_snapshot_json,
-                metadata_json
-            FROM {legacy_table_name}
-            "#
-        ))
-        .map_err(|error| {
-            format!("prepare legacy coding_session_runtimes read during upgrade failed: {error}")
-        })?;
-    let rows = select_statement
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, i64>(3)?,
-                row.get::<_, i64>(4)?,
-                row.get::<_, String>(5)?,
-                row.get::<_, String>(6)?,
-                row.get::<_, Option<String>>(7)?,
-                row.get::<_, String>(8)?,
-                row.get::<_, String>(9)?,
-                row.get::<_, Option<String>>(10)?,
-                row.get::<_, Option<String>>(11)?,
-                row.get::<_, Option<String>>(12)?,
-                row.get::<_, String>(13)?,
-                row.get::<_, String>(14)?,
-            ))
-        })
-        .map_err(|error| {
-            format!("query legacy coding_session_runtimes rows during upgrade failed: {error}")
-        })?;
-
-    for row in rows {
-        let (
-            id,
-            created_at,
-            updated_at,
-            version,
-            is_deleted,
-            coding_session_id,
-            engine_id,
-            model_id,
-            host_mode,
-            status,
-            transport_kind,
-            native_session_id,
-            native_turn_container_id,
-            capability_snapshot_json,
-            metadata_json,
-        ) = row.map_err(|error| {
-            format!("read legacy coding_session_runtimes row during upgrade failed: {error}")
-        })?;
-        let resolved_model_id = resolve_sqlite_authority_backfill_model_id(
-            engine_id.as_str(),
-            model_id,
-            session_models_by_session_id
-                .get(&coding_session_id)
-                .cloned(),
-        )?;
-        let resolved_transport_kind =
-            resolve_sqlite_authority_backfill_transport_kind(engine_id.as_str(), transport_kind)?;
-
-        transaction
-            .execute(
-                r#"
-                INSERT INTO coding_session_runtimes (
-                    id, created_at, updated_at, version, is_deleted, coding_session_id, engine_id, model_id, host_mode, status, transport_kind, native_session_id, native_turn_container_id, capability_snapshot_json, metadata_json
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
-                "#,
-                params![
-                    id,
-                    created_at,
-                    updated_at,
-                    version,
-                    is_deleted,
-                    coding_session_id,
-                    engine_id,
-                    resolved_model_id,
-                    host_mode,
-                    status,
-                    resolved_transport_kind,
-                    native_session_id,
-                    native_turn_container_id,
-                    capability_snapshot_json,
-                    metadata_json,
-                ],
-            )
-            .map_err(|error| format!("insert upgraded coding_session_runtimes row failed: {error}"))?;
-    }
-
-    drop(select_statement);
-
-    transaction
-        .execute(&format!("DROP TABLE {legacy_table_name}"), [])
-        .map_err(|error| format!("drop legacy coding_session_runtimes table failed: {error}"))?;
-    transaction.commit().map_err(|error| {
-        format!("commit coding_session_runtimes schema upgrade failed: {error}")
-    })?;
-
-    Ok(())
-}
-
-fn ensure_sqlite_provider_authority_non_null_model_id_upgrade(
-    connection: &mut Connection,
-) -> Result<(), String> {
-    upgrade_sqlite_provider_authority_coding_sessions_model_id_column(connection)?;
-    upgrade_sqlite_provider_authority_coding_session_runtimes_model_id_column(connection)?;
-    Ok(())
-}
-
 pub(crate) fn ensure_sqlite_table_columns(
     connection: &Connection,
     table_name: &str,
@@ -5261,7 +4524,7 @@ fn backfill_workspace_business_columns(
                     title,
                     type,
                     settings_json
-                FROM plus_workspace AS workspaces
+                FROM studio_workspace AS workspaces
                 WHERE is_deleted = 0
                 "#,
             )
@@ -5341,7 +4604,7 @@ fn backfill_workspace_business_columns(
         connection
             .execute(
                 r#"
-                UPDATE plus_workspace AS workspaces
+                UPDATE studio_workspace AS workspaces
                 SET
                     uuid = ?2,
                     tenant_id = COALESCE(NULLIF(TRIM(tenant_id), ''), ?3),
@@ -5422,7 +4685,7 @@ fn backfill_project_business_columns(
                     type,
                     workspace_uuid,
                     author
-                FROM plus_project AS projects
+                FROM studio_project AS projects
                 WHERE is_deleted = 0
                 "#,
             )
@@ -5500,7 +4763,7 @@ fn backfill_project_business_columns(
         connection
             .execute(
                 r#"
-                UPDATE plus_project AS projects
+                UPDATE studio_project AS projects
                 SET
                     uuid = ?2,
                     tenant_id = COALESCE(NULLIF(TRIM(tenant_id), ''), ?3),
@@ -5591,7 +4854,7 @@ fn resolve_scope_business_columns(
             .query_row(
                 r#"
                 SELECT tenant_id, organization_id
-                FROM plus_workspace AS workspaces
+                FROM studio_workspace AS workspaces
                 WHERE id = ?1 AND is_deleted = 0
                 LIMIT 1
                 "#,
@@ -5609,7 +4872,7 @@ fn resolve_scope_business_columns(
             .query_row(
                 r#"
                 SELECT tenant_id, organization_id
-                FROM plus_project AS projects
+                FROM studio_project AS projects
                 WHERE id = ?1 AND is_deleted = 0
                 LIMIT 1
                 "#,
@@ -5627,15 +4890,15 @@ fn resolve_scope_business_columns(
             .query_row(
                 r#"
                 SELECT tenant_id, organization_id
-                FROM teams
+                FROM studio_team
                 WHERE id = ?1 AND is_deleted = 0
                 LIMIT 1
                 "#,
                 params![scope_id],
                 |row| {
                     Ok((
-                        sqlite_row_optional_string_value(row, 0, "teams.tenant_id")?,
-                        sqlite_row_optional_string_value(row, 1, "teams.organization_id")?,
+                        sqlite_row_optional_string_value(row, 0, "studio_team.tenant_id")?,
+                        sqlite_row_optional_string_value(row, 1, "studio_team.organization_id")?,
                     ))
                 },
             )
@@ -5645,18 +4908,18 @@ fn resolve_scope_business_columns(
             .query_row(
                 r#"
                 SELECT tenant_id, organization_id
-                FROM release_records
+                FROM ops_release_record
                 WHERE id = ?1 AND is_deleted = 0
                 LIMIT 1
                 "#,
                 params![scope_id],
                 |row| {
                     Ok((
-                        sqlite_row_optional_string_value(row, 0, "release_records.tenant_id")?,
+                        sqlite_row_optional_string_value(row, 0, "ops_release_record.tenant_id")?,
                         sqlite_row_optional_string_value(
                             row,
                             1,
-                            "release_records.organization_id",
+                            "ops_release_record.organization_id",
                         )?,
                     ))
                 },
@@ -5679,20 +4942,20 @@ fn backfill_project_document_business_columns(connection: &mut Connection) -> Re
             .prepare(
                 r#"
                 SELECT
-                    project_documents.id,
-                    project_documents.uuid,
-                    project_documents.tenant_id,
-                    project_documents.organization_id,
-                    project_documents.project_id,
-                    project_documents.slug,
-                    project_documents.body_ref,
+                    studio_project_document.id,
+                    studio_project_document.uuid,
+                    studio_project_document.tenant_id,
+                    studio_project_document.organization_id,
+                    studio_project_document.project_id,
+                    studio_project_document.slug,
+                    studio_project_document.body_ref,
                     projects.tenant_id,
                     projects.organization_id
-                FROM project_documents
-                LEFT JOIN plus_project AS projects
-                    ON projects.id = project_documents.project_id
+                FROM studio_project_document
+                LEFT JOIN studio_project AS projects
+                    ON projects.id = studio_project_document.project_id
                    AND projects.is_deleted = 0
-                WHERE project_documents.is_deleted = 0
+                WHERE studio_project_document.is_deleted = 0
                 "#,
             )
             .map_err(|error| {
@@ -5710,9 +4973,9 @@ fn backfill_project_document_business_columns(connection: &mut Connection) -> Re
                     .map_err(|error| format!("read project_documents id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read project_documents uuid failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 2, "project_documents.tenant_id")
+                sqlite_row_optional_string_value(row, 2, "studio_project_document.tenant_id")
                     .map_err(|error| format!("read project_documents tenant_id failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 3, "project_documents.organization_id")
+                sqlite_row_optional_string_value(row, 3, "studio_project_document.organization_id")
                     .map_err(|error| {
                         format!("read project_documents organization_id failed: {error}")
                     })?,
@@ -5758,7 +5021,7 @@ fn backfill_project_document_business_columns(connection: &mut Connection) -> Re
         connection
             .execute(
                 r#"
-                UPDATE project_documents
+                UPDATE studio_project_document
                 SET uuid = ?2, tenant_id = ?3, organization_id = ?4, body_ref = ?5
                 WHERE id = ?1
                 "#,
@@ -5784,40 +5047,40 @@ fn backfill_deployment_target_business_columns(connection: &mut Connection) -> R
             .prepare(
                 r#"
                 SELECT
-                    deployment_targets.id,
-                    deployment_targets.uuid,
-                    deployment_targets.tenant_id,
-                    deployment_targets.organization_id,
+                    studio_deployment_target.id,
+                    studio_deployment_target.uuid,
+                    studio_deployment_target.tenant_id,
+                    studio_deployment_target.organization_id,
                     projects.tenant_id,
                     projects.organization_id
-                FROM deployment_targets
-                LEFT JOIN plus_project AS projects
-                    ON projects.id = deployment_targets.project_id
+                FROM studio_deployment_target
+                LEFT JOIN studio_project AS projects
+                    ON projects.id = studio_deployment_target.project_id
                    AND projects.is_deleted = 0
-                WHERE deployment_targets.is_deleted = 0
+                WHERE studio_deployment_target.is_deleted = 0
                 "#,
             )
             .map_err(|error| {
-                format!("prepare deployment_targets canonical migration failed: {error}")
+                format!("prepare studio_deployment_target canonical migration failed: {error}")
             })?;
         let mut rows = statement.query([]).map_err(|error| {
-            format!("query deployment_targets canonical migration failed: {error}")
+            format!("query studio_deployment_target canonical migration failed: {error}")
         })?;
         let mut records = Vec::new();
         while let Some(row) = rows.next().map_err(|error| {
-            format!("read deployment_targets canonical migration row failed: {error}")
+            format!("read studio_deployment_target canonical migration row failed: {error}")
         })? {
             records.push((
                 row.get::<_, String>(0)
-                    .map_err(|error| format!("read deployment_targets id failed: {error}"))?,
+                    .map_err(|error| format!("read studio_deployment_target id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
-                    .map_err(|error| format!("read deployment_targets uuid failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 2, "deployment_targets.tenant_id").map_err(
-                    |error| format!("read deployment_targets tenant_id failed: {error}"),
+                    .map_err(|error| format!("read studio_deployment_target uuid failed: {error}"))?,
+                sqlite_row_optional_string_value(row, 2, "studio_deployment_target.tenant_id").map_err(
+                    |error| format!("read studio_deployment_target tenant_id failed: {error}"),
                 )?,
-                sqlite_row_optional_string_value(row, 3, "deployment_targets.organization_id")
+                sqlite_row_optional_string_value(row, 3, "studio_deployment_target.organization_id")
                     .map_err(|error| {
-                        format!("read deployment_targets organization_id failed: {error}")
+                        format!("read studio_deployment_target organization_id failed: {error}")
                     })?,
                 sqlite_row_optional_string_value(row, 4, "projects.tenant_id")
                     .map_err(|error| format!("read parent project tenant_id failed: {error}"))?,
@@ -5841,7 +5104,7 @@ fn backfill_deployment_target_business_columns(connection: &mut Connection) -> R
         connection
             .execute(
                 r#"
-                UPDATE deployment_targets
+                UPDATE studio_deployment_target
                 SET uuid = ?2, tenant_id = ?3, organization_id = ?4
                 WHERE id = ?1
                 "#,
@@ -5853,7 +5116,7 @@ fn backfill_deployment_target_business_columns(connection: &mut Connection) -> R
                 ],
             )
             .map_err(|error| {
-                format!("backfill deployment_targets canonical fields {id} failed: {error}")
+                format!("backfill studio_deployment_target canonical fields {id} failed: {error}")
             })?;
     }
 
@@ -5866,40 +5129,40 @@ fn backfill_deployment_record_business_columns(connection: &mut Connection) -> R
             .prepare(
                 r#"
                 SELECT
-                    deployment_records.id,
-                    deployment_records.uuid,
-                    deployment_records.tenant_id,
-                    deployment_records.organization_id,
+                    studio_deployment_record.id,
+                    studio_deployment_record.uuid,
+                    studio_deployment_record.tenant_id,
+                    studio_deployment_record.organization_id,
                     projects.tenant_id,
                     projects.organization_id
-                FROM deployment_records
-                LEFT JOIN plus_project AS projects
-                    ON projects.id = deployment_records.project_id
+                FROM studio_deployment_record
+                LEFT JOIN studio_project AS projects
+                    ON projects.id = studio_deployment_record.project_id
                    AND projects.is_deleted = 0
-                WHERE deployment_records.is_deleted = 0
+                WHERE studio_deployment_record.is_deleted = 0
                 "#,
             )
             .map_err(|error| {
-                format!("prepare deployment_records canonical migration failed: {error}")
+                format!("prepare studio_deployment_record canonical migration failed: {error}")
             })?;
         let mut rows = statement.query([]).map_err(|error| {
-            format!("query deployment_records canonical migration failed: {error}")
+            format!("query studio_deployment_record canonical migration failed: {error}")
         })?;
         let mut records = Vec::new();
         while let Some(row) = rows.next().map_err(|error| {
-            format!("read deployment_records canonical migration row failed: {error}")
+            format!("read studio_deployment_record canonical migration row failed: {error}")
         })? {
             records.push((
                 row.get::<_, String>(0)
-                    .map_err(|error| format!("read deployment_records id failed: {error}"))?,
+                    .map_err(|error| format!("read studio_deployment_record id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
-                    .map_err(|error| format!("read deployment_records uuid failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 2, "deployment_records.tenant_id").map_err(
-                    |error| format!("read deployment_records tenant_id failed: {error}"),
+                    .map_err(|error| format!("read studio_deployment_record uuid failed: {error}"))?,
+                sqlite_row_optional_string_value(row, 2, "studio_deployment_record.tenant_id").map_err(
+                    |error| format!("read studio_deployment_record tenant_id failed: {error}"),
                 )?,
-                sqlite_row_optional_string_value(row, 3, "deployment_records.organization_id")
+                sqlite_row_optional_string_value(row, 3, "studio_deployment_record.organization_id")
                     .map_err(|error| {
-                        format!("read deployment_records organization_id failed: {error}")
+                        format!("read studio_deployment_record organization_id failed: {error}")
                     })?,
                 sqlite_row_optional_string_value(row, 4, "projects.tenant_id")
                     .map_err(|error| format!("read parent project tenant_id failed: {error}"))?,
@@ -5923,7 +5186,7 @@ fn backfill_deployment_record_business_columns(connection: &mut Connection) -> R
         connection
             .execute(
                 r#"
-                UPDATE deployment_records
+                UPDATE studio_deployment_record
                 SET uuid = ?2, tenant_id = ?3, organization_id = ?4
                 WHERE id = ?1
                 "#,
@@ -5935,7 +5198,7 @@ fn backfill_deployment_record_business_columns(connection: &mut Connection) -> R
                 ],
             )
             .map_err(|error| {
-                format!("backfill deployment_records canonical fields {id} failed: {error}")
+                format!("backfill studio_deployment_record canonical fields {id} failed: {error}")
             })?;
     }
 
@@ -5948,30 +5211,30 @@ fn backfill_release_record_business_columns(connection: &mut Connection) -> Resu
             .prepare(
                 r#"
                 SELECT id, uuid, tenant_id, organization_id
-                FROM release_records
+                FROM ops_release_record
                 WHERE is_deleted = 0
                 "#,
             )
             .map_err(|error| {
-                format!("prepare release_records canonical migration failed: {error}")
+                format!("prepare ops_release_record canonical migration failed: {error}")
             })?;
         let mut rows = statement.query([]).map_err(|error| {
-            format!("query release_records canonical migration failed: {error}")
+            format!("query ops_release_record canonical migration failed: {error}")
         })?;
         let mut records = Vec::new();
         while let Some(row) = rows.next().map_err(|error| {
-            format!("read release_records canonical migration row failed: {error}")
+            format!("read ops_release_record canonical migration row failed: {error}")
         })? {
             records.push((
                 row.get::<_, String>(0)
-                    .map_err(|error| format!("read release_records id failed: {error}"))?,
+                    .map_err(|error| format!("read ops_release_record id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
-                    .map_err(|error| format!("read release_records uuid failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 2, "release_records.tenant_id")
-                    .map_err(|error| format!("read release_records tenant_id failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 3, "release_records.organization_id")
+                    .map_err(|error| format!("read ops_release_record uuid failed: {error}"))?,
+                sqlite_row_optional_string_value(row, 2, "ops_release_record.tenant_id")
+                    .map_err(|error| format!("read ops_release_record tenant_id failed: {error}"))?,
+                sqlite_row_optional_string_value(row, 3, "ops_release_record.organization_id")
                     .map_err(|error| {
-                        format!("read release_records organization_id failed: {error}")
+                        format!("read ops_release_record organization_id failed: {error}")
                     })?,
             ));
         }
@@ -5987,7 +5250,7 @@ fn backfill_release_record_business_columns(connection: &mut Connection) -> Resu
         connection
             .execute(
                 r#"
-                UPDATE release_records
+                UPDATE ops_release_record
                 SET uuid = ?2, tenant_id = ?3, organization_id = ?4
                 WHERE id = ?1
                 "#,
@@ -5999,7 +5262,7 @@ fn backfill_release_record_business_columns(connection: &mut Connection) -> Resu
                 ],
             )
             .map_err(|error| {
-                format!("backfill release_records canonical fields {id} failed: {error}")
+                format!("backfill ops_release_record canonical fields {id} failed: {error}")
             })?;
     }
 
@@ -6012,7 +5275,7 @@ fn backfill_audit_event_business_columns(connection: &mut Connection) -> Result<
             .prepare(
                 r#"
                 SELECT id, uuid, tenant_id, organization_id, scope_type, scope_id
-                FROM audit_events
+                FROM ops_audit_event
                 WHERE is_deleted = 0
                 "#,
             )
@@ -6030,9 +5293,9 @@ fn backfill_audit_event_business_columns(connection: &mut Connection) -> Result<
                     .map_err(|error| format!("read audit_events id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read audit_events uuid failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 2, "audit_events.tenant_id")
+                sqlite_row_optional_string_value(row, 2, "ops_audit_event.tenant_id")
                     .map_err(|error| format!("read audit_events tenant_id failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 3, "audit_events.organization_id").map_err(
+                sqlite_row_optional_string_value(row, 3, "ops_audit_event.organization_id").map_err(
                     |error| format!("read audit_events organization_id failed: {error}"),
                 )?,
                 row.get::<_, String>(4)
@@ -6056,7 +5319,7 @@ fn backfill_audit_event_business_columns(connection: &mut Connection) -> Result<
         connection
             .execute(
                 r#"
-                UPDATE audit_events
+                UPDATE ops_audit_event
                 SET uuid = ?2, tenant_id = ?3, organization_id = ?4
                 WHERE id = ?1
                 "#,
@@ -6081,7 +5344,7 @@ fn backfill_governance_policy_business_columns(connection: &mut Connection) -> R
             .prepare(
                 r#"
                 SELECT id, uuid, tenant_id, organization_id, scope_type, scope_id
-                FROM governance_policies
+                FROM ops_governance_policy
                 WHERE is_deleted = 0
                 "#,
             )
@@ -6100,10 +5363,10 @@ fn backfill_governance_policy_business_columns(connection: &mut Connection) -> R
                     .map_err(|error| format!("read governance_policies id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read governance_policies uuid failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 2, "governance_policies.tenant_id").map_err(
+                sqlite_row_optional_string_value(row, 2, "ops_governance_policy.tenant_id").map_err(
                     |error| format!("read governance_policies tenant_id failed: {error}"),
                 )?,
-                sqlite_row_optional_string_value(row, 3, "governance_policies.organization_id")
+                sqlite_row_optional_string_value(row, 3, "ops_governance_policy.organization_id")
                     .map_err(|error| {
                         format!("read governance_policies organization_id failed: {error}")
                     })?,
@@ -6130,7 +5393,7 @@ fn backfill_governance_policy_business_columns(connection: &mut Connection) -> R
         connection
             .execute(
                 r#"
-                UPDATE governance_policies
+                UPDATE ops_governance_policy
                 SET uuid = ?2, tenant_id = ?3, organization_id = ?4
                 WHERE id = ?1
                 "#,
@@ -6334,15 +5597,6 @@ fn sqlite_value_ref_to_string(value: ValueRef<'_>) -> Option<String> {
         ValueRef::Text(text) => Some(String::from_utf8_lossy(text).into_owned()),
         ValueRef::Blob(_) => None,
     }
-}
-
-fn normalize_decimal_string_identifier(value: Option<&str>) -> Option<String> {
-    let normalized = normalize_required_string(value?.to_owned())?;
-    normalized
-        .parse::<i64>()
-        .ok()
-        .filter(|candidate| *candidate >= 0)
-        .map(|candidate| candidate.to_string())
 }
 
 fn normalize_organization_id_or_default(value: Option<String>) -> String {
@@ -6682,7 +5936,7 @@ fn backfill_team_business_columns(connection: &mut Connection) -> Result<(), Str
                     code,
                     title,
                     metadata_json
-                FROM teams
+                FROM studio_team
                 WHERE is_deleted = 0
                 "#,
             )
@@ -6696,22 +5950,22 @@ fn backfill_team_business_columns(connection: &mut Connection) -> Result<(), Str
             .map_err(|error| format!("read team canonical migration row failed: {error}"))?
         {
             records.push((
-                sqlite_row_required_string_value(row, 0, "teams.id")
+                sqlite_row_required_string_value(row, 0, "studio_team.id")
                     .map_err(|error| format!("read team canonical id failed: {error}"))?,
-                sqlite_row_required_string_value(row, 1, "teams.workspace_id")
+                sqlite_row_required_string_value(row, 1, "studio_team.workspace_id")
                     .map_err(|error| format!("read team canonical workspace_id failed: {error}"))?,
                 row.get::<_, String>(2)
                     .map_err(|error| format!("read team canonical name failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 3, "teams.tenant_id")
+                sqlite_row_optional_string_value(row, 3, "studio_team.tenant_id")
                     .map_err(|error| format!("read team canonical tenant_id failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 4, "teams.organization_id").map_err(
+                sqlite_row_optional_string_value(row, 4, "studio_team.organization_id").map_err(
                     |error| format!("read team canonical organization_id failed: {error}"),
                 )?,
-                sqlite_row_optional_string_value(row, 5, "teams.owner_id")
+                sqlite_row_optional_string_value(row, 5, "studio_team.owner_id")
                     .map_err(|error| format!("read team canonical owner_id failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 6, "teams.leader_id")
+                sqlite_row_optional_string_value(row, 6, "studio_team.leader_id")
                     .map_err(|error| format!("read team canonical leader_id failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 7, "teams.created_by_user_id").map_err(
+                sqlite_row_optional_string_value(row, 7, "studio_team.created_by_user_id").map_err(
                     |error| format!("read team canonical created_by_user_id failed: {error}"),
                 )?,
                 row.get::<_, Option<String>>(8)
@@ -6747,7 +6001,7 @@ fn backfill_team_business_columns(connection: &mut Connection) -> Result<(), Str
             .query_row(
                 r#"
                 SELECT tenant_id, organization_id
-                FROM plus_workspace AS workspaces
+                FROM studio_workspace AS workspaces
                 WHERE id = ?1 AND is_deleted = 0
                 LIMIT 1
                 "#,
@@ -6788,7 +6042,7 @@ fn backfill_team_business_columns(connection: &mut Connection) -> Result<(), Str
         connection
             .execute(
                 r#"
-                UPDATE teams
+                UPDATE studio_team
                 SET
                     uuid = ?2,
                     tenant_id = ?3,
@@ -6826,44 +6080,44 @@ fn backfill_team_member_business_columns(connection: &mut Connection) -> Result<
             .prepare(
                 r#"
                 SELECT
-                    team_members.id,
-                    team_members.uuid,
-                    team_members.tenant_id,
-                    team_members.organization_id,
-                    teams.tenant_id,
-                    teams.organization_id
-                FROM team_members
-                LEFT JOIN teams
-                    ON teams.id = team_members.team_id
-                   AND teams.is_deleted = 0
-                WHERE team_members.is_deleted = 0
+                    studio_team_member.id,
+                    studio_team_member.uuid,
+                    studio_team_member.tenant_id,
+                    studio_team_member.organization_id,
+                    studio_team.tenant_id,
+                    studio_team.organization_id
+                FROM studio_team_member
+                LEFT JOIN studio_team
+                    ON studio_team.id = studio_team_member.team_id
+                   AND studio_team.is_deleted = 0
+                WHERE studio_team_member.is_deleted = 0
                 "#,
             )
-            .map_err(|error| format!("prepare team_members canonical migration failed: {error}"))?;
+            .map_err(|error| format!("prepare studio_team_member canonical migration failed: {error}"))?;
         let mut rows = statement
             .query([])
-            .map_err(|error| format!("query team_members canonical migration failed: {error}"))?;
+            .map_err(|error| format!("query studio_team_member canonical migration failed: {error}"))?;
         let mut records = Vec::new();
         while let Some(row) = rows
             .next()
-            .map_err(|error| format!("read team_members canonical migration row failed: {error}"))?
+            .map_err(|error| format!("read studio_team_member canonical migration row failed: {error}"))?
         {
             records.push((
-                sqlite_row_required_string_value(row, 0, "team_members.id")
-                    .map_err(|error| format!("read team_members canonical id failed: {error}"))?,
+                sqlite_row_required_string_value(row, 0, "studio_team_member.id")
+                    .map_err(|error| format!("read studio_team_member canonical id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
-                    .map_err(|error| format!("read team_members canonical uuid failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 2, "team_members.tenant_id").map_err(
-                    |error| format!("read team_members canonical tenant_id failed: {error}"),
+                    .map_err(|error| format!("read studio_team_member canonical uuid failed: {error}"))?,
+                sqlite_row_optional_string_value(row, 2, "studio_team_member.tenant_id").map_err(
+                    |error| format!("read studio_team_member canonical tenant_id failed: {error}"),
                 )?,
-                sqlite_row_optional_string_value(row, 3, "team_members.organization_id").map_err(
-                    |error| format!("read team_members canonical organization_id failed: {error}"),
+                sqlite_row_optional_string_value(row, 3, "studio_team_member.organization_id").map_err(
+                    |error| format!("read studio_team_member canonical organization_id failed: {error}"),
                 )?,
-                sqlite_row_optional_string_value(row, 4, "teams.tenant_id").map_err(|error| {
-                    format!("read team_members parent tenant_id failed: {error}")
+                sqlite_row_optional_string_value(row, 4, "studio_team.tenant_id").map_err(|error| {
+                    format!("read studio_team_member parent tenant_id failed: {error}")
                 })?,
-                sqlite_row_optional_string_value(row, 5, "teams.organization_id").map_err(
-                    |error| format!("read team_members parent organization_id failed: {error}"),
+                sqlite_row_optional_string_value(row, 5, "studio_team.organization_id").map_err(
+                    |error| format!("read studio_team_member parent organization_id failed: {error}"),
                 )?,
             ));
         }
@@ -6882,7 +6136,7 @@ fn backfill_team_member_business_columns(connection: &mut Connection) -> Result<
         connection
             .execute(
                 r#"
-                UPDATE team_members
+                UPDATE studio_team_member
                 SET uuid = ?2, tenant_id = ?3, organization_id = ?4
                 WHERE id = ?1
                 "#,
@@ -6894,7 +6148,7 @@ fn backfill_team_member_business_columns(connection: &mut Connection) -> Result<
                 ],
             )
             .map_err(|error| {
-                format!("backfill team_members canonical fields {id} failed: {error}")
+                format!("backfill studio_team_member canonical fields {id} failed: {error}")
             })?;
     }
 
@@ -6907,49 +6161,49 @@ fn backfill_workspace_member_business_columns(connection: &mut Connection) -> Re
             .prepare(
                 r#"
                 SELECT
-                    workspace_members.id,
-                    workspace_members.uuid,
-                    workspace_members.tenant_id,
-                    workspace_members.organization_id,
+                    studio_workspace_member.id,
+                    studio_workspace_member.uuid,
+                    studio_workspace_member.tenant_id,
+                    studio_workspace_member.organization_id,
                     workspaces.tenant_id,
                     workspaces.organization_id
-                FROM workspace_members
-                LEFT JOIN plus_workspace AS workspaces
-                    ON workspaces.id = workspace_members.workspace_id
+                FROM studio_workspace_member
+                LEFT JOIN studio_workspace AS workspaces
+                    ON workspaces.id = studio_workspace_member.workspace_id
                    AND workspaces.is_deleted = 0
-                WHERE workspace_members.is_deleted = 0
+                WHERE studio_workspace_member.is_deleted = 0
                 "#,
             )
             .map_err(|error| {
-                format!("prepare workspace_members canonical migration failed: {error}")
+                format!("prepare studio_workspace_member canonical migration failed: {error}")
             })?;
         let mut rows = statement.query([]).map_err(|error| {
-            format!("query workspace_members canonical migration failed: {error}")
+            format!("query studio_workspace_member canonical migration failed: {error}")
         })?;
         let mut records = Vec::new();
         while let Some(row) = rows.next().map_err(|error| {
-            format!("read workspace_members canonical migration row failed: {error}")
+            format!("read studio_workspace_member canonical migration row failed: {error}")
         })? {
             records.push((
-                sqlite_row_required_string_value(row, 0, "workspace_members.id").map_err(
-                    |error| format!("read workspace_members canonical id failed: {error}"),
+                sqlite_row_required_string_value(row, 0, "studio_workspace_member.id").map_err(
+                    |error| format!("read studio_workspace_member canonical id failed: {error}"),
                 )?,
                 row.get::<_, Option<String>>(1).map_err(|error| {
-                    format!("read workspace_members canonical uuid failed: {error}")
+                    format!("read studio_workspace_member canonical uuid failed: {error}")
                 })?,
-                sqlite_row_optional_string_value(row, 2, "workspace_members.tenant_id").map_err(
-                    |error| format!("read workspace_members canonical tenant_id failed: {error}"),
+                sqlite_row_optional_string_value(row, 2, "studio_workspace_member.tenant_id").map_err(
+                    |error| format!("read studio_workspace_member canonical tenant_id failed: {error}"),
                 )?,
-                sqlite_row_optional_string_value(row, 3, "workspace_members.organization_id")
+                sqlite_row_optional_string_value(row, 3, "studio_workspace_member.organization_id")
                     .map_err(|error| {
-                        format!("read workspace_members canonical organization_id failed: {error}")
+                        format!("read studio_workspace_member canonical organization_id failed: {error}")
                     })?,
                 sqlite_row_optional_string_value(row, 4, "workspaces.tenant_id").map_err(
-                    |error| format!("read workspace_members parent tenant_id failed: {error}"),
+                    |error| format!("read studio_workspace_member parent tenant_id failed: {error}"),
                 )?,
                 sqlite_row_optional_string_value(row, 5, "workspaces.organization_id").map_err(
                     |error| {
-                        format!("read workspace_members parent organization_id failed: {error}")
+                        format!("read studio_workspace_member parent organization_id failed: {error}")
                     },
                 )?,
             ));
@@ -6969,7 +6223,7 @@ fn backfill_workspace_member_business_columns(connection: &mut Connection) -> Re
         connection
             .execute(
                 r#"
-                UPDATE workspace_members
+                UPDATE studio_workspace_member
                 SET uuid = ?2, tenant_id = ?3, organization_id = ?4
                 WHERE id = ?1
                 "#,
@@ -6981,7 +6235,7 @@ fn backfill_workspace_member_business_columns(connection: &mut Connection) -> Re
                 ],
             )
             .map_err(|error| {
-                format!("backfill workspace_members canonical fields {id} failed: {error}")
+                format!("backfill studio_workspace_member canonical fields {id} failed: {error}")
             })?;
     }
 
@@ -6996,50 +6250,50 @@ fn backfill_project_collaborator_business_columns(
             .prepare(
                 r#"
                 SELECT
-                    project_collaborators.id,
-                    project_collaborators.uuid,
-                    project_collaborators.tenant_id,
-                    project_collaborators.organization_id,
+                    studio_project_collaborator.id,
+                    studio_project_collaborator.uuid,
+                    studio_project_collaborator.tenant_id,
+                    studio_project_collaborator.organization_id,
                     projects.tenant_id,
                     projects.organization_id
-                FROM project_collaborators
-                LEFT JOIN plus_project AS projects
-                    ON projects.id = project_collaborators.project_id
+                FROM studio_project_collaborator
+                LEFT JOIN studio_project AS projects
+                    ON projects.id = studio_project_collaborator.project_id
                    AND projects.is_deleted = 0
-                WHERE project_collaborators.is_deleted = 0
+                WHERE studio_project_collaborator.is_deleted = 0
                 "#,
             )
             .map_err(|error| {
-                format!("prepare project_collaborators canonical migration failed: {error}")
+                format!("prepare studio_project_collaborator canonical migration failed: {error}")
             })?;
         let mut rows = statement.query([]).map_err(|error| {
-            format!("query project_collaborators canonical migration failed: {error}")
+            format!("query studio_project_collaborator canonical migration failed: {error}")
         })?;
         let mut records = Vec::new();
         while let Some(row) = rows.next().map_err(|error| {
-            format!("read project_collaborators canonical migration row failed: {error}")
+            format!("read studio_project_collaborator canonical migration row failed: {error}")
         })? {
             records.push((
-                sqlite_row_required_string_value(row, 0, "project_collaborators.id").map_err(
-                    |error| format!("read project_collaborators canonical id failed: {error}"),
+                sqlite_row_required_string_value(row, 0, "studio_project_collaborator.id").map_err(
+                    |error| format!("read studio_project_collaborator canonical id failed: {error}"),
                 )?,
                 row.get::<_, Option<String>>(1).map_err(|error| {
-                    format!("read project_collaborators canonical uuid failed: {error}")
+                    format!("read studio_project_collaborator canonical uuid failed: {error}")
                 })?,
-                sqlite_row_optional_string_value(row, 2, "project_collaborators.tenant_id")
+                sqlite_row_optional_string_value(row, 2, "studio_project_collaborator.tenant_id")
                     .map_err(|error| {
-                        format!("read project_collaborators canonical tenant_id failed: {error}")
+                        format!("read studio_project_collaborator canonical tenant_id failed: {error}")
                     })?,
-                sqlite_row_optional_string_value(row, 3, "project_collaborators.organization_id")
+                sqlite_row_optional_string_value(row, 3, "studio_project_collaborator.organization_id")
                     .map_err(|error| {
-                    format!("read project_collaborators canonical organization_id failed: {error}")
+                    format!("read studio_project_collaborator canonical organization_id failed: {error}")
                 })?,
                 sqlite_row_optional_string_value(row, 4, "projects.tenant_id").map_err(
-                    |error| format!("read project_collaborators parent tenant_id failed: {error}"),
+                    |error| format!("read studio_project_collaborator parent tenant_id failed: {error}"),
                 )?,
                 sqlite_row_optional_string_value(row, 5, "projects.organization_id").map_err(
                     |error| {
-                        format!("read project_collaborators parent organization_id failed: {error}")
+                        format!("read studio_project_collaborator parent organization_id failed: {error}")
                     },
                 )?,
             ));
@@ -7059,7 +6313,7 @@ fn backfill_project_collaborator_business_columns(
         connection
             .execute(
                 r#"
-                UPDATE project_collaborators
+                UPDATE studio_project_collaborator
                 SET uuid = ?2, tenant_id = ?3, organization_id = ?4
                 WHERE id = ?1
                 "#,
@@ -7071,7 +6325,7 @@ fn backfill_project_collaborator_business_columns(
                 ],
             )
             .map_err(|error| {
-                format!("backfill project_collaborators canonical fields {id} failed: {error}")
+                format!("backfill studio_project_collaborator canonical fields {id} failed: {error}")
             })?;
     }
 
@@ -7342,7 +6596,7 @@ fn backfill_catalog_project_business_columns(
                 projects.tenant_id,
                 projects.organization_id
             FROM {table_name} child
-            LEFT JOIN plus_project AS projects
+            LEFT JOIN studio_project AS projects
                 ON projects.id = child.{project_id_column}
                AND projects.is_deleted = 0
             WHERE child.is_deleted = 0
@@ -7444,12 +6698,11 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
     connection
         .execute_batch(SQLITE_PROVIDER_AUTHORITY_SCHEMA)
         .map_err(|error| format!("create sqlite provider authority schema failed: {error}"))?;
-    ensure_sqlite_provider_authority_integer_identifier_upgrade(connection)?;
 
-    if sqlite_table_exists(connection, "coding_sessions")? {
+    if sqlite_table_exists(connection, "ai_coding_session")? {
         ensure_sqlite_table_columns(
             connection,
-            "coding_sessions",
+            "ai_coding_session",
             &[
                 ("uuid", "uuid TEXT NULL"),
                 ("host_mode", "host_mode TEXT NOT NULL DEFAULT 'server'"),
@@ -7464,8 +6717,8 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
         connection
             .execute(
                 r#"
-                CREATE INDEX IF NOT EXISTS idx_coding_sessions_project_sort
-                ON coding_sessions(project_id, sort_timestamp)
+                CREATE INDEX IF NOT EXISTS idx_ai_coding_session_project_sort
+                ON ai_coding_session(project_id, sort_timestamp)
                 "#,
                 [],
             )
@@ -7787,10 +7040,10 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             ],
         )?;
     }
-    if sqlite_table_exists(connection, "workspace_members")? {
+    if sqlite_table_exists(connection, "studio_workspace_member")? {
         ensure_sqlite_table_columns(
             connection,
-            "workspace_members",
+            "studio_workspace_member",
             &[
                 ("uuid", "uuid TEXT NULL"),
                 ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
@@ -7804,10 +7057,10 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
             ],
         )?;
     }
-    if sqlite_table_exists(connection, "project_collaborators")? {
+    if sqlite_table_exists(connection, "studio_project_collaborator")? {
         ensure_sqlite_table_columns(
             connection,
-            "project_collaborators",
+            "studio_project_collaborator",
             &[
                 ("uuid", "uuid TEXT NULL"),
                 ("tenant_id", "tenant_id INTEGER NOT NULL DEFAULT 0"),
@@ -7878,8 +7131,8 @@ fn ensure_sqlite_provider_authority_schema_upgrade(
     backfill_workspace_member_business_columns(connection)?;
     backfill_project_collaborator_business_columns(connection)?;
     backfill_collaboration_user_columns(connection, PROVIDER_TEAM_MEMBERS_TABLE)?;
-    backfill_collaboration_user_columns(connection, "workspace_members")?;
-    backfill_collaboration_user_columns(connection, "project_collaborators")?;
+    backfill_collaboration_user_columns(connection, "studio_workspace_member")?;
+    backfill_collaboration_user_columns(connection, "studio_project_collaborator")?;
 
     Ok(())
 }
@@ -8044,12 +7297,12 @@ fn load_provider_coding_session_rows(
         .prepare(
             r#"
             SELECT id, workspace_id, project_id, title, status, engine_id, model_id, created_at, updated_at, last_turn_at
-            FROM coding_sessions
+            FROM ai_coding_session
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
             "#,
         )
-        .map_err(|error| format!("prepare coding_sessions query failed: {error}"))?;
+        .map_err(|error| format!("prepare ai_coding_session query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
             let created_at: String = row.get(7)?;
@@ -8070,11 +7323,11 @@ fn load_provider_coding_session_rows(
                 last_turn_at: normalize_optional_storage_timestamp_value(last_turn_at),
             })
         })
-        .map_err(|error| format!("query coding_sessions failed: {error}"))?;
+        .map_err(|error| format!("query ai_coding_session failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
-        records.push(row.map_err(|error| format!("read coding_sessions row failed: {error}"))?);
+        records.push(row.map_err(|error| format!("read ai_coding_session row failed: {error}"))?);
     }
     Ok(records)
 }
@@ -8086,12 +7339,12 @@ fn load_provider_runtime_rows(
         .prepare(
             r#"
             SELECT id, coding_session_id, host_mode, engine_id, model_id, status, native_session_id, created_at, updated_at
-            FROM coding_session_runtimes
+            FROM ai_coding_session_runtime
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
             "#,
         )
-        .map_err(|error| format!("prepare coding_session_runtimes query failed: {error}"))?;
+        .map_err(|error| format!("prepare ai_coding_session_runtime query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
             let created_at: String = row.get(7)?;
@@ -8110,12 +7363,12 @@ fn load_provider_runtime_rows(
                     .unwrap_or(updated_at),
             })
         })
-        .map_err(|error| format!("query coding_session_runtimes failed: {error}"))?;
+        .map_err(|error| format!("query ai_coding_session_runtime failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
         records.push(
-            row.map_err(|error| format!("read coding_session_runtimes row failed: {error}"))?,
+            row.map_err(|error| format!("read ai_coding_session_runtime row failed: {error}"))?,
         );
     }
     Ok(records)
@@ -8158,12 +7411,12 @@ fn load_provider_turn_rows(connection: &Connection) -> Result<Vec<CodingSessionT
         .prepare(
             r#"
             SELECT id, coding_session_id, runtime_id, request_kind, status, input_summary, started_at, completed_at
-            FROM coding_session_turns
+            FROM ai_coding_session_turn
             WHERE is_deleted = 0
             ORDER BY coding_session_id ASC, created_at ASC, id ASC
             "#,
         )
-        .map_err(|error| format!("prepare coding_session_turns query failed: {error}"))?;
+        .map_err(|error| format!("prepare ai_coding_session_turn query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
             Ok(CodingSessionTurnRow {
@@ -8177,12 +7430,12 @@ fn load_provider_turn_rows(connection: &Connection) -> Result<Vec<CodingSessionT
                 completed_at: row.get(7)?,
             })
         })
-        .map_err(|error| format!("query coding_session_turns failed: {error}"))?;
+        .map_err(|error| format!("query ai_coding_session_turn failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
         records
-            .push(row.map_err(|error| format!("read coding_session_turns row failed: {error}"))?);
+            .push(row.map_err(|error| format!("read ai_coding_session_turn row failed: {error}"))?);
     }
     Ok(records)
 }
@@ -8192,12 +7445,12 @@ fn load_provider_event_rows(connection: &Connection) -> Result<Vec<CodingSession
         .prepare(
             r#"
             SELECT id, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json, created_at
-            FROM coding_session_events
+            FROM ai_coding_session_event
             WHERE is_deleted = 0
             ORDER BY coding_session_id ASC, sequence_no ASC, created_at ASC, id ASC
             "#,
         )
-        .map_err(|error| format!("prepare coding_session_events query failed: {error}"))?;
+        .map_err(|error| format!("prepare ai_coding_session_event query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
             Ok(CodingSessionEventRow {
@@ -8211,12 +7464,12 @@ fn load_provider_event_rows(connection: &Connection) -> Result<Vec<CodingSession
                 created_at: row.get(7)?,
             })
         })
-        .map_err(|error| format!("query coding_session_events failed: {error}"))?;
+        .map_err(|error| format!("query ai_coding_session_event failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
         records
-            .push(row.map_err(|error| format!("read coding_session_events row failed: {error}"))?);
+            .push(row.map_err(|error| format!("read ai_coding_session_event row failed: {error}"))?);
     }
     Ok(records)
 }
@@ -8228,12 +7481,12 @@ fn load_provider_artifact_rows(
         .prepare(
             r#"
             SELECT id, coding_session_id, turn_id, artifact_kind, title, blob_ref, metadata_json, created_at
-            FROM coding_session_artifacts
+            FROM ai_coding_session_artifact
             WHERE is_deleted = 0
             ORDER BY coding_session_id ASC, created_at ASC, id ASC
             "#,
         )
-        .map_err(|error| format!("prepare coding_session_artifacts query failed: {error}"))?;
+        .map_err(|error| format!("prepare ai_coding_session_artifact query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
             Ok(CodingSessionArtifactRow {
@@ -8247,12 +7500,12 @@ fn load_provider_artifact_rows(
                 created_at: row.get(7)?,
             })
         })
-        .map_err(|error| format!("query coding_session_artifacts failed: {error}"))?;
+        .map_err(|error| format!("query ai_coding_session_artifact failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
         records.push(
-            row.map_err(|error| format!("read coding_session_artifacts row failed: {error}"))?,
+            row.map_err(|error| format!("read ai_coding_session_artifact row failed: {error}"))?,
         );
     }
     Ok(records)
@@ -8265,12 +7518,12 @@ fn load_provider_checkpoint_rows(
         .prepare(
             r#"
             SELECT id, coding_session_id, runtime_id, checkpoint_kind, resumable, state_json, created_at
-            FROM coding_session_checkpoints
+            FROM ai_coding_session_checkpoint
             WHERE is_deleted = 0
             ORDER BY coding_session_id ASC, created_at ASC, id ASC
             "#,
         )
-        .map_err(|error| format!("prepare coding_session_checkpoints query failed: {error}"))?;
+        .map_err(|error| format!("prepare ai_coding_session_checkpoint query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
             Ok(CodingSessionCheckpointRow {
@@ -8283,12 +7536,12 @@ fn load_provider_checkpoint_rows(
                 created_at: row.get(6)?,
             })
         })
-        .map_err(|error| format!("query coding_session_checkpoints failed: {error}"))?;
+        .map_err(|error| format!("query ai_coding_session_checkpoint failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
         records.push(
-            row.map_err(|error| format!("read coding_session_checkpoints row failed: {error}"))?,
+            row.map_err(|error| format!("read ai_coding_session_checkpoint row failed: {error}"))?,
         );
     }
     Ok(records)
@@ -8301,12 +7554,12 @@ fn load_provider_operation_rows(
         .prepare(
             r#"
             SELECT id, coding_session_id, status, stream_url, stream_kind, artifact_refs_json
-            FROM coding_session_operations
+            FROM ai_coding_session_operation
             WHERE is_deleted = 0
             ORDER BY coding_session_id ASC, created_at ASC, id ASC
             "#,
         )
-        .map_err(|error| format!("prepare coding_session_operations query failed: {error}"))?;
+        .map_err(|error| format!("prepare ai_coding_session_operation query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
             Ok(CodingSessionOperationRow {
@@ -8318,12 +7571,12 @@ fn load_provider_operation_rows(
                 artifact_refs_json: row.get(5)?,
             })
         })
-        .map_err(|error| format!("query coding_session_operations failed: {error}"))?;
+        .map_err(|error| format!("query ai_coding_session_operation failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
         records.push(
-            row.map_err(|error| format!("read coding_session_operations row failed: {error}"))?,
+            row.map_err(|error| format!("read ai_coding_session_operation row failed: {error}"))?,
         );
     }
     Ok(records)
@@ -8422,7 +7675,7 @@ fn load_provider_workspace_payloads(
                 is_template
                 ,
                 data_scope
-            FROM plus_workspace AS workspaces
+            FROM studio_workspace AS workspaces
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
             "#,
@@ -8553,8 +7806,8 @@ fn load_provider_project_payloads(connection: &Connection) -> Result<Vec<Project
                 projects.parent_id,
                 projects.parent_uuid,
                 projects.parent_metadata
-            FROM plus_project AS projects
-            LEFT JOIN plus_project_content AS project_contents
+            FROM studio_project AS projects
+            LEFT JOIN studio_project_content AS project_contents
               ON project_contents.project_id = projects.id
             WHERE projects.is_deleted = 0
             ORDER BY projects.updated_at DESC, projects.id ASC
@@ -8666,7 +7919,7 @@ fn load_provider_workspace_payload_by_id(
                 is_template
                 ,
                 data_scope
-            FROM plus_workspace AS workspaces
+            FROM studio_workspace AS workspaces
             WHERE is_deleted = 0 AND id = ?1
             LIMIT 1
             "#,
@@ -8701,7 +7954,7 @@ fn load_provider_skill_package_payloads(
             .prepare(
                 r#"
                 SELECT skill_version_id
-                FROM skill_installations
+                FROM ai_skill_installation
                 WHERE is_deleted = 0
                   AND status = 'active'
                   AND scope_type = 'workspace'
@@ -8728,7 +7981,7 @@ fn load_provider_skill_package_payloads(
         .prepare(
             r#"
             SELECT skill_version_id, capability_key, payload_json
-            FROM skill_capabilities
+            FROM ai_skill_capability
             WHERE is_deleted = 0
             ORDER BY created_at ASC, id ASC
             "#,
@@ -8771,8 +8024,8 @@ fn load_provider_skill_package_payloads(
                 versions.version_label,
                 versions.manifest_json,
                 versions.updated_at
-            FROM skill_packages packages
-            INNER JOIN skill_versions versions
+            FROM ai_skill_package packages
+            INNER JOIN ai_skill_version versions
                 ON versions.skill_package_id = packages.id
                AND versions.is_deleted = 0
             WHERE packages.is_deleted = 0
@@ -8786,8 +8039,8 @@ fn load_provider_skill_package_payloads(
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, Option<String>>(1)?,
-                sqlite_row_optional_string_value(row, 2, "skill_packages.tenant_id")?,
-                sqlite_row_optional_string_value(row, 3, "skill_packages.organization_id")?,
+                sqlite_row_optional_string_value(row, 2, "ai_skill_package.tenant_id")?,
+                sqlite_row_optional_string_value(row, 3, "ai_skill_package.organization_id")?,
                 row.get::<_, String>(4)?,
                 row.get::<_, String>(5)?,
                 row.get::<_, String>(6)?,
@@ -8911,7 +8164,7 @@ fn load_provider_app_template_payloads(
         .prepare(
             r#"
             SELECT app_template_version_id, profile_key
-            FROM app_template_target_profiles
+            FROM studio_app_template_target_profile
             WHERE is_deleted = 0
             ORDER BY created_at ASC, id ASC
             "#,
@@ -8936,7 +8189,7 @@ fn load_provider_app_template_payloads(
         .prepare(
             r#"
             SELECT app_template_version_id, preset_key
-            FROM app_template_presets
+            FROM studio_app_template_preset
             WHERE is_deleted = 0
             ORDER BY CASE WHEN preset_key = 'default' THEN 0 ELSE 1 END, created_at ASC, id ASC
             "#,
@@ -8972,8 +8225,8 @@ fn load_provider_app_template_payloads(
                 versions.id,
                 versions.version_label,
                 versions.manifest_json
-            FROM app_templates templates
-            INNER JOIN app_template_versions versions
+            FROM studio_app_template templates
+            INNER JOIN studio_app_template_version versions
                 ON versions.app_template_id = templates.id
                AND versions.is_deleted = 0
             WHERE templates.is_deleted = 0
@@ -8987,8 +8240,8 @@ fn load_provider_app_template_payloads(
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, Option<String>>(1)?,
-                sqlite_row_optional_string_value(row, 2, "app_templates.tenant_id")?,
-                sqlite_row_optional_string_value(row, 3, "app_templates.organization_id")?,
+                sqlite_row_optional_string_value(row, 2, "studio_app_template.tenant_id")?,
+                sqlite_row_optional_string_value(row, 3, "studio_app_template.organization_id")?,
                 row.get::<_, String>(4)?,
                 row.get::<_, String>(5)?,
                 row.get::<_, String>(6)?,
@@ -9067,8 +8320,8 @@ fn load_latest_skill_version_for_package(
         .prepare(
             r#"
             SELECT versions.id, packages.id
-            FROM skill_packages packages
-            INNER JOIN skill_versions versions
+            FROM ai_skill_package packages
+            INNER JOIN ai_skill_version versions
                 ON versions.skill_package_id = packages.id
                AND versions.is_deleted = 0
             WHERE packages.is_deleted = 0
@@ -9093,7 +8346,7 @@ fn template_version_exists(connection: &Connection, version_id: &str) -> Result<
         .query_row(
             r#"
             SELECT COUNT(*)
-            FROM app_template_versions
+            FROM studio_app_template_version
             WHERE id = ?1 AND is_deleted = 0
             "#,
             params![version_id],
@@ -9112,7 +8365,7 @@ fn template_preset_exists(
         .query_row(
             r#"
             SELECT COUNT(*)
-            FROM app_template_presets
+            FROM studio_app_template_preset
             WHERE app_template_version_id = ?1
               AND preset_key = ?2
               AND is_deleted = 0
@@ -9137,7 +8390,7 @@ fn upsert_project_template_instantiation(
         .query_row(
             r#"
             SELECT uuid
-            FROM app_template_instantiations
+            FROM studio_app_template_instantiation
             WHERE id = ?1
             LIMIT 1
             "#,
@@ -9153,7 +8406,7 @@ fn upsert_project_template_instantiation(
         .query_row(
             r#"
             SELECT tenant_id, organization_id
-            FROM plus_project AS projects
+            FROM studio_project AS projects
             WHERE id = ?1 AND is_deleted = 0
             LIMIT 1
             "#,
@@ -9182,13 +8435,13 @@ fn upsert_project_template_instantiation(
     transaction
         .execute(
             r#"
-            INSERT INTO app_template_instantiations (
+            INSERT INTO studio_app_template_instantiation (
                 id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, project_id,
                 app_template_version_id, preset_key, status, output_root
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11)
             ON CONFLICT(id)
             DO UPDATE SET
-                uuid = COALESCE(NULLIF(TRIM(app_template_instantiations.uuid), ''), excluded.uuid),
+                uuid = COALESCE(NULLIF(TRIM(studio_app_template_instantiation.uuid), ''), excluded.uuid),
                 tenant_id = excluded.tenant_id,
                 organization_id = excluded.organization_id,
                 updated_at = excluded.updated_at,
@@ -9236,7 +8489,7 @@ fn load_provider_document_payloads(
                 slug,
                 body_ref,
                 status
-            FROM project_documents
+            FROM studio_project_document
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
             "#,
@@ -9247,11 +8500,11 @@ fn load_provider_document_payloads(
             Ok(DocumentPayload {
                 id: row.get(0)?,
                 uuid: row.get(1)?,
-                tenant_id: sqlite_row_optional_string_value(row, 2, "project_documents.tenant_id")?,
+                tenant_id: sqlite_row_optional_string_value(row, 2, "studio_project_document.tenant_id")?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
-                    "project_documents.organization_id",
+                    "studio_project_document.organization_id",
                 )?,
                 created_at: Some(row.get(4)?),
                 updated_at: Some(row.get(5)?),
@@ -9292,12 +8545,12 @@ fn load_provider_deployment_payloads(
                 endpoint_url,
                 started_at,
                 completed_at
-            FROM deployment_records
+            FROM studio_deployment_record
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
             "#,
         )
-        .map_err(|error| format!("prepare deployment_records query failed: {error}"))?;
+        .map_err(|error| format!("prepare studio_deployment_record query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
             Ok(DeploymentPayload {
@@ -9306,12 +8559,12 @@ fn load_provider_deployment_payloads(
                 tenant_id: sqlite_row_optional_string_value(
                     row,
                     2,
-                    "deployment_records.tenant_id",
+                    "studio_deployment_record.tenant_id",
                 )?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
-                    "deployment_records.organization_id",
+                    "studio_deployment_record.organization_id",
                 )?,
                 created_at: Some(row.get(4)?),
                 updated_at: Some(row.get(5)?),
@@ -9324,11 +8577,11 @@ fn load_provider_deployment_payloads(
                 completed_at: row.get(12)?,
             })
         })
-        .map_err(|error| format!("query deployment_records failed: {error}"))?;
+        .map_err(|error| format!("query studio_deployment_record failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
-        records.push(row.map_err(|error| format!("read deployment_records row failed: {error}"))?);
+        records.push(row.map_err(|error| format!("read studio_deployment_record row failed: {error}"))?);
     }
     Ok(records)
 }
@@ -9351,7 +8604,7 @@ fn load_provider_deployment_target_payloads(
                 environment_key,
                 runtime,
                 status
-            FROM deployment_targets
+            FROM studio_deployment_target
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
             "#,
@@ -9365,12 +8618,12 @@ fn load_provider_deployment_target_payloads(
                 tenant_id: sqlite_row_optional_string_value(
                     row,
                     2,
-                    "deployment_targets.tenant_id",
+                    "studio_deployment_target.tenant_id",
                 )?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
-                    "deployment_targets.organization_id",
+                    "studio_deployment_target.organization_id",
                 )?,
                 created_at: Some(row.get(4)?),
                 updated_at: Some(row.get(5)?),
@@ -9392,10 +8645,10 @@ fn load_provider_deployment_target_payloads(
 
 fn load_provider_team_payloads(connection: &Connection) -> Result<Vec<TeamPayload>, String> {
     fn read_team_payload(row: &rusqlite::Row<'_>) -> rusqlite::Result<TeamPayload> {
-        let owner_id = sqlite_row_optional_string_value(row, 11, "teams.owner_id")?;
-        let leader_id = sqlite_row_optional_string_value(row, 12, "teams.leader_id")?;
+        let owner_id = sqlite_row_optional_string_value(row, 11, "studio_team.owner_id")?;
+        let leader_id = sqlite_row_optional_string_value(row, 12, "studio_team.leader_id")?;
         let created_by_user_id =
-            sqlite_row_optional_string_value(row, 13, "teams.created_by_user_id")?;
+            sqlite_row_optional_string_value(row, 13, "studio_team.created_by_user_id")?;
         let metadata_json: Option<String> = row.get(14)?;
         let metadata =
             parse_optional_json_value(metadata_json, "team metadata_json").map_err(|error| {
@@ -9414,13 +8667,13 @@ fn load_provider_team_payloads(connection: &Connection) -> Result<Vec<TeamPayloa
             None,
         );
         Ok(TeamPayload {
-            id: sqlite_row_required_string_value(row, 0, "teams.id")?,
+            id: sqlite_row_required_string_value(row, 0, "studio_team.id")?,
             uuid: row.get(1)?,
-            tenant_id: sqlite_row_optional_string_value(row, 2, "teams.tenant_id")?,
-            organization_id: sqlite_row_optional_string_value(row, 3, "teams.organization_id")?,
+            tenant_id: sqlite_row_optional_string_value(row, 2, "studio_team.tenant_id")?,
+            organization_id: sqlite_row_optional_string_value(row, 3, "studio_team.organization_id")?,
             created_at: Some(row.get(4)?),
             updated_at: Some(row.get(5)?),
-            workspace_id: sqlite_row_required_string_value(row, 6, "teams.workspace_id")?,
+            workspace_id: sqlite_row_required_string_value(row, 6, "studio_team.workspace_id")?,
             name: row.get(7)?,
             code: row.get(8)?,
             title: row.get(9)?,
@@ -9453,7 +8706,7 @@ fn load_provider_team_payloads(connection: &Connection) -> Result<Vec<TeamPayloa
                 created_by_user_id,
                 metadata_json,
                 status
-            FROM teams
+            FROM studio_team
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
             "#,
@@ -9489,19 +8742,19 @@ fn load_provider_team_member_payloads(
                 status,
                 created_at,
                 updated_at
-            FROM team_members
+            FROM studio_team_member
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
             "#,
         )
-        .map_err(|error| format!("prepare team_members query failed: {error}"))?;
+        .map_err(|error| format!("prepare studio_team_member query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
-            let user_id = sqlite_row_optional_string_value(row, 5, "team_members.user_id")?;
+            let user_id = sqlite_row_optional_string_value(row, 5, "studio_team_member.user_id")?;
             let created_by_user_id =
-                sqlite_row_optional_string_value(row, 7, "team_members.created_by_user_id")?;
+                sqlite_row_optional_string_value(row, 7, "studio_team_member.created_by_user_id")?;
             let granted_by_user_id =
-                sqlite_row_optional_string_value(row, 8, "team_members.granted_by_user_id")?;
+                sqlite_row_optional_string_value(row, 8, "studio_team_member.granted_by_user_id")?;
             let (user_id, created_by_user_id, granted_by_user_id) =
                 resolve_effective_user_authority(
                     user_id.as_deref(),
@@ -9512,15 +8765,15 @@ fn load_provider_team_member_payloads(
                     None,
                 );
             Ok(TeamMemberPayload {
-                id: sqlite_row_required_string_value(row, 0, "team_members.id")?,
+                id: sqlite_row_required_string_value(row, 0, "studio_team_member.id")?,
                 uuid: row.get(1)?,
-                tenant_id: sqlite_row_optional_string_value(row, 2, "team_members.tenant_id")?,
+                tenant_id: sqlite_row_optional_string_value(row, 2, "studio_team_member.tenant_id")?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
-                    "team_members.organization_id",
+                    "studio_team_member.organization_id",
                 )?,
-                team_id: sqlite_row_required_string_value(row, 4, "team_members.team_id")?,
+                team_id: sqlite_row_required_string_value(row, 4, "studio_team_member.team_id")?,
                 user_id,
                 role: row.get(6)?,
                 created_by_user_id: Some(created_by_user_id),
@@ -9530,11 +8783,11 @@ fn load_provider_team_member_payloads(
                 updated_at: Some(row.get(11)?),
             })
         })
-        .map_err(|error| format!("query team_members failed: {error}"))?;
+        .map_err(|error| format!("query studio_team_member failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
-        records.push(row.map_err(|error| format!("read team_members row failed: {error}"))?);
+        records.push(row.map_err(|error| format!("read studio_team_member row failed: {error}"))?);
     }
     Ok(records)
 }
@@ -9546,73 +8799,73 @@ fn load_provider_workspace_member_payloads(
         .prepare(
             r#"
             SELECT
-                workspace_members.id,
-                workspace_members.uuid,
-                workspace_members.tenant_id,
-                workspace_members.organization_id,
-                workspace_members.workspace_id,
-                workspace_members.user_id,
-                plus_user.email,
-                plus_user.nickname,
-                plus_user.avatar_url,
-                workspace_members.team_id,
-                workspace_members.role,
-                workspace_members.created_by_user_id,
-                workspace_members.granted_by_user_id,
-                workspace_members.status,
-                workspace_members.created_at,
-                workspace_members.updated_at
-            FROM workspace_members
-            LEFT JOIN plus_user
-                ON plus_user.id = workspace_members.user_id
-               AND plus_user.is_deleted = 0
-            WHERE workspace_members.is_deleted = 0
-            ORDER BY workspace_members.updated_at DESC, workspace_members.id ASC
+                studio_workspace_member.id,
+                studio_workspace_member.uuid,
+                studio_workspace_member.tenant_id,
+                studio_workspace_member.organization_id,
+                studio_workspace_member.workspace_id,
+                studio_workspace_member.user_id,
+                iam_user.email,
+                iam_user.nickname,
+                iam_user.avatar_url,
+                studio_workspace_member.team_id,
+                studio_workspace_member.role,
+                studio_workspace_member.created_by_user_id,
+                studio_workspace_member.granted_by_user_id,
+                studio_workspace_member.status,
+                studio_workspace_member.created_at,
+                studio_workspace_member.updated_at
+            FROM studio_workspace_member
+            LEFT JOIN iam_user
+                ON iam_user.id = studio_workspace_member.user_id
+               AND iam_user.is_deleted = 0
+            WHERE studio_workspace_member.is_deleted = 0
+            ORDER BY studio_workspace_member.updated_at DESC, studio_workspace_member.id ASC
             "#,
         )
-        .map_err(|error| format!("prepare workspace_members query failed: {error}"))?;
+        .map_err(|error| format!("prepare studio_workspace_member query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
             Ok(WorkspaceMemberPayload {
-                id: sqlite_row_required_string_value(row, 0, "workspace_members.id")?,
+                id: sqlite_row_required_string_value(row, 0, "studio_workspace_member.id")?,
                 uuid: row.get(1)?,
-                tenant_id: sqlite_row_optional_string_value(row, 2, "workspace_members.tenant_id")?,
+                tenant_id: sqlite_row_optional_string_value(row, 2, "studio_workspace_member.tenant_id")?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
-                    "workspace_members.organization_id",
+                    "studio_workspace_member.organization_id",
                 )?,
                 workspace_id: sqlite_row_required_string_value(
                     row,
                     4,
-                    "workspace_members.workspace_id",
+                    "studio_workspace_member.workspace_id",
                 )?,
-                user_id: sqlite_row_required_string_value(row, 5, "workspace_members.user_id")?,
+                user_id: sqlite_row_required_string_value(row, 5, "studio_workspace_member.user_id")?,
                 user_email: row.get(6)?,
                 user_display_name: row.get(7)?,
                 user_avatar_url: row.get(8)?,
-                team_id: sqlite_row_optional_string_value(row, 9, "workspace_members.team_id")?,
+                team_id: sqlite_row_optional_string_value(row, 9, "studio_workspace_member.team_id")?,
                 role: row.get(10)?,
                 created_by_user_id: sqlite_row_optional_string_value(
                     row,
                     11,
-                    "workspace_members.created_by_user_id",
+                    "studio_workspace_member.created_by_user_id",
                 )?,
                 granted_by_user_id: sqlite_row_optional_string_value(
                     row,
                     12,
-                    "workspace_members.granted_by_user_id",
+                    "studio_workspace_member.granted_by_user_id",
                 )?,
                 status: row.get(13)?,
                 created_at: Some(row.get(14)?),
                 updated_at: Some(row.get(15)?),
             })
         })
-        .map_err(|error| format!("query workspace_members failed: {error}"))?;
+        .map_err(|error| format!("query studio_workspace_member failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
-        records.push(row.map_err(|error| format!("read workspace_members row failed: {error}"))?);
+        records.push(row.map_err(|error| format!("read studio_workspace_member row failed: {error}"))?);
     }
     Ok(records)
 }
@@ -9624,88 +8877,88 @@ fn load_provider_project_collaborator_payloads(
         .prepare(
             r#"
             SELECT
-                project_collaborators.id,
-                project_collaborators.uuid,
-                project_collaborators.tenant_id,
-                project_collaborators.organization_id,
-                project_collaborators.project_id,
-                project_collaborators.workspace_id,
-                project_collaborators.user_id,
-                plus_user.email,
-                plus_user.nickname,
-                plus_user.avatar_url,
-                project_collaborators.team_id,
-                project_collaborators.role,
-                project_collaborators.created_by_user_id,
-                project_collaborators.granted_by_user_id,
-                project_collaborators.status,
-                project_collaborators.created_at,
-                project_collaborators.updated_at
-            FROM project_collaborators
-            LEFT JOIN plus_user
-                ON plus_user.id = project_collaborators.user_id
-               AND plus_user.is_deleted = 0
-            WHERE project_collaborators.is_deleted = 0
-            ORDER BY project_collaborators.updated_at DESC, project_collaborators.id ASC
+                studio_project_collaborator.id,
+                studio_project_collaborator.uuid,
+                studio_project_collaborator.tenant_id,
+                studio_project_collaborator.organization_id,
+                studio_project_collaborator.project_id,
+                studio_project_collaborator.workspace_id,
+                studio_project_collaborator.user_id,
+                iam_user.email,
+                iam_user.nickname,
+                iam_user.avatar_url,
+                studio_project_collaborator.team_id,
+                studio_project_collaborator.role,
+                studio_project_collaborator.created_by_user_id,
+                studio_project_collaborator.granted_by_user_id,
+                studio_project_collaborator.status,
+                studio_project_collaborator.created_at,
+                studio_project_collaborator.updated_at
+            FROM studio_project_collaborator
+            LEFT JOIN iam_user
+                ON iam_user.id = studio_project_collaborator.user_id
+               AND iam_user.is_deleted = 0
+            WHERE studio_project_collaborator.is_deleted = 0
+            ORDER BY studio_project_collaborator.updated_at DESC, studio_project_collaborator.id ASC
             "#,
         )
-        .map_err(|error| format!("prepare project_collaborators query failed: {error}"))?;
+        .map_err(|error| format!("prepare studio_project_collaborator query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
             Ok(ProjectCollaboratorPayload {
-                id: sqlite_row_required_string_value(row, 0, "project_collaborators.id")?,
+                id: sqlite_row_required_string_value(row, 0, "studio_project_collaborator.id")?,
                 uuid: row.get(1)?,
                 tenant_id: sqlite_row_optional_string_value(
                     row,
                     2,
-                    "project_collaborators.tenant_id",
+                    "studio_project_collaborator.tenant_id",
                 )?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
-                    "project_collaborators.organization_id",
+                    "studio_project_collaborator.organization_id",
                 )?,
                 project_id: sqlite_row_required_string_value(
                     row,
                     4,
-                    "project_collaborators.project_id",
+                    "studio_project_collaborator.project_id",
                 )?,
                 workspace_id: sqlite_row_required_string_value(
                     row,
                     5,
-                    "project_collaborators.workspace_id",
+                    "studio_project_collaborator.workspace_id",
                 )?,
-                user_id: sqlite_row_required_string_value(row, 6, "project_collaborators.user_id")?,
+                user_id: sqlite_row_required_string_value(row, 6, "studio_project_collaborator.user_id")?,
                 user_email: row.get(7)?,
                 user_display_name: row.get(8)?,
                 user_avatar_url: row.get(9)?,
                 team_id: sqlite_row_optional_string_value(
                     row,
                     10,
-                    "project_collaborators.team_id",
+                    "studio_project_collaborator.team_id",
                 )?,
                 role: row.get(11)?,
                 created_by_user_id: sqlite_row_optional_string_value(
                     row,
                     12,
-                    "project_collaborators.created_by_user_id",
+                    "studio_project_collaborator.created_by_user_id",
                 )?,
                 granted_by_user_id: sqlite_row_optional_string_value(
                     row,
                     13,
-                    "project_collaborators.granted_by_user_id",
+                    "studio_project_collaborator.granted_by_user_id",
                 )?,
                 status: row.get(14)?,
                 created_at: Some(row.get(15)?),
                 updated_at: Some(row.get(16)?),
             })
         })
-        .map_err(|error| format!("query project_collaborators failed: {error}"))?;
+        .map_err(|error| format!("query studio_project_collaborator failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
         records
-            .push(row.map_err(|error| format!("read project_collaborators row failed: {error}"))?);
+            .push(row.map_err(|error| format!("read studio_project_collaborator row failed: {error}"))?);
     }
     Ok(records)
 }
@@ -9894,12 +9147,12 @@ fn load_provider_release_payloads(connection: &Connection) -> Result<Vec<Release
                 rollout_stage,
                 manifest_json,
                 status
-            FROM release_records
+            FROM ops_release_record
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
             "#,
         )
-        .map_err(|error| format!("prepare release_records query failed: {error}"))?;
+        .map_err(|error| format!("prepare ops_release_record query failed: {error}"))?;
     let rows = statement
         .query_map([], |row| {
             let manifest_json: String = row.get(9)?;
@@ -9914,11 +9167,11 @@ fn load_provider_release_payloads(connection: &Connection) -> Result<Vec<Release
             Ok(ReleasePayload {
                 id: row.get(0)?,
                 uuid: row.get(1)?,
-                tenant_id: sqlite_row_optional_string_value(row, 2, "release_records.tenant_id")?,
+                tenant_id: sqlite_row_optional_string_value(row, 2, "ops_release_record.tenant_id")?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
-                    "release_records.organization_id",
+                    "ops_release_record.organization_id",
                 )?,
                 created_at: Some(row.get(4)?),
                 updated_at: Some(row.get(5)?),
@@ -9929,11 +9182,11 @@ fn load_provider_release_payloads(connection: &Connection) -> Result<Vec<Release
                 status: row.get(10)?,
             })
         })
-        .map_err(|error| format!("query release_records failed: {error}"))?;
+        .map_err(|error| format!("query ops_release_record failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
-        records.push(row.map_err(|error| format!("read release_records row failed: {error}"))?);
+        records.push(row.map_err(|error| format!("read ops_release_record row failed: {error}"))?);
     }
     Ok(records)
 }
@@ -9953,7 +9206,7 @@ fn load_provider_audit_payloads(connection: &Connection) -> Result<Vec<AuditPayl
                 scope_id,
                 event_type,
                 payload_json
-            FROM audit_events
+            FROM ops_audit_event
             WHERE is_deleted = 0
             ORDER BY created_at DESC, id ASC
             "#,
@@ -9973,11 +9226,11 @@ fn load_provider_audit_payloads(connection: &Connection) -> Result<Vec<AuditPayl
             Ok(AuditPayload {
                 id: row.get(0)?,
                 uuid: row.get(1)?,
-                tenant_id: sqlite_row_optional_string_value(row, 2, "audit_events.tenant_id")?,
+                tenant_id: sqlite_row_optional_string_value(row, 2, "ops_audit_event.tenant_id")?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
-                    "audit_events.organization_id",
+                    "ops_audit_event.organization_id",
                 )?,
                 created_at: Some(row.get(4)?),
                 updated_at: Some(row.get(5)?),
@@ -10030,12 +9283,12 @@ fn load_provider_policy_payloads(connection: &Connection) -> Result<Vec<PolicyPa
                 tenant_id: sqlite_row_optional_string_value(
                     row,
                     2,
-                    "governance_policies.tenant_id",
+                    "ops_governance_policy.tenant_id",
                 )?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
-                    "governance_policies.organization_id",
+                    "ops_governance_policy.organization_id",
                 )?,
                 created_at: Some(row.get(4)?),
                 updated_at: Some(row.get(5)?),
@@ -11264,7 +10517,7 @@ fn persist_created_coding_session_to_provider(
             ),
         };
     let mut metadata = serde_json::json!({
-        "createdBy": "core.createCodingSession",
+        "createdBy": "app.createCodingSession",
         "initializationStatus": "pending",
     });
     if let Some(error) = initialization_error {
@@ -11278,7 +10531,7 @@ fn persist_created_coding_session_to_provider(
     transaction
         .execute(
             r#"
-            INSERT INTO coding_sessions (
+            INSERT INTO ai_coding_session (
                 id, created_at, updated_at, version, is_deleted, workspace_id, project_id, title, status, entry_surface, engine_id, model_id, last_turn_at
             )
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
@@ -11304,7 +10557,7 @@ fn persist_created_coding_session_to_provider(
     transaction
         .execute(
             r#"
-            INSERT INTO coding_session_runtimes (
+            INSERT INTO ai_coding_session_runtime (
                 id, created_at, updated_at, version, is_deleted, coding_session_id, engine_id, model_id, host_mode, status, transport_kind, native_session_id, native_turn_container_id, capability_snapshot_json, metadata_json
             )
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
@@ -11356,7 +10609,7 @@ fn load_interrupted_provider_turn_for_runtime(
         .query_row(
             r#"
             SELECT id, coding_session_id, runtime_id, request_kind, status, input_summary, started_at, completed_at
-            FROM coding_session_turns
+            FROM ai_coding_session_turn
             WHERE is_deleted = 0
               AND coding_session_id = ?1
               AND runtime_id = ?2
@@ -11396,7 +10649,7 @@ fn next_provider_event_sequence_for_session(
         .query_row(
             r#"
             SELECT COALESCE(MAX(sequence_no), -1) + 1
-            FROM coding_session_events
+            FROM ai_coding_session_event
             WHERE coding_session_id = ?1 AND is_deleted = 0
             "#,
             params![coding_session_id],
@@ -11437,7 +10690,7 @@ fn recover_interrupted_provider_streaming_runtime_on_boot(
     let updated_runtimes = transaction
         .execute(
             r#"
-            UPDATE coding_session_runtimes
+            UPDATE ai_coding_session_runtime
             SET updated_at = ?2, status = 'failed'
             WHERE id = ?1
               AND coding_session_id = ?3
@@ -11470,7 +10723,7 @@ fn recover_interrupted_provider_streaming_runtime_on_boot(
     transaction
         .execute(
             r#"
-            UPDATE coding_sessions
+            UPDATE ai_coding_session
             SET updated_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -11490,7 +10743,7 @@ fn recover_interrupted_provider_streaming_runtime_on_boot(
         transaction
             .execute(
                 r#"
-                UPDATE coding_session_turns
+                UPDATE ai_coding_session_turn
                 SET updated_at = ?2, status = 'failed', completed_at = ?2
                 WHERE id = ?1 AND coding_session_id = ?3 AND is_deleted = 0
                 "#,
@@ -11510,7 +10763,7 @@ fn recover_interrupted_provider_streaming_runtime_on_boot(
         transaction
             .execute(
                 r#"
-                UPDATE coding_session_operations
+                UPDATE ai_coding_session_operation
                 SET updated_at = ?2, status = 'failed'
                 WHERE coding_session_id = ?1 AND turn_id = ?3 AND is_deleted = 0
                 "#,
@@ -11550,7 +10803,7 @@ fn recover_interrupted_provider_streaming_runtime_on_boot(
         transaction
             .execute(
                 r#"
-                INSERT INTO coding_session_events (
+                INSERT INTO ai_coding_session_event (
                     id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
                 )
                 VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
@@ -11589,7 +10842,7 @@ fn recover_interrupted_provider_streaming_runtime_on_boot(
     Ok(())
 }
 
-fn recover_sqlite_provider_coding_session_runtimes_on_boot(
+fn recover_sqlite_provider_ai_coding_session_runtime_on_boot(
     connection: &mut Connection,
 ) -> Result<(), String> {
     let runtime_rows = load_provider_runtime_rows(connection)?;
@@ -11644,14 +10897,14 @@ fn persist_coding_session_runtime_initialization_result_to_provider(
     let updated_at = current_storage_timestamp();
     let metadata_json = match initialization_error {
         Some(error) => serde_json::json!({
-            "createdBy": "core.createCodingSession",
-            "initializedBy": "core.createCodingSession.backgroundInitialization",
+            "createdBy": "app.createCodingSession",
+            "initializedBy": "app.createCodingSession.backgroundInitialization",
             "initializationStatus": "failed",
             "lastInitializationError": error,
         }),
         None => serde_json::json!({
-            "createdBy": "core.createCodingSession",
-            "initializedBy": "core.createCodingSession.backgroundInitialization",
+            "createdBy": "app.createCodingSession",
+            "initializedBy": "app.createCodingSession.backgroundInitialization",
             "initializationStatus": runtime_status,
         }),
     }
@@ -11663,7 +10916,7 @@ fn persist_coding_session_runtime_initialization_result_to_provider(
     transaction
         .execute(
             r#"
-            UPDATE coding_sessions
+            UPDATE ai_coding_session
             SET updated_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -11676,7 +10929,7 @@ fn persist_coding_session_runtime_initialization_result_to_provider(
     let updated_runtimes = transaction
         .execute(
             r#"
-            UPDATE coding_session_runtimes
+            UPDATE ai_coding_session_runtime
             SET
                 updated_at = ?2,
                 status = ?3,
@@ -11720,7 +10973,7 @@ fn persist_forked_coding_session_to_provider(
 ) -> Result<(), String> {
     let capability_snapshot_json = serde_json::json!({}).to_string();
     let metadata_json = serde_json::json!({
-        "createdBy": "core.forkCodingSession",
+        "createdBy": "app.forkCodingSession",
         "forkedFromCodingSessionId": source_coding_session_id,
     })
     .to_string();
@@ -11731,7 +10984,7 @@ fn persist_forked_coding_session_to_provider(
     transaction
         .execute(
             r#"
-            INSERT INTO coding_sessions (
+            INSERT INTO ai_coding_session (
                 id, created_at, updated_at, version, is_deleted, workspace_id, project_id, title, status, entry_surface, engine_id, model_id, last_turn_at
             )
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
@@ -11757,7 +11010,7 @@ fn persist_forked_coding_session_to_provider(
     transaction
         .execute(
             r#"
-            INSERT INTO coding_session_runtimes (
+            INSERT INTO ai_coding_session_runtime (
                 id, created_at, updated_at, version, is_deleted, coding_session_id, engine_id, model_id, host_mode, status, transport_kind, native_session_id, native_turn_container_id, capability_snapshot_json, metadata_json
             )
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
@@ -11797,7 +11050,7 @@ fn persist_forked_coding_session_to_provider(
         transaction
             .execute(
                 r#"
-                INSERT INTO coding_session_events (
+                INSERT INTO ai_coding_session_event (
                     id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -11841,7 +11094,7 @@ fn persist_updated_coding_session_to_provider(
     let updated_sessions = transaction
         .execute(
             r#"
-            UPDATE coding_sessions
+            UPDATE ai_coding_session
             SET
                 updated_at = ?2,
                 title = COALESCE(?3, title),
@@ -11861,7 +11114,7 @@ fn persist_updated_coding_session_to_provider(
         transaction
             .execute(
                 r#"
-                UPDATE coding_session_runtimes
+                UPDATE ai_coding_session_runtime
                 SET
                     updated_at = ?2,
                     host_mode = COALESCE(?3, host_mode)
@@ -11893,7 +11146,7 @@ fn persist_deleted_coding_session_to_provider(
     let deleted_sessions = transaction
         .execute(
             r#"
-            UPDATE coding_sessions
+            UPDATE ai_coding_session
             SET is_deleted = 1, updated_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -11989,7 +11242,7 @@ fn persist_deleted_coding_session_message_to_provider(
     let updated_sessions = transaction
         .execute(
             r#"
-            UPDATE coding_sessions
+            UPDATE ai_coding_session
             SET updated_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -12009,7 +11262,7 @@ fn persist_deleted_coding_session_message_to_provider(
     transaction
         .execute(
             r#"
-            INSERT INTO coding_session_events (
+            INSERT INTO ai_coding_session_event (
                 id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
             )
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -12092,7 +11345,7 @@ fn persist_edited_coding_session_message_to_provider(
     let updated_sessions = transaction
         .execute(
             r#"
-            UPDATE coding_sessions
+            UPDATE ai_coding_session
             SET updated_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -12110,7 +11363,7 @@ fn persist_edited_coding_session_message_to_provider(
     transaction
         .execute(
             r#"
-            INSERT INTO coding_session_events (
+            INSERT INTO ai_coding_session_event (
                 id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
             )
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -12168,7 +11421,7 @@ fn persist_initialized_coding_session_turn_to_provider(
     let updated_sessions = transaction
         .execute(
             r#"
-            UPDATE coding_sessions
+            UPDATE ai_coding_session
             SET updated_at = ?2, last_turn_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -12190,7 +11443,7 @@ fn persist_initialized_coding_session_turn_to_provider(
     let updated_runtimes = transaction
         .execute(
             r#"
-            UPDATE coding_session_runtimes
+            UPDATE ai_coding_session_runtime
             SET updated_at = ?2, status = ?3, native_session_id = COALESCE(?5, native_session_id)
             WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
             "#,
@@ -12218,7 +11471,7 @@ fn persist_initialized_coding_session_turn_to_provider(
     transaction
         .execute(
             r#"
-            INSERT INTO coding_session_turns (
+            INSERT INTO ai_coding_session_turn (
                 id, created_at, updated_at, version, is_deleted, coding_session_id, runtime_id, request_kind, status, input_summary, started_at, completed_at
             )
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
@@ -12255,7 +11508,7 @@ fn persist_initialized_coding_session_turn_to_provider(
         transaction
             .execute(
                 r#"
-                INSERT INTO coding_session_events (
+                INSERT INTO ai_coding_session_event (
                     id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -12285,7 +11538,7 @@ fn persist_initialized_coding_session_turn_to_provider(
     transaction
         .execute(
             r#"
-            INSERT INTO coding_session_operations (
+            INSERT INTO ai_coding_session_operation (
                 id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, status, stream_url, stream_kind, artifact_refs_json
             )
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -12345,7 +11598,7 @@ fn persist_streaming_coding_session_event_to_provider(
     let updated_sessions = transaction
         .execute(
             r#"
-            UPDATE coding_sessions
+            UPDATE ai_coding_session
             SET updated_at = ?2, last_turn_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -12367,7 +11620,7 @@ fn persist_streaming_coding_session_event_to_provider(
     transaction
         .execute(
             r#"
-            UPDATE coding_session_runtimes
+            UPDATE ai_coding_session_runtime
             SET updated_at = ?2, status = ?3, native_session_id = COALESCE(?5, native_session_id)
             WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
             "#,
@@ -12389,7 +11642,7 @@ fn persist_streaming_coding_session_event_to_provider(
     transaction
         .execute(
             r#"
-            INSERT INTO coding_session_events (
+            INSERT INTO ai_coding_session_event (
                 id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
             )
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -12446,7 +11699,7 @@ fn persist_finalized_coding_session_turn_to_provider(
     let updated_sessions = transaction
         .execute(
             r#"
-            UPDATE coding_sessions
+            UPDATE ai_coding_session
             SET updated_at = ?2, last_turn_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -12468,7 +11721,7 @@ fn persist_finalized_coding_session_turn_to_provider(
     let updated_runtimes = transaction
         .execute(
             r#"
-            UPDATE coding_session_runtimes
+            UPDATE ai_coding_session_runtime
             SET updated_at = ?2, status = ?3, native_session_id = COALESCE(?5, native_session_id)
             WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
             "#,
@@ -12496,7 +11749,7 @@ fn persist_finalized_coding_session_turn_to_provider(
     transaction
         .execute(
             r#"
-            UPDATE coding_session_turns
+            UPDATE ai_coding_session_turn
             SET updated_at = ?2, status = ?3, completed_at = ?4
             WHERE id = ?1 AND coding_session_id = ?5 AND is_deleted = 0
             "#,
@@ -12518,7 +11771,7 @@ fn persist_finalized_coding_session_turn_to_provider(
     transaction
         .execute(
             r#"
-            UPDATE coding_session_operations
+            UPDATE ai_coding_session_operation
             SET updated_at = ?2, status = ?3
             WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
             "#,
@@ -12546,7 +11799,7 @@ fn persist_finalized_coding_session_turn_to_provider(
         transaction
             .execute(
                 r#"
-                INSERT INTO coding_session_events (
+                INSERT INTO ai_coding_session_event (
                     id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -12672,7 +11925,7 @@ fn persist_approval_decision_to_provider(
     let updated_sessions = transaction
         .execute(
             r#"
-            UPDATE coding_sessions
+            UPDATE ai_coding_session
             SET updated_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -12688,7 +11941,7 @@ fn persist_approval_decision_to_provider(
     transaction
         .execute(
             r#"
-            UPDATE coding_session_checkpoints
+            UPDATE ai_coding_session_checkpoint
             SET updated_at = ?2, resumable = ?3, state_json = ?4
             WHERE id = ?1 AND coding_session_id = ?5 AND is_deleted = 0
             "#,
@@ -12711,7 +11964,7 @@ fn persist_approval_decision_to_provider(
         transaction
             .execute(
                 r#"
-                UPDATE coding_session_runtimes
+                UPDATE ai_coding_session_runtime
                 SET updated_at = ?2, status = ?3
                 WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
                 "#,
@@ -12729,7 +11982,7 @@ fn persist_approval_decision_to_provider(
         transaction
             .execute(
                 r#"
-                UPDATE coding_session_turns
+                UPDATE ai_coding_session_turn
                 SET updated_at = ?2, status = ?3, completed_at = ?4
                 WHERE id = ?1 AND coding_session_id = ?5 AND is_deleted = 0
                 "#,
@@ -12757,7 +12010,7 @@ fn persist_approval_decision_to_provider(
         transaction
             .execute(
                 r#"
-                UPDATE coding_session_operations
+                UPDATE ai_coding_session_operation
                 SET updated_at = ?2, status = ?3
                 WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
                 "#,
@@ -12779,7 +12032,7 @@ fn persist_approval_decision_to_provider(
     transaction
         .execute(
             r#"
-            INSERT INTO coding_session_events (
+            INSERT INTO ai_coding_session_event (
                 id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
             )
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -12855,7 +12108,7 @@ fn persist_user_question_answer_to_provider(
     let updated_sessions = transaction
         .execute(
             r#"
-            UPDATE coding_sessions
+            UPDATE ai_coding_session
             SET updated_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -12872,7 +12125,7 @@ fn persist_user_question_answer_to_provider(
         transaction
             .execute(
                 r#"
-                UPDATE coding_session_runtimes
+                UPDATE ai_coding_session_runtime
                 SET updated_at = ?2, status = ?3
                 WHERE id = ?1 AND coding_session_id = ?4 AND is_deleted = 0
                 "#,
@@ -12890,7 +12143,7 @@ fn persist_user_question_answer_to_provider(
         transaction
             .execute(
                 r#"
-                UPDATE coding_session_turns
+                UPDATE ai_coding_session_turn
                 SET updated_at = ?2, status = ?3, completed_at = ?4
                 WHERE id = ?1 AND coding_session_id = ?5 AND is_deleted = 0
                 "#,
@@ -12917,7 +12170,7 @@ fn persist_user_question_answer_to_provider(
     transaction
         .execute(
             r#"
-            INSERT INTO coding_session_events (
+            INSERT INTO ai_coding_session_event (
                 id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
             )
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -12973,9 +12226,8 @@ fn ensure_sqlite_provider_authority(
 
     if has_projection_tables && has_app_admin_tables {
         ensure_sqlite_provider_authority_schema_upgrade(connection)?;
-        ensure_sqlite_provider_authority_non_null_model_id_upgrade(connection)?;
-        ensure_sqlite_table_column_is_not_null(connection, "coding_sessions", "model_id")?;
-        ensure_sqlite_table_column_is_not_null(connection, "coding_session_runtimes", "model_id")?;
+        ensure_sqlite_table_column_is_not_null(connection, "ai_coding_session", "model_id")?;
+        ensure_sqlite_table_column_is_not_null(connection, "ai_coding_session_runtime", "model_id")?;
         ensure_sqlite_provider_authority_timestamp_normalization(connection)?;
         ensure_sqlite_user_center_schema(connection)?;
         ensure_sqlite_user_center_bootstrap_user(connection)?;
@@ -13104,7 +12356,7 @@ fn ensure_sqlite_bootstrap_user_context(
 ) -> Result<(), String> {
     let workspace_count: i64 = connection
         .query_row(
-            "SELECT COUNT(*) FROM plus_workspace AS workspaces WHERE is_deleted = 0",
+            "SELECT COUNT(*) FROM studio_workspace AS workspaces WHERE is_deleted = 0",
             [],
             |row| row.get(0),
         )
@@ -13115,7 +12367,7 @@ fn ensure_sqlite_bootstrap_user_context(
             .query_row(
                 r#"
                 SELECT id
-                FROM plus_workspace AS workspaces
+                FROM studio_workspace AS workspaces
                 WHERE is_deleted = 0
                 ORDER BY updated_at DESC, id ASC
                 LIMIT 1
@@ -13137,11 +12389,9 @@ fn ensure_sqlite_bootstrap_user_context(
         upsert_bootstrap_workspace(&transaction, &bootstrap_timestamp)?;
     }
 
-    archive_legacy_bootstrap_project(&transaction, &bootstrap_timestamp)?;
-
     let bootstrap_team_count: i64 = transaction
         .query_row(
-            "SELECT COUNT(*) FROM teams WHERE is_deleted = 0 AND workspace_id = ?1",
+            "SELECT COUNT(*) FROM studio_team WHERE is_deleted = 0 AND workspace_id = ?1",
             params![&preferred_workspace_id],
             |row| row.get(0),
         )
@@ -13152,7 +12402,7 @@ fn ensure_sqlite_bootstrap_user_context(
 
     let bootstrap_team_member_count: i64 = transaction
         .query_row(
-            "SELECT COUNT(*) FROM team_members WHERE is_deleted = 0 AND team_id = ?1",
+            "SELECT COUNT(*) FROM studio_team_member WHERE is_deleted = 0 AND team_id = ?1",
             params![BOOTSTRAP_TEAM_ID],
             |row| row.get(0),
         )
@@ -13163,7 +12413,7 @@ fn ensure_sqlite_bootstrap_user_context(
 
     let bootstrap_workspace_member_count: i64 = transaction
         .query_row(
-            "SELECT COUNT(*) FROM workspace_members WHERE is_deleted = 0 AND workspace_id = ?1",
+            "SELECT COUNT(*) FROM studio_workspace_member WHERE is_deleted = 0 AND workspace_id = ?1",
             params![&preferred_workspace_id],
             |row| row.get(0),
         )
@@ -13178,7 +12428,7 @@ fn ensure_sqlite_bootstrap_user_context(
 
     let bootstrap_project_count: i64 = transaction
         .query_row(
-            "SELECT COUNT(*) FROM plus_project AS projects WHERE is_deleted = 0",
+            "SELECT COUNT(*) FROM studio_project AS projects WHERE is_deleted = 0",
             [],
             |row| row.get(0),
         )
@@ -13209,7 +12459,7 @@ fn upsert_bootstrap_workspace(
     transaction
         .execute(
             r#"
-            INSERT INTO plus_workspace AS workspaces (
+            INSERT INTO studio_workspace AS workspaces (
                 id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                 data_scope, name, code, title, description, owner_id, leader_id, created_by_user_id, icon, color,
                 type, start_time, end_time, max_members, current_members, member_count, max_storage,
@@ -13282,57 +12532,6 @@ fn upsert_bootstrap_workspace(
     Ok(())
 }
 
-fn archive_legacy_bootstrap_project(
-    transaction: &rusqlite::Transaction<'_>,
-    bootstrap_timestamp: &str,
-) -> Result<(), String> {
-    transaction
-        .execute(
-            r#"
-            UPDATE plus_project AS projects
-            SET updated_at = ?2,
-                is_deleted = 1,
-                status = ?4
-            WHERE id = ?1
-              AND name = ?3
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM plus_project_content AS project_contents
-                  WHERE project_contents.project_id = projects.id
-                    AND project_contents.config_data IS NOT NULL
-                    AND TRIM(project_contents.config_data) <> ''
-                    AND (
-                        project_contents.config_data LIKE '%"rootPath"%'
-                        OR project_contents.config_data LIKE '%"root_path"%'
-                    )
-              )
-            "#,
-            params![
-                BOOTSTRAP_PROJECT_ID,
-                bootstrap_timestamp,
-                BOOTSTRAP_PROJECT_NAME,
-                project_status_storage_value(Some("archived")),
-            ],
-        )
-        .map_err(|error| format!("archive legacy bootstrap project failed: {error}"))?;
-    transaction
-        .execute(
-            r#"
-            UPDATE project_collaborators
-            SET updated_at = ?2,
-                is_deleted = 1,
-                status = 'archived'
-            WHERE project_id = ?1
-            "#,
-            params![BOOTSTRAP_PROJECT_ID, bootstrap_timestamp],
-        )
-        .map_err(|error| {
-            format!("archive legacy bootstrap project collaborators failed: {error}")
-        })?;
-
-    Ok(())
-}
-
 fn upsert_bootstrap_team(
     transaction: &rusqlite::Transaction<'_>,
     preferred_workspace_id: &str,
@@ -13344,7 +12543,7 @@ fn upsert_bootstrap_team(
     transaction
         .execute(
             r#"
-            INSERT INTO teams (
+            INSERT INTO studio_team (
                 id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                 workspace_id, name, code, title, description, owner_id, leader_id, created_by_user_id,
                 metadata_json, status
@@ -13352,9 +12551,9 @@ fn upsert_bootstrap_team(
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
             ON CONFLICT(id)
             DO UPDATE SET
-                uuid = COALESCE(teams.uuid, excluded.uuid),
-                tenant_id = COALESCE(teams.tenant_id, excluded.tenant_id),
-                organization_id = COALESCE(teams.organization_id, excluded.organization_id),
+                uuid = COALESCE(studio_team.uuid, excluded.uuid),
+                tenant_id = COALESCE(studio_team.tenant_id, excluded.tenant_id),
+                organization_id = COALESCE(studio_team.organization_id, excluded.organization_id),
                 updated_at = excluded.updated_at,
                 is_deleted = 0,
                 workspace_id = excluded.workspace_id,
@@ -13365,7 +12564,7 @@ fn upsert_bootstrap_team(
                 owner_id = excluded.owner_id,
                 leader_id = excluded.leader_id,
                 created_by_user_id = excluded.created_by_user_id,
-                metadata_json = COALESCE(teams.metadata_json, excluded.metadata_json),
+                metadata_json = COALESCE(studio_team.metadata_json, excluded.metadata_json),
                 status = excluded.status
             "#,
             params![
@@ -13397,92 +12596,44 @@ fn upsert_bootstrap_team_member(
     bootstrap_timestamp: &str,
 ) -> Result<(), String> {
     let team_member_uuid = Uuid::new_v4().to_string();
-    if sqlite_column_exists(transaction, PROVIDER_TEAM_MEMBERS_TABLE, "identity_id")? {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO team_members (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    team_id, identity_id, user_id, role, created_by_identity_id, granted_by_identity_id,
-                    created_by_user_id, granted_by_user_id, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
-                ON CONFLICT(id)
-                DO UPDATE SET
-                    uuid = COALESCE(team_members.uuid, excluded.uuid),
-                    tenant_id = COALESCE(team_members.tenant_id, excluded.tenant_id),
-                    organization_id = COALESCE(team_members.organization_id, excluded.organization_id),
-                    updated_at = excluded.updated_at,
-                    is_deleted = 0,
-                    team_id = excluded.team_id,
-                    identity_id = excluded.identity_id,
-                    user_id = excluded.user_id,
-                    role = excluded.role,
-                    created_by_identity_id = excluded.created_by_identity_id,
-                    granted_by_identity_id = excluded.granted_by_identity_id,
-                    created_by_user_id = excluded.created_by_user_id,
-                    granted_by_user_id = excluded.granted_by_user_id,
-                    status = excluded.status
-                "#,
-                params![
-                    BOOTSTRAP_TEAM_MEMBER_ID,
-                    &team_member_uuid,
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    bootstrap_timestamp,
-                    bootstrap_timestamp,
-                    BOOTSTRAP_TEAM_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "active",
-                ],
+    transaction
+        .execute(
+            r#"
+            INSERT INTO studio_team_member (
+                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                team_id, user_id, role, created_by_user_id, granted_by_user_id, status
             )
-            .map_err(|error| format!("upsert bootstrap team member failed: {error}"))?;
-    } else {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO team_members (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    team_id, user_id, role, created_by_user_id, granted_by_user_id, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12)
-                ON CONFLICT(id)
-                DO UPDATE SET
-                    uuid = COALESCE(team_members.uuid, excluded.uuid),
-                    tenant_id = COALESCE(team_members.tenant_id, excluded.tenant_id),
-                    organization_id = COALESCE(team_members.organization_id, excluded.organization_id),
-                    updated_at = excluded.updated_at,
-                    is_deleted = 0,
-                    team_id = excluded.team_id,
-                    user_id = excluded.user_id,
-                    role = excluded.role,
-                    created_by_user_id = excluded.created_by_user_id,
-                    granted_by_user_id = excluded.granted_by_user_id,
-                    status = excluded.status
-                "#,
-                params![
-                    BOOTSTRAP_TEAM_MEMBER_ID,
-                    &team_member_uuid,
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    bootstrap_timestamp,
-                    bootstrap_timestamp,
-                    BOOTSTRAP_TEAM_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "active",
-                ],
-            )
-            .map_err(|error| format!("upsert bootstrap team member failed: {error}"))?;
-    }
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12)
+            ON CONFLICT(id)
+            DO UPDATE SET
+                uuid = COALESCE(studio_team_member.uuid, excluded.uuid),
+                tenant_id = COALESCE(studio_team_member.tenant_id, excluded.tenant_id),
+                organization_id = COALESCE(studio_team_member.organization_id, excluded.organization_id),
+                updated_at = excluded.updated_at,
+                is_deleted = 0,
+                team_id = excluded.team_id,
+                user_id = excluded.user_id,
+                role = excluded.role,
+                created_by_user_id = excluded.created_by_user_id,
+                granted_by_user_id = excluded.granted_by_user_id,
+                status = excluded.status
+            "#,
+            params![
+                BOOTSTRAP_TEAM_MEMBER_ID,
+                &team_member_uuid,
+                SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                bootstrap_timestamp,
+                bootstrap_timestamp,
+                BOOTSTRAP_TEAM_ID,
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                "owner",
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                "active",
+            ],
+        )
+        .map_err(|error| format!("upsert bootstrap team member failed: {error}"))?;
 
     Ok(())
 }
@@ -13493,96 +12644,46 @@ fn upsert_bootstrap_workspace_member(
     bootstrap_timestamp: &str,
 ) -> Result<(), String> {
     let workspace_member_uuid = Uuid::new_v4().to_string();
-    if sqlite_column_exists(transaction, "workspace_members", "identity_id")? {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO workspace_members (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
-                    granted_by_identity_id, created_by_user_id, granted_by_user_id, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
-                ON CONFLICT(id)
-                DO UPDATE SET
-                    uuid = COALESCE(workspace_members.uuid, excluded.uuid),
-                    tenant_id = COALESCE(workspace_members.tenant_id, excluded.tenant_id),
-                    organization_id = COALESCE(workspace_members.organization_id, excluded.organization_id),
-                    updated_at = excluded.updated_at,
-                    is_deleted = 0,
-                    workspace_id = excluded.workspace_id,
-                    identity_id = excluded.identity_id,
-                    user_id = excluded.user_id,
-                    team_id = excluded.team_id,
-                    role = excluded.role,
-                    created_by_identity_id = excluded.created_by_identity_id,
-                    granted_by_identity_id = excluded.granted_by_identity_id,
-                    created_by_user_id = excluded.created_by_user_id,
-                    granted_by_user_id = excluded.granted_by_user_id,
-                    status = excluded.status
-                "#,
-                params![
-                    BOOTSTRAP_WORKSPACE_MEMBER_ID,
-                    &workspace_member_uuid,
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    bootstrap_timestamp,
-                    bootstrap_timestamp,
-                    preferred_workspace_id,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_TEAM_ID,
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "active",
-                ],
+    transaction
+        .execute(
+            r#"
+            INSERT INTO studio_workspace_member (
+                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
             )
-            .map_err(|error| format!("upsert bootstrap workspace member failed: {error}"))?;
-    } else {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO workspace_members (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-                ON CONFLICT(id)
-                DO UPDATE SET
-                    uuid = COALESCE(workspace_members.uuid, excluded.uuid),
-                    tenant_id = COALESCE(workspace_members.tenant_id, excluded.tenant_id),
-                    organization_id = COALESCE(workspace_members.organization_id, excluded.organization_id),
-                    updated_at = excluded.updated_at,
-                    is_deleted = 0,
-                    workspace_id = excluded.workspace_id,
-                    user_id = excluded.user_id,
-                    team_id = excluded.team_id,
-                    role = excluded.role,
-                    created_by_user_id = excluded.created_by_user_id,
-                    granted_by_user_id = excluded.granted_by_user_id,
-                    status = excluded.status
-                "#,
-                params![
-                    BOOTSTRAP_WORKSPACE_MEMBER_ID,
-                    &workspace_member_uuid,
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    bootstrap_timestamp,
-                    bootstrap_timestamp,
-                    preferred_workspace_id,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_TEAM_ID,
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "active",
-                ],
-            )
-            .map_err(|error| format!("upsert bootstrap workspace member failed: {error}"))?;
-    }
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+            ON CONFLICT(id)
+            DO UPDATE SET
+                uuid = COALESCE(studio_workspace_member.uuid, excluded.uuid),
+                tenant_id = COALESCE(studio_workspace_member.tenant_id, excluded.tenant_id),
+                organization_id = COALESCE(studio_workspace_member.organization_id, excluded.organization_id),
+                updated_at = excluded.updated_at,
+                is_deleted = 0,
+                workspace_id = excluded.workspace_id,
+                user_id = excluded.user_id,
+                team_id = excluded.team_id,
+                role = excluded.role,
+                created_by_user_id = excluded.created_by_user_id,
+                granted_by_user_id = excluded.granted_by_user_id,
+                status = excluded.status
+            "#,
+            params![
+                BOOTSTRAP_WORKSPACE_MEMBER_ID,
+                &workspace_member_uuid,
+                SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                bootstrap_timestamp,
+                bootstrap_timestamp,
+                preferred_workspace_id,
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                BOOTSTRAP_TEAM_ID,
+                "owner",
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
+                "active",
+            ],
+        )
+        .map_err(|error| format!("upsert bootstrap workspace member failed: {error}"))?;
 
     Ok(())
 }
@@ -13601,7 +12702,7 @@ fn upsert_bootstrap_project(
         .query_row(
             r#"
             SELECT uuid, tenant_id, organization_id, data_scope, owner_id, leader_id, created_by_user_id
-            FROM plus_workspace AS workspaces
+            FROM studio_workspace AS workspaces
             WHERE id = ?1 AND is_deleted = 0
             LIMIT 1
             "#,
@@ -13651,14 +12752,14 @@ fn upsert_bootstrap_project(
         .query_row(
             r#"
             SELECT id
-            FROM teams
+            FROM studio_team
             WHERE is_deleted = 0
               AND workspace_id = ?1
             ORDER BY updated_at DESC, id ASC
             LIMIT 1
             "#,
             params![preferred_workspace_id],
-            |row| sqlite_row_required_string_value(row, 0, "teams.id"),
+            |row| sqlite_row_required_string_value(row, 0, "studio_team.id"),
         )
         .optional()
         .map_err(|error| format!("read bootstrap project team failed: {error}"))?;
@@ -13667,7 +12768,7 @@ fn upsert_bootstrap_project(
     transaction
         .execute(
             r#"
-            INSERT INTO plus_project AS projects (
+            INSERT INTO studio_project AS projects (
                 id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
                 parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
                 author, file_id, code, type, site_path, domain_prefix, description, status,
@@ -13744,7 +12845,7 @@ fn upsert_bootstrap_project(
     transaction
         .execute(
             r#"
-            INSERT INTO plus_project_content (
+            INSERT INTO studio_project_content (
                 id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
                 user_id, parent_id, project_id, project_uuid, config_data, content_data,
                 metadata, content_version, content_hash
@@ -13778,101 +12879,49 @@ fn upsert_bootstrap_project(
             ],
         )
         .map_err(|error| format!("upsert bootstrap project content failed: {error}"))?;
-    if sqlite_column_exists(transaction, "project_collaborators", "identity_id")? {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO project_collaborators (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    project_id, workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
-                    granted_by_identity_id, created_by_user_id, granted_by_user_id, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
-                ON CONFLICT(id)
-                DO UPDATE SET
-                    uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
-                    tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
-                    organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
-                    updated_at = excluded.updated_at,
-                    is_deleted = 0,
-                    project_id = excluded.project_id,
-                    workspace_id = excluded.workspace_id,
-                    identity_id = excluded.identity_id,
-                    user_id = excluded.user_id,
-                    team_id = excluded.team_id,
-                    role = excluded.role,
-                    created_by_identity_id = excluded.created_by_identity_id,
-                    granted_by_identity_id = excluded.granted_by_identity_id,
-                    created_by_user_id = excluded.created_by_user_id,
-                    granted_by_user_id = excluded.granted_by_user_id,
-                    status = excluded.status
-                "#,
-                params![
-                    BOOTSTRAP_PROJECT_COLLABORATOR_ID,
-                    &project_collaborator_uuid,
-                    &tenant_id,
-                    &organization_id,
-                    bootstrap_timestamp,
-                    bootstrap_timestamp,
-                    BOOTSTRAP_PROJECT_ID,
-                    preferred_workspace_id,
-                    &owner_id,
-                    &owner_id,
-                    &project_owner_team_id,
-                    "owner",
-                    &created_by_user_id,
-                    &created_by_user_id,
-                    &created_by_user_id,
-                    &created_by_user_id,
-                    "active",
-                ],
+    transaction
+        .execute(
+            r#"
+            INSERT INTO studio_project_collaborator (
+                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
+                status
             )
-            .map_err(|error| format!("upsert bootstrap project collaborator failed: {error}"))?;
-    } else {
-        transaction
-            .execute(
-                r#"
-                INSERT INTO project_collaborators (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
-                    status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
-                ON CONFLICT(id)
-                DO UPDATE SET
-                    uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
-                    tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
-                    organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
-                    updated_at = excluded.updated_at,
-                    is_deleted = 0,
-                    project_id = excluded.project_id,
-                    workspace_id = excluded.workspace_id,
-                    user_id = excluded.user_id,
-                    team_id = excluded.team_id,
-                    role = excluded.role,
-                    created_by_user_id = excluded.created_by_user_id,
-                    granted_by_user_id = excluded.granted_by_user_id,
-                    status = excluded.status
-                "#,
-                params![
-                    BOOTSTRAP_PROJECT_COLLABORATOR_ID,
-                    &project_collaborator_uuid,
-                    &tenant_id,
-                    &organization_id,
-                    bootstrap_timestamp,
-                    bootstrap_timestamp,
-                    BOOTSTRAP_PROJECT_ID,
-                    preferred_workspace_id,
-                    &owner_id,
-                    &project_owner_team_id,
-                    "owner",
-                    &created_by_user_id,
-                    &created_by_user_id,
-                    "active",
-                ],
-            )
-            .map_err(|error| format!("upsert bootstrap project collaborator failed: {error}"))?;
-    }
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+            ON CONFLICT(id)
+            DO UPDATE SET
+                uuid = COALESCE(studio_project_collaborator.uuid, excluded.uuid),
+                tenant_id = COALESCE(studio_project_collaborator.tenant_id, excluded.tenant_id),
+                organization_id = COALESCE(studio_project_collaborator.organization_id, excluded.organization_id),
+                updated_at = excluded.updated_at,
+                is_deleted = 0,
+                project_id = excluded.project_id,
+                workspace_id = excluded.workspace_id,
+                user_id = excluded.user_id,
+                team_id = excluded.team_id,
+                role = excluded.role,
+                created_by_user_id = excluded.created_by_user_id,
+                granted_by_user_id = excluded.granted_by_user_id,
+                status = excluded.status
+            "#,
+            params![
+                BOOTSTRAP_PROJECT_COLLABORATOR_ID,
+                &project_collaborator_uuid,
+                &tenant_id,
+                &organization_id,
+                bootstrap_timestamp,
+                bootstrap_timestamp,
+                BOOTSTRAP_PROJECT_ID,
+                preferred_workspace_id,
+                &owner_id,
+                &project_owner_team_id,
+                "owner",
+                &created_by_user_id,
+                &created_by_user_id,
+                "active",
+            ],
+        )
+        .map_err(|error| format!("upsert bootstrap project collaborator failed: {error}"))?;
 
     Ok(())
 }
@@ -13898,84 +12947,45 @@ fn backfill_sqlite_authority_access_context(connection: &mut Connection) -> Resu
     let transaction = connection
         .transaction()
         .map_err(|error| format!("open authority access backfill transaction failed: {error}"))?;
-    let workspace_members_use_identity_columns =
-        sqlite_column_exists(&transaction, "workspace_members", "identity_id")?;
-    let project_collaborators_use_identity_columns =
-        sqlite_column_exists(&transaction, "project_collaborators", "identity_id")?;
 
     for (workspace_id, (owner_user_id, created_by_user_id)) in workspace_authority_pairs.iter() {
         let workspace_member_count: i64 = transaction
             .query_row(
-                "SELECT COUNT(*) FROM workspace_members WHERE is_deleted = 0 AND workspace_id = ?1",
+                "SELECT COUNT(*) FROM studio_workspace_member WHERE is_deleted = 0 AND workspace_id = ?1",
                 params![workspace_id],
                 |row| row.get(0),
             )
             .map_err(|error| format!("count workspace members during backfill failed: {error}"))?;
         if workspace_member_count == 0 {
             let workspace_member_id = create_identifier("workspace-member");
-            if workspace_members_use_identity_columns {
-                transaction
-                    .execute(
-                        r#"
-                    INSERT INTO workspace_members (
-                            id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                            workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
-                            granted_by_identity_id, created_by_user_id, granted_by_user_id, status
-                        )
-                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
-                        "#,
-                        params![
-                            &workspace_member_id,
-                            Uuid::new_v4().to_string(),
-                            SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                            SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                            &now,
-                            &now,
-                            workspace_id,
-                            owner_user_id,
-                            owner_user_id,
-                            Option::<String>::None,
-                            "owner",
-                            created_by_user_id,
-                            created_by_user_id,
-                            created_by_user_id,
-                            created_by_user_id,
-                            "active",
-                        ],
+            transaction
+                .execute(
+                    r#"
+                    INSERT INTO studio_workspace_member (
+                        id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                        workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
                     )
-                    .map_err(|error| {
-                        format!("insert workspace access backfill member failed: {error}")
-                    })?;
-            } else {
-                transaction
-                    .execute(
-                        r#"
-                    INSERT INTO workspace_members (
-                            id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                            workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
-                        )
-                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-                        "#,
-                        params![
-                            &workspace_member_id,
-                            Uuid::new_v4().to_string(),
-                            SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                            SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                            &now,
-                            &now,
-                            workspace_id,
-                            owner_user_id,
-                            Option::<String>::None,
-                            "owner",
-                            created_by_user_id,
-                            created_by_user_id,
-                            "active",
-                        ],
-                    )
-                    .map_err(|error| {
-                        format!("insert workspace access backfill member failed: {error}")
-                    })?;
-            }
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                    "#,
+                    params![
+                        &workspace_member_id,
+                        Uuid::new_v4().to_string(),
+                        SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
+                        SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
+                        &now,
+                        &now,
+                        workspace_id,
+                        owner_user_id,
+                        Option::<String>::None,
+                        "owner",
+                        created_by_user_id,
+                        created_by_user_id,
+                        "active",
+                    ],
+                )
+                .map_err(|error| {
+                    format!("insert workspace access backfill member failed: {error}")
+                })?;
         }
     }
 
@@ -13992,7 +13002,7 @@ fn backfill_sqlite_authority_access_context(connection: &mut Connection) -> Resu
 
         let project_collaborator_count: i64 = transaction
             .query_row(
-                "SELECT COUNT(*) FROM project_collaborators WHERE is_deleted = 0 AND project_id = ?1",
+                "SELECT COUNT(*) FROM studio_project_collaborator WHERE is_deleted = 0 AND project_id = ?1",
                 params![&project.id],
                 |row| row.get(0),
             )
@@ -14005,180 +13015,86 @@ fn backfill_sqlite_authority_access_context(connection: &mut Connection) -> Resu
                 create_identifier("project-collaborator")
             };
             if is_bootstrap_project {
-                if project_collaborators_use_identity_columns {
-                    transaction
-                        .execute(
-                            r#"
-                            INSERT INTO project_collaborators (
-                                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                                project_id, workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
-                                granted_by_identity_id, created_by_user_id, granted_by_user_id, status
-                            )
-                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
-                            ON CONFLICT(id)
-                            DO UPDATE SET
-                                uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
-                                tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
-                                organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
-                                updated_at = excluded.updated_at,
-                                is_deleted = 0,
-                                project_id = excluded.project_id,
-                                workspace_id = excluded.workspace_id,
-                                identity_id = excluded.identity_id,
-                                user_id = excluded.user_id,
-                                team_id = excluded.team_id,
-                                role = excluded.role,
-                                created_by_identity_id = excluded.created_by_identity_id,
-                                granted_by_identity_id = excluded.granted_by_identity_id,
-                                created_by_user_id = excluded.created_by_user_id,
-                                granted_by_user_id = excluded.granted_by_user_id,
-                                status = excluded.status
-                            "#,
-                            params![
-                                &project_collaborator_id,
-                                Uuid::new_v4().to_string(),
-                                project.tenant_id
-                                    .clone()
-                                    .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
-                                &project.organization_id,
-                                &now,
-                                &now,
-                                &project.id,
-                                &project.workspace_id,
-                                &owner_user_id,
-                                &owner_user_id,
-                                Option::<String>::None,
-                                "owner",
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                "active",
-                            ],
+                transaction
+                    .execute(
+                        r#"
+                        INSERT INTO studio_project_collaborator (
+                            id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                            project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
+                            status
                         )
-                        .map_err(|error| {
-                            format!("upsert project access backfill bootstrap collaborator failed: {error}")
-                        })?;
-                } else {
-                    transaction
-                        .execute(
-                            r#"
-                            INSERT INTO project_collaborators (
-                                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                                project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
-                                status
-                            )
-                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
-                            ON CONFLICT(id)
-                            DO UPDATE SET
-                                uuid = COALESCE(project_collaborators.uuid, excluded.uuid),
-                                tenant_id = COALESCE(project_collaborators.tenant_id, excluded.tenant_id),
-                                organization_id = COALESCE(project_collaborators.organization_id, excluded.organization_id),
-                                updated_at = excluded.updated_at,
-                                is_deleted = 0,
-                                project_id = excluded.project_id,
-                                workspace_id = excluded.workspace_id,
-                                user_id = excluded.user_id,
-                                team_id = excluded.team_id,
-                                role = excluded.role,
-                                created_by_user_id = excluded.created_by_user_id,
-                                granted_by_user_id = excluded.granted_by_user_id,
-                                status = excluded.status
-                            "#,
-                            params![
-                                &project_collaborator_id,
-                                Uuid::new_v4().to_string(),
-                                project.tenant_id
-                                    .clone()
-                                    .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
-                                &project.organization_id,
-                                &now,
-                                &now,
-                                &project.id,
-                                &project.workspace_id,
-                                &owner_user_id,
-                                Option::<String>::None,
-                                "owner",
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                "active",
-                            ],
-                        )
-                        .map_err(|error| {
-                            format!("upsert project access backfill bootstrap collaborator failed: {error}")
-                        })?;
-                }
+                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                        ON CONFLICT(id)
+                        DO UPDATE SET
+                            uuid = COALESCE(studio_project_collaborator.uuid, excluded.uuid),
+                            tenant_id = COALESCE(studio_project_collaborator.tenant_id, excluded.tenant_id),
+                            organization_id = COALESCE(studio_project_collaborator.organization_id, excluded.organization_id),
+                            updated_at = excluded.updated_at,
+                            is_deleted = 0,
+                            project_id = excluded.project_id,
+                            workspace_id = excluded.workspace_id,
+                            user_id = excluded.user_id,
+                            team_id = excluded.team_id,
+                            role = excluded.role,
+                            created_by_user_id = excluded.created_by_user_id,
+                            granted_by_user_id = excluded.granted_by_user_id,
+                            status = excluded.status
+                        "#,
+                        params![
+                            &project_collaborator_id,
+                            Uuid::new_v4().to_string(),
+                            project.tenant_id
+                                .clone()
+                                .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
+                            &project.organization_id,
+                            &now,
+                            &now,
+                            &project.id,
+                            &project.workspace_id,
+                            &owner_user_id,
+                            Option::<String>::None,
+                            "owner",
+                            &created_by_user_id,
+                            &created_by_user_id,
+                            "active",
+                        ],
+                    )
+                    .map_err(|error| {
+                        format!("upsert project access backfill bootstrap collaborator failed: {error}")
+                    })?;
             } else {
-                if project_collaborators_use_identity_columns {
-                    transaction
-                        .execute(
-                            r#"
-                            INSERT INTO project_collaborators (
-                                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                                project_id, workspace_id, identity_id, user_id, team_id, role, created_by_identity_id,
-                                granted_by_identity_id, created_by_user_id, granted_by_user_id, status
-                            )
-                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
-                            "#,
-                            params![
-                                &project_collaborator_id,
-                                Uuid::new_v4().to_string(),
-                                project.tenant_id
-                                    .clone()
-                                    .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
-                                &project.organization_id,
-                                &now,
-                                &now,
-                                &project.id,
-                                &project.workspace_id,
-                                &owner_user_id,
-                                &owner_user_id,
-                                Option::<String>::None,
-                                "owner",
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                "active",
-                            ],
+                transaction
+                    .execute(
+                        r#"
+                        INSERT INTO studio_project_collaborator (
+                            id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
+                            project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
+                            status
                         )
-                        .map_err(|error| {
-                            format!("insert project access backfill collaborator failed: {error}")
-                        })?;
-                } else {
-                    transaction
-                        .execute(
-                            r#"
-                            INSERT INTO project_collaborators (
-                                id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                                project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
-                                status
-                            )
-                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
-                            "#,
-                            params![
-                                &project_collaborator_id,
-                                Uuid::new_v4().to_string(),
-                                project.tenant_id
-                                    .clone()
-                                    .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
-                                &project.organization_id,
-                                &now,
-                                &now,
-                                &project.id,
-                                &project.workspace_id,
-                                &owner_user_id,
-                                Option::<String>::None,
-                                "owner",
-                                &created_by_user_id,
-                                &created_by_user_id,
-                                "active",
-                            ],
-                        )
-                        .map_err(|error| {
-                            format!("insert project access backfill collaborator failed: {error}")
-                        })?;
-                }
+                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                        "#,
+                        params![
+                            &project_collaborator_id,
+                            Uuid::new_v4().to_string(),
+                            project.tenant_id
+                                .clone()
+                                .unwrap_or_else(|| SQLITE_AUTHORITY_DEFAULT_TENANT_ID.to_owned()),
+                            &project.organization_id,
+                            &now,
+                            &now,
+                            &project.id,
+                            &project.workspace_id,
+                            &owner_user_id,
+                            Option::<String>::None,
+                            "owner",
+                            &created_by_user_id,
+                            &created_by_user_id,
+                            "active",
+                        ],
+                    )
+                    .map_err(|error| {
+                        format!("insert project access backfill collaborator failed: {error}")
+                    })?;
             }
         }
     }
@@ -14241,7 +13157,7 @@ impl ProjectionReadState {
             operation_id: "demo-turn:operation".to_owned(),
             status: "running".to_owned(),
             artifact_refs: vec!["demo-turn:artifact:1".to_owned()],
-            stream_url: "/api/core/v1/coding-sessions/demo-coding-session/events".to_owned(),
+            stream_url: "/app/v3/api/coding_sessions/demo-coding-session/events".to_owned(),
             stream_kind: "sse".to_owned(),
         };
 
@@ -14416,7 +13332,7 @@ impl ProjectionReadState {
         for operation in load_provider_operation_rows(connection)? {
             let artifact_refs = parse_json_string_array(
                 &operation.artifact_refs_json,
-                "coding_session_operations.artifact_refs_json",
+                "ai_coding_session_operation.artifact_refs_json",
             )?;
             sessions
                 .entry(operation.coding_session_id)
@@ -14435,7 +13351,7 @@ impl ProjectionReadState {
             let coding_session_id = event.coding_session_id.clone();
             let payload = parse_json_object_value_map(
                 &event.payload_json,
-                "coding_session_events.payload_json",
+                "ai_coding_session_event.payload_json",
             )?;
             sessions
                 .entry(coding_session_id.clone())
@@ -14457,7 +13373,7 @@ impl ProjectionReadState {
             let coding_session_id = artifact.coding_session_id.clone();
             let mut metadata = parse_json_object_string_map(
                 &artifact.metadata_json,
-                "coding_session_artifacts.metadata_json",
+                "ai_coding_session_artifact.metadata_json",
             )?;
             if let Some(blob_ref) = artifact.blob_ref {
                 metadata.entry("blobRef".to_owned()).or_insert(blob_ref);
@@ -14487,7 +13403,7 @@ impl ProjectionReadState {
             let coding_session_id = checkpoint.coding_session_id.clone();
             let state = parse_json_object_value_map(
                 &checkpoint.state_json,
-                "coding_session_checkpoints.state_json",
+                "ai_coding_session_checkpoint.state_json",
             )?;
             sessions
                 .entry(coding_session_id.clone())
@@ -14542,7 +13458,7 @@ impl ProjectionReadState {
             )
         })?;
         ensure_sqlite_provider_authority(&mut connection, path)?;
-        recover_sqlite_provider_coding_session_runtimes_on_boot(&mut connection)?;
+        recover_sqlite_provider_ai_coding_session_runtime_on_boot(&mut connection)?;
         Self::from_sqlite_provider_connection(&connection)
     }
 
@@ -15302,7 +14218,7 @@ impl ProjectionAuthorityState {
             operation_id: operation_id.clone(),
             status: "running".to_owned(),
             artifact_refs: Vec::new(),
-            stream_url: format!("/api/core/v1/coding-sessions/{coding_session_id}/events"),
+            stream_url: format!("/app/v3/api/coding_sessions/{coding_session_id}/events"),
             stream_kind: "sse".to_owned(),
         };
         let events = build_initialized_coding_session_turn_events(
@@ -15812,8 +14728,8 @@ struct CodingSessionRealtimeEventInput {
 }
 
 impl AppState {
-    fn cached_app_admin_read_state(&self) -> AppAdminReadState {
-        AppAdminReadState {
+    fn cached_console_read_state(&self) -> ConsoleReadState {
+        ConsoleReadState {
             audits: self.audits.clone(),
             deployments: self.deployments.clone(),
             targets: self.targets.clone(),
@@ -15829,20 +14745,20 @@ impl AppState {
         }
     }
 
-    fn load_live_app_admin_read_state(&self) -> Result<Option<AppAdminReadState>, String> {
+    fn load_live_console_read_state(&self) -> Result<Option<ConsoleReadState>, String> {
         let Some(sqlite_file) = self.projections.sqlite_file.as_deref() else {
             return Ok(None);
         };
 
         let mut connection = Connection::open(sqlite_file).map_err(|error| {
             format!(
-                "open sqlite app/admin authority file {} failed: {error}",
+                "open sqlite console authority file {} failed: {error}",
                 sqlite_file.display()
             )
         })?;
         ensure_sqlite_provider_authority(&mut connection, sqlite_file)?;
 
-        Ok(Some(AppAdminReadState {
+        Ok(Some(ConsoleReadState {
             audits: load_provider_audit_payloads(&connection)?,
             deployments: load_provider_deployment_payloads(&connection)?,
             targets: load_provider_deployment_target_payloads(&connection)?,
@@ -15858,11 +14774,11 @@ impl AppState {
         }))
     }
 
-    fn read_app_admin_state(&self) -> AppAdminReadState {
-        self.load_live_app_admin_read_state()
+    fn read_console_state(&self) -> ConsoleReadState {
+        self.load_live_console_read_state()
             .ok()
             .flatten()
-            .unwrap_or_else(|| self.cached_app_admin_read_state())
+            .unwrap_or_else(|| self.cached_console_read_state())
     }
 
     fn submit_live_provider_approval_decision(
@@ -15929,7 +14845,7 @@ impl AppState {
 
         let mut connection = Connection::open(sqlite_file).map_err(|error| {
             format!(
-                "open sqlite app/admin authority file {} failed: {error}",
+                "open sqlite console authority file {} failed: {error}",
                 sqlite_file.display()
             )
         })?;
@@ -15938,7 +14854,7 @@ impl AppState {
     }
 
     fn has_workspace(&self, workspace_id: &str) -> bool {
-        self.read_app_admin_state()
+        self.read_console_state()
             .workspaces
             .iter()
             .any(|workspace| workspace.id == workspace_id)
@@ -16045,7 +14961,7 @@ impl AppState {
         }
 
         let project = self
-            .read_app_admin_state()
+            .read_console_state()
             .projects
             .into_iter()
             .find(|candidate| candidate.id == normalized_project_id);
@@ -16462,12 +15378,12 @@ impl AppState {
         if let Some(path) = bootstrap.sqlite_file.as_deref() {
             let mut connection = Connection::open(path).map_err(|error| {
                 format!(
-                    "open sqlite app/admin authority file {} failed: {error}",
+                    "open sqlite console authority file {} failed: {error}",
                     path.display()
                 )
             })?;
             ensure_sqlite_provider_authority(&mut connection, path)?;
-            recover_sqlite_provider_coding_session_runtimes_on_boot(&mut connection)?;
+            recover_sqlite_provider_ai_coding_session_runtime_on_boot(&mut connection)?;
 
             return Ok(Self {
                 projections: ProjectionAuthorityState::new(
@@ -16572,563 +15488,563 @@ fn schedule_coding_session_runtime_initialization_if_needed(
 const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 80] = [
     RouteSpec {
         method: "get",
-        operation_id: "core.getDescriptor",
-        path: "/api/core/v1/descriptor",
+        operation_id: "descriptor.retrieve",
+        path: "/app/v3/api/system/descriptor",
         summary: "Get coding-server descriptor",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.listRoutes",
+        operation_id: "routes.list",
         path: CODING_SERVER_ROUTE_CATALOG_PATH,
         summary: "List unified API routes",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.listEngines",
-        path: "/api/core/v1/engines",
+        operation_id: "engines.list",
+        path: "/app/v3/api/engines",
         summary: "List available engines",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.listNativeSessionProviders",
-        path: "/api/core/v1/native-session-providers",
+        operation_id: "nativeSessionProviders.list",
+        path: "/app/v3/api/native_session_providers",
         summary: "List registered native engine session providers",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.listNativeSessions",
-        path: "/api/core/v1/native-sessions",
+        operation_id: "nativeSessions.list",
+        path: "/app/v3/api/native_sessions",
         summary: "List discovered native engine sessions",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.getNativeSession",
-        path: "/api/core/v1/native-sessions/:id",
+        operation_id: "nativeSessions.retrieve",
+        path: "/app/v3/api/native_sessions/:id",
         summary: "Get discovered native engine session detail",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.getEngineCapabilities",
-        path: "/api/core/v1/engines/:engineKey/capabilities",
+        operation_id: "engines.capabilities.retrieve",
+        path: "/app/v3/api/engines/:engineKey/capabilities",
         summary: "Get runtime capabilities for one engine",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.listModels",
-        path: "/api/core/v1/models",
+        operation_id: "models.list",
+        path: "/app/v3/api/models",
         summary: "List model catalog",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.getModelConfig",
-        path: "/api/core/v1/model-config",
+        operation_id: "modelConfig.retrieve",
+        path: "/app/v3/api/model_config",
         summary: "Get code engine model configuration",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "put",
-        operation_id: "core.syncModelConfig",
-        path: "/api/core/v1/model-config",
+        operation_id: "modelConfig.sync",
+        path: "/app/v3/api/model_config",
         summary: "Sync code engine model configuration",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.getRuntime",
-        path: "/api/core/v1/runtime",
+        operation_id: "runtime.retrieve",
+        path: "/app/v3/api/system/runtime",
         summary: "Get runtime metadata",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.getHealth",
-        path: "/api/core/v1/health",
+        operation_id: "health.retrieve",
+        path: "/app/v3/api/system/health",
         summary: "Get coding-server health",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.listCodingSessions",
-        path: "/api/core/v1/coding-sessions",
+        operation_id: "codingSessions.list",
+        path: "/app/v3/api/coding_sessions",
         summary: "List coding sessions",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "core.createCodingSession",
-        path: "/api/core/v1/coding-sessions",
+        operation_id: "codingSessions.create",
+        path: "/app/v3/api/coding_sessions",
         summary: "Create coding session",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.getCodingSession",
-        path: "/api/core/v1/coding-sessions/:id",
+        operation_id: "codingSessions.retrieve",
+        path: "/app/v3/api/coding_sessions/:id",
         summary: "Get coding session",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "patch",
-        operation_id: "core.updateCodingSession",
-        path: "/api/core/v1/coding-sessions/:id",
+        operation_id: "codingSessions.update",
+        path: "/app/v3/api/coding_sessions/:id",
         summary: "Update coding session",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "delete",
-        operation_id: "core.deleteCodingSession",
-        path: "/api/core/v1/coding-sessions/:id",
+        operation_id: "codingSessions.delete",
+        path: "/app/v3/api/coding_sessions/:id",
         summary: "Delete coding session",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "patch",
-        operation_id: "core.editCodingSessionMessage",
-        path: "/api/core/v1/coding-sessions/:id/messages/:messageId",
+        operation_id: "codingSessions.messages.update",
+        path: "/app/v3/api/coding_sessions/:id/messages/:messageId",
         summary: "Edit coding session message",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "delete",
-        operation_id: "core.deleteCodingSessionMessage",
-        path: "/api/core/v1/coding-sessions/:id/messages/:messageId",
+        operation_id: "codingSessions.messages.delete",
+        path: "/app/v3/api/coding_sessions/:id/messages/:messageId",
         summary: "Delete coding session message",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "core.forkCodingSession",
-        path: "/api/core/v1/coding-sessions/:id/fork",
+        operation_id: "codingSessions.forks.create",
+        path: "/app/v3/api/coding_sessions/:id/fork",
         summary: "Fork coding session",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "core.createCodingSessionTurn",
-        path: "/api/core/v1/coding-sessions/:id/turns",
+        operation_id: "codingSessions.turns.create",
+        path: "/app/v3/api/coding_sessions/:id/turns",
         summary: "Create coding session turn",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.listCodingSessionEvents",
-        path: "/api/core/v1/coding-sessions/:id/events",
+        operation_id: "codingSessions.events.list",
+        path: "/app/v3/api/coding_sessions/:id/events",
         summary: "Replay or subscribe to coding session events",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.listCodingSessionArtifacts",
-        path: "/api/core/v1/coding-sessions/:id/artifacts",
+        operation_id: "codingSessions.artifacts.list",
+        path: "/app/v3/api/coding_sessions/:id/artifacts",
         summary: "List coding session artifacts",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.listCodingSessionCheckpoints",
-        path: "/api/core/v1/coding-sessions/:id/checkpoints",
+        operation_id: "codingSessions.checkpoints.list",
+        path: "/app/v3/api/coding_sessions/:id/checkpoints",
         summary: "List coding session checkpoints",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "core.submitApprovalDecision",
-        path: "/api/core/v1/approvals/:approvalId/decision",
+        operation_id: "approvals.decisions.create",
+        path: "/app/v3/api/approvals/:approvalId/decision",
         summary: "Submit approval decision",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "core.submitUserQuestionAnswer",
-        path: "/api/core/v1/questions/:questionId/answer",
+        operation_id: "questions.answers.create",
+        path: "/app/v3/api/questions/:questionId/answer",
         summary: "Submit user question answer",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "core.getOperation",
-        path: "/api/core/v1/operations/:operationId",
+        operation_id: "operations.retrieve",
+        path: "/app/v3/api/operations/:operationId",
         summary: "Get operation status",
-        tag: "core",
+        tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.getUserCenterConfig",
+        operation_id: "config.retrieve",
         path: USER_CENTER_AUTH_CONFIG_PATH,
         summary: "Get user center provider metadata",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.getCurrentUserSession",
+        operation_id: "sessions.current.retrieve",
         path: USER_CENTER_AUTH_SESSION_PATH,
         summary: "Get current user center session",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.login",
+        operation_id: "sessions.create",
         path: USER_CENTER_AUTH_LOGIN_PATH,
         summary: "Create user center session with local credentials",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.loginWithEmailCode",
-        path: USER_CENTER_AUTH_EMAIL_LOGIN_PATH,
-        summary: "Create user center session with email verification code",
+        operation_id: "qrLoginCodes.create",
+        path: USER_CENTER_AUTH_QR_GENERATE_PATH,
+        summary: "Generate user center login QR code",
         tag: "app",
     },
     RouteSpec {
-        method: "post",
-        operation_id: "app.loginWithPhoneCode",
-        path: USER_CENTER_AUTH_PHONE_LOGIN_PATH,
-        summary: "Create user center session with phone verification code",
+        method: "get",
+        operation_id: "qrLoginCodes.retrieve",
+        path: USER_CENTER_AUTH_QR_LOGIN_CODE_PATH,
+        summary: "Check user center login QR code status",
         tag: "app",
     },
     RouteSpec {
-        method: "post",
-        operation_id: "app.getOAuthAuthorizationUrl",
+        method: "get",
+        operation_id: "oauthAuthorizationUrls.retrieve",
         path: USER_CENTER_AUTH_OAUTH_URL_PATH,
         summary: "Get OAuth authorization URL for social sign-in",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.loginWithOAuth",
+        operation_id: "oauthSessions.create",
         path: USER_CENTER_AUTH_OAUTH_LOGIN_PATH,
         summary: "Create user center session with OAuth authorization code",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.register",
+        operation_id: "registrations.create",
         path: USER_CENTER_AUTH_REGISTER_PATH,
         summary: "Register local user center user",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.sendVerifyCode",
-        path: USER_CENTER_AUTH_VERIFY_SEND_PATH,
+        operation_id: "verificationCodes.create",
+        path: USER_CENTER_AUTH_VERIFICATION_CODES_PATH,
         summary: "Send verification code for login, registration, or password reset",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.requestPasswordReset",
+        operation_id: "passwordResetRequests.create",
         path: USER_CENTER_AUTH_PASSWORD_RESET_REQUEST_PATH,
         summary: "Request password reset verification challenge",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.resetPassword",
+        operation_id: "passwordResets.create",
         path: USER_CENTER_AUTH_PASSWORD_RESET_PATH,
         summary: "Reset local user center password",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.logout",
+        operation_id: "sessions.current.delete",
         path: USER_CENTER_AUTH_LOGOUT_PATH,
         summary: "Revoke current user center session",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.exchangeUserCenterSession",
+        operation_id: "sessionExchanges.create",
         path: USER_CENTER_AUTH_SESSION_EXCHANGE_PATH,
         summary: "Exchange third-party user into a BirdCoder session",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.getCurrentUserProfile",
+        operation_id: "users.current.retrieve",
         path: USER_CENTER_USER_PROFILE_PATH,
         summary: "Get current user profile",
         tag: "app",
     },
     RouteSpec {
         method: "patch",
-        operation_id: "app.updateCurrentUserProfile",
+        operation_id: "users.current.update",
         path: USER_CENTER_USER_PROFILE_PATH,
         summary: "Update current user profile",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.getCurrentUserMembership",
-        path: USER_CENTER_VIP_INFO_PATH,
+        operation_id: "vip.info.retrieve",
+        path: USER_CENTER_BILLING_VIP_MEMBERSHIP_PATH,
         summary: "Get current user membership",
         tag: "app",
     },
     RouteSpec {
         method: "patch",
-        operation_id: "app.updateCurrentUserMembership",
-        path: USER_CENTER_VIP_INFO_PATH,
+        operation_id: "vip.info.update",
+        path: USER_CENTER_BILLING_VIP_MEMBERSHIP_PATH,
         summary: "Update current user membership",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.listWorkspaces",
-        path: "/api/app/v1/workspaces",
+        operation_id: "workspaces.list",
+        path: "/app/v3/api/workspaces",
         summary: "List workspaces",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.createWorkspace",
-        path: "/api/app/v1/workspaces",
+        operation_id: "workspaces.create",
+        path: "/app/v3/api/workspaces",
         summary: "Create workspace",
         tag: "app",
     },
     RouteSpec {
         method: "patch",
-        operation_id: "app.updateWorkspace",
-        path: "/api/app/v1/workspaces/:workspaceId",
+        operation_id: "workspaces.update",
+        path: "/app/v3/api/workspaces/:workspaceId",
         summary: "Update workspace",
         tag: "app",
     },
     RouteSpec {
         method: "delete",
-        operation_id: "app.deleteWorkspace",
-        path: "/api/app/v1/workspaces/:workspaceId",
+        operation_id: "workspaces.delete",
+        path: "/app/v3/api/workspaces/:workspaceId",
         summary: "Delete workspace",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.subscribeWorkspaceRealtime",
-        path: "/api/app/v1/workspaces/:workspaceId/realtime",
+        operation_id: "workspaces.realtime.subscribe",
+        path: "/app/v3/api/workspaces/:workspaceId/realtime",
         summary: "Subscribe to workspace realtime invalidation events",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.listProjects",
-        path: "/api/app/v1/projects",
+        operation_id: "projects.list",
+        path: "/app/v3/api/projects",
         summary: "List projects",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.getProject",
-        path: "/api/app/v1/projects/:projectId",
+        operation_id: "projects.retrieve",
+        path: "/app/v3/api/projects/:projectId",
         summary: "Get project",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.getProjectGitOverview",
-        path: "/api/app/v1/projects/:projectId/git/overview",
+        operation_id: "projects.git.overview.retrieve",
+        path: "/app/v3/api/projects/:projectId/git/overview",
         summary: "Get project Git overview",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.createProjectGitBranch",
-        path: "/api/app/v1/projects/:projectId/git/branches",
+        operation_id: "projects.git.branches.create",
+        path: "/app/v3/api/projects/:projectId/git/branches",
         summary: "Create project Git branch",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.switchProjectGitBranch",
-        path: "/api/app/v1/projects/:projectId/git/branch-switch",
+        operation_id: "projects.git.branchSwitch.create",
+        path: "/app/v3/api/projects/:projectId/git/branch_switch",
         summary: "Switch project Git branch",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.commitProjectGitChanges",
-        path: "/api/app/v1/projects/:projectId/git/commits",
+        operation_id: "projects.git.commits.create",
+        path: "/app/v3/api/projects/:projectId/git/commits",
         summary: "Commit project Git changes",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.pushProjectGitBranch",
-        path: "/api/app/v1/projects/:projectId/git/pushes",
+        operation_id: "projects.git.pushes.create",
+        path: "/app/v3/api/projects/:projectId/git/pushes",
         summary: "Push project Git branch",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.createProjectGitWorktree",
-        path: "/api/app/v1/projects/:projectId/git/worktrees",
+        operation_id: "projects.git.worktrees.create",
+        path: "/app/v3/api/projects/:projectId/git/worktrees",
         summary: "Create project Git worktree",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.removeProjectGitWorktree",
-        path: "/api/app/v1/projects/:projectId/git/worktree-removals",
+        operation_id: "projects.git.worktreeRemovals.create",
+        path: "/app/v3/api/projects/:projectId/git/worktree_removals",
         summary: "Remove project Git worktree",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.pruneProjectGitWorktrees",
-        path: "/api/app/v1/projects/:projectId/git/worktree-prune",
+        operation_id: "projects.git.worktreePrune.create",
+        path: "/app/v3/api/projects/:projectId/git/worktree_prune",
         summary: "Prune project Git worktrees",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.listProjectCollaborators",
-        path: "/api/app/v1/projects/:projectId/collaborators",
+        operation_id: "projects.collaborators.list",
+        path: "/app/v3/api/projects/:projectId/collaborators",
         summary: "List project collaborators",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.upsertProjectCollaborator",
-        path: "/api/app/v1/projects/:projectId/collaborators",
+        operation_id: "projects.collaborators.upsert",
+        path: "/app/v3/api/projects/:projectId/collaborators",
         summary: "Upsert project collaborator",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.createProject",
-        path: "/api/app/v1/projects",
+        operation_id: "projects.create",
+        path: "/app/v3/api/projects",
         summary: "Create project",
         tag: "app",
     },
     RouteSpec {
         method: "patch",
-        operation_id: "app.updateProject",
-        path: "/api/app/v1/projects/:projectId",
+        operation_id: "projects.update",
+        path: "/app/v3/api/projects/:projectId",
         summary: "Update project",
         tag: "app",
     },
     RouteSpec {
         method: "delete",
-        operation_id: "app.deleteProject",
-        path: "/api/app/v1/projects/:projectId",
+        operation_id: "projects.delete",
+        path: "/app/v3/api/projects/:projectId",
         summary: "Delete project",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.listSkillPackages",
-        path: "/api/app/v1/skill-packages",
+        operation_id: "skillPackages.list",
+        path: "/app/v3/api/skill_packages",
         summary: "List skill packages",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.installSkillPackage",
-        path: "/api/app/v1/skill-packages/:packageId/installations",
+        operation_id: "skillPackages.installations.create",
+        path: "/app/v3/api/skill_packages/:packageId/installations",
         summary: "Install skill package for a scope",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.listAppTemplates",
-        path: "/api/app/v1/app-templates",
+        operation_id: "appTemplates.list",
+        path: "/app/v3/api/app_templates",
         summary: "List app templates",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.listDocuments",
-        path: "/api/app/v1/documents",
+        operation_id: "documents.list",
+        path: "/app/v3/api/documents",
         summary: "List project documents",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.listTeams",
-        path: "/api/app/v1/teams",
+        operation_id: "teams.list",
+        path: "/app/v3/api/teams",
         summary: "List workspace teams",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.listWorkspaceMembers",
-        path: "/api/app/v1/workspaces/:workspaceId/members",
+        operation_id: "workspaces.members.list",
+        path: "/app/v3/api/workspaces/:workspaceId/members",
         summary: "List workspace members",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.upsertWorkspaceMember",
-        path: "/api/app/v1/workspaces/:workspaceId/members",
+        operation_id: "workspaces.members.upsert",
+        path: "/app/v3/api/workspaces/:workspaceId/members",
         summary: "Upsert workspace member",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "app.listDeployments",
-        path: "/api/app/v1/deployments",
+        operation_id: "deployments.list",
+        path: "/app/v3/api/deployments",
         summary: "List deployments",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "app.publishProject",
-        path: "/api/app/v1/projects/:projectId/publish",
+        operation_id: "projects.publish.create",
+        path: "/app/v3/api/projects/:projectId/publish",
         summary: "Publish project release flow",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "admin.listAuditEvents",
-        path: "/api/admin/v1/audit",
+        operation_id: "auditEvents.list",
+        path: "/backend/v3/api/iam/audit_events",
         summary: "List audit events",
-        tag: "admin",
+        tag: "backend",
     },
     RouteSpec {
         method: "get",
-        operation_id: "admin.listPolicies",
-        path: "/api/admin/v1/policies",
+        operation_id: "policies.list",
+        path: "/backend/v3/api/iam/policies",
         summary: "List governance policies",
-        tag: "admin",
+        tag: "backend",
     },
     RouteSpec {
         method: "get",
-        operation_id: "admin.listTeams",
-        path: "/api/admin/v1/teams",
+        operation_id: "teamGovernance.list",
+        path: "/backend/v3/api/iam/teams",
         summary: "List teams",
-        tag: "admin",
+        tag: "backend",
     },
     RouteSpec {
         method: "get",
-        operation_id: "admin.listDeploymentTargets",
-        path: "/api/admin/v1/projects/:projectId/deployment-targets",
+        operation_id: "projects.deploymentTargets.list",
+        path: "/backend/v3/api/projects/:projectId/deployment_targets",
         summary: "List deployment targets",
-        tag: "admin",
+        tag: "backend",
     },
     RouteSpec {
         method: "get",
-        operation_id: "admin.listTeamMembers",
-        path: "/api/admin/v1/teams/:teamId/members",
+        operation_id: "teamGovernance.members.list",
+        path: "/backend/v3/api/iam/teams/:teamId/members",
         summary: "List team members",
-        tag: "admin",
+        tag: "backend",
     },
     RouteSpec {
         method: "get",
-        operation_id: "admin.listReleases",
-        path: "/api/admin/v1/releases",
+        operation_id: "releases.list",
+        path: "/backend/v3/api/releases",
         summary: "List releases",
-        tag: "admin",
+        tag: "backend",
     },
     RouteSpec {
         method: "get",
-        operation_id: "admin.listDeployments",
-        path: "/api/admin/v1/deployments",
+        operation_id: "deploymentGovernance.list",
+        path: "/backend/v3/api/deployments",
         summary: "List governed deployments",
-        tag: "admin",
+        tag: "backend",
     },
 ];
 
@@ -17160,7 +16076,7 @@ fn build_openapi_document() -> OpenApiDocument {
                     operation_id: route_spec.operation_id,
                     summary: route_spec.summary,
                     description: openapi_operation_description(&route_spec),
-                    tags: [route_spec.tag],
+                    tags: [openapi_tag_for_operation_id(route_spec.operation_id)],
                     responses: openapi_operation_responses(),
                     security: openapi_operation_security(&route_spec),
                     auth_mode: surface_auth_mode(route_spec.tag),
@@ -17182,19 +16098,24 @@ fn build_openapi_document() -> OpenApiDocument {
             description: "Unified same-port BirdCoder API gateway.",
         }],
         tags: vec![
-            OpenApiTag {
-                name: "core",
-                description: surface_description("core"),
-            },
-            OpenApiTag {
-                name: "app",
-                description: surface_description("app"),
-            },
-            OpenApiTag {
-                name: "admin",
-                description: surface_description("admin"),
-            },
-        ],
+            "audit",
+            "auth",
+            "billing",
+            "coding",
+            "content",
+            "iam",
+            "platform",
+            "runtime",
+            "skills",
+            "system",
+            "templates",
+        ]
+        .into_iter()
+        .map(|tag| OpenApiTag {
+            name: tag,
+            description: openapi_tag_description(tag),
+        })
+        .collect(),
         components: OpenApiComponents {
             security_schemes: OpenApiSecuritySchemes {
                 bearer_auth: OpenApiSecurityScheme {
@@ -17301,7 +16222,7 @@ async fn core_descriptor() -> Json<ApiEnvelope<DescriptorPayload>> {
             host_mode: "server",
             module_id: "coding-server",
             open_api_path: CODING_SERVER_OPENAPI_PATH,
-            surfaces: ["core", "app", "admin"],
+            surfaces: ["app", "backend"],
         },
     ))
 }
@@ -17343,7 +16264,7 @@ async fn core_engine_capabilities(
 }
 
 async fn core_models() -> Json<ApiListEnvelope<ModelCatalogEntryPayload>> {
-    Json(create_list_envelope("core-models", build_model_catalog()))
+    Json(create_list_envelope("core-models", build_ai_model_catalog()))
 }
 
 async fn core_model_config(
@@ -17551,7 +16472,7 @@ fn resolve_headers_with_optional_session_query(
     query_session_id: Option<&str>,
 ) -> Result<HeaderMap, String> {
     let mut resolved_headers = headers.clone();
-    if resolved_headers.contains_key(BIRDCODER_SESSION_HEADER_NAME) {
+    if resolved_headers.contains_key(USER_CENTER_SESSION_HEADER_NAME) {
         return Ok(resolved_headers);
     }
 
@@ -17563,7 +16484,7 @@ fn resolve_headers_with_optional_session_query(
     let session_header_value = HeaderValue::from_str(session_id.as_str())
         .map_err(|error| format!("Invalid realtime sessionId query parameter: {error}"))?;
     resolved_headers.insert(
-        HeaderName::from_static(BIRDCODER_SESSION_HEADER_NAME),
+        HeaderName::from_static(USER_CENTER_SESSION_HEADER_NAME),
         session_header_value,
     );
     Ok(resolved_headers)
@@ -17599,7 +16520,7 @@ fn render_user_center_qr_entry_html(qr_key: &str) -> String {
     let confirm_path_json = serde_json::to_string(USER_CENTER_AUTH_QR_CONFIRM_PATH)
         .unwrap_or_else(|_| "\"\"".to_owned());
     let session_header_name_json =
-        serde_json::to_string(BIRDCODER_SESSION_HEADER_NAME).unwrap_or_else(|_| "\"\"".to_owned());
+        serde_json::to_string(USER_CENTER_SESSION_HEADER_NAME).unwrap_or_else(|_| "\"\"".to_owned());
     let session_storage_key_json =
         serde_json::to_string(BIRDCODER_USER_CENTER_SESSION_TOKEN_STORAGE_KEY)
             .unwrap_or_else(|_| "\"\"".to_owned());
@@ -17983,7 +16904,7 @@ async fn app_user_center_login_qr_generate(
     )))
 }
 
-async fn app_user_center_login_qr_status(
+async fn app_user_center_qr_login_code(
     State(state): State<AppState>,
     AxumPath(qr_key): AxumPath<String>,
 ) -> Result<
@@ -18123,43 +17044,9 @@ async fn app_user_center_login(
     ))
 }
 
-async fn app_user_center_login_with_email_code(
-    State(state): State<AppState>,
-    Json(request): Json<UserCenterEmailCodeLoginRequest>,
-) -> Result<
-    (HeaderMap, Json<ApiEnvelope<UserCenterSessionPayload>>),
-    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
-> {
-    let mut connection = state
-        .open_authority_connection_for_write()
-        .map_err(|error| {
-            problem_response(
-                "app-user-center-email-code-login-unavailable",
-                StatusCode::NOT_IMPLEMENTED,
-                "system_error",
-                error,
-            )
-        })?;
-    let session = state
-        .user_center
-        .login_with_email_code(&mut connection, &request)
-        .map_err(|error| {
-            problem_response(
-                "app-user-center-email-code-login-failed",
-                StatusCode::BAD_REQUEST,
-                "argument_invalid",
-                error,
-            )
-        })?;
-    Ok((
-        create_user_center_session_response_headers(Some(&session)),
-        Json(create_envelope("app-user-center-email-code-login", session)),
-    ))
-}
-
 async fn app_user_center_oauth_authorization_url(
     State(state): State<AppState>,
-    Json(request): Json<UserCenterOAuthAuthorizationRequest>,
+    Query(request): Query<UserCenterOAuthAuthorizationRequest>,
 ) -> Result<
     Json<ApiEnvelope<UserCenterOAuthUrlPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
@@ -18212,40 +17099,6 @@ async fn app_user_center_login_with_oauth(
     Ok((
         create_user_center_session_response_headers(Some(&session)),
         Json(create_envelope("app-user-center-oauth-login", session)),
-    ))
-}
-
-async fn app_user_center_login_with_phone_code(
-    State(state): State<AppState>,
-    Json(request): Json<UserCenterPhoneCodeLoginRequest>,
-) -> Result<
-    (HeaderMap, Json<ApiEnvelope<UserCenterSessionPayload>>),
-    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
-> {
-    let mut connection = state
-        .open_authority_connection_for_write()
-        .map_err(|error| {
-            problem_response(
-                "app-user-center-phone-code-login-unavailable",
-                StatusCode::NOT_IMPLEMENTED,
-                "system_error",
-                error,
-            )
-        })?;
-    let session = state
-        .user_center
-        .login_with_phone_code(&mut connection, &request)
-        .map_err(|error| {
-            problem_response(
-                "app-user-center-phone-code-login-failed",
-                StatusCode::BAD_REQUEST,
-                "argument_invalid",
-                error,
-            )
-        })?;
-    Ok((
-        create_user_center_session_response_headers(Some(&session)),
-        Json(create_envelope("app-user-center-phone-code-login", session)),
     ))
 }
 
@@ -18580,19 +17433,19 @@ async fn app_workspaces(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Json<ApiListEnvelope<WorkspacePayload>> {
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let user_filter = normalize_optional_string(query.user_id).or_else(|| {
         try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id)
     });
-    let workspaces = app_admin_state
+    let workspaces = console_state
         .workspaces
         .into_iter()
         .filter_map(|workspace| {
             if user_filter.as_deref().is_some_and(|user_id| {
                 !workspace_is_visible_to_user(
                     &workspace,
-                    &app_admin_state.workspace_members,
-                    &app_admin_state.members,
+                    &console_state.workspace_members,
+                    &console_state.members,
                     user_id,
                 )
             }) {
@@ -18600,12 +17453,12 @@ async fn app_workspaces(
             }
 
             let member_count =
-                count_active_workspace_members(&app_admin_state.workspace_members, &workspace.id);
+                count_active_workspace_members(&console_state.workspace_members, &workspace.id);
             let viewer_role = user_filter.as_deref().and_then(|user_id| {
                 resolve_workspace_viewer_role(
                     &workspace,
-                    &app_admin_state.workspace_members,
-                    &app_admin_state.members,
+                    &console_state.workspace_members,
+                    &console_state.members,
                     user_id,
                 )
             });
@@ -18749,7 +17602,7 @@ async fn app_create_workspace(
     transaction
         .execute(
             r#"
-            INSERT INTO plus_workspace AS workspaces (
+            INSERT INTO studio_workspace AS workspaces (
                 id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                 data_scope, name, code, title, description, owner_id, leader_id, created_by_user_id, icon, color,
                 type, start_time, end_time, max_members, current_members, member_count, max_storage,
@@ -18790,7 +17643,7 @@ async fn app_create_workspace(
         .and_then(|_| {
             transaction.execute(
                 r#"
-                INSERT INTO teams (
+                INSERT INTO studio_team (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     workspace_id, name, code, title, description, owner_id, leader_id, metadata_json,
                     created_by_user_id, status
@@ -18819,7 +17672,7 @@ async fn app_create_workspace(
         .and_then(|_| {
             transaction.execute(
                 r#"
-                INSERT INTO team_members (
+                INSERT INTO studio_team_member (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     team_id, user_id, role, created_by_user_id, granted_by_user_id, status
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12)
@@ -18843,7 +17696,7 @@ async fn app_create_workspace(
         .and_then(|_| {
             transaction.execute(
                 r#"
-                INSERT INTO workspace_members (
+                INSERT INTO studio_workspace_member (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
@@ -19104,7 +17957,7 @@ async fn app_update_workspace(
     connection
         .execute(
             r#"
-            UPDATE plus_workspace AS workspaces
+            UPDATE studio_workspace AS workspaces
             SET
                 updated_at = ?2,
                 name = ?3,
@@ -19216,7 +18069,7 @@ async fn app_delete_workspace(
     let deleted_count = connection
         .execute(
             r#"
-            UPDATE plus_workspace AS workspaces
+            UPDATE studio_workspace AS workspaces
             SET is_deleted = 1, updated_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -19243,7 +18096,7 @@ async fn app_delete_workspace(
     connection
         .execute(
             r#"
-            UPDATE plus_project AS projects
+            UPDATE studio_project AS projects
             SET is_deleted = 1, updated_at = ?2
             WHERE workspace_id = ?1 AND is_deleted = 0
             "#,
@@ -19261,7 +18114,7 @@ async fn app_delete_workspace(
     connection
         .execute(
             r#"
-            UPDATE project_collaborators
+            UPDATE studio_project_collaborator
             SET is_deleted = 1, updated_at = ?2
             WHERE workspace_id = ?1 AND is_deleted = 0
             "#,
@@ -19279,7 +18132,7 @@ async fn app_delete_workspace(
     connection
         .execute(
             r#"
-            UPDATE workspace_members
+            UPDATE studio_workspace_member
             SET is_deleted = 1, updated_at = ?2
             WHERE workspace_id = ?1 AND is_deleted = 0
             "#,
@@ -19297,11 +18150,11 @@ async fn app_delete_workspace(
     connection
         .execute(
             r#"
-            UPDATE team_members
+            UPDATE studio_team_member
             SET is_deleted = 1, updated_at = ?2
             WHERE team_id IN (
                 SELECT id
-                FROM teams
+                FROM studio_team
                 WHERE workspace_id = ?1 AND is_deleted = 0
             ) AND is_deleted = 0
             "#,
@@ -19319,7 +18172,7 @@ async fn app_delete_workspace(
     connection
         .execute(
             r#"
-            UPDATE teams
+            UPDATE studio_team
             SET is_deleted = 1, updated_at = ?2
             WHERE workspace_id = ?1 AND is_deleted = 0
             "#,
@@ -19350,7 +18203,7 @@ async fn app_projects(
     Json<ApiListEnvelope<ProjectPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let root_path_filter =
         normalize_optional_project_root_path(query.root_path).map_err(|error| {
             problem_response(
@@ -19367,8 +18220,8 @@ async fn app_projects(
     let user_filter = normalize_optional_string(query.user_id).or_else(|| {
         try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id)
     });
-    let workspace_lookup = workspace_lookup_map(&app_admin_state.workspaces);
-    let projects = app_admin_state
+    let workspace_lookup = workspace_lookup_map(&console_state.workspaces);
+    let projects = console_state
         .projects
         .into_iter()
         .filter_map(|project| {
@@ -19402,9 +18255,9 @@ async fn app_projects(
                 !project_is_visible_to_user(
                     &project,
                     &workspace_lookup,
-                    &app_admin_state.workspace_members,
-                    &app_admin_state.project_collaborators,
-                    &app_admin_state.members,
+                    &console_state.workspace_members,
+                    &console_state.project_collaborators,
+                    &console_state.members,
                     user_id,
                 )
             }) {
@@ -19412,16 +18265,16 @@ async fn app_projects(
             }
 
             let collaborator_count = count_active_project_collaborators(
-                &app_admin_state.project_collaborators,
+                &console_state.project_collaborators,
                 &project.id,
             );
             let viewer_role = user_filter.as_deref().and_then(|user_id| {
                 resolve_project_viewer_role(
                     &project,
                     &workspace_lookup,
-                    &app_admin_state.workspace_members,
-                    &app_admin_state.project_collaborators,
-                    &app_admin_state.members,
+                    &console_state.workspace_members,
+                    &console_state.project_collaborators,
+                    &console_state.members,
                     user_id,
                 )
             });
@@ -19470,10 +18323,10 @@ fn resolve_visible_app_project_payload(
 ) -> Result<ProjectPayload, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)> {
     let current_user_id =
         try_resolve_current_user_center_session(state, headers).map(|session| session.user.id);
-    let app_admin_state = state.read_app_admin_state();
-    let workspace_lookup = workspace_lookup_map(&app_admin_state.workspaces);
+    let console_state = state.read_console_state();
+    let workspace_lookup = workspace_lookup_map(&console_state.workspaces);
 
-    app_admin_state
+    console_state
         .projects
         .into_iter()
         .find(|candidate| candidate.id == project_id)
@@ -19483,25 +18336,25 @@ fn resolve_visible_app_project_payload(
                 project_is_visible_to_user(
                     candidate,
                     &workspace_lookup,
-                    &app_admin_state.workspace_members,
-                    &app_admin_state.project_collaborators,
-                    &app_admin_state.members,
+                    &console_state.workspace_members,
+                    &console_state.project_collaborators,
+                    &console_state.members,
                     user_id,
                 )
             })
         })
         .map(|project| {
             let collaborator_count = count_active_project_collaborators(
-                &app_admin_state.project_collaborators,
+                &console_state.project_collaborators,
                 &project.id,
             );
             let viewer_role = current_user_id.as_deref().and_then(|user_id| {
                 resolve_project_viewer_role(
                     &project,
                     &workspace_lookup,
-                    &app_admin_state.workspace_members,
-                    &app_admin_state.project_collaborators,
-                    &app_admin_state.members,
+                    &console_state.workspace_members,
+                    &console_state.project_collaborators,
+                    &console_state.members,
                     user_id,
                 )
             });
@@ -20000,21 +18853,21 @@ async fn app_install_skill_package(
         .query_row(
             r#"
             SELECT
-                skill_installations.id,
-                skill_installations.uuid,
-                skill_installations.tenant_id,
-                skill_installations.organization_id,
-                skill_installations.created_at,
-                skill_installations.installed_at
-            FROM skill_installations
-            INNER JOIN skill_versions
-                ON skill_versions.id = skill_installations.skill_version_id
-               AND skill_versions.is_deleted = 0
-            WHERE skill_installations.is_deleted = 0
-              AND skill_installations.scope_type = ?1
-              AND skill_installations.scope_id = ?2
-              AND skill_versions.skill_package_id = ?3
-            ORDER BY skill_installations.updated_at DESC, skill_installations.id ASC
+                ai_skill_installation.id,
+                ai_skill_installation.uuid,
+                ai_skill_installation.tenant_id,
+                ai_skill_installation.organization_id,
+                ai_skill_installation.created_at,
+                ai_skill_installation.installed_at
+            FROM ai_skill_installation
+            INNER JOIN ai_skill_version
+                ON ai_skill_version.id = ai_skill_installation.skill_version_id
+               AND ai_skill_version.is_deleted = 0
+            WHERE ai_skill_installation.is_deleted = 0
+              AND ai_skill_installation.scope_type = ?1
+              AND ai_skill_installation.scope_id = ?2
+              AND ai_skill_version.skill_package_id = ?3
+            ORDER BY ai_skill_installation.updated_at DESC, ai_skill_installation.id ASC
             LIMIT 1
             "#,
             params![
@@ -20026,11 +18879,11 @@ async fn app_install_skill_package(
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, Option<String>>(1)?,
-                    sqlite_row_optional_string_value(row, 2, "skill_installations.tenant_id")?,
+                    sqlite_row_optional_string_value(row, 2, "ai_skill_installation.tenant_id")?,
                     sqlite_row_optional_string_value(
                         row,
                         3,
-                        "skill_installations.organization_id",
+                        "ai_skill_installation.organization_id",
                     )?,
                     row.get::<_, String>(4)?,
                     row.get::<_, String>(5)?,
@@ -20078,13 +18931,13 @@ async fn app_install_skill_package(
     connection
         .execute(
             r#"
-            INSERT INTO skill_installations (
+            INSERT INTO ai_skill_installation (
                 id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                 scope_type, scope_id, skill_version_id, status, installed_at
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11)
             ON CONFLICT(id)
             DO UPDATE SET
-                uuid = COALESCE(NULLIF(TRIM(skill_installations.uuid), ''), excluded.uuid),
+                uuid = COALESCE(NULLIF(TRIM(ai_skill_installation.uuid), ''), excluded.uuid),
                 tenant_id = excluded.tenant_id,
                 organization_id = excluded.organization_id,
                 updated_at = excluded.updated_at,
@@ -20453,7 +19306,7 @@ async fn app_create_project(
         workspace_uuid
     } else {
         match connection.query_row(
-                "SELECT uuid FROM plus_workspace AS workspaces WHERE id = ?1 AND is_deleted = 0 LIMIT 1",
+                "SELECT uuid FROM studio_workspace AS workspaces WHERE id = ?1 AND is_deleted = 0 LIMIT 1",
                 params![&workspace_id],
                 |row| row.get::<_, Option<String>>(0),
             ) {
@@ -20488,7 +19341,7 @@ async fn app_create_project(
     transaction
         .execute(
             r#"
-            INSERT INTO plus_project AS projects (
+            INSERT INTO studio_project AS projects (
                 id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
                 parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
                 author, file_id, code, type, site_path, domain_prefix, description, status,
@@ -20532,7 +19385,7 @@ async fn app_create_project(
         .and_then(|_| {
             transaction.execute(
                 r#"
-                INSERT INTO plus_project_content (
+                INSERT INTO studio_project_content (
                     id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
                     user_id, parent_id, project_id, project_uuid, config_data, content_data,
                     metadata, content_version, content_hash
@@ -20557,7 +19410,7 @@ async fn app_create_project(
         .and_then(|_| {
             transaction.execute(
                 r#"
-                INSERT INTO project_collaborators (
+                INSERT INTO studio_project_collaborator (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
                     status
@@ -20953,7 +19806,7 @@ async fn app_update_project(
     transaction
         .execute(
             r#"
-            UPDATE plus_project AS projects
+            UPDATE studio_project AS projects
             SET
                 v = v + 1,
                 updated_at = ?2,
@@ -21019,7 +19872,7 @@ async fn app_update_project(
     let updated_project_content_count = transaction
         .execute(
             r#"
-            UPDATE plus_project_content
+            UPDATE studio_project_content
             SET
                 v = v + 1,
                 updated_at = ?2,
@@ -21056,7 +19909,7 @@ async fn app_update_project(
         transaction
             .execute(
                 r#"
-                INSERT INTO plus_project_content (
+                INSERT INTO studio_project_content (
                     id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
                     user_id, parent_id, project_id, project_uuid, config_data, content_data,
                     metadata, content_version, content_hash
@@ -21182,7 +20035,7 @@ async fn app_delete_project(
     let deleted_count = connection
         .execute(
             r#"
-            UPDATE plus_project AS projects
+            UPDATE studio_project AS projects
             SET is_deleted = 1, updated_at = ?2
             WHERE id = ?1 AND is_deleted = 0
             "#,
@@ -21202,7 +20055,7 @@ async fn app_delete_project(
     connection
         .execute(
             r#"
-            UPDATE project_collaborators
+            UPDATE studio_project_collaborator
             SET is_deleted = 1, updated_at = ?2
             WHERE project_id = ?1 AND is_deleted = 0
             "#,
@@ -21261,8 +20114,8 @@ async fn app_workspace_members(
             "workspaceId is required.",
         )
     })?;
-    let app_admin_state = state.read_app_admin_state();
-    let workspace = app_admin_state
+    let console_state = state.read_console_state();
+    let workspace = console_state
         .workspaces
         .iter()
         .find(|workspace| workspace.id == normalized_workspace_id)
@@ -21280,8 +20133,8 @@ async fn app_workspace_members(
     {
         let viewer_role = resolve_workspace_viewer_role(
             &workspace,
-            &app_admin_state.workspace_members,
-            &app_admin_state.members,
+            &console_state.workspace_members,
+            &console_state.members,
             &current_user_id,
         );
         if viewer_role.is_none() {
@@ -21294,7 +20147,7 @@ async fn app_workspace_members(
         }
     }
 
-    let members = app_admin_state
+    let members = console_state
         .workspace_members
         .into_iter()
         .filter(|member| member.workspace_id == normalized_workspace_id)
@@ -21342,8 +20195,8 @@ async fn app_upsert_workspace_member(
     let team_id = normalize_optional_string(request.team_id);
     let current_user_id =
         try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
-    let app_admin_state = state.read_app_admin_state();
-    let workspace_projection = app_admin_state
+    let console_state = state.read_console_state();
+    let workspace_projection = console_state
         .workspaces
         .iter()
         .find(|workspace| workspace.id == normalized_workspace_id)
@@ -21353,8 +20206,8 @@ async fn app_upsert_workspace_member(
     {
         let viewer_role = resolve_workspace_viewer_role(
             workspace,
-            &app_admin_state.workspace_members,
-            &app_admin_state.members,
+            &console_state.workspace_members,
+            &console_state.members,
             actor_user_id,
         );
         if !matches!(viewer_role.as_deref(), Some("owner" | "admin")) {
@@ -21492,7 +20345,7 @@ async fn app_upsert_workspace_member(
         transaction
             .execute(
                 r#"
-                UPDATE workspace_members
+                UPDATE studio_workspace_member
                 SET
                     updated_at = ?2,
                     uuid = COALESCE(NULLIF(TRIM(uuid), ''), ?3),
@@ -21533,7 +20386,7 @@ async fn app_upsert_workspace_member(
         transaction
             .execute(
                 r#"
-                INSERT INTO workspace_members (
+                INSERT INTO studio_workspace_member (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
@@ -21568,7 +20421,7 @@ async fn app_upsert_workspace_member(
         transaction
             .execute(
                 r#"
-                UPDATE plus_workspace AS workspaces
+                UPDATE studio_workspace AS workspaces
                 SET updated_at = ?2, owner_id = ?3, leader_id = ?4
                 WHERE id = ?1 AND is_deleted = 0
                 "#,
@@ -21639,8 +20492,8 @@ async fn app_project_collaborators(
             "projectId is required.",
         )
     })?;
-    let app_admin_state = state.read_app_admin_state();
-    let project = app_admin_state
+    let console_state = state.read_console_state();
+    let project = console_state
         .projects
         .iter()
         .find(|project| project.id == normalized_project_id)
@@ -21658,10 +20511,10 @@ async fn app_project_collaborators(
     {
         let viewer_role = resolve_project_viewer_role(
             &project,
-            &workspace_lookup_map(&app_admin_state.workspaces),
-            &app_admin_state.workspace_members,
-            &app_admin_state.project_collaborators,
-            &app_admin_state.members,
+            &workspace_lookup_map(&console_state.workspaces),
+            &console_state.workspace_members,
+            &console_state.project_collaborators,
+            &console_state.members,
             &current_user_id,
         );
         if viewer_role.is_none() {
@@ -21674,7 +20527,7 @@ async fn app_project_collaborators(
         }
     }
 
-    let collaborators = app_admin_state
+    let collaborators = console_state
         .project_collaborators
         .into_iter()
         .filter(|collaborator| collaborator.project_id == normalized_project_id)
@@ -21725,8 +20578,8 @@ async fn app_upsert_project_collaborator(
     let team_id = normalize_optional_string(request.team_id);
     let current_user_id =
         try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
-    let app_admin_state = state.read_app_admin_state();
-    let project_projection = app_admin_state
+    let console_state = state.read_console_state();
+    let project_projection = console_state
         .projects
         .iter()
         .find(|project| project.id == normalized_project_id)
@@ -21736,10 +20589,10 @@ async fn app_upsert_project_collaborator(
     {
         let viewer_role = resolve_project_viewer_role(
             project,
-            &workspace_lookup_map(&app_admin_state.workspaces),
-            &app_admin_state.workspace_members,
-            &app_admin_state.project_collaborators,
-            &app_admin_state.members,
+            &workspace_lookup_map(&console_state.workspaces),
+            &console_state.workspace_members,
+            &console_state.project_collaborators,
+            &console_state.members,
             actor_user_id,
         );
         if !matches!(viewer_role.as_deref(), Some("owner" | "admin")) {
@@ -21877,7 +20730,7 @@ async fn app_upsert_project_collaborator(
         transaction
             .execute(
                 r#"
-                UPDATE project_collaborators
+                UPDATE studio_project_collaborator
                 SET
                     updated_at = ?2,
                     uuid = COALESCE(NULLIF(TRIM(uuid), ''), ?3),
@@ -21918,7 +20771,7 @@ async fn app_upsert_project_collaborator(
         transaction
             .execute(
                 r#"
-                INSERT INTO project_collaborators (
+                INSERT INTO studio_project_collaborator (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
                     status
@@ -21955,7 +20808,7 @@ async fn app_upsert_project_collaborator(
         transaction
             .execute(
                 r#"
-                UPDATE plus_project AS projects
+                UPDATE studio_project AS projects
                 SET updated_at = ?2, owner_id = ?3, leader_id = ?4
                 WHERE id = ?1 AND is_deleted = 0
                 "#,
@@ -22012,20 +20865,20 @@ async fn app_upsert_project_collaborator(
 }
 
 async fn app_documents(State(state): State<AppState>) -> Json<ApiListEnvelope<DocumentPayload>> {
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     Json(create_list_envelope(
         "app-documents",
-        app_admin_state.documents,
+        console_state.documents,
     ))
 }
 
 async fn app_deployments(
     State(state): State<AppState>,
 ) -> Json<ApiListEnvelope<DeploymentPayload>> {
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     Json(create_list_envelope(
         "app-deployments",
-        app_admin_state.deployments,
+        console_state.deployments,
     ))
 }
 
@@ -22057,8 +20910,8 @@ async fn app_publish_project(
     let requested_endpoint_url = normalize_optional_string(request.endpoint_url);
     let current_user_id =
         try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
-    let app_admin_state = state.read_app_admin_state();
-    let project_projection = app_admin_state
+    let console_state = state.read_console_state();
+    let project_projection = console_state
         .projects
         .iter()
         .find(|project| project.id == normalized_project_id)
@@ -22068,10 +20921,10 @@ async fn app_publish_project(
     {
         let viewer_role = resolve_project_viewer_role(
             project,
-            &workspace_lookup_map(&app_admin_state.workspaces),
-            &app_admin_state.workspace_members,
-            &app_admin_state.project_collaborators,
-            &app_admin_state.members,
+            &workspace_lookup_map(&console_state.workspaces),
+            &console_state.workspace_members,
+            &console_state.project_collaborators,
+            &console_state.members,
             actor_user_id,
         );
         if !matches!(viewer_role.as_deref(), Some("owner" | "admin")) {
@@ -22297,7 +21150,7 @@ async fn app_publish_project(
         transaction
             .execute(
                 r#"
-                INSERT INTO deployment_targets (
+                INSERT INTO studio_deployment_target (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     project_id, name, environment_key, runtime, status
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11)
@@ -22329,7 +21182,7 @@ async fn app_publish_project(
     transaction
         .execute(
             r#"
-            INSERT INTO release_records (
+            INSERT INTO ops_release_record (
                 id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                 release_version, release_kind, rollout_stage, manifest_json, status
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11)
@@ -22360,7 +21213,7 @@ async fn app_publish_project(
     transaction
         .execute(
             r#"
-            INSERT INTO deployment_records (
+            INSERT INTO studio_deployment_record (
                 id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                 project_id, target_id, release_record_id, status, endpoint_url, started_at, completed_at
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
@@ -22393,7 +21246,7 @@ async fn app_publish_project(
     transaction
         .execute(
             r#"
-            INSERT INTO audit_events (
+            INSERT INTO ops_audit_event (
                 id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                 scope_type, scope_id, event_type, payload_json
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10)
@@ -22444,12 +21297,12 @@ async fn app_teams(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Json<ApiListEnvelope<TeamPayload>> {
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let workspace_filter = normalize_optional_string(query.workspace_id);
     let user_filter = normalize_optional_string(query.user_id).or_else(|| {
         try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id)
     });
-    let teams = app_admin_state
+    let teams = console_state
         .teams
         .into_iter()
         .filter(|team| {
@@ -22461,19 +21314,19 @@ async fn app_teams(
             }
 
             user_filter.as_deref().is_none_or(|user_id| {
-                app_admin_state.members.iter().any(|member| {
+                console_state.members.iter().any(|member| {
                     member.team_id == team.id
                         && member.user_id == user_id
                         && is_active_collaboration_status(&member.status)
-                }) || app_admin_state
+                }) || console_state
                     .workspaces
                     .iter()
                     .find(|workspace| workspace.id == team.workspace_id)
                     .is_some_and(|workspace| {
                         workspace_is_visible_to_user(
                             workspace,
-                            &app_admin_state.workspace_members,
-                            &app_admin_state.members,
+                            &console_state.workspace_members,
+                            &console_state.members,
                             user_id,
                         )
                     })
@@ -22488,12 +21341,12 @@ async fn admin_teams(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Json<ApiListEnvelope<TeamPayload>> {
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let workspace_filter = normalize_optional_string(query.workspace_id);
     let user_filter = normalize_optional_string(query.user_id).or_else(|| {
         try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id)
     });
-    let teams = app_admin_state
+    let teams = console_state
         .teams
         .into_iter()
         .filter(|team| {
@@ -22505,19 +21358,19 @@ async fn admin_teams(
             }
 
             user_filter.as_deref().is_none_or(|user_id| {
-                app_admin_state.members.iter().any(|member| {
+                console_state.members.iter().any(|member| {
                     member.team_id == team.id
                         && member.user_id == user_id
                         && is_active_collaboration_status(&member.status)
-                }) || app_admin_state
+                }) || console_state
                     .workspaces
                     .iter()
                     .find(|workspace| workspace.id == team.workspace_id)
                     .is_some_and(|workspace| {
                         workspace_is_visible_to_user(
                             workspace,
-                            &app_admin_state.workspace_members,
-                            &app_admin_state.members,
+                            &console_state.workspace_members,
+                            &console_state.members,
                             user_id,
                         )
                     })
@@ -22531,8 +21384,8 @@ async fn admin_deployment_targets(
     AxumPath(project_id): AxumPath<String>,
     State(state): State<AppState>,
 ) -> Json<ApiListEnvelope<DeploymentTargetPayload>> {
-    let app_admin_state = state.read_app_admin_state();
-    let targets = app_admin_state
+    let console_state = state.read_console_state();
+    let targets = console_state
         .targets
         .iter()
         .filter(|target| target.project_id == project_id)
@@ -22545,8 +21398,8 @@ async fn admin_team_members(
     AxumPath(team_id): AxumPath<String>,
     State(state): State<AppState>,
 ) -> Json<ApiListEnvelope<TeamMemberPayload>> {
-    let app_admin_state = state.read_app_admin_state();
-    let members = app_admin_state
+    let console_state = state.read_console_state();
+    let members = console_state
         .members
         .iter()
         .filter(|member| member.team_id == team_id)
@@ -22556,33 +21409,33 @@ async fn admin_team_members(
 }
 
 async fn admin_releases(State(state): State<AppState>) -> Json<ApiListEnvelope<ReleasePayload>> {
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     Json(create_list_envelope(
         "admin-releases",
-        app_admin_state.releases,
+        console_state.releases,
     ))
 }
 
 async fn admin_audit(State(state): State<AppState>) -> Json<ApiListEnvelope<AuditPayload>> {
-    let app_admin_state = state.read_app_admin_state();
-    Json(create_list_envelope("admin-audit", app_admin_state.audits))
+    let console_state = state.read_console_state();
+    Json(create_list_envelope("admin-audit", console_state.audits))
 }
 
 async fn admin_policies(State(state): State<AppState>) -> Json<ApiListEnvelope<PolicyPayload>> {
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     Json(create_list_envelope(
         "admin-policies",
-        app_admin_state.policies,
+        console_state.policies,
     ))
 }
 
 async fn admin_deployments(
     State(state): State<AppState>,
 ) -> Json<ApiListEnvelope<DeploymentPayload>> {
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     Json(create_list_envelope(
         "admin-deployments",
-        app_admin_state.deployments,
+        console_state.deployments,
     ))
 }
 
@@ -22627,6 +21480,11 @@ fn insert_optional_response_header(
     headers.insert(header_name, header_value);
 }
 
+fn parse_canonical_user_center_header_name(header_name: &str) -> HeaderName {
+    HeaderName::from_bytes(header_name.as_bytes())
+        .expect("sdkwork-appbase user-center header name must be a valid HTTP header name")
+}
+
 fn create_user_center_session_response_headers(
     session: Option<&UserCenterSessionPayload>,
 ) -> HeaderMap {
@@ -22637,12 +21495,12 @@ fn create_user_center_session_response_headers(
 
     insert_optional_response_header(
         &mut headers,
-        HeaderName::from_static(BIRDCODER_SESSION_HEADER_NAME),
+        HeaderName::from_static(USER_CENTER_SESSION_HEADER_NAME),
         Some(session.session_id.as_str()),
     );
     insert_optional_response_header(
         &mut headers,
-        HeaderName::from_static("access-token"),
+        parse_canonical_user_center_header_name(USER_CENTER_ACCESS_TOKEN_HEADER_NAME),
         Some(session.access_token.as_str()),
     );
     insert_optional_response_header(
@@ -22655,7 +21513,7 @@ fn create_user_center_session_response_headers(
     let authorization_token = session.auth_token.trim();
     if !authorization_token.is_empty() {
         let normalized_scheme = if authorization_scheme.is_empty() {
-            BIRDCODER_AUTHORIZATION_SCHEME
+            USER_CENTER_AUTHORIZATION_SCHEME
         } else {
             authorization_scheme
         };
@@ -23077,9 +21935,9 @@ async fn read_projection_attached_native_session_detail(
         return Ok(None);
     };
 
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let scoped_projects = filter_projects_by_scope(
-        app_admin_state.projects,
+        console_state.projects,
         Some(session.workspace_id.as_str()),
         None,
     );
@@ -23117,9 +21975,9 @@ async fn read_projection_native_session_detail(
         return Ok(None);
     }
 
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let scoped_projects = filter_projects_by_scope(
-        app_admin_state.projects,
+        console_state.projects,
         Some(session.workspace_id.as_str()),
         None,
     );
@@ -23155,9 +22013,9 @@ async fn read_projection_attached_native_session_summary(
         return Ok(None);
     };
 
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let scoped_projects = filter_projects_by_scope(
-        app_admin_state.projects,
+        console_state.projects,
         Some(session.workspace_id.as_str()),
         None,
     );
@@ -23195,9 +22053,9 @@ async fn read_projection_native_session_summary(
         return Ok(None);
     }
 
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let scoped_projects = filter_projects_by_scope(
-        app_admin_state.projects,
+        console_state.projects,
         Some(session.workspace_id.as_str()),
         None,
     );
@@ -23603,11 +22461,11 @@ fn create_native_coding_session_turn(
     engine_id: Option<String>,
     input: &CreateCodingSessionTurnInput,
 ) -> Result<CodingSessionTurnPayload, String> {
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let native_engine_id =
         engine_id.or_else(|| native_sessions::resolve_native_session_engine_id(coding_session_id));
     let before_detail = native_sessions::get_native_session(
-        &app_admin_state.projects,
+        &console_state.projects,
         &native_sessions::NativeSessionLookup {
             session_id: coding_session_id.to_owned(),
             engine_id: native_engine_id.clone(),
@@ -23640,13 +22498,13 @@ fn create_native_coding_session_turn(
             ide_context: to_native_session_turn_ide_context(input.ide_context.as_ref()),
             working_directory: resolve_native_turn_working_directory(
                 &before_detail,
-                &app_admin_state.projects,
+                &console_state.projects,
             ),
             config: build_native_session_turn_config(input.options.as_ref()),
         })?;
 
     let after_detail = native_sessions::get_native_session(
-        &app_admin_state.projects,
+        &console_state.projects,
         &native_sessions::NativeSessionLookup {
             session_id: coding_session_id.to_owned(),
             engine_id: native_engine_id,
@@ -23677,9 +22535,9 @@ async fn core_native_sessions(
     Json<ApiListEnvelope<native_sessions::NativeSessionSummaryPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let all_sessions = list_native_sessions_async(
-        app_admin_state.projects,
+        console_state.projects,
         build_native_session_query(NativeSessionQueryParams {
             workspace_id: query.workspace_id.clone(),
             project_id: query.project_id.clone(),
@@ -23722,9 +22580,9 @@ async fn core_sessions(
 
     let mut sessions = state.projections.sessions();
 
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let scoped_projects = filter_projects_by_scope(
-        app_admin_state.projects,
+        console_state.projects,
         normalized_workspace_id.as_deref(),
         None,
     );
@@ -23842,9 +22700,9 @@ async fn core_native_session(
     Json<ApiEnvelope<native_sessions::NativeSessionDetailPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let detail = get_native_session_async(
-        app_admin_state.projects,
+        console_state.projects,
         build_native_session_lookup(coding_session_id, query),
     )
     .await
@@ -23907,9 +22765,9 @@ async fn core_session(
             session
         }
     } else {
-        let app_admin_state = state.read_app_admin_state();
+        let console_state = state.read_console_state();
         let detail = get_native_session_async(
-            app_admin_state.projects,
+            console_state.projects,
             native_sessions::NativeSessionLookup {
                 session_id: coding_session_id.clone(),
                 engine_id: native_sessions::resolve_native_session_engine_id(
@@ -24407,9 +23265,9 @@ async fn core_create_turn(
         return Ok((
             StatusCode::CREATED,
             Json({
-                let app_admin_state = state.read_app_admin_state();
+                let console_state = state.read_console_state();
                 if let Ok(Some(detail)) = get_native_session_async(
-                    app_admin_state.projects,
+                    console_state.projects,
                     native_sessions::NativeSessionLookup {
                         session_id: coding_session_id.clone(),
                         engine_id: native_engine_id.clone().or_else(|| {
@@ -24801,11 +23659,11 @@ async fn core_session_events(
         )));
     }
 
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let native_engine_id =
         native_sessions::resolve_native_session_engine_id(coding_session_id.as_str());
     let detail = get_native_session_async(
-        app_admin_state.projects,
+        console_state.projects,
         native_sessions::NativeSessionLookup {
             session_id: coding_session_id,
             engine_id: native_engine_id,
@@ -24870,9 +23728,9 @@ async fn resolve_fork_source_session_and_events(
         return Err(format!("coding session {coding_session_id} was not found"));
     }
 
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let detail = get_native_session_async(
-        app_admin_state.projects,
+        console_state.projects,
         native_sessions::NativeSessionLookup {
             session_id: coding_session_id.to_owned(),
             engine_id: native_sessions::resolve_native_session_engine_id(coding_session_id),
@@ -24903,11 +23761,11 @@ async fn core_session_artifacts(
         )));
     }
 
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let native_engine_id =
         native_sessions::resolve_native_session_engine_id(coding_session_id.as_str());
     if get_native_session_async(
-        app_admin_state.projects,
+        console_state.projects,
         native_sessions::NativeSessionLookup {
             session_id: coding_session_id.clone(),
             engine_id: native_engine_id,
@@ -24954,11 +23812,11 @@ async fn core_session_checkpoints(
         )));
     }
 
-    let app_admin_state = state.read_app_admin_state();
+    let console_state = state.read_console_state();
     let native_engine_id =
         native_sessions::resolve_native_session_engine_id(coding_session_id.as_str());
     if get_native_session_async(
-        app_admin_state.projects,
+        console_state.projects,
         native_sessions::NativeSessionLookup {
             session_id: coding_session_id.clone(),
             engine_id: native_engine_id,
@@ -25021,103 +23879,95 @@ pub fn build_app_from_runtime_config() -> Result<Router, String> {
 
 fn build_app_with_state(state: AppState) -> Router {
     Router::new()
-        .route("/api/core/v1/descriptor", get(core_descriptor))
+        .route("/app/v3/api/system/descriptor", get(core_descriptor))
         .route(CODING_SERVER_ROUTE_CATALOG_PATH, get(core_route_catalog))
-        .route("/api/core/v1/runtime", get(core_runtime))
-        .route("/api/core/v1/health", get(core_health))
+        .route("/app/v3/api/system/runtime", get(core_runtime))
+        .route("/app/v3/api/system/health", get(core_health))
         .route(CODING_SERVER_LIVE_OPENAPI_PATH, get(openapi_document))
         .route(CODING_SERVER_OPENAPI_PATH, get(openapi_document))
         .route(CODING_SERVER_DOCS_PATH, get(openapi_docs))
-        .route("/api/core/v1/engines", get(core_engines))
+        .route("/app/v3/api/engines", get(core_engines))
         .route(
-            "/api/core/v1/native-session-providers",
+            "/app/v3/api/native_session_providers",
             get(core_native_session_providers),
         )
-        .route("/api/core/v1/native-sessions", get(core_native_sessions))
+        .route("/app/v3/api/native_sessions", get(core_native_sessions))
         .route(
-            "/api/core/v1/native-sessions/{id}",
+            "/app/v3/api/native_sessions/{id}",
             get(core_native_session),
         )
         .route(
-            "/api/core/v1/engines/{engine_key}/capabilities",
+            "/app/v3/api/engines/{engineKey}/capabilities",
             get(core_engine_capabilities),
         )
-        .route("/api/core/v1/models", get(core_models))
+        .route("/app/v3/api/models", get(core_models))
         .route(
-            "/api/core/v1/model-config",
+            "/app/v3/api/model_config",
             get(core_model_config).put(core_sync_model_config),
         )
         .route(
-            "/api/core/v1/coding-sessions",
+            "/app/v3/api/coding_sessions",
             get(core_sessions).post(core_create_session),
         )
         .route(
-            "/api/core/v1/coding-sessions/{id}",
+            "/app/v3/api/coding_sessions/{id}",
             get(core_session)
                 .patch(core_update_session)
                 .delete(core_delete_session),
         )
         .route(
-            "/api/core/v1/coding-sessions/{id}/messages/{message_id}",
+            "/app/v3/api/coding_sessions/{id}/messages/{messageId}",
             patch(core_edit_session_message).delete(core_delete_session_message),
         )
         .route(
-            "/api/core/v1/coding-sessions/{id}/fork",
+            "/app/v3/api/coding_sessions/{id}/fork",
             post(core_fork_session),
         )
         .route(
-            "/api/core/v1/coding-sessions/{id}/turns",
+            "/app/v3/api/coding_sessions/{id}/turns",
             post(core_create_turn),
         )
         .route(
-            "/api/core/v1/coding-sessions/{id}/events",
+            "/app/v3/api/coding_sessions/{id}/events",
             get(core_session_events),
         )
         .route(
-            "/api/core/v1/coding-sessions/{id}/artifacts",
+            "/app/v3/api/coding_sessions/{id}/artifacts",
             get(core_session_artifacts),
         )
         .route(
-            "/api/core/v1/coding-sessions/{id}/checkpoints",
+            "/app/v3/api/coding_sessions/{id}/checkpoints",
             get(core_session_checkpoints),
         )
         .route(
-            "/api/core/v1/approvals/{approval_id}/decision",
+            "/app/v3/api/approvals/{approvalId}/decision",
             post(core_submit_approval_decision),
         )
         .route(
-            "/api/core/v1/questions/{question_id}/answer",
+            "/app/v3/api/questions/{questionId}/answer",
             post(core_submit_user_question_answer),
         )
         .route(
-            "/api/core/v1/operations/{operation_id}",
+            "/app/v3/api/operations/{operationId}",
             get(core_operation),
         )
         .route(USER_CENTER_AUTH_CONFIG_PATH, get(app_user_center_config))
         .route(USER_CENTER_AUTH_SESSION_PATH, get(app_user_center_session))
         .route(USER_CENTER_AUTH_LOGIN_PATH, post(app_user_center_login))
         .route(
-            USER_CENTER_AUTH_EMAIL_LOGIN_PATH,
-            post(app_user_center_login_with_email_code),
-        )
-        .route(
             USER_CENTER_AUTH_OAUTH_URL_PATH,
-            post(app_user_center_oauth_authorization_url),
+            get(app_user_center_oauth_authorization_url),
         )
         .route(
             USER_CENTER_AUTH_OAUTH_LOGIN_PATH,
             post(app_user_center_login_with_oauth),
         )
         .route(
-            USER_CENTER_AUTH_PHONE_LOGIN_PATH,
-            post(app_user_center_login_with_phone_code),
-        )
-        .route(
             USER_CENTER_AUTH_REGISTER_PATH,
             post(app_user_center_register),
         )
         .route(
-            USER_CENTER_AUTH_VERIFY_SEND_PATH,
+            USER_CENTER_AUTH_VERIFICATION_CODES_PATH,
             post(app_user_center_send_verify_code),
         )
         .route(
@@ -25138,8 +23988,8 @@ fn build_app_with_state(state: AppState) -> Router {
             post(app_user_center_login_qr_generate),
         )
         .route(
-            USER_CENTER_AUTH_QR_STATUS_PATH,
-            get(app_user_center_login_qr_status),
+            USER_CENTER_AUTH_QR_LOGIN_CODE_PATH,
+            get(app_user_center_qr_login_code),
         )
         .route(
             USER_CENTER_AUTH_QR_ENTRY_PATH,
@@ -25158,97 +24008,97 @@ fn build_app_with_state(state: AppState) -> Router {
             get(app_user_center_profile).patch(app_update_user_center_profile),
         )
         .route(
-            USER_CENTER_VIP_INFO_PATH,
+            USER_CENTER_BILLING_VIP_MEMBERSHIP_PATH,
             get(app_user_center_membership).patch(app_update_user_center_membership),
         )
         .route(
-            "/api/app/v1/workspaces",
+            "/app/v3/api/workspaces",
             get(app_workspaces).post(app_create_workspace),
         )
         .route(
-            "/api/app/v1/workspaces/{workspace_id}",
+            "/app/v3/api/workspaces/{workspaceId}",
             patch(app_update_workspace).delete(app_delete_workspace),
         )
         .route(
-            "/api/app/v1/workspaces/{workspace_id}/members",
+            "/app/v3/api/workspaces/{workspaceId}/members",
             get(app_workspace_members).post(app_upsert_workspace_member),
         )
         .route(
-            "/api/app/v1/workspaces/{workspace_id}/realtime",
+            "/app/v3/api/workspaces/{workspaceId}/realtime",
             get(app_workspace_realtime),
         )
         .route(
-            "/api/app/v1/projects",
+            "/app/v3/api/projects",
             get(app_projects).post(app_create_project),
         )
-        .route("/api/app/v1/skill-packages", get(app_skill_packages))
+        .route("/app/v3/api/skill_packages", get(app_skill_packages))
         .route(
-            "/api/app/v1/skill-packages/{package_id}/installations",
+            "/app/v3/api/skill_packages/{packageId}/installations",
             post(app_install_skill_package),
         )
-        .route("/api/app/v1/app-templates", get(app_templates))
+        .route("/app/v3/api/app_templates", get(app_templates))
         .route(
-            "/api/app/v1/projects/{project_id}",
+            "/app/v3/api/projects/{projectId}",
             get(app_project)
                 .patch(app_update_project)
                 .delete(app_delete_project),
         )
         .route(
-            "/api/app/v1/projects/{project_id}/git/overview",
+            "/app/v3/api/projects/{projectId}/git/overview",
             get(app_project_git_overview),
         )
         .route(
-            "/api/app/v1/projects/{project_id}/git/branches",
+            "/app/v3/api/projects/{projectId}/git/branches",
             post(app_create_project_git_branch),
         )
         .route(
-            "/api/app/v1/projects/{project_id}/git/branch-switch",
+            "/app/v3/api/projects/{projectId}/git/branch_switch",
             post(app_switch_project_git_branch),
         )
         .route(
-            "/api/app/v1/projects/{project_id}/git/commits",
+            "/app/v3/api/projects/{projectId}/git/commits",
             post(app_commit_project_git_changes),
         )
         .route(
-            "/api/app/v1/projects/{project_id}/git/pushes",
+            "/app/v3/api/projects/{projectId}/git/pushes",
             post(app_push_project_git_branch),
         )
         .route(
-            "/api/app/v1/projects/{project_id}/git/worktrees",
+            "/app/v3/api/projects/{projectId}/git/worktrees",
             post(app_create_project_git_worktree),
         )
         .route(
-            "/api/app/v1/projects/{project_id}/git/worktree-removals",
+            "/app/v3/api/projects/{projectId}/git/worktree_removals",
             post(app_remove_project_git_worktree),
         )
         .route(
-            "/api/app/v1/projects/{project_id}/git/worktree-prune",
+            "/app/v3/api/projects/{projectId}/git/worktree_prune",
             post(app_prune_project_git_worktrees),
         )
         .route(
-            "/api/app/v1/projects/{project_id}/collaborators",
+            "/app/v3/api/projects/{projectId}/collaborators",
             get(app_project_collaborators).post(app_upsert_project_collaborator),
         )
         .route(
-            "/api/app/v1/projects/{project_id}/publish",
+            "/app/v3/api/projects/{projectId}/publish",
             post(app_publish_project),
         )
-        .route("/api/app/v1/documents", get(app_documents))
-        .route("/api/app/v1/teams", get(app_teams))
-        .route("/api/app/v1/deployments", get(app_deployments))
-        .route("/api/admin/v1/audit", get(admin_audit))
-        .route("/api/admin/v1/policies", get(admin_policies))
-        .route("/api/admin/v1/teams", get(admin_teams))
+        .route("/app/v3/api/documents", get(app_documents))
+        .route("/app/v3/api/teams", get(app_teams))
+        .route("/app/v3/api/deployments", get(app_deployments))
+        .route("/backend/v3/api/iam/audit_events", get(admin_audit))
+        .route("/backend/v3/api/iam/policies", get(admin_policies))
+        .route("/backend/v3/api/iam/teams", get(admin_teams))
         .route(
-            "/api/admin/v1/projects/{project_id}/deployment-targets",
+            "/backend/v3/api/projects/{projectId}/deployment_targets",
             get(admin_deployment_targets),
         )
         .route(
-            "/api/admin/v1/teams/{team_id}/members",
+            "/backend/v3/api/iam/teams/{teamId}/members",
             get(admin_team_members),
         )
-        .route("/api/admin/v1/releases", get(admin_releases))
-        .route("/api/admin/v1/deployments", get(admin_deployments))
+        .route("/backend/v3/api/releases", get(admin_releases))
+        .route("/backend/v3/api/deployments", get(admin_deployments))
         .layer(build_local_cors_layer())
         .with_state(state)
 }
@@ -25304,20 +24154,20 @@ fn build_local_cors_layer() -> CorsLayer {
             header::ACCEPT,
             header::AUTHORIZATION,
             header::CONTENT_TYPE,
-            HeaderName::from_static(BIRDCODER_SESSION_HEADER_NAME),
+            HeaderName::from_static(USER_CENTER_SESSION_HEADER_NAME),
             HeaderName::from_static(USER_CENTER_APP_ID_HEADER_NAME),
             HeaderName::from_static(USER_CENTER_PROVIDER_KEY_HEADER_NAME),
             HeaderName::from_static(USER_CENTER_HANDSHAKE_MODE_HEADER_NAME),
             HeaderName::from_static(USER_CENTER_SECRET_ID_HEADER_NAME),
             HeaderName::from_static(USER_CENTER_SIGNATURE_HEADER_NAME),
             HeaderName::from_static(USER_CENTER_SIGNED_AT_HEADER_NAME),
-            HeaderName::from_static("access-token"),
+            parse_canonical_user_center_header_name(USER_CENTER_ACCESS_TOKEN_HEADER_NAME),
             HeaderName::from_static("refresh-token"),
         ])
         .expose_headers([
             header::AUTHORIZATION,
-            HeaderName::from_static(BIRDCODER_SESSION_HEADER_NAME),
-            HeaderName::from_static("access-token"),
+            HeaderName::from_static(USER_CENTER_SESSION_HEADER_NAME),
+            parse_canonical_user_center_header_name(USER_CENTER_ACCESS_TOKEN_HEADER_NAME),
             HeaderName::from_static("refresh-token"),
         ])
         .allow_origin(AllowOrigin::predicate(
@@ -25359,6 +24209,10 @@ mod tests {
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
     static SQLITE_FIXTURE_COUNTER: AtomicU64 = AtomicU64::new(0);
+    const PROVIDER_WORKSPACE_ID: &str = "200000000000000101";
+    const PROVIDER_PROJECT_ID: &str = "200000000000000201";
+    const PROVIDER_TEAM_ID: &str = "200000000000000301";
+    const PROVIDER_TEAM_MEMBER_ID: &str = "200000000000000302";
 
     struct FakeCodexCliGuard {
         fixture_directory: PathBuf,
@@ -25454,7 +24308,7 @@ mod tests {
         assert_eq!(events[0].payload.get("commandsJson"), None);
     }
 
-    fn insert_plus_project_fixture(
+    fn insert_studio_project_fixture(
         connection: &Connection,
         id: &str,
         uuid: &str,
@@ -25474,15 +24328,15 @@ mod tests {
         let config_data = build_project_config_data(root_path);
         let content_id = connection
             .query_row(
-                "SELECT COALESCE(MAX(id), 0) + 1 FROM plus_project_content",
+                "SELECT COALESCE(MAX(id), 0) + 1 FROM studio_project_content",
                 [],
                 |row| row.get::<_, i64>(0),
             )
-            .expect("allocate plus_project_content fixture id");
+            .expect("allocate studio_project_content fixture id");
         connection
             .execute(
                 r#"
-                INSERT INTO plus_project AS projects (
+                INSERT INTO studio_project AS projects (
                     id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
                     parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
                     author, file_id, code, type, site_path, domain_prefix, description, status,
@@ -25516,11 +24370,11 @@ mod tests {
                     is_deleted,
                 ],
             )
-            .expect("insert plus_project fixture");
+            .expect("insert studio_project fixture");
         connection
             .execute(
                 r#"
-                INSERT INTO plus_project_content (
+                INSERT INTO studio_project_content (
                     id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
                     user_id, parent_id, project_id, project_uuid, config_data, content_data,
                     metadata, content_version, content_hash
@@ -25542,7 +24396,7 @@ mod tests {
                     &config_data,
                 ],
             )
-            .expect("insert plus_project_content fixture");
+            .expect("insert studio_project_content fixture");
     }
 
     fn run_git(args: &[&str], cwd: &Path) {
@@ -25701,7 +24555,7 @@ mod tests {
                 .oneshot(
                     Request::builder()
                         .uri(format!(
-                            "/api/core/v1/coding-sessions/{coding_session_id}/events"
+                            "/app/v3/api/coding_sessions/{coding_session_id}/events"
                         ))
                         .body(Body::empty())
                         .expect("build get coding session events request"),
@@ -25743,7 +24597,7 @@ mod tests {
                 .query_row(
                     r#"
                     SELECT status, completed_at
-                    FROM coding_session_turns
+                    FROM ai_coding_session_turn
                     WHERE id = ?1
                     "#,
                     params![turn_id],
@@ -25770,7 +24624,7 @@ mod tests {
                 .oneshot(
                     Request::builder()
                         .uri(format!(
-                            "/api/core/v1/coding-sessions/{coding_session_id}/events"
+                            "/app/v3/api/coding_sessions/{coding_session_id}/events"
                         ))
                         .body(Body::empty())
                         .expect("build get coding session events request"),
@@ -25957,10 +24811,10 @@ mod tests {
         connection
             .execute(
                 r#"
-                UPDATE plus_project_content
+                UPDATE studio_project_content
                 SET config_data = ?1,
                     updated_at = ?2
-                WHERE project_id = 'project-provider'
+                WHERE project_id = ?3
                 "#,
                 params![
                     build_project_config_data(Some(
@@ -25971,12 +24825,13 @@ mod tests {
                             .as_str()
                     )),
                     current_storage_timestamp(),
+                    PROVIDER_PROJECT_ID,
                 ],
             )
             .expect("update provider project root path for native session attribution");
         connection
             .execute(
-                "UPDATE coding_session_runtimes SET native_session_id = ?1 WHERE coding_session_id = 'provider-session'",
+                "UPDATE ai_coding_session_runtime SET native_session_id = ?1 WHERE coding_session_id = 'provider-session'",
                 params![native_session_id],
             )
             .expect("update provider runtime native session id");
@@ -26756,249 +25611,8 @@ exit 1\n"
         path
     }
 
-    fn rewrite_provider_authority_business_tables_to_legacy_text_identifiers(
-        connection: &Connection,
-    ) {
-        connection
-            .execute_batch(
-                r#"
-                DROP TABLE project_collaborators;
-                DROP TABLE workspace_members;
-                DROP TABLE team_members;
-                DROP TABLE teams;
-                DROP TABLE plus_project;
-                DROP TABLE plus_workspace;
-
-                CREATE TABLE plus_workspace (
-                    id TEXT PRIMARY KEY,
-                    uuid TEXT NULL,
-                    tenant_id INTEGER NOT NULL DEFAULT 0,
-                    organization_id INTEGER NOT NULL DEFAULT 0,
-                    data_scope INTEGER NOT NULL DEFAULT 1,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    name TEXT NOT NULL,
-                    code TEXT NULL,
-                    title TEXT NULL,
-                    description TEXT NULL,
-                    owner_id INTEGER NULL,
-                    leader_id INTEGER NULL,
-                    created_by_user_id INTEGER NULL,
-                    icon TEXT NULL,
-                    color TEXT NULL,
-                    type TEXT NULL,
-                    start_time TEXT NULL,
-                    end_time TEXT NULL,
-                    max_members INTEGER NULL,
-                    current_members INTEGER NULL,
-                    member_count INTEGER NULL,
-                    max_storage INTEGER NULL,
-                    used_storage INTEGER NULL,
-                    settings_json TEXT NULL,
-                    is_public INTEGER NOT NULL DEFAULT 0,
-                    is_template INTEGER NOT NULL DEFAULT 0,
-                    status TEXT NOT NULL
-                );
-
-                CREATE TABLE plus_project (
-                    id TEXT PRIMARY KEY,
-                    uuid TEXT NOT NULL UNIQUE,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    v INTEGER NOT NULL DEFAULT 0,
-                    tenant_id INTEGER NOT NULL DEFAULT 0,
-                    organization_id INTEGER NOT NULL DEFAULT 0,
-                    data_scope INTEGER NOT NULL DEFAULT 1,
-                    parent_id INTEGER NULL,
-                    parent_uuid TEXT NULL,
-                    parent_metadata TEXT NULL,
-                    user_id INTEGER NULL,
-                    name TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    cover_image TEXT NULL,
-                    author TEXT NULL,
-                    file_id INTEGER NULL,
-                    code TEXT NOT NULL,
-                    type INTEGER NOT NULL,
-                    site_path TEXT NULL,
-                    domain_prefix TEXT NULL,
-                    description TEXT NULL,
-                    status INTEGER NOT NULL,
-                    conversation_id INTEGER NULL,
-                    workspace_id TEXT NULL,
-                    workspace_uuid TEXT NULL,
-                    leader_id INTEGER NULL,
-                    start_time TEXT NULL,
-                    end_time TEXT NULL,
-                    budget_amount INTEGER NULL,
-                    is_deleted INTEGER NOT NULL,
-                    is_template INTEGER NOT NULL
-                );
-
-                CREATE TABLE teams (
-                    id TEXT PRIMARY KEY,
-                    uuid TEXT NULL,
-                    tenant_id INTEGER NOT NULL DEFAULT 0,
-                    organization_id INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    workspace_id TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    code TEXT NULL,
-                    title TEXT NULL,
-                    description TEXT NULL,
-                    owner_id INTEGER NULL,
-                    leader_id INTEGER NULL,
-                    created_by_user_id INTEGER NULL,
-                    metadata_json TEXT NULL,
-                    status TEXT NOT NULL
-                );
-
-                CREATE TABLE team_members (
-                    id TEXT PRIMARY KEY,
-                    uuid TEXT NULL,
-                    tenant_id INTEGER NOT NULL DEFAULT 0,
-                    organization_id INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    team_id TEXT NOT NULL,
-                    user_id INTEGER NOT NULL,
-                    role TEXT NOT NULL,
-                    created_by_user_id INTEGER NULL,
-                    granted_by_user_id INTEGER NULL,
-                    status TEXT NOT NULL
-                );
-
-                CREATE TABLE workspace_members (
-                    id TEXT PRIMARY KEY,
-                    uuid TEXT NULL,
-                    tenant_id INTEGER NOT NULL DEFAULT 0,
-                    organization_id INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    workspace_id TEXT NOT NULL,
-                    user_id INTEGER NOT NULL,
-                    team_id TEXT NULL,
-                    role TEXT NOT NULL,
-                    created_by_user_id INTEGER NULL,
-                    granted_by_user_id INTEGER NULL,
-                    status TEXT NOT NULL
-                );
-
-                CREATE TABLE project_collaborators (
-                    id TEXT PRIMARY KEY,
-                    uuid TEXT NULL,
-                    tenant_id INTEGER NOT NULL DEFAULT 0,
-                    organization_id INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    project_id TEXT NOT NULL,
-                    workspace_id TEXT NOT NULL,
-                    user_id INTEGER NOT NULL,
-                    team_id TEXT NULL,
-                    role TEXT NOT NULL,
-                    created_by_user_id INTEGER NULL,
-                    granted_by_user_id INTEGER NULL,
-                    status TEXT NOT NULL
-                );
-                "#,
-            )
-            .expect("rewrite provider authority business tables to legacy text identifiers");
-    }
-
     fn write_minimal_direct_provider_authority_fixture(file_name: &str) -> std::path::PathBuf {
-        let path = write_empty_sqlite_provider_authority_fixture(file_name);
-        let connection =
-            Connection::open(&path).expect("open minimal direct sqlite provider fixture");
-        rewrite_provider_authority_business_tables_to_legacy_text_identifiers(&connection);
-        path
-    }
-
-    fn rewrite_provider_authority_collaboration_tables_to_legacy_identity_columns(
-        connection: &Connection,
-    ) {
-        connection
-            .execute_batch(
-                r#"
-                DROP TABLE project_collaborators;
-                DROP TABLE workspace_members;
-                DROP TABLE team_members;
-
-                CREATE TABLE team_members (
-                    id TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    team_id TEXT NOT NULL,
-                    identity_id TEXT NOT NULL,
-                    role TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    created_by_identity_id TEXT NULL,
-                    granted_by_identity_id TEXT NULL,
-                    uuid TEXT NULL,
-                    tenant_id INTEGER NOT NULL DEFAULT 0,
-                    organization_id INTEGER NOT NULL DEFAULT 0,
-                    user_id INTEGER NULL,
-                    created_by_user_id INTEGER NULL,
-                    granted_by_user_id INTEGER NULL
-                );
-
-                CREATE TABLE workspace_members (
-                    id TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    workspace_id TEXT NOT NULL,
-                    identity_id TEXT NOT NULL,
-                    team_id TEXT NULL,
-                    role TEXT NOT NULL,
-                    created_by_identity_id TEXT NULL,
-                    granted_by_identity_id TEXT NULL,
-                    status TEXT NOT NULL,
-                    uuid TEXT NULL,
-                    tenant_id INTEGER NOT NULL DEFAULT 0,
-                    organization_id INTEGER NOT NULL DEFAULT 0,
-                    user_id INTEGER NULL,
-                    created_by_user_id INTEGER NULL,
-                    granted_by_user_id INTEGER NULL
-                );
-
-                CREATE TABLE project_collaborators (
-                    id TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    project_id TEXT NOT NULL,
-                    workspace_id TEXT NOT NULL,
-                    identity_id TEXT NOT NULL,
-                    team_id TEXT NULL,
-                    role TEXT NOT NULL,
-                    created_by_identity_id TEXT NULL,
-                    granted_by_identity_id TEXT NULL,
-                    status TEXT NOT NULL,
-                    uuid TEXT NULL,
-                    tenant_id INTEGER NOT NULL DEFAULT 0,
-                    organization_id INTEGER NOT NULL DEFAULT 0,
-                    user_id INTEGER NULL,
-                    created_by_user_id INTEGER NULL,
-                    granted_by_user_id INTEGER NULL
-                );
-                "#,
-            )
-            .expect("rewrite provider authority collaboration tables to legacy identity columns");
+        write_empty_sqlite_provider_authority_fixture(file_name)
     }
 
     fn write_sqlite_provider_authority_fixture(file_name: &str) -> std::path::PathBuf {
@@ -27012,12 +25626,11 @@ exit 1\n"
         connection
             .execute_batch(SQLITE_PROVIDER_AUTHORITY_SCHEMA)
             .expect("create sqlite provider authority schema");
-        rewrite_provider_authority_business_tables_to_legacy_text_identifiers(&connection);
 
         connection
             .execute(
                 r#"
-                INSERT INTO coding_sessions (
+                INSERT INTO ai_coding_session (
                     id, created_at, updated_at, version, is_deleted, workspace_id, project_id, title, status, entry_surface, engine_id, model_id, last_turn_at
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
@@ -27028,8 +25641,8 @@ exit 1\n"
                     "2026-04-10T13:00:03Z",
                     0_i64,
                     0_i64,
-                    "workspace-provider",
-                    "project-provider",
+                    PROVIDER_WORKSPACE_ID,
+                    PROVIDER_PROJECT_ID,
                     "Provider authority session",
                     "active",
                     "code",
@@ -27043,7 +25656,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO coding_session_runtimes (
+                INSERT INTO ai_coding_session_runtime (
                     id, created_at, updated_at, version, is_deleted, coding_session_id, engine_id, model_id, host_mode, status, transport_kind, native_session_id, native_turn_container_id, capability_snapshot_json, metadata_json
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
@@ -27071,7 +25684,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO coding_session_turns (
+                INSERT INTO ai_coding_session_turn (
                     id, created_at, updated_at, version, is_deleted, coding_session_id, runtime_id, request_kind, status, input_summary, started_at, completed_at
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
@@ -27096,7 +25709,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO coding_session_events (
+                INSERT INTO ai_coding_session_event (
                     id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -27120,7 +25733,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO coding_session_artifacts (
+                INSERT INTO ai_coding_session_artifact (
                     id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, artifact_kind, title, blob_ref, metadata_json
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -27144,7 +25757,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO coding_session_checkpoints (
+                INSERT INTO ai_coding_session_checkpoint (
                     id, created_at, updated_at, version, is_deleted, coding_session_id, runtime_id, checkpoint_kind, resumable, state_json
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
@@ -27167,7 +25780,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO coding_session_operations (
+                INSERT INTO ai_coding_session_operation (
                     id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, status, stream_url, stream_kind, artifact_refs_json
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -27181,7 +25794,7 @@ exit 1\n"
                     "provider-session",
                     "provider-turn",
                     "succeeded",
-                    "/api/core/v1/coding-sessions/provider-session/events",
+                    "/app/v3/api/coding_sessions/provider-session/events",
                     "sse",
                     r#"["provider-turn:artifact:1"]"#,
                 ],
@@ -27191,7 +25804,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO plus_workspace AS workspaces (
+                INSERT INTO studio_workspace AS workspaces (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     name, code, title, description, owner_id, leader_id, created_by_user_id, type,
                     settings_json, is_public, is_template, status
@@ -27199,7 +25812,7 @@ exit 1\n"
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
                 "#,
                 params![
-                    "workspace-provider",
+                    PROVIDER_WORKSPACE_ID,
                     "workspace-uuid-provider",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
                     SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
@@ -27223,17 +25836,17 @@ exit 1\n"
             )
             .expect("insert provider workspace");
 
-        insert_plus_project_fixture(
+        insert_studio_project_fixture(
             &connection,
-            "project-provider",
+            PROVIDER_PROJECT_ID,
             "project-uuid-provider",
-            "workspace-provider",
+            PROVIDER_WORKSPACE_ID,
             "workspace-uuid-provider",
             "Provider authority project",
             "provider.project",
             "Provider authority project",
             "Provider-backed app project list item",
-            Some("E:/sdkwork/project-provider"),
+            Some("E:/sdkwork/200000000000000201"),
             "user-provider-owner",
             "2026-04-10T13:00:00Z",
             "2026-04-10T13:00:00Z",
@@ -27244,7 +25857,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO project_documents (
+                INSERT INTO studio_project_document (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     project_id, document_kind, title, slug, body_ref, status
                 )
@@ -27259,11 +25872,13 @@ exit 1\n"
                     "2026-04-10T13:00:01Z",
                     0_i64,
                     0_i64,
-                    "project-provider",
+                    PROVIDER_PROJECT_ID,
                     "architecture",
                     "Provider authority architecture",
                     "provider-authority-architecture",
-                    "project-document://project-provider/provider-authority-architecture",
+                    format!(
+                        "project-document://{PROVIDER_PROJECT_ID}/provider-authority-architecture"
+                    ),
                     "active",
                 ],
             )
@@ -27272,7 +25887,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO deployment_targets (
+                INSERT INTO studio_deployment_target (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     project_id, name, environment_key, runtime, status
                 )
@@ -27287,7 +25902,7 @@ exit 1\n"
                     "2026-04-10T13:00:02Z",
                     0_i64,
                     0_i64,
-                    "project-provider",
+                    PROVIDER_PROJECT_ID,
                     "Provider authority target",
                     "prod",
                     "kubernetes",
@@ -27299,7 +25914,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO deployment_records (
+                INSERT INTO studio_deployment_record (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     project_id, target_id, release_record_id, status, endpoint_url, started_at, completed_at
                 )
@@ -27314,7 +25929,7 @@ exit 1\n"
                     "2026-04-10T13:00:02Z",
                     0_i64,
                     0_i64,
-                    "project-provider",
+                    PROVIDER_PROJECT_ID,
                     "target-provider-web",
                     "release-0.3.0-provider",
                     "succeeded",
@@ -27328,7 +25943,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO teams (
+                INSERT INTO studio_team (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     workspace_id, name, code, title, description, owner_id, leader_id, metadata_json,
                     created_by_user_id, status
@@ -27336,7 +25951,7 @@ exit 1\n"
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
                 "#,
                 params![
-                    "team-provider",
+                    PROVIDER_TEAM_ID,
                     "team-uuid-provider",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
                     SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
@@ -27344,7 +25959,7 @@ exit 1\n"
                     "2026-04-10T13:00:00Z",
                     0_i64,
                     0_i64,
-                    "workspace-provider",
+                    PROVIDER_WORKSPACE_ID,
                     "Provider authority team",
                     "provider.team",
                     "Provider authority team",
@@ -27361,14 +25976,14 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO team_members (
+                INSERT INTO studio_team_member (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     team_id, user_id, role, created_by_user_id, granted_by_user_id, status
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
                 "#,
                 params![
-                    "member-provider-admin",
+                    PROVIDER_TEAM_MEMBER_ID,
                     "team-member-uuid-provider-admin",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
                     SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
@@ -27376,7 +25991,7 @@ exit 1\n"
                     "2026-04-10T13:00:00Z",
                     0_i64,
                     0_i64,
-                    "team-provider",
+                    PROVIDER_TEAM_ID,
                     "user-provider-admin",
                     "admin",
                     "user-provider-admin",
@@ -27389,7 +26004,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO release_records (
+                INSERT INTO ops_release_record (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     release_version, release_kind, rollout_stage, manifest_json, status
                 )
@@ -27416,7 +26031,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO audit_events (
+                INSERT INTO ops_audit_event (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     scope_type, scope_id, event_type, payload_json
                 )
@@ -27432,7 +26047,7 @@ exit 1\n"
                     0_i64,
                     0_i64,
                     "workspace",
-                    "workspace-provider",
+                    PROVIDER_WORKSPACE_ID,
                     "release.promoted",
                     r#"{"actor":"release-bot","releaseVersion":"0.3.0-provider","rolloutStage":"general-availability"}"#,
                 ],
@@ -27442,7 +26057,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO governance_policies (
+                INSERT INTO ops_governance_policy (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     scope_type, scope_id, policy_category, target_type, target_id, approval_policy, rationale, status
                 )
@@ -27458,7 +26073,7 @@ exit 1\n"
                     0_i64,
                     0_i64,
                     "workspace",
-                    "workspace-provider",
+                    PROVIDER_WORKSPACE_ID,
                     "terminal",
                     "engine",
                     "claude-code",
@@ -27481,7 +26096,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO plus_workspace AS workspaces (
+                INSERT INTO studio_workspace AS workspaces (
                     id, uuid, tenant_id, organization_id, data_scope, created_at, updated_at,
                     version, is_deleted, name, code, title, description, owner_id, leader_id,
                     created_by_user_id, type, settings_json, is_public, is_template, status
@@ -27512,7 +26127,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO plus_project AS projects (
+                INSERT INTO studio_project AS projects (
                     id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
                     parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
                     author, file_id, code, type, site_path, domain_prefix, description, status,
@@ -27553,7 +26168,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO plus_project_content (
+                INSERT INTO studio_project_content (
                     id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
                     user_id, parent_id, project_id, project_uuid, config_data, content_data,
                     metadata, content_version, content_hash
@@ -27609,97 +26224,6 @@ exit 1\n"
         assert_eq!(projects[0].created_by_user_id.as_deref(), Some("1004"));
     }
 
-    fn write_legacy_nullable_model_id_provider_authority_fixture(
-        file_name: &str,
-    ) -> std::path::PathBuf {
-        let path = write_empty_sqlite_provider_authority_fixture(file_name);
-        let connection = Connection::open(&path)
-            .expect("open legacy nullable model id provider authority fixture");
-        connection
-            .execute_batch(
-                r#"
-                DROP TABLE coding_session_runtimes;
-                DROP TABLE coding_sessions;
-
-                CREATE TABLE coding_sessions (
-                    id TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    workspace_id TEXT NOT NULL,
-                    project_id TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    entry_surface TEXT NOT NULL,
-                    engine_id TEXT NOT NULL,
-                    model_id TEXT NULL,
-                    last_turn_at TEXT NULL
-                );
-
-                CREATE TABLE coding_session_runtimes (
-                    id TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    coding_session_id TEXT NOT NULL,
-                    engine_id TEXT NOT NULL,
-                    model_id TEXT NULL,
-                    host_mode TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    transport_kind TEXT NOT NULL,
-                    native_session_id TEXT NULL,
-                    native_turn_container_id TEXT NULL,
-                    capability_snapshot_json TEXT NOT NULL,
-                    metadata_json TEXT NOT NULL
-                );
-
-                INSERT INTO coding_sessions (
-                    id, created_at, updated_at, version, is_deleted, workspace_id, project_id, title, status, entry_surface, engine_id, model_id, last_turn_at
-                )
-                VALUES (
-                    'legacy-session',
-                    '2026-04-10T13:00:00Z',
-                    '2026-04-10T13:00:00Z',
-                    0,
-                    0,
-                    'workspace-provider',
-                    'project-provider',
-                    'Legacy Nullable Session',
-                    'active',
-                    'code',
-                    'codex',
-                    NULL,
-                    '2026-04-10T13:00:00Z'
-                );
-
-                INSERT INTO coding_session_runtimes (
-                    id, created_at, updated_at, version, is_deleted, coding_session_id, engine_id, model_id, host_mode, status, transport_kind, native_session_id, native_turn_container_id, capability_snapshot_json, metadata_json
-                )
-                VALUES (
-                    'legacy-runtime',
-                    '2026-04-10T13:00:00Z',
-                    '2026-04-10T13:00:00Z',
-                    0,
-                    0,
-                    'legacy-session',
-                    'codex',
-                    NULL,
-                    'server',
-                    'ready',
-                    'cli-jsonl',
-                    NULL,
-                    NULL,
-                    '{}',
-                    '{}'
-                );
-                "#,
-            )
-            .expect("rewrite legacy nullable model id provider authority schema");
-        path
-    }
-
     fn write_runtime_config_fixture(sqlite_path: &FsPath) -> std::path::PathBuf {
         let path = std::env::current_dir()
             .expect("resolve current dir")
@@ -27722,7 +26246,7 @@ exit 1\n"
         let response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/health")
+                    .uri("/app/v3/api/system/health")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -27745,7 +26269,7 @@ exit 1\n"
         let response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/descriptor")
+                    .uri("/app/v3/api/system/descriptor")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -27767,11 +26291,11 @@ exit 1\n"
         );
         assert_eq!(
             json["data"]["surfaces"],
-            serde_json::json!(["core", "app", "admin"])
+            serde_json::json!(["app", "backend"])
         );
         assert_eq!(
-            json["data"]["gateway"]["basePath"],
-            CODING_SERVER_GATEWAY_BASE_PATH
+            json["data"]["gateway"].get("basePath").is_none(),
+            true
         );
         assert_eq!(
             json["data"]["gateway"]["routeCatalogPath"],
@@ -27782,13 +26306,6 @@ exit 1\n"
             CODING_SERVER_OPENAPI_ROUTE_SPECS.len()
         );
         assert_eq!(
-            json["data"]["gateway"]["routesBySurface"]["core"],
-            CODING_SERVER_OPENAPI_ROUTE_SPECS
-                .iter()
-                .filter(|spec| spec.tag == "core")
-                .count()
-        );
-        assert_eq!(
             json["data"]["gateway"]["routesBySurface"]["app"],
             CODING_SERVER_OPENAPI_ROUTE_SPECS
                 .iter()
@@ -27796,10 +26313,10 @@ exit 1\n"
                 .count()
         );
         assert_eq!(
-            json["data"]["gateway"]["routesBySurface"]["admin"],
+            json["data"]["gateway"]["routesBySurface"]["backend"],
             CODING_SERVER_OPENAPI_ROUTE_SPECS
                 .iter()
-                .filter(|spec| spec.tag == "admin")
+                .filter(|spec| spec.tag == "backend")
                 .count()
         );
     }
@@ -27838,18 +26355,8 @@ exit 1\n"
                 .as_array()
                 .expect("route catalog items")
                 .iter()
-                .any(|item| item["operationId"] == "core.listRoutes"
-                    && item["openApiPath"] == "/api/core/v1/routes"
-                    && item["surface"] == "core"),
-            true
-        );
-        assert_eq!(
-            json["items"]
-                .as_array()
-                .expect("route catalog items")
-                .iter()
-                .any(|item| item["operationId"] == "app.createProjectGitBranch"
-                    && item["openApiPath"] == "/api/app/v1/projects/{projectId}/git/branches"
+                .any(|item| item["operationId"] == "routes.list"
+                    && item["openApiPath"] == "/app/v3/api/system/routes"
                     && item["surface"] == "app"),
             true
         );
@@ -27858,8 +26365,8 @@ exit 1\n"
                 .as_array()
                 .expect("route catalog items")
                 .iter()
-                .any(|item| item["operationId"] == "app.pushProjectGitBranch"
-                    && item["openApiPath"] == "/api/app/v1/projects/{projectId}/git/pushes"
+                .any(|item| item["operationId"] == "projects.git.branches.create"
+                    && item["openApiPath"] == "/app/v3/api/projects/{projectId}/git/branches"
                     && item["surface"] == "app"),
             true
         );
@@ -27868,8 +26375,8 @@ exit 1\n"
                 .as_array()
                 .expect("route catalog items")
                 .iter()
-                .any(|item| item["operationId"] == "app.createProjectGitWorktree"
-                    && item["openApiPath"] == "/api/app/v1/projects/{projectId}/git/worktrees"
+                .any(|item| item["operationId"] == "projects.git.pushes.create"
+                    && item["openApiPath"] == "/app/v3/api/projects/{projectId}/git/pushes"
                     && item["surface"] == "app"),
             true
         );
@@ -27878,9 +26385,19 @@ exit 1\n"
                 .as_array()
                 .expect("route catalog items")
                 .iter()
-                .any(|item| item["operationId"] == "app.removeProjectGitWorktree"
+                .any(|item| item["operationId"] == "projects.git.worktrees.create"
+                    && item["openApiPath"] == "/app/v3/api/projects/{projectId}/git/worktrees"
+                    && item["surface"] == "app"),
+            true
+        );
+        assert_eq!(
+            json["items"]
+                .as_array()
+                .expect("route catalog items")
+                .iter()
+                .any(|item| item["operationId"] == "projects.git.worktreeRemovals.create"
                     && item["openApiPath"]
-                        == "/api/app/v1/projects/{projectId}/git/worktree-removals"
+                        == "/app/v3/api/projects/{projectId}/git/worktree_removals"
                     && item["surface"] == "app"),
             true
         );
@@ -27889,9 +26406,9 @@ exit 1\n"
                 .as_array()
                 .expect("route catalog items")
                 .iter()
-                .any(|item| item["operationId"] == "app.pruneProjectGitWorktrees"
+                .any(|item| item["operationId"] == "projects.git.worktreePrune.create"
                     && item["openApiPath"]
-                        == "/api/app/v1/projects/{projectId}/git/worktree-prune"
+                        == "/app/v3/api/projects/{projectId}/git/worktree_prune"
                     && item["surface"] == "app"),
             true
         );
@@ -27902,7 +26419,7 @@ exit 1\n"
         let app_workspaces_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/workspaces")
+                    .uri("/app/v3/api/workspaces")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -27912,7 +26429,7 @@ exit 1\n"
         let app_deployments_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/deployments")
+                    .uri("/app/v3/api/deployments")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -27922,7 +26439,7 @@ exit 1\n"
         let admin_deployments_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/admin/v1/deployments")
+                    .uri("/backend/v3/api/deployments")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -27932,7 +26449,7 @@ exit 1\n"
         let app_documents_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/documents")
+                    .uri("/app/v3/api/documents")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -27942,7 +26459,7 @@ exit 1\n"
         let app_projects_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/projects")
+                    .uri("/app/v3/api/projects")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -27952,7 +26469,7 @@ exit 1\n"
         let app_teams_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/teams")
+                    .uri("/app/v3/api/teams")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -27962,7 +26479,7 @@ exit 1\n"
         let admin_teams_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/admin/v1/teams")
+                    .uri("/backend/v3/api/iam/teams")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -27972,7 +26489,7 @@ exit 1\n"
         let admin_deployment_targets_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/admin/v1/projects/demo-project/deployment-targets")
+                    .uri("/backend/v3/api/projects/demo-project/deployment_targets")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -27982,7 +26499,7 @@ exit 1\n"
         let admin_team_members_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/admin/v1/teams/demo-team/members")
+                    .uri("/backend/v3/api/iam/teams/demo-team/members")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -27992,7 +26509,7 @@ exit 1\n"
         let admin_releases_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/admin/v1/releases")
+                    .uri("/backend/v3/api/releases")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -28002,7 +26519,7 @@ exit 1\n"
         let admin_audit_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/admin/v1/audit")
+                    .uri("/backend/v3/api/iam/audit_events")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -28012,7 +26529,7 @@ exit 1\n"
         let admin_policies_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/admin/v1/policies")
+                    .uri("/backend/v3/api/iam/policies")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -28203,7 +26720,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/projects/demo-project/git/overview")
+                    .uri("/app/v3/api/projects/demo-project/git/overview")
                     .body(Body::empty())
                     .expect("build git overview request"),
             )
@@ -28229,7 +26746,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/app/v1/projects/demo-project/git/branches")
+                    .uri("/app/v3/api/projects/demo-project/git/branches")
                     .header("content-type", "application/json")
                     .body(Body::from(create_branch_request.to_string()))
                     .expect("build create git branch request"),
@@ -28273,7 +26790,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/app/v1/projects/demo-project/git/commits")
+                    .uri("/app/v3/api/projects/demo-project/git/commits")
                     .header("content-type", "application/json")
                     .body(Body::from(commit_request.to_string()))
                     .expect("build git commit request"),
@@ -28303,7 +26820,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/app/v1/projects/demo-project/git/pushes")
+                    .uri("/app/v3/api/projects/demo-project/git/pushes")
                     .header("content-type", "application/json")
                     .body(Body::from(push_request.to_string()))
                     .expect("build git push request"),
@@ -28343,7 +26860,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/app/v1/projects/demo-project/git/branch-switch")
+                    .uri("/app/v3/api/projects/demo-project/git/branch_switch")
                     .header("content-type", "application/json")
                     .body(Body::from(switch_branch_request.to_string()))
                     .expect("build git branch switch request"),
@@ -28390,7 +26907,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/app/v1/projects/demo-project/git/worktrees")
+                    .uri("/app/v3/api/projects/demo-project/git/worktrees")
                     .header("content-type", "application/json")
                     .body(Body::from(create_worktree_request.to_string()))
                     .expect("build create git worktree request"),
@@ -28430,7 +26947,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/app/v1/projects/demo-project/git/worktree-removals")
+                    .uri("/app/v3/api/projects/demo-project/git/worktree_removals")
                     .header("content-type", "application/json")
                     .body(Body::from(remove_worktree_request.to_string()))
                     .expect("build remove git worktree request"),
@@ -28481,7 +26998,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/app/v1/projects/demo-project/git/worktree-prune")
+                    .uri("/app/v3/api/projects/demo-project/git/worktree_prune")
                     .body(Body::empty())
                     .expect("build prune git worktree request"),
             )
@@ -28525,7 +27042,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/app/v1/projects/demo-project/git/branches")
+                    .uri("/app/v3/api/projects/demo-project/git/branches")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build invalid root git branch request"),
@@ -28553,7 +27070,7 @@ exit 1\n"
         let response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/workspaces")
+                    .uri("/app/v3/api/workspaces")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -28580,7 +27097,7 @@ exit 1\n"
         let engines_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/engines")
+                    .uri("/app/v3/api/engines")
                     .body(Body::empty())
                     .expect("build engines request"),
             )
@@ -28589,7 +27106,7 @@ exit 1\n"
         let capabilities_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/engines/codex/capabilities")
+                    .uri("/app/v3/api/engines/codex/capabilities")
                     .body(Body::empty())
                     .expect("build capabilities request"),
             )
@@ -28598,7 +27115,7 @@ exit 1\n"
         let models_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/models")
+                    .uri("/app/v3/api/models")
                     .body(Body::empty())
                     .expect("build models request"),
             )
@@ -28642,7 +27159,7 @@ exit 1\n"
         let engines_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/engines")
+                    .uri("/app/v3/api/engines")
                     .body(Body::empty())
                     .expect("build engines request"),
             )
@@ -28651,7 +27168,7 @@ exit 1\n"
         let models_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/models")
+                    .uri("/app/v3/api/models")
                     .body(Body::empty())
                     .expect("build models request"),
             )
@@ -28686,7 +27203,7 @@ exit 1\n"
             let capabilities_response = build_app()
                 .oneshot(
                     Request::builder()
-                        .uri(format!("/api/core/v1/engines/{engine_key}/capabilities"))
+                        .uri(format!("/app/v3/api/engines/{engine_key}/capabilities"))
                         .body(Body::empty())
                         .expect("build capabilities request"),
                 )
@@ -28714,7 +27231,7 @@ exit 1\n"
         let response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/engines/missing-engine/capabilities")
+                    .uri("/app/v3/api/engines/missing-engine/capabilities")
                     .body(Body::empty())
                     .expect("build capabilities request"),
             )
@@ -28738,7 +27255,7 @@ exit 1\n"
         let session_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -28761,7 +27278,7 @@ exit 1\n"
         let operation_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/operations/demo-turn:operation")
+                    .uri("/app/v3/api/operations/demo-turn:operation")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -28780,14 +27297,14 @@ exit 1\n"
         assert_eq!(operation_json["data"]["status"], "running");
         assert_eq!(
             operation_json["data"]["streamUrl"],
-            "/api/core/v1/coding-sessions/demo-coding-session/events"
+            "/app/v3/api/coding_sessions/demo-coding-session/events"
         );
         assert_eq!(operation_json["meta"]["version"], CODING_SERVER_API_VERSION);
 
         let events_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session/events")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session/events")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -28810,7 +27327,7 @@ exit 1\n"
         let artifacts_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session/artifacts")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session/artifacts")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -28833,7 +27350,7 @@ exit 1\n"
         let checkpoints_response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session/checkpoints")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session/checkpoints")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -28874,7 +27391,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/coding-sessions")
+                    .uri("/app/v3/api/coding_sessions")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build create coding session request"),
@@ -28909,7 +27426,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri(format!("/api/core/v1/coding-sessions/{created_session_id}"))
+                    .uri(format!("/app/v3/api/coding_sessions/{created_session_id}"))
                     .body(Body::empty())
                     .expect("build get coding session request"),
             )
@@ -28947,7 +27464,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/coding-sessions")
+                    .uri("/app/v3/api/coding_sessions")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build create coding session request"),
@@ -28981,7 +27498,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/coding-sessions")
+                    .uri("/app/v3/api/coding_sessions")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build create coding session request"),
@@ -29013,8 +27530,8 @@ exit 1\n"
             .expect("load provider-backed app state"),
         );
         let request_body = serde_json::json!({
-            "workspaceId": "workspace-provider-created",
-            "projectId": "project-provider-created",
+            "workspaceId": "200000000000000101-created",
+            "projectId": "200000000000000201-created",
             "title": "Provider-backed create session",
             "hostMode": "server",
             "engineId": "codex",
@@ -29026,7 +27543,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/coding-sessions")
+                    .uri("/app/v3/api/coding_sessions")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build provider create coding session request"),
@@ -29050,7 +27567,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri(format!("/api/core/v1/coding-sessions/{created_session_id}"))
+                    .uri(format!("/app/v3/api/coding_sessions/{created_session_id}"))
                     .body(Body::empty())
                     .expect("build provider get coding session request"),
             )
@@ -29064,7 +27581,7 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT workspace_id, project_id, title, engine_id, model_id
-                FROM coding_sessions
+                FROM ai_coding_session
                 WHERE id = ?1
                 "#,
                 params![created_session_id],
@@ -29079,8 +27596,8 @@ exit 1\n"
                 },
             )
             .expect("read persisted coding session row");
-        assert_eq!(persisted_session.0, "workspace-provider-created");
-        assert_eq!(persisted_session.1, "project-provider-created");
+        assert_eq!(persisted_session.0, "200000000000000101-created");
+        assert_eq!(persisted_session.1, "200000000000000201-created");
         assert_eq!(persisted_session.2, "Provider-backed create session");
         assert_eq!(persisted_session.3, "codex");
         assert_eq!(persisted_session.4, "gpt-5-codex");
@@ -29089,7 +27606,7 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT coding_session_id, engine_id, model_id, host_mode
-                FROM coding_session_runtimes
+                FROM ai_coding_session_runtime
                 WHERE coding_session_id = ?1
                 "#,
                 params![create_json["data"]["id"]
@@ -29116,8 +27633,8 @@ exit 1\n"
             Connection::open(&sqlite_path).expect("open provider authority sqlite");
         let session = CodingSessionPayload {
             id: "provider-created-initializing-session".to_owned(),
-            workspace_id: "workspace-provider-initializing".to_owned(),
-            project_id: "project-provider-initializing".to_owned(),
+            workspace_id: "200000000000000101-initializing".to_owned(),
+            project_id: "200000000000000201-initializing".to_owned(),
             title: "Provider initializing session".to_owned(),
             status: "active".to_owned(),
             host_mode: "server".to_owned(),
@@ -29139,7 +27656,7 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT status
-                FROM coding_session_runtimes
+                FROM ai_coding_session_runtime
                 WHERE coding_session_id = ?1
                 "#,
                 params![session.id],
@@ -29173,13 +27690,13 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT name, "notnull"
-                FROM pragma_table_info('coding_sessions')
+                FROM pragma_table_info('ai_coding_session')
                 WHERE name = 'model_id'
                 "#,
                 [],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
-            .expect("read coding_sessions model_id column");
+            .expect("read ai_coding_session model_id column");
         assert_eq!(coding_session_model_column.0, "model_id");
         assert_eq!(coding_session_model_column.1, 1);
 
@@ -29187,87 +27704,18 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT name, "notnull"
-                FROM pragma_table_info('coding_session_runtimes')
+                FROM pragma_table_info('ai_coding_session_runtime')
                 WHERE name = 'model_id'
                 "#,
                 [],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
-            .expect("read coding_session_runtimes model_id column");
+            .expect("read ai_coding_session_runtime model_id column");
         assert_eq!(coding_session_runtime_model_column.0, "model_id");
         assert_eq!(coding_session_runtime_model_column.1, 1);
 
         drop(connection);
         fs::remove_file(sqlite_path).expect("remove provider authority fixture");
-    }
-
-    #[test]
-    fn build_app_from_sqlite_file_upgrades_legacy_nullable_coding_session_model_id_schema() {
-        let sqlite_path = write_legacy_nullable_model_id_provider_authority_fixture(
-            "birdcoder-provider-authority-legacy-nullable-model-id.sqlite",
-        );
-        let expected_model_id = find_codeengine_descriptor("codex")
-            .expect("codex descriptor")
-            .default_model_id;
-
-        let build_result = build_app_from_sqlite_file(&sqlite_path);
-        assert!(
-            build_result.is_ok(),
-            "legacy nullable model id schema should be upgraded in place: {build_result:?}"
-        );
-        let app = build_result.expect("load upgraded legacy provider authority");
-
-        let connection =
-            Connection::open(&sqlite_path).expect("open upgraded provider authority sqlite");
-        let coding_session_model_column: (String, i64) = connection
-            .query_row(
-                r#"
-                SELECT name, "notnull"
-                FROM pragma_table_info('coding_sessions')
-                WHERE name = 'model_id'
-                "#,
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .expect("read upgraded coding_sessions model_id column");
-        assert_eq!(coding_session_model_column.0, "model_id");
-        assert_eq!(coding_session_model_column.1, 1);
-
-        let coding_session_runtime_model_column: (String, i64) = connection
-            .query_row(
-                r#"
-                SELECT name, "notnull"
-                FROM pragma_table_info('coding_session_runtimes')
-                WHERE name = 'model_id'
-                "#,
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .expect("read upgraded coding_session_runtimes model_id column");
-        assert_eq!(coding_session_runtime_model_column.0, "model_id");
-        assert_eq!(coding_session_runtime_model_column.1, 1);
-
-        let persisted_session_model_id: String = connection
-            .query_row(
-                "SELECT model_id FROM coding_sessions WHERE id = 'legacy-session'",
-                [],
-                |row| row.get(0),
-            )
-            .expect("read upgraded legacy session model_id");
-        assert_eq!(persisted_session_model_id, expected_model_id);
-
-        let persisted_runtime_model_id: String = connection
-            .query_row(
-                "SELECT model_id FROM coding_session_runtimes WHERE id = 'legacy-runtime'",
-                [],
-                |row| row.get(0),
-            )
-            .expect("read upgraded legacy runtime model_id");
-        assert_eq!(persisted_runtime_model_id, expected_model_id);
-
-        drop(connection);
-        drop(app);
-        fs::remove_file(sqlite_path).expect("remove legacy provider authority fixture");
     }
 
     #[tokio::test]
@@ -29292,7 +27740,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session/turns")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session/turns")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build create coding session turn request"),
@@ -29336,7 +27784,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri(format!("/api/core/v1/operations/{created_operation_id}"))
+                    .uri(format!("/app/v3/api/operations/{created_operation_id}"))
                     .body(Body::empty())
                     .expect("build get operation request"),
             )
@@ -29355,7 +27803,7 @@ exit 1\n"
         assert_eq!(operation_json["data"]["status"], "running");
         assert_eq!(
             operation_json["data"]["streamUrl"],
-            "/api/core/v1/coding-sessions/demo-coding-session/events"
+            "/app/v3/api/coding_sessions/demo-coding-session/events"
         );
         assert_eq!(operation_json["data"]["streamKind"], "sse");
         assert_eq!(
@@ -29367,7 +27815,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session/events")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session/events")
                     .body(Body::empty())
                     .expect("build get coding session events request"),
             )
@@ -29460,7 +27908,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session")
                     .body(Body::empty())
                     .expect("build get coding session request"),
             )
@@ -29500,7 +27948,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session/turns")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session/turns")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build create coding session turn request"),
@@ -29588,7 +28036,7 @@ exit 1\n"
                 Request::builder()
                     .method("PATCH")
                     .uri(format!(
-                        "/api/core/v1/coding-sessions/demo-coding-session/messages/{message_id}"
+                        "/app/v3/api/coding_sessions/demo-coding-session/messages/{message_id}"
                     ))
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
@@ -29609,7 +28057,7 @@ exit 1\n"
         let events_response = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session/events")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session/events")
                     .body(Body::empty())
                     .expect("build events request"),
             )
@@ -29930,7 +28378,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                UPDATE coding_session_runtimes
+                UPDATE ai_coding_session_runtime
                 SET status = 'streaming', updated_at = '2026-04-27T11:00:03Z'
                 WHERE id = 'provider-runtime'
                 "#,
@@ -29940,7 +28388,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                UPDATE coding_session_turns
+                UPDATE ai_coding_session_turn
                 SET status = 'running', completed_at = NULL, updated_at = '2026-04-27T11:00:02Z'
                 WHERE id = 'provider-turn'
                 "#,
@@ -29950,7 +28398,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                UPDATE coding_session_operations
+                UPDATE ai_coding_session_operation
                 SET status = 'running', updated_at = '2026-04-27T11:00:02Z'
                 WHERE id = 'provider-turn:operation'
                 "#,
@@ -29960,7 +28408,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                UPDATE coding_session_events
+                UPDATE ai_coding_session_event
                 SET event_kind = 'message.delta',
                     payload_json = '{"engineId":"codex","role":"assistant","contentDelta":"still running","runtimeStatus":"streaming"}',
                     created_at = '2026-04-27T11:00:03Z',
@@ -29990,14 +28438,14 @@ exit 1\n"
         let connection = Connection::open(&sqlite_path).expect("reopen provider authority sqlite");
         let persisted_runtime_status: String = connection
             .query_row(
-                "SELECT status FROM coding_session_runtimes WHERE id = 'provider-runtime'",
+                "SELECT status FROM ai_coding_session_runtime WHERE id = 'provider-runtime'",
                 [],
                 |row| row.get(0),
             )
             .expect("read recovered runtime status");
         let persisted_turn: (String, Option<String>) = connection
             .query_row(
-                "SELECT status, completed_at FROM coding_session_turns WHERE id = 'provider-turn'",
+                "SELECT status, completed_at FROM ai_coding_session_turn WHERE id = 'provider-turn'",
                 [],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
@@ -30006,7 +28454,7 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT COUNT(*)
-                FROM coding_session_events
+                FROM ai_coding_session_event
                 WHERE coding_session_id = 'provider-session'
                   AND turn_id = 'provider-turn'
                   AND event_kind = 'turn.failed'
@@ -30071,7 +28519,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session/turns")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session/turns")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build create coding session turn request"),
@@ -30135,7 +28583,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session/turns")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session/turns")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build create coding session turn request"),
@@ -30235,7 +28683,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session/turns")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session/turns")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build create coding session turn request"),
@@ -30310,7 +28758,7 @@ exit 1\n"
                 Request::builder()
                     .method("POST")
                     .uri(format!(
-                        "/api/core/v1/coding-sessions/{native_session_id}/turns?engineId=codex"
+                        "/app/v3/api/coding_sessions/{native_session_id}/turns?engineId=codex"
                     ))
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
@@ -30354,7 +28802,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/coding-sessions/missing-session/turns")
+                    .uri("/app/v3/api/coding_sessions/missing-session/turns")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build missing session turn request"),
@@ -30389,7 +28837,7 @@ exit 1\n"
             snapshot_file: None,
         })
         .expect("load provider-backed app state");
-        override_project_root_path(&mut state, "project-provider", fake_codex.project_root());
+        override_project_root_path(&mut state, "200000000000000201", fake_codex.project_root());
         let app = build_app_with_state(state);
         let request_body = serde_json::json!({
             "requestKind": "review",
@@ -30401,7 +28849,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/coding-sessions/provider-session/turns")
+                    .uri("/app/v3/api/coding_sessions/provider-session/turns")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build provider create coding session turn request"),
@@ -30427,7 +28875,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/provider-session/events")
+                    .uri("/app/v3/api/coding_sessions/provider-session/events")
                     .body(Body::empty())
                     .expect("build provider events request"),
             )
@@ -30440,7 +28888,7 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT coding_session_id, runtime_id, request_kind, status, input_summary, completed_at
-                FROM coding_session_turns
+                FROM ai_coding_session_turn
                 WHERE id = ?1
                 "#,
                 params![created_turn_id],
@@ -30471,7 +28919,7 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT coding_session_id, turn_id, status, stream_url
-                FROM coding_session_operations
+                FROM ai_coding_session_operation
                 WHERE turn_id = ?1
                 "#,
                 params![created_turn_id],
@@ -30486,14 +28934,14 @@ exit 1\n"
         ));
         assert_eq!(
             persisted_operation.3,
-            "/api/core/v1/coding-sessions/provider-session/events"
+            "/app/v3/api/coding_sessions/provider-session/events"
         );
 
         let persisted_event: (String, String, String, String) = connection
             .query_row(
                 r#"
                 SELECT turn_id, runtime_id, event_kind, payload_json
-                FROM coding_session_events
+                FROM ai_coding_session_event
                 WHERE turn_id = ?1
                 ORDER BY sequence_no DESC
                 LIMIT 1
@@ -30527,7 +28975,7 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT updated_at, last_turn_at
-                FROM coding_sessions
+                FROM ai_coding_session
                 WHERE id = 'provider-session'
                 "#,
                 [],
@@ -30572,7 +29020,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/approvals/demo-approval-1/decision")
+                    .uri("/app/v3/api/approvals/demo-approval-1/decision")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build submit approval decision request"),
@@ -30607,7 +29055,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session/checkpoints")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session/checkpoints")
                     .body(Body::empty())
                     .expect("build checkpoints request"),
             )
@@ -30645,7 +29093,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/demo-coding-session/events")
+                    .uri("/app/v3/api/coding_sessions/demo-coding-session/events")
                     .body(Body::empty())
                     .expect("build events request"),
             )
@@ -30679,7 +29127,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/operations/demo-turn:operation")
+                    .uri("/app/v3/api/operations/demo-turn:operation")
                     .body(Body::empty())
                     .expect("build operation request"),
             )
@@ -30799,7 +29247,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/questions/question-1/answer")
+                    .uri("/app/v3/api/questions/question-1/answer")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build submit user question answer request"),
@@ -30831,7 +29279,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/question-session")
+                    .uri("/app/v3/api/coding_sessions/question-session")
                     .body(Body::empty())
                     .expect("build question session request"),
             )
@@ -30852,7 +29300,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/question-session/events")
+                    .uri("/app/v3/api/coding_sessions/question-session/events")
                     .body(Body::empty())
                     .expect("build question events request"),
             )
@@ -30989,7 +29437,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/questions/question-reject-1/answer")
+                    .uri("/app/v3/api/questions/question-reject-1/answer")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build reject user question request"),
@@ -31020,7 +29468,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/question-reject-session")
+                    .uri("/app/v3/api/coding_sessions/question-reject-session")
                     .body(Body::empty())
                     .expect("build reject question session request"),
             )
@@ -31041,7 +29489,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/question-reject-session/events")
+                    .uri("/app/v3/api/coding_sessions/question-reject-session/events")
                     .body(Body::empty())
                     .expect("build reject question events request"),
             )
@@ -31118,7 +29566,7 @@ exit 1\n"
             connection
                 .execute(
                     r#"
-                    UPDATE coding_session_runtimes
+                    UPDATE ai_coding_session_runtime
                     SET status = ?2
                     WHERE id = ?1
                     "#,
@@ -31128,7 +29576,7 @@ exit 1\n"
             connection
                 .execute(
                     r#"
-                    INSERT INTO coding_session_events (
+                    INSERT INTO ai_coding_session_event (
                         id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
                     )
                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -31165,7 +29613,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/questions/provider-question-1/answer")
+                    .uri("/app/v3/api/questions/provider-question-1/answer")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build provider user question answer request"),
@@ -31195,14 +29643,14 @@ exit 1\n"
             .expect("open provider user question sqlite after answer");
         let persisted_runtime_status: String = connection
             .query_row(
-                "SELECT status FROM coding_session_runtimes WHERE id = ?1",
+                "SELECT status FROM ai_coding_session_runtime WHERE id = ?1",
                 params!["provider-runtime"],
                 |row| row.get(0),
             )
             .expect("query provider user question runtime status");
         let persisted_turn: (String, Option<String>) = connection
             .query_row(
-                "SELECT status, completed_at FROM coding_session_turns WHERE id = ?1",
+                "SELECT status, completed_at FROM ai_coding_session_turn WHERE id = ?1",
                 params!["provider-turn"],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
@@ -31211,7 +29659,7 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT payload_json
-                FROM coding_session_events
+                FROM ai_coding_session_event
                 WHERE event_kind = 'operation.updated'
                 ORDER BY sequence_no DESC
                 LIMIT 1
@@ -31252,7 +29700,7 @@ exit 1\n"
             connection
                 .execute(
                     r#"
-                    UPDATE coding_session_runtimes
+                    UPDATE ai_coding_session_runtime
                     SET status = ?2
                     WHERE id = ?1
                     "#,
@@ -31262,7 +29710,7 @@ exit 1\n"
             connection
                 .execute(
                     r#"
-                    INSERT INTO coding_session_events (
+                    INSERT INTO ai_coding_session_event (
                         id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
                     )
                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -31299,7 +29747,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/questions/provider-question-reject-1/answer")
+                    .uri("/app/v3/api/questions/provider-question-reject-1/answer")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build provider user question reject request"),
@@ -31330,14 +29778,14 @@ exit 1\n"
             .expect("open provider user question reject sqlite after answer");
         let persisted_runtime_status: String = connection
             .query_row(
-                "SELECT status FROM coding_session_runtimes WHERE id = ?1",
+                "SELECT status FROM ai_coding_session_runtime WHERE id = ?1",
                 params!["provider-runtime"],
                 |row| row.get(0),
             )
             .expect("query provider user question reject runtime status");
         let persisted_turn: (String, Option<String>) = connection
             .query_row(
-                "SELECT status, completed_at FROM coding_session_turns WHERE id = ?1",
+                "SELECT status, completed_at FROM ai_coding_session_turn WHERE id = ?1",
                 params!["provider-turn"],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
@@ -31346,7 +29794,7 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT payload_json
-                FROM coding_session_events
+                FROM ai_coding_session_event
                 WHERE event_kind = 'operation.updated'
                 ORDER BY sequence_no DESC
                 LIMIT 1
@@ -31387,7 +29835,7 @@ exit 1\n"
             connection
                 .execute(
                     r#"
-                    UPDATE coding_session_runtimes
+                    UPDATE ai_coding_session_runtime
                     SET status = ?2
                     WHERE id = ?1
                     "#,
@@ -31397,7 +29845,7 @@ exit 1\n"
             connection
                 .execute(
                     r#"
-                    INSERT INTO coding_session_events (
+                    INSERT INTO ai_coding_session_event (
                         id, created_at, updated_at, version, is_deleted, coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json
                     )
                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
@@ -31434,7 +29882,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/questions/provider-question-alias-1/answer")
+                    .uri("/app/v3/api/questions/provider-question-alias-1/answer")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build provider alias user question answer request"),
@@ -31462,7 +29910,7 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT payload_json
-                FROM coding_session_events
+                FROM ai_coding_session_event
                 WHERE event_kind = 'operation.updated'
                 ORDER BY sequence_no DESC
                 LIMIT 1
@@ -31508,7 +29956,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/approvals/provider-approval-1/decision")
+                    .uri("/app/v3/api/approvals/provider-approval-1/decision")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build provider submit approval request"),
@@ -31546,7 +29994,7 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT resumable, state_json
-                FROM coding_session_checkpoints
+                FROM ai_coding_session_checkpoint
                 WHERE id = ?1
                 "#,
                 params!["provider-checkpoint:1"],
@@ -31572,21 +30020,21 @@ exit 1\n"
 
         let persisted_operation_status: String = connection
             .query_row(
-                "SELECT status FROM coding_session_operations WHERE id = ?1",
+                "SELECT status FROM ai_coding_session_operation WHERE id = ?1",
                 params!["provider-turn:operation"],
                 |row| row.get(0),
             )
             .expect("query persisted operation status");
         let persisted_turn_status: String = connection
             .query_row(
-                "SELECT status FROM coding_session_turns WHERE id = ?1",
+                "SELECT status FROM ai_coding_session_turn WHERE id = ?1",
                 params!["provider-turn"],
                 |row| row.get(0),
             )
             .expect("query persisted turn status");
         let persisted_runtime_status: String = connection
             .query_row(
-                "SELECT status FROM coding_session_runtimes WHERE id = ?1",
+                "SELECT status FROM ai_coding_session_runtime WHERE id = ?1",
                 params!["provider-runtime"],
                 |row| row.get(0),
             )
@@ -31611,7 +30059,7 @@ exit 1\n"
             connection
                 .execute(
                     r#"
-                    UPDATE coding_session_checkpoints
+                    UPDATE ai_coding_session_checkpoint
                     SET state_json = ?2
                     WHERE id = ?1
                     "#,
@@ -31639,7 +30087,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/core/v1/approvals/provider-permission-1/decision")
+                    .uri("/app/v3/api/approvals/provider-permission-1/decision")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build provider alias submit approval request"),
@@ -31669,7 +30117,7 @@ exit 1\n"
             .query_row(
                 r#"
                 SELECT state_json
-                FROM coding_session_checkpoints
+                FROM ai_coding_session_checkpoint
                 WHERE id = ?1
                 "#,
                 params!["provider-checkpoint:1"],
@@ -31697,11 +30145,11 @@ exit 1\n"
     #[tokio::test]
     async fn missing_projection_read_routes_return_unified_not_found_problem() {
         for route in [
-            "/api/core/v1/coding-sessions/missing-session",
-            "/api/core/v1/operations/missing-operation",
-            "/api/core/v1/coding-sessions/missing-session/events",
-            "/api/core/v1/coding-sessions/missing-session/artifacts",
-            "/api/core/v1/coding-sessions/missing-session/checkpoints",
+            "/app/v3/api/coding_sessions/missing-session",
+            "/app/v3/api/operations/missing-operation",
+            "/app/v3/api/coding_sessions/missing-session/events",
+            "/app/v3/api/coding_sessions/missing-session/artifacts",
+            "/app/v3/api/coding_sessions/missing-session/checkpoints",
         ] {
             let response = build_app()
                 .oneshot(
@@ -31738,7 +30186,7 @@ exit 1\n"
         "operationId": "env-turn:operation",
         "status": "succeeded",
         "artifactRefs": ["env-turn:artifact:1"],
-        "streamUrl": "/api/core/v1/coding-sessions/env-session/events",
+        "streamUrl": "/app/v3/api/coding_sessions/env-session/events",
         "streamKind": "sse"
       },
       "events": [
@@ -31784,7 +30232,7 @@ exit 1\n"
             .expect("load env app")
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/operations/env-turn:operation")
+                    .uri("/app/v3/api/operations/env-turn:operation")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -31831,33 +30279,33 @@ exit 1\n"
         let app = build_app_from_env().expect("load env app");
 
         let operation_response =
-            issue_get_request(&app, "/api/core/v1/operations/provider-turn:operation").await;
+            issue_get_request(&app, "/app/v3/api/operations/provider-turn:operation").await;
         let session_response =
-            issue_get_request(&app, "/api/core/v1/coding-sessions/provider-session").await;
+            issue_get_request(&app, "/app/v3/api/coding_sessions/provider-session").await;
         let events_response =
-            issue_get_request(&app, "/api/core/v1/coding-sessions/provider-session/events").await;
+            issue_get_request(&app, "/app/v3/api/coding_sessions/provider-session/events").await;
         let checkpoints_response = issue_get_request(
             &app,
-            "/api/core/v1/coding-sessions/provider-session/checkpoints",
+            "/app/v3/api/coding_sessions/provider-session/checkpoints",
         )
         .await;
-        let app_workspaces_response = issue_get_request(&app, "/api/app/v1/workspaces").await;
-        let app_deployments_response = issue_get_request(&app, "/api/app/v1/deployments").await;
-        let admin_deployments_response = issue_get_request(&app, "/api/admin/v1/deployments").await;
-        let app_projects_response = issue_get_request(&app, "/api/app/v1/projects").await;
-        let app_documents_response = issue_get_request(&app, "/api/app/v1/documents").await;
-        let app_teams_response = issue_get_request(&app, "/api/app/v1/teams").await;
-        let admin_teams_response = issue_get_request(&app, "/api/admin/v1/teams").await;
+        let app_workspaces_response = issue_get_request(&app, "/app/v3/api/workspaces").await;
+        let app_deployments_response = issue_get_request(&app, "/app/v3/api/deployments").await;
+        let admin_deployments_response = issue_get_request(&app, "/backend/v3/api/deployments").await;
+        let app_projects_response = issue_get_request(&app, "/app/v3/api/projects").await;
+        let app_documents_response = issue_get_request(&app, "/app/v3/api/documents").await;
+        let app_teams_response = issue_get_request(&app, "/app/v3/api/teams").await;
+        let admin_teams_response = issue_get_request(&app, "/backend/v3/api/iam/teams").await;
         let admin_deployment_targets_response = issue_get_request(
             &app,
-            "/api/admin/v1/projects/project-provider/deployment-targets",
+            "/backend/v3/api/projects/200000000000000201/deployment_targets",
         )
         .await;
         let admin_team_members_response =
-            issue_get_request(&app, "/api/admin/v1/teams/team-provider/members").await;
-        let admin_releases_response = issue_get_request(&app, "/api/admin/v1/releases").await;
-        let admin_audit_response = issue_get_request(&app, "/api/admin/v1/audit").await;
-        let admin_policies_response = issue_get_request(&app, "/api/admin/v1/policies").await;
+            issue_get_request(&app, "/backend/v3/api/iam/teams/200000000000000301/members").await;
+        let admin_releases_response = issue_get_request(&app, "/backend/v3/api/releases").await;
+        let admin_audit_response = issue_get_request(&app, "/backend/v3/api/iam/audit_events").await;
+        let admin_policies_response = issue_get_request(&app, "/backend/v3/api/iam/policies").await;
 
         std::env::remove_var("BIRDCODER_CODING_SERVER_SQLITE_FILE");
         fs::remove_file(sqlite_path).expect("remove sqlite provider fixture");
@@ -31989,7 +30437,7 @@ exit 1\n"
             "provider-runtime:provider-turn:event:0"
         );
         assert_eq!(checkpoints_json["items"][0]["id"], "provider-checkpoint:1");
-        assert_eq!(app_workspaces_json["items"][0]["id"], "workspace-provider");
+        assert_eq!(app_workspaces_json["items"][0]["id"], "200000000000000101");
         assert_eq!(
             app_workspaces_json["items"][0]["name"],
             "Provider authority workspace"
@@ -32004,7 +30452,7 @@ exit 1\n"
         );
         assert_eq!(
             app_deployments_json["items"][0]["projectId"],
-            "project-provider"
+            "200000000000000201"
         );
         assert_eq!(
             app_deployments_json["items"][0]["targetId"],
@@ -32016,34 +30464,34 @@ exit 1\n"
         );
         assert_eq!(
             admin_deployments_json["items"][0]["projectId"],
-            "project-provider"
+            "200000000000000201"
         );
         assert_eq!(
             admin_deployments_json["items"][0]["targetId"],
             "target-provider-web"
         );
-        assert_eq!(app_projects_json["items"][0]["id"], "project-provider");
+        assert_eq!(app_projects_json["items"][0]["id"], "200000000000000201");
         assert_eq!(
             app_documents_json["items"][0]["id"],
             "doc-provider-architecture"
         );
         assert_eq!(
             app_documents_json["items"][0]["projectId"],
-            "project-provider"
+            "200000000000000201"
         );
-        assert_eq!(app_teams_json["items"][0]["id"], "team-provider");
-        assert_eq!(admin_teams_json["items"][0]["id"], "team-provider");
+        assert_eq!(app_teams_json["items"][0]["id"], "200000000000000301");
+        assert_eq!(admin_teams_json["items"][0]["id"], "200000000000000301");
         assert_eq!(
             admin_deployment_targets_json["items"][0]["id"],
             "target-provider-web"
         );
         assert_eq!(
             admin_deployment_targets_json["items"][0]["projectId"],
-            "project-provider"
+            "200000000000000201"
         );
         assert_eq!(
             admin_team_members_json["items"][0]["teamId"],
-            "team-provider"
+            "200000000000000301"
         );
         assert_eq!(admin_team_members_json["items"][0]["role"], "admin");
         assert_eq!(
@@ -32053,7 +30501,7 @@ exit 1\n"
         assert_eq!(admin_audit_json["items"][0]["id"], "audit-provider-release");
         assert_eq!(
             admin_audit_json["items"][0]["scopeId"],
-            "workspace-provider"
+            "200000000000000101"
         );
         assert_eq!(
             admin_policies_json["items"][0]["id"],
@@ -32093,7 +30541,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions?workspaceId=workspace-provider&projectId=project-provider")
+                    .uri("/app/v3/api/coding_sessions?workspaceId=200000000000000101&projectId=200000000000000201")
                     .body(Body::empty())
                     .expect("build scoped list coding sessions request"),
             )
@@ -32121,10 +30569,10 @@ exit 1\n"
 
         assert_eq!(scoped_items.len(), 2);
         assert_eq!(scoped_json["meta"]["total"], 2);
-        assert_eq!(provider_session["workspaceId"], "workspace-provider");
-        assert_eq!(provider_session["projectId"], "project-provider");
-        assert_eq!(native_session["workspaceId"], "workspace-provider");
-        assert_eq!(native_session["projectId"], "project-provider");
+        assert_eq!(provider_session["workspaceId"], "200000000000000101");
+        assert_eq!(provider_session["projectId"], "200000000000000201");
+        assert_eq!(native_session["workspaceId"], "200000000000000101");
+        assert_eq!(native_session["projectId"], "200000000000000201");
         assert_eq!(native_session["engineId"], "codex");
         assert_eq!(
             native_session["nativeSessionId"],
@@ -32138,7 +30586,7 @@ exit 1\n"
         let empty_response = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions?projectId=missing-project")
+                    .uri("/app/v3/api/coding_sessions?projectId=missing-project")
                     .body(Body::empty())
                     .expect("build empty list coding sessions request"),
             )
@@ -32187,7 +30635,7 @@ exit 1\n"
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions?workspaceId=workspace-provider&projectId=project-provider")
+                    .uri("/app/v3/api/coding_sessions?workspaceId=200000000000000101&projectId=200000000000000201")
                     .body(Body::empty())
                     .expect("build attached list coding sessions request"),
             )
@@ -32212,8 +30660,8 @@ exit 1\n"
             "Implement standard attached native session hydration"
         );
         assert_eq!(items[0]["hostMode"], "desktop");
-        assert_eq!(items[0]["workspaceId"], "workspace-provider");
-        assert_eq!(items[0]["projectId"], "project-provider");
+        assert_eq!(items[0]["workspaceId"], "200000000000000101");
+        assert_eq!(items[0]["projectId"], "200000000000000201");
 
         fs::remove_file(sqlite_path).expect("remove attached coding sessions sqlite fixture");
     }
@@ -32245,7 +30693,7 @@ exit 1\n"
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/coding-sessions/provider-session/events")
+                    .uri("/app/v3/api/coding_sessions/provider-session/events")
                     .body(Body::empty())
                     .expect("build attached session events request"),
             )
@@ -32286,13 +30734,16 @@ exit 1\n"
         let sqlite_path =
             write_sqlite_provider_authority_fixture("birdcoder-coding-server-live.sqlite3");
         let app = build_app_from_sqlite_file(&sqlite_path).expect("load sqlite file app");
+        const LIVE_WORKSPACE_ID: &str = "300000000000000101";
+        const LIVE_PROJECT_ID: &str = "300000000000000201";
+        const LIVE_OWNER_USER_ID: &str = "300000000000000001";
 
         let connection =
             Connection::open(&sqlite_path).expect("open sqlite live authority fixture");
         connection
             .execute(
                 r#"
-                INSERT INTO plus_workspace AS workspaces (
+                INSERT INTO studio_workspace AS workspaces (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     name, code, title, description, owner_id, leader_id, created_by_user_id, type,
                     settings_json, is_public, is_template, status
@@ -32300,7 +30751,7 @@ exit 1\n"
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
                 "#,
                 params![
-                    "workspace-live",
+                    LIVE_WORKSPACE_ID,
                     "workspace-uuid-live",
                     SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
                     SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
@@ -32312,9 +30763,9 @@ exit 1\n"
                     "live.workspace",
                     "Live authority workspace",
                     "Workspace inserted after router bootstrap",
-                    "user-live-owner",
-                    "user-live-owner",
-                    "user-live-owner",
+                    LIVE_OWNER_USER_ID,
+                    LIVE_OWNER_USER_ID,
+                    LIVE_OWNER_USER_ID,
                     "DEFAULT",
                     "{}",
                     0_i64,
@@ -32323,18 +30774,18 @@ exit 1\n"
                 ],
             )
             .expect("insert live workspace");
-        insert_plus_project_fixture(
+        insert_studio_project_fixture(
             &connection,
-            "project-live",
+            LIVE_PROJECT_ID,
             "project-uuid-live",
-            "workspace-live",
+            LIVE_WORKSPACE_ID,
             "workspace-uuid-live",
             "Live authority project",
             "live.project",
             "Live authority project",
             "Project inserted after router bootstrap",
             Some("E:/sdkwork/project-live"),
-            "user-live-owner",
+            LIVE_OWNER_USER_ID,
             "2026-04-10T13:10:01Z",
             "2026-04-10T13:10:01Z",
             0_i64,
@@ -32346,7 +30797,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/workspaces")
+                    .uri("/app/v3/api/workspaces")
                     .body(Body::empty())
                     .expect("build workspaces request"),
             )
@@ -32355,7 +30806,7 @@ exit 1\n"
         let projects_response = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/projects")
+                    .uri("/app/v3/api/projects")
                     .body(Body::empty())
                     .expect("build projects request"),
             )
@@ -32380,7 +30831,7 @@ exit 1\n"
                 .as_array()
                 .expect("workspace items array")
                 .iter()
-                .any(|item| item["id"] == "workspace-live"),
+                .any(|item| item["id"] == LIVE_WORKSPACE_ID),
             "live workspace row should be visible without rebuilding the router"
         );
         assert!(
@@ -32388,7 +30839,7 @@ exit 1\n"
                 .as_array()
                 .expect("project items array")
                 .iter()
-                .any(|item| item["id"] == "project-live"),
+                .any(|item| item["id"] == LIVE_PROJECT_ID),
             "live project row should be visible without rebuilding the router"
         );
     }
@@ -32410,7 +30861,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/app/v1/workspaces")
+                    .uri("/app/v3/api/workspaces")
                     .header("content-type", "application/json")
                     .body(Body::from(workspace_request.to_string()))
                     .expect("build create workspace request"),
@@ -32442,7 +30893,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/app/v1/projects")
+                    .uri("/app/v3/api/projects")
                     .header("content-type", "application/json")
                     .body(Body::from(project_request.to_string()))
                     .expect("build create project request"),
@@ -32466,14 +30917,14 @@ exit 1\n"
             Connection::open(&sqlite_path).expect("open long integer sqlite authority");
         let persisted_workspace_longs: (i64, i64) = connection
             .query_row(
-                "SELECT max_storage, used_storage FROM plus_workspace WHERE id = ?1",
+                "SELECT max_storage, used_storage FROM studio_workspace WHERE id = ?1",
                 params![workspace_id],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .expect("read persisted workspace long integers");
         let persisted_project_budget: i64 = connection
             .query_row(
-                "SELECT budget_amount FROM plus_project WHERE id = ?1",
+                "SELECT budget_amount FROM studio_project WHERE id = ?1",
                 params![project_id],
                 |row| row.get(0),
             )
@@ -32498,7 +30949,7 @@ exit 1\n"
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/skill-packages")
+                    .uri("/app/v3/api/skill_packages")
                     .body(Body::empty())
                     .expect("build skill packages request"),
             )
@@ -32548,7 +30999,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/workspaces")
+                    .uri("/app/v3/api/workspaces")
                     .body(Body::empty())
                     .expect("build workspaces request"),
             )
@@ -32557,7 +31008,7 @@ exit 1\n"
         let projects_response = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/projects")
+                    .uri("/app/v3/api/projects")
                     .body(Body::empty())
                     .expect("build projects request"),
             )
@@ -32567,14 +31018,14 @@ exit 1\n"
         let connection = Connection::open(&sqlite_path).expect("open sqlite bootstrap fixture");
         let persisted_workspace_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_workspace AS workspaces WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM studio_workspace AS workspaces WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
             .expect("read persisted workspace count");
         let persisted_project_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_project AS projects WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM studio_project AS projects WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
@@ -32623,7 +31074,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO plus_workspace AS workspaces (
+                INSERT INTO studio_workspace AS workspaces (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     name, code, title, description, owner_id, leader_id, created_by_user_id, type,
                     settings_json, is_public, is_template, status
@@ -32660,7 +31111,7 @@ exit 1\n"
         let projects_response = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/projects")
+                    .uri("/app/v3/api/projects")
                     .body(Body::empty())
                     .expect("build projects request"),
             )
@@ -32670,14 +31121,14 @@ exit 1\n"
         let connection = Connection::open(&sqlite_path).expect("open sqlite bootstrap fixture");
         let persisted_workspace_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_workspace AS workspaces WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM studio_workspace AS workspaces WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
             .expect("read persisted workspace count");
         let persisted_project_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_project AS projects WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM studio_project AS projects WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
@@ -32721,7 +31172,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO plus_workspace AS workspaces (
+                INSERT INTO studio_workspace AS workspaces (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     name, code, title, description, owner_id, leader_id, created_by_user_id, type,
                     settings_json, is_public, is_template, status
@@ -32752,7 +31203,7 @@ exit 1\n"
                 ],
             )
             .expect("insert existing workspace");
-        insert_plus_project_fixture(
+        insert_studio_project_fixture(
             &connection,
             invalid_root_project_id,
             "project-uuid-invalid-root",
@@ -32776,7 +31227,7 @@ exit 1\n"
         let projects_response = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/projects")
+                    .uri("/app/v3/api/projects")
                     .body(Body::empty())
                     .expect("build projects request"),
             )
@@ -32795,20 +31246,20 @@ exit 1\n"
     }
 
     #[tokio::test]
-    async fn build_app_from_sqlite_file_restores_legacy_bootstrap_project_rows_with_seeded_root() {
+    async fn build_app_from_sqlite_file_reactivates_seeded_bootstrap_project_rows_with_root() {
         let existing_workspace_id = "100000000000000611";
         let sqlite_path = write_empty_sqlite_provider_authority_fixture(
-            "birdcoder-coding-server-bootstrap-project-restore.sqlite3",
+            "birdcoder-coding-server-bootstrap-project-reactivate.sqlite3",
         );
         let bootstrap_project_root = resolve_bootstrap_project_root_path(&sqlite_path)
             .expect("resolve bootstrap project root");
         let connection =
-            Connection::open(&sqlite_path).expect("open sqlite bootstrap restore fixture");
+            Connection::open(&sqlite_path).expect("open sqlite bootstrap reactivation fixture");
         connection
             .execute(
                 r#"
                 CREATE UNIQUE INDEX IF NOT EXISTS uk_projects_workspace_name
-                ON plus_project(workspace_id, name)
+                ON studio_project(workspace_id, name)
                 "#,
                 [],
             )
@@ -32816,7 +31267,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO plus_workspace AS workspaces (
+                INSERT INTO studio_workspace AS workspaces (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     name, code, title, description, owner_id, leader_id, created_by_user_id, type,
                     settings_json, is_public, is_template, status
@@ -32847,7 +31298,7 @@ exit 1\n"
                 ],
             )
             .expect("insert existing workspace");
-        insert_plus_project_fixture(
+        insert_studio_project_fixture(
             &connection,
             BOOTSTRAP_PROJECT_ID,
             "project-uuid-default",
@@ -32867,7 +31318,7 @@ exit 1\n"
         connection
             .execute(
                 r#"
-                INSERT INTO project_collaborators (
+                INSERT INTO studio_project_collaborator (
                     id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                     project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id,
                     status
@@ -32901,7 +31352,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/projects")
+                    .uri("/app/v3/api/projects")
                     .body(Body::empty())
                     .expect("build projects request"),
             )
@@ -32911,7 +31362,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .uri(format!(
-                        "/api/app/v1/projects/{}/collaborators",
+                        "/app/v3/api/projects/{}/collaborators",
                         BOOTSTRAP_PROJECT_ID
                     ))
                     .body(Body::empty())
@@ -32924,7 +31375,7 @@ exit 1\n"
         let connection = Connection::open(&sqlite_path).expect("open sqlite bootstrap fixture");
         let persisted_project_row: (String, String, i64, i64) = connection
             .query_row(
-                "SELECT id, workspace_id, is_deleted, status FROM plus_project AS projects WHERE id = ?1",
+                "SELECT id, workspace_id, is_deleted, status FROM studio_project AS projects WHERE id = ?1",
                 params![BOOTSTRAP_PROJECT_ID],
                 |row| {
                     Ok((
@@ -32938,11 +31389,11 @@ exit 1\n"
             .expect("read archived starter project");
         let persisted_collaborator_row: (String, i64, String) = connection
             .query_row(
-                "SELECT id, is_deleted, status FROM project_collaborators WHERE id = ?1",
+                "SELECT id, is_deleted, status FROM studio_project_collaborator WHERE id = ?1",
                 params![BOOTSTRAP_PROJECT_COLLABORATOR_ID],
                 |row| {
                     Ok((
-                        sqlite_row_required_string_value(row, 0, "project_collaborators.id")?,
+                        sqlite_row_required_string_value(row, 0, "studio_project_collaborator.id")?,
                         row.get(1)?,
                         row.get(2)?,
                     ))
@@ -32995,7 +31446,7 @@ exit 1\n"
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/workspaces")
+                    .uri("/app/v3/api/workspaces")
                     .body(Body::empty())
                     .expect("build workspaces request"),
             )
@@ -33004,7 +31455,7 @@ exit 1\n"
         let projects_response = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/app/v1/projects")
+                    .uri("/app/v3/api/projects")
                     .body(Body::empty())
                     .expect("build projects request"),
             )
@@ -33052,26 +31503,26 @@ exit 1\n"
         assert!(
             !sqlite_column_exists(&connection, PROVIDER_PROJECTS_TABLE, "owner_id")
                 .expect("probe projects.owner_id"),
-            "plus_project must not retain non-Java owner_id"
+            "studio_project must not retain non-Java owner_id"
         );
         assert!(
             !sqlite_column_exists(&connection, PROVIDER_PROJECTS_TABLE, "created_by_user_id")
                 .expect("probe projects.created_by_user_id"),
-            "plus_project must not retain non-Java created_by_user_id"
+            "studio_project must not retain non-Java created_by_user_id"
         );
         assert!(
-            sqlite_table_exists(&connection, "plus_project_content")
-                .expect("probe plus_project_content table"),
-            "project runtime config must move to plus_project_content"
+            sqlite_table_exists(&connection, "studio_project_content")
+                .expect("probe studio_project_content table"),
+            "project runtime config must move to studio_project_content"
         );
         assert!(
             sqlite_column_exists(&connection, PROVIDER_TEAMS_TABLE, "owner_id")
-                .expect("probe teams.owner_id"),
+                .expect("probe studio_team.owner_id"),
             "teams table should expose owner_id"
         );
         assert!(
             sqlite_column_exists(&connection, PROVIDER_TEAMS_TABLE, "created_by_user_id")
-                .expect("probe teams.created_by_user_id"),
+                .expect("probe studio_team.created_by_user_id"),
             "teams table should expose created_by_user_id"
         );
         assert!(
@@ -33080,7 +31531,7 @@ exit 1\n"
                 PROVIDER_TEAM_MEMBERS_TABLE,
                 "created_by_user_id"
             )
-            .expect("probe team_members.created_by_user_id"),
+            .expect("probe studio_team_member.created_by_user_id"),
             "team_members table should expose created_by_user_id"
         );
         assert!(
@@ -33089,40 +31540,40 @@ exit 1\n"
                 PROVIDER_TEAM_MEMBERS_TABLE,
                 "granted_by_user_id"
             )
-            .expect("probe team_members.granted_by_user_id"),
+            .expect("probe studio_team_member.granted_by_user_id"),
             "team_members table should expose granted_by_user_id"
         );
         assert!(
-            sqlite_column_exists(&connection, "workspace_members", "created_by_user_id")
-                .expect("probe workspace_members.created_by_user_id"),
-            "workspace_members table should expose created_by_user_id"
+            sqlite_column_exists(&connection, "studio_workspace_member", "created_by_user_id")
+                .expect("probe studio_workspace_member.created_by_user_id"),
+            "studio_workspace_member table should expose created_by_user_id"
         );
         assert!(
-            sqlite_column_exists(&connection, "workspace_members", "granted_by_user_id")
-                .expect("probe workspace_members.granted_by_user_id"),
-            "workspace_members table should expose granted_by_user_id"
+            sqlite_column_exists(&connection, "studio_workspace_member", "granted_by_user_id")
+                .expect("probe studio_workspace_member.granted_by_user_id"),
+            "studio_workspace_member table should expose granted_by_user_id"
         );
         assert!(
-            sqlite_column_exists(&connection, "project_collaborators", "created_by_user_id")
-                .expect("probe project_collaborators.created_by_user_id"),
-            "project_collaborators table should expose created_by_user_id"
+            sqlite_column_exists(&connection, "studio_project_collaborator", "created_by_user_id")
+                .expect("probe studio_project_collaborator.created_by_user_id"),
+            "studio_project_collaborator table should expose created_by_user_id"
         );
         assert!(
-            sqlite_column_exists(&connection, "project_collaborators", "granted_by_user_id")
-                .expect("probe project_collaborators.granted_by_user_id"),
-            "project_collaborators table should expose granted_by_user_id"
+            sqlite_column_exists(&connection, "studio_project_collaborator", "granted_by_user_id")
+                .expect("probe studio_project_collaborator.granted_by_user_id"),
+            "studio_project_collaborator table should expose granted_by_user_id"
         );
 
         let workspace_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_workspace AS workspaces WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM studio_workspace AS workspaces WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
             .expect("read upgraded workspace count");
         let project_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_project AS projects WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM studio_project AS projects WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
@@ -33149,275 +31600,46 @@ exit 1\n"
     }
 
     #[tokio::test]
-    async fn build_app_from_sqlite_file_bootstraps_legacy_identity_collaboration_tables() {
-        let sqlite_path = write_minimal_direct_provider_authority_fixture(
-            "birdcoder-coding-server-legacy-identity-collaboration.sqlite3",
-        );
-        let connection =
-            Connection::open(&sqlite_path).expect("open legacy identity collaboration fixture");
-        rewrite_provider_authority_collaboration_tables_to_legacy_identity_columns(&connection);
-        connection
-            .execute(
-                r#"
-                INSERT INTO plus_workspace AS workspaces (
-                    id, uuid, tenant_id, organization_id, data_scope, created_at, updated_at, version, is_deleted,
-                    name, code, title, description, owner_id, leader_id, created_by_user_id, settings_json,
-                    is_public, is_template, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, 0, 0, ?16)
-                "#,
-                params![
-                    "workspace-existing",
-                    "workspace-uuid-existing",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    DEFAULT_PRIVATE_DATA_SCOPE,
-                    "2026-04-24T09:00:00Z",
-                    "2026-04-24T09:00:00Z",
-                    "Existing Workspace",
-                    "existing.workspace",
-                    "Existing Workspace",
-                    "Legacy identity workspace",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "{}",
-                    "active",
-                ],
-            )
-            .expect("insert existing workspace");
-        insert_plus_project_fixture(
-            &connection,
-            "project-existing",
-            "project-uuid-existing",
-            "workspace-existing",
-            "workspace-uuid-existing",
-            "Existing Project",
-            "existing.project",
-            "Existing Project",
-            "Legacy identity project",
-            None,
-            BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-            "2026-04-24T09:00:00Z",
-            "2026-04-24T09:00:00Z",
-            0_i64,
-            "active",
-        );
-        connection
-            .execute(
-                r#"
-                INSERT INTO teams (
-                    id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
-                    workspace_id, name, code, title, description, owner_id, leader_id, created_by_user_id, metadata_json, status
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
-                "#,
-                params![
-                    "team-existing",
-                    "team-uuid-existing",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    "2026-04-24T09:00:00Z",
-                    "2026-04-24T09:00:00Z",
-                    "workspace-existing",
-                    "Existing Team",
-                    "existing.team",
-                    "Existing Team",
-                    "Legacy identity team",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "{}",
-                    "active",
-                ],
-            )
-            .expect("insert existing team");
-        connection
-            .execute(
-                r#"
-                INSERT INTO team_members (
-                    id, created_at, updated_at, version, is_deleted, team_id, identity_id, role, status,
-                    created_by_identity_id, granted_by_identity_id, uuid, tenant_id, organization_id, user_id,
-                    created_by_user_id, granted_by_user_id
-                )
-                VALUES (?1, ?2, ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
-                "#,
-                params![
-                    "team-member-existing",
-                    "2026-04-24T09:00:00Z",
-                    "2026-04-24T09:00:00Z",
-                    "team-existing",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "owner",
-                    "active",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "team-member-uuid-existing",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                ],
-            )
-            .expect("insert existing team member");
-        connection
-            .execute(
-                r#"
-                INSERT INTO workspace_members (
-                    id, created_at, updated_at, version, is_deleted, workspace_id, identity_id, team_id, role,
-                    created_by_identity_id, granted_by_identity_id, status, uuid, tenant_id, organization_id, user_id,
-                    created_by_user_id, granted_by_user_id
-                )
-                VALUES (?1, ?2, ?3, 0, 1, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
-                "#,
-                params![
-                    "workspace-member-existing",
-                    "2026-04-24T09:00:00Z",
-                    "2026-04-24T09:00:00Z",
-                    "workspace-existing",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "team-existing",
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "active",
-                    "workspace-member-uuid-existing",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                ],
-            )
-            .expect("insert existing workspace member");
-        connection
-            .execute(
-                r#"
-                INSERT INTO project_collaborators (
-                    id, created_at, updated_at, version, is_deleted, project_id, workspace_id, identity_id, team_id,
-                    role, created_by_identity_id, granted_by_identity_id, status, uuid, tenant_id, organization_id,
-                    user_id, created_by_user_id, granted_by_user_id
-                )
-                VALUES (?1, ?2, ?3, 0, 1, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
-                "#,
-                params![
-                    "project-collaborator-existing",
-                    "2026-04-24T09:00:00Z",
-                    "2026-04-24T09:00:00Z",
-                    "project-existing",
-                    "workspace-existing",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "team-existing",
-                    "owner",
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    "active",
-                    "project-collaborator-uuid-existing",
-                    SQLITE_AUTHORITY_DEFAULT_TENANT_ID,
-                    SQLITE_AUTHORITY_DEFAULT_ORGANIZATION_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                    BOOTSTRAP_WORKSPACE_OWNER_USER_ID,
-                ],
-            )
-            .expect("insert existing project collaborator");
-        drop(connection);
-
-        let _ = build_app_from_sqlite_file(&sqlite_path)
-            .expect("load sqlite app with legacy identity collaboration tables");
-
-        let connection =
-            Connection::open(&sqlite_path).expect("reopen legacy identity collaboration fixture");
-        let team_member_identity: (String, String) = connection
-            .query_row(
-                "SELECT identity_id, user_id FROM team_members WHERE id = ?1",
-                params![BOOTSTRAP_TEAM_MEMBER_ID],
-                |row| {
-                    Ok((
-                        row.get(0)?,
-                        sqlite_row_required_string_value(row, 1, "team_members.user_id")?,
-                    ))
-                },
-            )
-            .expect("read bootstrapped team member");
-        let workspace_member_identity: (String, String) = connection
-            .query_row(
-                "SELECT identity_id, user_id FROM workspace_members WHERE id = ?1",
-                params![BOOTSTRAP_WORKSPACE_MEMBER_ID],
-                |row| {
-                    Ok((
-                        row.get(0)?,
-                        sqlite_row_required_string_value(row, 1, "workspace_members.user_id")?,
-                    ))
-                },
-            )
-            .expect("read bootstrapped workspace member");
-        assert!(
-            sqlite_column_exists(&connection, "project_collaborators", "identity_id")
-                .expect("probe project collaborator identity column"),
-            "legacy identity collaborator table should preserve identity_id column"
-        );
-        drop(connection);
-        fs::remove_file(&sqlite_path).expect("remove legacy identity collaboration fixture");
-
-        assert_eq!(
-            team_member_identity,
-            (
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_string(),
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_string(),
-            )
-        );
-        assert_eq!(
-            workspace_member_identity,
-            (
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_string(),
-                BOOTSTRAP_WORKSPACE_OWNER_USER_ID.to_string(),
-            )
-        );
-    }
-
-    #[tokio::test]
     async fn build_app_from_sqlite_file_initializes_user_center_for_direct_provider_authority() {
         let _guard = ENV_LOCK.lock().expect("lock env");
         let sqlite_path = write_empty_sqlite_provider_authority_fixture(
             "birdcoder-coding-server-direct-user-center.sqlite3",
         );
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
 
         let _ = build_app_from_sqlite_file(&sqlite_path).expect("load direct sqlite authority");
 
         let connection = Connection::open(&sqlite_path).expect("open direct sqlite authority");
         let user_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_user WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM iam_user WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
             .expect("read bootstrap user count");
         let profile_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_user WHERE is_deleted = 0 AND bio IS NOT NULL AND TRIM(bio) <> ''",
+                "SELECT COUNT(*) FROM iam_user WHERE is_deleted = 0 AND bio IS NOT NULL AND TRIM(bio) <> ''",
                 [],
                 |row| row.get(0),
             )
             .expect("read bootstrap profile count");
         let membership_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_vip_user WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM iam_vip_membership WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
             .expect("read bootstrap membership count");
         let bootstrap_user: (String, String, String) = connection
             .query_row(
-                "SELECT id, email, provider_key FROM plus_user WHERE id = ?1",
+                "SELECT id, email, provider_key FROM iam_user WHERE id = ?1",
                 params![BOOTSTRAP_WORKSPACE_OWNER_USER_ID],
                 |row| {
                     Ok((
-                        sqlite_row_required_string_value(row, 0, "plus_user.id")?,
+                        sqlite_row_required_string_value(row, 0, "iam_user.id")?,
                         row.get(1)?,
                         row.get(2)?,
                     ))
@@ -33427,15 +31649,15 @@ exit 1\n"
 
         drop(connection);
         fs::remove_file(sqlite_path).expect("remove direct sqlite authority fixture");
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
 
         assert_eq!(user_count, 1);
         assert_eq!(profile_count, 1);
         assert_eq!(membership_count, 1);
         assert_eq!(bootstrap_user.0, BOOTSTRAP_WORKSPACE_OWNER_USER_ID);
-        assert_eq!(bootstrap_user.1, "local-default@sdkwork-birdcoder.local");
+        assert_eq!(bootstrap_user.1, "local-default@sdkwork-user-center.local");
         assert_eq!(bootstrap_user.2, "local");
     }
 
@@ -33447,30 +31669,30 @@ exit 1\n"
         );
 
         std::env::set_var(
-            "BIRDCODER_USER_CENTER_LOGIN_PROVIDER",
+            "SDKWORK_USER_CENTER_MODE",
             "sdkwork-cloud-app-api",
         );
         std::env::set_var(
-            "BIRDCODER_USER_CENTER_APP_API_BASE_URL",
+            "SDKWORK_USER_CENTER_APP_API_BASE_URL",
             "https://cloud.sdkwork.test/app",
         );
 
         let _ = build_app_from_sqlite_file(&sqlite_path).expect("load cloud sqlite authority");
 
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
 
         let connection = Connection::open(&sqlite_path).expect("open cloud sqlite authority");
         let user_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_user WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM iam_user WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
             .expect("read cloud user count");
         let membership_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM plus_vip_user WHERE is_deleted = 0",
+                "SELECT COUNT(*) FROM iam_vip_membership WHERE is_deleted = 0",
                 [],
                 |row| row.get(0),
             )
@@ -33486,9 +31708,9 @@ exit 1\n"
     #[tokio::test]
     async fn app_user_center_config_route_exposes_canonical_builtin_local_mode() {
         let _guard = ENV_LOCK.lock().expect("lock env");
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
         let response = build_app()
             .oneshot(
                 Request::builder()
@@ -33507,15 +31729,23 @@ exit 1\n"
         let json: serde_json::Value =
             serde_json::from_slice(&body).expect("parse auth config response");
 
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
 
         assert_eq!(json["data"]["mode"], "builtin-local");
         assert_eq!(json["data"]["integrationKind"], "builtin-local");
         assert_eq!(
             json["data"]["loginMethods"],
-            serde_json::json!(["password", "emailCode", "phoneCode"])
+            serde_json::json!(["password", "emailCode"])
+        );
+        assert_eq!(
+            json["data"]["loginMethods"]
+                .as_array()
+                .expect("login methods array")
+                .iter()
+                .any(|method| method == "phoneCode"),
+            false
         );
         assert_eq!(
             json["data"]["registerMethods"],
@@ -33540,11 +31770,11 @@ exit 1\n"
         let sqlite_path = write_empty_sqlite_provider_authority_fixture(
             "birdcoder-coding-server-auth-login.sqlite3",
         );
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
         let request_body = serde_json::json!({
-            "email": "local-default@sdkwork-birdcoder.local",
+            "email": "local-default@sdkwork-user-center.local",
             "password": "dev123456"
         });
 
@@ -33562,9 +31792,9 @@ exit 1\n"
             .expect("serve auth login request");
 
         fs::remove_file(sqlite_path).expect("remove auth login sqlite fixture");
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
 
         assert_eq!(response.status(), StatusCode::OK);
 
@@ -33577,7 +31807,7 @@ exit 1\n"
         assert_eq!(json["data"]["providerMode"], "builtin-local");
         assert_eq!(
             json["data"]["user"]["email"],
-            "local-default@sdkwork-birdcoder.local"
+            "local-default@sdkwork-user-center.local"
         );
     }
 
@@ -33588,11 +31818,11 @@ exit 1\n"
         let sqlite_path = write_empty_sqlite_provider_authority_fixture(
             "birdcoder-coding-server-membership-long-integer.sqlite3",
         );
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
         let login_request = serde_json::json!({
-            "email": "local-default@sdkwork-birdcoder.local",
+            "email": "local-default@sdkwork-user-center.local",
             "password": "dev123456"
         });
         let app = build_app_from_sqlite_file(&sqlite_path).expect("load membership sqlite app");
@@ -33612,7 +31842,7 @@ exit 1\n"
         assert_eq!(login_response.status(), StatusCode::OK);
         let session_header = login_response
             .headers()
-            .get(BIRDCODER_SESSION_HEADER_NAME)
+            .get(USER_CENTER_SESSION_HEADER_NAME)
             .cloned()
             .expect("login response session header");
 
@@ -33625,9 +31855,9 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("PATCH")
-                    .uri(USER_CENTER_VIP_INFO_PATH)
+                    .uri(USER_CENTER_BILLING_VIP_MEMBERSHIP_PATH)
                     .header("content-type", "application/json")
-                    .header(BIRDCODER_SESSION_HEADER_NAME, session_header)
+                    .header(USER_CENTER_SESSION_HEADER_NAME, session_header)
                     .body(Body::from(membership_request.to_string()))
                     .expect("build membership update request"),
             )
@@ -33642,9 +31872,9 @@ exit 1\n"
             serde_json::from_slice(&body).expect("parse membership update response");
 
         fs::remove_file(sqlite_path).expect("remove membership sqlite fixture");
-        std::env::remove_var("BIRDCODER_USER_CENTER_LOGIN_PROVIDER");
-        std::env::remove_var("BIRDCODER_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("BIRDCODER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
+        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
 
         assert_eq!(json["data"]["pointBalance"], "101777208078558104");
         assert_eq!(json["data"]["totalRechargedPoints"], "101777208078558105");
@@ -33664,7 +31894,7 @@ exit 1\n"
             .expect("load config app")
             .oneshot(
                 Request::builder()
-                    .uri("/api/core/v1/operations/provider-turn:operation")
+                    .uri("/app/v3/api/operations/provider-turn:operation")
                     .body(Body::empty())
                     .expect("build request"),
             )
@@ -33758,13 +31988,6 @@ exit 1\n"
             CODING_SERVER_OPENAPI_ROUTE_SPECS.len()
         );
         assert_eq!(
-            json["x-sdkwork-api-gateway"]["routesBySurface"]["core"],
-            CODING_SERVER_OPENAPI_ROUTE_SPECS
-                .iter()
-                .filter(|spec| spec.tag == "core")
-                .count()
-        );
-        assert_eq!(
             json["x-sdkwork-api-gateway"]["routesBySurface"]["app"],
             CODING_SERVER_OPENAPI_ROUTE_SPECS
                 .iter()
@@ -33772,75 +31995,75 @@ exit 1\n"
                 .count()
         );
         assert_eq!(
-            json["x-sdkwork-api-gateway"]["routesBySurface"]["admin"],
+            json["x-sdkwork-api-gateway"]["routesBySurface"]["backend"],
             CODING_SERVER_OPENAPI_ROUTE_SPECS
                 .iter()
-                .filter(|spec| spec.tag == "admin")
+                .filter(|spec| spec.tag == "backend")
                 .count()
         );
         assert_eq!(
-            json["paths"]["/api/core/v1/native-session-providers"]["get"]["operationId"],
-            "core.listNativeSessionProviders"
+            json["paths"]["/app/v3/api/native_session_providers"]["get"]["operationId"],
+            "nativeSessionProviders.list"
         );
         assert_eq!(
-            json["paths"]["/api/core/v1/coding-sessions"]["get"]["operationId"],
-            "core.listCodingSessions"
+            json["paths"]["/app/v3/api/coding_sessions"]["get"]["operationId"],
+            "codingSessions.list"
         );
         assert_eq!(
-            json["paths"]["/api/core/v1/routes"]["get"]["operationId"],
-            "core.listRoutes"
+            json["paths"]["/app/v3/api/system/routes"]["get"]["operationId"],
+            "routes.list"
         );
         assert_eq!(
-            json["paths"]["/api/app/v1/projects/{projectId}/git/branches"]["post"]["operationId"],
-            "app.createProjectGitBranch"
+            json["paths"]["/app/v3/api/projects/{projectId}/git/branches"]["post"]["operationId"],
+            "projects.git.branches.create"
         );
         assert_eq!(
-            json["paths"]["/api/app/v1/projects/{projectId}/git/branch-switch"]["post"]
+            json["paths"]["/app/v3/api/projects/{projectId}/git/branch_switch"]["post"]
                 ["operationId"],
-            "app.switchProjectGitBranch"
+            "projects.git.branchSwitch.create"
         );
         assert_eq!(
-            json["paths"]["/api/app/v1/projects/{projectId}/git/commits"]["post"]["operationId"],
-            "app.commitProjectGitChanges"
+            json["paths"]["/app/v3/api/projects/{projectId}/git/commits"]["post"]["operationId"],
+            "projects.git.commits.create"
         );
         assert_eq!(
-            json["paths"]["/api/app/v1/projects/{projectId}/git/pushes"]["post"]["operationId"],
-            "app.pushProjectGitBranch"
+            json["paths"]["/app/v3/api/projects/{projectId}/git/pushes"]["post"]["operationId"],
+            "projects.git.pushes.create"
         );
         assert_eq!(
-            json["paths"]["/api/app/v1/projects/{projectId}/git/worktrees"]["post"]["operationId"],
-            "app.createProjectGitWorktree"
+            json["paths"]["/app/v3/api/projects/{projectId}/git/worktrees"]["post"]["operationId"],
+            "projects.git.worktrees.create"
         );
         assert_eq!(
-            json["paths"]["/api/app/v1/projects/{projectId}/git/worktree-removals"]["post"]
+            json["paths"]["/app/v3/api/projects/{projectId}/git/worktree_removals"]["post"]
                 ["operationId"],
-            "app.removeProjectGitWorktree"
+            "projects.git.worktreeRemovals.create"
         );
         assert_eq!(
-            json["paths"]["/api/app/v1/projects/{projectId}/git/worktree-prune"]["post"]
+            json["paths"]["/app/v3/api/projects/{projectId}/git/worktree_prune"]["post"]
                 ["operationId"],
-            "app.pruneProjectGitWorktrees"
+            "projects.git.worktreePrune.create"
         );
         assert_eq!(
-            json["paths"]["/api/core/v1/coding-sessions/{id}/events"]["get"]["operationId"],
-            "core.listCodingSessionEvents"
+            json["paths"]["/app/v3/api/coding_sessions/{id}/events"]["get"]["operationId"],
+            "codingSessions.events.list"
         );
         assert_eq!(
-            json["paths"]["/api/app/v1/workspaces"]["get"]["operationId"],
-            "app.listWorkspaces"
+            json["paths"]["/app/v3/api/workspaces"]["get"]["operationId"],
+            "workspaces.list"
         );
         assert_eq!(
-            json["paths"]["/api/admin/v1/teams/{teamId}/members"]["get"]["operationId"],
-            "admin.listTeamMembers"
+            json["paths"]["/backend/v3/api/iam/teams/{teamId}/members"]["get"]["operationId"],
+            "teamGovernance.members.list"
         );
         assert_eq!(
-            json["paths"]["/api/admin/v1/projects/{projectId}/deployment-targets"]["get"]
+            json["paths"]["/backend/v3/api/projects/{projectId}/deployment_targets"]["get"]
                 ["operationId"],
-            "admin.listDeploymentTargets"
+            "projects.deploymentTargets.list"
         );
         assert_eq!(
-            json["paths"]["/api/admin/v1/releases"]["get"]["operationId"],
-            "admin.listReleases"
+            json["paths"]["/backend/v3/api/releases"]["get"]["operationId"],
+            "releases.list"
         );
     }
 
@@ -33870,7 +32093,8 @@ exit 1\n"
         assert_eq!(html.contains(CODING_SERVER_LIVE_OPENAPI_PATH), true);
         assert_eq!(html.contains(CODING_SERVER_OPENAPI_PATH), true);
         assert_eq!(html.contains(CODING_SERVER_ROUTE_CATALOG_PATH), true);
-        assert_eq!(html.contains(CODING_SERVER_GATEWAY_BASE_PATH), true);
+        assert_eq!(html.contains(CODING_SERVER_APP_API_PREFIX), true);
+        assert_eq!(html.contains(CODING_SERVER_BACKEND_API_PREFIX), true);
     }
 
     #[tokio::test]
@@ -33894,7 +32118,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("OPTIONS")
-                    .uri("/api/core/v1/model-config")
+                    .uri("/app/v3/api/model_config")
                     .header("origin", "http://127.0.0.1:1520")
                     .header("access-control-request-method", "PUT")
                     .header(
@@ -33902,8 +32126,8 @@ exit 1\n"
                         [
                             header::CONTENT_TYPE.as_str(),
                             header::AUTHORIZATION.as_str(),
-                            BIRDCODER_SESSION_HEADER_NAME,
-                            "access-token",
+                            USER_CENTER_SESSION_HEADER_NAME,
+                            USER_CENTER_ACCESS_TOKEN_HEADER_NAME,
                             "refresh-token",
                             USER_CENTER_APP_ID_HEADER_NAME,
                             USER_CENTER_PROVIDER_KEY_HEADER_NAME,
@@ -33942,7 +32166,7 @@ exit 1\n"
             .to_ascii_uppercase();
         assert!(
             allowed_methods.contains("PUT"),
-            "preflight responses must allow PUT so browser-hosted local clients can sync /api/core/v1/model-config.",
+            "preflight responses must allow PUT so browser-hosted local clients can sync /app/v3/api/model_config.",
         );
         let allowed_headers = response
             .headers()
@@ -33953,8 +32177,8 @@ exit 1\n"
         for expected_header in [
             header::CONTENT_TYPE.as_str(),
             header::AUTHORIZATION.as_str(),
-            BIRDCODER_SESSION_HEADER_NAME,
-            "access-token",
+            USER_CENTER_SESSION_HEADER_NAME,
+            USER_CENTER_ACCESS_TOKEN_HEADER_NAME,
             "refresh-token",
             USER_CENTER_APP_ID_HEADER_NAME,
             USER_CENTER_PROVIDER_KEY_HEADER_NAME,
@@ -33963,8 +32187,9 @@ exit 1\n"
             USER_CENTER_SIGNATURE_HEADER_NAME,
             USER_CENTER_SIGNED_AT_HEADER_NAME,
         ] {
+            let expected_header = expected_header.to_ascii_lowercase();
             assert!(
-                allowed_headers.contains(expected_header),
+                allowed_headers.contains(&expected_header),
                 "preflight responses must allow user-center app API header {expected_header} used by browser-hosted local clients.",
             );
         }

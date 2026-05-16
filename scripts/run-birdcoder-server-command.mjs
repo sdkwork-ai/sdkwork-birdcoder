@@ -6,10 +6,10 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import {
-  parseBirdcoderIdentityCliOptions,
+  parseBirdcoderIamCliOptions,
   resolveBirdcoderCommandEnv,
 } from './birdcoder-command-options.mjs';
-import { resolveBirdcoderIdentityCommandEnv } from './birdcoder-identity-env.mjs';
+import { resolveBirdcoderIamCommandEnv } from './birdcoder-iam-env.mjs';
 import { createWorkspacePackageScriptPlan } from './run-workspace-package-script.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -37,39 +37,39 @@ function parseArgs(argv = []) {
   }
 
   const {
-    identityMode,
+    iamMode,
     userCenterProvider,
-  } = parseBirdcoderIdentityCliOptions(tokens, {
+  } = parseBirdcoderIamCliOptions(tokens, {
     commandName: 'run-birdcoder-server-command',
   });
 
   return {
     action,
-    identityMode,
+    iamMode,
     userCenterProvider,
   };
 }
 
 function runBirdcoderServerCommand() {
-  const { action, identityMode, userCenterProvider } = parseArgs(process.argv.slice(2));
+  const { action, iamMode, userCenterProvider } = parseArgs(process.argv.slice(2));
   const actionConfig = SERVER_ACTIONS[action];
   const commandEnv = resolveBirdcoderCommandEnv({
     env: process.env,
     userCenterProvider,
   });
-  const resolvedIdentity = resolveBirdcoderIdentityCommandEnv({
+  const resolvedIam = resolveBirdcoderIamCommandEnv({
     env: commandEnv,
-    identityMode,
+    iamMode,
     target: actionConfig.target,
     viteMode: actionConfig.viteMode,
   });
 
-  if (resolvedIdentity.errors.length > 0) {
-    throw new Error(resolvedIdentity.errors.join('\n'));
+  if (resolvedIam.errors.length > 0) {
+    throw new Error(resolvedIam.errors.join('\n'));
   }
 
   const plan = createWorkspacePackageScriptPlan({
-    env: resolvedIdentity.env,
+    env: resolvedIam.env,
     packageDir: 'packages/sdkwork-birdcoder-server',
     scriptName: actionConfig.scriptName,
   });

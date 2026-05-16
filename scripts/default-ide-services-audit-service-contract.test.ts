@@ -1,10 +1,10 @@
+import type { BirdCoderBackendSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
   BirdCoderAdminAuditEventSummary,
-  BirdCoderAppAdminApiClient,
 } from '@sdkwork/birdcoder-types';
 import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
-import { createAppAdminClientContractStub } from './app-admin-client-contract-stub.ts';
+import { createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
 
 const auditFixtures: BirdCoderAdminAuditEventSummary[] = [
   {
@@ -22,7 +22,7 @@ const auditFixtures: BirdCoderAdminAuditEventSummary[] = [
 
 let listAuditEventsCalls = 0;
 
-const appAdminClient: BirdCoderAppAdminApiClient = createAppAdminClientContractStub({
+const backendClient: BirdCoderBackendSdkApiClient = createBackendSdkClientContractStub({
   async listAuditEvents() {
     listAuditEventsCalls += 1;
     return auditFixtures;
@@ -30,7 +30,7 @@ const appAdminClient: BirdCoderAppAdminApiClient = createAppAdminClientContractS
 });
 
 const services = createDefaultBirdCoderIdeServices({
-  appAdminClient,
+  backendClient,
 });
 
 const auditEvents = await services.auditService.getAuditEvents();
@@ -38,13 +38,13 @@ const auditEvents = await services.auditService.getAuditEvents();
 assert.deepEqual(
   auditEvents,
   auditFixtures,
-  'default IDE services must expose audit reads through the shared app/admin facade.',
+  'default IDE services must expose audit reads through the backend SDK client.',
 );
 
 assert.equal(
   listAuditEventsCalls,
   1,
-  'auditService must delegate exactly one read to BirdCoderAppAdminApiClient.listAuditEvents().',
+  'auditService must delegate exactly one read to BirdCoderBackendSdkApiClient.listAuditEvents().',
 );
 
 console.log('default IDE services audit service contract passed.');

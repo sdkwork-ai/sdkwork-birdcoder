@@ -1,9 +1,12 @@
+import type {
+  BirdCoderAppRuntimeReadSdkApiClient,
+  BirdCoderAppRuntimeWriteSdkApiClient,
+  BirdCoderAppSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSessionSummary,
-  BirdCoderCoreReadApiClient,
-  BirdCoderCoreWriteApiClient,
 } from '@sdkwork/birdcoder-types';
 import {
   TEST_CODE_ENGINE_MODEL_CONFIG,
@@ -19,11 +22,15 @@ const consoleRepositoryModulePath = new URL(
   import.meta.url,
 );
 const consoleQueriesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminConsoleQueries.ts',
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts',
   import.meta.url,
 );
-const appAdminApiClientModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
+const appSdkTransportModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/appSdkTransport.ts',
+  import.meta.url,
+);
+const sdkClientsModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts',
   import.meta.url,
 );
 const typesEntryModulePath = new URL(
@@ -70,14 +77,14 @@ try {
   const { createBirdCoderConsoleRepositories } = await import(
     `${consoleRepositoryModulePath.href}?t=${Date.now()}`
   );
-  const { createBirdCoderAppAdminConsoleQueries } = await import(
+  const { createBirdCoderConsoleQueries } = await import(
     `${consoleQueriesModulePath.href}?t=${Date.now()}`
   );
   const {
-    createBirdCoderInProcessAppAdminApiTransport,
-  } = await import(`${appAdminApiClientModulePath.href}?t=${Date.now()}`);
-  const { createBirdCoderGeneratedAppAdminApiClient } = await import(
-    `${typesEntryModulePath.href}?t=${Date.now()}`
+    createBirdCoderInProcessAppSdkTransport,
+  } = await import(`${appSdkTransportModulePath.href}?t=${Date.now()}`);
+  const { createBirdCoderAppSdkApiClient } = await import(
+    `${sdkClientsModulePath.href}?t=${Date.now()}`
   );
   const { createDefaultBirdCoderIdeServices } = await import(
     `${defaultServicesModulePath.href}?t=${Date.now()}`
@@ -91,7 +98,7 @@ try {
     providerId: provider.providerId,
     storage: provider,
   });
-  const queries = createBirdCoderAppAdminConsoleQueries({ repositories });
+  const queries = createBirdCoderConsoleQueries({ repositories });
 
   await Promise.all([
     repositories.workspaces.clear(),
@@ -101,8 +108,8 @@ try {
     repositories.releases.clear(),
   ]);
 
-  const appAdminClient = createBirdCoderGeneratedAppAdminApiClient({
-    transport: createBirdCoderInProcessAppAdminApiTransport({
+  const appClient = createBirdCoderAppSdkApiClient({
+    transport: createBirdCoderInProcessAppSdkTransport({
       queries,
     }),
   });
@@ -112,7 +119,7 @@ try {
   let sessionCounter = 0;
   let turnCounter = 0;
 
-  const coreWriteClient: BirdCoderCoreWriteApiClient = {
+  const codingRuntimeWriteClient: BirdCoderAppRuntimeWriteSdkApiClient = {
     async createCodingSession(request) {
       if (!request.engineId || !request.modelId) {
         throw new Error('expected explicit engineId and modelId');
@@ -240,7 +247,7 @@ try {
     },
   };
 
-  const coreReadClient: BirdCoderCoreReadApiClient = {
+  const codingRuntimeReadClient: BirdCoderAppRuntimeReadSdkApiClient = {
     async getCodingSession(codingSessionId) {
       const session = authoritativeSessions.get(codingSessionId);
       if (!session) {
@@ -299,9 +306,11 @@ try {
   };
 
   const services = createDefaultBirdCoderIdeServices({
-    appAdminClient,
-    coreReadClient,
-    coreWriteClient,
+    appClient,
+    appRuntimeClient: {
+      ...codingRuntimeReadClient,
+      ...codingRuntimeWriteClient,
+    },
     storageProvider: provider,
   });
   const createdWorkspace = await services.workspaceService.createWorkspace(
@@ -333,9 +342,11 @@ try {
   );
 
   const reloadedServices = createDefaultBirdCoderIdeServices({
-    appAdminClient,
-    coreReadClient,
-    coreWriteClient,
+    appClient,
+    appRuntimeClient: {
+      ...codingRuntimeReadClient,
+      ...codingRuntimeWriteClient,
+    },
     storageProvider: provider,
   });
   const reloadedProjects = await reloadedServices.projectService.getProjects(createdWorkspace.id);

@@ -178,8 +178,14 @@ for (const { label, path } of rustSources) {
     );
   }
 
-  const teamBodies = collectCreateTableBodies(rustSource, 'teams');
-  assert(teamBodies.length > 0, `${label} rust source must declare teams table.`);
+  assert.doesNotMatch(
+    rustSource,
+    /CREATE TABLE(?: IF NOT EXISTS)? (?:teams|team_members|workspace_members|project_collaborators)\b/u,
+    `${label} rust source must not declare retired non-standard collaboration table names.`,
+  );
+
+  const teamBodies = collectCreateTableBodies(rustSource, 'studio_team');
+  assert(teamBodies.length > 0, `${label} rust source must declare studio_team table.`);
   for (const body of teamBodies) {
     for (const fieldName of [
       'id',
@@ -200,12 +206,16 @@ for (const { label, path } of rustSources) {
       assert.match(
         body,
         new RegExp(`\\b${escapeRegExp(fieldName)}\\b`),
-        `${label} teams schema must include "${fieldName}".`,
+        `${label} studio_team schema must include "${fieldName}".`,
       );
     }
   }
 
-  for (const tableName of ['team_members', 'workspace_members', 'project_collaborators']) {
+  for (const tableName of [
+    'studio_team_member',
+    'studio_workspace_member',
+    'studio_project_collaborator',
+  ]) {
     const bodies = collectCreateTableBodies(rustSource, tableName);
     assert(bodies.length > 0, `${label} rust source must declare ${tableName} table.`);
     for (const body of bodies) {

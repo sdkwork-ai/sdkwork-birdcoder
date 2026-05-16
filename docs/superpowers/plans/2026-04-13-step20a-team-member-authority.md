@@ -16,7 +16,7 @@
 - Modify: `packages/sdkwork-birdcoder-types/src/server-api.ts`
 - Modify: `packages/sdkwork-birdcoder-server/src/index.ts`
 - Test: `scripts/coding-server-route-contract.test.ts`
-- Test: `scripts/generated-app-admin-client-facade-contract.test.ts`
+- Test: `scripts/generated-app/backend-client-facade-contract.test.ts`
 
 - [ ] **Step 1: Write the failing route and facade tests**
 
@@ -32,7 +32,7 @@ assert.equal(members[0]?.teamId, 'team-generated-facade');
 
 Run:
 `node scripts/coding-server-route-contract.test.ts`
-`node --experimental-strip-types scripts/generated-app-admin-client-facade-contract.test.ts`
+`node --experimental-strip-types scripts/generated-app/backend-client-facade-contract.test.ts`
 
 Expected:
 - route contract fails because `teamMembers` is missing
@@ -43,7 +43,7 @@ Expected:
 Update shared types and route contracts:
 
 ```ts
-export interface BirdCoderAppAdminApiClient {
+export interface BirdCoderSplitSdkApiClients {
   listTeamMembers(teamId: string): Promise<BirdCoderTeamMemberSummary[]>;
 }
 
@@ -68,7 +68,7 @@ teamMembers: createRoute(
 
 Run:
 `node scripts/coding-server-route-contract.test.ts`
-`node --experimental-strip-types scripts/generated-app-admin-client-facade-contract.test.ts`
+`node --experimental-strip-types scripts/generated-app/backend-client-facade-contract.test.ts`
 
 Expected:
 - both tests PASS
@@ -77,7 +77,7 @@ Expected:
 
 **Files:**
 - Modify: `packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts`
-- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/appAdminConsoleQueries.ts`
+- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts`
 - Test: `scripts/provider-backed-console-contract.test.ts`
 
 - [ ] **Step 1: Write the failing repository or query test**
@@ -111,8 +111,8 @@ Expected:
 
 Add:
 - `BirdCoderRepresentativeTeamMemberRecord`
-- `members` repository in `createBirdCoderRepresentativeAppAdminRepositories()`
-- `listTeamMembers({ teamId })` query in `createBirdCoderAppAdminConsoleQueries()`
+- `members` repository in `createBirdCoderConsoleRepositories()`
+- `listTeamMembers({ teamId })` query in `createBirdCoderConsoleQueries()`
 
 Keep scope minimal:
 
@@ -135,10 +135,10 @@ Expected:
 
 **Files:**
 - Modify: `packages/sdkwork-birdcoder-types/src/server-api.ts`
-- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/appAdminConsoleQueries.ts`
-- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts`
-- Test: `scripts/generated-app-admin-client-facade-contract.test.ts`
-- Test: `scripts/app-admin-sdk-consumer-contract.test.ts`
+- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts`
+- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts`
+- Test: `scripts/generated-app/backend-client-facade-contract.test.ts`
+- Test: `scripts/app/backend-sdk-consumer-contract.test.ts`
 
 - [ ] **Step 1: Write the failing transport and consumer tests**
 
@@ -161,8 +161,8 @@ assert.equal(members[0]?.role, 'admin');
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run:
-`node --experimental-strip-types scripts/generated-app-admin-client-facade-contract.test.ts`
-`node --experimental-strip-types scripts/app-admin-sdk-consumer-contract.test.ts`
+`node --experimental-strip-types scripts/generated-app/backend-client-facade-contract.test.ts`
+`node --experimental-strip-types scripts/app/backend-sdk-consumer-contract.test.ts`
 
 Expected:
 - FAIL because no transport mapping or facade method exists yet
@@ -190,8 +190,8 @@ case `/api/admin/v1/teams/${teamId}/members`:
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run:
-`node --experimental-strip-types scripts/generated-app-admin-client-facade-contract.test.ts`
-`node --experimental-strip-types scripts/app-admin-sdk-consumer-contract.test.ts`
+`node --experimental-strip-types scripts/generated-app/backend-client-facade-contract.test.ts`
+`node --experimental-strip-types scripts/app/backend-sdk-consumer-contract.test.ts`
 
 Expected:
 - PASS
@@ -279,8 +279,8 @@ Capture:
 
 Run:
 `node scripts/coding-server-route-contract.test.ts`
-`node --experimental-strip-types scripts/generated-app-admin-client-facade-contract.test.ts`
-`node --experimental-strip-types scripts/app-admin-sdk-consumer-contract.test.ts`
+`node --experimental-strip-types scripts/generated-app/backend-client-facade-contract.test.ts`
+`node --experimental-strip-types scripts/app/backend-sdk-consumer-contract.test.ts`
 `node --experimental-strip-types scripts/provider-backed-console-contract.test.ts`
 `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
 `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`

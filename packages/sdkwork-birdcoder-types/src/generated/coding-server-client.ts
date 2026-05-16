@@ -7,739 +7,723 @@ import type {
 } from '../server-api.ts';
 
 export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
-  "admin.listAuditEvents":     {
-      "method": "GET",
-      "operationId": "admin.listAuditEvents",
-      "path": "/api/admin/v1/audit",
-      "pathParamNames": [],
-      "summary": "List audit events",
-      "surface": "admin"
-    },
-  "admin.listDeployments":     {
-      "method": "GET",
-      "operationId": "admin.listDeployments",
-      "path": "/api/admin/v1/deployments",
-      "pathParamNames": [],
-      "summary": "List governed deployments",
-      "surface": "admin"
-    },
-  "admin.listDeploymentTargets":     {
-      "method": "GET",
-      "operationId": "admin.listDeploymentTargets",
-      "path": "/api/admin/v1/projects/{projectId}/deployment-targets",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "List deployment targets",
-      "surface": "admin"
-    },
-  "admin.listPolicies":     {
-      "method": "GET",
-      "operationId": "admin.listPolicies",
-      "path": "/api/admin/v1/policies",
-      "pathParamNames": [],
-      "summary": "List governance policies",
-      "surface": "admin"
-    },
-  "admin.listReleases":     {
-      "method": "GET",
-      "operationId": "admin.listReleases",
-      "path": "/api/admin/v1/releases",
-      "pathParamNames": [],
-      "summary": "List releases",
-      "surface": "admin"
-    },
-  "admin.listTeamMembers":     {
-      "method": "GET",
-      "operationId": "admin.listTeamMembers",
-      "path": "/api/admin/v1/teams/{teamId}/members",
-      "pathParamNames": [
-        "teamId"
-      ],
-      "summary": "List team members",
-      "surface": "admin"
-    },
-  "admin.listTeams":     {
-      "method": "GET",
-      "operationId": "admin.listTeams",
-      "path": "/api/admin/v1/teams",
-      "pathParamNames": [],
-      "summary": "List teams",
-      "surface": "admin"
-    },
-  "app.checkLoginQrCodeStatus":     {
-      "method": "GET",
-      "operationId": "app.checkLoginQrCodeStatus",
-      "path": "/api/app/v1/auth/qr/status/{qrKey}",
-      "pathParamNames": [
-        "qrKey"
-      ],
-      "summary": "Check user center login QR code status",
-      "surface": "app"
-    },
-  "app.commitProjectGitChanges":     {
+  "approvals.decisions.create":     {
       "method": "POST",
-      "operationId": "app.commitProjectGitChanges",
-      "path": "/api/app/v1/projects/{projectId}/git/commits",
+      "operationId": "approvals.decisions.create",
+      "path": "/app/v3/api/approvals/{approvalId}/decision",
       "pathParamNames": [
-        "projectId"
+        "approvalId"
       ],
-      "summary": "Commit project Git changes",
+      "summary": "Submit approval decision",
       "surface": "app"
     },
-  "app.createProject":     {
-      "method": "POST",
-      "operationId": "app.createProject",
-      "path": "/api/app/v1/projects",
-      "pathParamNames": [],
-      "summary": "Create project",
-      "surface": "app"
-    },
-  "app.createProjectGitBranch":     {
-      "method": "POST",
-      "operationId": "app.createProjectGitBranch",
-      "path": "/api/app/v1/projects/{projectId}/git/branches",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "Create project Git branch",
-      "surface": "app"
-    },
-  "app.createProjectGitWorktree":     {
-      "method": "POST",
-      "operationId": "app.createProjectGitWorktree",
-      "path": "/api/app/v1/projects/{projectId}/git/worktrees",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "Create project Git worktree",
-      "surface": "app"
-    },
-  "app.createWorkspace":     {
-      "method": "POST",
-      "operationId": "app.createWorkspace",
-      "path": "/api/app/v1/workspaces",
-      "pathParamNames": [],
-      "summary": "Create workspace",
-      "surface": "app"
-    },
-  "app.deleteProject":     {
-      "method": "DELETE",
-      "operationId": "app.deleteProject",
-      "path": "/api/app/v1/projects/{projectId}",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "Delete project",
-      "surface": "app"
-    },
-  "app.deleteWorkspace":     {
-      "method": "DELETE",
-      "operationId": "app.deleteWorkspace",
-      "path": "/api/app/v1/workspaces/{workspaceId}",
-      "pathParamNames": [
-        "workspaceId"
-      ],
-      "summary": "Delete workspace",
-      "surface": "app"
-    },
-  "app.exchangeUserCenterSession":     {
-      "method": "POST",
-      "operationId": "app.exchangeUserCenterSession",
-      "path": "/api/app/v1/auth/session/exchange",
-      "pathParamNames": [],
-      "summary": "Exchange an upstream or third-party session into the local AuthToken and AccessToken bundle.",
-      "surface": "app"
-    },
-  "app.generateLoginQrCode":     {
-      "method": "POST",
-      "operationId": "app.generateLoginQrCode",
-      "path": "/api/app/v1/auth/qr/generate",
-      "pathParamNames": [],
-      "summary": "Generate user center login QR code",
-      "surface": "app"
-    },
-  "app.getCurrentUserMembership":     {
+  "appTemplates.list":     {
       "method": "GET",
-      "operationId": "app.getCurrentUserMembership",
-      "path": "/api/app/v1/vip/info",
-      "pathParamNames": [],
-      "summary": "Get the current user's VIP or membership projection.",
-      "surface": "app"
-    },
-  "app.getCurrentUserProfile":     {
-      "method": "GET",
-      "operationId": "app.getCurrentUserProfile",
-      "path": "/api/app/v1/user/profile",
-      "pathParamNames": [],
-      "summary": "Get the current user's canonical profile projection.",
-      "surface": "app"
-    },
-  "app.getCurrentUserSession":     {
-      "method": "GET",
-      "operationId": "app.getCurrentUserSession",
-      "path": "/api/app/v1/auth/session",
-      "pathParamNames": [],
-      "summary": "Get the current login session snapshot for the active principal.",
-      "surface": "app"
-    },
-  "app.getOAuthAuthorizationUrl":     {
-      "method": "POST",
-      "operationId": "app.getOAuthAuthorizationUrl",
-      "path": "/api/app/v1/auth/oauth/url",
-      "pathParamNames": [],
-      "summary": "Resolve OAuth authorization URL for social sign-in",
-      "surface": "app"
-    },
-  "app.getProject":     {
-      "method": "GET",
-      "operationId": "app.getProject",
-      "path": "/api/app/v1/projects/{projectId}",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "Get project",
-      "surface": "app"
-    },
-  "app.getProjectGitOverview":     {
-      "method": "GET",
-      "operationId": "app.getProjectGitOverview",
-      "path": "/api/app/v1/projects/{projectId}/git/overview",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "Get project Git overview",
-      "surface": "app"
-    },
-  "app.getUserCenterConfig":     {
-      "method": "GET",
-      "operationId": "app.getUserCenterConfig",
-      "path": "/api/app/v1/auth/config",
-      "pathParamNames": [],
-      "summary": "Get active user-center provider metadata and login capability switches.",
-      "surface": "app"
-    },
-  "app.installSkillPackage":     {
-      "method": "POST",
-      "operationId": "app.installSkillPackage",
-      "path": "/api/app/v1/skill-packages/{packageId}/installations",
-      "pathParamNames": [
-        "packageId"
-      ],
-      "summary": "Install skill package for a scope",
-      "surface": "app"
-    },
-  "app.listAppTemplates":     {
-      "method": "GET",
-      "operationId": "app.listAppTemplates",
-      "path": "/api/app/v1/app-templates",
+      "operationId": "appTemplates.list",
+      "path": "/app/v3/api/app_templates",
       "pathParamNames": [],
       "summary": "List app templates",
       "surface": "app"
     },
-  "app.listDeployments":     {
+  "auditEvents.list":     {
       "method": "GET",
-      "operationId": "app.listDeployments",
-      "path": "/api/app/v1/deployments",
+      "operationId": "auditEvents.list",
+      "path": "/backend/v3/api/iam/audit_events",
+      "pathParamNames": [],
+      "summary": "List audit events",
+      "surface": "backend"
+    },
+  "codingSessions.artifacts.list":     {
+      "method": "GET",
+      "operationId": "codingSessions.artifacts.list",
+      "path": "/app/v3/api/coding_sessions/{id}/artifacts",
+      "pathParamNames": [
+        "id"
+      ],
+      "summary": "List coding session artifacts",
+      "surface": "app"
+    },
+  "codingSessions.checkpoints.list":     {
+      "method": "GET",
+      "operationId": "codingSessions.checkpoints.list",
+      "path": "/app/v3/api/coding_sessions/{id}/checkpoints",
+      "pathParamNames": [
+        "id"
+      ],
+      "summary": "List coding session checkpoints",
+      "surface": "app"
+    },
+  "codingSessions.create":     {
+      "method": "POST",
+      "operationId": "codingSessions.create",
+      "path": "/app/v3/api/coding_sessions",
+      "pathParamNames": [],
+      "summary": "Create coding session",
+      "surface": "app"
+    },
+  "codingSessions.delete":     {
+      "method": "DELETE",
+      "operationId": "codingSessions.delete",
+      "path": "/app/v3/api/coding_sessions/{id}",
+      "pathParamNames": [
+        "id"
+      ],
+      "summary": "Delete coding session",
+      "surface": "app"
+    },
+  "codingSessions.events.list":     {
+      "method": "GET",
+      "operationId": "codingSessions.events.list",
+      "path": "/app/v3/api/coding_sessions/{id}/events",
+      "pathParamNames": [
+        "id"
+      ],
+      "summary": "Replay or subscribe to coding session events",
+      "surface": "app"
+    },
+  "codingSessions.forks.create":     {
+      "method": "POST",
+      "operationId": "codingSessions.forks.create",
+      "path": "/app/v3/api/coding_sessions/{id}/fork",
+      "pathParamNames": [
+        "id"
+      ],
+      "summary": "Fork coding session",
+      "surface": "app"
+    },
+  "codingSessions.list":     {
+      "method": "GET",
+      "operationId": "codingSessions.list",
+      "path": "/app/v3/api/coding_sessions",
+      "pathParamNames": [],
+      "summary": "List coding sessions",
+      "surface": "app"
+    },
+  "codingSessions.messages.delete":     {
+      "method": "DELETE",
+      "operationId": "codingSessions.messages.delete",
+      "path": "/app/v3/api/coding_sessions/{id}/messages/{messageId}",
+      "pathParamNames": [
+        "id",
+        "messageId"
+      ],
+      "summary": "Delete coding session message",
+      "surface": "app"
+    },
+  "codingSessions.messages.update":     {
+      "method": "PATCH",
+      "operationId": "codingSessions.messages.update",
+      "path": "/app/v3/api/coding_sessions/{id}/messages/{messageId}",
+      "pathParamNames": [
+        "id",
+        "messageId"
+      ],
+      "summary": "Edit coding session message",
+      "surface": "app"
+    },
+  "codingSessions.retrieve":     {
+      "method": "GET",
+      "operationId": "codingSessions.retrieve",
+      "path": "/app/v3/api/coding_sessions/{id}",
+      "pathParamNames": [
+        "id"
+      ],
+      "summary": "Get coding session",
+      "surface": "app"
+    },
+  "codingSessions.turns.create":     {
+      "method": "POST",
+      "operationId": "codingSessions.turns.create",
+      "path": "/app/v3/api/coding_sessions/{id}/turns",
+      "pathParamNames": [
+        "id"
+      ],
+      "summary": "Create coding session turn",
+      "surface": "app"
+    },
+  "codingSessions.update":     {
+      "method": "PATCH",
+      "operationId": "codingSessions.update",
+      "path": "/app/v3/api/coding_sessions/{id}",
+      "pathParamNames": [
+        "id"
+      ],
+      "summary": "Update coding session",
+      "surface": "app"
+    },
+  "config.retrieve":     {
+      "method": "GET",
+      "operationId": "config.retrieve",
+      "path": "/app/v3/api/auth/config",
+      "pathParamNames": [],
+      "summary": "Get active user-center provider metadata and login capability switches.",
+      "surface": "app"
+    },
+  "deploymentGovernance.list":     {
+      "method": "GET",
+      "operationId": "deploymentGovernance.list",
+      "path": "/backend/v3/api/deployments",
+      "pathParamNames": [],
+      "summary": "List governed deployments",
+      "surface": "backend"
+    },
+  "deployments.list":     {
+      "method": "GET",
+      "operationId": "deployments.list",
+      "path": "/app/v3/api/deployments",
       "pathParamNames": [],
       "summary": "List deployments",
       "surface": "app"
     },
-  "app.listDocuments":     {
+  "descriptor.retrieve":     {
       "method": "GET",
-      "operationId": "app.listDocuments",
-      "path": "/api/app/v1/documents",
+      "operationId": "descriptor.retrieve",
+      "path": "/app/v3/api/system/descriptor",
+      "pathParamNames": [],
+      "summary": "Get coding-server descriptor",
+      "surface": "app"
+    },
+  "documents.list":     {
+      "method": "GET",
+      "operationId": "documents.list",
+      "path": "/app/v3/api/documents",
       "pathParamNames": [],
       "summary": "List project documents",
       "surface": "app"
     },
-  "app.listProjectCollaborators":     {
+  "engines.capabilities.retrieve":     {
       "method": "GET",
-      "operationId": "app.listProjectCollaborators",
-      "path": "/api/app/v1/projects/{projectId}/collaborators",
+      "operationId": "engines.capabilities.retrieve",
+      "path": "/app/v3/api/engines/{engineKey}/capabilities",
+      "pathParamNames": [
+        "engineKey"
+      ],
+      "summary": "Get runtime capabilities for one engine",
+      "surface": "app"
+    },
+  "engines.list":     {
+      "method": "GET",
+      "operationId": "engines.list",
+      "path": "/app/v3/api/engines",
+      "pathParamNames": [],
+      "summary": "List available engines",
+      "surface": "app"
+    },
+  "health.retrieve":     {
+      "method": "GET",
+      "operationId": "health.retrieve",
+      "path": "/app/v3/api/system/health",
+      "pathParamNames": [],
+      "summary": "Get coding-server health",
+      "surface": "app"
+    },
+  "modelConfig.retrieve":     {
+      "method": "GET",
+      "operationId": "modelConfig.retrieve",
+      "path": "/app/v3/api/model_config",
+      "pathParamNames": [],
+      "summary": "Get code engine model configuration",
+      "surface": "app"
+    },
+  "modelConfig.sync":     {
+      "method": "PUT",
+      "operationId": "modelConfig.sync",
+      "path": "/app/v3/api/model_config",
+      "pathParamNames": [],
+      "summary": "Sync code engine model configuration",
+      "surface": "app"
+    },
+  "models.list":     {
+      "method": "GET",
+      "operationId": "models.list",
+      "path": "/app/v3/api/models",
+      "pathParamNames": [],
+      "summary": "List model catalog",
+      "surface": "app"
+    },
+  "nativeSessionProviders.list":     {
+      "method": "GET",
+      "operationId": "nativeSessionProviders.list",
+      "path": "/app/v3/api/native_session_providers",
+      "pathParamNames": [],
+      "summary": "List registered native engine session providers",
+      "surface": "app"
+    },
+  "nativeSessions.list":     {
+      "method": "GET",
+      "operationId": "nativeSessions.list",
+      "path": "/app/v3/api/native_sessions",
+      "pathParamNames": [],
+      "summary": "List discovered native engine sessions",
+      "surface": "app"
+    },
+  "nativeSessions.retrieve":     {
+      "method": "GET",
+      "operationId": "nativeSessions.retrieve",
+      "path": "/app/v3/api/native_sessions/{id}",
+      "pathParamNames": [
+        "id"
+      ],
+      "summary": "Get discovered native engine session detail",
+      "surface": "app"
+    },
+  "oauthAuthorizationUrls.retrieve":     {
+      "method": "GET",
+      "operationId": "oauthAuthorizationUrls.retrieve",
+      "path": "/app/v3/api/auth/oauth_authorization_urls",
+      "pathParamNames": [],
+      "summary": "Resolve OAuth authorization URL for social sign-in",
+      "surface": "app"
+    },
+  "oauthSessions.create":     {
+      "method": "POST",
+      "operationId": "oauthSessions.create",
+      "path": "/app/v3/api/auth/oauth_sessions",
+      "pathParamNames": [],
+      "summary": "Create user center session with OAuth authorization code",
+      "surface": "app"
+    },
+  "operations.retrieve":     {
+      "method": "GET",
+      "operationId": "operations.retrieve",
+      "path": "/app/v3/api/operations/{operationId}",
+      "pathParamNames": [
+        "operationId"
+      ],
+      "summary": "Get operation status",
+      "surface": "app"
+    },
+  "passwordResetRequests.create":     {
+      "method": "POST",
+      "operationId": "passwordResetRequests.create",
+      "path": "/app/v3/api/auth/password_reset_requests",
+      "pathParamNames": [],
+      "summary": "Request a password-reset challenge through the configured verification channel.",
+      "surface": "app"
+    },
+  "passwordResets.create":     {
+      "method": "POST",
+      "operationId": "passwordResets.create",
+      "path": "/app/v3/api/auth/password_resets",
+      "pathParamNames": [],
+      "summary": "Reset the current account password using a verified recovery challenge.",
+      "surface": "app"
+    },
+  "policies.list":     {
+      "method": "GET",
+      "operationId": "policies.list",
+      "path": "/backend/v3/api/iam/policies",
+      "pathParamNames": [],
+      "summary": "List governance policies",
+      "surface": "backend"
+    },
+  "projects.collaborators.list":     {
+      "method": "GET",
+      "operationId": "projects.collaborators.list",
+      "path": "/app/v3/api/projects/{projectId}/collaborators",
       "pathParamNames": [
         "projectId"
       ],
       "summary": "List project collaborators",
       "surface": "app"
     },
-  "app.listProjects":     {
-      "method": "GET",
-      "operationId": "app.listProjects",
-      "path": "/api/app/v1/projects",
-      "pathParamNames": [],
-      "summary": "List projects",
-      "surface": "app"
-    },
-  "app.listSkillPackages":     {
-      "method": "GET",
-      "operationId": "app.listSkillPackages",
-      "path": "/api/app/v1/skill-packages",
-      "pathParamNames": [],
-      "summary": "List skill packages",
-      "surface": "app"
-    },
-  "app.listTeams":     {
-      "method": "GET",
-      "operationId": "app.listTeams",
-      "path": "/api/app/v1/teams",
-      "pathParamNames": [],
-      "summary": "List workspace teams",
-      "surface": "app"
-    },
-  "app.listWorkspaceMembers":     {
-      "method": "GET",
-      "operationId": "app.listWorkspaceMembers",
-      "path": "/api/app/v1/workspaces/{workspaceId}/members",
-      "pathParamNames": [
-        "workspaceId"
-      ],
-      "summary": "List workspace members",
-      "surface": "app"
-    },
-  "app.listWorkspaces":     {
-      "method": "GET",
-      "operationId": "app.listWorkspaces",
-      "path": "/api/app/v1/workspaces",
-      "pathParamNames": [],
-      "summary": "List workspaces",
-      "surface": "app"
-    },
-  "app.login":     {
+  "projects.collaborators.upsert":     {
       "method": "POST",
-      "operationId": "app.login",
-      "path": "/api/app/v1/auth/login",
-      "pathParamNames": [],
-      "summary": "Create a login session with account and password credentials.",
-      "surface": "app"
-    },
-  "app.loginWithEmailCode":     {
-      "method": "POST",
-      "operationId": "app.loginWithEmailCode",
-      "path": "/api/app/v1/auth/email/login",
-      "pathParamNames": [],
-      "summary": "Create a login session with email verification credentials.",
-      "surface": "app"
-    },
-  "app.loginWithOAuth":     {
-      "method": "POST",
-      "operationId": "app.loginWithOAuth",
-      "path": "/api/app/v1/auth/oauth/login",
-      "pathParamNames": [],
-      "summary": "Create user center session with OAuth authorization code",
-      "surface": "app"
-    },
-  "app.loginWithPhoneCode":     {
-      "method": "POST",
-      "operationId": "app.loginWithPhoneCode",
-      "path": "/api/app/v1/auth/phone/login",
-      "pathParamNames": [],
-      "summary": "Create a login session with phone verification credentials.",
-      "surface": "app"
-    },
-  "app.logout":     {
-      "method": "POST",
-      "operationId": "app.logout",
-      "path": "/api/app/v1/auth/logout",
-      "pathParamNames": [],
-      "summary": "Revoke the current user-center login session and its token shadows.",
-      "surface": "app"
-    },
-  "app.pruneProjectGitWorktrees":     {
-      "method": "POST",
-      "operationId": "app.pruneProjectGitWorktrees",
-      "path": "/api/app/v1/projects/{projectId}/git/worktree-prune",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "Prune project Git worktrees",
-      "surface": "app"
-    },
-  "app.publishProject":     {
-      "method": "POST",
-      "operationId": "app.publishProject",
-      "path": "/api/app/v1/projects/{projectId}/publish",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "Publish project release flow",
-      "surface": "app"
-    },
-  "app.pushProjectGitBranch":     {
-      "method": "POST",
-      "operationId": "app.pushProjectGitBranch",
-      "path": "/api/app/v1/projects/{projectId}/git/pushes",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "Push project Git branch",
-      "surface": "app"
-    },
-  "app.register":     {
-      "method": "POST",
-      "operationId": "app.register",
-      "path": "/api/app/v1/auth/register",
-      "pathParamNames": [],
-      "summary": "Register a local user and return the initial account projection when enabled.",
-      "surface": "app"
-    },
-  "app.removeProjectGitWorktree":     {
-      "method": "POST",
-      "operationId": "app.removeProjectGitWorktree",
-      "path": "/api/app/v1/projects/{projectId}/git/worktree-removals",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "Remove project Git worktree",
-      "surface": "app"
-    },
-  "app.requestPasswordReset":     {
-      "method": "POST",
-      "operationId": "app.requestPasswordReset",
-      "path": "/api/app/v1/auth/password/reset/request",
-      "pathParamNames": [],
-      "summary": "Request a password-reset challenge through the configured verification channel.",
-      "surface": "app"
-    },
-  "app.resetPassword":     {
-      "method": "POST",
-      "operationId": "app.resetPassword",
-      "path": "/api/app/v1/auth/password/reset",
-      "pathParamNames": [],
-      "summary": "Reset the current account password using a verified recovery challenge.",
-      "surface": "app"
-    },
-  "app.sendVerifyCode":     {
-      "method": "POST",
-      "operationId": "app.sendVerifyCode",
-      "path": "/api/app/v1/auth/verify/send",
-      "pathParamNames": [],
-      "summary": "Send a verification challenge for login, registration, or password reset.",
-      "surface": "app"
-    },
-  "app.subscribeWorkspaceRealtime":     {
-      "method": "GET",
-      "operationId": "app.subscribeWorkspaceRealtime",
-      "path": "/api/app/v1/workspaces/{workspaceId}/realtime",
-      "pathParamNames": [
-        "workspaceId"
-      ],
-      "summary": "Subscribe to workspace realtime invalidation events",
-      "surface": "app"
-    },
-  "app.switchProjectGitBranch":     {
-      "method": "POST",
-      "operationId": "app.switchProjectGitBranch",
-      "path": "/api/app/v1/projects/{projectId}/git/branch-switch",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "Switch project Git branch",
-      "surface": "app"
-    },
-  "app.updateCurrentUserMembership":     {
-      "method": "PATCH",
-      "operationId": "app.updateCurrentUserMembership",
-      "path": "/api/app/v1/vip/info",
-      "pathParamNames": [],
-      "summary": "Update the current user's VIP or membership projection for local authority mode.",
-      "surface": "app"
-    },
-  "app.updateCurrentUserProfile":     {
-      "method": "PATCH",
-      "operationId": "app.updateCurrentUserProfile",
-      "path": "/api/app/v1/user/profile",
-      "pathParamNames": [],
-      "summary": "Update the current user's canonical profile projection.",
-      "surface": "app"
-    },
-  "app.updateProject":     {
-      "method": "PATCH",
-      "operationId": "app.updateProject",
-      "path": "/api/app/v1/projects/{projectId}",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "Update project",
-      "surface": "app"
-    },
-  "app.updateWorkspace":     {
-      "method": "PATCH",
-      "operationId": "app.updateWorkspace",
-      "path": "/api/app/v1/workspaces/{workspaceId}",
-      "pathParamNames": [
-        "workspaceId"
-      ],
-      "summary": "Update workspace",
-      "surface": "app"
-    },
-  "app.upsertProjectCollaborator":     {
-      "method": "POST",
-      "operationId": "app.upsertProjectCollaborator",
-      "path": "/api/app/v1/projects/{projectId}/collaborators",
+      "operationId": "projects.collaborators.upsert",
+      "path": "/app/v3/api/projects/{projectId}/collaborators",
       "pathParamNames": [
         "projectId"
       ],
       "summary": "Upsert project collaborator",
       "surface": "app"
     },
-  "app.upsertWorkspaceMember":     {
+  "projects.create":     {
       "method": "POST",
-      "operationId": "app.upsertWorkspaceMember",
-      "path": "/api/app/v1/workspaces/{workspaceId}/members",
+      "operationId": "projects.create",
+      "path": "/app/v3/api/projects",
+      "pathParamNames": [],
+      "summary": "Create project",
+      "surface": "app"
+    },
+  "projects.delete":     {
+      "method": "DELETE",
+      "operationId": "projects.delete",
+      "path": "/app/v3/api/projects/{projectId}",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Delete project",
+      "surface": "app"
+    },
+  "projects.deploymentTargets.list":     {
+      "method": "GET",
+      "operationId": "projects.deploymentTargets.list",
+      "path": "/backend/v3/api/projects/{projectId}/deployment_targets",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "List deployment targets",
+      "surface": "backend"
+    },
+  "projects.git.branches.create":     {
+      "method": "POST",
+      "operationId": "projects.git.branches.create",
+      "path": "/app/v3/api/projects/{projectId}/git/branches",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Create project Git branch",
+      "surface": "app"
+    },
+  "projects.git.branchSwitch.create":     {
+      "method": "POST",
+      "operationId": "projects.git.branchSwitch.create",
+      "path": "/app/v3/api/projects/{projectId}/git/branch_switch",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Switch project Git branch",
+      "surface": "app"
+    },
+  "projects.git.commits.create":     {
+      "method": "POST",
+      "operationId": "projects.git.commits.create",
+      "path": "/app/v3/api/projects/{projectId}/git/commits",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Commit project Git changes",
+      "surface": "app"
+    },
+  "projects.git.overview.retrieve":     {
+      "method": "GET",
+      "operationId": "projects.git.overview.retrieve",
+      "path": "/app/v3/api/projects/{projectId}/git/overview",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Get project Git overview",
+      "surface": "app"
+    },
+  "projects.git.pushes.create":     {
+      "method": "POST",
+      "operationId": "projects.git.pushes.create",
+      "path": "/app/v3/api/projects/{projectId}/git/pushes",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Push project Git branch",
+      "surface": "app"
+    },
+  "projects.git.worktreePrune.create":     {
+      "method": "POST",
+      "operationId": "projects.git.worktreePrune.create",
+      "path": "/app/v3/api/projects/{projectId}/git/worktree_prune",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Prune project Git worktrees",
+      "surface": "app"
+    },
+  "projects.git.worktreeRemovals.create":     {
+      "method": "POST",
+      "operationId": "projects.git.worktreeRemovals.create",
+      "path": "/app/v3/api/projects/{projectId}/git/worktree_removals",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Remove project Git worktree",
+      "surface": "app"
+    },
+  "projects.git.worktrees.create":     {
+      "method": "POST",
+      "operationId": "projects.git.worktrees.create",
+      "path": "/app/v3/api/projects/{projectId}/git/worktrees",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Create project Git worktree",
+      "surface": "app"
+    },
+  "projects.list":     {
+      "method": "GET",
+      "operationId": "projects.list",
+      "path": "/app/v3/api/projects",
+      "pathParamNames": [],
+      "summary": "List projects",
+      "surface": "app"
+    },
+  "projects.publish.create":     {
+      "method": "POST",
+      "operationId": "projects.publish.create",
+      "path": "/app/v3/api/projects/{projectId}/publish",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Publish project release flow",
+      "surface": "app"
+    },
+  "projects.retrieve":     {
+      "method": "GET",
+      "operationId": "projects.retrieve",
+      "path": "/app/v3/api/projects/{projectId}",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Get project",
+      "surface": "app"
+    },
+  "projects.update":     {
+      "method": "PATCH",
+      "operationId": "projects.update",
+      "path": "/app/v3/api/projects/{projectId}",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Update project",
+      "surface": "app"
+    },
+  "qrLoginCodes.create":     {
+      "method": "POST",
+      "operationId": "qrLoginCodes.create",
+      "path": "/app/v3/api/auth/qr_login_codes",
+      "pathParamNames": [],
+      "summary": "Generate user center login QR code",
+      "surface": "app"
+    },
+  "qrLoginCodes.retrieve":     {
+      "method": "GET",
+      "operationId": "qrLoginCodes.retrieve",
+      "path": "/app/v3/api/auth/qr_login_codes/{qrKey}",
+      "pathParamNames": [
+        "qrKey"
+      ],
+      "summary": "Check user center login QR code status",
+      "surface": "app"
+    },
+  "questions.answers.create":     {
+      "method": "POST",
+      "operationId": "questions.answers.create",
+      "path": "/app/v3/api/questions/{questionId}/answer",
+      "pathParamNames": [
+        "questionId"
+      ],
+      "summary": "Submit user-question answer",
+      "surface": "app"
+    },
+  "registrations.create":     {
+      "method": "POST",
+      "operationId": "registrations.create",
+      "path": "/app/v3/api/auth/registrations",
+      "pathParamNames": [],
+      "summary": "Register a local user and return the initial account projection when enabled.",
+      "surface": "app"
+    },
+  "releases.list":     {
+      "method": "GET",
+      "operationId": "releases.list",
+      "path": "/backend/v3/api/releases",
+      "pathParamNames": [],
+      "summary": "List releases",
+      "surface": "backend"
+    },
+  "routes.list":     {
+      "method": "GET",
+      "operationId": "routes.list",
+      "path": "/app/v3/api/system/routes",
+      "pathParamNames": [],
+      "summary": "List unified API routes",
+      "surface": "app"
+    },
+  "runtime.retrieve":     {
+      "method": "GET",
+      "operationId": "runtime.retrieve",
+      "path": "/app/v3/api/system/runtime",
+      "pathParamNames": [],
+      "summary": "Get runtime metadata",
+      "surface": "app"
+    },
+  "sessionExchanges.create":     {
+      "method": "POST",
+      "operationId": "sessionExchanges.create",
+      "path": "/app/v3/api/auth/session_exchanges",
+      "pathParamNames": [],
+      "summary": "Exchange an upstream or third-party session into the local AuthToken and AccessToken bundle.",
+      "surface": "app"
+    },
+  "sessions.create":     {
+      "method": "POST",
+      "operationId": "sessions.create",
+      "path": "/app/v3/api/auth/sessions",
+      "pathParamNames": [],
+      "summary": "Create a login session with account and password credentials.",
+      "surface": "app"
+    },
+  "sessions.current.delete":     {
+      "method": "POST",
+      "operationId": "sessions.current.delete",
+      "path": "/app/v3/api/auth/sessions/current",
+      "pathParamNames": [],
+      "summary": "Revoke the current user-center login session and its token shadows.",
+      "surface": "app"
+    },
+  "sessions.current.retrieve":     {
+      "method": "GET",
+      "operationId": "sessions.current.retrieve",
+      "path": "/app/v3/api/auth/sessions/current",
+      "pathParamNames": [],
+      "summary": "Get the current login session snapshot for the active principal.",
+      "surface": "app"
+    },
+  "skillPackages.installations.create":     {
+      "method": "POST",
+      "operationId": "skillPackages.installations.create",
+      "path": "/app/v3/api/skill_packages/{packageId}/installations",
+      "pathParamNames": [
+        "packageId"
+      ],
+      "summary": "Install skill package for a scope",
+      "surface": "app"
+    },
+  "skillPackages.list":     {
+      "method": "GET",
+      "operationId": "skillPackages.list",
+      "path": "/app/v3/api/skill_packages",
+      "pathParamNames": [],
+      "summary": "List skill packages",
+      "surface": "app"
+    },
+  "teamGovernance.list":     {
+      "method": "GET",
+      "operationId": "teamGovernance.list",
+      "path": "/backend/v3/api/iam/teams",
+      "pathParamNames": [],
+      "summary": "List teams",
+      "surface": "backend"
+    },
+  "teamGovernance.members.list":     {
+      "method": "GET",
+      "operationId": "teamGovernance.members.list",
+      "path": "/backend/v3/api/iam/teams/{teamId}/members",
+      "pathParamNames": [
+        "teamId"
+      ],
+      "summary": "List team members",
+      "surface": "backend"
+    },
+  "teams.list":     {
+      "method": "GET",
+      "operationId": "teams.list",
+      "path": "/app/v3/api/teams",
+      "pathParamNames": [],
+      "summary": "List workspace teams",
+      "surface": "app"
+    },
+  "users.current.retrieve":     {
+      "method": "GET",
+      "operationId": "users.current.retrieve",
+      "path": "/app/v3/api/iam/users/current",
+      "pathParamNames": [],
+      "summary": "Get the current user's canonical profile projection.",
+      "surface": "app"
+    },
+  "users.current.update":     {
+      "method": "PATCH",
+      "operationId": "users.current.update",
+      "path": "/app/v3/api/iam/users/current",
+      "pathParamNames": [],
+      "summary": "Update the current user's canonical profile projection.",
+      "surface": "app"
+    },
+  "verificationCodes.create":     {
+      "method": "POST",
+      "operationId": "verificationCodes.create",
+      "path": "/app/v3/api/auth/verification_codes",
+      "pathParamNames": [],
+      "summary": "Send a verification challenge for login, registration, or password reset.",
+      "surface": "app"
+    },
+  "vip.info.retrieve":     {
+      "method": "GET",
+      "operationId": "vip.info.retrieve",
+      "path": "/app/v3/api/billing/vip/info",
+      "pathParamNames": [],
+      "summary": "Get the current user's VIP or membership projection.",
+      "surface": "app"
+    },
+  "vip.info.update":     {
+      "method": "PATCH",
+      "operationId": "vip.info.update",
+      "path": "/app/v3/api/billing/vip/info",
+      "pathParamNames": [],
+      "summary": "Update the current user's VIP or membership projection for local authority mode.",
+      "surface": "app"
+    },
+  "workspaces.create":     {
+      "method": "POST",
+      "operationId": "workspaces.create",
+      "path": "/app/v3/api/workspaces",
+      "pathParamNames": [],
+      "summary": "Create workspace",
+      "surface": "app"
+    },
+  "workspaces.delete":     {
+      "method": "DELETE",
+      "operationId": "workspaces.delete",
+      "path": "/app/v3/api/workspaces/{workspaceId}",
+      "pathParamNames": [
+        "workspaceId"
+      ],
+      "summary": "Delete workspace",
+      "surface": "app"
+    },
+  "workspaces.list":     {
+      "method": "GET",
+      "operationId": "workspaces.list",
+      "path": "/app/v3/api/workspaces",
+      "pathParamNames": [],
+      "summary": "List workspaces",
+      "surface": "app"
+    },
+  "workspaces.members.list":     {
+      "method": "GET",
+      "operationId": "workspaces.members.list",
+      "path": "/app/v3/api/workspaces/{workspaceId}/members",
+      "pathParamNames": [
+        "workspaceId"
+      ],
+      "summary": "List workspace members",
+      "surface": "app"
+    },
+  "workspaces.members.upsert":     {
+      "method": "POST",
+      "operationId": "workspaces.members.upsert",
+      "path": "/app/v3/api/workspaces/{workspaceId}/members",
       "pathParamNames": [
         "workspaceId"
       ],
       "summary": "Upsert workspace member",
       "surface": "app"
     },
-  "core.createCodingSession":     {
-      "method": "POST",
-      "operationId": "core.createCodingSession",
-      "path": "/api/core/v1/coding-sessions",
-      "pathParamNames": [],
-      "summary": "Create coding session",
-      "surface": "core"
-    },
-  "core.createCodingSessionTurn":     {
-      "method": "POST",
-      "operationId": "core.createCodingSessionTurn",
-      "path": "/api/core/v1/coding-sessions/{id}/turns",
+  "workspaces.realtime.subscribe":     {
+      "method": "GET",
+      "operationId": "workspaces.realtime.subscribe",
+      "path": "/app/v3/api/workspaces/{workspaceId}/realtime",
       "pathParamNames": [
-        "id"
+        "workspaceId"
       ],
-      "summary": "Create coding session turn",
-      "surface": "core"
+      "summary": "Subscribe to workspace realtime invalidation events",
+      "surface": "app"
     },
-  "core.deleteCodingSession":     {
-      "method": "DELETE",
-      "operationId": "core.deleteCodingSession",
-      "path": "/api/core/v1/coding-sessions/{id}",
-      "pathParamNames": [
-        "id"
-      ],
-      "summary": "Delete coding session",
-      "surface": "core"
-    },
-  "core.deleteCodingSessionMessage":     {
-      "method": "DELETE",
-      "operationId": "core.deleteCodingSessionMessage",
-      "path": "/api/core/v1/coding-sessions/{id}/messages/{messageId}",
-      "pathParamNames": [
-        "id",
-        "messageId"
-      ],
-      "summary": "Delete coding session message",
-      "surface": "core"
-    },
-  "core.editCodingSessionMessage":     {
+  "workspaces.update":     {
       "method": "PATCH",
-      "operationId": "core.editCodingSessionMessage",
-      "path": "/api/core/v1/coding-sessions/{id}/messages/{messageId}",
+      "operationId": "workspaces.update",
+      "path": "/app/v3/api/workspaces/{workspaceId}",
       "pathParamNames": [
-        "id",
-        "messageId"
+        "workspaceId"
       ],
-      "summary": "Edit coding session message",
-      "surface": "core"
-    },
-  "core.forkCodingSession":     {
-      "method": "POST",
-      "operationId": "core.forkCodingSession",
-      "path": "/api/core/v1/coding-sessions/{id}/fork",
-      "pathParamNames": [
-        "id"
-      ],
-      "summary": "Fork coding session",
-      "surface": "core"
-    },
-  "core.getCodingSession":     {
-      "method": "GET",
-      "operationId": "core.getCodingSession",
-      "path": "/api/core/v1/coding-sessions/{id}",
-      "pathParamNames": [
-        "id"
-      ],
-      "summary": "Get coding session",
-      "surface": "core"
-    },
-  "core.getDescriptor":     {
-      "method": "GET",
-      "operationId": "core.getDescriptor",
-      "path": "/api/core/v1/descriptor",
-      "pathParamNames": [],
-      "summary": "Get coding-server descriptor",
-      "surface": "core"
-    },
-  "core.getEngineCapabilities":     {
-      "method": "GET",
-      "operationId": "core.getEngineCapabilities",
-      "path": "/api/core/v1/engines/{engineKey}/capabilities",
-      "pathParamNames": [
-        "engineKey"
-      ],
-      "summary": "Get runtime capabilities for one engine",
-      "surface": "core"
-    },
-  "core.getHealth":     {
-      "method": "GET",
-      "operationId": "core.getHealth",
-      "path": "/api/core/v1/health",
-      "pathParamNames": [],
-      "summary": "Get coding-server health",
-      "surface": "core"
-    },
-  "core.getModelConfig":     {
-      "method": "GET",
-      "operationId": "core.getModelConfig",
-      "path": "/api/core/v1/model-config",
-      "pathParamNames": [],
-      "summary": "Get code engine model configuration",
-      "surface": "core"
-    },
-  "core.getNativeSession":     {
-      "method": "GET",
-      "operationId": "core.getNativeSession",
-      "path": "/api/core/v1/native-sessions/{id}",
-      "pathParamNames": [
-        "id"
-      ],
-      "summary": "Get discovered native engine session detail",
-      "surface": "core"
-    },
-  "core.getOperation":     {
-      "method": "GET",
-      "operationId": "core.getOperation",
-      "path": "/api/core/v1/operations/{operationId}",
-      "pathParamNames": [
-        "operationId"
-      ],
-      "summary": "Get operation status",
-      "surface": "core"
-    },
-  "core.getRuntime":     {
-      "method": "GET",
-      "operationId": "core.getRuntime",
-      "path": "/api/core/v1/runtime",
-      "pathParamNames": [],
-      "summary": "Get runtime metadata",
-      "surface": "core"
-    },
-  "core.listCodingSessionArtifacts":     {
-      "method": "GET",
-      "operationId": "core.listCodingSessionArtifacts",
-      "path": "/api/core/v1/coding-sessions/{id}/artifacts",
-      "pathParamNames": [
-        "id"
-      ],
-      "summary": "List coding session artifacts",
-      "surface": "core"
-    },
-  "core.listCodingSessionCheckpoints":     {
-      "method": "GET",
-      "operationId": "core.listCodingSessionCheckpoints",
-      "path": "/api/core/v1/coding-sessions/{id}/checkpoints",
-      "pathParamNames": [
-        "id"
-      ],
-      "summary": "List coding session checkpoints",
-      "surface": "core"
-    },
-  "core.listCodingSessionEvents":     {
-      "method": "GET",
-      "operationId": "core.listCodingSessionEvents",
-      "path": "/api/core/v1/coding-sessions/{id}/events",
-      "pathParamNames": [
-        "id"
-      ],
-      "summary": "Replay or subscribe to coding session events",
-      "surface": "core"
-    },
-  "core.listCodingSessions":     {
-      "method": "GET",
-      "operationId": "core.listCodingSessions",
-      "path": "/api/core/v1/coding-sessions",
-      "pathParamNames": [],
-      "summary": "List coding sessions",
-      "surface": "core"
-    },
-  "core.listEngines":     {
-      "method": "GET",
-      "operationId": "core.listEngines",
-      "path": "/api/core/v1/engines",
-      "pathParamNames": [],
-      "summary": "List available engines",
-      "surface": "core"
-    },
-  "core.listModels":     {
-      "method": "GET",
-      "operationId": "core.listModels",
-      "path": "/api/core/v1/models",
-      "pathParamNames": [],
-      "summary": "List model catalog",
-      "surface": "core"
-    },
-  "core.listNativeSessionProviders":     {
-      "method": "GET",
-      "operationId": "core.listNativeSessionProviders",
-      "path": "/api/core/v1/native-session-providers",
-      "pathParamNames": [],
-      "summary": "List registered native engine session providers",
-      "surface": "core"
-    },
-  "core.listNativeSessions":     {
-      "method": "GET",
-      "operationId": "core.listNativeSessions",
-      "path": "/api/core/v1/native-sessions",
-      "pathParamNames": [],
-      "summary": "List discovered native engine sessions",
-      "surface": "core"
-    },
-  "core.listRoutes":     {
-      "method": "GET",
-      "operationId": "core.listRoutes",
-      "path": "/api/core/v1/routes",
-      "pathParamNames": [],
-      "summary": "List unified API routes",
-      "surface": "core"
-    },
-  "core.submitApprovalDecision":     {
-      "method": "POST",
-      "operationId": "core.submitApprovalDecision",
-      "path": "/api/core/v1/approvals/{approvalId}/decision",
-      "pathParamNames": [
-        "approvalId"
-      ],
-      "summary": "Submit approval decision",
-      "surface": "core"
-    },
-  "core.submitUserQuestionAnswer":     {
-      "method": "POST",
-      "operationId": "core.submitUserQuestionAnswer",
-      "path": "/api/core/v1/questions/{questionId}/answer",
-      "pathParamNames": [
-        "questionId"
-      ],
-      "summary": "Submit user-question answer",
-      "surface": "core"
-    },
-  "core.syncModelConfig":     {
-      "method": "PUT",
-      "operationId": "core.syncModelConfig",
-      "path": "/api/core/v1/model-config",
-      "pathParamNames": [],
-      "summary": "Sync code engine model configuration",
-      "surface": "core"
-    },
-  "core.updateCodingSession":     {
-      "method": "PATCH",
-      "operationId": "core.updateCodingSession",
-      "path": "/api/core/v1/coding-sessions/{id}",
-      "pathParamNames": [
-        "id"
-      ],
-      "summary": "Update coding session",
-      "surface": "core"
+      "summary": "Update workspace",
+      "surface": "app"
     },
 } as const;
 
@@ -747,88 +731,86 @@ export type BirdCoderFinalizedCodingServerClientOperationId =
   keyof typeof BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS;
 
 interface BirdCoderFinalizedCodingServerClientPathParamsMap {
-  "admin.listAuditEvents": {};
-  "admin.listDeployments": {};
-  "admin.listDeploymentTargets": { projectId: string };
-  "admin.listPolicies": {};
-  "admin.listReleases": {};
-  "admin.listTeamMembers": { teamId: string };
-  "admin.listTeams": {};
-  "app.checkLoginQrCodeStatus": { qrKey: string };
-  "app.commitProjectGitChanges": { projectId: string };
-  "app.createProject": {};
-  "app.createProjectGitBranch": { projectId: string };
-  "app.createProjectGitWorktree": { projectId: string };
-  "app.createWorkspace": {};
-  "app.deleteProject": { projectId: string };
-  "app.deleteWorkspace": { workspaceId: string };
-  "app.exchangeUserCenterSession": {};
-  "app.generateLoginQrCode": {};
-  "app.getCurrentUserMembership": {};
-  "app.getCurrentUserProfile": {};
-  "app.getCurrentUserSession": {};
-  "app.getOAuthAuthorizationUrl": {};
-  "app.getProject": { projectId: string };
-  "app.getProjectGitOverview": { projectId: string };
-  "app.getUserCenterConfig": {};
-  "app.installSkillPackage": { packageId: string };
-  "app.listAppTemplates": {};
-  "app.listDeployments": {};
-  "app.listDocuments": {};
-  "app.listProjectCollaborators": { projectId: string };
-  "app.listProjects": {};
-  "app.listSkillPackages": {};
-  "app.listTeams": {};
-  "app.listWorkspaceMembers": { workspaceId: string };
-  "app.listWorkspaces": {};
-  "app.login": {};
-  "app.loginWithEmailCode": {};
-  "app.loginWithOAuth": {};
-  "app.loginWithPhoneCode": {};
-  "app.logout": {};
-  "app.pruneProjectGitWorktrees": { projectId: string };
-  "app.publishProject": { projectId: string };
-  "app.pushProjectGitBranch": { projectId: string };
-  "app.register": {};
-  "app.removeProjectGitWorktree": { projectId: string };
-  "app.requestPasswordReset": {};
-  "app.resetPassword": {};
-  "app.sendVerifyCode": {};
-  "app.subscribeWorkspaceRealtime": { workspaceId: string };
-  "app.switchProjectGitBranch": { projectId: string };
-  "app.updateCurrentUserMembership": {};
-  "app.updateCurrentUserProfile": {};
-  "app.updateProject": { projectId: string };
-  "app.updateWorkspace": { workspaceId: string };
-  "app.upsertProjectCollaborator": { projectId: string };
-  "app.upsertWorkspaceMember": { workspaceId: string };
-  "core.createCodingSession": {};
-  "core.createCodingSessionTurn": { id: string };
-  "core.deleteCodingSession": { id: string };
-  "core.deleteCodingSessionMessage": { id: string; messageId: string };
-  "core.editCodingSessionMessage": { id: string; messageId: string };
-  "core.forkCodingSession": { id: string };
-  "core.getCodingSession": { id: string };
-  "core.getDescriptor": {};
-  "core.getEngineCapabilities": { engineKey: string };
-  "core.getHealth": {};
-  "core.getModelConfig": {};
-  "core.getNativeSession": { id: string };
-  "core.getOperation": { operationId: string };
-  "core.getRuntime": {};
-  "core.listCodingSessionArtifacts": { id: string };
-  "core.listCodingSessionCheckpoints": { id: string };
-  "core.listCodingSessionEvents": { id: string };
-  "core.listCodingSessions": {};
-  "core.listEngines": {};
-  "core.listModels": {};
-  "core.listNativeSessionProviders": {};
-  "core.listNativeSessions": {};
-  "core.listRoutes": {};
-  "core.submitApprovalDecision": { approvalId: string };
-  "core.submitUserQuestionAnswer": { questionId: string };
-  "core.syncModelConfig": {};
-  "core.updateCodingSession": { id: string };
+  "approvals.decisions.create": { approvalId: string };
+  "appTemplates.list": {};
+  "auditEvents.list": {};
+  "codingSessions.artifacts.list": { id: string };
+  "codingSessions.checkpoints.list": { id: string };
+  "codingSessions.create": {};
+  "codingSessions.delete": { id: string };
+  "codingSessions.events.list": { id: string };
+  "codingSessions.forks.create": { id: string };
+  "codingSessions.list": {};
+  "codingSessions.messages.delete": { id: string; messageId: string };
+  "codingSessions.messages.update": { id: string; messageId: string };
+  "codingSessions.retrieve": { id: string };
+  "codingSessions.turns.create": { id: string };
+  "codingSessions.update": { id: string };
+  "config.retrieve": {};
+  "deploymentGovernance.list": {};
+  "deployments.list": {};
+  "descriptor.retrieve": {};
+  "documents.list": {};
+  "engines.capabilities.retrieve": { engineKey: string };
+  "engines.list": {};
+  "health.retrieve": {};
+  "modelConfig.retrieve": {};
+  "modelConfig.sync": {};
+  "models.list": {};
+  "nativeSessionProviders.list": {};
+  "nativeSessions.list": {};
+  "nativeSessions.retrieve": { id: string };
+  "oauthAuthorizationUrls.retrieve": {};
+  "oauthSessions.create": {};
+  "operations.retrieve": { operationId: string };
+  "passwordResetRequests.create": {};
+  "passwordResets.create": {};
+  "policies.list": {};
+  "projects.collaborators.list": { projectId: string };
+  "projects.collaborators.upsert": { projectId: string };
+  "projects.create": {};
+  "projects.delete": { projectId: string };
+  "projects.deploymentTargets.list": { projectId: string };
+  "projects.git.branches.create": { projectId: string };
+  "projects.git.branchSwitch.create": { projectId: string };
+  "projects.git.commits.create": { projectId: string };
+  "projects.git.overview.retrieve": { projectId: string };
+  "projects.git.pushes.create": { projectId: string };
+  "projects.git.worktreePrune.create": { projectId: string };
+  "projects.git.worktreeRemovals.create": { projectId: string };
+  "projects.git.worktrees.create": { projectId: string };
+  "projects.list": {};
+  "projects.publish.create": { projectId: string };
+  "projects.retrieve": { projectId: string };
+  "projects.update": { projectId: string };
+  "qrLoginCodes.create": {};
+  "qrLoginCodes.retrieve": { qrKey: string };
+  "questions.answers.create": { questionId: string };
+  "registrations.create": {};
+  "releases.list": {};
+  "routes.list": {};
+  "runtime.retrieve": {};
+  "sessionExchanges.create": {};
+  "sessions.create": {};
+  "sessions.current.delete": {};
+  "sessions.current.retrieve": {};
+  "skillPackages.installations.create": { packageId: string };
+  "skillPackages.list": {};
+  "teamGovernance.list": {};
+  "teamGovernance.members.list": { teamId: string };
+  "teams.list": {};
+  "users.current.retrieve": {};
+  "users.current.update": {};
+  "verificationCodes.create": {};
+  "vip.info.retrieve": {};
+  "vip.info.update": {};
+  "workspaces.create": {};
+  "workspaces.delete": { workspaceId: string };
+  "workspaces.list": {};
+  "workspaces.members.list": { workspaceId: string };
+  "workspaces.members.upsert": { workspaceId: string };
+  "workspaces.realtime.subscribe": { workspaceId: string };
+  "workspaces.update": { workspaceId: string };
 }
 
 export type BirdCoderFinalizedCodingServerClientPathParams<

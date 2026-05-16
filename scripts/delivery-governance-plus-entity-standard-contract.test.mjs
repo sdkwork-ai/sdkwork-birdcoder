@@ -293,15 +293,15 @@ for (const { label, path } of rustSources) {
 
   const tableExpectations = [
     {
-      tableName: 'project_documents',
+      tableName: 'studio_project_document',
       fields: [...commonSnakeFields, 'project_id', 'document_kind', 'title', 'slug', 'body_ref', 'status'],
     },
     {
-      tableName: 'deployment_targets',
+      tableName: 'studio_deployment_target',
       fields: [...commonSnakeFields, 'project_id', 'name', 'environment_key', 'runtime', 'status'],
     },
     {
-      tableName: 'deployment_records',
+      tableName: 'studio_deployment_record',
       fields: [
         ...commonSnakeFields,
         'project_id',
@@ -314,15 +314,15 @@ for (const { label, path } of rustSources) {
       ],
     },
     {
-      tableName: 'release_records',
+      tableName: 'ops_release_record',
       fields: [...commonSnakeFields, 'release_version', 'release_kind', 'rollout_stage', 'manifest_json', 'status'],
     },
     {
-      tableName: 'audit_events',
+      tableName: 'ops_audit_event',
       fields: [...commonSnakeFields, 'scope_type', 'scope_id', 'event_type', 'payload_json'],
     },
     {
-      tableName: 'governance_policies',
+      tableName: 'ops_governance_policy',
       fields: [
         ...commonSnakeFields,
         'scope_type',

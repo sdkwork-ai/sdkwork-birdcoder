@@ -41,13 +41,13 @@ function loadSharedRuntime(
 async function loadWorkspaceService(
   runtime: BirdCoderDefaultIdeSharedRuntime,
 ): Promise<BirdCoderDefaultIdeServices['workspaceService']> {
-  if (!runtime.hasBoundAppAdminClient) {
+  if (!runtime.hasBoundAppClient) {
     return runtime.providerBackedWorkspaceService;
   }
 
   return new ApiBackedWorkspaceService({
-    client: runtime.appAdminClient,
-    identityProvider: runtime.authService,
+    appClient: runtime.appClient,
+    currentUserProvider: runtime.authService,
     workspaceMirror: runtime.providerBackedWorkspaceService,
     writeService: runtime.providerBackedWorkspaceService,
   });
@@ -56,16 +56,15 @@ async function loadWorkspaceService(
 async function loadProjectService(
   runtime: BirdCoderDefaultIdeSharedRuntime,
 ): Promise<BirdCoderDefaultIdeServices['projectService']> {
-  if (!runtime.hasBoundAppAdminClient) {
+  if (!runtime.hasBoundAppClient) {
     return runtime.providerBackedProjectService;
   }
 
   return new ApiBackedProjectService({
-    client: runtime.appAdminClient,
+    appClient: runtime.appClient,
     codingSessionMirror: runtime.providerBackedProjectService,
-    coreReadClient: runtime.coreReadClient,
-    coreWriteClient: runtime.coreWriteClient,
-    identityProvider: runtime.authService,
+    codingRuntimeClient: runtime.appRuntimeClient,
+    currentUserProvider: runtime.authService,
     projectMirror: runtime.providerBackedProjectService,
     writeService: runtime.providerBackedProjectService,
   });
@@ -88,51 +87,52 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
     switch (serviceKey) {
       case 'adminDeploymentService': {
         return new ApiBackedAdminDeploymentService({
-          client: runtime.appAdminClient,
+          backendClient: runtime.backendClient,
         });
       }
       case 'adminPolicyService': {
         return new ApiBackedAdminPolicyService({
-          client: runtime.appAdminClient,
+          backendClient: runtime.backendClient,
         });
       }
       case 'authService':
         return runtime.authService;
       case 'auditService': {
         return new ApiBackedAuditService({
-          client: runtime.appAdminClient,
+          backendClient: runtime.backendClient,
         });
       }
       case 'catalogService': {
         return new ApiBackedCatalogService({
-          client: runtime.appAdminClient,
+          appClient: runtime.appClient,
         });
       }
       case 'collaborationService': {
         return new ApiBackedCollaborationService({
-          client: runtime.appAdminClient,
-          identityProvider: runtime.authService,
+          appClient: runtime.appClient,
+          currentUserProvider: runtime.authService,
         });
       }
       case 'coreReadService': {
         return new ApiBackedCoreReadService({
-          client: runtime.coreReadClient,
-          identityProvider: runtime.authService,
+          client: runtime.appRuntimeClient,
+          currentUserProvider: runtime.authService,
         });
       }
       case 'coreWriteService': {
         return new ApiBackedCoreWriteService({
-          client: runtime.coreWriteClient,
+          client: runtime.appRuntimeClient,
         });
       }
       case 'deploymentService': {
         return new ApiBackedDeploymentService({
-          client: runtime.appAdminClient,
+          appClient: runtime.appClient,
+          backendClient: runtime.backendClient,
         });
       }
       case 'documentService': {
         return new ApiBackedDocumentService({
-          client: runtime.appAdminClient,
+          appClient: runtime.appClient,
         });
       }
       case 'fileSystemService': {
@@ -140,7 +140,7 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
       }
       case 'gitService': {
         return new ApiBackedGitService({
-          client: runtime.appAdminClient,
+          appClient: runtime.appClient,
         });
       }
       case 'promptService':
@@ -149,13 +149,13 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
         return loadProjectService(runtime);
       case 'releaseService': {
         return new ApiBackedReleaseService({
-          client: runtime.appAdminClient,
+          backendClient: runtime.backendClient,
         });
       }
       case 'teamService': {
         return new ApiBackedTeamService({
-          client: runtime.appAdminClient,
-          identityProvider: runtime.authService,
+          appClient: runtime.appClient,
+          currentUserProvider: runtime.authService,
         });
       }
       case 'workspaceService':

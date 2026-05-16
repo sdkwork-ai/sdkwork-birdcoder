@@ -1,35 +1,41 @@
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderDeploymentRecordSummary,
   BirdCoderDeploymentTargetSummary,
   BirdCoderProjectPublishResult,
   BirdCoderPublishProjectRequest,
 } from '@sdkwork/birdcoder-types';
 import type { IDeploymentService } from '../interfaces/IDeploymentService.ts';
+import type {
+  BirdCoderAppSdkApiClient,
+  BirdCoderBackendSdkApiClient,
+} from '../sdkClients.ts';
 
 export interface ApiBackedDeploymentServiceOptions {
-  client: BirdCoderAppAdminApiClient;
+  appClient: BirdCoderAppSdkApiClient;
+  backendClient: BirdCoderBackendSdkApiClient;
 }
 
 export class ApiBackedDeploymentService implements IDeploymentService {
-  private readonly client: BirdCoderAppAdminApiClient;
+  private readonly appClient: BirdCoderAppSdkApiClient;
+  private readonly backendClient: BirdCoderBackendSdkApiClient;
 
-  constructor({ client }: ApiBackedDeploymentServiceOptions) {
-    this.client = client;
+  constructor({ appClient, backendClient }: ApiBackedDeploymentServiceOptions) {
+    this.appClient = appClient;
+    this.backendClient = backendClient;
   }
 
   async getDeployments(): Promise<BirdCoderDeploymentRecordSummary[]> {
-    return this.client.listDeployments();
+    return this.appClient.listDeployments();
   }
 
   async getDeploymentTargets(projectId: string): Promise<BirdCoderDeploymentTargetSummary[]> {
-    return this.client.listDeploymentTargets(projectId);
+    return this.backendClient.listDeploymentTargets(projectId);
   }
 
   async publishProject(
     projectId: string,
     request: BirdCoderPublishProjectRequest,
   ): Promise<BirdCoderProjectPublishResult> {
-    return this.client.publishProject(projectId, request);
+    return this.appClient.publishProject(projectId, request);
   }
 }

@@ -298,7 +298,7 @@ function normalizeDataScopeStorageValue(value: unknown): number {
   }
 
   const resolveNumericScope = (numericValue: number): number => {
-    if (numericValue >= 0 && numericValue <= 3) {
+    if (numericValue >= 0 && numericValue <= 4) {
       return numericValue;
     }
     throw new Error(`Unsupported BirdCoder data_scope value: ${String(value)}`);
@@ -312,7 +312,7 @@ function normalizeDataScopeStorageValue(value: unknown): number {
   }
 
   if (typeof value === 'bigint') {
-    if (value >= 0n && value <= 3n) {
+    if (value >= 0n && value <= 4n) {
       return Number(value);
     }
     throw new Error(`Unsupported BirdCoder data_scope value: ${String(value)}`);
@@ -328,14 +328,16 @@ function normalizeDataScopeStorageValue(value: unknown): number {
       return 0;
     case 'PRIVATE':
       return 1;
-    case 'SHARED':
+    case 'ORGANIZATION':
       return 2;
-    case 'PUBLIC':
+    case 'TENANT':
       return 3;
+    case 'PUBLIC':
+      return 4;
     default: {
       if (/^[+-]?\d+$/u.test(normalizedValue)) {
         const numericValue = BigInt(normalizedValue);
-        if (numericValue >= 0n && numericValue <= 3n) {
+        if (numericValue >= 0n && numericValue <= 4n) {
           return Number(numericValue);
         }
       }

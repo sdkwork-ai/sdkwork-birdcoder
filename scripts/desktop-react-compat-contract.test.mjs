@@ -375,6 +375,26 @@ try {
     'Desktop debug compat module must provide a default export so micromark can import debug in the browser.',
   );
 
+  const { response: debugCompatCompiledResponse, source: debugCompatCompiledSource } = await readServerProbe(
+    '/@id/__x00__sdkwork-birdcoder-desktop-debug-compiled',
+  );
+
+  assert.equal(
+    debugCompatCompiledResponse.status,
+    200,
+    `Desktop debug compat compiled chunk should transform successfully. Received ${debugCompatCompiledResponse.status} with body:\n${debugCompatCompiledSource}`,
+  );
+  assert.doesNotMatch(
+    debugCompatCompiledSource,
+    /Failed to resolve import "ms"/u,
+    'Desktop debug compat compiled chunk must not leak an unresolved ms import into the browser startup graph.',
+  );
+  assert.doesNotMatch(
+    debugCompatCompiledSource,
+    /from ['"]ms['"]/u,
+    'Desktop debug compat compiled chunk must bundle ms instead of keeping a bare dependency import.',
+  );
+
   const { response: unifiedLibIndexResponse, source: unifiedLibIndexSource } = await readServerProbe(
     toFsUrl(unifiedLibIndexEntryPath),
   );

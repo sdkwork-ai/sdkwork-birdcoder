@@ -1,6 +1,6 @@
+import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import { ApiBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts';
@@ -39,13 +39,13 @@ const userBProject = createLocalProject(
 );
 
 const client = {
-  async listProjects(): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>> {
+  async listProjects(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>> {
     throw new Error('Failed to fetch project catalog');
   },
-  async getProject(): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>> {
+  async getProject(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>> {
     throw new Error('Failed to fetch project detail');
   },
-} as unknown as BirdCoderAppAdminApiClient;
+} as unknown as BirdCoderAppSdkApiClient;
 
 const writeService = {
   async getProjects(): Promise<BirdCoderProject[]> {
@@ -75,8 +75,8 @@ const writeService = {
 } as unknown as IProjectService;
 
 const service = new ApiBackedProjectService({
-  client,
-  identityProvider: {
+  appClient: client,
+  currentUserProvider: {
     async getCurrentUser() {
       return {
         id: 'user-b',

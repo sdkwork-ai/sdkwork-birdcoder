@@ -33,7 +33,7 @@ function createConnection(connectionId: string) {
         };
       }
 
-      if (sql.startsWith('SELECT * FROM release_records')) {
+      if (sql.startsWith('SELECT * FROM ops_release_record')) {
         return {
           rowCount: 1,
           rows: [

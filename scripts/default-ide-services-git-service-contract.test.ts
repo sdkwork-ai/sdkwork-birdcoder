@@ -6,7 +6,12 @@ const sourcePath = path.resolve(
   import.meta.dirname,
   '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
 );
+const sharedSourcePath = path.resolve(
+  import.meta.dirname,
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesShared.ts',
+);
 const source = fs.readFileSync(sourcePath, 'utf8');
+const sharedSource = fs.readFileSync(sharedSourcePath, 'utf8');
 
 assert.match(
   source,
@@ -15,15 +20,15 @@ assert.match(
 );
 
 assert.match(
-  source,
+  sharedSource,
   /gitService: IGitService;/,
   'BirdCoderDefaultIdeServices must expose a dedicated gitService boundary.',
 );
 
 assert.match(
   source,
-  /gitService: new ApiBackedGitService\(\{\s*client: appAdminClient,\s*\}\),/s,
-  'defaultIdeServices must wire gitService to the authoritative generated app/admin client.',
+  /gitService: new ApiBackedGitService\(\{\s*appClient,\s*\}\),/s,
+  'defaultIdeServices must wire gitService to the authoritative generated app SDK client.',
 );
 
 console.log('default IDE services git service contract passed.');

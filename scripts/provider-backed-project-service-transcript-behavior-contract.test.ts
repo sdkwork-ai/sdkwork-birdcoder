@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 
 import { ProviderBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts';
 import { buildBirdCoderProjectContentConfigData } from '../packages/sdkwork-birdcoder-infrastructure/src/services/projectContentConfigData.ts';
-import { createBirdCoderRepresentativeAppAdminRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
+import { createBirdCoderConsoleRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
 import { createBirdCoderCodingSessionRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/codingSessionRepository.ts';
 import { createBirdCoderStorageProvider } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
 import { createBirdCoderPromptSkillTemplateEvidenceRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts';
 
 const storageProvider = createBirdCoderStorageProvider('sqlite');
-const appRepositories = createBirdCoderRepresentativeAppAdminRepositories({
+const appRepositories = createBirdCoderConsoleRepositories({
   providerId: storageProvider.providerId,
   storage: storageProvider,
 });
@@ -34,7 +34,7 @@ const project = await service.createProject('workspace-provider-contract', 'Prov
 assert.equal(
   (await appRepositories.projects.findById(project.id))?.rootPath,
   undefined,
-  'provider-backed project creation must keep plus_project free of rootPath shadows.',
+  'provider-backed project creation must keep studio_project free of rootPath shadows.',
 );
 assert.equal(
   (await evidenceRepositories.templateInstantiations.findById(
@@ -378,7 +378,7 @@ const existingProjectFromContentAuthority = await service.createProject(
 assert.equal(
   existingProjectFromContentAuthority.id,
   'project-content-authority-existing',
-  'provider-backed project creation must detect existing paths from plus_project_content configData, not plus_project.rootPath.',
+  'provider-backed project creation must detect existing paths from studio_project_content configData, not studio_project.rootPath.',
 );
 
 const repeatedNameProjectA = await service.createProject(
@@ -402,22 +402,22 @@ assert.ok(repeatedNameProjectRecordB);
 assert.equal(
   repeatedNameProjectA.name,
   'Repeated Folder',
-  'provider-backed project service must expose project title as the UI display name while plus_project.name remains a unique business key.',
+  'provider-backed project service must expose project title as the UI display name while studio_project.name remains a unique business key.',
 );
 assert.notEqual(
   repeatedNameProjectRecordA.name,
   repeatedNameProjectRecordB.name,
-  'provider-backed project creation must persist Java-unique plus_project.name values for repeated display names.',
+  'provider-backed project creation must persist Java-unique studio_project.name values for repeated display names.',
 );
 assert.notEqual(
   repeatedNameProjectRecordA.code,
   repeatedNameProjectRecordB.code,
-  'provider-backed project creation must persist Java-unique plus_project.code values for long common path prefixes.',
+  'provider-backed project creation must persist Java-unique studio_project.code values for long common path prefixes.',
 );
 assert.equal(
   repeatedNameProjectRecordA.title,
   'Repeated Folder',
-  'provider-backed project title must preserve the requested display name when plus_project.name is made unique.',
+  'provider-backed project title must preserve the requested display name when studio_project.name is made unique.',
 );
 assert.equal(
   repeatedNameProjectRecordB.title,
@@ -426,11 +426,11 @@ assert.equal(
 );
 assert.ok(
   repeatedNameProjectRecordA.code && repeatedNameProjectRecordA.code.length <= 64,
-  'provider-backed generated plus_project.code must respect the Java length=64 standard.',
+  'provider-backed generated studio_project.code must respect the Java length=64 standard.',
 );
 assert.ok(
   repeatedNameProjectRecordB.code && repeatedNameProjectRecordB.code.length <= 64,
-  'provider-backed generated plus_project.code must respect the Java length=64 standard for every project.',
+  'provider-backed generated studio_project.code must respect the Java length=64 standard for every project.',
 );
 
 const projectForPathUpdate = await service.createProject(
@@ -461,13 +461,13 @@ const updatedProjectContent = await appRepositories.projectContents.findById(pro
 assert.equal(
   updatedProjectRecord?.rootPath,
   undefined,
-  'provider-backed project updates must keep plus_project free of rootPath shadows.',
+  'provider-backed project updates must keep studio_project free of rootPath shadows.',
 );
 assert.equal(
   updatedProjectContent &&
     JSON.parse(updatedProjectContent.configData ?? '{}').rootPath,
   'D:/workspace/path-update-target',
-  'provider-backed project updates must write the canonical rootPath to plus_project_content configData.',
+  'provider-backed project updates must write the canonical rootPath to studio_project_content configData.',
 );
 
 const syncedProject = await service.syncProjectSummary({
@@ -493,13 +493,13 @@ assert.equal(
 assert.equal(
   syncedProjectRecord?.rootPath,
   undefined,
-  'provider-backed summary sync must keep plus_project free of rootPath shadows.',
+  'provider-backed summary sync must keep studio_project free of rootPath shadows.',
 );
 assert.equal(
   syncedProjectContent &&
     JSON.parse(syncedProjectContent.configData ?? '{}').rootPath,
   'D:/workspace/summary-root-path',
-  'provider-backed summary sync must persist the normalized canonical rootPath in plus_project_content.',
+  'provider-backed summary sync must persist the normalized canonical rootPath in studio_project_content.',
 );
 
 console.log('provider-backed project service transcript behavior contract passed.');

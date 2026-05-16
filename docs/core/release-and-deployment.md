@@ -1,4 +1,4 @@
-# Release And Deployment
+﻿# Release And Deployment
 
 ## Overview
 
@@ -12,18 +12,18 @@ The release flow produces:
 - `kubernetes` Helm-compatible deployment bundles
 - `web` static web and docs archives
 
-### Identity deployment and packaging standard
+### IAM deployment and packaging standard
 
-Release packaging follows the same identity standard as development. BirdCoder keeps one frontend-facing auth facade while release artifacts are produced for different deployment and provider bindings:
+Release packaging follows the same IAM standard as development. BirdCoder keeps one frontend-facing auth facade while release artifacts are produced for different deployment and provider bindings:
 
-| Identity lane | Standard build commands | Standard package commands | Authority |
+| IAM lane | Standard build commands | Standard package commands | Authority |
 | --- | --- | --- | --- |
 | `desktop-local` | `pnpm tauri:build`, `pnpm desktop:build:local` | `pnpm package:desktop:local` | Embedded local sqlite user center |
 | `server-private` + `builtin-local` | `pnpm build`, `pnpm desktop:build:private`, `pnpm web:build:private`, `pnpm server:build`, `pnpm server:build:private` | `pnpm package:web:private`, `pnpm package:server:private`, `pnpm package:desktop:private` | Private BirdCoder server with builtin local authority |
-| `server-private` + `external-user-center` | `pnpm build:external`, `pnpm desktop:build:external`, `pnpm web:build:external`, `pnpm server:build:external` | `pnpm package:web:external`, `pnpm package:server:external`, `pnpm package:desktop:external` | Private BirdCoder server with external identity bridge |
-| `cloud-saas` + `sdkwork-cloud-app-api` | `pnpm build:cloud`, `pnpm desktop:build:cloud`, `pnpm web:build:cloud`, `pnpm server:build:cloud` | `pnpm package:web:cloud`, `pnpm package:server:cloud`, `pnpm package:desktop:cloud` | BirdCoder server delegates identity to `sdkwork-cloud-app-api` |
+| `server-private` + `external-user-center` | `pnpm build:external`, `pnpm desktop:build:external`, `pnpm web:build:external`, `pnpm server:build:external` | `pnpm package:web:external`, `pnpm package:server:external`, `pnpm package:desktop:external` | Private BirdCoder server with external IAM bridge |
+| `cloud-saas` + `sdkwork-cloud-app-api` | `pnpm build:cloud`, `pnpm desktop:build:cloud`, `pnpm web:build:cloud`, `pnpm server:build:cloud` | `pnpm package:web:cloud`, `pnpm package:server:cloud`, `pnpm package:desktop:cloud` | BirdCoder server delegates IAM to `sdkwork-cloud-app-api` |
 
-The release standard is not “different API per deployment.” It is “different server binding behind the same BirdCoder facade.” Packaged desktop and web clients still consume the same canonical `/api/app/v1/auth/*`, `/api/app/v1/user/profile`, and `/api/app/v1/vip/info` routes after packaging.
+The release standard is not 鈥渄ifferent API per deployment.鈥?It is 鈥渄ifferent server binding behind the same BirdCoder facade.鈥?Packaged desktop and web clients still consume the same canonical `/app/v3/api/auth/*`, `/app/v3/api/iam/users/current`, and `/app/v3/api/billing/vip/info` routes after packaging.
 
 For remote desktop packaging lanes such as `private`, `external`, and `cloud`, `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL` must be set explicitly so packaged artifacts never fall back to localhost by accident.
 
@@ -109,10 +109,10 @@ On this Windows host, that gate has now also been closed with a real `passed` re
 When a change touches the unified `auth`, `user`, or `vip` boundary, run:
 
 ```bash
-pnpm check:identity-standard
+pnpm check:iam-standard
 ```
 
-This keeps release-facing verification aligned with the same `sdkwork-birdcoder-auth` and `sdkwork-birdcoder-user` split identity contract already frozen by architecture docs, Step docs, prompt governance, and `check:release-flow`.
+This keeps release-facing verification aligned with the same `sdkwork-birdcoder-auth` and `sdkwork-birdcoder-user` split IAM contract already frozen by architecture docs, Step docs, prompt governance, and `check:release-flow`.
 
 When a change touches the unified user-center bridge or the independent validation plugin boundary, run:
 
@@ -188,9 +188,9 @@ The local wrapper defaults `pnpm release:plan`, `pnpm release:package:*`, `pnpm 
 To make release intent explicit, pass release-control flags through the local wrapper:
 
 ```bash
-pnpm release:plan -- --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/step/13-发布就绪-github-flow-灰度回滚闭环.md
+pnpm release:plan -- --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/step/13-鍙戝竷灏辩华-github-flow-鐏板害鍥炴粴闂幆.md
 pnpm release:rollback:plan -- --release-tag release-2026-04-09-105 --release-assets-dir artifacts/release --rollback-command "gh workflow run rollback.yml --ref main"
-pnpm release:finalize -- --release-assets-dir artifacts/release --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/step/13-发布就绪-github-flow-灰度回滚闭环.md --repository Sdkwork-Cloud/sdkwork-birdcoder
+pnpm release:finalize -- --release-assets-dir artifacts/release --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/step/13-鍙戝竷灏辩华-github-flow-鐏板害鍥炴粴闂幆.md --repository Sdkwork-Cloud/sdkwork-birdcoder
 ```
 
 ## Kubernetes Image Contract

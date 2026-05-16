@@ -39,12 +39,6 @@ export {
   buildWorkbenchRecoveryAnnouncement,
   recoverySnapshotsEqual,
 } from '@sdkwork/birdcoder-commons';
-export {
-  DEFAULT_BIRDCODER_USER_PROFILE,
-  DEFAULT_BIRDCODER_VIP_MEMBERSHIP,
-  getBirdCoderUserProfileRepository,
-  getBirdCoderVipMembershipRepository,
-} from './userProfileState.ts';
 export type {
   RunConfigurationCwdMode,
   RunConfigurationGroup,
@@ -67,7 +61,3 @@ export type {
   BuildWorkbenchRecoveryAnnouncementOptions,
   ResolveWorkbenchRecoveryPersistenceSelectionOptions,
 } from '@sdkwork/birdcoder-commons';
-export type {
-  BirdCoderUserProfileSnapshot,
-  BirdCoderVipMembershipSnapshot,
-} from './userProfileState.ts';

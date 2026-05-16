@@ -1,18 +1,19 @@
-import type { BirdCoderAppAdminApiClient, BirdCoderReleaseSummary } from '@sdkwork/birdcoder-types';
+import type { BirdCoderReleaseSummary } from '@sdkwork/birdcoder-types';
 import type { IReleaseService } from '../interfaces/IReleaseService.ts';
+import type { BirdCoderBackendSdkApiClient } from '../sdkClients.ts';
 
 export interface ApiBackedReleaseServiceOptions {
-  client: BirdCoderAppAdminApiClient;
+  backendClient: BirdCoderBackendSdkApiClient;
 }
 
 export class ApiBackedReleaseService implements IReleaseService {
-  private readonly client: BirdCoderAppAdminApiClient;
+  private readonly backendClient: BirdCoderBackendSdkApiClient;
 
-  constructor({ client }: ApiBackedReleaseServiceOptions) {
-    this.client = client;
+  constructor({ backendClient }: ApiBackedReleaseServiceOptions) {
+    this.backendClient = backendClient;
   }
 
   async getReleases(): Promise<BirdCoderReleaseSummary[]> {
-    return this.client.listReleases();
+    return this.backendClient.listReleases();
   }
 }

@@ -107,7 +107,7 @@ await withMockCodexCliJsonl(async () => {
   assert.equal(projection.operation.streamKind, 'sse');
   assert.equal(
     projection.operation.streamUrl,
-    '/api/core/v1/coding-sessions/coding-session-1/events',
+    '/app/v3/api/coding_sessions/coding-session-1/events',
   );
 
   const envelopes = [];

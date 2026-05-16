@@ -1,8 +1,9 @@
-import assert from 'node:assert/strict';
 import type {
-  BirdCoderCoreReadApiClient,
-  BirdCoderCoreWriteApiClient,
-} from '@sdkwork/birdcoder-types';
+  BirdCoderAppRuntimeReadSdkApiClient,
+  BirdCoderAppRuntimeWriteSdkApiClient,
+  BirdCoderAppSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+import assert from 'node:assert/strict';
 import {
   TEST_CODE_ENGINE_MODEL_CONFIG,
   buildTestCodeEngineModelConfigSyncResult,
@@ -17,11 +18,15 @@ const consoleRepositoryModulePath = new URL(
   import.meta.url,
 );
 const consoleQueriesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminConsoleQueries.ts',
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts',
   import.meta.url,
 );
-const appAdminApiClientModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
+const appSdkTransportModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/appSdkTransport.ts',
+  import.meta.url,
+);
+const sdkClientsModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts',
   import.meta.url,
 );
 const typesEntryModulePath = new URL(
@@ -60,14 +65,14 @@ try {
   const { createBirdCoderConsoleRepositories } = await import(
     `${consoleRepositoryModulePath.href}?t=${Date.now()}`
   );
-  const { createBirdCoderAppAdminConsoleQueries } = await import(
+  const { createBirdCoderConsoleQueries } = await import(
     `${consoleQueriesModulePath.href}?t=${Date.now()}`
   );
   const {
-    createBirdCoderInProcessAppAdminApiTransport,
-  } = await import(`${appAdminApiClientModulePath.href}?t=${Date.now()}`);
-  const { createBirdCoderGeneratedAppAdminApiClient } = await import(
-    `${typesEntryModulePath.href}?t=${Date.now()}`
+    createBirdCoderInProcessAppSdkTransport,
+  } = await import(`${appSdkTransportModulePath.href}?t=${Date.now()}`);
+  const { createBirdCoderAppSdkApiClient } = await import(
+    `${sdkClientsModulePath.href}?t=${Date.now()}`
   );
   const { createDefaultBirdCoderIdeServices } = await import(
     `${defaultServicesModulePath.href}?t=${Date.now()}`
@@ -78,7 +83,7 @@ try {
     providerId: provider.providerId,
     storage: provider,
   });
-  const queries = createBirdCoderAppAdminConsoleQueries({ repositories });
+  const queries = createBirdCoderConsoleQueries({ repositories });
 
   await Promise.all([
     repositories.workspaces.clear(),
@@ -117,8 +122,8 @@ try {
     updatedAt: '2026-04-11T12:01:00.250Z',
   });
 
-  const appAdminClient = createBirdCoderGeneratedAppAdminApiClient({
-    transport: createBirdCoderInProcessAppAdminApiTransport({
+  const appClient = createBirdCoderAppSdkApiClient({
+    transport: createBirdCoderInProcessAppSdkTransport({
       queries,
     }),
   });
@@ -154,7 +159,7 @@ try {
     releaseCoalescedPostTurnSync = resolve;
   });
 
-  const coreWriteClient: BirdCoderCoreWriteApiClient = {
+  const codingRuntimeWriteClient: BirdCoderAppRuntimeWriteSdkApiClient = {
     async createCodingSession(request) {
       if (!request.engineId || !request.modelId) {
         throw new Error('expected explicit engineId and modelId');
@@ -209,7 +214,7 @@ try {
     async createCodingSessionTurn(codingSessionId, request) {
       if (codingSessionId === 'coding-session-turn-stale-local') {
         throw new Error(
-          'BirdCoder API request failed: POST /api/core/v1/coding-sessions/coding-session-turn-stale-local/turns -> 404 (Coding session projection was not found.)',
+          'BirdCoder API request failed: POST /app/v3/api/coding_sessions/coding-session-turn-stale-local/turns -> 404 (Coding session projection was not found.)',
         );
       }
 
@@ -248,7 +253,7 @@ try {
       throw new Error('not needed');
     },
   };
-  const coreReadClient: BirdCoderCoreReadApiClient = {
+  const codingRuntimeReadClient: BirdCoderAppRuntimeReadSdkApiClient = {
     async getCodingSession(codingSessionId) {
       if (postTurnSyncLagReadFailures.has(codingSessionId)) {
         throw new Error(`Coding session ${codingSessionId} not found.`);
@@ -403,9 +408,11 @@ try {
   };
 
   const services = createDefaultBirdCoderIdeServices({
-    appAdminClient,
-    coreReadClient,
-    coreWriteClient,
+    appClient,
+    appRuntimeClient: {
+      ...codingRuntimeReadClient,
+      ...codingRuntimeWriteClient,
+    },
     storageProvider: provider,
   });
   const readProjectedCodingSession = async (codingSessionId: string) => {

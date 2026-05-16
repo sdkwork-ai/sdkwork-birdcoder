@@ -10,7 +10,7 @@ Close the second release-backed SDK/codegen lane by consuming the generated `cod
 - `scripts/generate-coding-server-client-types.test.ts`
 - `packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts`
 - `packages/sdkwork-birdcoder-types/src/index.ts`
-- `packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts`
 - `package.json`
 
 ## Checkpoints
@@ -23,7 +23,7 @@ Close the second release-backed SDK/codegen lane by consuming the generated `cod
   - `buildBirdCoderFinalizedCodingServerClientRequest()`
   - `createBirdCoderFinalizedCodingServerClient()`
 - `CP17H-4` route-less operations must not require `pathParams`; route-param operations must still require `pathParams`.
-- `CP17H-5` at least one real shared consumer must adopt the generated request builder. The representative closure is `appAdminApiClient.ts`.
+- `CP17H-5` at least one real shared consumer must adopt the generated request builder. The representative closure is `sdkClients.ts`.
 - `CP17H-6` release-flow governance must execute the typed-client codegen contract.
 
 ## Verification
@@ -31,7 +31,7 @@ Close the second release-backed SDK/codegen lane by consuming the generated `cod
 - `node --experimental-strip-types scripts/generate-coding-server-client-types.ts`
 - `node --experimental-strip-types scripts/generate-coding-server-client-types.test.ts`
 - `pnpm.cmd run test:coding-server-client-types-codegen`
-- `pnpm.cmd run test:app-admin-sdk-consumer-contract`
+- `pnpm.cmd run test:split-sdk-consumer-contract`
 - `pnpm.cmd run typecheck`
 - `pnpm.cmd run docs:build`
 - `pnpm.cmd run check:release-flow`
@@ -39,5 +39,5 @@ Close the second release-backed SDK/codegen lane by consuming the generated `cod
 ## Next Serial Path
 
 1. PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`.
-2. Expand generated-client adoption through shared high-level facades so handwritten request assembly keeps shrinking across remaining shared `core / app / admin` consumers.
+2. Expand generated-client adoption through shared high-level facades so handwritten request assembly keeps shrinking across remaining shared `app / backend` consumers.
 3. Build higher-level typed response/write facades only on top of `packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts`.

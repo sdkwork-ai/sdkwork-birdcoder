@@ -1,12 +1,14 @@
+import type {
+  BirdCoderAppRuntimeReadSdkApiClient,
+  BirdCoderAppSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { ApiBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderCodingSessionSummary,
-  BirdCoderCoreReadApiClient,
   BirdCoderProject,
   BirdCoderProjectSummary,
 } from '../packages/sdkwork-birdcoder-types/src/index.ts';
@@ -157,7 +159,7 @@ const writeService = {
 } satisfies IProjectService;
 
 const service = new ApiBackedProjectService({
-  client: {
+  appClient: {
     async getProject(candidateProjectId: string) {
       assert.equal(candidateProjectId, projectId);
       return projectSummary;
@@ -166,8 +168,8 @@ const service = new ApiBackedProjectService({
       assert.equal(request?.workspaceId, workspaceId);
       return [projectSummary];
     },
-  } as unknown as BirdCoderAppAdminApiClient,
-  coreReadClient: {
+  } as unknown as BirdCoderAppSdkApiClient,
+  codingRuntimeClient: {
     async listCodingSessions(request?: { projectId?: string; workspaceId?: string }) {
       assert.equal(request?.workspaceId, workspaceId);
       if (request?.projectId && request.projectId !== projectId) {
@@ -175,7 +177,7 @@ const service = new ApiBackedProjectService({
       }
       return [codingSessionSummary];
     },
-  } as unknown as BirdCoderCoreReadApiClient,
+  } as unknown as BirdCoderAppRuntimeReadSdkApiClient,
   writeService,
 });
 

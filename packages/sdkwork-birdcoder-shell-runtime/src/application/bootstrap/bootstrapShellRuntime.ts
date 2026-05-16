@@ -1,16 +1,14 @@
 import type { BirdHostDescriptor } from '@sdkwork/birdcoder-host-core';
 import type {
-  BirdCoderAppAdminApiClient,
-  BirdCoderCoreReadApiClient,
-  BirdCoderCoreWriteApiClient,
-} from '@sdkwork/birdcoder-types';
-import type { BirdCoderRuntimeUserCenterBindingConfig } from '@sdkwork/birdcoder-infrastructure-runtime';
+  BirdCoderAppSdkApiClient,
+  BirdCoderBackendSdkApiClient,
+  BirdCoderRuntimeUserCenterBindingConfig,
+} from '@sdkwork/birdcoder-infrastructure-runtime';
 
 export interface BootstrapShellRuntimeOptions {
-  appAdminClient?: BirdCoderAppAdminApiClient;
+  appClient?: BirdCoderAppSdkApiClient;
   apiBaseUrl?: string;
-  coreReadClient?: BirdCoderCoreReadApiClient;
-  coreWriteClient?: BirdCoderCoreWriteApiClient;
+  backendClient?: BirdCoderBackendSdkApiClient;
   host?: BirdHostDescriptor;
   userCenter?: BirdCoderRuntimeUserCenterBindingConfig;
 }

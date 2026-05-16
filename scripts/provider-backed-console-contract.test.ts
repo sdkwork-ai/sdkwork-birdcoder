@@ -9,7 +9,7 @@ const consoleRepositoryModulePath = new URL(
   import.meta.url,
 );
 const consoleQueriesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminConsoleQueries.ts',
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts',
   import.meta.url,
 );
 const defaultServicesModulePath = new URL(
@@ -44,7 +44,7 @@ try {
   const { createBirdCoderConsoleRepositories } = await import(
     `${consoleRepositoryModulePath.href}?t=${Date.now()}`
   );
-  const { createBirdCoderAppAdminConsoleQueries } = await import(
+  const { createBirdCoderConsoleQueries } = await import(
     `${consoleQueriesModulePath.href}?t=${Date.now()}`
   );
   const { createDefaultBirdCoderIdeServices } = await import(
@@ -56,7 +56,7 @@ try {
     providerId: 'sqlite',
     storage: provider,
   });
-  const queries = createBirdCoderAppAdminConsoleQueries({ repositories });
+  const queries = createBirdCoderConsoleQueries({ repositories });
 
   await Promise.all([
     repositories.workspaces.clear(),

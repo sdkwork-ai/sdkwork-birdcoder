@@ -31,7 +31,7 @@
 | `14` | Appbase Auth/User/VIP 统一接入实施 | 用 appbase 替换本地平行模块 | `04` | appbase 主边界 | 条件并行 |
 | `15` | 多数据库 Provider 与迁移标准化 | 固化 `sqlite/postgresql` Provider 与 authority | `03` | Provider / Dialect / Migration 标准 | 条件并行 |
 | `16` | Prompt/SkillHub/AppTemplate-项目模板体系 | 固化 Prompt、Skill、Template 注入链 | `05` | Prompt / Skill / Template 体系 | 条件并行 |
-| `17` | Coding-Server Core/App/Admin API 与控制台实现 | 落地统一 API 与项目生命周期控制台 | `09,14,16` | `core/app/admin` API 与控制台 | 串行为主 |
+| `17` | Coding-Server Core/App/Admin API 与控制台实现 | 落地统一 API 与项目生命周期控制台 | `09,14,16` | `app/backend` API 与控制台 | 串行为主 |
 | `18` | 多 Code-Engine Adapter-统一工具协议闭环 | 落地多引擎适配与工具协议 | `05` | Adapter / Tool Protocol / Conformance | 条件并行 |
 | `20` | runtime-data-kernel-v2 剩余实体 Authority 闭环 | `20A team_member` 与 `20B deployment_target` 已闭环，Step 20 完成并解锁下一未定义 Step | `15,17` | 共享仓储 / 路由 / Facade / Consumer 真相 | 串行为主 |
 

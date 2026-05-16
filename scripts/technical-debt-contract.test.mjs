@@ -70,9 +70,9 @@ const allowedDebtTokenLines = [
     reason: 'database migration guidance requires a deprecation timestamp field',
   },
   {
-    relativePath: 'packages/sdkwork-birdcoder-server/src-host/src/user_center.rs',
+    relativePath: '../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/native/tauri-rust/src/user_center_authority.rs',
     pattern: /deprecated_at TEXT NULL/u,
-    reason: 'user-center schema carries a nullable lifecycle timestamp column',
+    reason: 'appbase native user-center schema carries a nullable lifecycle timestamp column',
   },
   {
     relativePath: 'packages/sdkwork-birdcoder-server/src/index.ts',

@@ -1,6 +1,9 @@
+import type {
+  BirdCoderAppRuntimeSdkApiClient,
+  BirdCoderAppSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import type { BirdCoderCoreWriteApiClient } from '@sdkwork/birdcoder-types';
 import { buildTestCodeEngineModelConfigSyncResult } from './test-code-engine-model-config-fixture.ts';
 
 const dataKernelModulePath = new URL(
@@ -28,11 +31,15 @@ const evidenceRepositoryModulePath = new URL(
   import.meta.url,
 );
 const consoleQueriesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminConsoleQueries.ts',
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts',
   import.meta.url,
 );
-const appAdminApiClientModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
+const appSdkTransportModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/appSdkTransport.ts',
+  import.meta.url,
+);
+const sdkClientsModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts',
   import.meta.url,
 );
 const typesEntryModulePath = new URL(
@@ -103,14 +110,14 @@ try {
   const { createBirdCoderPromptSkillTemplateEvidenceRepositories } = await import(
     `${evidenceRepositoryModulePath.href}?t=${Date.now()}`
   );
-  const { createBirdCoderAppAdminConsoleQueries } = await import(
+  const { createBirdCoderConsoleQueries } = await import(
     `${consoleQueriesModulePath.href}?t=${Date.now()}`
   );
   const {
-    createBirdCoderInProcessAppAdminApiTransport,
-  } = await import(`${appAdminApiClientModulePath.href}?t=${Date.now()}`);
-  const { createBirdCoderGeneratedAppAdminApiClient } = await import(
-    `${typesEntryModulePath.href}?t=${Date.now()}`
+    createBirdCoderInProcessAppSdkTransport,
+  } = await import(`${appSdkTransportModulePath.href}?t=${Date.now()}`);
+  const { createBirdCoderAppSdkApiClient } = await import(
+    `${sdkClientsModulePath.href}?t=${Date.now()}`
   );
   const { ApiBackedProjectService } = await import(
     `${apiBackedProjectServiceModulePath.href}?t=${Date.now()}`
@@ -138,7 +145,7 @@ try {
     providerId: provider.providerId,
     storage: provider,
   });
-  const queries = createBirdCoderAppAdminConsoleQueries({ repositories });
+  const queries = createBirdCoderConsoleQueries({ repositories });
 
   await Promise.all([
     repositories.workspaces.clear(),
@@ -158,24 +165,29 @@ try {
     updatedAt: '2026-04-12T11:00:00.000Z',
   });
 
-  const appAdminClient = createBirdCoderGeneratedAppAdminApiClient({
-    transport: createBirdCoderInProcessAppAdminApiTransport({
+  const appClient = createBirdCoderAppSdkApiClient({
+    transport: createBirdCoderInProcessAppSdkTransport({
       queries,
     }),
   });
 
-  const coreWriteClient: BirdCoderCoreWriteApiClient = {
+  const runtimeCodingSessions: Array<
+    Awaited<ReturnType<BirdCoderAppRuntimeSdkApiClient['createCodingSession']>>
+  > = [];
+
+  const codingRuntimeClient = {
+    ...appClient,
     async createCodingSession(request) {
       if (!request.engineId || !request.modelId) {
         throw new Error('expected explicit engineId and modelId');
       }
 
-      return {
+      const codingSession = {
         id: 'coding-session-evidence-consumer-contract',
         workspaceId: request.workspaceId,
         projectId: request.projectId,
         title: request.title ?? 'Evidence Consumer Session',
-        status: 'active',
+        status: 'active' as const,
         hostMode: request.hostMode ?? 'server',
         engineId: request.engineId,
         modelId: request.modelId,
@@ -183,6 +195,28 @@ try {
         updatedAt: '2026-04-12T11:00:05.000Z',
         lastTurnAt: '2026-04-12T11:00:05.000Z',
       };
+      runtimeCodingSessions.push(codingSession);
+      return codingSession;
+    },
+    async getCodingSession(codingSessionId) {
+      const codingSession = runtimeCodingSessions.find(
+        (candidate) => candidate.id === codingSessionId,
+      );
+      if (!codingSession) {
+        throw new Error(`coding session ${codingSessionId} not found`);
+      }
+      return codingSession;
+    },
+    async listCodingSessions(request = {}) {
+      return runtimeCodingSessions.filter(
+        (candidate) =>
+          (!request.workspaceId || candidate.workspaceId === request.workspaceId) &&
+          (!request.projectId || candidate.projectId === request.projectId) &&
+          (!request.engineId || candidate.engineId === request.engineId),
+      );
+    },
+    async listCodingSessionEvents() {
+      return [];
     },
     async updateCodingSession() {
       throw new Error('not implemented');
@@ -220,7 +254,7 @@ try {
     async deleteCodingSessionMessage() {
       throw new Error('not implemented');
     },
-  };
+  } satisfies BirdCoderAppRuntimeSdkApiClient;
 
   const providerBackedProjectService = new ProviderBackedProjectService({
     codingSessionRepositories,
@@ -229,10 +263,10 @@ try {
     repository: repositories.projects,
   });
   const projectService = new ApiBackedProjectService({
-    client: appAdminClient,
+    appClient: appClient,
     codingSessionMirror: providerBackedProjectService,
-    coreWriteClient,
-    identityProvider: {
+    codingRuntimeClient,
+    currentUserProvider: {
       async getCurrentUser() {
         return {
           id: 'user-evidence-consumer-contract',
@@ -307,7 +341,7 @@ try {
   assert.equal(
     templateInstantiation?.outputRoot,
     'D:/sdkwork/contracts/evidence-consumer-project',
-    'project creation evidence must use the canonical plus_project_content rootPath as outputRoot.',
+    'project creation evidence must use the canonical studio_project_content rootPath as outputRoot.',
   );
   assert.equal(templateInstantiation?.status, 'planned');
 } finally {

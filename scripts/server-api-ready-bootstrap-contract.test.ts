@@ -21,7 +21,7 @@ globalThis.fetch = (async (input: RequestInfo | URL) => {
 try {
   await waitForBirdCoderApiReady('http://127.0.0.1:10240/birdcoder-gateway', {
     maxAttempts: 1,
-    paths: ['/api/core/v1/health', 'api/app/v1/auth/config'],
+    paths: ['/app/v3/api/system/health', 'app/v3/api/auth/config'],
     requestTimeoutMs: 10,
     retryDelayMs: 1,
   });
@@ -36,8 +36,8 @@ try {
 assert.deepEqual(
   observedReadinessUrls.map((url) => new URL(url).pathname),
   [
-    '/birdcoder-gateway/api/core/v1/health',
-    '/birdcoder-gateway/api/app/v1/auth/config',
+    '/birdcoder-gateway/app/v3/api/system/health',
+    '/birdcoder-gateway/app/v3/api/auth/config',
   ],
   'Startup API readiness probes must preserve the configured server Base URL path prefix so sub-path and reverse-proxy deployments do not probe the wrong gateway.',
 );

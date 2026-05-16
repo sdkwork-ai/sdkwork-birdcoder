@@ -59,4 +59,4 @@ Close the remaining Step 18 server-side sink by projecting the shared workbench 
 ## Notes
 
 - This slice closes the `coding-server` / core-session projection sink only; it does not reopen the already-closed Step 18 governance-promotion or packaged-evidence lanes.
-- Representative app/admin route closure remains governed by Step 17 docs; this Step 18 lane is about canonical engine runtime projection into server execution and persistence truth.
+- Representative app/backend route closure remains governed by Step 17 docs; this Step 18 lane is about canonical engine runtime projection into server execution and persistence truth.

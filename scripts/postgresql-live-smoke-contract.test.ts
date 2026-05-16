@@ -174,7 +174,7 @@ const openConnectionFactory: BirdCoderPostgresqlOpenConnectionFactory = async ()
         return { rowCount: 0, rows: [] };
       }
 
-      if (sql.startsWith('INSERT INTO release_records')) {
+      if (sql.startsWith('INSERT INTO ops_release_record')) {
         const row: ReleaseRow = {
           id: String(params[0]),
           uuid: params[1] === null || params[1] === undefined ? null : String(params[1]),
@@ -215,7 +215,7 @@ const openConnectionFactory: BirdCoderPostgresqlOpenConnectionFactory = async ()
         };
       }
 
-      if (sql.startsWith('SELECT * FROM release_records')) {
+      if (sql.startsWith('SELECT * FROM ops_release_record')) {
         const rows = listVisibleReleases().filter((row) => row.is_deleted === false);
         if (sql.includes('WHERE id = $1')) {
           return {
@@ -291,7 +291,7 @@ assert.equal(
   'postgresql live smoke should exercise transactional fork and rollback behavior.',
 );
 assert.equal(
-  queryHistory.some((sql) => sql.startsWith('INSERT INTO release_records')),
+  queryHistory.some((sql) => sql.startsWith('INSERT INTO ops_release_record')),
   true,
   'postgresql live smoke should exercise representative release repository writes.',
 );

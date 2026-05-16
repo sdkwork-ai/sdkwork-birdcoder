@@ -1,6 +1,6 @@
+import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import { ApiBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts';
@@ -18,7 +18,7 @@ const localProject: BirdCoderProject = {
 };
 
 const client = {
-  async listProjects(): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>> {
+  async listProjects(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>> {
     return [
       {
         id: 'project-local-path',
@@ -32,7 +32,7 @@ const client = {
       },
     ];
   },
-  async getProject(): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>> {
+  async getProject(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>> {
     return {
       id: 'project-local-path',
       workspaceId: 'workspace-1',
@@ -44,7 +44,7 @@ const client = {
       updatedAt: '2026-04-16T10:30:00.000Z',
     };
   },
-} as unknown as BirdCoderAppAdminApiClient;
+} as unknown as BirdCoderAppSdkApiClient;
 
 const writeService = {
   async getProjects(): Promise<BirdCoderProject[]> {
@@ -59,7 +59,7 @@ const writeService = {
 } as unknown as IProjectService;
 
 const service = new ApiBackedProjectService({
-  client,
+  appClient: client,
   writeService,
 });
 

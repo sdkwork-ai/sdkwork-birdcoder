@@ -11,7 +11,7 @@
     }
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "node ../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
     "@sdkwork/birdcoder-codeengine": "workspace:*",

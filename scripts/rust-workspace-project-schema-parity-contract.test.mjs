@@ -149,14 +149,14 @@ const requiredCodingSessionMessageColumns = [
 
 const physicalSchemaTargets = [
   {
-    tableName: 'plus_workspace',
+    tableName: 'studio_workspace',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       owner_id: 'INTEGER NOT NULL',
     },
   },
   {
-    tableName: 'plus_project',
+    tableName: 'studio_project',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       workspace_id: 'INTEGER NULL',
@@ -165,35 +165,35 @@ const physicalSchemaTargets = [
     },
   },
   {
-    tableName: 'plus_project_content',
+    tableName: 'studio_project_content',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       project_id: 'INTEGER NOT NULL',
     },
   },
   {
-    tableName: 'teams',
+    tableName: 'studio_team',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       workspace_id: 'INTEGER NOT NULL',
     },
   },
   {
-    tableName: 'team_members',
+    tableName: 'studio_team_member',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       team_id: 'INTEGER NOT NULL',
     },
   },
   {
-    tableName: 'workspace_members',
+    tableName: 'studio_workspace_member',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       workspace_id: 'INTEGER NOT NULL',
     },
   },
   {
-    tableName: 'project_collaborators',
+    tableName: 'studio_project_collaborator',
     requiredColumns: {
       id: 'INTEGER PRIMARY KEY',
       project_id: 'INTEGER NOT NULL',
@@ -226,62 +226,62 @@ function bodyMatchesColumnType(body, columnName, columnDefinition) {
 for (const { label, path } of sources) {
   const rustSource = await readFile(path, 'utf8');
 
-  const workspaceBodies = collectCreateTableBodies(rustSource, 'plus_workspace');
+  const workspaceBodies = collectCreateTableBodies(rustSource, 'studio_workspace');
   assert(
     workspaceBodies.length > 0,
-    `${label} rust source must declare at least one plus_workspace table.`,
+    `${label} rust source must declare at least one studio_workspace table.`,
   );
   for (const workspaceBody of workspaceBodies) {
     for (const columnName of requiredWorkspaceColumns) {
       assert.match(
         workspaceBody,
         new RegExp(`\\b${escapeRegExp(columnName)}\\b`),
-        `${label} plus_workspace schema must include "${columnName}".`,
+        `${label} studio_workspace schema must include "${columnName}".`,
       );
     }
   }
 
-  const projectBodies = collectCreateTableBodies(rustSource, 'plus_project');
+  const projectBodies = collectCreateTableBodies(rustSource, 'studio_project');
   assert(
     projectBodies.length > 0,
-    `${label} rust source must declare at least one plus_project table.`,
+    `${label} rust source must declare at least one studio_project table.`,
   );
   for (const projectBody of projectBodies) {
     for (const columnName of requiredProjectColumns) {
       assert.match(
         projectBody,
         new RegExp(`\\b${escapeRegExp(columnName)}\\b`),
-        `${label} plus_project schema must include "${columnName}".`,
+        `${label} studio_project schema must include "${columnName}".`,
       );
     }
     for (const columnName of forbiddenProjectColumns) {
       assert.doesNotMatch(
         projectBody,
         new RegExp(`\\b${escapeRegExp(columnName)}\\b`),
-        `${label} plus_project schema must not retain non-Java column "${columnName}".`,
+        `${label} studio_project schema must not retain non-Java column "${columnName}".`,
       );
     }
   }
 
-  const projectContentBodies = collectCreateTableBodies(rustSource, 'plus_project_content');
+  const projectContentBodies = collectCreateTableBodies(rustSource, 'studio_project_content');
   assert(
     projectContentBodies.length > 0,
-    `${label} rust source must declare at least one plus_project_content table.`,
+    `${label} rust source must declare at least one studio_project_content table.`,
   );
   for (const projectContentBody of projectContentBodies) {
     for (const columnName of requiredProjectContentColumns) {
       assert.match(
         projectContentBody,
         new RegExp(`\\b${escapeRegExp(columnName)}\\b`),
-        `${label} plus_project_content schema must include "${columnName}".`,
+        `${label} studio_project_content schema must include "${columnName}".`,
       );
     }
   }
 
-  const codingSessionBodies = collectCreateTableBodies(rustSource, 'coding_sessions');
+  const codingSessionBodies = collectCreateTableBodies(rustSource, 'ai_coding_session');
   assert(
     codingSessionBodies.length > 0,
-    `${label} rust source must declare at least one coding_sessions table.`,
+    `${label} rust source must declare at least one ai_coding_session table.`,
   );
   assert(
     codingSessionBodies.some((codingSessionBody) =>
@@ -289,13 +289,13 @@ for (const { label, path } of sources) {
         new RegExp(`\\b${escapeRegExp(columnName)}\\b`).test(codingSessionBody),
       ),
     ),
-    `${label} coding_sessions schema must include ${requiredCodingSessionColumns.join(', ')}.`,
+    `${label} ai_coding_session schema must include ${requiredCodingSessionColumns.join(', ')}.`,
   );
 
-  const codingSessionMessageBodies = collectCreateTableBodies(rustSource, 'coding_session_messages');
+  const codingSessionMessageBodies = collectCreateTableBodies(rustSource, 'ai_coding_session_message');
   assert(
     codingSessionMessageBodies.length > 0,
-    `${label} rust source must declare at least one coding_session_messages table.`,
+    `${label} rust source must declare at least one ai_coding_session_message table.`,
   );
   assert(
     codingSessionMessageBodies.some((codingSessionMessageBody) =>
@@ -303,7 +303,7 @@ for (const { label, path } of sources) {
         new RegExp(`\\b${escapeRegExp(columnName)}\\b`).test(codingSessionMessageBody),
       ),
     ),
-    `${label} coding_session_messages schema must include ${requiredCodingSessionMessageColumns.join(', ')}.`,
+    `${label} ai_coding_session_message schema must include ${requiredCodingSessionMessageColumns.join(', ')}.`,
   );
 
   assert.equal(
@@ -336,18 +336,18 @@ for (const { label, path } of sources) {
   if (label === 'server') {
     assert.match(
       rustSource,
-      /ensure_sqlite_provider_authority_integer_identifier_upgrade\(connection\)\?/,
-      'server sqlite provider authority upgrade must invoke integer identifier schema migration.',
+      /ensure_sqlite_provider_authority_schema_upgrade\(connection\)\?/,
+      'server sqlite provider authority upgrade must invoke the unified schema migration.',
     );
     assert.doesNotMatch(
       rustSource,
-      /const SQLITE_INTEGER_IDENTIFIER_TABLE_RULES:\s*\[\(&str,\s*&\[\(&str,\s*bool\)\]\);\s*\d+\]/,
-      'server sqlite provider authority integer identifier rules must not require a manually maintained array length.',
+      /ensure_sqlite_provider_authority_integer_identifier_upgrade|SQLITE_INTEGER_IDENTIFIER_TABLE_RULES/u,
+      'server sqlite provider authority must not retain the retired integer identifier compatibility migration surface.',
     );
-    assert.match(
+    assert.doesNotMatch(
       rustSource,
-      /const SQLITE_INTEGER_IDENTIFIER_TABLE_RULES:\s*&\[\(&str,\s*&\[\(&str,\s*bool\)\]\)\]\s*=\s*&\[/,
-      'server sqlite provider authority integer identifier rules must be a static slice so adding tables does not require length bookkeeping.',
+      /archive_legacy_bootstrap_project|legacy bootstrap project|restores_legacy_bootstrap_project/u,
+      'server bootstrap must not retain legacy project archival or restore compatibility paths.',
     );
   }
 }

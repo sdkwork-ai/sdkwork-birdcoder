@@ -1,3 +1,6 @@
+import type {
+  BirdCoderAppRuntimeReadSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
   BirdCoderApiRouteCatalogEntry,
@@ -7,7 +10,6 @@ import type {
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSessionSummary,
   BirdCoderCoreHealthSummary,
-  BirdCoderCoreReadApiClient,
   BirdCoderCoreRuntimeSummary,
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineDescriptor,
@@ -20,49 +22,40 @@ import { ApiBackedCoreReadService } from '../packages/sdkwork-birdcoder-infrastr
 import { TEST_CODE_ENGINE_MODEL_CONFIG } from './test-code-engine-model-config-fixture.ts';
 
 const routeFixture: BirdCoderApiRouteCatalogEntry = {
-  authMode: 'host',
+  authMode: 'user',
   method: 'GET',
-  openApiPath: '/api/core/v1/routes',
-  operationId: 'core.listRoutes',
-  path: '/api/core/v1/routes',
-  surface: 'core',
+  openApiPath: '/app/v3/api/system/routes',
+  operationId: 'routes.list',
+  path: '/app/v3/api/system/routes',
+  surface: 'app',
   summary: 'List unified API routes',
 };
 
 const descriptorFixture: BirdCoderCodingServerDescriptor = {
   apiVersion: 'v1',
   gateway: {
-    basePath: '/api',
     docsPath: '/docs',
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
-    routeCatalogPath: '/api/core/v1/routes',
+    routeCatalogPath: '/app/v3/api/system/routes',
     routeCount: 58,
     routesBySurface: {
-      core: 19,
-      app: 32,
-      admin: 7,
+      app: 51,
+      backend: 7,
     },
     surfaces: [
       {
-        authMode: 'host',
-        basePath: '/api/core/v1',
-        description: 'Core coding runtime, engine catalog, session execution, and operation control.',
-        name: 'core',
-        routeCount: 19,
-      },
-      {
         authMode: 'user',
-        basePath: '/api/app/v1',
-        description: 'Application-facing workspace, project, collaboration, and user-center routes.',
+        basePath: '/app/v3/api',
+        description: 'Application-facing coding runtime, workspace, project, collaboration, and user-center routes.',
         name: 'app',
-        routeCount: 32,
+        routeCount: 51,
       },
       {
         authMode: 'admin',
-        basePath: '/api/admin/v1',
-        description: 'Administrative governance, audit, release, deployment, and team-management routes.',
-        name: 'admin',
+        basePath: '/backend/v3/api',
+        description: 'Backend governance, audit, release, deployment, and team-management routes.',
+        name: 'backend',
         routeCount: 7,
       },
     ],
@@ -70,7 +63,7 @@ const descriptorFixture: BirdCoderCodingServerDescriptor = {
   hostMode: 'desktop',
   moduleId: 'coding-server',
   openApiPath: '/openapi/coding-server-v1.json',
-  surfaces: ['core', 'app', 'admin'],
+  surfaces: ['app', 'backend'],
 };
 
 const runtimeFixture: BirdCoderCoreRuntimeSummary = {
@@ -157,7 +150,7 @@ const operationFixture: BirdCoderOperationDescriptor = {
   status: 'running',
   artifactRefs: ['artifact-core-read-contract'],
   streamKind: 'sse',
-  streamUrl: '/api/core/v1/coding-sessions/session-core-read-contract/events',
+  streamUrl: '/app/v3/api/coding_sessions/session-core-read-contract/events',
 };
 
 const sessionFixture: BirdCoderCodingSessionSummary = {
@@ -213,7 +206,7 @@ const checkpointFixture: BirdCoderCodingSessionCheckpoint = {
 
 const calls: string[] = [];
 
-const coreReadClient: BirdCoderCoreReadApiClient = {
+const codingRuntimeClient: BirdCoderAppRuntimeReadSdkApiClient = {
   async getCodingSession(codingSessionId) {
     calls.push(`getCodingSession:${codingSessionId}`);
     return sessionFixture;
@@ -284,7 +277,7 @@ const coreReadClient: BirdCoderCoreReadApiClient = {
 };
 
 const services = createDefaultBirdCoderIdeServices({
-  coreReadClient,
+  appRuntimeClient: codingRuntimeClient,
 });
 
 assert.deepEqual(await services.coreReadService.getDescriptor(), descriptorFixture);
@@ -324,13 +317,13 @@ assert.deepEqual(
 const longCacheKeyCalls: unknown[] = [];
 const longSafeCacheService = new ApiBackedCoreReadService({
   client: {
-    ...coreReadClient,
+    ...codingRuntimeClient,
     async listCodingSessions(request) {
       longCacheKeyCalls.push(request);
       return [sessionFixture];
     },
   },
-  identityProvider: {
+  currentUserProvider: {
     async getCurrentUser() {
       return {
         id: '101777208078558057',

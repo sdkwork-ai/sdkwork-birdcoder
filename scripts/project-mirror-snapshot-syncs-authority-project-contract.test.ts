@@ -1,9 +1,11 @@
+import type {
+  BirdCoderAppRuntimeReadSdkApiClient,
+  BirdCoderAppSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderCodingSession,
   BirdCoderCodingSessionSummary,
-  BirdCoderCoreReadApiClient,
   BirdCoderProject,
   BirdCoderProjectSummary,
 } from '@sdkwork/birdcoder-types';
@@ -61,25 +63,25 @@ let mirroredCodingSessionId: string | null = null;
 const client = {
   async getProject(
     requestedProjectId: string,
-  ): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>> {
+  ): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>> {
     assert.equal(requestedProjectId, projectId);
     return projectSummary;
   },
   async listProjects(
-    options?: Parameters<BirdCoderAppAdminApiClient['listProjects']>[0],
-  ): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>> {
+    options?: Parameters<BirdCoderAppSdkApiClient['listProjects']>[0],
+  ): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>> {
     assert.equal(options?.workspaceId, workspaceId);
     return [projectSummary];
   },
-} as unknown as BirdCoderAppAdminApiClient;
+} as unknown as BirdCoderAppSdkApiClient;
 
 const coreReadClient = {
   async listCodingSessions(
-    request?: Parameters<BirdCoderCoreReadApiClient['listCodingSessions']>[0],
+    request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listCodingSessions']>[0],
   ): Promise<BirdCoderCodingSessionSummary[]> {
     return request?.workspaceId === workspaceId ? [authoritativeCodingSession] : [];
   },
-} as unknown as BirdCoderCoreReadApiClient;
+} as unknown as BirdCoderAppRuntimeReadSdkApiClient;
 
 const projectMirror = {
   async syncProjectSummary(summary: BirdCoderProjectSummary): Promise<BirdCoderProject> {
@@ -131,8 +133,8 @@ const writeService = {
 
 const service = new ApiBackedProjectService({
   codingSessionMirror,
-  client,
-  coreReadClient,
+  appClient: client,
+  codingRuntimeClient: coreReadClient,
   projectMirror,
   writeService,
 });

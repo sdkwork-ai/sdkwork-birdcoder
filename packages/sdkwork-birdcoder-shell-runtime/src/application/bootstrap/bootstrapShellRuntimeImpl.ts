@@ -1,12 +1,9 @@
 import type { BirdHostDescriptor } from '@sdkwork/birdcoder-host-core';
-import type {
-  BirdCoderAppAdminApiClient,
-  BirdCoderCoreReadApiClient,
-  BirdCoderCoreWriteApiClient,
-} from '@sdkwork/birdcoder-types';
 import {
   bindDefaultBirdCoderIdeServicesRuntime,
   loadDefaultBirdCoderIdeService,
+  type BirdCoderAppSdkApiClient,
+  type BirdCoderBackendSdkApiClient,
   type BirdCoderRuntimeUserCenterBindingConfig,
 } from '@sdkwork/birdcoder-infrastructure-runtime';
 import { bootstrapShellUserState } from './bootstrapShellUserState.ts';
@@ -19,11 +16,10 @@ let bootstrapShellRuntimeAttemptId = 0;
 const abandonedBootstrapAttemptIds = new Set<number>();
 
 export interface BootstrapShellRuntimeOptions {
-  appAdminClient?: BirdCoderAppAdminApiClient;
+  appClient?: BirdCoderAppSdkApiClient;
   apiBaseUrl?: string;
+  backendClient?: BirdCoderBackendSdkApiClient;
   bootstrapTimeoutMs?: number;
-  coreReadClient?: BirdCoderCoreReadApiClient;
-  coreWriteClient?: BirdCoderCoreWriteApiClient;
   host?: BirdHostDescriptor;
   userCenter?: BirdCoderRuntimeUserCenterBindingConfig;
 }

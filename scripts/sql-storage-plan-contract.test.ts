@@ -46,21 +46,21 @@ assert.equal(sqliteListPlan.intent, 'read');
 assert.equal(sqliteListPlan.statements.length, 1);
 assert.equal(
   sqliteListPlan.statements[0].sql,
-  'SELECT * FROM coding_session_runtimes WHERE is_deleted = ?1 ORDER BY updated_at DESC, id ASC;',
+  'SELECT * FROM ai_coding_session_runtime WHERE is_deleted = ?1 ORDER BY updated_at DESC, id ASC;',
 );
 assert.deepEqual(sqliteListPlan.statements[0].params, [0]);
 
 const sqliteCountPlan = sqlitePlanner.buildCountPlan();
 assert.equal(
   sqliteCountPlan.statements[0].sql,
-  'SELECT COUNT(*) AS total FROM coding_session_runtimes WHERE is_deleted = ?1;',
+  'SELECT COUNT(*) AS total FROM ai_coding_session_runtime WHERE is_deleted = ?1;',
 );
 assert.deepEqual(sqliteCountPlan.statements[0].params, [0]);
 
 const sqliteFindByIdPlan = sqlitePlanner.buildFindByIdPlan('runtime-sqlite-1');
 assert.equal(
   sqliteFindByIdPlan.statements[0].sql,
-  'SELECT * FROM coding_session_runtimes WHERE id = ?1 AND is_deleted = ?2 LIMIT 1;',
+  'SELECT * FROM ai_coding_session_runtime WHERE id = ?1 AND is_deleted = ?2 LIMIT 1;',
 );
 assert.deepEqual(sqliteFindByIdPlan.statements[0].params, ['runtime-sqlite-1', 0]);
 
@@ -88,7 +88,7 @@ assert.equal(sqliteUpsertPlan.transactional, true);
 assert.equal(sqliteUpsertPlan.statements.length, 1);
 assert.match(
   sqliteUpsertPlan.statements[0].sql,
-  /^INSERT INTO coding_session_runtimes \(.+\) VALUES \(.+\) ON CONFLICT\(id\) DO UPDATE SET .+;$/,
+  /^INSERT INTO ai_coding_session_runtime \(.+\) VALUES \(.+\) ON CONFLICT\(id\) DO UPDATE SET .+;$/,
 );
 assert.match(sqliteUpsertPlan.statements[0].sql, /\?16\)/);
 assert.match(sqliteUpsertPlan.statements[0].sql, /coding_session_id = excluded\.coding_session_id/);
@@ -221,17 +221,17 @@ const projectContentSqlitePlanner = sqlPlansModule.createBirdCoderTableSqlPlanne
 });
 assert.equal(
   projectContentSqlitePlanner.buildListPlan().statements[0].sql,
-  'SELECT * FROM plus_project_content ORDER BY updated_at DESC, id ASC;',
+  'SELECT * FROM studio_project_content ORDER BY updated_at DESC, id ASC;',
 );
 assert.deepEqual(projectContentSqlitePlanner.buildListPlan().statements[0].params, []);
 assert.equal(
   projectContentSqlitePlanner.buildCountPlan().statements[0].sql,
-  'SELECT COUNT(*) AS total FROM plus_project_content;',
+  'SELECT COUNT(*) AS total FROM studio_project_content;',
 );
 assert.deepEqual(projectContentSqlitePlanner.buildCountPlan().statements[0].params, []);
 assert.equal(
   projectContentSqlitePlanner.buildFindByIdPlan('100000000000000202').statements[0].sql,
-  'SELECT * FROM plus_project_content WHERE id = ?1 LIMIT 1;',
+  'SELECT * FROM studio_project_content WHERE id = ?1 LIMIT 1;',
 );
 assert.deepEqual(
   projectContentSqlitePlanner.buildFindByIdPlan('100000000000000202').statements[0].params,
@@ -262,7 +262,7 @@ assert.ok(projectRowFromJavaPhysicalStorage);
 assert.equal(projectRowFromJavaPhysicalStorage.id, '100000000000000201');
 assert.equal(projectRowFromJavaPhysicalStorage.tenant_id, '0');
 assert.equal(projectRowFromJavaPhysicalStorage.organization_id, '0');
-assert.equal(projectRowFromJavaPhysicalStorage.data_scope, 'SHARED');
+assert.equal(projectRowFromJavaPhysicalStorage.data_scope, 'ORGANIZATION');
 assert.equal(projectRowFromJavaPhysicalStorage.workspace_id, '100000000000000101');
 assert.equal(
   projectRowFromJavaPhysicalStorage.v,
@@ -360,12 +360,12 @@ assert.equal(deletedProjectRowFromJavaPhysicalStorage.is_deleted, true);
 const sqliteDeletePlan = sqlitePlanner.buildDeletePlan('runtime-sqlite-1');
 assert.equal(
   sqliteDeletePlan.statements[0].sql,
-  'DELETE FROM coding_session_runtimes WHERE id = ?1;',
+  'DELETE FROM ai_coding_session_runtime WHERE id = ?1;',
 );
 assert.deepEqual(sqliteDeletePlan.statements[0].params, ['runtime-sqlite-1']);
 
 const sqliteClearPlan = sqlitePlanner.buildClearPlan();
-assert.equal(sqliteClearPlan.statements[0].sql, 'DELETE FROM coding_session_runtimes;');
+assert.equal(sqliteClearPlan.statements[0].sql, 'DELETE FROM ai_coding_session_runtime;');
 assert.deepEqual(sqliteClearPlan.statements[0].params, []);
 
 const postgresPlanner = sqlPlansModule.createBirdCoderTableSqlPlanner({
@@ -377,7 +377,7 @@ const postgresPlanner = sqlPlansModule.createBirdCoderTableSqlPlanner({
 const postgresListPlan = postgresPlanner.buildListPlan();
 assert.equal(
   postgresListPlan.statements[0].sql,
-  'SELECT * FROM coding_session_runtimes WHERE is_deleted = $1 ORDER BY updated_at DESC, id ASC;',
+  'SELECT * FROM ai_coding_session_runtime WHERE is_deleted = $1 ORDER BY updated_at DESC, id ASC;',
 );
 assert.deepEqual(postgresListPlan.statements[0].params, [false]);
 
@@ -435,7 +435,7 @@ assert.equal(migrationPlan.intent, 'write');
 assert.equal(migrationPlan.transactional, true);
 assert.equal(
   migrationPlan.statements.some((statement) =>
-    statement.sql.includes('CREATE TABLE IF NOT EXISTS coding_session_runtimes'),
+    statement.sql.includes('CREATE TABLE IF NOT EXISTS ai_coding_session_runtime'),
   ),
   true,
 );
@@ -454,7 +454,7 @@ assert.equal(migrationHistoryPlan.intent, 'write');
 assert.equal(migrationHistoryPlan.statements.length, 1);
 assert.match(
   migrationHistoryPlan.statements[0].sql,
-  /INSERT INTO schema_migration_history \(.+\) VALUES \(.+\$11\) ON CONFLICT\(provider_id, migration_id\) DO NOTHING;$/,
+  /INSERT INTO ops_schema_migration_history \(.+\) VALUES \(.+\$11\) ON CONFLICT\(provider_id, migration_id\) DO NOTHING;$/,
 );
 assert.equal(migrationHistoryPlan.statements[0].params.length, 11);
 assert.deepEqual(migrationHistoryPlan.statements[0].params.slice(0, 6), [

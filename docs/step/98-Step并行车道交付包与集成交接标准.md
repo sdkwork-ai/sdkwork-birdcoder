@@ -37,7 +37,7 @@
 - Appbase / Provider / PromptTemplate / Engine Adapter
 - Code / Studio 主视图
 - 外部 Terminal 集成窗口（如开启）
-- `coding-server` / `core/app/admin` / Console
+- `coding-server` / `app/backend` / Console
 - 治理、部署、测试矩阵
 - 发布与回滚
 

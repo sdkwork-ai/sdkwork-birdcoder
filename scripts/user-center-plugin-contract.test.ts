@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import type { BirdCoderApiTransportRequest } from '../packages/sdkwork-birdcoder-types/src/server-api.ts';
+
 const workspaceRoot = path.resolve(import.meta.dirname, '..');
 const appbaseRoot = path.resolve(workspaceRoot, '..', 'sdkwork-appbase');
 
@@ -38,7 +40,7 @@ function assertRootImportOnly(source: string, specifier: string, label: string):
 function assertNoDirectAppbaseSourceImport(source: string, label: string): void {
   assert.doesNotMatch(
     source,
-    /sdkwork-appbase[\\/].*src[\\/]index\.ts/u,
+    /sdkwork-appbase[\\/].*src[\\/]/u,
     `${label} must not import sdkwork-appbase source files through relative filesystem paths.`,
   );
 }
@@ -53,6 +55,7 @@ const userPackageJson = readWorkspaceJson('packages/sdkwork-birdcoder-user/packa
 const infrastructurePackageJson = readWorkspaceJson(
   'packages/sdkwork-birdcoder-infrastructure/package.json',
 );
+const serverPackageJson = readWorkspaceJson('packages/sdkwork-birdcoder-server/package.json');
 const shellPackageJson = readWorkspaceJson('packages/sdkwork-birdcoder-shell/package.json');
 const shellRuntimePackageJson = readWorkspaceJson(
   'packages/sdkwork-birdcoder-shell-runtime/package.json',
@@ -76,49 +79,61 @@ const vipPageSource = readWorkspaceText(
 const runtimeBridgeSource = readWorkspaceText(
   'packages/sdkwork-birdcoder-infrastructure/src/services/userCenterRuntimeBridge.ts',
 );
+const runtimeAuthServiceSource = readWorkspaceText(
+  'packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeAuthService.ts',
+);
+const serverSource = readWorkspaceText('packages/sdkwork-birdcoder-server/src/index.ts');
+const serverApiTypesSource = readWorkspaceText('packages/sdkwork-birdcoder-types/src/server-api.ts');
 const appbaseValidationPackageJson = readWorkspaceJson(
-  '../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-validation-pc-react/package.json',
+  '../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-validation-pc-react/package.json',
+);
+const appbaseAuthIndexSource = readAppbaseText(
+  'packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
+);
+const appbaseAuthRuntimeIndexSource = readAppbaseText(
+  'packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts',
 );
 const appbaseValidationSource = readAppbaseText(
-  'packages/pc-react/identity/sdkwork-user-center-validation-pc-react/src/validation.ts',
+  'packages/pc-react/iam/sdkwork-user-center-validation-pc-react/src/validation.ts',
 );
 const appbaseServerValidationSource = readAppbaseText(
-  'packages/pc-react/identity/sdkwork-user-center-validation-pc-react/src/serverValidation.ts',
+  'packages/pc-react/iam/sdkwork-user-center-validation-pc-react/src/serverValidation.ts',
 );
 
-const identityStandardLane = rootPackageJson.scripts?.['check:identity-standard'];
-assert.equal(typeof identityStandardLane, 'string');
+const iamStandardLane = rootPackageJson.scripts?.['check:iam-standard'];
+assert.equal(typeof iamStandardLane, 'string');
 for (const subcommand of [
-  'node scripts/birdcoder-identity-standard-contract.test.mjs',
+  'node scripts/appbase-package-boundary-contract.test.mjs',
+  'node scripts/birdcoder-iam-appbase-parity-contract.test.mjs',
   'node scripts/auth-ui-standard-contract.test.mjs',
-  'node scripts/identity-command-matrix-contract.test.mjs',
+  'node scripts/iam-command-matrix-contract.test.mjs',
   'node --experimental-strip-types scripts/user-center-plugin-contract.test.ts',
 ]) {
   assert.match(
-    identityStandardLane,
+    iamStandardLane,
     new RegExp(escapeRegExp(subcommand), 'u'),
-    'BirdCoder root identity standard lane must include the governed identity contract commands.',
+    'BirdCoder root IAM standard lane must include the governed IAM contract commands.',
   );
 }
 
 assert.equal(
   authPackageJson.dependencies?.['@sdkwork/user-center-pc-react'],
-  'link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react',
+  'workspace:*',
   'sdkwork-birdcoder-auth must consume the canonical user-center package directly.',
 );
 assert.equal(
   userPackageJson.dependencies?.['@sdkwork/user-center-pc-react'],
-  'link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react',
+  'workspace:*',
   'sdkwork-birdcoder-user must consume the canonical user-center package directly.',
 );
 assert.equal(
   userPackageJson.dependencies?.['@sdkwork/user-center-validation-pc-react'],
-  'link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-validation-pc-react',
+  'workspace:*',
   'sdkwork-birdcoder-user must consume the canonical user-center validation package directly.',
 );
 assert.equal(
   userPackageJson.dependencies?.['@sdkwork/vip-pc-react'],
-  'link:../../../sdkwork-appbase/packages/pc-react/commerce/sdkwork-vip-pc-react',
+  'workspace:*',
   'sdkwork-birdcoder-user must consume the canonical VIP package directly.',
 );
 assert.equal(
@@ -133,13 +148,28 @@ assert.equal(
 );
 assert.equal(
   infrastructurePackageJson.dependencies?.['@sdkwork/user-center-core-pc-react'],
-  'link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react',
+  'workspace:*',
   'sdkwork-birdcoder-infrastructure must consume the canonical user-center core package directly.',
 );
 assert.equal(
   infrastructurePackageJson.dependencies?.['@sdkwork/user-center-validation-pc-react'],
-  'link:../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-validation-pc-react',
+  'workspace:*',
   'sdkwork-birdcoder-infrastructure must consume the canonical user-center validation package directly.',
+);
+assert.equal(
+  infrastructurePackageJson.dependencies?.['@sdkwork/auth-runtime-pc-react'],
+  'workspace:*',
+  'sdkwork-birdcoder-infrastructure must consume the canonical appbase auth runtime package directly for runtime auth authority composition.',
+);
+assert.equal(
+  infrastructurePackageJson.dependencies?.['@sdkwork/auth-pc-react'],
+  undefined,
+  'sdkwork-birdcoder-infrastructure must not depend on the UI auth package for runtime auth authority composition.',
+);
+assert.equal(
+  serverPackageJson.dependencies?.['@sdkwork/user-center-core-pc-react'],
+  'workspace:*',
+  'sdkwork-birdcoder-server must consume the canonical user-center core package directly for app route projection.',
 );
 
 assert.equal(
@@ -155,7 +185,7 @@ assert.equal(
 assert.equal(
   shellRuntimePackageJson.dependencies?.['@sdkwork/birdcoder-workbench-state'],
   'workspace:*',
-  'sdkwork-birdcoder-shell-runtime must consume the split workbench-state package for local user snapshot bootstrap.',
+  'sdkwork-birdcoder-shell-runtime must consume the split workbench-state package for local workbench bootstrap.',
 );
 assert.equal(
   shellRuntimePackageJson.dependencies?.['@sdkwork/birdcoder-user'],
@@ -182,6 +212,11 @@ assert.match(
   userIndexSource,
   /export \* from '\.\/storage(?:\.ts)?';/u,
   'sdkwork-birdcoder-user root entry must re-export storage adapters.',
+);
+assert.doesNotMatch(
+  userIndexSource,
+  /profileStorage/u,
+  'sdkwork-birdcoder-user must not export BirdCoder-local profile/VIP repositories after appbase IAM integration.',
 );
 
 assertRootImportOnly(
@@ -263,6 +298,21 @@ assert.match(
   /createBirdCoderRuntimeUserCenterClient/u,
   'BirdCoder user storage must consume the canonical runtime client factory instead of reassembling validation wiring locally.',
 );
+assert.doesNotMatch(
+  storageSource,
+  /getBirdCoderUserProfileRepository|getBirdCoderVipMembershipRepository|local-only/u,
+  'BirdCoder user storage must not retain local profile/VIP repository fallback once appbase runtime client covers builtin-local.',
+);
+assert.doesNotMatch(
+  userSurfaceSource,
+  /readBirdCoderUserProfile|writeBirdCoderUserProfile|getBirdCoderUserProfileRepository/u,
+  'BirdCoder user surface must not read or write duplicate local user profile storage.',
+);
+assert.doesNotMatch(
+  vipPageSource + readWorkspaceText('packages/sdkwork-birdcoder-user/src/vip-surface.ts'),
+  /readBirdCoderVipMembership|writeBirdCoderVipMembership|getBirdCoderVipMembershipRepository/u,
+  'BirdCoder VIP surface must not read or write duplicate local VIP membership storage.',
+);
 
 assertRootImportOnly(
   runtimeBridgeSource,
@@ -275,6 +325,63 @@ assertRootImportOnly(
   'BirdCoder runtime bridge',
 );
 assertNoDirectAppbaseSourceImport(runtimeBridgeSource, 'BirdCoder runtime bridge');
+assertRootImportOnly(
+  runtimeAuthServiceSource,
+  '@sdkwork/auth-runtime-pc-react',
+  'BirdCoder runtime auth service',
+);
+assert.doesNotMatch(
+  runtimeAuthServiceSource,
+  /@sdkwork\/auth-pc-react/u,
+  'BirdCoder runtime auth service must not import the UI auth package.',
+);
+assertNoDirectAppbaseSourceImport(runtimeAuthServiceSource, 'BirdCoder runtime auth service');
+assertRootImportOnly(
+  serverSource,
+  '@sdkwork/user-center-core-pc-react',
+  'BirdCoder coding server user-center route projection',
+);
+assertNoDirectAppbaseSourceImport(serverSource, 'BirdCoder coding server user-center route projection');
+assert.doesNotMatch(
+  serverApiTypesSource,
+  /\/qr\/status\//u,
+  'BirdCoder generated user-center client must not retain retired /auth/qr/status/{qrKey} path.',
+);
+
+const { createBirdCoderGeneratedUserCenterApiClient } = await import(
+  '../packages/sdkwork-birdcoder-types/src/server-api.ts'
+);
+const observedUserCenterRequests: unknown[] = [];
+const generatedUserCenterClient = createBirdCoderGeneratedUserCenterApiClient({
+  transport: {
+    async request<TResponse>(request: BirdCoderApiTransportRequest): Promise<TResponse> {
+      observedUserCenterRequests.push(request);
+      return {
+        data: {
+          expiresAt: '2026-05-16T00:00:00.000Z',
+          qrKey: 'qr-standard-contract',
+          status: 'pending',
+        },
+        meta: {
+          version: 'v1',
+        },
+        requestId: 'request-standard-contract',
+        timestamp: '2026-05-16T00:00:00.000Z',
+      } as TResponse;
+    },
+  },
+});
+await generatedUserCenterClient.checkLoginQrCodeStatus('qr-standard-contract');
+assert.deepEqual(
+  observedUserCenterRequests,
+  [
+    {
+      method: 'GET',
+      path: '/app/v3/api/auth/qr_login_codes/qr-standard-contract',
+    },
+  ],
+  'BirdCoder generated user-center client must call the canonical appbase QR status route through the generated client surface.',
+);
 
 assertRootImportOnly(
   authPageSource,
@@ -377,6 +484,21 @@ assert.doesNotMatch(
   appbaseServerValidationSource,
   /sdkwork-user-center-core-pc-react[\\/]src/u,
   'sdkwork-appbase server validation package must not reach into sdkwork-user-center-core-pc-react source files directly.',
+);
+assert.doesNotMatch(
+  appbaseAuthIndexSource,
+  /from ['"]\.\/(?:components|pages)\/[^'"]+(?<!\.(?:ts|tsx))['"]/u,
+  'sdkwork-appbase auth package root must use extension-qualified exports so Node ESM contract tests can consume the canonical package root.',
+);
+assert.doesNotMatch(
+  appbaseAuthRuntimeIndexSource,
+  /export \* from ['"][^'"]*\/auth-(?:service|iam-runtime)\.ts['"]/u,
+  'sdkwork-appbase auth runtime package root must not value-export core-backed UI auth service modules.',
+);
+assert.match(
+  appbaseAuthRuntimeIndexSource,
+  /createSdkworkCanonicalRuntimeAuthAuthorityService/u,
+  'sdkwork-appbase auth runtime package root must expose the headless runtime auth authority service.',
 );
 
 assert.equal(

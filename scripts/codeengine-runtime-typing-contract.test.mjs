@@ -11,8 +11,8 @@ function read(relativePath) {
 
 const runtimeSource = read('packages/sdkwork-birdcoder-codeengine/src/runtime.ts');
 const codexSource = read('packages/sdkwork-birdcoder-chat-codex/src/index.ts');
-const appAdminApiClientSource = read(
-  'packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
+const appSdkClientSource = read(
+  'packages/sdkwork-birdcoder-infrastructure/src/services/appSdkTransport.ts',
 );
 
 assert.match(
@@ -40,7 +40,7 @@ assert.doesNotMatch(
 );
 
 assert.doesNotMatch(
-  appAdminApiClientSource,
+  appSdkClientSource,
   /\.replaceAll\(/,
   'App admin API client path normalization must not rely on replaceAll because the workspace TypeScript target is ES2020.',
 );

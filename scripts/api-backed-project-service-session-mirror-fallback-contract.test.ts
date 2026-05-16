@@ -1,6 +1,6 @@
+import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderCodingSession,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
@@ -58,11 +58,11 @@ const staleCodingSessionMirror = {
 };
 
 const service = new ApiBackedProjectService({
-  client: {
+  appClient: {
     async getProject() {
       throw new Error('remote project detail should not be needed for an already mirrored project');
     },
-  } as unknown as BirdCoderAppAdminApiClient,
+  } as unknown as BirdCoderAppSdkApiClient,
   codingSessionMirror: staleCodingSessionMirror,
   writeService,
 });
@@ -86,7 +86,7 @@ const defaultProviderLikeMirror = {
   async getProjects(): Promise<BirdCoderProject[]> {
     return defaultMirrorProject ? [structuredClone(defaultMirrorProject)] : [];
   },
-  async syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>) {
+  async syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>) {
     defaultMirrorProjectSyncCount += 1;
     if (summary.rootPath && !/^[a-zA-Z]:[\\/]/u.test(summary.rootPath)) {
       throw new Error('Project root path must be an absolute path.');
@@ -116,12 +116,12 @@ const defaultProviderLikeMirror = {
     };
   },
 } as unknown as IProjectService & {
-  syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>): Promise<BirdCoderProject>;
+  syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>): Promise<BirdCoderProject>;
 } & IProjectSessionMirror;
 
 const defaultComposedService = new ApiBackedProjectService({
-  client: {
-    async getProject(): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>> {
+  appClient: {
+    async getProject(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>> {
       return {
         id: 'project-default-mirror-missing',
         workspaceId: 'workspace-session-mirror-fallback',
@@ -132,7 +132,7 @@ const defaultComposedService = new ApiBackedProjectService({
         updatedAt: '2026-04-27T09:10:00.000Z',
       };
     },
-  } as unknown as BirdCoderAppAdminApiClient,
+  } as unknown as BirdCoderAppSdkApiClient,
   codingSessionMirror: defaultProviderLikeMirror,
   projectMirror: defaultProviderLikeMirror,
   writeService: defaultProviderLikeMirror,
@@ -200,7 +200,7 @@ const idMismatchProviderLikeMirror = {
       structuredClone(candidate),
     );
   },
-  async syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>) {
+  async syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>) {
     idMismatchProjectSyncCount += 1;
     idMismatchMirrorProjects.set(summary.id, {
       id: summary.id,
@@ -227,12 +227,12 @@ const idMismatchProviderLikeMirror = {
     });
   },
 } as unknown as IProjectService & {
-  syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>): Promise<BirdCoderProject>;
+  syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>): Promise<BirdCoderProject>;
 } & IProjectSessionMirror;
 
 const idMismatchComposedService = new ApiBackedProjectService({
-  client: {
-    async getProject(): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>> {
+  appClient: {
+    async getProject(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>> {
       return {
         id: authorityProjectId,
         workspaceId: 'workspace-session-mirror-fallback',
@@ -243,7 +243,7 @@ const idMismatchComposedService = new ApiBackedProjectService({
         updatedAt: '2026-04-27T09:20:00.000Z',
       };
     },
-  } as unknown as BirdCoderAppAdminApiClient,
+  } as unknown as BirdCoderAppSdkApiClient,
   codingSessionMirror: idMismatchProviderLikeMirror,
   projectMirror: idMismatchProviderLikeMirror,
   writeService: idMismatchProviderLikeMirror,
@@ -282,7 +282,7 @@ let isolatedWriteServiceProjectSyncCount = 0;
 let isolatedWriteServiceSessionUpsertCount = 0;
 
 const isolatedProjectMirror = {
-  async syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>) {
+  async syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>) {
     isolatedProjectMirrorSyncCount += 1;
     isolatedProjectMirrorProjects.set(summary.id, {
       id: summary.id,
@@ -308,7 +308,7 @@ const isolatedWriteService = {
       structuredClone(candidate),
     );
   },
-  async syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>) {
+  async syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>) {
     isolatedWriteServiceProjectSyncCount += 1;
     isolatedWriteServiceProjects.set(summary.id, {
       id: summary.id,
@@ -335,12 +335,12 @@ const isolatedWriteService = {
     });
   },
 } as unknown as IProjectService & {
-  syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>): Promise<BirdCoderProject>;
+  syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>): Promise<BirdCoderProject>;
 } & IProjectSessionMirror;
 
 const isolatedMirrorComposedService = new ApiBackedProjectService({
-  client: {
-    async getProject(): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['getProject']>>> {
+  appClient: {
+    async getProject(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>> {
       return {
         id: 'project-isolated-session-writer',
         workspaceId: 'workspace-session-mirror-fallback',
@@ -351,7 +351,7 @@ const isolatedMirrorComposedService = new ApiBackedProjectService({
         updatedAt: '2026-04-27T09:30:00.000Z',
       };
     },
-  } as unknown as BirdCoderAppAdminApiClient,
+  } as unknown as BirdCoderAppSdkApiClient,
   codingSessionMirror: isolatedWriteService,
   projectMirror: isolatedProjectMirror,
   writeService: isolatedWriteService,

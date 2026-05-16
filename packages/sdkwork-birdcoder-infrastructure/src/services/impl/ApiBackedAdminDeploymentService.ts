@@ -1,21 +1,21 @@
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderDeploymentRecordSummary,
 } from '@sdkwork/birdcoder-types';
 import type { IAdminDeploymentService } from '../interfaces/IAdminDeploymentService.ts';
+import type { BirdCoderBackendSdkApiClient } from '../sdkClients.ts';
 
 export interface ApiBackedAdminDeploymentServiceOptions {
-  client: BirdCoderAppAdminApiClient;
+  backendClient: BirdCoderBackendSdkApiClient;
 }
 
 export class ApiBackedAdminDeploymentService implements IAdminDeploymentService {
-  private readonly client: BirdCoderAppAdminApiClient;
+  private readonly backendClient: BirdCoderBackendSdkApiClient;
 
-  constructor({ client }: ApiBackedAdminDeploymentServiceOptions) {
-    this.client = client;
+  constructor({ backendClient }: ApiBackedAdminDeploymentServiceOptions) {
+    this.backendClient = backendClient;
   }
 
   async getDeployments(): Promise<BirdCoderDeploymentRecordSummary[]> {
-    return this.client.listAdminDeployments();
+    return this.backendClient.listGovernanceDeployments();
   }
 }

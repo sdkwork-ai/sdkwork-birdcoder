@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const appAdminApiClientModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
+const sdkTransportSharedModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkTransportShared.ts',
   import.meta.url,
 );
 const rustHostLibSource = readFileSync(
@@ -13,7 +13,7 @@ const rustHostLibSource = readFileSync(
 let capturedInit: RequestInit | undefined;
 
 const { createBirdCoderHttpApiTransport } = await import(
-  `${appAdminApiClientModulePath.href}?t=${Date.now()}`
+  `${sdkTransportSharedModulePath.href}?t=${Date.now()}`
 );
 
 const transport = createBirdCoderHttpApiTransport({
@@ -44,7 +44,7 @@ const transport = createBirdCoderHttpApiTransport({
 
 await transport.request({
   method: 'GET',
-  path: '/api/app/v1/workspaces',
+  path: '/app/v3/api/workspaces',
 });
 
 assert.equal(capturedInit?.method, 'GET');
@@ -73,7 +73,7 @@ const localCorsLayerSource = rustHostLibSource.slice(localCorsLayerStart, localC
 assert.match(
   localCorsLayerSource,
   /Method::PUT/,
-  'Rust local CORS allow-methods must include PUT because core.syncModelConfig uses PUT /api/core/v1/model-config from browser-hosted clients.',
+  'Rust local CORS allow-methods must include PUT because app.syncModelConfig uses PUT /app/v3/api/model_config from browser-hosted clients.',
 );
 
 const rustPreflightTestStart = rustHostLibSource.indexOf(
@@ -97,8 +97,8 @@ const rustPreflightTestSource = rustHostLibSource.slice(
 
 assert.match(
   rustPreflightTestSource,
-  /\.uri\("\/api\/core\/v1\/model-config"\)/,
-  'Rust browser preflight regression test must cover the core model-config route that is called during startup preference sync.',
+  /\.uri\("\/app\/v3\/api\/model_config"\)/,
+  'Rust browser preflight regression test must cover the app model_config route that is called during startup preference sync.',
 );
 assert.match(
   rustPreflightTestSource,
@@ -114,13 +114,13 @@ for (const [requiredHeader, allowListPattern, preflightPattern] of [
   ],
   [
     'x-sdkwork-user-center-session-id',
-    /HeaderName::from_static\(BIRDCODER_SESSION_HEADER_NAME\)/,
-    /BIRDCODER_SESSION_HEADER_NAME/,
+    /HeaderName::from_static\(USER_CENTER_SESSION_HEADER_NAME\)/,
+    /USER_CENTER_SESSION_HEADER_NAME/,
   ],
   [
-    'access-token',
-    /HeaderName::from_static\("access-token"\)/,
-    /"access-token"/,
+    'Sdkwork-Access-Token',
+    /parse_canonical_user_center_header_name\(USER_CENTER_ACCESS_TOKEN_HEADER_NAME\)/,
+    /USER_CENTER_ACCESS_TOKEN_HEADER_NAME/,
   ],
   [
     'refresh-token',

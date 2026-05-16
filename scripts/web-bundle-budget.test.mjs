@@ -149,7 +149,7 @@ for (const forbiddenPreloadPrefix of [
   'vendor-tauri-event-',
   'vendor-tauri-window-',
   'ui-workbench-',
-  'birdcoder-identity-surface-',
+  'birdcoder-iam-surface-',
   'birdcoder-user-center-core-',
   'birdcoder-platform-',
   'birdcoder-platform-api-client-',
@@ -188,7 +188,7 @@ for (const requiredChunkPrefix of [
   'vendor-tauri-core-',
   'vendor-tauri-event-',
   'vendor-tauri-window-',
-  'birdcoder-identity-surface-',
+  'birdcoder-iam-surface-',
   'birdcoder-codeengine-',
   'birdcoder-commons-root-',
   'birdcoder-infrastructure-root-',
@@ -225,15 +225,15 @@ assertNoAssetPrefix(
 );
 
 assert.ok(
-  !findAssetByPrefix(jsAssets, 'birdcoder-identity-runtime-'),
-  'web bundle budget check must not emit a separate birdcoder-identity-runtime chunk because identity runtime hooks are part of the platform runtime boundary.',
+  !findAssetByPrefix(jsAssets, 'birdcoder-iam-runtime-'),
+  'web bundle budget check must not emit a separate birdcoder-iam-runtime chunk because IAM runtime hooks are part of the platform runtime boundary.',
 );
 
-const identitySurfaceAsset = findAssetByPrefix(jsAssets, 'birdcoder-identity-surface-');
+const identitySurfaceAsset = findAssetByPrefix(jsAssets, 'birdcoder-iam-surface-');
 
 assert.ok(
   identitySurfaceAsset,
-  'web bundle budget check expected BirdCoder auth, user, and user-center pages to build as a single birdcoder-identity-surface chunk.',
+  'web bundle budget check expected BirdCoder auth, user, and user-center pages to build as a single birdcoder-iam-surface chunk.',
 );
 
 const markdownAsset = findAssetByPrefix(jsAssets, 'vendor-markdown-');

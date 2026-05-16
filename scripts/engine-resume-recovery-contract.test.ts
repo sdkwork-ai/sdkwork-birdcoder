@@ -16,7 +16,7 @@ assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('turn.failed'), true)
 assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('operation.updated'), true);
 
 const checkpointDefinition = getBirdCoderEntityDefinition('coding_session_checkpoint');
-assert.equal(checkpointDefinition.tableName, 'coding_session_checkpoints');
+assert.equal(checkpointDefinition.tableName, 'ai_coding_session_checkpoint');
 assert.equal(
   checkpointDefinition.columns.some((column) => column.name === 'checkpoint_kind'),
   true,

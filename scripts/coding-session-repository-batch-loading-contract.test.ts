@@ -4,7 +4,7 @@ import type {
   BirdCoderChatMessage,
 } from '@sdkwork/birdcoder-types';
 import { ProviderBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts';
-import { createBirdCoderRepresentativeAppAdminRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
+import { createBirdCoderConsoleRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
 import {
   createBirdCoderCodingSessionRepositories,
   type BirdCoderPersistedCodingSessionRecord,
@@ -66,7 +66,7 @@ const sqlExecutor = createBirdCoderInMemorySqlExecutor('sqlite');
 const storageProvider = createBirdCoderStorageProvider('sqlite', {
   sqlExecutor,
 });
-const appRepositories = createBirdCoderRepresentativeAppAdminRepositories({
+const appRepositories = createBirdCoderConsoleRepositories({
   providerId: storageProvider.providerId,
   storage: storageProvider,
 });
@@ -339,10 +339,10 @@ assert.equal(
   sqlExecutor.history.some(
     (plan) =>
       plan.meta?.kind === 'table-list' &&
-      plan.meta.tableName === 'coding_session_messages',
+      plan.meta.tableName === 'ai_coding_session_message',
   ),
   false,
-  'provider mirror snapshots must not issue a full coding_session_messages table-list plan.',
+  'provider mirror snapshots must not issue a full ai_coding_session_message table-list plan.',
 );
 
 console.log('coding session repository batch loading contract passed.');

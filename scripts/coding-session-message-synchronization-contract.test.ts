@@ -4,14 +4,14 @@ import { resolve } from 'node:path';
 import {
   areBirdCoderChatMessagesEquivalent,
   areBirdCoderChatMessagesLogicallyMatched,
-  createBirdCoderGeneratedCoreReadApiClient,
   mergeBirdCoderProjectionMessages,
   mergeBirdCoderComparableChatMessages,
   type BirdCoderChatMessage,
   type BirdCoderCodingSession,
   type BirdCoderProject,
 } from '../packages/sdkwork-birdcoder-types/src/index.ts';
-import { createBirdCoderInProcessCoreApiTransport } from '../packages/sdkwork-birdcoder-infrastructure/src/services/coreApiClient.ts';
+import { createBirdCoderInProcessAppRuntimeTransport } from '../packages/sdkwork-birdcoder-infrastructure/src/services/appRuntimeTransport.ts';
+import { createBirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import { readAuthorityBackedNativeSessionRecord } from '../packages/sdkwork-birdcoder-commons/src/workbench/nativeSessionAuthority.ts';
 
 const baseMessage: BirdCoderChatMessage = {
@@ -1839,8 +1839,8 @@ const richReplayProject: BirdCoderProject = {
   updatedAt: '2026-04-20T10:01:02.000Z',
   codingSessions: [richReplaySession],
 };
-const richReplayCoreReadClient = createBirdCoderGeneratedCoreReadApiClient({
-  transport: createBirdCoderInProcessCoreApiTransport({
+const richReplayAppClient = createBirdCoderAppSdkApiClient({
+  transport: createBirdCoderInProcessAppRuntimeTransport({
     projectService: {
       async getProjectById(projectId: string) {
         return projectId === richReplayProject.id ? richReplayProject : null;
@@ -1851,7 +1851,7 @@ const richReplayCoreReadClient = createBirdCoderGeneratedCoreReadApiClient({
     } as never,
   }),
 });
-const richReplayEvents = await richReplayCoreReadClient.listCodingSessionEvents(
+const richReplayEvents = await richReplayAppClient.listCodingSessionEvents(
   richReplaySession.id,
 );
 const richReplayAssistantEvent = richReplayEvents.find(
@@ -1860,42 +1860,42 @@ const richReplayAssistantEvent = richReplayEvents.find(
 assert.equal(
   Array.isArray(richReplayAssistantEvent?.payload.commands),
   true,
-  'in-process core replay should preserve command payloads on message.completed events',
+  'in-process app runtime replay should preserve command payloads on message.completed events',
 );
 assert.equal(
   Array.isArray(richReplayAssistantEvent?.payload.fileChanges),
   true,
-  'in-process core replay should preserve fileChanges payloads on message.completed events so all engine sessions render the same file cards',
+  'in-process app runtime replay should preserve fileChanges payloads on message.completed events so all engine sessions render the same file cards',
 );
 assert.equal(
   typeof richReplayAssistantEvent?.payload.taskProgress,
   'object',
-  'in-process core replay should preserve taskProgress payloads on message.completed events so planner/reviewer progress survives refresh',
+  'in-process app runtime replay should preserve taskProgress payloads on message.completed events so planner/reviewer progress survives refresh',
 );
 assert.equal(
   Array.isArray(richReplayAssistantEvent?.payload.toolCalls),
   true,
-  'in-process core replay should preserve assistant tool_calls on message.completed events for OpenAI-compatible history adapters',
+  'in-process app runtime replay should preserve assistant tool_calls on message.completed events for OpenAI-compatible history adapters',
 );
 assert.equal(
   'commandsJson' in (richReplayAssistantEvent?.payload ?? {}),
   false,
-  'in-process core replay must not emit commandsJson string fallbacks for new message.completed events',
+  'in-process app runtime replay must not emit commandsJson string fallbacks for new message.completed events',
 );
 assert.equal(
   'fileChangesJson' in (richReplayAssistantEvent?.payload ?? {}),
   false,
-  'in-process core replay must not emit fileChangesJson string fallbacks for new message.completed events',
+  'in-process app runtime replay must not emit fileChangesJson string fallbacks for new message.completed events',
 );
 assert.equal(
   'taskProgressJson' in (richReplayAssistantEvent?.payload ?? {}),
   false,
-  'in-process core replay must not emit taskProgressJson string fallbacks for new message.completed events',
+  'in-process app runtime replay must not emit taskProgressJson string fallbacks for new message.completed events',
 );
 assert.equal(
   'toolCallsJson' in (richReplayAssistantEvent?.payload ?? {}),
   false,
-  'in-process core replay must not emit toolCallsJson string fallbacks for new message.completed events',
+  'in-process app runtime replay must not emit toolCallsJson string fallbacks for new message.completed events',
 );
 const richReplayToolEvent = richReplayEvents.find(
   (event) => event.kind === 'message.completed' && event.payload.role === 'tool',
@@ -1903,7 +1903,7 @@ const richReplayToolEvent = richReplayEvents.find(
 assert.equal(
   richReplayToolEvent?.payload.toolCallId,
   'rich-replay-tool-call',
-  'in-process core replay should preserve tool_call_id on tool messages so tool responses can be matched to assistant requests',
+  'in-process app runtime replay should preserve tool_call_id on tool messages so tool responses can be matched to assistant requests',
 );
 const richReplayProjectedMessages = mergeBirdCoderProjectionMessages({
   codingSessionId: richReplaySession.id,
@@ -1914,25 +1914,25 @@ const richReplayProjectedMessages = mergeBirdCoderProjectionMessages({
 assert.deepEqual(
   richReplayProjectedMessages.find((message) => message.role === 'assistant')?.fileChanges,
   richReplaySession.messages[1]?.fileChanges,
-  'projecting in-process core replay events should restore assistant fileChanges exactly',
+  'projecting in-process app runtime replay events should restore assistant fileChanges exactly',
 );
 assert.deepEqual(
   richReplayProjectedMessages.find((message) => message.role === 'assistant')?.taskProgress,
   richReplaySession.messages[1]?.taskProgress,
-  'projecting in-process core replay events should restore assistant taskProgress exactly',
+  'projecting in-process app runtime replay events should restore assistant taskProgress exactly',
 );
 assert.deepEqual(
   richReplayProjectedMessages.find((message) => message.role === 'assistant')?.tool_calls,
   richReplaySession.messages[1]?.tool_calls,
-  'projecting in-process core replay events should restore assistant tool_calls exactly',
+  'projecting in-process app runtime replay events should restore assistant tool_calls exactly',
 );
 assert.equal(
   richReplayProjectedMessages.find((message) => message.role === 'tool')?.tool_call_id,
   'rich-replay-tool-call',
-  'projecting in-process core replay events should restore tool_call_id exactly',
+  'projecting in-process app runtime replay events should restore tool_call_id exactly',
 );
 
-const richReplayNativeSession = await richReplayCoreReadClient.getNativeSession(
+const richReplayNativeSession = await richReplayAppClient.getNativeSession(
   richReplaySession.id,
 );
 const richReplayNativeAssistantMessage = richReplayNativeSession.messages.find(

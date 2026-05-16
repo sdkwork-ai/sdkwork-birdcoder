@@ -1,4 +1,4 @@
-# Architecture
+﻿# Architecture
 
 SDKWork BirdCoder follows the Claw Studio architecture standard at the workspace, host, release, and deployment layers while keeping BirdCoder as a super AI IDE product.
 
@@ -11,23 +11,23 @@ SDKWork BirdCoder follows the Claw Studio architecture standard at the workspace
 
 ## Product boundary
 
-BirdCoder keeps its AI IDE business modules such as `code`, `studio`, `terminal`, `settings`, `skills`, and `templates`, while identity and membership converge through the split `sdkwork-birdcoder-auth` and `sdkwork-birdcoder-user` packages. The shell consumes those two packages as the only identity surface, and the user package keeps the runtime user-center, validation, storage, and membership contracts aligned with the upstream `sdkwork-appbase` shape. Active release governance now treats that alignment as executable policy through `check:identity-standard`, rather than a docs-only convention.
+BirdCoder keeps its AI IDE business modules such as `code`, `studio`, `terminal`, `settings`, `skills`, and `templates`, while IAM and membership converge through the split `sdkwork-birdcoder-auth` and `sdkwork-birdcoder-user` packages. The shell consumes those two packages as the only IAM surface, and the user package keeps the runtime user-center, validation, storage, and membership contracts aligned with the upstream `sdkwork-appbase` shape. Active release governance now treats that alignment as executable policy through `check:iam-standard`, rather than a docs-only convention.
 
-## Identity standard
+## IAM standard
 
-BirdCoder treats identity as a three-layer standard instead of a per-app customization:
+BirdCoder treats IAM as a three-layer standard instead of a per-app customization:
 
 - Delivery mode: `web`, `desktop`, `server`, `container`, `kubernetes`
-- Identity deployment mode: `desktop-local`, `server-private`, `cloud-saas`
+- IAM deployment mode: `desktop-local`, `server-private`, `cloud-saas`
 - User-center provider mode: `builtin-local`, `external-user-center`, `sdkwork-cloud-app-api`
 
-The important boundary is that deployment and provider selection are allowed to change, but the frontend service contract does not. BirdCoder keeps the same facade routes across all identity modes:
+The important boundary is that deployment and provider selection are allowed to change, but the frontend service contract does not. BirdCoder keeps the same facade routes across all IAM modes:
 
-- `/api/app/v1/auth/*`
-- `/api/app/v1/user/profile`
-- `/api/app/v1/vip/info`
+- `/app/v3/api/auth/*`
+- `/app/v3/api/iam/users/current`
+- `/app/v3/api/billing/vip/info`
 
-That route invariance is the sample-app standard. The shell and BirdCoder service layer stay branch-free while the server binding decides whether identity is resolved locally, bridged to a third-party external user center, or delegated to `sdkwork-cloud-app-api`.
+That route invariance is the sample-app standard. The shell and BirdCoder service layer stay branch-free while the server binding decides whether IAM is resolved locally, bridged to a third-party external user center, or delegated to `sdkwork-cloud-app-api`.
 
 ## Quality gates
 
@@ -42,4 +42,4 @@ That route invariance is the sample-app standard. The shell and BirdCoder servic
 - Package topology: [Packages](./packages.md)
 - Desktop runtime shape: [Desktop Runtime](./desktop.md)
 - Release and deployment: [Release And Deployment](./release-and-deployment.md)
-- Full Chinese architecture standards: [架构文档总览](../架构/README.md)
+- Full Chinese architecture standards: [鏋舵瀯鏂囨。鎬昏](../鏋舵瀯/README.md)

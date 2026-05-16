@@ -47,7 +47,7 @@ export function resolveBirdCoderWorkspaceRealtimeUrl(
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   const normalizedBasePath = url.pathname === '/' ? '' : url.pathname.replace(/\/+$/u, '');
   url.pathname =
-    `${normalizedBasePath}/api/app/v1/workspaces/${encodeURIComponent(workspaceId)}/realtime`;
+    `${normalizedBasePath}/app/v3/api/workspaces/${encodeURIComponent(workspaceId)}/realtime`;
   url.searchParams.set('sessionId', sessionId);
   return url.toString();
 }

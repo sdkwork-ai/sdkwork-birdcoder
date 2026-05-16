@@ -42,5 +42,5 @@ Close the first real release-backed SDK/codegen lane by consuming finalized `cod
 1. PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`.
 2. Build the next non-environmental slice on top of `packages/sdkwork-birdcoder-types/src/generated/coding-server-openapi.ts`:
    - typed route helpers, or
-   - a generated app/admin/core client surface
+   - a generated app/backend/core client surface
 3. Do not bypass the generated module and rediscover OpenAPI paths directly from release assets.

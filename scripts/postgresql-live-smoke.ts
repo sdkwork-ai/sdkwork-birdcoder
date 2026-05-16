@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { getBirdCoderSchemaMigrationDefinition } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts';
-import { createBirdCoderRepresentativeAppAdminRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
+import { createBirdCoderConsoleRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
 import { createBirdCoderStorageProvider } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
 import {
   createBirdCoderPostgresqlClientSqlExecutor,
@@ -262,7 +262,7 @@ export async function runBirdCoderPostgresqlLiveSmoke(
   const provider = createBirdCoderStorageProvider('postgresql', {
     sqlExecutor,
   });
-  const repositories = createBirdCoderRepresentativeAppAdminRepositories({
+  const repositories = createBirdCoderConsoleRepositories({
     providerId: 'postgresql',
     storage: provider,
   });
@@ -280,7 +280,7 @@ export async function runBirdCoderPostgresqlLiveSmoke(
 
     const unitOfWork = await provider.beginUnitOfWork();
     try {
-      const stagedRepositories = createBirdCoderRepresentativeAppAdminRepositories({
+      const stagedRepositories = createBirdCoderConsoleRepositories({
         providerId: 'postgresql',
         storage: unitOfWork,
       });

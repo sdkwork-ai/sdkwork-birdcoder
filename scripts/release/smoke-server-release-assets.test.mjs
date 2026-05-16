@@ -95,14 +95,14 @@ fs.writeFileSync(
       },
     ],
     paths: {
-      '/api/core/v1/routes': {
+      '/app/v3/api/system/routes': {
         get: {
-          operationId: 'core.listRoutes',
+          operationId: 'routes.list',
         },
       },
     },
     'x-sdkwork-api-gateway': {
-      routeCatalogPath: '/api/core/v1/routes',
+      routeCatalogPath: '/app/v3/api/system/routes',
     },
   }, null, 2) + '\n',
 );

@@ -1,9 +1,10 @@
-import type { BirdCoderAppAdminApiClient, BirdCoderTeam } from '@sdkwork/birdcoder-types';
+import type { BirdCoderTeam } from '@sdkwork/birdcoder-types';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { ITeamService } from '../interfaces/ITeamService.ts';
+import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
 
 function mapTeamSummaryToTeam(
-  team: Awaited<ReturnType<BirdCoderAppAdminApiClient['listTeams']>>[number],
+  team: Awaited<ReturnType<BirdCoderAppSdkApiClient['listTeams']>>[number],
 ): BirdCoderTeam {
   return {
     id: team.id,
@@ -26,27 +27,27 @@ function mapTeamSummaryToTeam(
 }
 
 export interface ApiBackedTeamServiceOptions {
-  client: BirdCoderAppAdminApiClient;
-  identityProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  appClient: BirdCoderAppSdkApiClient;
+  currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
 }
 
 export class ApiBackedTeamService implements ITeamService {
-  private readonly client: BirdCoderAppAdminApiClient;
-  private readonly identityProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  private readonly appClient: BirdCoderAppSdkApiClient;
+  private readonly currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
 
-  constructor({ client, identityProvider }: ApiBackedTeamServiceOptions) {
-    this.client = client;
-    this.identityProvider = identityProvider;
+  constructor({ appClient, currentUserProvider }: ApiBackedTeamServiceOptions) {
+    this.appClient = appClient;
+    this.currentUserProvider = currentUserProvider;
   }
 
   private async resolveCurrentUserId(): Promise<string | undefined> {
-    const user = await this.identityProvider?.getCurrentUser();
+    const user = await this.currentUserProvider?.getCurrentUser();
     const userId = user?.id?.trim();
     return userId && userId.length > 0 ? userId : undefined;
   }
 
   async getTeams(workspaceId?: string): Promise<BirdCoderTeam[]> {
-    const teams = await this.client.listTeams({
+    const teams = await this.appClient.listTeams({
       userId: await this.resolveCurrentUserId(),
       workspaceId,
     });

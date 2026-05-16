@@ -15,6 +15,12 @@
       "@sdkwork/birdcoder-host-studio": [
         "packages/sdkwork-birdcoder-host-studio/src/index.ts"
       ],
+      "@sdkwork/birdcoder-app-sdk": [
+        "sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/birdcoder-backend-sdk": [
+        "sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts"
+      ],
       "@sdkwork/birdcoder-commons/*": [
         "packages/sdkwork-birdcoder-commons/src/*"
       ],
@@ -30,14 +36,35 @@
       "@sdkwork/birdcoder-commons/shell": [
         "packages/sdkwork-birdcoder-commons/src/shell.ts"
       ],
+      "@sdkwork/appbase-pc-react": [
+        "src/appbase-public-types/appbase-pc-react.d.ts"
+      ],
       "@sdkwork/auth-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/index.ts"
+        "src/appbase-public-types/auth-pc-react.d.ts"
       ],
       "@sdkwork/auth-runtime-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-runtime-pc-react/src/index.ts"
+        "src/appbase-public-types/auth-runtime-pc-react.d.ts"
       ],
-      "@sdkwork/appbase-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts"
+      "@sdkwork/search-pc-react": [
+        "src/appbase-public-types/search-pc-react.d.ts"
+      ],
+      "@sdkwork/user-center-core-pc-react": [
+        "src/appbase-public-types/user-center-core-pc-react.d.ts"
+      ],
+      "@sdkwork/user-center-pc-react": [
+        "src/appbase-public-types/user-center-pc-react.d.ts"
+      ],
+      "@sdkwork/user-center-validation-pc-react": [
+        "src/appbase-public-types/user-center-validation-pc-react.d.ts"
+      ],
+      "@sdkwork/user-pc-react": [
+        "src/appbase-public-types/user-pc-react.d.ts"
+      ],
+      "@sdkwork/vip-pc-react": [
+        "src/appbase-public-types/vip-pc-react.d.ts"
+      ],
+      "@sdkwork/wallet-pc-react": [
+        "src/appbase-public-types/wallet-pc-react.d.ts"
       ],
       "@sdkwork/app-sdk": [
         "../spring-ai-plus-app-api/sdkwork-sdk-app/sdkwork-app-sdk-typescript/dist/index.d.ts"
@@ -45,29 +72,8 @@
       "@sdkwork/core-pc-react": [
         "../sdkwork-core/sdkwork-core-pc-react/dist/index.d.ts"
       ],
-      "@sdkwork/search-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/foundation/sdkwork-search-pc-react/src/index.ts"
-      ],
-      "@sdkwork/user-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-pc-react/src/index.ts"
-      ],
       "@sdkwork/birdcoder-shell/runtime": [
         "packages/sdkwork-birdcoder-shell/src/runtime.ts"
-      ],
-      "@sdkwork/user-center-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/index.ts"
-      ],
-      "@sdkwork/user-center-core-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react/src/index.ts"
-      ],
-      "@sdkwork/user-center-validation-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-validation-pc-react/src/index.ts"
-      ],
-      "@sdkwork/vip-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/commerce/sdkwork-vip-pc-react/src/index.ts"
-      ],
-      "@sdkwork/wallet-pc-react": [
-        "../sdkwork-appbase/packages/pc-react/commerce/sdkwork-wallet-pc-react/src/index.ts"
       ],
       "@sdkwork/ui-pc-react": [
         "../sdkwork-ui/sdkwork-ui-pc-react/src/index.ts"

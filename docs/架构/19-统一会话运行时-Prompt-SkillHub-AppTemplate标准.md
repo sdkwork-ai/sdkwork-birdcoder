@@ -116,7 +116,7 @@
 - `Code` 消费 `coding_session_message + coding_session_artifact`。
 - `Studio` 消费 `coding_session_artifact + build/preview/simulator/test evidence`。
 - `Terminal` 在本仓只保留外部集成协议，不再承担本地实现主线。
-- `web / desktop / server` 必须统一通过 `coding-server -> core / app / admin` API 访问同一语义。
+- `web / desktop / server` 必须统一通过 `coding-server -> app / backend` API 访问同一语义。
 
 ## 7. 评估标准
 

@@ -1,5 +1,4 @@
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderChatMessage,
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSession,
@@ -7,8 +6,6 @@ import type {
   BirdCoderCodingSessionTurnIdeContext,
   BirdCoderCodingSessionSummary,
   BirdCoderCreateCodingSessionTurnRequest,
-  BirdCoderCoreReadApiClient,
-  BirdCoderCoreWriteApiClient,
   BirdCoderProject,
   BirdCoderProjectSummary,
 } from '@sdkwork/birdcoder-types';
@@ -44,6 +41,12 @@ import type {
   IProjectService,
   UpdateCodingSessionOptions,
 } from '../interfaces/IProjectService.ts';
+import type {
+  BirdCoderAppRuntimeReadSdkApiClient,
+  BirdCoderAppRuntimeSdkApiClient,
+  BirdCoderAppRuntimeWriteSdkApiClient,
+  BirdCoderAppSdkApiClient,
+} from '../sdkClients.ts';
 
 const ZERO_TIMESTAMP = new Date(0).toISOString();
 const PROJECT_LIST_CACHE_TTL_MS = 30_000;
@@ -92,8 +95,8 @@ function isOptionalIdentityResolutionError(error: unknown): boolean {
   }
 
   return (
-    error.message.includes('/api/app/v1/user/profile')
-    || error.message.includes('/api/app/v1/auth/session')
+    error.message.includes('/app/v3/api/iam/users/current')
+    || error.message.includes('/app/v3/api/auth/sessions/current')
     || error.message.includes('requires a bound coding-server runtime')
     || error.message.includes(' -> 401')
     || error.message.includes(' -> 403')
@@ -151,11 +154,13 @@ function sanitizeCodingSessionMessageUpdates(
 }
 
 export interface ApiBackedProjectServiceOptions {
-  client: BirdCoderAppAdminApiClient;
+  appClient: BirdCoderAppSdkApiClient;
   codingSessionMirror?: IProjectSessionMirror;
-  coreReadClient?: BirdCoderCoreReadApiClient;
-  coreWriteClient?: BirdCoderCoreWriteApiClient;
-  identityProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  codingRuntimeClient?:
+    | BirdCoderAppRuntimeReadSdkApiClient
+    | BirdCoderAppRuntimeSdkApiClient
+    | BirdCoderAppRuntimeWriteSdkApiClient;
+  currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
   projectMirror?: ProjectSummaryMirror;
   writeService: IProjectService;
 }
@@ -187,7 +192,7 @@ function collectProjectSummaryMirrors(
 }
 
 function mergeProjectSummary(
-  summary: Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>[number],
+  summary: Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>[number],
   localProject: LocalProjectSnapshot | undefined,
 ): BirdCoderProject {
   const resolvedProjectPath = summary.rootPath?.trim() || localProject?.path;
@@ -236,7 +241,7 @@ function mergeProjectSummary(
 }
 
 function mergeProjectMirrorSnapshot(
-  summary: Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>[number],
+  summary: Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>[number],
   localProject: BirdCoderProjectMirrorSnapshot | undefined,
 ): BirdCoderProjectMirrorSnapshot {
   const resolvedProjectPath = summary.rootPath?.trim() || localProject?.path;
@@ -352,8 +357,8 @@ function mergeCodingSessionSummary(
 
 function buildAuthoritativeCodingSessionUpdateRequest(
   updates: UpdateCodingSessionOptions,
-): Parameters<BirdCoderCoreWriteApiClient['updateCodingSession']>[1] {
-  const request: Parameters<BirdCoderCoreWriteApiClient['updateCodingSession']>[1] = {};
+): Parameters<BirdCoderAppSdkApiClient['updateCodingSession']>[1] {
+  const request: Parameters<BirdCoderAppSdkApiClient['updateCodingSession']>[1] = {};
   const normalizedTitle = updates.title?.trim();
   if (normalizedTitle) {
     request.title = normalizedTitle;
@@ -448,7 +453,7 @@ function normalizeProjectForInventory(project: BirdCoderProject): BirdCoderProje
 }
 
 function resolveAuthoritativeMirrorMessageCreatedAt(
-  createdTurn: Awaited<ReturnType<BirdCoderCoreWriteApiClient['createCodingSessionTurn']>>,
+  createdTurn: Awaited<ReturnType<BirdCoderAppSdkApiClient['createCodingSessionTurn']>>,
 ): string {
   const createdAtCandidate = createdTurn.startedAt ?? createdTurn.completedAt;
   return createdAtCandidate && !Number.isNaN(Date.parse(createdAtCandidate))
@@ -458,7 +463,7 @@ function resolveAuthoritativeMirrorMessageCreatedAt(
 
 function buildAuthoritativeMirrorMessage(
   codingSessionId: string,
-  createdTurn: Awaited<ReturnType<BirdCoderCoreWriteApiClient['createCodingSessionTurn']>>,
+  createdTurn: Awaited<ReturnType<BirdCoderAppSdkApiClient['createCodingSessionTurn']>>,
   message: CreateCodingSessionMessageInput,
 ): CreateCodingSessionMessageInput {
   return {
@@ -1472,11 +1477,10 @@ function buildCodingSessionProjectMirrorSummary(
 }
 
 export class ApiBackedProjectService implements IProjectService {
-  private readonly client: BirdCoderAppAdminApiClient;
+  private readonly appClient: BirdCoderAppSdkApiClient;
   private readonly codingSessionMirror?: IProjectSessionMirror;
-  private readonly coreReadClient?: BirdCoderCoreReadApiClient;
-  private readonly coreWriteClient?: BirdCoderCoreWriteApiClient;
-  private readonly identityProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  private readonly codingRuntimeClient: BirdCoderAppRuntimeSdkApiClient;
+  private readonly currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
   private readonly projectMirror?: ProjectSummaryMirror;
   private readonly projectSummaryMirrors: readonly ProjectSummaryMirror[];
   private readonly readCache = new Map<string, ReadCacheEntry<unknown>>();
@@ -1491,19 +1495,17 @@ export class ApiBackedProjectService implements IProjectService {
   private readonly writeService: IProjectService;
 
   constructor({
-    client,
+    appClient,
     codingSessionMirror,
-    coreReadClient,
-    coreWriteClient,
-    identityProvider,
+    codingRuntimeClient,
+    currentUserProvider,
     projectMirror,
     writeService,
   }: ApiBackedProjectServiceOptions) {
-    this.client = client;
+    this.appClient = appClient;
     this.codingSessionMirror = codingSessionMirror;
-    this.coreReadClient = coreReadClient;
-    this.coreWriteClient = coreWriteClient;
-    this.identityProvider = identityProvider;
+    this.codingRuntimeClient = (codingRuntimeClient ?? appClient) as BirdCoderAppRuntimeSdkApiClient;
+    this.currentUserProvider = currentUserProvider;
     this.projectMirror = projectMirror;
     this.projectSummaryMirrors = collectProjectSummaryMirrors(
       projectMirror,
@@ -1515,7 +1517,7 @@ export class ApiBackedProjectService implements IProjectService {
 
   private async resolveCurrentUserId(): Promise<string | undefined> {
     try {
-      const user = await this.identityProvider?.getCurrentUser();
+      const user = await this.currentUserProvider?.getCurrentUser();
       const userId = user?.id?.trim();
       return userId && userId.length > 0 ? userId : undefined;
     } catch (error) {
@@ -2002,7 +2004,7 @@ export class ApiBackedProjectService implements IProjectService {
     userId?: string;
     workspaceId?: string;
   }): Promise<Map<string, BirdCoderCodingSessionSummary[]> | null> {
-    if (!this.coreReadClient) {
+    if (!this.codingRuntimeClient) {
       return null;
     }
 
@@ -2017,7 +2019,7 @@ export class ApiBackedProjectService implements IProjectService {
       AUTHORITATIVE_CODING_SESSION_SUMMARY_CACHE_TTL_MS,
       async () =>
         groupCodingSessionSummariesByProjectId(
-          await this.coreReadClient!.listCodingSessions({
+          await this.codingRuntimeClient!.listCodingSessions({
             projectId: normalizedProjectId,
             workspaceId: normalizedWorkspaceId,
           }),
@@ -2133,11 +2135,11 @@ export class ApiBackedProjectService implements IProjectService {
     }
 
     const fallbackCodingSession = mergeCodingSessionSummary(summary, localCodingSession);
-    if (!this.coreReadClient) {
+    if (!this.codingRuntimeClient) {
       return fallbackCodingSession;
     }
 
-    const events = await this.coreReadClient.listCodingSessionEvents(summary.id);
+    const events = await this.codingRuntimeClient.listCodingSessionEvents(summary.id);
     const runtimeStatus = resolveBirdCoderCodingSessionRuntimeStatus(
       events,
       summary.runtimeStatus ?? localCodingSession?.runtimeStatus,
@@ -2162,7 +2164,7 @@ export class ApiBackedProjectService implements IProjectService {
     projectId: string,
     codingSessionId: string,
   ): Promise<BirdCoderCodingSession | null> {
-    if (!this.coreReadClient) {
+    if (!this.codingRuntimeClient) {
       return null;
     }
 
@@ -2171,7 +2173,7 @@ export class ApiBackedProjectService implements IProjectService {
     const localCodingSession = localProject?.codingSessions.find(
       (candidate) => candidate.id === codingSessionId,
     );
-    const summary = await this.coreReadClient.getCodingSession(codingSessionId);
+    const summary = await this.codingRuntimeClient.getCodingSession(codingSessionId);
     return this.hydrateAuthoritativeCodingSession(projectId, summary, localCodingSession);
   }
 
@@ -2180,7 +2182,7 @@ export class ApiBackedProjectService implements IProjectService {
     userId?: string,
   ): Promise<BirdCoderProjectSummary[]> {
     return retryBirdCoderTransientApiTask(() =>
-      this.client.listProjects({
+      this.appClient.listProjects({
         userId: userId ?? undefined,
         workspaceId,
       }),
@@ -2278,7 +2280,7 @@ export class ApiBackedProjectService implements IProjectService {
     }
 
     const projectSummary = await retryBirdCoderTransientApiTask(() =>
-      this.client.getProject(normalizedProjectId),
+      this.appClient.getProject(normalizedProjectId),
     );
     await this.syncProjectSummaryToMirror(
       projectSummary,
@@ -2347,7 +2349,7 @@ export class ApiBackedProjectService implements IProjectService {
           string,
           BirdCoderCodingSessionSummary[]
         > | null = null;
-        if (this.coreReadClient) {
+        if (this.codingRuntimeClient) {
           try {
             authoritativeCodingSessionsByProjectId =
               await this.listAuthoritativeCodingSessionsByProjectId({
@@ -2379,7 +2381,7 @@ export class ApiBackedProjectService implements IProjectService {
         if (redundantProjectIds.length > 0) {
           for (const redundantProjectId of redundantProjectIds) {
             try {
-              await this.client.deleteProject(redundantProjectId);
+              await this.appClient.deleteProject(redundantProjectId);
               await this.writeService.deleteProject(redundantProjectId);
             } catch (error) {
               console.error(
@@ -2476,7 +2478,7 @@ export class ApiBackedProjectService implements IProjectService {
         let projectSummary: BirdCoderProjectSummary;
         try {
           projectSummary = await retryBirdCoderTransientApiTask(() =>
-            this.client.getProject(normalizedProjectId),
+            this.appClient.getProject(normalizedProjectId),
           );
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
@@ -2517,7 +2519,7 @@ export class ApiBackedProjectService implements IProjectService {
           string,
           BirdCoderCodingSessionSummary[]
         > | null = null;
-        if (this.coreReadClient) {
+        if (this.codingRuntimeClient) {
           try {
             authoritativeCodingSessionsByProjectId =
               await this.listAuthoritativeCodingSessionsByProjectId({
@@ -2592,12 +2594,12 @@ export class ApiBackedProjectService implements IProjectService {
           ? localProject
           : null;
         let projectSummary:
-          | Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>[number]
+          | Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>[number]
           | undefined;
         try {
           projectSummary = (
             await retryBirdCoderTransientApiTask(() =>
-              this.client.listProjects({
+              this.appClient.listProjects({
                 rootPath: normalizedPath,
                 userId: currentUserId,
                 workspaceId: normalizedWorkspaceId,
@@ -2675,10 +2677,10 @@ export class ApiBackedProjectService implements IProjectService {
       localProjects,
       currentUserId,
     );
-    let projectSummaries: Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>;
+    let projectSummaries: Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>;
     try {
       projectSummaries = await retryBirdCoderTransientApiTask(async () =>
-        this.client.listProjects({
+        this.appClient.listProjects({
           userId: currentUserId,
           workspaceId: normalizedWorkspaceId,
         }),
@@ -2699,7 +2701,7 @@ export class ApiBackedProjectService implements IProjectService {
       string,
       BirdCoderCodingSessionSummary[]
     > | null = null;
-    if (this.coreReadClient) {
+    if (this.codingRuntimeClient) {
       try {
         authoritativeCodingSessionsByProjectId =
           await this.listAuthoritativeCodingSessionsByProjectId({
@@ -2790,7 +2792,7 @@ export class ApiBackedProjectService implements IProjectService {
   ): Promise<BirdCoderProject> {
     const normalizedPath = normalizeRequiredProjectPathForCreate(options?.path);
     const currentUserId = await this.resolveCurrentUserId();
-    const summary = await this.client.createProject({
+    const summary = await this.appClient.createProject({
       workspaceId,
       name,
       description: options?.description,
@@ -2838,7 +2840,7 @@ export class ApiBackedProjectService implements IProjectService {
   }
 
   async renameProject(projectId: string, name: string): Promise<void> {
-    const summary = await this.client.updateProject(projectId, {
+    const summary = await this.appClient.updateProject(projectId, {
       name,
     });
     await this.projectMirror?.syncProjectSummary(summary);
@@ -2846,7 +2848,7 @@ export class ApiBackedProjectService implements IProjectService {
   }
 
   async updateProject(projectId: string, updates: Partial<BirdCoderProject>): Promise<void> {
-    const summary = await this.client.updateProject(projectId, {
+    const summary = await this.appClient.updateProject(projectId, {
       name: updates.name,
       description: updates.description,
       dataScope: updates.dataScope,
@@ -2883,7 +2885,7 @@ export class ApiBackedProjectService implements IProjectService {
   }
 
   async deleteProject(projectId: string): Promise<void> {
-    await this.client.deleteProject(projectId);
+    await this.appClient.deleteProject(projectId);
     await this.writeService.deleteProject(projectId);
     this.forgetRecentAuthoritativeTurnMessages(projectId);
     this.invalidateReadCache();
@@ -2894,9 +2896,9 @@ export class ApiBackedProjectService implements IProjectService {
     title: string,
     options: CreateCodingSessionOptions,
   ): Promise<BirdCoderCodingSession> {
-    if (!this.coreWriteClient) {
+    if (!this.codingRuntimeClient) {
       throw new Error(
-        'Coding session creation requires a bound core write client backed by the Rust server.',
+        'Coding session creation requires a bound app runtime SDK client backed by the app API.',
       );
     }
 
@@ -2905,7 +2907,7 @@ export class ApiBackedProjectService implements IProjectService {
       options.workspaceId,
     );
     const selection = resolveRequiredCodingSessionSelection(options);
-    const createdCodingSessionSummary = await this.coreWriteClient.createCodingSession({
+    const createdCodingSessionSummary = await this.codingRuntimeClient.createCodingSession({
       workspaceId: project.workspaceId,
       projectId,
       title,
@@ -3029,13 +3031,13 @@ export class ApiBackedProjectService implements IProjectService {
       return await this.resolveProjectCodingSession(projectId, codingSessionId);
     } catch (error) {
       if (
-        !this.coreReadClient ||
+        !this.codingRuntimeClient ||
         !isCodingSessionMissingInProjectError(error, projectId, codingSessionId)
       ) {
         throw error;
       }
 
-      const summary = await this.coreReadClient.getCodingSession(codingSessionId);
+      const summary = await this.codingRuntimeClient.getCodingSession(codingSessionId);
       return this.hydrateAuthoritativeCodingSession(
         summary.projectId.trim() || projectId,
         summary,
@@ -3047,7 +3049,7 @@ export class ApiBackedProjectService implements IProjectService {
     projectId: string,
     localCodingSession: BirdCoderCodingSession,
   ): Promise<BirdCoderCodingSession | null> {
-    if (!this.coreWriteClient) {
+    if (!this.codingRuntimeClient) {
       return null;
     }
 
@@ -3062,7 +3064,7 @@ export class ApiBackedProjectService implements IProjectService {
       engineId: localCodingSession.engineId,
       modelId: localCodingSession.modelId,
     });
-    const recreatedSummary = await this.coreWriteClient.createCodingSession({
+    const recreatedSummary = await this.codingRuntimeClient.createCodingSession({
       workspaceId: normalizedWorkspaceId,
       projectId: normalizedProjectId,
       title: localCodingSession.title,
@@ -3143,18 +3145,18 @@ export class ApiBackedProjectService implements IProjectService {
     let synchronizedCodingSession: BirdCoderCodingSession | null = null;
     if (hasAuthoritativeUpdates) {
       const existingCodingSession = await this.resolveProjectCodingSession(projectId, codingSessionId);
-      if (!this.coreWriteClient) {
+      if (!this.codingRuntimeClient) {
         throw new Error(
-          'Updating authoritative coding session metadata requires a bound core write client backed by the Rust server.',
+          'Updating authoritative coding session metadata requires a bound app runtime SDK client backed by the app API.',
         );
       }
 
-      const updatedCodingSessionSummary = await this.coreWriteClient.updateCodingSession(
+      const updatedCodingSessionSummary = await this.codingRuntimeClient.updateCodingSession(
         codingSessionId,
         authoritativeRequest,
       );
 
-      if (this.coreReadClient) {
+      if (this.codingRuntimeClient) {
         synchronizedCodingSession = await this.synchronizeAuthoritativeCodingSession(
           projectId,
           codingSessionId,
@@ -3192,17 +3194,17 @@ export class ApiBackedProjectService implements IProjectService {
     codingSessionId: string,
     newTitle?: string,
   ): Promise<BirdCoderCodingSession> {
-    if (!this.coreWriteClient) {
+    if (!this.codingRuntimeClient) {
       throw new Error(
-        'Forking coding sessions requires a bound core write client backed by the Rust server.',
+        'Forking coding sessions requires a bound app runtime SDK client backed by the app API.',
       );
     }
 
-    const forkedCodingSessionSummary = await this.coreWriteClient.forkCodingSession(
+    const forkedCodingSessionSummary = await this.codingRuntimeClient.forkCodingSession(
       codingSessionId,
       newTitle?.trim() ? { title: newTitle } : {},
     );
-    const forkedCodingSession = this.coreReadClient
+    const forkedCodingSession = this.codingRuntimeClient
       ? await this.synchronizeAuthoritativeCodingSession(
           projectId,
           forkedCodingSessionSummary.id,
@@ -3219,14 +3221,14 @@ export class ApiBackedProjectService implements IProjectService {
   }
 
   async deleteCodingSession(projectId: string, codingSessionId: string): Promise<void> {
-    if (!this.coreWriteClient) {
+    if (!this.codingRuntimeClient) {
       throw new Error(
-        'Deleting coding sessions requires a bound core write client backed by the Rust server.',
+        'Deleting coding sessions requires a bound app runtime SDK client backed by the app API.',
       );
     }
 
     const existingCodingSession = await this.resolveProjectCodingSession(projectId, codingSessionId);
-    await this.coreWriteClient.deleteCodingSession(codingSessionId);
+    await this.codingRuntimeClient.deleteCodingSession(codingSessionId);
     await this.writeService.deleteCodingSession(projectId, codingSessionId);
     this.forgetRecentAuthoritativeTurnMessages(projectId, codingSessionId);
     this.patchCachedProjectCodingSessionRemoval(projectId, codingSessionId);
@@ -3241,9 +3243,9 @@ export class ApiBackedProjectService implements IProjectService {
     codingSessionId: string,
     message: CreateCodingSessionMessageInput,
   ): Promise<BirdCoderChatMessage> {
-    if (!this.coreWriteClient) {
+    if (!this.codingRuntimeClient) {
       throw new Error(
-        'Sending coding session messages requires a bound core write client backed by the Rust server.',
+        'Sending coding session messages requires a bound app runtime SDK client backed by the app API.',
       );
     }
 
@@ -3254,15 +3256,15 @@ export class ApiBackedProjectService implements IProjectService {
       );
     }
 
-    let existingCodingSession = this.coreReadClient
+    let existingCodingSession = this.codingRuntimeClient
       ? await this.resolveProjectCodingSessionForTurn(projectId, codingSessionId)
       : await this.resolveProjectCodingSession(projectId, codingSessionId);
     let effectiveProjectId =
       existingCodingSession?.projectId?.trim() || projectId;
     let effectiveCodingSessionId = codingSessionId;
-    let createdTurn: Awaited<ReturnType<BirdCoderCoreWriteApiClient['createCodingSessionTurn']>>;
+    let createdTurn: Awaited<ReturnType<BirdCoderAppSdkApiClient['createCodingSessionTurn']>>;
     try {
-      createdTurn = await this.coreWriteClient.createCodingSessionTurn(
+      createdTurn = await this.codingRuntimeClient.createCodingSessionTurn(
         effectiveCodingSessionId,
         remoteTurnRequest,
       );
@@ -3283,7 +3285,7 @@ export class ApiBackedProjectService implements IProjectService {
       effectiveProjectId =
         recoveredCodingSession.projectId?.trim() || effectiveProjectId;
       effectiveCodingSessionId = recoveredCodingSession.id;
-      createdTurn = await this.coreWriteClient.createCodingSessionTurn(
+      createdTurn = await this.codingRuntimeClient.createCodingSessionTurn(
         effectiveCodingSessionId,
         remoteTurnRequest,
       );
@@ -3314,7 +3316,7 @@ export class ApiBackedProjectService implements IProjectService {
         transcriptUpdatedAt: messageTimestamp || codingSession.transcriptUpdatedAt,
       }),
     );
-    if (!this.coreReadClient) {
+    if (!this.codingRuntimeClient) {
       return mirroredMessage;
     }
 
@@ -3337,13 +3339,7 @@ export class ApiBackedProjectService implements IProjectService {
     updates: Partial<BirdCoderChatMessage>,
   ): Promise<void> {
     const editableUpdates = sanitizeCodingSessionMessageUpdates(updates);
-    if (this.coreReadClient && !this.coreWriteClient) {
-      throw new Error(
-        'Authoritative coding session message editing requires a bound core write client.',
-      );
-    }
-
-    if (this.coreWriteClient) {
+    if (this.codingRuntimeClient) {
       const content =
         typeof editableUpdates.content === 'string'
           ? editableUpdates.content.trim()
@@ -3352,17 +3348,15 @@ export class ApiBackedProjectService implements IProjectService {
         throw new Error('Coding session message editing requires non-empty content.');
       }
       const codingSession = await this.resolveProjectCodingSession(projectId, codingSessionId);
-      await this.coreWriteClient.editCodingSessionMessage(codingSessionId, messageId, {
+      await this.codingRuntimeClient.editCodingSessionMessage(codingSessionId, messageId, {
         content,
       });
-      if (this.coreReadClient) {
-        await this.synchronizeAuthoritativeCodingSession(projectId, codingSessionId);
-        this.invalidateAuthoritativeCodingSessionSummariesCache({
-          projectId,
-          workspaceId: codingSession.workspaceId,
-        });
-        return;
-      }
+      await this.synchronizeAuthoritativeCodingSession(projectId, codingSessionId);
+      this.invalidateAuthoritativeCodingSessionSummariesCache({
+        projectId,
+        workspaceId: codingSession.workspaceId,
+      });
+      return;
     }
 
     await this.writeService.editCodingSessionMessage(
@@ -3378,17 +3372,15 @@ export class ApiBackedProjectService implements IProjectService {
     codingSessionId: string,
     messageId: string,
   ): Promise<void> {
-    if (this.coreWriteClient) {
+    if (this.codingRuntimeClient) {
       const codingSession = await this.resolveProjectCodingSession(projectId, codingSessionId);
-      await this.coreWriteClient.deleteCodingSessionMessage(codingSessionId, messageId);
-      if (this.coreReadClient) {
-        await this.synchronizeAuthoritativeCodingSession(projectId, codingSessionId);
-        this.invalidateAuthoritativeCodingSessionSummariesCache({
-          projectId,
-          workspaceId: codingSession.workspaceId,
-        });
-        return;
-      }
+      await this.codingRuntimeClient.deleteCodingSessionMessage(codingSessionId, messageId);
+      await this.synchronizeAuthoritativeCodingSession(projectId, codingSessionId);
+      this.invalidateAuthoritativeCodingSessionSummariesCache({
+        projectId,
+        workspaceId: codingSession.workspaceId,
+      });
+      return;
     }
 
     await this.writeService.deleteCodingSessionMessage(projectId, codingSessionId, messageId);

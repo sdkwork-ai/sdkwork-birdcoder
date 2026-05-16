@@ -1,3 +1,6 @@
+import type {
+  BirdCoderAppRuntimeWriteSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 
 import type {
@@ -8,7 +11,6 @@ import type {
   BirdCoderCodingSessionSummary,
   BirdCoderCoreHealthSummary,
   BirdCoderCoreRuntimeSummary,
-  BirdCoderCoreWriteApiClient,
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineDescriptor,
   BirdCoderModelCatalogEntry,
@@ -277,7 +279,7 @@ const coreReadService: ICoreReadService = {
   },
 };
 
-const coreWriteClient: BirdCoderCoreWriteApiClient = {
+const codingRuntimeClient: BirdCoderAppRuntimeWriteSdkApiClient = {
   async createCodingSession() {
     throw new Error('not needed');
   },
@@ -336,8 +338,10 @@ const { createDefaultBirdCoderIdeServices } = await import(
 );
 
 const services = createDefaultBirdCoderIdeServices({
-  coreReadClient: coreReadService,
-  coreWriteClient,
+  appRuntimeClient: {
+    ...coreReadService,
+    ...codingRuntimeClient,
+  },
 });
 
 assert.equal(

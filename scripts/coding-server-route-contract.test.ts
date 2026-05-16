@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {
   getBirdCoderAdminApiContract,
   getBirdCoderAppApiContract,
+  getBirdCoderAppRuntimeApiContract,
   getBirdCoderCodingServerDescriptor,
-  getBirdCoderCoreApiContract,
   listBirdCoderCodingServerRouteCatalogEntries,
   listBirdCoderCodingServerRoutes,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
@@ -13,37 +13,28 @@ const descriptor = getBirdCoderCodingServerDescriptor();
 assert.deepEqual(descriptor, {
   apiVersion: 'v1',
   gateway: {
-    basePath: '/api',
     docsPath: '/docs',
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
-    routeCatalogPath: '/api/core/v1/routes',
-    routeCount: 82,
+    routeCatalogPath: '/app/v3/api/system/routes',
+    routeCount: 80,
     routesBySurface: {
-      core: 27,
-      app: 48,
-      admin: 7,
+      app: 73,
+      backend: 7,
     },
     surfaces: [
       {
-        authMode: 'host',
-        basePath: '/api/core/v1',
-        description: 'Core coding runtime, engine catalog, session execution, and operation control.',
-        name: 'core',
-        routeCount: 27,
-      },
-      {
         authMode: 'user',
-        basePath: '/api/app/v1',
-        description: 'Application-facing workspace, project, collaboration, and user-center routes.',
+        basePath: '/app/v3/api',
+        description: 'Application-facing coding runtime, workspace, project, collaboration, and user-center routes.',
         name: 'app',
-        routeCount: 48,
+        routeCount: 73,
       },
       {
         authMode: 'admin',
-        basePath: '/api/admin/v1',
-        description: 'Administrative governance, audit, release, deployment, and team-management routes.',
-        name: 'admin',
+        basePath: '/backend/v3/api',
+        description: 'Backend governance, audit, release, deployment, and team-management routes.',
+        name: 'backend',
         routeCount: 7,
       },
     ],
@@ -51,131 +42,166 @@ assert.deepEqual(descriptor, {
   hostMode: 'server',
   moduleId: 'coding-server',
   openApiPath: '/openapi/coding-server-v1.json',
-  surfaces: ['core', 'app', 'admin'],
+  surfaces: ['app', 'backend'],
 });
 
-const core = getBirdCoderCoreApiContract();
-assert.equal(core.engines.method, 'GET');
-assert.equal(core.engines.path, '/api/core/v1/engines');
-assert.equal(core.engineCapabilities.path, '/api/core/v1/engines/:engineKey/capabilities');
-assert.equal(core.nativeSessionProviders.path, '/api/core/v1/native-session-providers');
-assert.equal(core.nativeSessions.path, '/api/core/v1/native-sessions');
-assert.equal(core.nativeSession.path, '/api/core/v1/native-sessions/:id');
-assert.equal(core.sessions.path, '/api/core/v1/coding-sessions');
-assert.equal(core.codingSession.path, '/api/core/v1/coding-sessions/:id');
-assert.equal(core.updateCodingSession.path, '/api/core/v1/coding-sessions/:id');
-assert.equal(core.deleteCodingSession.path, '/api/core/v1/coding-sessions/:id');
-assert.equal(core.editCodingSessionMessage.path, '/api/core/v1/coding-sessions/:id/messages/:messageId');
-assert.equal(core.deleteCodingSessionMessage.path, '/api/core/v1/coding-sessions/:id/messages/:messageId');
-assert.equal(core.forkCodingSession.path, '/api/core/v1/coding-sessions/:id/fork');
-assert.equal(core.sessionTurns.path, '/api/core/v1/coding-sessions/:id/turns');
-assert.equal(core.events.path, '/api/core/v1/coding-sessions/:id/events');
-assert.equal(core.sessionArtifacts.path, '/api/core/v1/coding-sessions/:id/artifacts');
-assert.equal(core.sessionCheckpoints.path, '/api/core/v1/coding-sessions/:id/checkpoints');
-assert.equal(core.approvals.path, '/api/core/v1/approvals/:approvalId/decision');
-assert.equal(core.questions.path, '/api/core/v1/questions/:questionId/answer');
-assert.equal(core.operations.path, '/api/core/v1/operations/:operationId');
-assert.equal(core.models.path, '/api/core/v1/models');
-assert.equal(core.modelConfig.path, '/api/core/v1/model-config');
-assert.equal(core.syncModelConfig.path, '/api/core/v1/model-config');
-assert.equal(core.routes.path, '/api/core/v1/routes');
+const appRuntimeContract = getBirdCoderAppRuntimeApiContract();
+assert.equal(appRuntimeContract.engines.method, 'GET');
+assert.equal(appRuntimeContract.engines.path, '/app/v3/api/engines');
+assert.equal(appRuntimeContract.engineCapabilities.path, '/app/v3/api/engines/:engineKey/capabilities');
+assert.equal(appRuntimeContract.nativeSessionProviders.path, '/app/v3/api/native_session_providers');
+assert.equal(appRuntimeContract.nativeSessions.path, '/app/v3/api/native_sessions');
+assert.equal(appRuntimeContract.nativeSession.path, '/app/v3/api/native_sessions/:id');
+assert.equal(appRuntimeContract.sessions.path, '/app/v3/api/coding_sessions');
+assert.equal(appRuntimeContract.codingSession.path, '/app/v3/api/coding_sessions/:id');
+assert.equal(appRuntimeContract.updateCodingSession.path, '/app/v3/api/coding_sessions/:id');
+assert.equal(appRuntimeContract.deleteCodingSession.path, '/app/v3/api/coding_sessions/:id');
+assert.equal(appRuntimeContract.editCodingSessionMessage.path, '/app/v3/api/coding_sessions/:id/messages/:messageId');
+assert.equal(appRuntimeContract.deleteCodingSessionMessage.path, '/app/v3/api/coding_sessions/:id/messages/:messageId');
+assert.equal(appRuntimeContract.forkCodingSession.path, '/app/v3/api/coding_sessions/:id/fork');
+assert.equal(appRuntimeContract.sessionTurns.path, '/app/v3/api/coding_sessions/:id/turns');
+assert.equal(appRuntimeContract.events.path, '/app/v3/api/coding_sessions/:id/events');
+assert.equal(appRuntimeContract.sessionArtifacts.path, '/app/v3/api/coding_sessions/:id/artifacts');
+assert.equal(appRuntimeContract.sessionCheckpoints.path, '/app/v3/api/coding_sessions/:id/checkpoints');
+assert.equal(appRuntimeContract.approvals.path, '/app/v3/api/approvals/:approvalId/decision');
+assert.equal(appRuntimeContract.questions.path, '/app/v3/api/questions/:questionId/answer');
+assert.equal(appRuntimeContract.operations.path, '/app/v3/api/operations/:operationId');
+assert.equal(appRuntimeContract.models.path, '/app/v3/api/models');
+assert.equal(appRuntimeContract.modelConfig.path, '/app/v3/api/model_config');
+assert.equal(appRuntimeContract.syncModelConfig.path, '/app/v3/api/model_config');
+assert.equal(appRuntimeContract.routes.path, '/app/v3/api/system/routes');
 
 const app = getBirdCoderAppApiContract();
 assert.equal(app.authConfig.method, 'GET');
-assert.equal(app.authConfig.path, '/api/app/v1/auth/config');
+assert.equal(app.authConfig.path, '/app/v3/api/auth/config');
 assert.equal(app.authSession.method, 'GET');
-assert.equal(app.authSession.path, '/api/app/v1/auth/session');
+assert.equal(app.authSession.path, '/app/v3/api/auth/sessions/current');
 assert.equal(app.login.method, 'POST');
-assert.equal(app.login.path, '/api/app/v1/auth/login');
+assert.equal(app.login.path, '/app/v3/api/auth/sessions');
 assert.equal(app.loginWithEmailCode.method, 'POST');
-assert.equal(app.loginWithEmailCode.path, '/api/app/v1/auth/email/login');
+assert.equal(app.loginWithEmailCode.path, '/app/v3/api/auth/sessions');
 assert.equal(app.loginWithPhoneCode.method, 'POST');
-assert.equal(app.loginWithPhoneCode.path, '/api/app/v1/auth/phone/login');
+assert.equal(app.loginWithPhoneCode.path, '/app/v3/api/auth/sessions');
 assert.equal(app.register.method, 'POST');
-assert.equal(app.register.path, '/api/app/v1/auth/register');
+assert.equal(app.register.path, '/app/v3/api/auth/registrations');
 assert.equal(app.sendVerifyCode.method, 'POST');
-assert.equal(app.sendVerifyCode.path, '/api/app/v1/auth/verify/send');
+assert.equal(app.sendVerifyCode.path, '/app/v3/api/auth/verification_codes');
 assert.equal(app.requestPasswordReset.method, 'POST');
-assert.equal(app.requestPasswordReset.path, '/api/app/v1/auth/password/reset/request');
+assert.equal(app.requestPasswordReset.path, '/app/v3/api/auth/password_reset_requests');
 assert.equal(app.resetPassword.method, 'POST');
-assert.equal(app.resetPassword.path, '/api/app/v1/auth/password/reset');
+assert.equal(app.resetPassword.path, '/app/v3/api/auth/password_resets');
 assert.equal(app.logout.method, 'POST');
-assert.equal(app.logout.path, '/api/app/v1/auth/logout');
+assert.equal(app.logout.path, '/app/v3/api/auth/sessions/current');
 assert.equal(app.exchangeUserCenterSession.method, 'POST');
-assert.equal(app.exchangeUserCenterSession.path, '/api/app/v1/auth/session/exchange');
+assert.equal(app.exchangeUserCenterSession.path, '/app/v3/api/auth/session_exchanges');
+assert.equal(app.authOAuthUrl.method, 'GET');
+assert.equal(app.authOAuthUrl.path, '/app/v3/api/auth/oauth_authorization_urls');
+assert.equal(app.authOAuthLogin.method, 'POST');
+assert.equal(app.authOAuthLogin.path, '/app/v3/api/auth/oauth_sessions');
 assert.equal(app.getCurrentUserProfile.method, 'GET');
-assert.equal(app.getCurrentUserProfile.path, '/api/app/v1/user/profile');
+assert.equal(app.getCurrentUserProfile.path, '/app/v3/api/iam/users/current');
 assert.equal(app.updateCurrentUserProfile.method, 'PATCH');
-assert.equal(app.updateCurrentUserProfile.path, '/api/app/v1/user/profile');
+assert.equal(app.updateCurrentUserProfile.path, '/app/v3/api/iam/users/current');
 assert.equal(app.getCurrentUserMembership.method, 'GET');
-assert.equal(app.getCurrentUserMembership.path, '/api/app/v1/vip/info');
+assert.equal(app.getCurrentUserMembership.path, '/app/v3/api/billing/vip/info');
 assert.equal(app.updateCurrentUserMembership.method, 'PATCH');
-assert.equal(app.updateCurrentUserMembership.path, '/api/app/v1/vip/info');
+assert.equal(app.updateCurrentUserMembership.path, '/app/v3/api/billing/vip/info');
 assert.equal(app.createWorkspace.method, 'POST');
-assert.equal(app.createWorkspace.path, '/api/app/v1/workspaces');
+assert.equal(app.createWorkspace.path, '/app/v3/api/workspaces');
 assert.equal(app.updateWorkspace.method, 'PATCH');
-assert.equal(app.updateWorkspace.path, '/api/app/v1/workspaces/:workspaceId');
+assert.equal(app.updateWorkspace.path, '/app/v3/api/workspaces/:workspaceId');
 assert.equal(app.deleteWorkspace.method, 'DELETE');
-assert.equal(app.deleteWorkspace.path, '/api/app/v1/workspaces/:workspaceId');
+assert.equal(app.deleteWorkspace.path, '/app/v3/api/workspaces/:workspaceId');
 assert.equal(app.subscribeWorkspaceRealtime.method, 'GET');
-assert.equal(app.subscribeWorkspaceRealtime.path, '/api/app/v1/workspaces/:workspaceId/realtime');
+assert.equal(app.subscribeWorkspaceRealtime.path, '/app/v3/api/workspaces/:workspaceId/realtime');
 assert.equal(app.createProject.method, 'POST');
-assert.equal(app.createProject.path, '/api/app/v1/projects');
+assert.equal(app.createProject.path, '/app/v3/api/projects');
 assert.equal(app.updateProject.method, 'PATCH');
-assert.equal(app.updateProject.path, '/api/app/v1/projects/:projectId');
+assert.equal(app.updateProject.path, '/app/v3/api/projects/:projectId');
 assert.equal(app.deleteProject.method, 'DELETE');
-assert.equal(app.deleteProject.path, '/api/app/v1/projects/:projectId');
+assert.equal(app.deleteProject.path, '/app/v3/api/projects/:projectId');
 assert.equal(app.projectGitOverview.method, 'GET');
-assert.equal(app.projectGitOverview.path, '/api/app/v1/projects/:projectId/git/overview');
+assert.equal(app.projectGitOverview.path, '/app/v3/api/projects/:projectId/git/overview');
 assert.equal(app.createProjectGitBranch.method, 'POST');
-assert.equal(app.createProjectGitBranch.path, '/api/app/v1/projects/:projectId/git/branches');
+assert.equal(app.createProjectGitBranch.path, '/app/v3/api/projects/:projectId/git/branches');
 assert.equal(app.switchProjectGitBranch.method, 'POST');
-assert.equal(app.switchProjectGitBranch.path, '/api/app/v1/projects/:projectId/git/branch-switch');
+assert.equal(app.switchProjectGitBranch.path, '/app/v3/api/projects/:projectId/git/branch_switch');
 assert.equal(app.commitProjectGitChanges.method, 'POST');
-assert.equal(app.commitProjectGitChanges.path, '/api/app/v1/projects/:projectId/git/commits');
+assert.equal(app.commitProjectGitChanges.path, '/app/v3/api/projects/:projectId/git/commits');
 assert.equal(app.pushProjectGitBranch.method, 'POST');
-assert.equal(app.pushProjectGitBranch.path, '/api/app/v1/projects/:projectId/git/pushes');
+assert.equal(app.pushProjectGitBranch.path, '/app/v3/api/projects/:projectId/git/pushes');
 assert.equal(app.createProjectGitWorktree.method, 'POST');
-assert.equal(app.createProjectGitWorktree.path, '/api/app/v1/projects/:projectId/git/worktrees');
+assert.equal(app.createProjectGitWorktree.path, '/app/v3/api/projects/:projectId/git/worktrees');
 assert.equal(app.removeProjectGitWorktree.method, 'POST');
 assert.equal(
   app.removeProjectGitWorktree.path,
-  '/api/app/v1/projects/:projectId/git/worktree-removals',
+  '/app/v3/api/projects/:projectId/git/worktree_removals',
 );
 assert.equal(app.pruneProjectGitWorktrees.method, 'POST');
 assert.equal(
   app.pruneProjectGitWorktrees.path,
-  '/api/app/v1/projects/:projectId/git/worktree-prune',
+  '/app/v3/api/projects/:projectId/git/worktree_prune',
 );
 assert.equal(app.publishProject.method, 'POST');
-assert.equal(app.publishProject.path, '/api/app/v1/projects/:projectId/publish');
-assert.equal(app.workspaces.path, '/api/app/v1/workspaces');
-assert.equal(app.projects.path, '/api/app/v1/projects');
-assert.equal(app.documents.path, '/api/app/v1/documents');
-assert.equal(app.teams.path, '/api/app/v1/teams');
-assert.equal(app.deployments.path, '/api/app/v1/deployments');
+assert.equal(app.publishProject.path, '/app/v3/api/projects/:projectId/publish');
+assert.equal(app.workspaces.path, '/app/v3/api/workspaces');
+assert.equal(app.projects.path, '/app/v3/api/projects');
+assert.equal(app.documents.path, '/app/v3/api/documents');
+assert.equal(app.teams.path, '/app/v3/api/teams');
+assert.equal(app.deployments.path, '/app/v3/api/deployments');
 
 const admin = getBirdCoderAdminApiContract();
-assert.equal(admin.audit.path, '/api/admin/v1/audit');
-assert.equal(admin.policies.path, '/api/admin/v1/policies');
-assert.equal(admin.teams.path, '/api/admin/v1/teams');
-assert.equal(admin.teamMembers.path, '/api/admin/v1/teams/:teamId/members');
-assert.equal(admin.deploymentTargets.path, '/api/admin/v1/projects/:projectId/deployment-targets');
-assert.equal(admin.releases.path, '/api/admin/v1/releases');
-assert.equal(admin.deployments.path, '/api/admin/v1/deployments');
+assert.equal(admin.audit.path, '/backend/v3/api/iam/audit_events');
+assert.equal(admin.policies.path, '/backend/v3/api/iam/policies');
+assert.equal(admin.teams.path, '/backend/v3/api/iam/teams');
+assert.equal(admin.teamMembers.path, '/backend/v3/api/iam/teams/:teamId/members');
+assert.equal(admin.deploymentTargets.path, '/backend/v3/api/projects/:projectId/deployment_targets');
+assert.equal(admin.releases.path, '/backend/v3/api/releases');
+assert.equal(admin.deployments.path, '/backend/v3/api/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 82, 'coding-server should expose the full core/app/admin route matrix');
+assert.equal(routes.length, 80, 'coding-server should expose the full app/backend route matrix');
 assert.equal(
-  routes.every((route) => route.path.startsWith('/api/core/v1') || route.path.startsWith('/api/app/v1') || route.path.startsWith('/api/admin/v1')),
+  routes.every((route) => route.path.startsWith('/app/v3/api') || route.path.startsWith('/backend/v3/api')),
   true,
-  'all coding-server routes must stay inside the unified core/app/admin prefixes',
+  'all coding-server routes must stay inside the unified app/backend prefixes',
 );
 
 const routeCatalog = listBirdCoderCodingServerRouteCatalogEntries();
+const routeCatalogOperationIds = routeCatalog.map((route) => route.operationId);
 assert.equal(routeCatalog.length, routes.length, 'route catalog must stay in lockstep with the unified route matrix');
 assert.equal(
-  routeCatalog.every((route) => route.openApiPath.startsWith('/api/')),
+  routeCatalogOperationIds.includes('sessions.createWithEmailCode'),
+  false,
+  'email-code login must reuse POST /auth/sessions through sessions.create instead of publishing a duplicate OpenAPI operation.',
+);
+assert.equal(
+  routeCatalogOperationIds.includes('sessions.createWithPhoneCode'),
+  false,
+  'phone-code login must reuse POST /auth/sessions through sessions.create instead of publishing a duplicate OpenAPI operation.',
+);
+for (const oldAppbasePath of [
+  '/app/v3/api/auth/email_login',
+  '/app/v3/api/auth/password_login',
+  '/app/v3/api/auth/password_reset',
+  '/app/v3/api/auth/phone_login',
+  '/app/v3/api/auth/session',
+  '/app/v3/api/auth/verify_send',
+  '/app/v3/api/iam/user_profile',
+  '/app/v3/api/billing/vip_info',
+]) {
+  assert.equal(
+    routeCatalog.some((route) => route.openApiPath === oldAppbasePath),
+    false,
+    `${oldAppbasePath} must not be exposed because BirdCoder uses the canonical appbase IAM route set.`,
+  );
+}
+assert.equal(
+  routeCatalog.every(
+    (route) =>
+      route.openApiPath.startsWith('/app/v3/api') ||
+      route.openApiPath.startsWith('/backend/v3/api'),
+  ),
   true,
   'route catalog must emit normalized OpenAPI path templates',
 );
@@ -185,229 +211,289 @@ assert.equal(
   'route catalog must not leak Express-style :param placeholders into OpenAPI templates',
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'core.listRoutes'),
+  routeCatalog.find((route) => route.operationId === 'routes.list'),
   {
-    authMode: 'host',
+    authMode: 'user',
     method: 'GET',
-    openApiPath: '/api/core/v1/routes',
-    operationId: 'core.listRoutes',
-    path: '/api/core/v1/routes',
-    surface: 'core',
+    openApiPath: '/app/v3/api/system/routes',
+    operationId: 'routes.list',
+    path: '/app/v3/api/system/routes',
+    surface: 'app',
     summary: 'List unified API routes',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'core.listNativeSessionProviders'),
+  routeCatalog.find((route) => route.operationId === 'nativeSessionProviders.list'),
   {
-    authMode: 'host',
+    authMode: 'user',
     method: 'GET',
-    openApiPath: '/api/core/v1/native-session-providers',
-    operationId: 'core.listNativeSessionProviders',
-    path: '/api/core/v1/native-session-providers',
-    surface: 'core',
+    openApiPath: '/app/v3/api/native_session_providers',
+    operationId: 'nativeSessionProviders.list',
+    path: '/app/v3/api/native_session_providers',
+    surface: 'app',
     summary: 'List registered native engine session providers',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'core.listNativeSessions'),
+  routeCatalog.find((route) => route.operationId === 'nativeSessions.list'),
   {
-    authMode: 'host',
+    authMode: 'user',
     method: 'GET',
-    openApiPath: '/api/core/v1/native-sessions',
-    operationId: 'core.listNativeSessions',
-    path: '/api/core/v1/native-sessions',
-    surface: 'core',
+    openApiPath: '/app/v3/api/native_sessions',
+    operationId: 'nativeSessions.list',
+    path: '/app/v3/api/native_sessions',
+    surface: 'app',
     summary: 'List discovered native engine sessions',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'core.getNativeSession'),
+  routeCatalog.find((route) => route.operationId === 'nativeSessions.retrieve'),
   {
-    authMode: 'host',
+    authMode: 'user',
     method: 'GET',
-    openApiPath: '/api/core/v1/native-sessions/{id}',
-    operationId: 'core.getNativeSession',
-    path: '/api/core/v1/native-sessions/:id',
-    surface: 'core',
+    openApiPath: '/app/v3/api/native_sessions/{id}',
+    operationId: 'nativeSessions.retrieve',
+    path: '/app/v3/api/native_sessions/:id',
+    surface: 'app',
     summary: 'Get discovered native engine session detail',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'core.updateCodingSession'),
+  routeCatalog.find((route) => route.operationId === 'codingSessions.update'),
   {
-    authMode: 'host',
+    authMode: 'user',
     method: 'PATCH',
-    openApiPath: '/api/core/v1/coding-sessions/{id}',
-    operationId: 'core.updateCodingSession',
-    path: '/api/core/v1/coding-sessions/:id',
-    surface: 'core',
+    openApiPath: '/app/v3/api/coding_sessions/{id}',
+    operationId: 'codingSessions.update',
+    path: '/app/v3/api/coding_sessions/:id',
+    surface: 'app',
     summary: 'Update coding session',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'core.deleteCodingSession'),
+  routeCatalog.find((route) => route.operationId === 'codingSessions.delete'),
   {
-    authMode: 'host',
+    authMode: 'user',
     method: 'DELETE',
-    openApiPath: '/api/core/v1/coding-sessions/{id}',
-    operationId: 'core.deleteCodingSession',
-    path: '/api/core/v1/coding-sessions/:id',
-    surface: 'core',
+    openApiPath: '/app/v3/api/coding_sessions/{id}',
+    operationId: 'codingSessions.delete',
+    path: '/app/v3/api/coding_sessions/:id',
+    surface: 'app',
     summary: 'Delete coding session',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'core.editCodingSessionMessage'),
+  routeCatalog.find((route) => route.operationId === 'codingSessions.messages.update'),
   {
-    authMode: 'host',
+    authMode: 'user',
     method: 'PATCH',
-    openApiPath: '/api/core/v1/coding-sessions/{id}/messages/{messageId}',
-    operationId: 'core.editCodingSessionMessage',
-    path: '/api/core/v1/coding-sessions/:id/messages/:messageId',
-    surface: 'core',
+    openApiPath: '/app/v3/api/coding_sessions/{id}/messages/{messageId}',
+    operationId: 'codingSessions.messages.update',
+    path: '/app/v3/api/coding_sessions/:id/messages/:messageId',
+    surface: 'app',
     summary: 'Edit coding session message',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'core.deleteCodingSessionMessage'),
+  routeCatalog.find((route) => route.operationId === 'codingSessions.messages.delete'),
   {
-    authMode: 'host',
+    authMode: 'user',
     method: 'DELETE',
-    openApiPath: '/api/core/v1/coding-sessions/{id}/messages/{messageId}',
-    operationId: 'core.deleteCodingSessionMessage',
-    path: '/api/core/v1/coding-sessions/:id/messages/:messageId',
-    surface: 'core',
+    openApiPath: '/app/v3/api/coding_sessions/{id}/messages/{messageId}',
+    operationId: 'codingSessions.messages.delete',
+    path: '/app/v3/api/coding_sessions/:id/messages/:messageId',
+    surface: 'app',
     summary: 'Delete coding session message',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'core.forkCodingSession'),
+  routeCatalog.find((route) => route.operationId === 'codingSessions.forks.create'),
   {
-    authMode: 'host',
+    authMode: 'user',
     method: 'POST',
-    openApiPath: '/api/core/v1/coding-sessions/{id}/fork',
-    operationId: 'core.forkCodingSession',
-    path: '/api/core/v1/coding-sessions/:id/fork',
-    surface: 'core',
+    openApiPath: '/app/v3/api/coding_sessions/{id}/fork',
+    operationId: 'codingSessions.forks.create',
+    path: '/app/v3/api/coding_sessions/:id/fork',
+    surface: 'app',
     summary: 'Fork coding session',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'core.submitUserQuestionAnswer'),
+  routeCatalog.find((route) => route.operationId === 'questions.answers.create'),
   {
-    authMode: 'host',
+    authMode: 'user',
     method: 'POST',
-    openApiPath: '/api/core/v1/questions/{questionId}/answer',
-    operationId: 'core.submitUserQuestionAnswer',
-    path: '/api/core/v1/questions/:questionId/answer',
-    surface: 'core',
+    openApiPath: '/app/v3/api/questions/{questionId}/answer',
+    operationId: 'questions.answers.create',
+    path: '/app/v3/api/questions/:questionId/answer',
+    surface: 'app',
     summary: 'Submit user-question answer',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'app.subscribeWorkspaceRealtime'),
+  routeCatalog.find((route) => route.operationId === 'sessions.create'),
+  {
+    authMode: 'user',
+    method: 'POST',
+    openApiPath: '/app/v3/api/auth/sessions',
+    operationId: 'sessions.create',
+    path: '/app/v3/api/auth/sessions',
+    surface: 'app',
+    summary: 'Create a login session with account and password credentials.',
+  },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'sessions.current.retrieve'),
   {
     authMode: 'user',
     method: 'GET',
-    openApiPath: '/api/app/v1/workspaces/{workspaceId}/realtime',
-    operationId: 'app.subscribeWorkspaceRealtime',
-    path: '/api/app/v1/workspaces/:workspaceId/realtime',
+    openApiPath: '/app/v3/api/auth/sessions/current',
+    operationId: 'sessions.current.retrieve',
+    path: '/app/v3/api/auth/sessions/current',
+    surface: 'app',
+    summary: 'Get the current login session snapshot for the active principal.',
+  },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'oauthAuthorizationUrls.retrieve'),
+  {
+    authMode: 'user',
+    method: 'GET',
+    openApiPath: '/app/v3/api/auth/oauth_authorization_urls',
+    operationId: 'oauthAuthorizationUrls.retrieve',
+    path: '/app/v3/api/auth/oauth_authorization_urls',
+    surface: 'app',
+    summary: 'Resolve OAuth authorization URL for social sign-in',
+  },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'users.current.retrieve'),
+  {
+    authMode: 'user',
+    method: 'GET',
+    openApiPath: '/app/v3/api/iam/users/current',
+    operationId: 'users.current.retrieve',
+    path: '/app/v3/api/iam/users/current',
+    surface: 'app',
+    summary: "Get the current user's canonical profile projection.",
+  },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'vip.info.retrieve'),
+  {
+    authMode: 'user',
+    method: 'GET',
+    openApiPath: '/app/v3/api/billing/vip/info',
+    operationId: 'vip.info.retrieve',
+    path: '/app/v3/api/billing/vip/info',
+    surface: 'app',
+    summary: "Get the current user's VIP or membership projection.",
+  },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'workspaces.realtime.subscribe'),
+  {
+    authMode: 'user',
+    method: 'GET',
+    openApiPath: '/app/v3/api/workspaces/{workspaceId}/realtime',
+    operationId: 'workspaces.realtime.subscribe',
+    path: '/app/v3/api/workspaces/:workspaceId/realtime',
     surface: 'app',
     summary: 'Subscribe to workspace realtime invalidation events',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'app.getProjectGitOverview'),
+  routeCatalog.find((route) => route.operationId === 'projects.git.overview.retrieve'),
   {
     authMode: 'user',
     method: 'GET',
-    openApiPath: '/api/app/v1/projects/{projectId}/git/overview',
-    operationId: 'app.getProjectGitOverview',
-    path: '/api/app/v1/projects/:projectId/git/overview',
+    openApiPath: '/app/v3/api/projects/{projectId}/git/overview',
+    operationId: 'projects.git.overview.retrieve',
+    path: '/app/v3/api/projects/:projectId/git/overview',
     surface: 'app',
     summary: 'Get project Git overview',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'app.createProjectGitBranch'),
+  routeCatalog.find((route) => route.operationId === 'projects.git.branches.create'),
   {
     authMode: 'user',
     method: 'POST',
-    openApiPath: '/api/app/v1/projects/{projectId}/git/branches',
-    operationId: 'app.createProjectGitBranch',
-    path: '/api/app/v1/projects/:projectId/git/branches',
+    openApiPath: '/app/v3/api/projects/{projectId}/git/branches',
+    operationId: 'projects.git.branches.create',
+    path: '/app/v3/api/projects/:projectId/git/branches',
     surface: 'app',
     summary: 'Create project Git branch',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'app.switchProjectGitBranch'),
+  routeCatalog.find((route) => route.operationId === 'projects.git.branchSwitch.create'),
   {
     authMode: 'user',
     method: 'POST',
-    openApiPath: '/api/app/v1/projects/{projectId}/git/branch-switch',
-    operationId: 'app.switchProjectGitBranch',
-    path: '/api/app/v1/projects/:projectId/git/branch-switch',
+    openApiPath: '/app/v3/api/projects/{projectId}/git/branch_switch',
+    operationId: 'projects.git.branchSwitch.create',
+    path: '/app/v3/api/projects/:projectId/git/branch_switch',
     surface: 'app',
     summary: 'Switch project Git branch',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'app.commitProjectGitChanges'),
+  routeCatalog.find((route) => route.operationId === 'projects.git.commits.create'),
   {
     authMode: 'user',
     method: 'POST',
-    openApiPath: '/api/app/v1/projects/{projectId}/git/commits',
-    operationId: 'app.commitProjectGitChanges',
-    path: '/api/app/v1/projects/:projectId/git/commits',
+    openApiPath: '/app/v3/api/projects/{projectId}/git/commits',
+    operationId: 'projects.git.commits.create',
+    path: '/app/v3/api/projects/:projectId/git/commits',
     surface: 'app',
     summary: 'Commit project Git changes',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'app.pushProjectGitBranch'),
+  routeCatalog.find((route) => route.operationId === 'projects.git.pushes.create'),
   {
     authMode: 'user',
     method: 'POST',
-    openApiPath: '/api/app/v1/projects/{projectId}/git/pushes',
-    operationId: 'app.pushProjectGitBranch',
-    path: '/api/app/v1/projects/:projectId/git/pushes',
+    openApiPath: '/app/v3/api/projects/{projectId}/git/pushes',
+    operationId: 'projects.git.pushes.create',
+    path: '/app/v3/api/projects/:projectId/git/pushes',
     surface: 'app',
     summary: 'Push project Git branch',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'app.createProjectGitWorktree'),
+  routeCatalog.find((route) => route.operationId === 'projects.git.worktrees.create'),
   {
     authMode: 'user',
     method: 'POST',
-    openApiPath: '/api/app/v1/projects/{projectId}/git/worktrees',
-    operationId: 'app.createProjectGitWorktree',
-    path: '/api/app/v1/projects/:projectId/git/worktrees',
+    openApiPath: '/app/v3/api/projects/{projectId}/git/worktrees',
+    operationId: 'projects.git.worktrees.create',
+    path: '/app/v3/api/projects/:projectId/git/worktrees',
     surface: 'app',
     summary: 'Create project Git worktree',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'app.removeProjectGitWorktree'),
+  routeCatalog.find((route) => route.operationId === 'projects.git.worktreeRemovals.create'),
   {
     authMode: 'user',
     method: 'POST',
-    openApiPath: '/api/app/v1/projects/{projectId}/git/worktree-removals',
-    operationId: 'app.removeProjectGitWorktree',
-    path: '/api/app/v1/projects/:projectId/git/worktree-removals',
+    openApiPath: '/app/v3/api/projects/{projectId}/git/worktree_removals',
+    operationId: 'projects.git.worktreeRemovals.create',
+    path: '/app/v3/api/projects/:projectId/git/worktree_removals',
     surface: 'app',
     summary: 'Remove project Git worktree',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'app.pruneProjectGitWorktrees'),
+  routeCatalog.find((route) => route.operationId === 'projects.git.worktreePrune.create'),
   {
     authMode: 'user',
     method: 'POST',
-    openApiPath: '/api/app/v1/projects/{projectId}/git/worktree-prune',
-    operationId: 'app.pruneProjectGitWorktrees',
-    path: '/api/app/v1/projects/:projectId/git/worktree-prune',
+    openApiPath: '/app/v3/api/projects/{projectId}/git/worktree_prune',
+    operationId: 'projects.git.worktreePrune.create',
+    path: '/app/v3/api/projects/:projectId/git/worktree_prune',
     surface: 'app',
     summary: 'Prune project Git worktrees',
   },

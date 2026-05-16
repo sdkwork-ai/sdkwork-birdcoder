@@ -1,8 +1,10 @@
+import type {
+  BirdCoderAppRuntimeReadSdkApiClient,
+  BirdCoderAppSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderCodingSessionSummary,
-  BirdCoderCoreReadApiClient,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import { ApiBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts';
@@ -45,8 +47,8 @@ let capturedSessionWorkspaceId: string | undefined;
 
 const client = {
   async listProjects(
-    options?: Parameters<BirdCoderAppAdminApiClient['listProjects']>[0],
-  ): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>> {
+    options?: Parameters<BirdCoderAppSdkApiClient['listProjects']>[0],
+  ): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>> {
     assert.equal(options?.workspaceId, workspaceId);
     return [
       {
@@ -61,16 +63,16 @@ const client = {
       },
     ];
   },
-} as unknown as BirdCoderAppAdminApiClient;
+} as unknown as BirdCoderAppSdkApiClient;
 
 const coreReadClient = {
   async listCodingSessions(
-    request?: Parameters<BirdCoderCoreReadApiClient['listCodingSessions']>[0],
+    request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listCodingSessions']>[0],
   ): Promise<BirdCoderCodingSessionSummary[]> {
     capturedSessionWorkspaceId = request?.workspaceId;
     return request?.workspaceId === workspaceId ? [authoritativeCodingSession] : [];
   },
-} as unknown as BirdCoderCoreReadApiClient;
+} as unknown as BirdCoderAppRuntimeReadSdkApiClient;
 
 const writeService = {
   async getProjectMirrorSnapshots() {
@@ -84,8 +86,8 @@ const writeService = {
 } as unknown as IProjectService;
 
 const service = new ApiBackedProjectService({
-  client,
-  coreReadClient,
+  appClient: client,
+  codingRuntimeClient: coreReadClient,
   writeService,
 });
 

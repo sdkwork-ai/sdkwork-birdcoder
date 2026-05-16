@@ -1,10 +1,10 @@
+import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderDeploymentRecordSummary,
 } from '@sdkwork/birdcoder-types';
 import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
-import { createAppAdminClientContractStub } from './app-admin-client-contract-stub.ts';
+import { createAppSdkClientContractStub, createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
 
 const deploymentFixtures: BirdCoderDeploymentRecordSummary[] = [
   {
@@ -18,7 +18,7 @@ const deploymentFixtures: BirdCoderDeploymentRecordSummary[] = [
 
 let listDeploymentsCalls = 0;
 
-const appAdminClient: BirdCoderAppAdminApiClient = createAppAdminClientContractStub({
+const appClient: BirdCoderAppSdkApiClient = createAppSdkClientContractStub({
   async listDeployments() {
     listDeploymentsCalls += 1;
     return deploymentFixtures;
@@ -26,7 +26,7 @@ const appAdminClient: BirdCoderAppAdminApiClient = createAppAdminClientContractS
 });
 
 const services = createDefaultBirdCoderIdeServices({
-  appAdminClient,
+  appClient,
 });
 
 const deployments = await services.deploymentService.getDeployments();
@@ -34,13 +34,13 @@ const deployments = await services.deploymentService.getDeployments();
 assert.deepEqual(
   deployments,
   deploymentFixtures,
-  'default IDE services must expose deployment reads through the shared app/admin facade.',
+  'default IDE services must expose deployment reads through the shared app SDK facade.',
 );
 
 assert.equal(
   listDeploymentsCalls,
   1,
-  'deploymentService must delegate exactly one read to BirdCoderAppAdminApiClient.listDeployments().',
+  'deploymentService must delegate exactly one read to BirdCoderAppSdkApiClient.listDeployments().',
 );
 
 console.log('default IDE services deployment service contract passed.');

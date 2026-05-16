@@ -1,7 +1,9 @@
+import type {
+  BirdCoderAppRuntimeReadSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
   BirdCoderCodingSessionSummary,
-  BirdCoderCoreReadApiClient,
   BirdCoderNativeSessionSummary,
 } from '@sdkwork/birdcoder-types';
 import {
@@ -60,10 +62,10 @@ async function listInventoryFor(
     async listNativeSessions() {
       return [...nativeSummaries];
     },
-  } as Pick<BirdCoderCoreReadApiClient, 'listCodingSessions' | 'listNativeSessions'>;
+  } as Pick<BirdCoderAppRuntimeReadSdkApiClient, 'listCodingSessions' | 'listNativeSessions'>;
 
   return listStoredSessionInventory({
-    coreReadService: coreReadService as BirdCoderCoreReadApiClient,
+    coreReadService: coreReadService as BirdCoderAppRuntimeReadSdkApiClient,
     projectId,
     workspaceId,
   });

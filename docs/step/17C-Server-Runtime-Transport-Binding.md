@@ -2,7 +2,7 @@
 
 ## Goal
 
-Close the server-side runtime transport binding so TypeScript-side default IDE reads can adopt the same host-derived app/admin client contract without pretending the server package has a shell-style UI entrypoint.
+Close the server-side runtime transport binding so TypeScript-side default IDE reads can adopt the same host-derived app/backend client contract without pretending the server package has a shell-style UI entrypoint.
 
 ## Closed Scope
 
@@ -26,7 +26,7 @@ Close the server-side runtime transport binding so TypeScript-side default IDE r
 - `pnpm.cmd run test:server-runtime-transport-contract`
 - `pnpm.cmd run test:shell-runtime-app-client-contract`
 - `node scripts/host-runtime-contract.test.ts`
-- `pnpm.cmd run test:app-admin-sdk-consumer-contract`
+- `pnpm.cmd run test:split-sdk-consumer-contract`
 - `pnpm.cmd run test:provider-backed-console-contract`
 - `pnpm.cmd run typecheck`
 - `pnpm.cmd run docs:build`

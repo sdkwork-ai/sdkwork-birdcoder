@@ -88,8 +88,8 @@ export function runWorkspacePackageScriptRunnerContract() {
     );
     assert.deepEqual(
       plan.args,
-      ['../../scripts/run-birdcoder-web-command.mjs', 'dev', '--identity-mode', 'server-private'],
-      'Workspace package-script runner must preserve the BirdCoder web dev command arguments when the package script now routes development through the identity-aware web command wrapper.',
+      ['../../scripts/run-birdcoder-web-command.mjs', 'dev', '--iam-mode', 'server-private'],
+      'Workspace package-script runner must preserve the BirdCoder web dev command arguments when the package script now routes development through the IAM-aware web command wrapper.',
     );
   }
 

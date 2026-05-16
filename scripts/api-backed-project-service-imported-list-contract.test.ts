@@ -1,6 +1,9 @@
+import type {
+  BirdCoderAppRuntimeReadSdkApiClient,
+  BirdCoderAppSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderProject,
   BirdCoderProjectSummary,
 } from '@sdkwork/birdcoder-types';
@@ -86,15 +89,15 @@ const mirroredProjectIds: string[] = [];
 
 const client = {
   async listProjects(
-    options?: Parameters<BirdCoderAppAdminApiClient['listProjects']>[0],
-  ): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>> {
+    options?: Parameters<BirdCoderAppSdkApiClient['listProjects']>[0],
+  ): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>> {
     listProjectRequests.push({ workspaceId: options?.workspaceId });
     return remoteSummaries.filter(
       (projectSummary) =>
         !options?.workspaceId || projectSummary.workspaceId === options.workspaceId,
     );
   },
-} as unknown as BirdCoderAppAdminApiClient;
+} as unknown as BirdCoderAppSdkApiClient;
 
 const writeService = {
   async getProjects(workspaceId?: string): Promise<BirdCoderProject[]> {
@@ -129,7 +132,12 @@ const writeService = {
 };
 
 const service = new ApiBackedProjectService({
-  client,
+  appClient: client,
+  codingRuntimeClient: {
+    async listCodingSessions() {
+      return [];
+    },
+  } as unknown as BirdCoderAppRuntimeReadSdkApiClient,
   projectMirror: writeService,
   writeService,
 });

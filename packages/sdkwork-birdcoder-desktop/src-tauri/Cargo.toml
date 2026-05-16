@@ -19,7 +19,7 @@ sdkwork-terminal-pty-runtime = { path = "../../../../sdkwork-terminal/crates/sdk
 sdkwork-terminal-protocol = { path = "../../../../sdkwork-terminal/crates/sdkwork-terminal-protocol" }
 sdkwork-terminal-replay-store = { path = "../../../../sdkwork-terminal/crates/sdkwork-terminal-replay-store" }
 sdkwork-terminal-session-runtime = { path = "../../../../sdkwork-terminal/crates/sdkwork-terminal-session-runtime" }
-tauri = { version = "2", features = [] }
+tauri = { version = "~2.11.0", features = [] }
 tauri-plugin-shell = "2"
 tokio = { version = "1", features = ["net", "rt-multi-thread", "sync"] }
 

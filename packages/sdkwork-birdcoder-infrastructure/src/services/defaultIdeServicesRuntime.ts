@@ -4,11 +4,12 @@ import {
   resolveBirdCoderRuntimeUserCenterProviderKind,
 } from '@sdkwork/birdcoder-core';
 import type {
-  BirdCoderAppAdminApiClient,
-  BirdCoderCoreReadApiClient,
-  BirdCoderCoreWriteApiClient,
   BirdCoderUserCenterMetadataSummary,
 } from '@sdkwork/birdcoder-types';
+import type {
+  BirdCoderAppSdkApiClient,
+  BirdCoderBackendSdkApiClient,
+} from './sdkClients.ts';
 
 export interface BirdCoderRuntimeUserCenterBindingConfig {
   baseUrl?: string;
@@ -18,18 +19,16 @@ export interface BirdCoderRuntimeUserCenterBindingConfig {
 
 export interface BirdCoderDefaultIdeServicesRuntimeConfig {
   apiBaseUrl?: string;
-  appAdminClient?: BirdCoderAppAdminApiClient;
-  coreReadClient?: BirdCoderCoreReadApiClient;
-  coreWriteClient?: BirdCoderCoreWriteApiClient;
+  appClient?: BirdCoderAppSdkApiClient;
+  backendClient?: BirdCoderBackendSdkApiClient;
   executionAuthorityMode?: 'auto' | 'remote-required';
   userCenter?: BirdCoderRuntimeUserCenterBindingConfig;
 }
 
 export interface BindDefaultBirdCoderIdeServicesRuntimeOptions {
   apiBaseUrl?: string;
-  appAdminClient?: BirdCoderAppAdminApiClient;
-  coreReadClient?: BirdCoderCoreReadApiClient;
-  coreWriteClient?: BirdCoderCoreWriteApiClient;
+  appClient?: BirdCoderAppSdkApiClient;
+  backendClient?: BirdCoderBackendSdkApiClient;
   executionAuthorityMode?: 'auto' | 'remote-required';
   host?: BirdHostDescriptor;
   userCenter?: BirdCoderRuntimeUserCenterBindingConfig;
@@ -87,9 +86,8 @@ function resolveExecutionAuthorityMode(
 
   if (
     resolveBoundApiBaseUrl(options) ||
-    options.appAdminClient ||
-    options.coreReadClient ||
-    options.coreWriteClient
+    options.appClient ||
+    options.backendClient
   ) {
     return 'remote-required';
   }
@@ -114,9 +112,8 @@ export function configureDefaultBirdCoderIdeServicesRuntime(
   config: BirdCoderDefaultIdeServicesRuntimeConfig = {},
 ): void {
   defaultIdeServicesRuntimeConfig = {
-    appAdminClient: config.appAdminClient,
-    coreReadClient: config.coreReadClient,
-    coreWriteClient: config.coreWriteClient,
+    appClient: config.appClient,
+    backendClient: config.backendClient,
     executionAuthorityMode: config.executionAuthorityMode ?? 'auto',
     apiBaseUrl: normalizeApiBaseUrl(config.apiBaseUrl),
     userCenter: normalizeUserCenterRuntimeConfig(config.userCenter),
@@ -127,9 +124,8 @@ export function bindDefaultBirdCoderIdeServicesRuntime(
   options: BindDefaultBirdCoderIdeServicesRuntimeOptions = {},
 ): void {
   configureDefaultBirdCoderIdeServicesRuntime({
-    appAdminClient: options.appAdminClient,
-    coreReadClient: options.coreReadClient,
-    coreWriteClient: options.coreWriteClient,
+    appClient: options.appClient,
+    backendClient: options.backendClient,
     executionAuthorityMode: resolveExecutionAuthorityMode(options),
     apiBaseUrl: resolveBoundApiBaseUrl(options),
     userCenter: normalizeUserCenterRuntimeConfig(options.userCenter),

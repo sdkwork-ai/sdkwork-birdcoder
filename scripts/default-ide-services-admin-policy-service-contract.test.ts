@@ -1,10 +1,10 @@
+import type { BirdCoderBackendSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
   BirdCoderAdminPolicySummary,
-  BirdCoderAppAdminApiClient,
 } from '@sdkwork/birdcoder-types';
 import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
-import { createAppAdminClientContractStub } from './app-admin-client-contract-stub.ts';
+import { createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
 
 const policyFixtures: BirdCoderAdminPolicySummary[] = [
   {
@@ -22,7 +22,7 @@ const policyFixtures: BirdCoderAdminPolicySummary[] = [
 
 let listPoliciesCalls = 0;
 
-const appAdminClient: BirdCoderAppAdminApiClient = createAppAdminClientContractStub({
+const backendClient: BirdCoderBackendSdkApiClient = createBackendSdkClientContractStub({
   async listPolicies() {
     listPoliciesCalls += 1;
     return policyFixtures;
@@ -30,7 +30,7 @@ const appAdminClient: BirdCoderAppAdminApiClient = createAppAdminClientContractS
 });
 
 const services = createDefaultBirdCoderIdeServices({
-  appAdminClient,
+  backendClient,
 });
 
 const policies = await services.adminPolicyService.getPolicies();
@@ -38,13 +38,13 @@ const policies = await services.adminPolicyService.getPolicies();
 assert.deepEqual(
   policies,
   policyFixtures,
-  'default IDE services must expose admin policy reads through the shared app/admin facade.',
+  'default IDE services must expose admin policy reads through the backend SDK client.',
 );
 
 assert.equal(
   listPoliciesCalls,
   1,
-  'adminPolicyService must delegate exactly one read to BirdCoderAppAdminApiClient.listPolicies().',
+  'adminPolicyService must delegate exactly one read to BirdCoderBackendSdkApiClient.listPolicies().',
 );
 
 console.log('default IDE services admin policy service contract passed.');

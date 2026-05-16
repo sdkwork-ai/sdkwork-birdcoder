@@ -27,7 +27,7 @@ export interface BirdCoderUserCenterTokenBundle {
   tokenType?: string;
 }
 
-export type BirdCoderIdentityDeploymentMode =
+export type BirdCoderIamDeploymentMode =
   | "desktop-local"
   | "server-private"
   | "cloud-saas";
@@ -43,7 +43,7 @@ export type BirdCoderProtectedTokenRequirementOptions =
 
 export const BIRDCODER_USER_CENTER_NAMESPACE = 'sdkwork-birdcoder';
 export const BIRDCODER_USER_CENTER_SESSION_HEADER_NAME = 'x-sdkwork-user-center-session-id';
-export const BIRDCODER_USER_CENTER_LOCAL_API_BASE_PATH = '/api/app/v1';
+export const BIRDCODER_USER_CENTER_LOCAL_API_BASE_PATH = '/app/v3/api';
 export const BIRDCODER_USER_CENTER_AUTH_BASE_PATH = '/auth';
 export const BIRDCODER_USER_CENTER_USER_ROUTE_PATH = '/user';
 export const BIRDCODER_USER_CENTER_VIP_ROUTE_PATH = '/vip';
@@ -93,14 +93,14 @@ export const BIRDCODER_USER_CENTER_STORAGE_PLAN = Object.freeze(
   createBirdCoderUserCenterStoragePlan(BIRDCODER_USER_CENTER_NAMESPACE),
 );
 
-const BIRDCODER_IDENTITY_DEPLOYMENT_MODES = Object.freeze([
+const BIRDCODER_IAM_DEPLOYMENT_MODES = Object.freeze([
   "desktop-local",
   "server-private",
   "cloud-saas",
-] satisfies readonly BirdCoderIdentityDeploymentMode[]);
-const BIRDCODER_USER_CENTER_LOGIN_PROVIDER_PUBLIC_ENV_KEYS = Object.freeze([
-  "VITE_BIRDCODER_USER_CENTER_LOGIN_PROVIDER",
-  "BIRDCODER_USER_CENTER_LOGIN_PROVIDER",
+] satisfies readonly BirdCoderIamDeploymentMode[]);
+const SDKWORK_USER_CENTER_MODE_PUBLIC_ENV_KEYS = Object.freeze([
+  "VITE_SDKWORK_USER_CENTER_MODE",
+  "SDKWORK_USER_CENTER_MODE",
 ]);
 
 function readBirdCoderPublicEnvValue(...keys: string[]): string | undefined {
@@ -133,17 +133,17 @@ function readBirdCoderPublicEnvValue(...keys: string[]): string | undefined {
   return undefined;
 }
 
-export function normalizeBirdCoderIdentityDeploymentMode(
+export function normalizeBirdCoderIamDeploymentMode(
   value: string | null | undefined,
-  fallback: BirdCoderIdentityDeploymentMode = "desktop-local",
-): BirdCoderIdentityDeploymentMode {
+  fallback: BirdCoderIamDeploymentMode = "desktop-local",
+): BirdCoderIamDeploymentMode {
   const normalizedValue = String(value ?? "").trim().toLowerCase();
   if (
-    BIRDCODER_IDENTITY_DEPLOYMENT_MODES.includes(
-      normalizedValue as BirdCoderIdentityDeploymentMode,
+    BIRDCODER_IAM_DEPLOYMENT_MODES.includes(
+      normalizedValue as BirdCoderIamDeploymentMode,
     )
   ) {
-    return normalizedValue as BirdCoderIdentityDeploymentMode;
+    return normalizedValue as BirdCoderIamDeploymentMode;
   }
 
   return fallback;
@@ -168,13 +168,13 @@ export function normalizeBirdCoderRuntimeUserCenterProviderKind(
   return undefined;
 }
 
-export function resolveBirdCoderIdentityDeploymentModeFromPublicEnv(
-  fallback: BirdCoderIdentityDeploymentMode = "desktop-local",
-): BirdCoderIdentityDeploymentMode {
-  return normalizeBirdCoderIdentityDeploymentMode(
+export function resolveBirdCoderIamDeploymentModeFromPublicEnv(
+  fallback: BirdCoderIamDeploymentMode = "desktop-local",
+): BirdCoderIamDeploymentMode {
+  return normalizeBirdCoderIamDeploymentMode(
     readBirdCoderPublicEnvValue(
-      "VITE_BIRDCODER_IDENTITY_DEPLOYMENT_MODE",
-      "BIRDCODER_IDENTITY_DEPLOYMENT_MODE",
+      "VITE_BIRDCODER_IAM_DEPLOYMENT_MODE",
+      "BIRDCODER_IAM_DEPLOYMENT_MODE",
     ),
     fallback,
   );
@@ -185,7 +185,7 @@ export function resolveBirdCoderRuntimeUserCenterProviderKindFromPublicEnv(
 ): BirdCoderRuntimeUserCenterProviderKind {
   const configuredProviderKind = normalizeBirdCoderRuntimeUserCenterProviderKind(
     readBirdCoderPublicEnvValue(
-      ...BIRDCODER_USER_CENTER_LOGIN_PROVIDER_PUBLIC_ENV_KEYS,
+      ...SDKWORK_USER_CENTER_MODE_PUBLIC_ENV_KEYS,
     ),
   );
   if (configuredProviderKind) {
@@ -194,16 +194,16 @@ export function resolveBirdCoderRuntimeUserCenterProviderKindFromPublicEnv(
 
   return (
     fallback
-    ?? inferBirdCoderRuntimeUserCenterProviderKindFromIdentityMode(
-      resolveBirdCoderIdentityDeploymentModeFromPublicEnv(),
+    ?? inferBirdCoderRuntimeUserCenterProviderKindFromIamMode(
+      resolveBirdCoderIamDeploymentModeFromPublicEnv(),
     )
   );
 }
 
-export function inferBirdCoderRuntimeUserCenterProviderKindFromIdentityMode(
-  identityMode: BirdCoderIdentityDeploymentMode,
+export function inferBirdCoderRuntimeUserCenterProviderKindFromIamMode(
+  iamMode: BirdCoderIamDeploymentMode,
 ): BirdCoderRuntimeUserCenterProviderKind {
-  if (identityMode === "cloud-saas") {
+  if (iamMode === "cloud-saas") {
     return "sdkwork-cloud-app-api";
   }
 

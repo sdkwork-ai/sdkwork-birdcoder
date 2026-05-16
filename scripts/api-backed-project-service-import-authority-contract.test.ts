@@ -1,10 +1,29 @@
+import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import { ApiBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts';
 import type { IProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IProjectService.ts';
+
+const serviceSource = await import('node:fs/promises').then((fs) => fs.readFile(
+  new URL(
+    '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts',
+    import.meta.url,
+  ),
+  'utf8',
+));
+
+assert.doesNotMatch(
+  serviceSource,
+  /\/app\/v3\/api\/auth\/session(?:['"`\)]|$)/u,
+  'ApiBackedProjectService must not match retired singular /auth/session errors; use canonical /auth/sessions/current.',
+);
+assert.match(
+  serviceSource,
+  /\/app\/v3\/api\/auth\/sessions\/current/u,
+  'ApiBackedProjectService optional IAM fallback must recognize the canonical current-session path.',
+);
 
 const localProject: BirdCoderProject = {
   id: 'project-local-stale',
@@ -21,12 +40,12 @@ let capturedUserId: string | undefined;
 
 const client = {
   async listProjects(
-    options?: Parameters<BirdCoderAppAdminApiClient['listProjects']>[0],
-  ): Promise<Awaited<ReturnType<BirdCoderAppAdminApiClient['listProjects']>>> {
+    options?: Parameters<BirdCoderAppSdkApiClient['listProjects']>[0],
+  ): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>> {
     capturedUserId = options?.userId;
     return [];
   },
-} as unknown as BirdCoderAppAdminApiClient;
+} as unknown as BirdCoderAppSdkApiClient;
 
 const writeService = {
   async getProjectByPath(): Promise<BirdCoderProject | null> {
@@ -35,11 +54,11 @@ const writeService = {
 } as unknown as IProjectService;
 
 const service = new ApiBackedProjectService({
-  client,
-  identityProvider: {
+  appClient: client,
+  currentUserProvider: {
     async getCurrentUser() {
       throw new Error(
-        'BirdCoder API request failed: GET /api/app/v1/user/profile -> 404',
+        'BirdCoder API request failed: GET /app/v3/api/iam/users/current -> 404',
       );
     },
   },

@@ -1,5 +1,4 @@
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderProjectCollaboratorSummary,
   BirdCoderUpsertProjectCollaboratorRequest,
   BirdCoderUpsertWorkspaceMemberRequest,
@@ -7,33 +6,34 @@ import type {
 } from '@sdkwork/birdcoder-types';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { ICollaborationService } from '../interfaces/ICollaborationService.ts';
+import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
 
 export interface ApiBackedCollaborationServiceOptions {
-  client: BirdCoderAppAdminApiClient;
-  identityProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  appClient: BirdCoderAppSdkApiClient;
+  currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
 }
 
 export class ApiBackedCollaborationService implements ICollaborationService {
-  private readonly client: BirdCoderAppAdminApiClient;
-  private readonly identityProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  private readonly appClient: BirdCoderAppSdkApiClient;
+  private readonly currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
 
-  constructor({ client, identityProvider }: ApiBackedCollaborationServiceOptions) {
-    this.client = client;
-    this.identityProvider = identityProvider;
+  constructor({ appClient, currentUserProvider }: ApiBackedCollaborationServiceOptions) {
+    this.appClient = appClient;
+    this.currentUserProvider = currentUserProvider;
   }
 
   private async resolveCurrentUserId(): Promise<string | undefined> {
-    const user = await this.identityProvider?.getCurrentUser();
+    const user = await this.currentUserProvider?.getCurrentUser();
     const userId = user?.id?.trim();
     return userId && userId.length > 0 ? userId : undefined;
   }
 
   async listProjectCollaborators(projectId: string): Promise<BirdCoderProjectCollaboratorSummary[]> {
-    return this.client.listProjectCollaborators(projectId);
+    return this.appClient.listProjectCollaborators(projectId);
   }
 
   async listWorkspaceMembers(workspaceId: string): Promise<BirdCoderWorkspaceMemberSummary[]> {
-    return this.client.listWorkspaceMembers(workspaceId);
+    return this.appClient.listWorkspaceMembers(workspaceId);
   }
 
   async upsertProjectCollaborator(
@@ -41,7 +41,7 @@ export class ApiBackedCollaborationService implements ICollaborationService {
     request: BirdCoderUpsertProjectCollaboratorRequest,
   ): Promise<BirdCoderProjectCollaboratorSummary> {
     const currentUserId = await this.resolveCurrentUserId();
-    return this.client.upsertProjectCollaborator(projectId, {
+    return this.appClient.upsertProjectCollaborator(projectId, {
       ...request,
       createdByUserId: request.createdByUserId ?? currentUserId,
       grantedByUserId:
@@ -54,7 +54,7 @@ export class ApiBackedCollaborationService implements ICollaborationService {
     request: BirdCoderUpsertWorkspaceMemberRequest,
   ): Promise<BirdCoderWorkspaceMemberSummary> {
     const currentUserId = await this.resolveCurrentUserId();
-    return this.client.upsertWorkspaceMember(workspaceId, {
+    return this.appClient.upsertWorkspaceMember(workspaceId, {
       ...request,
       createdByUserId: request.createdByUserId ?? currentUserId,
       grantedByUserId:

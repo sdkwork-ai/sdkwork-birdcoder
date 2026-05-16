@@ -29,7 +29,7 @@
 | `14` | Appbase 主边界统一 | `04` | 中 | E 架构补强 | appbase 接入完成 | `17` |
 | `15` | 多库 Provider / Dialect / Migration | `03` | 中 | E 架构补强 | authority 与迁移稳定 | `11-12,17` |
 | `16` | Prompt / Skill / Template 体系 | `05` | 中 | E 架构补强 | 注入链稳定 | `07,17` |
-| `17` | `core/app/admin` API 与控制台 | `09,14,16` | 低 | A 总控 | 项目生命周期 API 稳定 | `10-13` |
+| `17` | `app/backend` API 与控制台 | `09,14,16` | 低 | A 总控 | 项目生命周期 API 稳定 | `10-13` |
 | `18` | 多 Engine Adapter / Tool Protocol / Conformance | `05` | 中 | E 架构补强 | 多引擎切换不分叉 | `12,17,13` |
 | `20` | runtime-data-kernel-v2 剩余实体 authority | `15,17` | 低 | E 架构补强 | `20A team_member` 与 `20B deployment_target` 已全部闭环，不再停留在 schema-only 定义 | 下一未定义 Step |
 
@@ -52,7 +52,7 @@
 
 ## 5. 派工建议
 
-- A 总控：共享契约、`coding-server`、`core/app/admin`、发布收口。
+- A 总控：共享契约、`coding-server`、`app/backend`、发布收口。
 - B Code：左侧 Code 主工作面。
 - C Studio：Studio、Preview、Simulator、Build/Test 主工作面。
 - E 架构补强：`14/15/16/18`。

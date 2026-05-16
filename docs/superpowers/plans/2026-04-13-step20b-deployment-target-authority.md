@@ -4,9 +4,9 @@
 
 **Goal:** Promote `deployment_target` from schema-only definition into real shared repository, route, facade, and first consumer authority after `20A team_member` closure.
 
-**Architecture:** Keep the closure aligned with the existing Step 17 representative app/admin pattern. Freeze one project-scoped admin target-read lane on the shared provider-backed repository/query path, then wire the generated facade, in-process transport, and Rust host to the same `/api/admin/v1/projects/:projectId/deployment-targets` authority so every runtime converges on one target catalog truth.
+**Architecture:** Keep the closure aligned with the existing Step 17 representative app/backend pattern. Freeze one project-scoped admin target-read lane on the shared provider-backed repository/query path, then wire the generated facade, in-process transport, and Rust host to the same `/api/admin/v1/projects/:projectId/deployment-targets` authority so every runtime converges on one target catalog truth.
 
-**Tech Stack:** TypeScript, shared generated coding-server client, shared table repositories, in-process app/admin transport, Rust host Axum routes, contract tests, VitePress docs, release docs.
+**Tech Stack:** TypeScript, shared generated coding-server client, shared table repositories, in-process app/backend transport, Rust host Axum routes, contract tests, VitePress docs, release docs.
 
 ---
 
@@ -18,7 +18,7 @@
 - Modify: `packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts`
 - Modify: `packages/sdkwork-birdcoder-types/src/generated/coding-server-openapi.ts`
 - Test: `scripts/coding-server-route-contract.test.ts`
-- Test: `scripts/generated-app-admin-client-facade-contract.test.ts`
+- Test: `scripts/generated-app/backend-client-facade-contract.test.ts`
 
 - [ ] **Step 1: Write the failing route and facade tests**
 - [ ] **Step 2: Run tests to verify they fail**
@@ -30,7 +30,7 @@
 **Files:**
 - Modify: `packages/sdkwork-birdcoder-types/src/data.ts`
 - Modify: `packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts`
-- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/appAdminConsoleQueries.ts`
+- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts`
 - Test: `scripts/provider-backed-console-contract.test.ts`
 
 - [ ] **Step 1: Write the failing repository/query test**
@@ -41,8 +41,8 @@
 ### Task 3: Close the in-process transport and shared facade consumer
 
 **Files:**
-- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts`
-- Test: `scripts/app-admin-sdk-consumer-contract.test.ts`
+- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts`
+- Test: `scripts/app/backend-sdk-consumer-contract.test.ts`
 
 - [ ] **Step 1: Write the failing transport/consumer test**
 - [ ] **Step 2: Run tests to verify they fail**

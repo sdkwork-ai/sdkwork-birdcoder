@@ -5,8 +5,23 @@ import {
   resetDefaultBirdCoderIdeServicesRuntimeForTests,
 } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesRuntime.ts';
 import {
+  createBirdCoderRuntimeUserCenterClient,
   resolveBirdCoderRuntimeUserCenterApiBaseUrl,
 } from '../packages/sdkwork-birdcoder-infrastructure/src/services/userCenterRuntimeBridge.ts';
+
+resetDefaultBirdCoderIdeServicesRuntimeForTests();
+
+configureDefaultBirdCoderIdeServicesRuntime({
+  userCenter: {
+    providerKind: 'builtin-local',
+  },
+});
+
+assert.notEqual(
+  createBirdCoderRuntimeUserCenterClient(),
+  null,
+  'builtin-local user-center mode must still expose the canonical appbase runtime client so BirdCoder does not keep duplicate local profile/VIP storage fallbacks.',
+);
 
 resetDefaultBirdCoderIdeServicesRuntimeForTests();
 

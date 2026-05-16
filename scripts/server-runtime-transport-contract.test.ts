@@ -1,3 +1,4 @@
+import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
@@ -42,15 +43,14 @@ const serverRuntimeDefaultIdeServicesRuntimeModulePath = new URL(
   '../packages/sdkwork-birdcoder-server/node_modules/@sdkwork/birdcoder-infrastructure/src/services/defaultIdeServicesRuntime.ts',
   import.meta.url,
 );
-const appAdminApiClientModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
+const sdkTransportSharedModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkTransportShared.ts',
   import.meta.url,
 );
-const serverApiModulePath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/server-api.ts',
+const sdkClientsModulePath = new URL(
+  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts',
   import.meta.url,
 );
-
 const requests: CapturedRequest[] = [];
 const localStore = new Map<string, string>();
 const originalFetch = globalThis.fetch;
@@ -80,7 +80,7 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
     url,
   });
 
-  if (url.includes('/api/app/v1/workspaces')) {
+  if (url.includes('/app/v3/api/workspaces')) {
     return new Response(
       JSON.stringify(
         createListEnvelope([
@@ -102,7 +102,7 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
     );
   }
 
-  if (url.includes('/api/app/v1/projects')) {
+  if (url.includes('/app/v3/api/projects')) {
     return new Response(
       JSON.stringify(
         createListEnvelope([
@@ -127,7 +127,7 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
     );
   }
 
-  if (url.includes('/api/core/v1/coding-sessions')) {
+  if (url.includes('/app/v3/api/coding_sessions')) {
     return new Response(
       JSON.stringify(createListEnvelope([])),
       {
@@ -139,7 +139,7 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
     );
   }
 
-  if (url.includes('/api/app/v1/teams')) {
+  if (url.includes('/app/v3/api/teams')) {
     return new Response(
       JSON.stringify(
         createListEnvelope([
@@ -181,12 +181,11 @@ try {
     resetDefaultBirdCoderIdeServicesRuntimeForTests,
   } = await import(serverRuntimeDefaultIdeServicesRuntimeModulePath.href);
   const { createBirdCoderHttpApiTransport } = await import(
-    `${appAdminApiClientModulePath.href}?t=${Date.now()}`
+    `${sdkTransportSharedModulePath.href}?t=${Date.now()}`
   );
   const {
-    createBirdCoderGeneratedAppAdminApiClient,
-    createBirdCoderGeneratedCoreReadApiClient,
-  } = await import(`${serverApiModulePath.href}?t=${Date.now()}`);
+    createBirdCoderAppSdkApiClient,
+  } = await import(`${sdkClientsModulePath.href}?t=${Date.now()}`);
 
   resetDefaultBirdCoderIdeServicesRuntimeForTests();
   const serverIndexSource = readFileSync(serverEntrySourcePath, 'utf8');
@@ -237,21 +236,18 @@ try {
     baseUrl: runtimeConfig.apiBaseUrl!,
     fetchImpl: globalThis.fetch,
   });
-  const appAdminClient = createBirdCoderGeneratedAppAdminApiClient({
-    transport,
-  });
-  const coreReadClient = createBirdCoderGeneratedCoreReadApiClient({
+  const appClient = createBirdCoderAppSdkApiClient({
     transport,
   });
 
-  await appAdminClient.listWorkspaces();
-  await appAdminClient.listProjects({
+  await appClient.listWorkspaces();
+  await appClient.listProjects({
     workspaceId: 'workspace-server-runtime-contract',
   });
-  await coreReadClient.listCodingSessions({
+  await appClient.listCodingSessions({
     workspaceId: 'workspace-server-runtime-contract',
   });
-  await appAdminClient.listTeams({
+  await appClient.listTeams({
     workspaceId: 'workspace-server-runtime-contract',
   });
 
@@ -260,19 +256,19 @@ try {
     [
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/workspaces',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/workspaces',
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/projects?workspaceId=workspace-server-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/projects?workspaceId=workspace-server-runtime-contract',
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/api/core/v1/coding-sessions?workspaceId=workspace-server-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/coding_sessions?workspaceId=workspace-server-runtime-contract',
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/api/app/v1/teams?workspaceId=workspace-server-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/teams?workspaceId=workspace-server-runtime-contract',
       },
     ],
     'server runtime binding must normalize the distribution host base URL and generated clients must route both app and core authority calls without duplicating the /api prefix.',

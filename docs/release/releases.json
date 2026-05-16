@@ -1971,7 +1971,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-17",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Expands the Rust coding-server OpenAPI seed to representative core/app/admin parity and verifies unified JSON problem envelopes on placeholder app and admin routes.",
+                         "summary":  "Expands the Rust coding-server OpenAPI seed to representative app/backend parity and verifies unified JSON problem envelopes on placeholder app and admin routes.",
                          "notesFile":  "release-2026-04-10-17.md",
                          "carryForward":  [
                                               "release-2026-04-10-16"
@@ -2037,7 +2037,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-23",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Promotes the first representative real app/admin Rust coding-server handlers on projects and teams, and extends the shared type authority standard with workspace/project/team storage bindings.",
+                         "summary":  "Promotes the first representative real app/backend Rust coding-server handlers on projects and teams, and extends the shared type authority standard with workspace/project/team storage bindings.",
                          "notesFile":  "release-2026-04-10-23.md",
                          "carryForward":  [
                                               "release-2026-04-10-22"
@@ -2048,7 +2048,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-24",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Extends representative real app/admin Rust coding-server coverage to app teams and admin releases, and adds the shared release summary plus release_record storage-binding standard.",
+                         "summary":  "Extends representative real app/backend Rust coding-server coverage to app teams and admin releases, and adds the shared release summary plus release_record storage-binding standard.",
                          "notesFile":  "release-2026-04-10-24.md",
                          "carryForward":  [
                                               "release-2026-04-10-23"
@@ -2092,7 +2092,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-28",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Closes the shared TypeScript-side provider/UoW abstraction, routes coding-server projection persistence through one transactional boundary, and moves the next serial Step 17 closure to true SQLite/PostgreSQL SQL executors plus app/admin repository adoption.",
+                         "summary":  "Closes the shared TypeScript-side provider/UoW abstraction, routes coding-server projection persistence through one transactional boundary, and moves the next serial Step 17 closure to true SQLite/PostgreSQL SQL executors plus app/backend repository adoption.",
                          "notesFile":  "release-2026-04-10-28.md",
                          "carryForward":  [
                                               "release-2026-04-10-27"
@@ -2125,7 +2125,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-31",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Extends the shared SQL executor path into generic table repositories, executor-backed UoW visibility, and coding-server projection persistence, and moves the next serial Step 17 closure to real SQLite/PostgreSQL backend binding plus representative app/admin repository adoption.",
+                         "summary":  "Extends the shared SQL executor path into generic table repositories, executor-backed UoW visibility, and coding-server projection persistence, and moves the next serial Step 17 closure to real SQLite/PostgreSQL backend binding plus representative app/backend repository adoption.",
                          "notesFile":  "release-2026-04-10-31.md",
                          "carryForward":  [
                                               "release-2026-04-10-30"
@@ -2136,7 +2136,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-32",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Adds a real SQLite SQL executor, a transaction-capable PostgreSQL client executor boundary, and representative app/admin repositories on the shared provider/UoW plus row/plan contract.",
+                         "summary":  "Adds a real SQLite SQL executor, a transaction-capable PostgreSQL client executor boundary, and representative app/backend repositories on the shared provider/UoW plus row/plan contract.",
                          "notesFile":  "release-2026-04-10-32.md",
                          "carryForward":  [
                                               "release-2026-04-10-31"
@@ -2158,7 +2158,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-34",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Closes the first typed app/admin SDK consumer slice for default IDE catalog reads by adding a shared client and transport contract, API-backed workspace/project services, and executable consumer verification.",
+                         "summary":  "Closes the first typed app/backend SDK consumer slice for default IDE catalog reads by adding a shared client and transport contract, API-backed workspace/project services, and executable consumer verification.",
                          "notesFile":  "release-2026-04-10-34.md",
                          "carryForward":  [
                                               "release-2026-04-10-33"
@@ -2180,7 +2180,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-36",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Closes the representative admin-team client boundary by standardizing typed team reads on /api/admin/v1/teams, exposing teamService from default IDE services, and repairing damaged autonomous-loop documentation blocks.",
+                         "summary":  "Closes the representative admin-team client boundary by standardizing typed team reads on /backend/v3/api/teams, exposing teamService from default IDE services, and repairing damaged autonomous-loop documentation blocks.",
                          "notesFile":  "release-2026-04-10-36.md",
                          "carryForward":  [
                                               "release-2026-04-10-35"
@@ -2191,7 +2191,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-37",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Closes the server runtime transport binding on the shared host-derived app/admin client rule, adds a dedicated server transport contract, and leaves PostgreSQL live smoke as the only remaining serial item in DSN-backed environments.",
+                         "summary":  "Closes the server runtime transport binding on the shared host-derived app/backend client rule, adds a dedicated server transport contract, and leaves PostgreSQL live smoke as the only remaining serial item in DSN-backed environments.",
                          "notesFile":  "release-2026-04-10-37.md",
                          "carryForward":  [
                                               "release-2026-04-10-36"
@@ -2246,7 +2246,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-42",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Closes the second release-backed SDK/codegen lane by generating a typed coding-server request-builder/client surface from the exported operation catalog, adopts it in the representative app/admin consumer path, and locks the no-path-params type rule into release-flow governance.",
+                         "summary":  "Closes the second release-backed SDK/codegen lane by generating a typed coding-server request-builder/client surface from the exported operation catalog, adopts it in the representative app/backend consumer path, and locks the no-path-params type rule into release-flow governance.",
                          "notesFile":  "release-2026-04-10-42.md",
                          "carryForward":  [
                                               "release-2026-04-10-41"
@@ -2257,7 +2257,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-43",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Closes the first shared high-level representative app/admin facade on top of the release-backed generated client, reduces infrastructure to transport delegation, and makes the shared-facade contract part of release-flow governance.",
+                         "summary":  "Closes the first shared high-level representative app/backend facade on top of the release-backed generated client, reduces infrastructure to transport delegation, and makes the shared-facade contract part of release-flow governance.",
                          "notesFile":  "release-2026-04-10-43.md",
                          "carryForward":  [
                                               "release-2026-04-10-42"
@@ -2268,7 +2268,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-44",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Moves default IDE service composition onto the shared generated app/admin facade for runtime HTTP and in-process fallback clients, and makes that adoption path executable under release-flow governance.",
+                         "summary":  "Moves default IDE service composition onto the shared generated app/backend facade for runtime HTTP and in-process fallback clients, and makes that adoption path executable under release-flow governance.",
                          "notesFile":  "release-2026-04-10-44.md",
                          "carryForward":  [
                                               "release-2026-04-10-43"
@@ -2279,7 +2279,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-45",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Deletes the redundant infrastructure-side app/admin high-level wrapper, moves the representative SDK consumer contract to the shared generated facade directly, and makes no-wrapper governance executable in release-flow.",
+                         "summary":  "Deletes the redundant infrastructure-side app/backend high-level wrapper, moves the representative SDK consumer contract to the shared generated facade directly, and makes no-wrapper governance executable in release-flow.",
                          "notesFile":  "release-2026-04-10-45.md",
                          "carryForward":  [
                                               "release-2026-04-10-44"
@@ -2312,7 +2312,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-03",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Splits workspace team reads from admin team reads on the shared app/admin facade, moves default runtime team catalogs onto the app surface, and makes the split executable across facade and runtime transport governance.",
+                         "summary":  "Splits workspace team reads from admin team reads on the shared app/backend facade, moves default runtime team catalogs onto the app surface, and makes the split executable across facade and runtime transport governance.",
                          "notesFile":  "release-2026-04-11-03.md",
                          "carryForward":  [
                                               "release-2026-04-11-02"
@@ -2378,7 +2378,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-09",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Closes the typed shared core write facade for core.createCodingSession, promotes it into shared-core governance, and wires the first API-backed project-service consumer path while preserving refreshed UI session visibility.",
+                         "summary":  "Closes the typed shared core write facade for core.createCodingSession, promotes it into app-runtime SDK governance, and wires the first API-backed project-service consumer path while preserving refreshed UI session visibility.",
                          "notesFile":  "release-2026-04-11-09.md",
                          "carryForward":  [
                                               "release-2026-04-11-08"
@@ -2400,7 +2400,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-11",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Closes the typed shared core write facade for core.createCodingSessionTurn, promotes it into shared-core governance, and wires the first project-service consumer path that mirrors server-authoritative turn ids into refreshed local session state.",
+                         "summary":  "Closes the typed shared core write facade for core.createCodingSessionTurn, promotes it into app-runtime SDK governance, and wires the first project-service consumer path that mirrors server-authoritative turn ids into refreshed local session state.",
                          "notesFile":  "release-2026-04-11-11.md",
                          "carryForward":  [
                                               "release-2026-04-11-10"
@@ -2433,7 +2433,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-14",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Closes the representative app document catalog lane by making app.listDocuments real on Rust host authority truth, promoting listDocuments into the shared app/admin facade, and wiring the first governed document consumer path.",
+                         "summary":  "Closes the representative app document catalog lane by making app.listDocuments real on Rust host authority truth, promoting listDocuments into the shared app/backend facade, and wiring the first governed document consumer path.",
                          "notesFile":  "release-2026-04-11-14.md",
                          "carryForward":  [
                                               "release-2026-04-11-13"
@@ -2444,7 +2444,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-15",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Closes the representative admin audit lane by making admin.listAuditEvents real on Rust host authority truth, promoting listAuditEvents into the shared app/admin facade, and wiring the first governed audit consumer path.",
+                         "summary":  "Closes the representative admin audit lane by making admin.listAuditEvents real on Rust host authority truth, promoting listAuditEvents into the shared app/backend facade, and wiring the first governed audit consumer path.",
                          "notesFile":  "release-2026-04-11-15.md",
                          "carryForward":  [
                                               "release-2026-04-11-14"
@@ -2455,7 +2455,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-16",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Closes the representative app deployment catalog lane by making app.listDeployments real on Rust host authority truth, promoting listDeployments into the shared app/admin facade, and wiring the first governed deployment consumer path.",
+                         "summary":  "Closes the representative app deployment catalog lane by making app.listDeployments real on Rust host authority truth, promoting listDeployments into the shared app/backend facade, and wiring the first governed deployment consumer path.",
                          "notesFile":  "release-2026-04-11-16.md",
                          "carryForward":  [
                                               "release-2026-04-11-15"
@@ -2466,7 +2466,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-17",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Closes the representative admin deployment governance lane by making admin.listDeployments real on Rust host authority truth, promoting listAdminDeployments into the shared app/admin facade, and wiring the first governed admin deployment consumer path.",
+                         "summary":  "Closes the representative admin deployment governance lane by making admin.listDeployments real on Rust host authority truth, promoting listAdminDeployments into the shared app/backend facade, and wiring the first governed admin deployment consumer path.",
                          "notesFile":  "release-2026-04-11-17.md",
                          "carryForward":  [
                                               "release-2026-04-11-16"
@@ -2477,7 +2477,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-18",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Closes the representative admin policy governance lane by introducing dedicated governance_policies authority truth, making admin.listPolicies real on Rust host authority truth, and wiring the first governed admin policy consumer path through the shared app/admin facade.",
+                         "summary":  "Closes the representative admin policy governance lane by introducing dedicated governance_policies authority truth, making admin.listPolicies real on Rust host authority truth, and wiring the first governed admin policy consumer path through the shared app/backend facade.",
                          "notesFile":  "release-2026-04-11-18.md",
                          "carryForward":  [
                                               "release-2026-04-11-17"
@@ -2884,7 +2884,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-13-07",
                          "date":  "2026-04-13",
                          "status":  "pending",
-                         "summary":  "Closes Step 20A team_member authority by promoting shared team-member repository/query truth, `/api/admin/v1/teams/:teamId/members`, generated app/admin facade reads, in-process transport, and Rust host demo/sqlite authorities, leaving deployment_target as the remaining Step 20 lane.",
+                         "summary":  "Closes Step 20A team_member authority by promoting shared team-member repository/query truth, `/backend/v3/api/teams/:teamId/members`, generated app/backend facade reads, in-process transport, and Rust host demo/sqlite authorities, leaving deployment_target as the remaining Step 20 lane.",
                          "notesFile":  "release-2026-04-13-07.md",
                          "carryForward":  [
                                               "release-2026-04-13-06"
@@ -2895,7 +2895,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-13-08",
                          "date":  "2026-04-13",
                          "status":  "pending",
-                         "summary":  "Closes Step 20B deployment_target authority by promoting shared deployment-target repository/query truth, `/api/admin/v1/projects/:projectId/deployment-targets`, generated app/admin facade reads, in-process transport, and Rust host demo/sqlite authorities, fully closing Step 20.",
+                         "summary":  "Closes Step 20B deployment_target authority by promoting shared deployment-target repository/query truth, `/backend/v3/api/projects/:projectId/deployment_targets`, generated app/backend facade reads, in-process transport, and Rust host demo/sqlite authorities, fully closing Step 20.",
                          "notesFile":  "release-2026-04-13-08.md",
                          "carryForward":  [
                                               "release-2026-04-13-07"
@@ -2906,7 +2906,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-13-09",
                          "date":  "2026-04-13",
                          "status":  "pending",
-                         "summary":  "Restores release-governance closure after the Step 20 app/admin facade expansion exposed typed default-IDE mock drift and an outdated release-note template, then re-verifies the latest registry-backed note, governance regression, and quality execution evidence.",
+                         "summary":  "Restores release-governance closure after the Step 20 app/backend facade expansion exposed typed default-IDE mock drift and an outdated release-note template, then re-verifies the latest registry-backed note, governance regression, and quality execution evidence.",
                          "notesFile":  "release-2026-04-13-09.md",
                          "carryForward":  [
                                               "release-2026-04-13-08"

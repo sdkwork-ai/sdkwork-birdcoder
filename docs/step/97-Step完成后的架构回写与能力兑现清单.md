@@ -29,7 +29,7 @@
 | `14` | Appbase Auth/User/VIP 主边界统一 | `17` | Bridge 清单、Route Intent、Parity Contract |
 | `15` | 多数据库 Provider、Dialect、Migration、BlobStore | `07` `18` | Provider Contract、迁移回放、authority 模式结果 |
 | `16` | Prompt/SkillHub/AppTemplate/项目模板注入链 | `13` `19` | 注入顺序、绑定表、模板实例化验证 |
-| `17` | `core/app/admin` API、App/Admin Console、统一生命周期资源 | `09` `20` | 路由矩阵、OpenAPI、Console Contract、权限矩阵 |
+| `17` | `app/backend` API、App/Admin Console、统一生命周期资源 | `09` `20` | 路由矩阵、OpenAPI、Console Contract、权限矩阵 |
 | `18` | 多 Engine Adapter、统一工具协议、Conformance | `05` `12` `21` | Adapter Matrix、Canonical Event 映射、Conformance 结果 |
 | `20` | `20A team_member` 与 `20B deployment_target` 均已从 schema-only 定义提升到真实 authority，Step 20 已完成 | `07` `18` `20` | 共享仓储、真实路由、Facade、Consumer、release 写回证据 |
 

@@ -1,0 +1,1164 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SDKWork BirdCoder Backend API",
+    "version": "0.1.0",
+    "description": "BirdCoder backend SDK source of truth generated from the canonical coding-server OpenAPI backend surface."
+  },
+  "servers": [
+    {
+      "url": "/backend/v3/api"
+    }
+  ],
+  "tags": [
+    {
+      "name": "iam",
+      "description": "IAM user, team, member, and policy resources."
+    },
+    {
+      "name": "platform",
+      "description": "Workspace, project, release, deployment, and delivery resources."
+    }
+  ],
+  "paths": {
+    "/backend/v3/api/iam/audit_events": {
+      "get": {
+        "operationId": "auditEvents.list",
+        "summary": "List audit events",
+        "description": "List audit events. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit events returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderAdminAuditEventSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.auditEvents.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.auditEvents",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/backend/v3/api/deployments": {
+      "get": {
+        "operationId": "deploymentGovernance.list",
+        "summary": "List governed deployments",
+        "description": "List governed deployments. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin deployment inventory returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeploymentRecordSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "platform.deploymentGovernance.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "platform.deploymentGovernance",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/backend/v3/api/projects/{projectId}/deployment_targets": {
+      "get": {
+        "operationId": "projects.deploymentTargets.list",
+        "summary": "List deployment targets",
+        "description": "List deployment targets. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deployment targets returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeploymentTargetSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "platform.projects.deploymentTargets.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "platform.projects.deploymentTargets",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/backend/v3/api/iam/policies": {
+      "get": {
+        "operationId": "policies.list",
+        "summary": "List governance policies",
+        "description": "List governance policies. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "responses": {
+          "200": {
+            "description": "Governance policies returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderAdminPolicySummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.policies.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/backend/v3/api/releases": {
+      "get": {
+        "operationId": "releases.list",
+        "summary": "List releases",
+        "description": "List releases. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "Release inventory returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderReleaseSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "platform.releases.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "platform.releases",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/backend/v3/api/iam/teams/{teamId}/members": {
+      "get": {
+        "operationId": "teamGovernance.members.list",
+        "summary": "List team members",
+        "description": "List team members. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder team identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Team members returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderTeamMemberSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Team was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.teamGovernance.members.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.teamGovernance.members",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/backend/v3/api/iam/teams": {
+      "get": {
+        "operationId": "teamGovernance.list",
+        "summary": "List teams",
+        "description": "List teams. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "description": "Filter resources to a single user principal.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "description": "Filter resources to a single workspace.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin team inventory returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderTeamSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.teamGovernance.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.teamGovernance",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Bearer token"
+      },
+      "sdkworkAccessToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Sdkwork-Access-Token"
+      }
+    },
+    "schemas": {
+      "BirdCoderAdminAuditEventSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scopeType": {
+            "type": "string"
+          },
+          "scopeId": {
+            "type": "string"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "id",
+          "scopeType",
+          "scopeId",
+          "eventType",
+          "payload"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderAdminAuditEventSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderAdminAuditEventSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderAdminPolicySummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scopeType": {
+            "type": "string",
+            "description": "Known values include global, workspace, project, team, release, and runtime."
+          },
+          "scopeId": {
+            "type": "string"
+          },
+          "policyCategory": {
+            "type": "string",
+            "description": "Known values include terminal, engine, deployment, release, workspace, and project."
+          },
+          "targetType": {
+            "type": "string",
+            "description": "Known values include engine, workflow, terminal-profile, deployment-target, workspace, and project."
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "approvalPolicy": {
+            "type": "string",
+            "enum": [
+              "AutoAllow",
+              "OnRequest",
+              "Restricted",
+              "ReleaseOnly"
+            ]
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "Known values include draft, active, and archived."
+          }
+        },
+        "required": [
+          "id",
+          "scopeType",
+          "scopeId",
+          "policyCategory",
+          "targetType",
+          "targetId",
+          "approvalPolicy",
+          "status",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderAdminPolicySummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderAdminPolicySummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderApiListMeta": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "page",
+          "pageSize",
+          "total",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderApiMeta": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderApiProblemDetails": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "fieldErrors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "retryable"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeploymentRecordSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "releaseRecordId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "running",
+              "succeeded",
+              "failed",
+              "rolled_back"
+            ]
+          },
+          "endpointUrl": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "targetId",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeploymentRecordSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderDeploymentRecordSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeploymentTargetSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "environmentKey": {
+            "type": "string",
+            "description": "Known values include dev, test, staging, and prod."
+          },
+          "runtime": {
+            "type": "string",
+            "description": "Known values include web, desktop, server, container, and kubernetes."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "name",
+          "environmentKey",
+          "runtime",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeploymentTargetSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderDeploymentTargetSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderProblemEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderApiProblemDetails"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderReleaseSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "releaseVersion": {
+            "type": "string"
+          },
+          "releaseKind": {
+            "type": "string",
+            "description": "Known values include formal, canary, hotfix, rollback."
+          },
+          "rolloutStage": {
+            "type": "string"
+          },
+          "manifest": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          },
+          "status": {
+            "type": "string",
+            "description": "Known values include pending, ready, running, succeeded, failed, rolled_back."
+          }
+        },
+        "required": [
+          "id",
+          "releaseVersion",
+          "releaseKind",
+          "rolloutStage",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderReleaseSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderReleaseSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderTeamMemberSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member",
+              "viewer"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "invited",
+              "active",
+              "suspended",
+              "removed"
+            ]
+          },
+          "createdByUserId": {
+            "type": "string"
+          },
+          "grantedByUserId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "teamId",
+          "userId",
+          "role",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderTeamMemberSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderTeamMemberSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderTeamSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "leaderId": {
+            "type": "string"
+          },
+          "createdByUserId": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "workspaceId",
+          "name",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderTeamSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderTeamSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

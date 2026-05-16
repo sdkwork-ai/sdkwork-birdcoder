@@ -21,7 +21,7 @@ try {
   exitCode = await runBirdcoderDevStack({
     argv: [
       'web',
-      '--identity-mode',
+      '--iam-mode',
       'server-private',
       '--',
       '--host',
@@ -56,8 +56,8 @@ assert.match(
 );
 assert.match(
   stdout,
-  /\[birdcoder-stack\] identityMode=server-private/u,
-  'dry-run should keep the private identity mode when launched through the default web stack.',
+  /\[birdcoder-stack\] iamMode=server-private/u,
+  'dry-run should keep the private IAM mode when launched through the default web stack.',
 );
 assert.match(
   stdout,
@@ -66,7 +66,7 @@ assert.match(
 );
 assert.match(
   stdout,
-  /\[birdcoder-stack\] sampleAccount=local-default@sdkwork-birdcoder\.local/u,
+  /\[birdcoder-stack\] sampleAccount=local-default@sdkwork-user-center\.local/u,
   'dry-run should expose the builtin-local bootstrap account for quick-login verification.',
 );
 assert.match(

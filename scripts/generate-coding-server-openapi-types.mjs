@@ -17,6 +17,25 @@ const HTTP_METHOD_ORDER = {
   put: 2,
 };
 
+const FORBIDDEN_API_PREFIXES = [
+  '/api/core/v1',
+  '/api/app/v1',
+  '/api/app/v2',
+  '/api/app/v3',
+  '/api/app/v3/api',
+  '/api/admin/v1',
+  '/api/backend/v1',
+  '/api/backend/v2',
+  '/api/backend/v3',
+  '/api/backend/v3/api',
+  '/app/v1',
+  '/app/v2',
+  '/backend/v1',
+  '/backend/v2',
+];
+
+const CANONICAL_SURFACES = new Set(['app', 'backend']);
+
 function readOptionValue(argv, index, flag) {
   const next = argv[index + 1];
   const normalizedNext = String(next ?? '').trim();
@@ -62,22 +81,28 @@ export function parseArgs(argv) {
   return options;
 }
 
-function inferSurface(pathKey, fallbackTag) {
-  const normalizedTag = String(fallbackTag ?? '').trim();
-  if (normalizedTag) {
-    return normalizedTag;
+function inferSurface(pathKey, explicitSurface) {
+  const normalizedSurface = String(explicitSurface ?? '').trim();
+  if (normalizedSurface) {
+    if (!CANONICAL_SURFACES.has(normalizedSurface)) {
+      throw new Error(`OpenAPI operation uses noncanonical x-sdkwork-surface "${normalizedSurface}" for ${pathKey}.`);
+    }
+
+    return normalizedSurface;
   }
 
-  if (pathKey.startsWith('/api/core/')) {
-    return 'core';
+  for (const forbiddenPrefix of FORBIDDEN_API_PREFIXES) {
+    if (pathKey.startsWith(forbiddenPrefix)) {
+      throw new Error(`OpenAPI operation uses forbidden noncanonical API prefix ${forbiddenPrefix}: ${pathKey}.`);
+    }
   }
 
-  if (pathKey.startsWith('/api/app/')) {
+  if (pathKey.startsWith('/app/v3/api/')) {
     return 'app';
   }
 
-  if (pathKey.startsWith('/api/admin/')) {
-    return 'admin';
+  if (pathKey.startsWith('/backend/v3/api/')) {
+    return 'backend';
   }
 
   return 'unknown';
@@ -103,7 +128,7 @@ export function collectCodingServerOpenApiOperations(document) {
         operationId: String(operationDefinition?.operationId ?? '').trim(),
         path: pathKey,
         summary: String(operationDefinition?.summary ?? '').trim(),
-        surface: inferSurface(pathKey, tags[0]),
+        surface: inferSurface(pathKey, operationDefinition?.['x-sdkwork-surface']),
       });
     }
   }

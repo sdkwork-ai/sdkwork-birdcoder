@@ -1,6 +1,6 @@
 import {
   createSdkworkCanonicalRuntimeAuthAuthorityService,
-} from "../../../../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/auth-runtime-authority.ts";
+} from "@sdkwork/auth-runtime-pc-react";
 import type {
   BirdCoderAuthenticatedUserSummary,
   BirdCoderUserCenterApiClient,
@@ -22,6 +22,7 @@ import type {
 import type { IAuthService } from "../interfaces/IAuthService.ts";
 import {
   createBirdCoderRuntimeUserCenterClient,
+  resolveBirdCoderRuntimeUserCenterApiBaseUrl,
   type BirdCoderRuntimeUserCenterClient,
 } from "../userCenterRuntimeBridge.ts";
 import {
@@ -334,6 +335,12 @@ function createRuntimeAuthAuthority(
     return createBirdCoderRuntimeUserCenterClient();
   }
 
+  function hasBoundRuntimeUserCenterAuthority(): boolean {
+    return options.runtimeClient !== undefined
+      ? options.runtimeClient !== null
+      : resolveBirdCoderRuntimeUserCenterApiBaseUrl() !== null;
+  }
+
   function requireRuntimeClient(): BirdCoderRuntimeUserCenterClient {
     const runtimeClient = resolveRuntimeClient();
     if (!runtimeClient) {
@@ -351,7 +358,7 @@ function createRuntimeAuthAuthority(
   >({
     clearSessionToken: clearRuntimeServerSessionId,
     createUnavailableError,
-    exchangeSession: options.runtimeClient === null
+    exchangeSession: !hasBoundRuntimeUserCenterAuthority()
       ? undefined
       : async (request) => requireRuntimeClient().bootstrapSession(request),
     execute: (task, retryOptions) =>
@@ -359,7 +366,7 @@ function createRuntimeAuthAuthority(
     getConfig: client
       ? async () => client.getConfig()
       : undefined,
-    getProfile: options.runtimeClient === null
+    getProfile: !hasBoundRuntimeUserCenterAuthority()
       ? undefined
       : async () => requireRuntimeClient().getProfile(),
     isRouteUnavailable: isUserCenterRouteUnavailable,
@@ -367,7 +374,7 @@ function createRuntimeAuthAuthority(
     isTransientError: isBirdCoderTransientApiError,
     login: async (request) => requireClient().login(request),
     logout: client ? async () => client.logout() : undefined,
-    logoutSession: options.runtimeClient === null
+    logoutSession: !hasBoundRuntimeUserCenterAuthority()
       ? undefined
       : async () => requireRuntimeClient().logoutSession(),
     mapProfileUser,

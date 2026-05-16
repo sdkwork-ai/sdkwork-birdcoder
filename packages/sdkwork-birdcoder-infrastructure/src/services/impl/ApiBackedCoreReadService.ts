@@ -1,13 +1,11 @@
-import {
-  stringifyBirdCoderApiJson,
-  type BirdCoderCoreReadApiClient,
-} from '@sdkwork/birdcoder-types';
+import { stringifyBirdCoderApiJson } from '@sdkwork/birdcoder-types';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { ICoreReadService } from '../interfaces/ICoreReadService.ts';
+import type { BirdCoderAppRuntimeReadSdkApiClient } from '../sdkClients.ts';
 
 export interface ApiBackedCoreReadServiceOptions {
-  client: BirdCoderCoreReadApiClient;
-  identityProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  client: BirdCoderAppRuntimeReadSdkApiClient;
+  currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
 }
 
 interface ReadCacheEntry<T> {
@@ -50,17 +48,17 @@ function stableSerializeCacheKeyPart(value: unknown): string {
 }
 
 export class ApiBackedCoreReadService implements ICoreReadService {
-  private readonly client: BirdCoderCoreReadApiClient;
-  private readonly identityProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  private readonly client: BirdCoderAppRuntimeReadSdkApiClient;
+  private readonly currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
   private readonly readCache = new Map<string, ReadCacheEntry<unknown>>();
 
-  constructor({ client, identityProvider }: ApiBackedCoreReadServiceOptions) {
+  constructor({ client, currentUserProvider }: ApiBackedCoreReadServiceOptions) {
     this.client = client;
-    this.identityProvider = identityProvider;
+    this.currentUserProvider = currentUserProvider;
   }
 
   private async resolveCurrentUserScope(): Promise<string> {
-    const user = await this.identityProvider?.getCurrentUser();
+    const user = await this.currentUserProvider?.getCurrentUser();
     const userId = user?.id?.trim();
     return userId && userId.length > 0 ? userId : 'anonymous';
   }
@@ -183,7 +181,7 @@ export class ApiBackedCoreReadService implements ICoreReadService {
     return this.client.getHealth();
   }
 
-  async getNativeSession(codingSessionId: string, request?: Parameters<BirdCoderCoreReadApiClient['getNativeSession']>[1]) {
+  async getNativeSession(codingSessionId: string, request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['getNativeSession']>[1]) {
     const key = await this.buildUserScopedCacheKey('getNativeSession', {
       codingSessionId,
       request,
@@ -240,7 +238,7 @@ export class ApiBackedCoreReadService implements ICoreReadService {
     );
   }
 
-  async listCodingSessions(request?: Parameters<BirdCoderCoreReadApiClient['listCodingSessions']>[0]) {
+  async listCodingSessions(request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listCodingSessions']>[0]) {
     const key = await this.buildUserScopedCacheKey('listCodingSessions', request);
     return this.readThroughCache(
       key,
@@ -281,7 +279,7 @@ export class ApiBackedCoreReadService implements ICoreReadService {
     );
   }
 
-  async listNativeSessions(request?: Parameters<BirdCoderCoreReadApiClient['listNativeSessions']>[0]) {
+  async listNativeSessions(request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listNativeSessions']>[0]) {
     const key = await this.buildUserScopedCacheKey('listNativeSessions', request);
     return this.readThroughCache(
       key,

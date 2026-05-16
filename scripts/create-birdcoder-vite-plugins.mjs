@@ -40,7 +40,10 @@ const BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE = [
   'qrcode',
   'qrcode/lib/browser.js',
 ];
-const BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE = [];
+const BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE = [
+  'qrcode',
+  'qrcode/lib/browser.js',
+];
 const BIRDCODER_PUBLIC_RUNTIME_ENV_KEY = '__SDKWORK_PC_REACT_ENV__';
 const BIRDCODER_PUBLIC_RUNTIME_ENV_PREFIXES = ['SDKWORK_', 'VITE_'];
 const BIRDCODER_PUBLIC_RUNTIME_ENV_EXACT_KEYS = ['DEV', 'MODE', 'NODE_ENV', 'PROD'];
@@ -196,42 +199,42 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       find: '@sdkwork/auth-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
       ),
     },
     {
       find: '@sdkwork/auth-runtime-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-auth-runtime-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts',
       ),
     },
     {
       find: '@sdkwork/user-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/index.ts',
       ),
     },
     {
       find: '@sdkwork/user-center-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/index.ts',
       ),
     },
     {
       find: '@sdkwork/user-center-core-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-core-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/src/index.ts',
       ),
     },
     {
       find: '@sdkwork/user-center-validation-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/identity/sdkwork-user-center-validation-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-validation-pc-react/src/index.ts',
       ),
     },
     {
@@ -267,6 +270,20 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       replacement: path.resolve(
         appRootDir,
         '../../../sdkwork-ui/sdkwork-ui-pc-react/src/index.ts',
+      ),
+    },
+    {
+      find: '@sdkwork/birdcoder-app-sdk',
+      replacement: path.resolve(
+        appRootDir,
+        '../../sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts',
+      ),
+    },
+    {
+      find: '@sdkwork/birdcoder-backend-sdk',
+      replacement: path.resolve(
+        appRootDir,
+        '../../sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts',
       ),
     },
     {
@@ -656,6 +673,18 @@ function resolvePackageJsonPathFromWorkspaceRoot(workspaceRootDir, specifier) {
     .filter((candidatePath) => existsSync(candidatePath))
     .sort((left, right) => compareVersionLike(right, left));
 
+  const directCandidatePackageJsonPaths = candidatePackageJsonPaths.filter((candidatePath) =>
+    isDirectPnpmStorePackageJsonPath(candidatePath, packageName),
+  );
+
+  if (directCandidatePackageJsonPaths.length > 0) {
+    return directCandidatePackageJsonPaths
+      .sort((left, right) => compareVersionLike(
+        getPnpmStorePackageVersion(right, packageName),
+        getPnpmStorePackageVersion(left, packageName),
+      ))[0] ?? null;
+  }
+
   return candidatePackageJsonPaths[0] ?? null;
 }
 
@@ -676,8 +705,8 @@ function resolveAppbaseWorkspacePackageEntryPath(appRootDir, specifier, relative
 function resolveAppbaseManagedBridgePackageJsonPath(appbaseWorkspaceRootDir, specifier) {
   const packageName = resolvePackageNameFromSpecifier(specifier);
   const bridgePackageRoots = [
-    'packages/pc-react/identity/sdkwork-auth-pc-react',
-    'packages/pc-react/identity/sdkwork-user-center-pc-react',
+    'packages/pc-react/iam/sdkwork-auth-pc-react',
+    'packages/pc-react/iam/sdkwork-user-center-pc-react',
   ];
 
   for (const bridgePackageRoot of bridgePackageRoots) {
@@ -701,6 +730,36 @@ function compareVersionLike(left, right) {
     numeric: true,
     sensitivity: 'base',
   });
+}
+
+function getPnpmStoreEntryName(packageJsonPath) {
+  const packageDirPath = path.dirname(packageJsonPath);
+  const packageNodeModulesDirPath = path.dirname(packageDirPath);
+  const storeEntryDirPath = path.dirname(packageNodeModulesDirPath);
+
+  return path.basename(storeEntryDirPath);
+}
+
+function encodePnpmPackageName(packageName) {
+  return String(packageName ?? '').replace(/\//gu, '+');
+}
+
+function isDirectPnpmStorePackageJsonPath(packageJsonPath, packageName) {
+  const storeEntryName = getPnpmStoreEntryName(packageJsonPath);
+  const encodedPackageName = encodePnpmPackageName(packageName);
+
+  return storeEntryName === encodedPackageName || storeEntryName.startsWith(`${encodedPackageName}@`);
+}
+
+function getPnpmStorePackageVersion(packageJsonPath, packageName) {
+  const storeEntryName = getPnpmStoreEntryName(packageJsonPath);
+  const encodedPackageName = encodePnpmPackageName(packageName);
+
+  if (!storeEntryName.startsWith(`${encodedPackageName}@`)) {
+    return '';
+  }
+
+  return storeEntryName.slice(encodedPackageName.length + 1).split('_')[0] ?? '';
 }
 
 function resolvePackageNameFromSpecifier(specifier) {

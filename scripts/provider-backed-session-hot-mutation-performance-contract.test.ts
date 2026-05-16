@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { ProviderBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts';
-import { createBirdCoderRepresentativeAppAdminRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
+import { createBirdCoderConsoleRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
 import { createBirdCoderCodingSessionRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/codingSessionRepository.ts';
 import { createBirdCoderStorageProvider } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
 import { createBirdCoderInMemorySqlExecutor } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlExecutor.ts';
@@ -14,7 +14,7 @@ const sqlExecutor = createBirdCoderInMemorySqlExecutor('sqlite');
 const storageProvider = createBirdCoderStorageProvider('sqlite', {
   sqlExecutor,
 });
-const appRepositories = createBirdCoderRepresentativeAppAdminRepositories({
+const appRepositories = createBirdCoderConsoleRepositories({
   providerId: storageProvider.providerId,
   storage: storageProvider,
 });
@@ -78,10 +78,10 @@ assert.equal(
   sqlExecutor.history.some(
     (plan) =>
       plan.meta?.kind === 'table-list' &&
-      plan.meta.tableName === 'coding_session_messages',
+      plan.meta.tableName === 'ai_coding_session_message',
   ),
   false,
-  'hot rename/update/edit/delete operations must not full-scan coding_session_messages.',
+  'hot rename/update/edit/delete operations must not full-scan ai_coding_session_message.',
 );
 
 const hydratedTranscript = await service.getCodingSessionTranscript(project.id, session.id);

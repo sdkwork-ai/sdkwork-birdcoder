@@ -18,7 +18,7 @@ BirdCoder 的产品中心必须是统一 Kernel，而不是某一家具体引擎
 - 统一组装 workspace、project、prompt、rule、skill、template、tool、memory 等上下文
 - 统一审批、沙箱、权限、审计、限流和诊断
 - 统一把 provider 原生事件投影为 message、event、artifact、checkpoint
-- 统一把运行时能力投影到 `coding-server` 的 `core / app / admin` API
+- 统一把运行时能力投影到 `coding-server` 的 `app / backend` API
 
 ## 4. 统一运行时骨架
 
@@ -92,7 +92,7 @@ BirdCoder 的长期包边界应演进为：
 - `L1`：支持流式输出与基础工具调用
 - `L2`：支持结构化结果、diff、approval、resume
 - `L3`：支持 build、test、preview、发布证据
-- `L4`：统一投影到 `coding-server core/app/admin` 并支持跨宿主一致执行
+- `L4`：统一投影到 `coding-server app/backend` 并支持跨宿主一致执行
 
 BirdCoder 的多引擎中间层目标是以 `L2` 为最低落地门槛，以 `L4` 为最终交付标准。
 

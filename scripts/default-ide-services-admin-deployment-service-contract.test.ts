@@ -1,10 +1,10 @@
+import type { BirdCoderBackendSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderDeploymentRecordSummary,
 } from '@sdkwork/birdcoder-types';
 import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
-import { createAppAdminClientContractStub } from './app-admin-client-contract-stub.ts';
+import { createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
 
 const deploymentFixtures: BirdCoderDeploymentRecordSummary[] = [
   {
@@ -16,17 +16,17 @@ const deploymentFixtures: BirdCoderDeploymentRecordSummary[] = [
   },
 ];
 
-let listAdminDeploymentsCalls = 0;
+let listGovernanceDeploymentsCalls = 0;
 
-const appAdminClient: BirdCoderAppAdminApiClient = createAppAdminClientContractStub({
-  async listAdminDeployments() {
-    listAdminDeploymentsCalls += 1;
+const backendClient: BirdCoderBackendSdkApiClient = createBackendSdkClientContractStub({
+  async listGovernanceDeployments() {
+    listGovernanceDeploymentsCalls += 1;
     return deploymentFixtures;
   },
 });
 
 const services = createDefaultBirdCoderIdeServices({
-  appAdminClient,
+  backendClient,
 });
 
 const deployments = await services.adminDeploymentService.getDeployments();
@@ -34,13 +34,13 @@ const deployments = await services.adminDeploymentService.getDeployments();
 assert.deepEqual(
   deployments,
   deploymentFixtures,
-  'default IDE services must expose admin deployment reads through the shared app/admin facade.',
+  'default IDE services must expose admin deployment reads through the backend SDK client.',
 );
 
 assert.equal(
-  listAdminDeploymentsCalls,
+  listGovernanceDeploymentsCalls,
   1,
-  'adminDeploymentService must delegate exactly one read to BirdCoderAppAdminApiClient.listAdminDeployments().',
+  'adminDeploymentService must delegate exactly one read to BirdCoderBackendSdkApiClient.listGovernanceDeployments().',
 );
 
 console.log('default IDE services admin deployment service contract passed.');

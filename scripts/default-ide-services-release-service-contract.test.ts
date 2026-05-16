@@ -1,7 +1,8 @@
+import type { BirdCoderBackendSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
-import type { BirdCoderAppAdminApiClient, BirdCoderReleaseSummary } from '@sdkwork/birdcoder-types';
+import type { BirdCoderReleaseSummary } from '@sdkwork/birdcoder-types';
 import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
-import { createAppAdminClientContractStub } from './app-admin-client-contract-stub.ts';
+import { createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
 
 const releaseFixtures: BirdCoderReleaseSummary[] = [
   {
@@ -15,7 +16,7 @@ const releaseFixtures: BirdCoderReleaseSummary[] = [
 
 let listReleasesCalls = 0;
 
-const appAdminClient: BirdCoderAppAdminApiClient = createAppAdminClientContractStub({
+const backendClient: BirdCoderBackendSdkApiClient = createBackendSdkClientContractStub({
   async listReleases() {
     listReleasesCalls += 1;
     return releaseFixtures;
@@ -23,7 +24,7 @@ const appAdminClient: BirdCoderAppAdminApiClient = createAppAdminClientContractS
 });
 
 const services = createDefaultBirdCoderIdeServices({
-  appAdminClient,
+  backendClient,
 });
 
 const releases = await services.releaseService.getReleases();
@@ -31,13 +32,13 @@ const releases = await services.releaseService.getReleases();
 assert.deepEqual(
   releases,
   releaseFixtures,
-  'default IDE services must expose release reads through the shared app/admin facade.',
+  'default IDE services must expose release reads through the backend SDK client.',
 );
 
 assert.equal(
   listReleasesCalls,
   1,
-  'releaseService must delegate exactly one read to BirdCoderAppAdminApiClient.listReleases().',
+  'releaseService must delegate exactly one read to BirdCoderBackendSdkApiClient.listReleases().',
 );
 
 console.log('default IDE services release service contract passed.');

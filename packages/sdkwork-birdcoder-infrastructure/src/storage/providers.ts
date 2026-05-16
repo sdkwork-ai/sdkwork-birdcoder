@@ -50,18 +50,8 @@ const RUNTIME_DATA_KERNEL_ENTITY_NAMES = [
 ] as const satisfies readonly BirdCoderEntityName[];
 
 const CODING_SERVER_KERNEL_ENTITY_NAMES = [
-  'tenant',
-  'organization',
-  'organization_member',
-  'member_relation',
   'department',
   'position',
-  'role',
-  'permission',
-  'role_permission',
-  'user_role',
-  'user_account',
-  'oauth_account',
   'user_address',
   'card',
   'user_card',
@@ -152,8 +142,6 @@ const CODING_SERVER_KERNEL_ENTITY_NAMES = [
   'payment_webhook_event',
   'order_dispatch_rule',
   'order_worker_dispatch_profile',
-  'vip_user',
-  'account',
   'account_history',
   'account_exchange_config',
   'ledger_bridge',
@@ -208,26 +196,8 @@ const CODING_SERVER_KERNEL_ENTITY_NAMES = [
 ] as const satisfies readonly BirdCoderEntityName[];
 
 const JAVA_LONG_IDENTIFIER_COLUMNS_BY_ENTITY = {
-  tenant: ['id', 'biz_id', 'admin_user_id'],
-  organization: ['id', 'tenant_id', 'organization_id', 'parent_id'],
-  organization_member: ['id', 'tenant_id', 'organization_id', 'user_id', 'owner_id'],
-  member_relation: [
-    'id',
-    'tenant_id',
-    'organization_id',
-    'parent_id',
-    'member_id',
-    'owner_id',
-    'target_id',
-  ],
   department: ['id', 'tenant_id', 'organization_id', 'parent_id', 'owner_id', 'manager_id'],
   position: ['id', 'tenant_id', 'organization_id', 'parent_id', 'owner_id'],
-  role: ['id', 'tenant_id', 'organization_id'],
-  permission: ['id', 'tenant_id', 'organization_id'],
-  role_permission: ['id', 'role_id', 'permission_id', 'operator_id'],
-  user_role: ['id', 'user_id', 'role_id', 'operator_id'],
-  user_account: ['id', 'tenant_id', 'organization_id'],
-  oauth_account: ['id', 'tenant_id', 'organization_id', 'user_id', 'channel_account_id'],
   user_address: ['id', 'tenant_id', 'organization_id', 'user_id'],
   card: ['id', 'tenant_id', 'organization_id', 'card_organization_id'],
   user_card: ['id', 'tenant_id', 'organization_id', 'user_id', 'card_id'],
@@ -518,8 +488,6 @@ const JAVA_LONG_IDENTIFIER_COLUMNS_BY_ENTITY = {
   payment_webhook_event: ['id', 'tenant_id', 'organization_id', 'request_timestamp'],
   order_dispatch_rule: ['id', 'tenant_id', 'organization_id'],
   order_worker_dispatch_profile: ['id', 'tenant_id', 'organization_id', 'user_id'],
-  vip_user: ['id', 'tenant_id', 'organization_id', 'user_id', 'vip_level_id'],
-  account: ['id', 'tenant_id', 'organization_id', 'user_id', 'owner_id'],
   account_history: [
     'id',
     'tenant_id',
@@ -869,10 +837,6 @@ function buildJavaLongIdentifierColumnSql(
   }
 
   const storageType = providerId === 'postgresql' ? 'BIGINT' : 'INTEGER';
-  if (definition.entityName === 'user_role' && column.name === 'id') {
-    return `${column.name} ${storageType} NULL`;
-  }
-
   if (column.name === 'id') {
     return `${column.name} ${storageType} PRIMARY KEY`;
   }
@@ -885,36 +849,14 @@ function buildJavaConvertedEnumColumnSql(
   definition: BirdCoderEntityDefinition,
   column: BirdCoderSchemaColumnDefinition,
 ): string | null {
-  if (definition.entityName === 'organization' && column.name === 'status') {
-    return `${column.name} INTEGER NOT NULL DEFAULT 1`;
-  }
-
   if (
     (
-      definition.entityName === 'organization_member' ||
-      definition.entityName === 'member_relation' ||
       definition.entityName === 'department' ||
       definition.entityName === 'position'
     ) &&
     column.name === 'owner'
   ) {
     return `${column.name} INTEGER NOT NULL`;
-  }
-
-  if (definition.entityName === 'member_relation' && column.name === 'relation_type') {
-    return `${column.name} INTEGER NOT NULL`;
-  }
-
-  if (definition.entityName === 'role' && column.name === 'status') {
-    return `${column.name} INTEGER NOT NULL DEFAULT 1`;
-  }
-
-  if (definition.entityName === 'permission' && column.name === 'status') {
-    return `${column.name} INTEGER NOT NULL`;
-  }
-
-  if (definition.entityName === 'role_permission' && column.name === 'status') {
-    return `${column.name} INTEGER NOT NULL DEFAULT 1`;
   }
 
   if (
@@ -1373,9 +1315,7 @@ function buildCreateTableSql(
   const columnSql = definition.columns
     .map((column) => buildColumnSql(column, dialect, definition))
     .join(', ');
-  const tableConstraints =
-    definition.entityName === 'user_role' ? ', PRIMARY KEY (user_id, role_id)' : '';
-  return `CREATE TABLE IF NOT EXISTS ${definition.tableName} (${columnSql}${tableConstraints});`;
+  return `CREATE TABLE IF NOT EXISTS ${definition.tableName} (${columnSql});`;
 }
 
 function buildCreateIndexSql(definition: BirdCoderEntityDefinition): string[] {

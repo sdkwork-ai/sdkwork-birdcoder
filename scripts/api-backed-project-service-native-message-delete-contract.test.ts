@@ -1,8 +1,10 @@
+import type {
+  BirdCoderAppRuntimeWriteSdkApiClient,
+  BirdCoderAppSdkApiClient,
+} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderCodingSession,
-  BirdCoderCoreWriteApiClient,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-types';
 import { ApiBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts';
@@ -95,9 +97,9 @@ const coreWriteClient = {
       codingSessionId,
     };
   },
-} as unknown as BirdCoderCoreWriteApiClient;
+} as unknown as BirdCoderAppRuntimeWriteSdkApiClient;
 
-const appAdminClient = {
+const appClient = {
   async getProject() {
     return {
       id: project.id,
@@ -109,11 +111,11 @@ const appAdminClient = {
       updatedAt: project.updatedAt,
     };
   },
-} as unknown as BirdCoderAppAdminApiClient;
+} as unknown as BirdCoderAppSdkApiClient;
 
 const service = new ApiBackedProjectService({
-  client: appAdminClient,
-  coreWriteClient,
+  appClient: appClient,
+  codingRuntimeClient: coreWriteClient,
   writeService,
 });
 

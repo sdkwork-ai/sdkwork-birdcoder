@@ -4,6 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE,
+  BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE,
   createBirdcoderWorkspaceAliasEntries,
 } from './create-birdcoder-vite-plugins.mjs';
 
@@ -24,6 +26,10 @@ const vitePluginSource = fs.readFileSync(
   new URL('../scripts/create-birdcoder-vite-plugins.mjs', import.meta.url),
   'utf8',
 );
+const viteCompatShimPath = new URL(
+  '../scripts/vite-shims/qrcode-compat.mjs',
+  import.meta.url,
+);
 const packageJsonSource = fs.readFileSync(
   new URL('../packages/sdkwork-birdcoder-code/package.json', import.meta.url),
   'utf8',
@@ -43,6 +49,7 @@ assert.ok(
 );
 
 const shimSource = fs.readFileSync(shimPath, 'utf8');
+const viteCompatShimSource = fs.readFileSync(viteCompatShimPath, 'utf8');
 
 assert.match(
   mobilePanelSource,
@@ -90,6 +97,43 @@ assert.match(
   vitePluginSource,
   /BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE[\s\S]*'qrcode',[\s\S]*'qrcode\/lib\/browser\.js'/,
   'BirdCoder web host optimizeDeps include list must prebundle both qrcode and qrcode browser entry for dev runtime safety.',
+);
+
+for (const dependency of ['qrcode', 'qrcode/lib/browser.js']) {
+  assert.ok(
+    BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE.includes(dependency),
+    `BirdCoder web host optimizeDeps include list must prebundle ${dependency} for dev runtime safety.`,
+  );
+  assert.ok(
+    BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE.includes(dependency),
+    `BirdCoder desktop host optimizeDeps include list must prebundle ${dependency} so Vite never serves the CommonJS browser.js file directly to the desktop webview.`,
+  );
+}
+
+assert.doesNotMatch(
+  viteCompatShimSource,
+  /import\s+[A-Za-z_$][\w$]*\s+from\s+['"]qrcode\/lib\/browser\.js['"]/u,
+  'The shared Vite qrcode compatibility shim must not default-import qrcode/lib/browser.js because Vite dev serves that CommonJS browser entry without a synthetic default export.',
+);
+
+assert.match(
+  viteCompatShimSource,
+  /import\s+\*\s+as\s+[A-Za-z_$][\w$]*\s+from\s+['"]qrcode\/lib\/browser\.js['"]/u,
+  'The shared Vite qrcode compatibility shim must namespace-import qrcode/lib/browser.js so browser ESM loading works with named CommonJS exports.',
+);
+
+for (const exportName of ['create', 'toCanvas', 'toDataURL', 'toString']) {
+  assert.match(
+    viteCompatShimSource,
+    new RegExp(`export const ${exportName} =`, 'u'),
+    `The shared Vite qrcode compatibility shim must preserve the qrcode ${exportName} named export.`,
+  );
+}
+
+assert.match(
+  viteCompatShimSource,
+  /export default /u,
+  'The shared Vite qrcode compatibility shim must keep the qrcode default export for package-entry consumers.',
 );
 
 const webAliasEntries = createBirdcoderWorkspaceAliasEntries(webRootDir);

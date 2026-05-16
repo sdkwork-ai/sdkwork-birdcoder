@@ -1,5 +1,4 @@
 import type {
-  BirdCoderAppAdminApiClient,
   BirdCoderAppTemplateSummary,
   BirdCoderSkillInstallationSummary,
   BirdCoderSkillPackageSummary,
@@ -8,31 +7,32 @@ import type {
   ICatalogService,
   InstallSkillPackageOptions,
 } from '../interfaces/ICatalogService.ts';
+import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
 
 export interface ApiBackedCatalogServiceOptions {
-  client: BirdCoderAppAdminApiClient;
+  appClient: BirdCoderAppSdkApiClient;
 }
 
 export class ApiBackedCatalogService implements ICatalogService {
-  private readonly client: BirdCoderAppAdminApiClient;
+  private readonly appClient: BirdCoderAppSdkApiClient;
 
-  constructor({ client }: ApiBackedCatalogServiceOptions) {
-    this.client = client;
+  constructor({ appClient }: ApiBackedCatalogServiceOptions) {
+    this.appClient = appClient;
   }
 
   async getAppTemplates(): Promise<BirdCoderAppTemplateSummary[]> {
-    return this.client.listAppTemplates();
+    return this.appClient.listAppTemplates();
   }
 
   async getSkillPackages(workspaceId?: string): Promise<BirdCoderSkillPackageSummary[]> {
-    return this.client.listSkillPackages({ workspaceId });
+    return this.appClient.listSkillPackages({ workspaceId });
   }
 
   async installSkillPackage(
     packageId: string,
     options: InstallSkillPackageOptions,
   ): Promise<BirdCoderSkillInstallationSummary> {
-    return this.client.installSkillPackage(packageId, {
+    return this.appClient.installSkillPackage(packageId, {
       scopeId: options.workspaceId,
       scopeType: 'workspace',
     });

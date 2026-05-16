@@ -33,8 +33,8 @@ const runConfigsModulePath = new URL(
 );
 
 const tables = new Map<string, Record<string, unknown>[]>([
-  ['workbench_preferences', []],
-  ['run_configurations', []],
+  ['studio_workbench_preference', []],
+  ['ops_run_configuration', []],
 ]);
 const rawStore = new Map<string, string>();
 const userHomeConfigFiles = new Map<string, string>();
@@ -182,7 +182,7 @@ try {
   const preferences = await preferencesModule.readWorkbenchPreferences();
   assert.equal(preferences.codeEngineId, 'codex');
   assert.equal(
-    readTable('workbench_preferences').length,
+    readTable('studio_workbench_preference').length,
     1,
     'Tauri startup bootstrap must persist workbench preferences through the direct SQL table.',
   );
@@ -191,7 +191,7 @@ try {
   const runConfigurations = await runConfigsModule.listStoredRunConfigurations('project-alpha');
   assert.equal(runConfigurations.length, 3);
   assert.equal(
-    readTable('run_configurations').length,
+    readTable('ops_run_configuration').length,
     3,
     'Tauri project bootstrap must persist run configurations through the direct SQL table.',
   );

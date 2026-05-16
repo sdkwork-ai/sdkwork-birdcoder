@@ -21,7 +21,7 @@ const commandsReferenceSource = fs.readFileSync(
   'utf8',
 );
 const step17Source = fs.readFileSync(
-  path.join(docsDir, 'step', '17-Coding-Server-Core-App-Admin-API与控制台实现.md'),
+  path.join(docsDir, 'step', '17-Coding-Server-App-Backend-SDK与控制台实现.md'),
   'utf8',
 );
 const step16Source = fs.readFileSync(
@@ -123,21 +123,21 @@ const postgresqlHostPassLiveDocs = [
   'docs/step/17F-Coding-Server-Finalized-OpenAPI-Governance-And-Codegen-Input.md',
   'docs/step/17G-Coding-Server-Finalized-OpenAPI-Types-Codegen-Lane.md',
   'docs/step/17H-Coding-Server-Finalized-Typed-Client-Codegen-Lane.md',
-  'docs/step/17I-Coding-Server-Shared-Generated-App-Admin-Facade-Lane.md',
-  'docs/step/17J-Default-IDE-Services-Shared-Generated-Facade-Adoption-Lane.md',
-  'docs/step/17K-App-Admin-Wrapper-Removal-Lane.md',
-  'docs/step/17L-Shared-Core-Read-Facade-Lane.md',
-  'docs/step/17M-Shared-Core-Projection-Read-Facade-Lane.md',
+  'docs/step/17I-Coding-Server-Split-SDK-Client-Lane.md',
+  'docs/step/17J-Default-IDE-Services-Split-SDK-Adoption-Lane.md',
+  'docs/step/17K-Mixed-App-Transport-Wrapper-Removal-Lane.md',
+  'docs/step/17L-App-Runtime-Read-SDK-Lane.md',
+  'docs/step/17M-App-Runtime-Projection-Read-SDK-Lane.md',
   'docs/step/17N-App-Team-Surface-Split-Lane.md',
   'docs/step/17O-Default-IDE-Release-Service-Adoption-Lane.md',
-  'docs/step/17P-Default-IDE-Core-Read-Adoption-Lane.md',
+  'docs/step/17P-Default-IDE-App-Runtime-Read-Adoption-Lane.md',
   'docs/step/17Q-App-Level-Coding-Session-Projection-Consumer-Adoption-Lane.md',
-  'docs/step/17R-Shared-Core-Facade-Exclusion-Governance-Lane.md',
-  'docs/step/17S-Real-Core-Create-Coding-Session-Route-Lane.md',
-  'docs/step/17T-Typed-Core-Create-Coding-Session-Facade-And-Consumer-Adoption-Lane.md',
-  'docs/step/17U-Typed-Core-Create-Coding-Session-Turn-Facade-And-Consumer-Adoption-Lane.md',
-  'docs/step/17V-Real-Core-Engine-Capability-And-Model-Catalog-Lane.md',
-  'docs/step/17W-Real-Core-Approval-Decision-Lane.md',
+  'docs/step/17R-App-Runtime-SDK-Governance-Lane.md',
+  'docs/step/17S-App-Runtime-Create-Coding-Session-Route-Lane.md',
+  'docs/step/17T-App-Runtime-Create-Coding-Session-SDK-And-Consumer-Adoption-Lane.md',
+  'docs/step/17U-App-Runtime-Create-Coding-Session-Turn-SDK-And-Consumer-Adoption-Lane.md',
+  'docs/step/17V-App-Runtime-Engine-Capability-And-Model-Catalog-Lane.md',
+  'docs/step/17W-App-Runtime-Approval-Decision-Lane.md',
   'docs/step/17X-Real-App-Document-Catalog-Lane.md',
   'docs/step/17Y-Real-Admin-Audit-Lane.md',
   'docs/step/17Z-Real-App-Deployment-Catalog-Lane.md',
@@ -174,7 +174,7 @@ assert.match(
 
 assert.match(
   releaseAndDeploymentSource,
-  /pnpm check:identity-standard/,
+  /pnpm check:iam-standard/,
   'core release-and-deployment doc must include the appbase parity command when release-facing changes touch the unified auth, user, and vip boundary.',
 );
 assert.match(
@@ -505,7 +505,7 @@ assert.match(
 
 assert.match(
   commandsReferenceSource,
-  /pnpm check:identity-standard/,
+  /pnpm check:iam-standard/,
   'commands reference must list the appbase parity command.',
 );
 assert.match(
@@ -581,7 +581,7 @@ assert.match(
 
 assert.match(
   developmentGuideSource,
-  /`pnpm check:identity-standard`/,
+  /`pnpm check:iam-standard`/,
   'development guide must describe the appbase parity command in prose, not only list it in the release-oriented verification block.',
 );
 assert.match(
@@ -694,7 +694,7 @@ assert.match(
 
 assert.match(
   developmentGuideSource,
-  /pnpm check:identity-standard/,
+  /pnpm check:iam-standard/,
   'development guide must include the appbase parity command in the release-oriented verification flow.',
 );
 assert.match(
@@ -887,8 +887,8 @@ for (const pattern of staleArchitecture09NextTargetPatterns) {
 
 assert.match(
   architecture09Source,
-  /Rust host 已在统一 `coding-server` 协议面上落地代表性 `core \/ app \/ admin` 路由、canonical OpenAPI 导出与发布侧证据链；Representative placeholder routes 当前真相为 `none`。/,
-  'architecture 09 docs must record the representative core/app/admin route and OpenAPI release-evidence closure.',
+  /Rust host 已在统一 `coding-server` 协议面上落地代表性 `app \/ backend` 路由、canonical OpenAPI 导出与发布侧证据链；Representative placeholder routes 当前真相为 `none`。/,
+  'architecture 09 docs must record the representative app/backend route and OpenAPI release-evidence closure.',
 );
 
 assert.match(
@@ -911,7 +911,7 @@ for (const pattern of staleArchitectureReadmePatterns) {
 
 assert.match(
   architectureReadmeSource,
-  /`coding-server` 协议标准、代表性 `core \/ app \/ admin` 路由、canonical OpenAPI 导出与发布侧证据链已闭环；Rust host 不再处于最小 host 骨架阶段，Representative placeholder routes 当前真相为 `none`。/,
+  /`coding-server` 协议标准、代表性 `app \/ backend` 路由、canonical OpenAPI 导出与发布侧证据链已闭环；Rust host 不再处于最小 host 骨架阶段，Representative placeholder routes 当前真相为 `none`。/,
   'architecture README must record the closed coding-server route and OpenAPI maturity truth.',
 );
 
@@ -935,7 +935,7 @@ for (const pattern of staleArchitecture11Patterns) {
 
 assert.match(
   architecture11Source,
-  /`coding-server` 代表性 `core \/ app \/ admin` 路由、canonical OpenAPI 发布证据与多引擎 canonical runtime 已闭环；Step 18 当前主线只在新增引擎接入或 fresh failing evidence 下重开。/,
+  /`coding-server` 代表性 `app \/ backend` 路由、canonical OpenAPI 发布证据与多引擎 canonical runtime 已闭环；Step 18 当前主线只在新增引擎接入或 fresh failing evidence 下重开。/,
   'architecture 11 docs must record the closed coding-server and Step 18 maturity truth.',
 );
 

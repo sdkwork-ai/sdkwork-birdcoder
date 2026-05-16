@@ -44,7 +44,7 @@ const timestamp = '2026-04-27T09:13:49.055Z';
 
 const tables = new Map<string, Record<string, unknown>[]>([
   [
-    'plus_project',
+    'studio_project',
     [
       {
         id: projectId,
@@ -82,11 +82,11 @@ const tables = new Map<string, Record<string, unknown>[]>([
       },
     ],
   ],
-  ['plus_project_content', []],
-  ['workbench_preferences', []],
-  ['run_configurations', []],
-  ['coding_sessions', []],
-  ['coding_session_messages', []],
+  ['studio_project_content', []],
+  ['studio_workbench_preference', []],
+  ['ops_run_configuration', []],
+  ['ai_coding_session', []],
+  ['ai_coding_session_message', []],
 ]);
 
 const invokedCommands: string[] = [];
@@ -159,7 +159,7 @@ function executeSqlPlan(plan: SqlPlan): { affectedRowCount: number; rows?: Recor
     case 'coding-session-messages-delete-by-project-ids': {
       const projectIds = new Set(meta.projectIds ?? []);
       const deletedSessionIds = new Set(
-        cloneLiveRows(readTable(meta.sessionTableName ?? 'coding_sessions'))
+        cloneLiveRows(readTable(meta.sessionTableName ?? 'ai_coding_session'))
           .filter((row) => projectIds.has(String(row.project_id)))
           .map((row) => String(row.id)),
       );
@@ -249,8 +249,8 @@ function executeSqlPlan(plan: SqlPlan): { affectedRowCount: number; rows?: Recor
     case 'table-upsert': {
       let affectedRowCount = 0;
       for (const row of meta.rows ?? []) {
-        if (meta.tableName === 'coding_sessions' && row.entry_surface == null) {
-          throw new Error('NOT NULL constraint failed: coding_sessions.entry_surface');
+        if (meta.tableName === 'ai_coding_session' && row.entry_surface == null) {
+          throw new Error('NOT NULL constraint failed: ai_coding_session.entry_surface');
         }
         const currentIndex = rows.findIndex((candidate) => String(candidate.id) === String(row.id));
         if (currentIndex >= 0) {
@@ -359,12 +359,12 @@ try {
 
   await service.upsertCodingSession(projectId, codingSession);
 
-  const persistedSession = readTable('coding_sessions').find(
+  const persistedSession = readTable('ai_coding_session').find(
     (row) => String(row.id) === codingSessionId,
   );
   assert.ok(
     persistedSession,
-    'Tauri SQL-backed provider mirror must persist the coding session into the direct coding_sessions table.',
+    'Tauri SQL-backed provider mirror must persist the coding session into the direct ai_coding_session table.',
   );
   assert.equal(String(persistedSession.project_id), projectId);
   assert.equal(String(persistedSession.workspace_id), workspaceId);
@@ -399,9 +399,9 @@ try {
     'Default workbench preference repositories must use the Tauri SQL bridge instead of table.sqlite.* local_store keys.',
   );
   assert.equal(
-    readTable('workbench_preferences')[0]?.code_engine_id,
+    readTable('studio_workbench_preference')[0]?.code_engine_id,
     'gemini',
-    'Default workbench preference repositories must persist into the direct workbench_preferences table.',
+    'Default workbench preference repositories must persist into the direct studio_workbench_preference table.',
   );
   assert.equal(
     invokedCommands.includes('user_home_config_write'),
@@ -435,9 +435,9 @@ try {
     'Default run configuration repositories must use the Tauri SQL bridge instead of table.sqlite.* local_store keys.',
   );
   assert.equal(
-    readTable('run_configurations')[0]?.config_key,
+    readTable('ops_run_configuration')[0]?.config_key,
     'lint',
-    'Default run configuration repositories must persist into the direct run_configurations table.',
+    'Default run configuration repositories must persist into the direct ops_run_configuration table.',
   );
 } finally {
   Reflect.set(globalThis, 'window', originalWindow);

@@ -37,7 +37,7 @@ function createRealtimeEvent(
     occurredAt: '2026-04-20T10:01:00.000Z',
     projectUpdatedAt: '2026-04-20T10:01:00.000Z',
     codingSessionUpdatedAt: '2026-04-20T10:01:00.000Z',
-    sourceSurface: 'core',
+    sourceSurface: 'app',
     ...overrides,
   };
 }

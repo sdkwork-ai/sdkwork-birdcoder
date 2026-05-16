@@ -10,7 +10,7 @@ use sdkwork_birdcoder_server::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Number as JsonNumber, Value as JsonValue};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
@@ -24,12 +24,10 @@ mod window_controls_bridge;
 
 const RESERVED_AUTHORITY_LOCAL_STORE_KEY_PREFIX: &str = "table.sqlite.";
 const DESKTOP_LOCAL_SQLITE_FILE_NAME: &str = "sdkwork-birdcoder-desktop-local.sqlite3";
-const LEGACY_DESKTOP_SQLITE_FILE_NAME: &str = "sdkwork-birdcoder.sqlite3";
 const DEFAULT_BOOTSTRAP_WORKSPACE_ID: &str = "100000000000000101";
 const DEFAULT_BOOTSTRAP_WORKSPACE_NAME: &str = "Default Workspace";
 const DEFAULT_BOOTSTRAP_WORKSPACE_DESCRIPTION: &str = "Primary local workspace for BirdCoder.";
 const DEFAULT_BOOTSTRAP_WORKSPACE_OWNER_USER_ID: &str = "100000000000000001";
-const DEFAULT_DESKTOP_LOCAL_USER_ID: &str = "user-local-default";
 const DEFAULT_BOOTSTRAP_TENANT_ID: &str = "0";
 const DEFAULT_BOOTSTRAP_ORGANIZATION_ID: &str = "0";
 const DEFAULT_PRIVATE_DATA_SCOPE_VALUE: i64 = 1;
@@ -397,7 +395,7 @@ fn local_database_path(app: &AppHandle) -> Result<PathBuf, String> {
             .path()
             .app_data_dir()
             .map_err(|error| format!("failed to resolve app data directory: {error}"))?;
-        app_dir.push("sdkwork-birdcoder.sqlite3");
+        app_dir.push(DESKTOP_LOCAL_SQLITE_FILE_NAME);
         app_dir
     };
 
@@ -472,148 +470,55 @@ fn ensure_sqlite_table_column(
     Ok(())
 }
 
-fn derive_legacy_run_configuration_config_key(storage_id: &str, rowid: i64) -> String {
-    let normalized_storage_id = storage_id.trim();
-    if normalized_storage_id.is_empty() {
-        return format!("config-{rowid}");
-    }
-
-    if normalized_storage_id.starts_with("run-config:") {
-        if let Some(candidate) = normalized_storage_id.rsplit(':').next() {
-            let normalized_candidate = candidate.trim();
-            if !normalized_candidate.is_empty() {
-                return normalized_candidate.to_string();
-            }
-        }
-    }
-
-    normalized_storage_id.to_string()
-}
-
-fn backfill_legacy_run_configuration_config_keys(connection: &Connection) -> Result<(), String> {
-    if !sqlite_table_exists(connection, "run_configurations")?
-        || !sqlite_column_exists(connection, "run_configurations", "config_key")?
-    {
-        return Ok(());
-    }
-
-    let mut statement = connection
-        .prepare(
-            r#"
-            SELECT rowid, id, scope_type, scope_id, config_key
-            FROM run_configurations
-            ORDER BY created_at ASC, rowid ASC
-            "#,
-        )
-        .map_err(|error| format!("prepare legacy run configuration backfill failed: {error}"))?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, Option<String>>(4)?,
-            ))
-        })
-        .map_err(|error| format!("query legacy run configuration backfill failed: {error}"))?;
-
-    let mut scoped_key_counts = HashMap::<(String, String, String), usize>::new();
-    let mut updates = Vec::<(i64, String)>::new();
-
-    for row in rows {
-        let (rowid, storage_id, scope_type, scope_id, existing_config_key) =
-            row.map_err(|error| format!("read legacy run configuration row failed: {error}"))?;
-        let base_config_key = existing_config_key
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_string)
-            .unwrap_or_else(|| derive_legacy_run_configuration_config_key(&storage_id, rowid));
-        let occurrence_key = (
-            scope_type.clone(),
-            scope_id.clone(),
-            base_config_key.clone(),
-        );
-        let next_occurrence = scoped_key_counts.entry(occurrence_key).or_insert(0);
-        *next_occurrence += 1;
-
-        let config_key = if *next_occurrence == 1 {
-            base_config_key
-        } else {
-            format!("{base_config_key}-{}", next_occurrence)
-        };
-
-        updates.push((rowid, config_key));
-    }
-
-    drop(statement);
-
-    for (rowid, config_key) in updates {
-        connection
-            .execute(
-                "UPDATE run_configurations SET config_key = ?1 WHERE rowid = ?2",
-                params![config_key, rowid],
-            )
-            .map_err(|error| {
-                format!(
-                    "update legacy run configuration config_key for row {rowid} failed: {error}"
-                )
-            })?;
-    }
-
-    Ok(())
-}
-
 fn ensure_runtime_schema_backfill(connection: &Connection) -> Result<(), String> {
-    if sqlite_table_exists(connection, "coding_sessions")? {
-        ensure_sqlite_table_column(connection, "coding_sessions", "uuid", "uuid TEXT NULL")?;
+    if sqlite_table_exists(connection, "ai_coding_session")? {
+        ensure_sqlite_table_column(connection, "ai_coding_session", "uuid", "uuid TEXT NULL")?;
         ensure_sqlite_table_column(
             connection,
-            "coding_sessions",
+            "ai_coding_session",
             "host_mode",
             "host_mode TEXT NOT NULL DEFAULT 'desktop'",
         )?;
         ensure_sqlite_table_column(
             connection,
-            "coding_sessions",
+            "ai_coding_session",
             "native_session_id",
             "native_session_id TEXT NULL",
         )?;
         ensure_sqlite_table_column(
             connection,
-            "coding_sessions",
+            "ai_coding_session",
             "sort_timestamp",
             "sort_timestamp INTEGER NULL",
         )?;
         ensure_sqlite_table_column(
             connection,
-            "coding_sessions",
+            "ai_coding_session",
             "transcript_updated_at",
             "transcript_updated_at TEXT NULL",
         )?;
         ensure_sqlite_table_column(
             connection,
-            "coding_sessions",
+            "ai_coding_session",
             "pinned",
             "pinned INTEGER NOT NULL DEFAULT 0",
         )?;
         ensure_sqlite_table_column(
             connection,
-            "coding_sessions",
+            "ai_coding_session",
             "archived",
             "archived INTEGER NOT NULL DEFAULT 0",
         )?;
         ensure_sqlite_table_column(
             connection,
-            "coding_sessions",
+            "ai_coding_session",
             "unread",
             "unread INTEGER NOT NULL DEFAULT 0",
         )?;
         connection
             .execute(
                 r#"
-                UPDATE coding_sessions
+                UPDATE ai_coding_session
                 SET host_mode = 'desktop'
                 WHERE TRIM(COALESCE(host_mode, '')) = ''
                    OR host_mode = 'server'
@@ -625,27 +530,26 @@ fn ensure_runtime_schema_backfill(connection: &Connection) -> Result<(), String>
             })?;
     }
 
-    if sqlite_table_exists(connection, "run_configurations")? {
-        ensure_sqlite_table_column(connection, "run_configurations", "uuid", "uuid TEXT NULL")?;
+    if sqlite_table_exists(connection, "ops_run_configuration")? {
+        ensure_sqlite_table_column(connection, "ops_run_configuration", "uuid", "uuid TEXT NULL")?;
         ensure_sqlite_table_column(
             connection,
-            "run_configurations",
+            "ops_run_configuration",
             "tenant_id",
             "tenant_id INTEGER NOT NULL DEFAULT 0",
         )?;
         ensure_sqlite_table_column(
             connection,
-            "run_configurations",
+            "ops_run_configuration",
             "organization_id",
             "organization_id INTEGER NOT NULL DEFAULT 0",
         )?;
         ensure_sqlite_table_column(
             connection,
-            "run_configurations",
+            "ops_run_configuration",
             "config_key",
             "config_key TEXT NOT NULL DEFAULT ''",
         )?;
-        backfill_legacy_run_configuration_config_keys(connection)?;
     }
 
     Ok(())
@@ -665,7 +569,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 PRIMARY KEY (scope, key)
             );
 
-            CREATE TABLE IF NOT EXISTS schema_migration_history (
+            CREATE TABLE IF NOT EXISTS ops_schema_migration_history (
                 id TEXT PRIMARY KEY,
                 migration_id TEXT NOT NULL,
                 provider_id TEXT NOT NULL,
@@ -678,7 +582,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 is_deleted INTEGER NOT NULL DEFAULT 0
             );
 
-            CREATE TABLE IF NOT EXISTS run_configurations (
+            CREATE TABLE IF NOT EXISTS ops_run_configuration (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -700,7 +604,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 is_deleted INTEGER NOT NULL DEFAULT 0
             );
 
-            CREATE TABLE IF NOT EXISTS terminal_executions (
+            CREATE TABLE IF NOT EXISTS ops_terminal_execution (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -722,7 +626,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 is_deleted INTEGER NOT NULL DEFAULT 0
             );
 
-            CREATE TABLE IF NOT EXISTS workbench_preferences (
+            CREATE TABLE IF NOT EXISTS studio_workbench_preference (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -739,7 +643,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 payload_json TEXT NOT NULL DEFAULT '{}'
             );
 
-            CREATE TABLE IF NOT EXISTS engine_registry (
+            CREATE TABLE IF NOT EXISTS ai_engine_registry (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -758,7 +662,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL DEFAULT 'active'
             );
 
-            CREATE TABLE IF NOT EXISTS model_catalog (
+            CREATE TABLE IF NOT EXISTS ai_model_catalog (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -777,7 +681,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL DEFAULT 'active'
             );
 
-            CREATE TABLE IF NOT EXISTS engine_bindings (
+            CREATE TABLE IF NOT EXISTS ai_engine_binding (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -793,7 +697,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 host_modes_json TEXT NOT NULL DEFAULT '[]'
             );
 
-            CREATE TABLE IF NOT EXISTS coding_sessions (
+            CREATE TABLE IF NOT EXISTS ai_coding_session (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -817,7 +721,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 unread INTEGER NOT NULL DEFAULT 0
             );
 
-            CREATE TABLE IF NOT EXISTS coding_session_messages (
+            CREATE TABLE IF NOT EXISTS ai_coding_session_message (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 created_at TEXT NOT NULL,
@@ -838,7 +742,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 task_progress_json TEXT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS coding_session_runtimes (
+            CREATE TABLE IF NOT EXISTS ai_coding_session_runtime (
                 id TEXT PRIMARY KEY,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -856,7 +760,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 metadata_json TEXT NOT NULL DEFAULT '{}'
             );
 
-            CREATE TABLE IF NOT EXISTS coding_session_events (
+            CREATE TABLE IF NOT EXISTS ai_coding_session_event (
                 id TEXT PRIMARY KEY,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -870,7 +774,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 payload_json TEXT NOT NULL DEFAULT '{}'
             );
 
-            CREATE TABLE IF NOT EXISTS coding_session_artifacts (
+            CREATE TABLE IF NOT EXISTS ai_coding_session_artifact (
                 id TEXT PRIMARY KEY,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -884,7 +788,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 metadata_json TEXT NOT NULL DEFAULT '{}'
             );
 
-            CREATE TABLE IF NOT EXISTS coding_session_checkpoints (
+            CREATE TABLE IF NOT EXISTS ai_coding_session_checkpoint (
                 id TEXT PRIMARY KEY,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -897,7 +801,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 state_json TEXT NOT NULL DEFAULT '{}'
             );
 
-            CREATE TABLE IF NOT EXISTS coding_session_operations (
+            CREATE TABLE IF NOT EXISTS ai_coding_session_operation (
                 id TEXT PRIMARY KEY,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -911,7 +815,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 artifact_refs_json TEXT NOT NULL DEFAULT '[]'
             );
 
-            CREATE TABLE IF NOT EXISTS coding_session_prompt_entries (
+            CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry (
                 id TEXT PRIMARY KEY,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -924,7 +828,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 use_count INTEGER NOT NULL DEFAULT 1
             );
 
-            CREATE TABLE IF NOT EXISTS saved_prompt_entries (
+            CREATE TABLE IF NOT EXISTS ai_saved_prompt_entry (
                 id TEXT PRIMARY KEY,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -936,7 +840,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 use_count INTEGER NOT NULL DEFAULT 1
             );
 
-            CREATE TABLE IF NOT EXISTS plus_workspace (
+            CREATE TABLE IF NOT EXISTS studio_workspace (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -969,7 +873,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS plus_project (
+            CREATE TABLE IF NOT EXISTS studio_project (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT NOT NULL UNIQUE,
                 created_at TEXT NOT NULL,
@@ -1004,7 +908,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 is_template INTEGER NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS plus_project_content (
+            CREATE TABLE IF NOT EXISTS studio_project_content (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT NOT NULL UNIQUE,
                 created_at TEXT NOT NULL,
@@ -1024,7 +928,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 content_hash TEXT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS skill_packages (
+            CREATE TABLE IF NOT EXISTS ai_skill_package (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1039,7 +943,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 manifest_json TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS skill_versions (
+            CREATE TABLE IF NOT EXISTS ai_skill_version (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1054,7 +958,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS skill_capabilities (
+            CREATE TABLE IF NOT EXISTS ai_skill_capability (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1069,7 +973,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 payload_json TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS skill_installations (
+            CREATE TABLE IF NOT EXISTS ai_skill_installation (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1085,7 +989,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 installed_at TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS app_templates (
+            CREATE TABLE IF NOT EXISTS studio_app_template (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1100,7 +1004,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS app_template_versions (
+            CREATE TABLE IF NOT EXISTS studio_app_template_version (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1115,7 +1019,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS app_template_target_profiles (
+            CREATE TABLE IF NOT EXISTS studio_app_template_target_profile (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1131,7 +1035,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS app_template_presets (
+            CREATE TABLE IF NOT EXISTS studio_app_template_preset (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1146,7 +1050,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 payload_json TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS app_template_instantiations (
+            CREATE TABLE IF NOT EXISTS studio_app_template_instantiation (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1162,7 +1066,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 output_root TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS teams (
+            CREATE TABLE IF NOT EXISTS studio_team (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1183,7 +1087,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS project_documents (
+            CREATE TABLE IF NOT EXISTS studio_project_document (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1200,7 +1104,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS deployment_targets (
+            CREATE TABLE IF NOT EXISTS studio_deployment_target (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1216,7 +1120,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS deployment_records (
+            CREATE TABLE IF NOT EXISTS studio_deployment_record (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1234,7 +1138,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 completed_at TEXT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS team_members (
+            CREATE TABLE IF NOT EXISTS studio_team_member (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1251,7 +1155,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS workspace_members (
+            CREATE TABLE IF NOT EXISTS studio_workspace_member (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1269,7 +1173,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS project_collaborators (
+            CREATE TABLE IF NOT EXISTS studio_project_collaborator (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1288,7 +1192,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS release_records (
+            CREATE TABLE IF NOT EXISTS ops_release_record (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1304,7 +1208,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS audit_events (
+            CREATE TABLE IF NOT EXISTS ops_audit_event (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1319,7 +1223,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 payload_json TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS governance_policies (
+            CREATE TABLE IF NOT EXISTS ops_governance_policy (
                 id TEXT PRIMARY KEY,
                 uuid TEXT NULL,
                 tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -1338,85 +1242,85 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 status TEXT NOT NULL
             );
 
-            CREATE INDEX IF NOT EXISTS idx_run_configurations_scope_group
-            ON run_configurations(scope_type, scope_id, group_name);
+            CREATE INDEX IF NOT EXISTS idx_ops_run_configuration_scope_group
+            ON ops_run_configuration(scope_type, scope_id, group_name);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_run_configurations_scope_config_key
-            ON run_configurations(scope_type, scope_id, config_key);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_ops_run_configuration_scope_config_key
+            ON ops_run_configuration(scope_type, scope_id, config_key);
 
-            CREATE INDEX IF NOT EXISTS idx_terminal_executions_session_started
-            ON terminal_executions(session_id, started_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_ops_terminal_execution_session_started
+            ON ops_terminal_execution(session_id, started_at DESC);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_workbench_preferences_scope
-            ON workbench_preferences(scope_type, scope_id);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_workbench_preference_scope
+            ON studio_workbench_preference(scope_type, scope_id);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_engine_registry_engine_id
-            ON engine_registry(engine_id);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_engine_registry_engine_id
+            ON ai_engine_registry(engine_id);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_model_catalog_engine_model
-            ON model_catalog(engine_id, model_id);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_model_catalog_engine_model
+            ON ai_model_catalog(engine_id, model_id);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_engine_bindings_scope_engine
-            ON engine_bindings(scope_type, scope_id, engine_id);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_engine_binding_scope_engine
+            ON ai_engine_binding(scope_type, scope_id, engine_id);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_schema_migration_history_provider_migration
-            ON schema_migration_history(provider_id, migration_id);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_ops_schema_migration_history_provider_migration
+            ON ops_schema_migration_history(provider_id, migration_id);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_project_name
-            ON plus_project(name);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_name
+            ON studio_project(name);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_plus_project_code
-            ON plus_project(code);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_code
+            ON studio_project(code);
 
-            CREATE INDEX IF NOT EXISTS idx_plus_project_content_project_id
-            ON plus_project_content(project_id);
+            CREATE INDEX IF NOT EXISTS idx_studio_project_content_project_id
+            ON studio_project_content(project_id);
 
-            CREATE INDEX IF NOT EXISTS idx_plus_project_content_project_uuid
-            ON plus_project_content(project_uuid);
+            CREATE INDEX IF NOT EXISTS idx_studio_project_content_project_uuid
+            ON studio_project_content(project_uuid);
 
-            CREATE INDEX IF NOT EXISTS idx_coding_sessions_project_updated
-            ON coding_sessions(project_id, updated_at);
+            CREATE INDEX IF NOT EXISTS idx_ai_coding_session_project_updated
+            ON ai_coding_session(project_id, updated_at);
 
-            CREATE INDEX IF NOT EXISTS idx_coding_sessions_project_sort
-            ON coding_sessions(project_id, sort_timestamp);
+            CREATE INDEX IF NOT EXISTS idx_ai_coding_session_project_sort
+            ON ai_coding_session(project_id, sort_timestamp);
 
-            CREATE INDEX IF NOT EXISTS idx_coding_session_messages_session_created
-            ON coding_session_messages(coding_session_id, created_at);
+            CREATE INDEX IF NOT EXISTS idx_ai_coding_session_message_session_created
+            ON ai_coding_session_message(coding_session_id, created_at);
 
-            CREATE INDEX IF NOT EXISTS idx_coding_session_runtimes_session_updated
-            ON coding_session_runtimes(coding_session_id, updated_at);
+            CREATE INDEX IF NOT EXISTS idx_ai_coding_session_runtime_session_updated
+            ON ai_coding_session_runtime(coding_session_id, updated_at);
 
-            CREATE INDEX IF NOT EXISTS idx_coding_session_events_session_sequence
-            ON coding_session_events(coding_session_id, sequence_no);
+            CREATE INDEX IF NOT EXISTS idx_ai_coding_session_event_session_sequence
+            ON ai_coding_session_event(coding_session_id, sequence_no);
 
-            CREATE INDEX IF NOT EXISTS idx_coding_session_artifacts_session_created
-            ON coding_session_artifacts(coding_session_id, created_at);
+            CREATE INDEX IF NOT EXISTS idx_ai_coding_session_artifact_session_created
+            ON ai_coding_session_artifact(coding_session_id, created_at);
 
-            CREATE INDEX IF NOT EXISTS idx_coding_session_checkpoints_session_created
-            ON coding_session_checkpoints(coding_session_id, created_at);
+            CREATE INDEX IF NOT EXISTS idx_ai_coding_session_checkpoint_session_created
+            ON ai_coding_session_checkpoint(coding_session_id, created_at);
 
-            CREATE INDEX IF NOT EXISTS idx_coding_session_operations_session_created
-            ON coding_session_operations(coding_session_id, created_at);
+            CREATE INDEX IF NOT EXISTS idx_ai_coding_session_operation_session_created
+            ON ai_coding_session_operation(coding_session_id, created_at);
 
-            CREATE INDEX IF NOT EXISTS idx_coding_session_prompt_entries_session_last_used
-            ON coding_session_prompt_entries(coding_session_id, last_used_at);
+            CREATE INDEX IF NOT EXISTS idx_ai_coding_session_prompt_entry_session_last_used
+            ON ai_coding_session_prompt_entry(coding_session_id, last_used_at);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_coding_session_prompt_entries_session_normalized_prompt
-            ON coding_session_prompt_entries(coding_session_id, normalized_prompt_text);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_prompt_entry_session_normalized_prompt
+            ON ai_coding_session_prompt_entry(coding_session_id, normalized_prompt_text);
 
-            CREATE INDEX IF NOT EXISTS idx_saved_prompt_entries_last_saved
-            ON saved_prompt_entries(last_saved_at);
+            CREATE INDEX IF NOT EXISTS idx_ai_saved_prompt_entry_last_saved
+            ON ai_saved_prompt_entry(last_saved_at);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_saved_prompt_entries_normalized_prompt
-            ON saved_prompt_entries(normalized_prompt_text);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_saved_prompt_entry_normalized_prompt
+            ON ai_saved_prompt_entry(normalized_prompt_text);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_coding_session_operations_turn
-            ON coding_session_operations(turn_id);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_operation_turn
+            ON ai_coding_session_operation(turn_id);
 
-            CREATE UNIQUE INDEX IF NOT EXISTS uk_release_records_version
-            ON release_records(release_version);
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_ops_release_record_version
+            ON ops_release_record(release_version);
 
-            INSERT OR IGNORE INTO schema_migration_history (
+            INSERT OR IGNORE INTO ops_schema_migration_history (
                 id, migration_id, provider_id, status, details_json
             )
             VALUES (
@@ -1427,7 +1331,7 @@ fn initialize_database_schema(connection: &Connection) -> Result<(), String> {
                 '{"source":"desktop-open-database"}'
             );
 
-            INSERT OR IGNORE INTO schema_migration_history (
+            INSERT OR IGNORE INTO ops_schema_migration_history (
                 id, migration_id, provider_id, status, details_json
             )
             VALUES (
@@ -1449,20 +1353,24 @@ fn local_store_key_targets_authority_tables(key: &str) -> bool {
 fn purge_reserved_authority_local_store_rows(connection: &Connection) -> Result<(), String> {
     connection
         .execute("DELETE FROM kv_store WHERE key LIKE 'table.sqlite.%'", [])
-        .map_err(|error| format!("failed to purge legacy authority local-store rows: {error}"))?;
+        .map_err(|error| {
+            format!("failed to purge reserved authority local-store rows: {error}")
+        })?;
     connection
         .execute(
-            "DELETE FROM schema_migration_history WHERE migration_id = 'coding-server-authority-backfill-v1'",
+            "DELETE FROM ops_schema_migration_history WHERE migration_id = 'coding-server-authority-backfill-v1'",
             [],
         )
-        .map_err(|error| format!("failed to purge legacy authority backfill migration marker: {error}"))?;
+        .map_err(|error| {
+            format!("failed to purge retired authority backfill migration marker: {error}")
+        })?;
     Ok(())
 }
 
 fn ensure_bootstrap_workspace_authority(connection: &Connection) -> Result<(), String> {
     let workspace_count: i64 = connection
         .query_row(
-            "SELECT COUNT(*) FROM plus_workspace AS workspaces WHERE is_deleted = 0",
+            "SELECT COUNT(*) FROM studio_workspace AS workspaces WHERE is_deleted = 0",
             [],
             |row| row.get(0),
         )
@@ -1474,7 +1382,7 @@ fn ensure_bootstrap_workspace_authority(connection: &Connection) -> Result<(), S
     connection
         .execute(
             r#"
-            INSERT INTO plus_workspace AS workspaces (
+            INSERT INTO studio_workspace AS workspaces (
                 id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted,
                 data_scope, name, code, title, description, owner_id, leader_id, created_by_user_id, type,
                 settings_json, is_public, is_template, status
@@ -1509,543 +1417,6 @@ fn ensure_bootstrap_workspace_authority(connection: &Connection) -> Result<(), S
     Ok(())
 }
 
-#[derive(Debug)]
-struct PlusWorkspaceIdentity {
-    id: String,
-    uuid: Option<String>,
-}
-
-#[derive(Debug)]
-struct LegacyDesktopLocalProject {
-    legacy_id: String,
-    legacy_workspace_id: String,
-    name: String,
-    title: Option<String>,
-    description: Option<String>,
-    root_path: String,
-    status: String,
-    created_at: String,
-    updated_at: String,
-}
-
-fn is_desktop_local_sqlite_database_path(database_path: &Path) -> bool {
-    database_path
-        .file_name()
-        .and_then(|file_name| file_name.to_str())
-        == Some(DESKTOP_LOCAL_SQLITE_FILE_NAME)
-}
-
-fn legacy_desktop_local_sibling_database_path(database_path: &Path) -> Option<PathBuf> {
-    if !is_desktop_local_sqlite_database_path(database_path) {
-        return None;
-    }
-
-    Some(database_path.with_file_name(LEGACY_DESKTOP_SQLITE_FILE_NAME))
-}
-
-fn is_windows_absolute_project_path(path: &str) -> bool {
-    let bytes = path.as_bytes();
-    bytes.len() >= 3
-        && bytes[1] == b':'
-        && bytes[0].is_ascii_alphabetic()
-        && (bytes[2] == b'\\' || bytes[2] == b'/')
-}
-
-fn is_absolute_project_path(path: &str) -> bool {
-    is_windows_absolute_project_path(path) || path.starts_with("\\\\") || path.starts_with('/')
-}
-
-fn collapse_project_path_separators(path: &str) -> String {
-    let preserve_unc_prefix = path.starts_with("//");
-    let mut collapsed = String::with_capacity(path.len());
-    let mut previous_was_separator = false;
-
-    for character in path.chars() {
-        if character == '/' {
-            if preserve_unc_prefix && collapsed.len() < 2 {
-                collapsed.push(character);
-            } else if !previous_was_separator {
-                collapsed.push(character);
-            }
-            previous_was_separator = true;
-            continue;
-        }
-
-        collapsed.push(character);
-        previous_was_separator = false;
-    }
-
-    collapsed
-}
-
-fn normalize_project_root_path_for_comparison(root_path: &str) -> Option<String> {
-    let trimmed_root_path = root_path.trim();
-    if trimmed_root_path.is_empty() || !is_absolute_project_path(trimmed_root_path) {
-        return None;
-    }
-
-    let windows_path =
-        is_windows_absolute_project_path(trimmed_root_path) || trimmed_root_path.contains('\\');
-    let normalized_separators = trimmed_root_path.replace('\\', "/");
-    let collapsed_path = collapse_project_path_separators(&normalized_separators);
-    let without_trailing_separator = if collapsed_path == "/" {
-        collapsed_path
-    } else {
-        collapsed_path.trim_end_matches('/').to_string()
-    };
-
-    Some(if windows_path {
-        without_trailing_separator.to_ascii_lowercase()
-    } else {
-        without_trailing_separator
-    })
-}
-
-fn read_root_path_from_project_config_data(config_data: &str) -> Option<String> {
-    let parsed_config = serde_json::from_str::<JsonValue>(config_data).ok()?;
-    let config_object = parsed_config.as_object()?;
-    for key in ["rootPath", "root_path"] {
-        let root_path = config_object
-            .get(key)
-            .and_then(|value| value.as_str())
-            .map(str::trim)
-            .filter(|value| !value.is_empty());
-        if let Some(root_path) = root_path {
-            return Some(root_path.to_string());
-        }
-    }
-
-    None
-}
-
-fn collect_current_plus_project_root_paths(
-    connection: &Connection,
-) -> Result<HashSet<String>, String> {
-    let mut root_paths = HashSet::new();
-
-    if sqlite_table_exists(connection, "plus_project_content")? {
-        let mut statement = connection
-            .prepare("SELECT config_data FROM plus_project_content WHERE config_data IS NOT NULL")
-            .map_err(|error| {
-                format!("prepare plus_project_content root path scan failed: {error}")
-            })?;
-        let rows = statement
-            .query_map([], |row| row.get::<_, Option<String>>(0))
-            .map_err(|error| {
-                format!("query plus_project_content root path scan failed: {error}")
-            })?;
-        for row in rows {
-            let config_data = row.map_err(|error| {
-                format!("read plus_project_content root path row failed: {error}")
-            })?;
-            let Some(config_data) = config_data else {
-                continue;
-            };
-            let Some(root_path) = read_root_path_from_project_config_data(&config_data) else {
-                continue;
-            };
-            if let Some(normalized_root_path) =
-                normalize_project_root_path_for_comparison(&root_path)
-            {
-                root_paths.insert(normalized_root_path);
-            }
-        }
-    }
-
-    if sqlite_table_exists(connection, "plus_project")?
-        && sqlite_column_exists(connection, "plus_project", "root_path")?
-    {
-        let mut statement = connection
-            .prepare(
-                r#"
-                SELECT root_path
-                FROM plus_project
-                WHERE is_deleted = 0
-                  AND root_path IS NOT NULL
-                "#,
-            )
-            .map_err(|error| format!("prepare plus_project root_path scan failed: {error}"))?;
-        let rows = statement
-            .query_map([], |row| row.get::<_, Option<String>>(0))
-            .map_err(|error| format!("query plus_project root_path scan failed: {error}"))?;
-        for row in rows {
-            let root_path =
-                row.map_err(|error| format!("read plus_project root_path row failed: {error}"))?;
-            let Some(root_path) = root_path else {
-                continue;
-            };
-            if let Some(normalized_root_path) =
-                normalize_project_root_path_for_comparison(&root_path)
-            {
-                root_paths.insert(normalized_root_path);
-            }
-        }
-    }
-
-    Ok(root_paths)
-}
-
-fn read_default_plus_workspace_identity(
-    connection: &Connection,
-) -> Result<PlusWorkspaceIdentity, String> {
-    if !sqlite_table_exists(connection, "plus_workspace")? {
-        return Ok(PlusWorkspaceIdentity {
-            id: DEFAULT_BOOTSTRAP_WORKSPACE_ID.to_string(),
-            uuid: Some("workspace-uuid-default".to_string()),
-        });
-    }
-
-    let mut statement = connection
-        .prepare(
-            r#"
-            SELECT CAST(id AS TEXT), uuid
-            FROM plus_workspace
-            WHERE is_deleted = 0
-            ORDER BY updated_at DESC, id DESC
-            LIMIT 1
-            "#,
-        )
-        .map_err(|error| format!("prepare plus_workspace default lookup failed: {error}"))?;
-    let mut rows = statement
-        .query([])
-        .map_err(|error| format!("query plus_workspace default lookup failed: {error}"))?;
-    if let Some(row) = rows
-        .next()
-        .map_err(|error| format!("read plus_workspace default row failed: {error}"))?
-    {
-        return Ok(PlusWorkspaceIdentity {
-            id: row
-                .get::<_, String>(0)
-                .map_err(|error| format!("read plus_workspace id failed: {error}"))?,
-            uuid: row
-                .get::<_, Option<String>>(1)
-                .map_err(|error| format!("read plus_workspace uuid failed: {error}"))?,
-        });
-    }
-
-    Ok(PlusWorkspaceIdentity {
-        id: DEFAULT_BOOTSTRAP_WORKSPACE_ID.to_string(),
-        uuid: Some("workspace-uuid-default".to_string()),
-    })
-}
-
-fn collect_existing_plus_project_text_values(
-    connection: &Connection,
-    column_name: &str,
-) -> Result<HashSet<String>, String> {
-    let mut values = HashSet::new();
-    if !sqlite_table_exists(connection, "plus_project")?
-        || !sqlite_column_exists(connection, "plus_project", column_name)?
-    {
-        return Ok(values);
-    }
-
-    let sql = format!("SELECT {column_name} FROM plus_project WHERE {column_name} IS NOT NULL");
-    let mut statement = connection
-        .prepare(&sql)
-        .map_err(|error| format!("prepare plus_project {column_name} scan failed: {error}"))?;
-    let rows = statement
-        .query_map([], |row| row.get::<_, Option<String>>(0))
-        .map_err(|error| format!("query plus_project {column_name} scan failed: {error}"))?;
-    for row in rows {
-        let value = row
-            .map_err(|error| format!("read plus_project {column_name} scan row failed: {error}"))?;
-        let Some(value) = value.map(|candidate| candidate.trim().to_string()) else {
-            continue;
-        };
-        if !value.is_empty() {
-            values.insert(value);
-        }
-    }
-
-    Ok(values)
-}
-
-fn reserve_unique_text_value(
-    existing_values: &mut HashSet<String>,
-    base_value: String,
-    suffix_separator: &str,
-) -> String {
-    let normalized_base_value = base_value.trim();
-    let base_value = if normalized_base_value.is_empty() {
-        "legacy-project".to_string()
-    } else {
-        normalized_base_value.to_string()
-    };
-    let mut candidate = base_value.clone();
-    let mut duplicate_index = 2_i64;
-    while existing_values.contains(&candidate) {
-        candidate = format!("{base_value}{suffix_separator}{duplicate_index}");
-        duplicate_index += 1;
-    }
-    existing_values.insert(candidate.clone());
-    candidate
-}
-
-fn stable_legacy_project_suffix(project: &LegacyDesktopLocalProject) -> String {
-    let mut hash = 0xcbf29ce484222325_u64;
-    for byte in format!("{}|{}", project.legacy_id, project.root_path).bytes() {
-        hash ^= u64::from(byte);
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-
-    format!("{hash:016x}").chars().take(12).collect()
-}
-
-fn normalize_legacy_project_status(status: &str) -> &'static str {
-    if status.trim().eq_ignore_ascii_case("archived") {
-        "archived"
-    } else {
-        "active"
-    }
-}
-
-fn normalize_legacy_project_timestamp(timestamp: &str) -> String {
-    let normalized_timestamp = timestamp.trim();
-    if normalized_timestamp.is_empty() {
-        "1970-01-01T00:00:00.000Z".to_string()
-    } else {
-        normalized_timestamp.to_string()
-    }
-}
-
-fn read_legacy_desktop_local_projects(
-    legacy_connection: &Connection,
-) -> Result<Vec<LegacyDesktopLocalProject>, String> {
-    if !sqlite_table_exists(legacy_connection, "projects")? {
-        return Ok(Vec::new());
-    }
-
-    let title_expr = if sqlite_column_exists(legacy_connection, "projects", "title")? {
-        "title"
-    } else {
-        "NULL"
-    };
-    let description_expr = if sqlite_column_exists(legacy_connection, "projects", "description")? {
-        "description"
-    } else {
-        "NULL"
-    };
-    let sql = format!(
-        r#"
-        SELECT
-            id,
-            workspace_id,
-            name,
-            {title_expr} AS title,
-            {description_expr} AS description,
-            root_path,
-            status,
-            created_at,
-            updated_at
-        FROM projects
-        WHERE COALESCE(is_deleted, 0) = 0
-          AND TRIM(COALESCE(root_path, '')) <> ''
-        ORDER BY updated_at ASC, id ASC
-        "#
-    );
-    let mut statement = legacy_connection
-        .prepare(&sql)
-        .map_err(|error| format!("prepare legacy projects scan failed: {error}"))?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok(LegacyDesktopLocalProject {
-                legacy_id: row.get::<_, String>(0)?,
-                legacy_workspace_id: row.get::<_, String>(1)?,
-                name: row.get::<_, String>(2)?,
-                title: row.get::<_, Option<String>>(3)?,
-                description: row.get::<_, Option<String>>(4)?,
-                root_path: row.get::<_, String>(5)?,
-                status: row.get::<_, String>(6)?,
-                created_at: row.get::<_, String>(7)?,
-                updated_at: row.get::<_, String>(8)?,
-            })
-        })
-        .map_err(|error| format!("query legacy projects scan failed: {error}"))?;
-
-    let mut projects = Vec::new();
-    for row in rows {
-        let project = row.map_err(|error| format!("read legacy project row failed: {error}"))?;
-        if normalize_project_root_path_for_comparison(&project.root_path).is_some() {
-            projects.push(project);
-        }
-    }
-
-    Ok(projects)
-}
-
-fn next_plus_project_id(connection: &Connection) -> Result<i64, String> {
-    connection
-        .query_row(
-            "SELECT COALESCE(MAX(CAST(id AS INTEGER)), 100000000000000200) + 1 FROM plus_project",
-            [],
-            |row| row.get::<_, i64>(0),
-        )
-        .map_err(|error| format!("read next plus_project id failed: {error}"))
-}
-
-fn import_legacy_desktop_local_projects_from_sibling(
-    connection: &Connection,
-    database_path: &Path,
-) -> Result<(), String> {
-    let Some(legacy_database_path) = legacy_desktop_local_sibling_database_path(database_path)
-    else {
-        return Ok(());
-    };
-    if !legacy_database_path.exists() || legacy_database_path == database_path {
-        return Ok(());
-    }
-
-    let legacy_connection = Connection::open(&legacy_database_path).map_err(|error| {
-        format!(
-            "failed to open legacy desktop-local sqlite database {}: {error}",
-            legacy_database_path.display()
-        )
-    })?;
-    let legacy_projects = read_legacy_desktop_local_projects(&legacy_connection)?;
-    if legacy_projects.is_empty() {
-        return Ok(());
-    }
-
-    let workspace = read_default_plus_workspace_identity(connection)?;
-    let mut known_root_paths = collect_current_plus_project_root_paths(connection)?;
-    let mut known_names = collect_existing_plus_project_text_values(connection, "name")?;
-    let mut known_codes = collect_existing_plus_project_text_values(connection, "code")?;
-    let mut known_uuids = collect_existing_plus_project_text_values(connection, "uuid")?;
-    let mut next_project_id = next_plus_project_id(connection)?;
-
-    for project in legacy_projects {
-        let Some(normalized_root_path) =
-            normalize_project_root_path_for_comparison(&project.root_path)
-        else {
-            continue;
-        };
-        if known_root_paths.contains(&normalized_root_path) {
-            continue;
-        }
-
-        let suffix = stable_legacy_project_suffix(&project);
-        let display_title = project
-            .title
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .unwrap_or_else(|| project.name.trim());
-        let display_title = if display_title.is_empty() {
-            format!("Legacy Project {suffix}")
-        } else {
-            display_title.to_string()
-        };
-        let project_name = reserve_unique_text_value(
-            &mut known_names,
-            format!("{display_title} [legacy:{suffix}]"),
-            " ",
-        );
-        let project_code = reserve_unique_text_value(
-            &mut known_codes,
-            format!("LEGACY-{}", suffix.to_ascii_uppercase()),
-            "-",
-        );
-        let project_uuid =
-            reserve_unique_text_value(&mut known_uuids, format!("legacy-project-{suffix}"), "-");
-        let project_content_uuid = format!("legacy-project-content-{suffix}");
-        let project_id = next_project_id;
-        next_project_id += 1;
-        let created_at = normalize_legacy_project_timestamp(&project.created_at);
-        let updated_at = normalize_legacy_project_timestamp(&project.updated_at);
-        let config_data = serde_json::json!({
-            "rootPath": project.root_path,
-        })
-        .to_string();
-        let metadata = serde_json::json!({
-            "source": "legacy-desktop-local-projects",
-            "legacyProjectId": project.legacy_id,
-            "legacyWorkspaceId": project.legacy_workspace_id,
-        })
-        .to_string();
-
-        connection
-            .execute(
-                r#"
-                INSERT INTO plus_project (
-                    id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
-                    parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
-                    author, file_id, code, type, site_path, domain_prefix, description, status,
-                    conversation_id, workspace_id, workspace_uuid, leader_id, start_time, end_time,
-                    budget_amount, is_deleted, is_template
-                )
-                VALUES (
-                    ?1, ?2, ?3, ?4, 0, ?5, ?6, ?7,
-                    0, NULL, NULL, ?8, ?9, ?10, NULL,
-                    ?8, NULL, ?11, 1, NULL, NULL, ?12, ?13,
-                    NULL, ?14, ?15, ?8, NULL, NULL,
-                    NULL, 0, 0
-                )
-                "#,
-                params![
-                    project_id,
-                    &project_uuid,
-                    &created_at,
-                    &updated_at,
-                    DEFAULT_BOOTSTRAP_TENANT_ID,
-                    DEFAULT_BOOTSTRAP_ORGANIZATION_ID,
-                    DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
-                    DEFAULT_DESKTOP_LOCAL_USER_ID,
-                    &project_name,
-                    &display_title,
-                    &project_code,
-                    project.description.as_deref(),
-                    normalize_legacy_project_status(&project.status),
-                    &workspace.id,
-                    workspace.uuid.as_deref(),
-                ],
-            )
-            .map_err(|error| {
-                format!(
-                    "insert imported legacy project {} into plus_project failed: {error}",
-                    project.legacy_id
-                )
-            })?;
-        connection
-            .execute(
-                r#"
-                INSERT INTO plus_project_content (
-                    id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
-                    user_id, parent_id, project_id, project_uuid, config_data, content_data,
-                    metadata, content_version, content_hash
-                )
-                VALUES (
-                    ?1, ?2, ?3, ?4, 0, ?5, ?6, ?7,
-                    ?8, 0, ?1, ?9, ?10, NULL,
-                    ?11, '1.0', NULL
-                )
-                "#,
-                params![
-                    project_id,
-                    &project_content_uuid,
-                    &created_at,
-                    &updated_at,
-                    DEFAULT_BOOTSTRAP_TENANT_ID,
-                    DEFAULT_BOOTSTRAP_ORGANIZATION_ID,
-                    DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
-                    DEFAULT_DESKTOP_LOCAL_USER_ID,
-                    &project_uuid,
-                    &config_data,
-                    &metadata,
-                ],
-            )
-            .map_err(|error| {
-                format!(
-                    "insert imported legacy project {} into plus_project_content failed: {error}",
-                    project.legacy_id
-                )
-            })?;
-        known_root_paths.insert(normalized_root_path);
-    }
-
-    Ok(())
-}
-
 fn initialized_database_paths() -> &'static Mutex<HashSet<PathBuf>> {
     INITIALIZED_DATABASE_PATHS.get_or_init(|| Mutex::new(HashSet::new()))
 }
@@ -2061,10 +1432,6 @@ fn ensure_database_ready(connection: &Connection, database_path: &Path) -> Resul
     initialize_database_schema(connection)?;
     purge_reserved_authority_local_store_rows(connection)?;
     ensure_bootstrap_workspace_authority(connection)?;
-    if let Err(error) = import_legacy_desktop_local_projects_from_sibling(connection, database_path)
-    {
-        eprintln!("failed to import legacy desktop-local projects: {error}");
-    }
     initialized_paths.insert(database_path.to_path_buf());
 
     Ok(())
@@ -3397,24 +2764,29 @@ mod tests {
 
         for table_name in [
             "kv_store",
-            "schema_migration_history",
-            "workbench_preferences",
-            "engine_registry",
-            "model_catalog",
-            "engine_bindings",
-            "run_configurations",
-            "terminal_executions",
-            "coding_sessions",
-            "coding_session_messages",
-            "coding_session_runtimes",
-            "coding_session_events",
-            "coding_session_artifacts",
-            "coding_session_checkpoints",
-            "coding_session_operations",
-            "plus_workspace",
-            "plus_project",
-            "teams",
-            "release_records",
+            "ops_schema_migration_history",
+            "studio_workbench_preference",
+            "ai_engine_registry",
+            "ai_model_catalog",
+            "ai_engine_binding",
+            "ops_run_configuration",
+            "ops_terminal_execution",
+            "ai_coding_session",
+            "ai_coding_session_message",
+            "ai_coding_session_runtime",
+            "ai_coding_session_event",
+            "ai_coding_session_artifact",
+            "ai_coding_session_checkpoint",
+            "ai_coding_session_operation",
+            "studio_workspace",
+            "studio_project",
+            "studio_team",
+            "studio_team_member",
+            "studio_workspace_member",
+            "studio_project_collaborator",
+            "ops_release_record",
+            "ops_audit_event",
+            "ops_governance_policy",
         ] {
             assert!(
                 table_exists(&connection, table_name),
@@ -3433,8 +2805,8 @@ mod tests {
             "unread",
         ] {
             assert!(
-                column_exists(&connection, "coding_sessions", column_name),
-                "coding_sessions must include {column_name}"
+                column_exists(&connection, "ai_coding_session", column_name),
+                "ai_coding_session must include {column_name}"
             );
         }
 
@@ -3451,8 +2823,8 @@ mod tests {
             "task_progress_json",
         ] {
             assert!(
-                column_exists(&connection, "coding_session_messages", column_name),
-                "coding_session_messages must include {column_name}"
+                column_exists(&connection, "ai_coding_session_message", column_name),
+                "ai_coding_session_message must include {column_name}"
             );
         }
 
@@ -3460,7 +2832,7 @@ mod tests {
             .query_row(
                 r#"
                 SELECT COUNT(*)
-                FROM schema_migration_history
+                FROM ops_schema_migration_history
                 WHERE provider_id = 'sqlite'
                   AND migration_id IN ('runtime-data-kernel-v1', 'coding-server-kernel-v2')
                   AND status = 'applied'
@@ -3470,137 +2842,6 @@ mod tests {
             )
             .expect("query applied migrations");
         assert_eq!(applied_migration_count, 2);
-    }
-
-    #[test]
-    fn desktop_local_startup_imports_legacy_sibling_projects_into_plus_authority_tables() {
-        let unique_suffix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("read system time")
-            .as_nanos();
-        let database_dir = std::env::temp_dir().join(format!(
-            "sdkwork-birdcoder-desktop-legacy-project-import-{unique_suffix}"
-        ));
-        std::fs::create_dir_all(&database_dir).expect("create temp sqlite directory");
-        let current_database_path = database_dir.join("sdkwork-birdcoder-desktop-local.sqlite3");
-        let legacy_database_path = database_dir.join("sdkwork-birdcoder.sqlite3");
-
-        let current_connection =
-            Connection::open(&current_database_path).expect("open current desktop-local sqlite");
-        initialize_database_schema(&current_connection).expect("initialize current sqlite schema");
-        ensure_bootstrap_workspace_authority(&current_connection)
-            .expect("ensure current bootstrap workspace");
-
-        let legacy_connection =
-            Connection::open(&legacy_database_path).expect("open legacy sibling sqlite");
-        let legacy_project_seed_sql = format!(
-            r#"
-                CREATE TABLE {legacy_projects_table} (
-                    id TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    workspace_id TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    title TEXT NULL,
-                    description TEXT NULL,
-                    root_path TEXT NULL,
-                    status TEXT NOT NULL
-                );
-                INSERT INTO {legacy_projects_table} (
-                    id, created_at, updated_at, is_deleted, workspace_id,
-                    name, title, description, root_path, status
-                )
-                VALUES
-                    (
-                        'project-recovered',
-                        '2026-04-17T19:50:45Z',
-                        '2026-04-17T19:53:25Z',
-                        0,
-                        'workspace-default',
-                        'spring-ai-plus',
-                        'spring-ai-plus',
-                        'Recovered legacy project',
-                        'D:/javasource/spring-ai-plus',
-                        'active'
-                    ),
-                    (
-                        'project-deleted',
-                        '2026-04-17T19:50:45Z',
-                        '2026-04-17T19:53:25Z',
-                        1,
-                        'workspace-default',
-                        'deleted-project',
-                        'deleted-project',
-                        'Deleted legacy project',
-                        'D:/deleted-project',
-                        'active'
-                    );
-                "#,
-            legacy_projects_table = "projects",
-        );
-        legacy_connection
-            .execute_batch(&legacy_project_seed_sql)
-            .expect("seed legacy projects");
-        drop(legacy_connection);
-
-        import_legacy_desktop_local_projects_from_sibling(
-            &current_connection,
-            &current_database_path,
-        )
-        .expect("import legacy sibling projects");
-        import_legacy_desktop_local_projects_from_sibling(
-            &current_connection,
-            &current_database_path,
-        )
-        .expect("repeat legacy sibling project import");
-
-        let imported_count = current_connection
-            .query_row(
-                r#"
-                SELECT COUNT(*)
-                FROM plus_project AS project
-                JOIN plus_project_content AS content
-                  ON content.project_id = project.id
-                WHERE project.is_deleted = 0
-                  AND content.config_data LIKE '%D:/javasource/spring-ai-plus%'
-                "#,
-                [],
-                |row| row.get::<_, i64>(0),
-            )
-            .expect("query imported project count");
-        assert_eq!(
-            imported_count, 1,
-            "legacy project import must be idempotent and skip deleted projects"
-        );
-
-        let (title, workspace_id, config_data) = current_connection
-            .query_row(
-                r#"
-                SELECT project.title, CAST(project.workspace_id AS TEXT), content.config_data
-                FROM plus_project AS project
-                JOIN plus_project_content AS content
-                  ON content.project_id = project.id
-                WHERE content.config_data LIKE '%D:/javasource/spring-ai-plus%'
-                LIMIT 1
-                "#,
-                [],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                    ))
-                },
-            )
-            .expect("query imported project row");
-        assert_eq!(title, "spring-ai-plus");
-        assert_eq!(workspace_id, DEFAULT_BOOTSTRAP_WORKSPACE_ID);
-        assert!(
-            config_data.contains("\"rootPath\":\"D:/javasource/spring-ai-plus\""),
-            "imported legacy project root must be stored in plus_project_content config_data"
-        );
     }
 
     #[test]
@@ -3629,20 +2870,20 @@ mod tests {
 
     #[test]
     fn local_sql_plan_validation_accepts_table_repository_plans_only_for_declared_tables() {
-        let allowed_tables = vec!["plus_project".to_string()];
+        let allowed_tables = vec!["studio_project".to_string()];
 
         assert_eq!(
             validate_local_sql_statement(
-                "SELECT * FROM plus_project WHERE id = ?1 LIMIT 1;",
+                "SELECT * FROM studio_project WHERE id = ?1 LIMIT 1;",
                 &allowed_tables,
                 false,
             )
             .expect("accept table read"),
-            "SELECT * FROM plus_project WHERE id = ?1 LIMIT 1"
+            "SELECT * FROM studio_project WHERE id = ?1 LIMIT 1"
         );
         assert!(
             validate_local_sql_statement(
-                "SELECT * FROM coding_sessions WHERE id = ?1 LIMIT 1;",
+                "SELECT * FROM ai_coding_session WHERE id = ?1 LIMIT 1;",
                 &allowed_tables,
                 false,
             )
@@ -3651,7 +2892,7 @@ mod tests {
         );
         assert!(
             validate_local_sql_statement(
-                "CREATE TABLE IF NOT EXISTS plus_project (id TEXT PRIMARY KEY);",
+                "CREATE TABLE IF NOT EXISTS studio_project (id TEXT PRIMARY KEY);",
                 &allowed_tables,
                 false,
             )
@@ -3662,12 +2903,12 @@ mod tests {
 
     #[test]
     fn local_sql_plan_validation_rejects_unsafe_tokens() {
-        let allowed_tables = vec!["plus_project".to_string()];
+        let allowed_tables = vec!["studio_project".to_string()];
 
         for sql in [
-            "DROP TABLE plus_project",
+            "DROP TABLE studio_project",
             "ATTACH DATABASE 'other.sqlite' AS other",
-            "PRAGMA table_info(plus_project)",
+            "PRAGMA table_info(studio_project)",
             "VACUUM",
         ] {
             assert!(
@@ -3684,10 +2925,10 @@ mod tests {
             intent: "write".to_string(),
             meta: Some(serde_json::json!({
                 "kind": "migration",
-                "tableNames": ["plus_project"],
+                "tableNames": ["studio_project"],
             })),
             statements: vec![LocalSqlPlanStatement {
-                sql: "CREATE TABLE IF NOT EXISTS plus_project (id TEXT PRIMARY KEY);".to_string(),
+                sql: "CREATE TABLE IF NOT EXISTS studio_project (id TEXT PRIMARY KEY);".to_string(),
                 params: Vec::new(),
             }],
             transactional: true,
@@ -3695,77 +2936,11 @@ mod tests {
         let allowed_tables =
             read_local_sql_plan_allowed_tables(&plan).expect("read migration table scope");
 
-        assert_eq!(allowed_tables, vec!["plus_project".to_string()]);
+        assert_eq!(allowed_tables, vec!["studio_project".to_string()]);
         assert!(
             validate_local_sql_statement(&plan.statements[0].sql, &allowed_tables, true).is_ok(),
             "migration plans should be allowed to create their declared table"
         );
     }
 
-    #[test]
-    fn initialize_database_schema_upgrades_legacy_run_configurations_with_config_keys() {
-        let unique_suffix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("read system time")
-            .as_nanos();
-        let sqlite_path = std::env::temp_dir().join(format!(
-            "sdkwork-birdcoder-desktop-legacy-run-configs-{unique_suffix}.sqlite3"
-        ));
-        let connection = Connection::open(&sqlite_path).expect("open temp sqlite file");
-
-        connection
-            .execute_batch(
-                r#"
-                CREATE TABLE run_configurations (
-                    id TEXT PRIMARY KEY,
-                    workspace_id TEXT NOT NULL DEFAULT '',
-                    project_id TEXT NOT NULL DEFAULT '',
-                    scope_type TEXT NOT NULL DEFAULT 'global',
-                    scope_id TEXT NOT NULL DEFAULT '',
-                    name TEXT NOT NULL,
-                    command TEXT NOT NULL,
-                    profile_id TEXT NOT NULL,
-                    group_name TEXT NOT NULL DEFAULT 'custom',
-                    cwd_mode TEXT NOT NULL DEFAULT 'project',
-                    custom_cwd TEXT NOT NULL DEFAULT '',
-                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    is_deleted INTEGER NOT NULL DEFAULT 0
-                );
-
-                INSERT INTO run_configurations (
-                    id, workspace_id, project_id, scope_type, scope_id, name, command, profile_id, group_name
-                )
-                VALUES
-                    ('run-config:project:project-1:dev', '', 'project-1', 'project', 'project-1', 'Start Dev', 'npm run dev', 'powershell', 'dev'),
-                    ('run-config:project:project-1:test', '', 'project-1', 'project', 'project-1', 'Run Tests', 'npm test', 'powershell', 'test');
-                "#,
-            )
-            .expect("create legacy run configuration table");
-
-        initialize_database_schema(&connection).expect("upgrade legacy sqlite schema");
-
-        assert!(
-            column_exists(&connection, "run_configurations", "config_key"),
-            "legacy run configuration table should gain config_key column"
-        );
-
-        let config_keys: Vec<String> = connection
-            .prepare("SELECT config_key FROM run_configurations ORDER BY id")
-            .expect("prepare config key read")
-            .query_map([], |row| row.get::<_, String>(0))
-            .expect("query config key read")
-            .map(|row| row.expect("read config key"))
-            .collect();
-
-        assert_eq!(
-            config_keys,
-            vec!["dev".to_string(), "test".to_string()],
-            "legacy run configuration rows should be backfilled with stable public config keys"
-        );
-
-        drop(connection);
-        fs::remove_file(&sqlite_path).expect("remove temp sqlite file");
-    }
 }

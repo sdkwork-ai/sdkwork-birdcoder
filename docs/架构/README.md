@@ -9,7 +9,7 @@
 - 上层产品层禁止直接依赖第三方 engine SDK，必须通过 BirdCoder canonical runtime 访问
 - `chat-*` 包只作为兼容 facade，不再承担长期生产级多引擎架构中心
 - 运行时主骨架固定为 `session / turn / message / event / artifact / checkpoint`
-- `coding-server` 协议标准、代表性 `core / app / admin` 路由、canonical OpenAPI 导出与发布侧证据链已闭环；Rust host 不再处于最小 host 骨架阶段，Representative placeholder routes 当前真相为 `none`。
+- `coding-server` 协议标准、代表性 `app / backend` 路由、canonical OpenAPI 导出与发布侧证据链已闭环；Rust host 不再处于最小 host 骨架阶段，Representative placeholder routes 当前真相为 `none`。
 - PostgreSQL live smoke 已在当前主机记录 DSN-backed `passed` 报告；未来缺失 DSN/driver 时保持 `blocked`，未来 DSN-backed 运行时连通性回归时保持结构化 `failed`。
 
 ## 建议阅读顺序

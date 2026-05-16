@@ -660,10 +660,10 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     command: 'node scripts/sdkwork-birdcoder-architecture-contract.test.mjs',
   },
   {
-    id: 'birdcoder-identity-standard',
-    label: 'BirdCoder identity standard contract',
-    scriptPath: 'scripts/birdcoder-identity-standard-contract.test.mjs',
-    command: 'node scripts/birdcoder-identity-standard-contract.test.mjs',
+    id: 'birdcoder-iam-standard',
+    label: 'BirdCoder IAM standard contract',
+    scriptPath: 'scripts/birdcoder-iam-appbase-parity-contract.test.mjs',
+    command: 'node scripts/birdcoder-iam-appbase-parity-contract.test.mjs',
   },
   {
     id: 'user-center-standard',

@@ -38,14 +38,14 @@ try {
         { column: 'created_at', direction: 'asc' },
         { column: 'id', direction: 'asc' },
       ],
-      tableName: 'coding_session_messages',
+      tableName: 'ai_coding_session_message',
     },
     providerId: 'sqlite',
     statements: [
       {
         params: ['0', 'session-1'],
         sql:
-          'SELECT * FROM coding_session_messages ' +
+          'SELECT * FROM ai_coding_session_message ' +
           'WHERE is_deleted = ?1 AND coding_session_id IN (?2) ' +
           'ORDER BY created_at ASC, id ASC;',
       },

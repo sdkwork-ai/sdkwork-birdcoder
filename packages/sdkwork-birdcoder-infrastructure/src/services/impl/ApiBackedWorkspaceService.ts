@@ -1,4 +1,5 @@
-import type { BirdCoderAppAdminApiClient, BirdCoderWorkspaceSummary, IWorkspace } from '@sdkwork/birdcoder-types';
+import type { BirdCoderWorkspaceSummary, IWorkspace } from '@sdkwork/birdcoder-types';
+import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { IWorkspaceService } from '../interfaces/IWorkspaceService.ts';
 import {
@@ -7,8 +8,8 @@ import {
 } from '../runtimeApiRetry.ts';
 
 export interface ApiBackedWorkspaceServiceOptions {
-  client: BirdCoderAppAdminApiClient;
-  identityProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  appClient: BirdCoderAppSdkApiClient;
+  currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
   workspaceMirror?: {
     syncWorkspaceSummary(summary: BirdCoderWorkspaceSummary): Promise<IWorkspace>;
   };
@@ -60,7 +61,7 @@ function filterLocalWorkspacesForUser(
 }
 
 function mapWorkspaceSummaryToWorkspace(
-  workspace: Awaited<ReturnType<BirdCoderAppAdminApiClient['listWorkspaces']>>[number],
+  workspace: Awaited<ReturnType<BirdCoderAppSdkApiClient['listWorkspaces']>>[number],
 ): IWorkspace {
   return {
     id: workspace.id,
@@ -94,8 +95,8 @@ function mapWorkspaceSummaryToWorkspace(
 }
 
 export class ApiBackedWorkspaceService implements IWorkspaceService {
-  private readonly client: BirdCoderAppAdminApiClient;
-  private readonly identityProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  private readonly appClient: BirdCoderAppSdkApiClient;
+  private readonly currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
   private readonly readCacheByUserScope = new Map<string, WorkspaceCacheEntry<IWorkspace[]>>();
   private readonly workspaceMirror?: {
     syncWorkspaceSummary(summary: BirdCoderWorkspaceSummary): Promise<IWorkspace>;
@@ -103,19 +104,19 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
   private readonly writeService: IWorkspaceService;
 
   constructor({
-    client,
-    identityProvider,
+    appClient,
+    currentUserProvider,
     workspaceMirror,
     writeService,
   }: ApiBackedWorkspaceServiceOptions) {
-    this.client = client;
-    this.identityProvider = identityProvider;
+    this.appClient = appClient;
+    this.currentUserProvider = currentUserProvider;
     this.workspaceMirror = workspaceMirror;
     this.writeService = writeService;
   }
 
   private async resolveCurrentUserScope(): Promise<string> {
-    const user = await this.identityProvider?.getCurrentUser();
+    const user = await this.currentUserProvider?.getCurrentUser();
     const userId = user?.id?.trim();
     return userId && userId.length > 0 ? userId : 'anonymous';
   }
@@ -182,7 +183,7 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
 
         try {
           const workspaces = await retryBirdCoderTransientApiTask(() =>
-            this.client.listWorkspaces({
+            this.appClient.listWorkspaces({
               userId,
             }),
           );
@@ -214,7 +215,7 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
   async createWorkspace(name: string, description?: string): Promise<IWorkspace> {
     const currentUserScope = await this.resolveCurrentUserScope();
     const currentUserId = currentUserScope === 'anonymous' ? undefined : currentUserScope;
-    const summary = await this.client.createWorkspace({
+    const summary = await this.appClient.createWorkspace({
       name,
       description,
       dataScope: 'PRIVATE',
@@ -237,7 +238,7 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
   }
 
   async updateWorkspace(id: string, name: string): Promise<IWorkspace> {
-    const summary = await this.client.updateWorkspace(id, {
+    const summary = await this.appClient.updateWorkspace(id, {
       name,
     });
     const workspace =
@@ -248,7 +249,7 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
   }
 
   async deleteWorkspace(id: string): Promise<void> {
-    await this.client.deleteWorkspace(id);
+    await this.appClient.deleteWorkspace(id);
     await this.writeService.deleteWorkspace(id);
     this.invalidateReadCache();
   }
