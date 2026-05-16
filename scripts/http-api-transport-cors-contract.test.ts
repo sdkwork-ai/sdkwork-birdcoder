@@ -8,7 +8,7 @@ const sdkTransportSharedModulePath = new URL(
 const rustHostLibSource = readFileSync(
   new URL('../packages/sdkwork-birdcoder-server/src-host/src/lib.rs', import.meta.url),
   'utf8',
-);
+).replace(/\r\n?/g, '\n');
 
 let capturedInit: RequestInit | undefined;
 
