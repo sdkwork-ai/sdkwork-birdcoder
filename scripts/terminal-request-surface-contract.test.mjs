@@ -206,8 +206,8 @@ assert.match(
 );
 assert.match(
   codePageSource,
-  /const resolveCodingSessionNativeSessionId = useCallback\(async \(codingSessionId: string\) => \{[\s\S]*resolveSession\(codingSessionId\)\?\.codingSession\.nativeSessionId\?\.trim\(\)[\s\S]*coreReadService\.getCodingSession\(codingSessionId\)[\s\S]*session\.nativeSessionId\?\.trim\(\)/m,
-  'CodePage must resolve native session ids from local state first and coreReadService second, matching the message-list authority path.',
+  /const resolveCodingSessionNativeSessionId = useCallback\(async \(codingSessionId: string\) => \{[\s\S]*resolveSession\(codingSessionId\)\?\.codingSession\.nativeSessionId\?\.trim\(\)[\s\S]*appRuntimeReadService\.getCodingSession\(codingSessionId\)[\s\S]*session\.nativeSessionId\?\.trim\(\)/m,
+  'CodePage must resolve native session ids from local state first and appRuntimeReadService second, matching the message-list authority path.',
 );
 assert.match(
   codePageTerminalActionsSource,

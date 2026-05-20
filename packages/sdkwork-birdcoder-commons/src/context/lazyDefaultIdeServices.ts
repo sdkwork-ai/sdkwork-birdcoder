@@ -138,11 +138,11 @@ export function createLazyDefaultIdeServices(): BirdCoderDefaultIdeServices {
     collaborationService: createLazyServiceProxy(
       async () => loadDefaultIdeService('collaborationService'),
     ),
-    coreReadService: createLazyServiceProxy(
-      async () => loadDefaultIdeService('coreReadService'),
+    appRuntimeReadService: createLazyServiceProxy(
+      async () => loadDefaultIdeService('appRuntimeReadService'),
     ),
-    coreWriteService: createLazyServiceProxy(
-      async () => loadDefaultIdeService('coreWriteService'),
+    appRuntimeWriteService: createLazyServiceProxy(
+      async () => loadDefaultIdeService('appRuntimeWriteService'),
     ),
     deploymentService: createLazyServiceProxy(
       async () => loadDefaultIdeService('deploymentService'),

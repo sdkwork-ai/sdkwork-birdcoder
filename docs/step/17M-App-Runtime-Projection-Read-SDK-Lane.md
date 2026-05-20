@@ -2,7 +2,7 @@
 
 ## Goal
 
-Close the next shared core facade slice in `@sdkwork/birdcoder-types` for the implemented coding-session projection-read routes.
+Close the next app runtime SDK facade slice in `@sdkwork/birdcoder-types` for the implemented coding-session projection-read routes.
 
 ## Closed Scope
 
@@ -12,7 +12,7 @@ Close the next shared core facade slice in `@sdkwork/birdcoder-types` for the im
 
 ## Checkpoints
 
-- `CP17M-1` `@sdkwork/birdcoder-types` must extend `createBirdCoderGeneratedCoreReadApiClient({ transport })` instead of creating a second core-read wrapper.
+- `CP17M-1` `@sdkwork/birdcoder-infrastructure` must extend `createBirdCoderAppSdkApiClient({ transport })` instead of creating a second app runtime read wrapper.
 - `CP17M-2` projection-read requests must build only through `createBirdCoderFinalizedCodingServerClient()`.
 - `CP17M-3` current shared projection-read scope is limited to:
   - `/app/v3/api/coding_sessions/:id`
@@ -38,5 +38,5 @@ Close the next shared core facade slice in `@sdkwork/birdcoder-types` for the im
 ## Next Serial Path
 
 1. PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`.
-2. Broaden shared-facade adoption across the remaining `app / backend` transport consumers.
+2. Broaden direct app/backend client adoption across the remaining `app / backend` transport consumers.
 3. Add higher-level typed write/response facades only after the remaining shared read-consumer adoption is closed.

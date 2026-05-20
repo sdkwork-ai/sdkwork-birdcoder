@@ -345,22 +345,22 @@ assert.match(
 assert.match(
   serverNativeSessionsSource,
   /submit_native_session_approval_decision/,
-  'Server native-session bridge must expose approval decision submission instead of letting core routes call product-local projection only.',
+  'Server native-session bridge must expose approval decision submission instead of letting app runtime routes call product-local projection only.',
 );
 assert.match(
   serverNativeSessionsSource,
   /struct\s+NativeSessionApprovalDecision[\s\S]*native_session_id:\s+Option<String>[\s\S]*CodeEngineApprovalDecisionRecord\s*\{[\s\S]*native_session_id:\s+decision\.native_session_id\.clone\(\)/,
-  'Server native-session approval bridge must preserve nativeSessionId when mapping core projection context into the provider SDK record.',
+  'Server native-session approval bridge must preserve nativeSessionId when mapping app runtime projection context into the provider SDK record.',
 );
 assert.match(
   serverNativeSessionsSource,
   /submit_native_session_user_question_answer/,
-  'Server native-session bridge must expose user-question answer submission instead of letting core routes call product-local projection only.',
+  'Server native-session bridge must expose user-question answer submission instead of letting app runtime routes call product-local projection only.',
 );
 assert.match(
   serverNativeSessionsSource,
   /struct\s+NativeSessionUserQuestionAnswer[\s\S]*native_session_id:\s+Option<String>[\s\S]*CodeEngineUserQuestionAnswerRecord\s*\{[\s\S]*native_session_id:\s+answer\.native_session_id\.clone\(\)/,
-  'Server native-session user-question bridge must preserve nativeSessionId when mapping core projection context into the provider SDK record.',
+  'Server native-session user-question bridge must preserve nativeSessionId when mapping app runtime projection context into the provider SDK record.',
 );
 assert.match(
   serverHostSource,

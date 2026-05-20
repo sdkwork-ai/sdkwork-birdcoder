@@ -56,7 +56,7 @@ export function isAuthorityBackedNativeSessionId(
   );
 }
 
-export type NativeSessionAuthorityCoreReadService = Pick<
+export type NativeSessionAuthorityAppRuntimeReadService = Pick<
   {
     getNativeSession(
       codingSessionId: string,
@@ -138,7 +138,7 @@ function toAuthorityBackedNativeSessionRecord(
 }
 
 export interface ListAuthorityBackedNativeSessionsOptions {
-  coreReadService?: NativeSessionAuthorityCoreReadService;
+  appRuntimeReadService?: NativeSessionAuthorityAppRuntimeReadService;
   engineId?: string;
   limit?: number;
   offset?: number;
@@ -149,12 +149,12 @@ export interface ListAuthorityBackedNativeSessionsOptions {
 export async function listAuthorityBackedNativeSessions(
   options: ListAuthorityBackedNativeSessionsOptions = {},
 ): Promise<StoredCodingSessionInventoryRecord[]> {
-  if (!options.coreReadService) {
+  if (!options.appRuntimeReadService) {
     return [];
   }
 
   try {
-    const summaries = await options.coreReadService.listNativeSessions({
+    const summaries = await options.appRuntimeReadService.listNativeSessions({
       engineId: options.engineId,
       limit: options.limit,
       offset: options.offset,
@@ -172,7 +172,7 @@ export async function listAuthorityBackedNativeSessions(
 }
 
 export interface ReadAuthorityBackedNativeSessionRecordOptions {
-  coreReadService?: NativeSessionAuthorityCoreReadService;
+  appRuntimeReadService?: NativeSessionAuthorityAppRuntimeReadService;
   engineId?: string;
   projectId?: string;
   workspaceId?: string;
@@ -182,12 +182,12 @@ export async function readAuthorityBackedNativeSessionRecord(
   codingSessionId: string,
   options: ReadAuthorityBackedNativeSessionRecordOptions = {},
 ): Promise<AuthorityBackedNativeSessionRecord | null> {
-  if (!options.coreReadService) {
+  if (!options.appRuntimeReadService) {
     return null;
   }
 
   try {
-    const detail = await options.coreReadService.getNativeSession(codingSessionId, {
+    const detail = await options.appRuntimeReadService.getNativeSession(codingSessionId, {
       engineId: options.engineId,
       projectId: options.projectId,
       workspaceId: options.workspaceId,

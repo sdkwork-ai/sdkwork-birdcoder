@@ -2161,6 +2161,9 @@ const canonicalJavaExactPhysicalColumns = {
   data_scope: 'INTEGER NOT NULL DEFAULT 1',
 };
 const appbaseOwnedIamEntityNames = [
+  'department',
+  'position',
+  'user_address',
   'tenant',
   'organization',
   'organization_member',
@@ -2174,6 +2177,10 @@ const appbaseOwnedIamEntityNames = [
   'user_profile',
   'vip_user',
   'account',
+  'api_key',
+  'api_security_policy',
+  'invitation_code',
+  'invitation_relation',
 ];
 const canonicalIamCoreTableNames = [
   'iam_tenant',
@@ -2411,12 +2418,12 @@ const dataDefinitionExpectations = [
   {
     anchor: "defineEntity(\n    'department'",
     label: 'department entity definition',
-    fields: withoutCanonicalBaseFields(canonicalDepartmentTableFields),
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'position'",
     label: 'position entity definition',
-    fields: withoutCanonicalBaseFields(canonicalPositionTableFields),
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'role'",
@@ -2451,7 +2458,7 @@ const dataDefinitionExpectations = [
   {
     anchor: "defineEntity(\n    'user_address'",
     label: 'user_address entity definition',
-    fields: withoutCanonicalBaseFields(canonicalUserAddressTableFields),
+    fields: [],
   },
   {
     anchor: "defineEntity(\n    'product'",
@@ -2551,7 +2558,7 @@ const dataDefinitionExpectations = [
   {
     anchor: "defineExactEntity(\n    'api_key'",
     label: 'api_key entity definition',
-    fields: canonicalPlatformApiKeyTableFields,
+    fields: [],
   },
   {
     anchor: "defineExactEntity(\n    'app'",
@@ -2626,7 +2633,7 @@ const dataDefinitionExpectations = [
   {
     anchor: "defineExactEntity(\n    'api_security_policy'",
     label: 'api_security_policy entity definition',
-    fields: canonicalApiSecurityPolicyTableFields,
+    fields: [],
   },
   {
     anchor: "defineExactEntity(\n    'category'",
@@ -2726,12 +2733,12 @@ const dataDefinitionExpectations = [
   {
     anchor: "defineExactEntity(\n    'invitation_code'",
     label: 'invitation_code entity definition',
-    fields: canonicalInvitationCodeTableFields,
+    fields: [],
   },
   {
     anchor: "defineExactEntity(\n    'invitation_relation'",
     label: 'invitation_relation entity definition',
-    fields: canonicalInvitationRelationTableFields,
+    fields: [],
   },
   {
     anchor: "defineExactEntity(\n    'sns_follow_relation'",
@@ -3096,12 +3103,6 @@ for (const [constantName, entityName, storageScope, storageKey] of [
     'channel-resources.java',
   ],
   [
-    'BIRDCODER_APPBASE_PLATFORM_API_KEY_STORAGE_BINDING',
-    'api_key',
-    'appbase.platform.api-key',
-    'api-keys.java',
-  ],
-  [
     'BIRDCODER_APPBASE_APP_STORAGE_BINDING',
     'app',
     'appbase.app',
@@ -3184,12 +3185,6 @@ for (const [constantName, entityName, storageScope, storageKey] of [
     'ai_tool',
     'appbase.ai-tool',
     'tools.java',
-  ],
-  [
-    'BIRDCODER_APPBASE_API_SECURITY_POLICY_STORAGE_BINDING',
-    'api_security_policy',
-    'appbase.security.api',
-    'api-security-policies.java',
   ],
   [
     'BIRDCODER_APPBASE_CATEGORY_STORAGE_BINDING',
@@ -3304,18 +3299,6 @@ for (const [constantName, entityName, storageScope, storageKey] of [
     'share_visit_record',
     'appbase.share',
     'share-visit-records.java',
-  ],
-  [
-    'BIRDCODER_APPBASE_INVITATION_CODE_STORAGE_BINDING',
-    'invitation_code',
-    'appbase.invitation',
-    'invitation-codes.java',
-  ],
-  [
-    'BIRDCODER_APPBASE_INVITATION_RELATION_STORAGE_BINDING',
-    'invitation_relation',
-    'appbase.invitation',
-    'invitation-relations.java',
   ],
   [
     'BIRDCODER_APPBASE_SNS_FOLLOW_RELATION_STORAGE_BINDING',

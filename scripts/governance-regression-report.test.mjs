@@ -18,8 +18,19 @@ const outputPath = path.join(tempDir, 'governance-regression-report.json');
 const now = () => new Date('2026-04-08T15:30:00.000Z');
 const defaultRunnerScriptPath = path.join(tempDir, 'default-runner-check.mjs');
 const commandRunnerScriptPath = path.join(tempDir, 'command-runner-check.mjs');
+const asyncExitCommandRunnerScriptPath = path.join(tempDir, 'async-exit-command-runner-check.mjs');
 
 fs.writeFileSync(defaultRunnerScriptPath, "console.log('default-runner-ok');\n", 'utf8');
+const defaultRunnerExitScriptPath = path.join(tempDir, 'default-runner-exit-check.mjs');
+fs.writeFileSync(
+  defaultRunnerExitScriptPath,
+  [
+    "console.log('default-runner-before-exit');",
+    'process.exit(7);',
+    '',
+  ].join('\n'),
+  'utf8',
+);
 fs.writeFileSync(
   commandRunnerScriptPath,
   [
@@ -30,6 +41,15 @@ fs.writeFileSync(
     '}',
     '',
     "console.log('command-runner-ok');",
+    '',
+  ].join('\n'),
+  'utf8',
+);
+fs.writeFileSync(
+  asyncExitCommandRunnerScriptPath,
+  [
+    "console.log('async-command-runner-before-exit');",
+    'setTimeout(() => process.exit(7), 0);',
     '',
   ].join('\n'),
   'utf8',
@@ -51,6 +71,22 @@ assert.equal(defaultRunnerResult.status, 'passed');
 assert.equal(defaultRunnerResult.exitCode, 0);
 assert.match(defaultRunnerResult.stdout, /default-runner-ok/);
 
+const defaultRunnerExitResult = await executeGovernanceRegressionCheck(
+  {
+    id: 'default-runner-exit',
+    label: 'Default runner process.exit smoke',
+    scriptPath: defaultRunnerExitScriptPath,
+    command: `node ${defaultRunnerExitScriptPath}`,
+  },
+  {
+    rootDir: process.cwd(),
+  },
+);
+
+assert.equal(defaultRunnerExitResult.status, 'failed');
+assert.equal(defaultRunnerExitResult.exitCode, 7);
+assert.match(defaultRunnerExitResult.stdout, /default-runner-before-exit/);
+
 const commandRunnerResult = await executeGovernanceRegressionCheck(
   {
     id: 'command-runner',
@@ -67,10 +103,47 @@ const commandRunnerResult = await executeGovernanceRegressionCheck(
 assert.equal(commandRunnerResult.status, 'passed');
 assert.equal(commandRunnerResult.exitCode, 0);
 assert.match(commandRunnerResult.stdout, /command-runner-ok/);
+
+const asyncExitCommandRunnerResult = await executeGovernanceRegressionCheck(
+  {
+    id: 'async-exit-command-runner',
+    label: 'Async exit command runner smoke',
+    scriptPath: asyncExitCommandRunnerScriptPath,
+    command: `node ${asyncExitCommandRunnerScriptPath}`,
+    execution: 'command',
+  },
+  {
+    rootDir: process.cwd(),
+  },
+);
+
+assert.equal(asyncExitCommandRunnerResult.status, 'failed');
+assert.equal(asyncExitCommandRunnerResult.exitCode, 7);
+assert.match(asyncExitCommandRunnerResult.stdout, /async-command-runner-before-exit/);
 assert.equal(
   GOVERNANCE_REGRESSION_CHECKS.find((check) => check.id === 'web-bundle-budget')?.execution,
   'command',
 );
+for (const checkId of [
+  'studio-preview-execution',
+  'studio-build-execution',
+  'studio-test-execution',
+  'studio-simulator-execution',
+  'studio-preview-evidence-store',
+  'studio-build-evidence-store',
+  'studio-test-evidence-store',
+  'studio-simulator-evidence-store',
+  'studio-evidence-viewer',
+  'studio-evidence-viewer-ui',
+  'studio-simulator-ui',
+  'prompt-skill-template-evidence-consumer',
+]) {
+  assert.equal(
+    GOVERNANCE_REGRESSION_CHECKS.find((check) => check.id === checkId)?.execution,
+    'command',
+    `${checkId} must execute through its declared command so SDK package aliases use the standard local TS runner.`,
+  );
+}
 const windowsPnpmInvocation = resolveGovernanceRegressionCommandInvocation('pnpm run build', {
   platform: 'win32',
 });
@@ -222,6 +295,7 @@ assert.deepEqual(
     'coding-server-prompt-skill-template-evidence-consumer',
     'postgresql-live-smoke-contract',
     'live-docs-governance-baseline',
+    'coding-server-api-spec-path',
     'quality-loop-scoreboard',
     'release-command',
     'release-rollback-plan-command',
@@ -264,8 +338,8 @@ assert.deepEqual(
 assert.deepEqual(executedChecks, GOVERNANCE_REGRESSION_CHECKS.map((check) => check.id));
 assert.equal(passedReport.status, 'passed');
 assert.equal(passedReport.generatedAt, '2026-04-08T15:30:00.000Z');
-assert.equal(passedReport.summary.totalChecks, 111);
-assert.equal(passedReport.summary.passedCount, 111);
+assert.equal(passedReport.summary.totalChecks, 112);
+assert.equal(passedReport.summary.passedCount, 112);
 assert.equal(passedReport.summary.blockedCount, 0);
 assert.equal(passedReport.summary.failedCount, 0);
 assert.deepEqual(passedReport.summary.blockedCheckIds, []);
@@ -283,17 +357,17 @@ assert.deepEqual(
     'node scripts/host-runtime-contract.test.ts',
     'node scripts/host-studio-preview-contract.test.ts',
     'node scripts/host-studio-simulator-contract.test.ts',
-    'node scripts/studio-preview-execution-contract.test.ts',
-    'node scripts/studio-build-execution-contract.test.ts',
-    'node scripts/studio-test-execution-contract.test.ts',
-    'node scripts/studio-simulator-execution-contract.test.ts',
-    'node scripts/studio-preview-evidence-store-contract.test.ts',
-    'node scripts/studio-build-evidence-store-contract.test.ts',
-    'node scripts/studio-test-evidence-store-contract.test.ts',
-    'node scripts/studio-simulator-evidence-store-contract.test.ts',
-    'node scripts/studio-evidence-viewer-contract.test.ts',
-    'node scripts/studio-evidence-viewer-ui-contract.test.ts',
-    'node scripts/studio-simulator-ui-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/studio-preview-execution-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/studio-build-execution-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/studio-test-execution-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/studio-simulator-execution-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/studio-preview-evidence-store-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/studio-build-evidence-store-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/studio-test-evidence-store-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/studio-simulator-evidence-store-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/studio-evidence-viewer-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/studio-evidence-viewer-ui-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/studio-simulator-ui-contract.test.ts',
     'node scripts/run-config-request-contract.test.ts',
     'node scripts/run-config-contract.test.ts',
     'node scripts/workbench-preferences-contract.test.ts',
@@ -351,6 +425,7 @@ assert.deepEqual(
     'pnpm run test:coding-server-prompt-skill-template-evidence-consumer-contract',
     'pnpm run test:postgresql-live-smoke-contract',
     'node scripts/live-docs-governance-baseline.test.mjs',
+    'node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts',
     'node scripts/quality-loop-scoreboard-contract.test.mjs',
     'node scripts/release/local-release-command.test.mjs',
     'node scripts/release/rollback-plan-command.test.mjs',
@@ -383,7 +458,7 @@ assert.deepEqual(
     'node scripts/release/smoke-server-release-assets.test.mjs',
     'node scripts/release/smoke-deployment-release-assets.test.mjs',
     'node scripts/sdkwork-birdcoder-architecture-contract.test.mjs',
-    'node scripts/birdcoder-iam-appbase-parity-contract.test.mjs',
+    'node scripts/birdcoder-iam-standard-contract.test.mjs',
     'node scripts/run-user-center-standard.mjs',
     'node scripts/user-center-upstream-sync-payload.test.mjs',
     'node scripts/user-center-upstream-sync-workflow.test.mjs',
@@ -442,7 +517,7 @@ const blockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(blockedReport.status, 'blocked');
-assert.equal(blockedReport.summary.passedCount, 110);
+assert.equal(blockedReport.summary.passedCount, 111);
 assert.equal(blockedReport.summary.blockedCount, 1);
 assert.equal(blockedReport.summary.failedCount, 0);
 assert.deepEqual(blockedReport.summary.blockedCheckIds, ['web-bundle-budget']);
@@ -501,7 +576,7 @@ const runnerBlockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(runnerBlockedReport.status, 'blocked');
-assert.equal(runnerBlockedReport.summary.passedCount, 110);
+assert.equal(runnerBlockedReport.summary.passedCount, 111);
 assert.equal(runnerBlockedReport.summary.blockedCount, 1);
 assert.equal(runnerBlockedReport.summary.failedCount, 0);
 assert.deepEqual(runnerBlockedReport.summary.blockedCheckIds, ['web-bundle-budget']);

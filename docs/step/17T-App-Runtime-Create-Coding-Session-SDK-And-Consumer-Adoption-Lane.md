@@ -1,8 +1,8 @@
-# Step 17T - Typed Core Create Coding Session Facade And Consumer Adoption Lane
+# Step 17T - Typed App Runtime Create Coding Session Facade And Consumer Adoption Lane
 
 ## Goal
 
-Close the typed shared core write facade for `core.createCodingSession`, promote it into shared core governance, and wire the first real default-IDE consumer path without losing refreshed UI session visibility.
+Close the typed app runtime write SDK facade for `codingSessions.create`, promote it into app runtime SDK governance, and wire the first real default-IDE consumer path without losing refreshed UI session visibility.
 
 ## Closed Scope
 
@@ -14,28 +14,28 @@ Close the typed shared core write facade for `core.createCodingSession`, promote
 - `package.json`
 - `scripts/app-runtime-write-sdk-client-contract.test.ts`
 - `scripts/default-ide-services-app-runtime-write-sdk-contract.test.ts`
-- `scripts/api-backed-project-service-core-create-coding-session-contract.test.ts`
+- `scripts/api-backed-project-service-app-runtime-create-coding-session-contract.test.ts`
 - `scripts/app-runtime-sdk-facade-governance-contract.test.ts`
 - `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md`
 - `docs/架构/09-安装-部署-发布标准.md`
-- `docs/step/17-Coding-Server-Core-App/Backend-API与控制台实现.md`
+- `docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md`
 - `docs/prompts/反复执行Step指令.md`
 - `docs/release/release-2026-04-11-09.md`
 - `docs/release/releases.json`
 
 ## Checkpoints
 
-- `CP17T-1` `@sdkwork/birdcoder-types` must expose `createBirdCoderGeneratedCoreWriteApiClient({ transport })` for `core.createCodingSession`.
-- `CP17T-2` shared core governance must move `core.createCodingSession` from excluded to promoted while keeping `createCodingSessionTurn` excluded.
-- `CP17T-3` runtime-bound default IDE services must compose the shared core write facade directly from `createBirdCoderHttpApiTransport(...)`.
-- `CP17T-4` `ApiBackedProjectService.createCodingSession()` must resolve `workspaceId` from project truth, call the shared core write facade, and return the server-authoritative session id.
+- `CP17T-1` `@sdkwork/birdcoder-infrastructure` must expose `createBirdCoderAppSdkApiClient({ transport })` for `codingSessions.create`.
+- `CP17T-2` app runtime SDK governance must move `codingSessions.create` from excluded to promoted while keeping `createCodingSessionTurn` excluded.
+- `CP17T-3` runtime-bound default IDE services must compose the app runtime write SDK facade directly from `createBirdCoderHttpApiTransport(...)`.
+- `CP17T-4` `ApiBackedProjectService.createCodingSession()` must resolve `workspaceId` from project truth, call the app runtime write SDK facade, and return the server-authoritative session id.
 - `CP17T-5` refreshed project catalogs must retain the server-created session through local mirror state instead of dropping it after `fetchProjects()`.
 
 ## Verification
 
 - `pnpm.cmd run test:app-runtime-write-sdk-client-contract`
 - `pnpm.cmd run test:default-ide-services-app-runtime-write-sdk-contract`
-- `pnpm.cmd run test:api-backed-project-service-core-create-coding-session-contract`
+- `pnpm.cmd run test:api-backed-project-service-app-runtime-create-coding-session-contract`
 - `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
 - `pnpm.cmd run typecheck`
 - `pnpm.cmd run docs:build`
@@ -44,5 +44,5 @@ Close the typed shared core write facade for `core.createCodingSession`, promote
 ## Next Serial Path
 
 1. PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`.
-2. Keep `core.createCodingSessionTurn` excluded after the now-real Rust host route until the typed write facade and first consumer path close in the same loop.
-3. Keep `core.getEngineCapabilities`, `core.listModels`, and `core.submitApprovalDecision` blocked until server behavior is real and release-flow evidence exists.
+2. Keep `codingSessions.turns.create` excluded after the now-real Rust host route until the typed write facade and first consumer path close in the same loop.
+3. Keep `engines.capabilities.retrieve`, `models.list`, and `approvals.decisions.create` blocked until server behavior is real and release-flow evidence exists.

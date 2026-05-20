@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { ICoreReadService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/ICoreReadService.ts';
+import type { IAppRuntimeReadService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IAppRuntimeReadService.ts';
 import type {
   BirdCoderCodingSessionArtifact,
   BirdCoderCodingSessionCheckpoint,
@@ -71,7 +71,7 @@ const checkpointFixture: BirdCoderCodingSessionCheckpoint = {
 
 const callLog: string[] = [];
 
-const coreReadService: ICoreReadService = {
+const appRuntimeReadService: IAppRuntimeReadService = {
   async getCodingSession(codingSessionId: string) {
     callLog.push(`getCodingSession:${codingSessionId}`);
     return sessionFixture;
@@ -129,7 +129,7 @@ const coreReadService: ICoreReadService = {
   },
 };
 
-const projection = await loadCodingSessionProjection(coreReadService, sessionId);
+const projection = await loadCodingSessionProjection(appRuntimeReadService, sessionId);
 
 assert.deepEqual(projection, {
   artifacts: [artifactFixture],

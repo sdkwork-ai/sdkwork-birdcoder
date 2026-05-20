@@ -30,13 +30,12 @@ assert.deepEqual(
     'comms',
     'content',
     'data',
-    'iam',
     'integration',
     'media',
     'ops',
     'studio',
   ]),
-  'BirdCoder data kernel must use DATABASE_SPEC controlled module prefixes as logical aggregates.',
+  'BirdCoder data kernel must use DATABASE_SPEC controlled module prefixes and must not re-own appbase IAM aggregates.',
 );
 
 const duplicateEntityNames = dataModule.BIRDCODER_DATA_ENTITY_DEFINITIONS
@@ -49,7 +48,6 @@ assert.deepEqual(
 );
 
 for (const [entityName, expectedAggregate] of [
-  ['department', 'iam'],
   ['card', 'commerce'],
   ['agent_skill_package', 'ai'],
   ['datasource', 'data'],
@@ -152,6 +150,9 @@ const requiredEntityNames = [
   'schema_migration_history',
 ];
 const appbaseOwnedIamEntityNames = [
+  'department',
+  'position',
+  'user_address',
   'tenant',
   'organization',
   'organization_member',
@@ -165,6 +166,10 @@ const appbaseOwnedIamEntityNames = [
   'user_profile',
   'vip_user',
   'account',
+  'api_key',
+  'api_security_policy',
+  'invitation_code',
+  'invitation_relation',
 ];
 
 for (const entityName of requiredEntityNames) {

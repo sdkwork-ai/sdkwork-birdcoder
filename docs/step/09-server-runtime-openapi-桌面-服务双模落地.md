@@ -11,7 +11,7 @@
 
 ## 3. 本步非目标
 
-- 不完成 App/Admin Console 细节
+- 不完成 App/Backend Console 细节
 - 不替代 Step `17` 的全量生命周期 API 收口
 - 不做发布闭环脚本
 

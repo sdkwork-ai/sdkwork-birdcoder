@@ -6,8 +6,8 @@ import type {
   IAuditService,
   ICatalogService,
   ICollaborationService,
-  ICoreReadService,
-  ICoreWriteService,
+  IAppRuntimeReadService,
+  IAppRuntimeWriteService,
   IDeploymentService,
   IDocumentService,
   IFileSystemService,
@@ -33,8 +33,8 @@ export interface IDEProviderProps {
   workspaceService?: IWorkspaceService;
   projectService?: IProjectService;
   collaborationService?: ICollaborationService;
-  coreReadService?: ICoreReadService;
-  coreWriteService?: ICoreWriteService;
+  appRuntimeReadService?: IAppRuntimeReadService;
+  appRuntimeWriteService?: IAppRuntimeWriteService;
   auditService?: IAuditService;
   deploymentService?: IDeploymentService;
   documentService?: IDocumentService;
@@ -54,8 +54,8 @@ export const IDEProvider = ({
   workspaceService,
   projectService,
   collaborationService,
-  coreReadService,
-  coreWriteService,
+  appRuntimeReadService,
+  appRuntimeWriteService,
   auditService,
   deploymentService,
   documentService,
@@ -80,8 +80,8 @@ export const IDEProvider = ({
         workspaceService: workspaceService ?? defaultContext.workspaceService,
         projectService: projectService ?? defaultContext.projectService,
         collaborationService: collaborationService ?? defaultContext.collaborationService,
-        coreReadService: coreReadService ?? defaultContext.coreReadService,
-        coreWriteService: coreWriteService ?? defaultContext.coreWriteService,
+        appRuntimeReadService: appRuntimeReadService ?? defaultContext.appRuntimeReadService,
+        appRuntimeWriteService: appRuntimeWriteService ?? defaultContext.appRuntimeWriteService,
         auditService: auditService ?? defaultContext.auditService,
         deploymentService: deploymentService ?? defaultContext.deploymentService,
         documentService: documentService ?? defaultContext.documentService,

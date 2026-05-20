@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import process from 'node:process';
 
 import {
-  buildBirdCoderCodingServerOpenApiDocumentSeed,
+  buildBirdCoderCodingServerOpenApiDocument,
   getBirdCoderCodingServerDescriptor,
   listBirdCoderCodingServerRouteCatalogEntries,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
@@ -28,6 +30,142 @@ const FORBIDDEN_PREFIXES = [
 const FORBIDDEN_RUNTIME_RESOURCE_PATHS = [
   '/app/v3/api/ai_coding_session',
 ] as const;
+const FORBIDDEN_ACTIVE_DOC_TOKENS = [
+  '/api/core/v1',
+  '/api/app/v1',
+  '/api/admin/v1',
+  '/api/app/v3',
+  '/api/backend/v3',
+  '/backend/v3/api/audit_events',
+  '/backend/v3/api/policies',
+  '/backend/v3/api/teams',
+  '/backend/v3/api/projects/:projectId/deployment-targets',
+  '/backend/v3/api/projects/{projectId}/deployment-targets',
+  'createBirdCoderGeneratedCoreReadApiClient',
+  'createBirdCoderGeneratedCoreWriteApiClient',
+  'BirdCoderCoreReadApiClient',
+  'BirdCoderCoreWriteApiClient',
+  'BIRDCODER_SHARED_CORE_FACADE',
+  'ICoreReadService',
+  'ICoreWriteService',
+  'ApiBackedCoreReadService',
+  'ApiBackedCoreWriteService',
+  'coreReadService',
+  'coreWriteService',
+  'BirdCoderAdminApiContract',
+  'BirdCoderAdminApiModel',
+  'getBirdCoderAdminApiContract',
+  'getBirdCoderCoreApiContract',
+  'BirdCoderCodingServerOpenApiDocumentSeed',
+  'buildBirdCoderCodingServerOpenApiDocumentSeed',
+  'BirdCoderSplitSdkApiClients',
+  'CreateBirdCoderSplitSdkApiClientsOptions',
+  'createBirdCoderSplitSdkApiClients',
+  'App/Admin',
+  'generated-app/backend-client-facade-contract',
+  '17-Coding-Server-Core-App',
+  'api-backed-project-service-core-create-coding-session',
+  'default-ide-services-core-read-service-contract',
+  'core-read-cache-memory-bound-contract',
+  'default-ide-services-generated-app/backend-facade-contract',
+  'scripts/app/backend-sdk-consumer-contract',
+  'scripts/no-app/backend-client-wrapper-contract',
+  'test:app/backend-sdk-consumer-contract',
+  'test:generated-app/backend-client-facade-contract',
+  '`core`：',
+  '`admin`：',
+  'shared core',
+  'generated core',
+] as const;
+const FORBIDDEN_ACTIVE_DOC_PATTERNS = [
+  {
+    pattern: /@sdkwork\/birdcoder-types[^\n]*createBirdCoder(?:App|Backend)SdkApiClient/iu,
+    message:
+      'active docs must assign SDK client wrapper ownership to sdkClients.ts, not @sdkwork/birdcoder-types.',
+  },
+  {
+    pattern:
+      /packages\/sdkwork-birdcoder-types\/src\/server-api\.ts[^\n]*createBirdCoder(?:App|Backend)SdkApiClient/iu,
+    message:
+      'active docs must assign SDK client wrapper ownership to packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts.',
+  },
+] as const;
+
+const serverIndexSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-server/src/index.ts', import.meta.url),
+  'utf8',
+);
+const typesServerApiSource = readFileSync(
+  new URL('../packages/sdkwork-birdcoder-types/src/server-api.ts', import.meta.url),
+  'utf8',
+);
+
+function listActiveMarkdownDocs(dir: string): string[] {
+  const entries = readdirSync(dir);
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const absolutePath = join(dir, entry);
+    const relativePath = relative(process.cwd(), absolutePath).replaceAll('\\', '/');
+
+    if (relativePath.startsWith('docs/release/')) {
+      continue;
+    }
+
+    const stats = statSync(absolutePath);
+    if (stats.isDirectory()) {
+      files.push(...listActiveMarkdownDocs(absolutePath));
+      continue;
+    }
+
+    if (entry.endsWith('.md')) {
+      files.push(absolutePath);
+    }
+  }
+
+  return files;
+}
+
+function assertActiveDocsUseCanonicalApiAndSdkLanguage(): void {
+  for (const absolutePath of listActiveMarkdownDocs(join(process.cwd(), 'docs'))) {
+    const relativePath = relative(process.cwd(), absolutePath).replaceAll('\\', '/');
+    const source = readFileSync(absolutePath, 'utf8');
+    const lowerSource = source.toLowerCase();
+
+    for (const token of FORBIDDEN_ACTIVE_DOC_TOKENS) {
+      assert.equal(
+        lowerSource.includes(token.toLowerCase()),
+        false,
+        `${relativePath} must not keep retired API/SDK wording in active docs: ${token}`,
+      );
+    }
+
+    for (const { message, pattern } of FORBIDDEN_ACTIVE_DOC_PATTERNS) {
+      assert.doesNotMatch(source, pattern, `${relativePath} ${message}`);
+    }
+  }
+}
+
+function assertNoRetiredAdminApiSurfaceNaming(): void {
+  for (const [label, source] of [
+    ['packages/sdkwork-birdcoder-server/src/index.ts', serverIndexSource],
+    ['packages/sdkwork-birdcoder-types/src/server-api.ts', typesServerApiSource],
+  ] as const) {
+    assert.doesNotMatch(
+      source,
+      /\b(?:BirdCoderAdminApiContract|BirdCoderAdminApiModel|getBirdCoderAdminApiContract|ADMIN_API_CONTRACT)\b/u,
+      `${label} must expose the operator API as backend, not the retired admin API surface.`,
+    );
+  }
+}
+
+function assertNoRetiredOpenApiSeedBuilder(): void {
+  assert.doesNotMatch(
+    serverIndexSource,
+    /\b(?:BirdCoderCodingServerOpenApiDocumentSeed|buildBirdCoderCodingServerOpenApiDocumentSeed)\b/u,
+    'packages/sdkwork-birdcoder-server/src/index.ts must expose the canonical OpenAPI document builder without retired seed aliases.',
+  );
+}
 
 function assertNoForbiddenPrefix(value: string, context: string): void {
   for (const forbiddenPrefix of FORBIDDEN_PREFIXES) {
@@ -156,7 +294,31 @@ function assertStandardOpenApiGovernanceExtensions(
   );
 }
 
+function assertProblemJsonErrorResponses(
+  responses: Record<string, { content?: Record<string, unknown> }>,
+  context: string,
+): void {
+  for (const [statusCode, response] of Object.entries(responses)) {
+    if (!/^(?:4|5)\d\d$|^default$/u.test(statusCode)) {
+      continue;
+    }
+
+    assert.ok(
+      response.content?.['application/problem+json'],
+      `${context} ${statusCode} response must use API_SPEC application/problem+json.`,
+    );
+    assert.equal(
+      response.content?.['application/json'],
+      undefined,
+      `${context} ${statusCode} response must not expose problem details as application/json.`,
+    );
+  }
+}
+
 const descriptor = getBirdCoderCodingServerDescriptor();
+assertActiveDocsUseCanonicalApiAndSdkLanguage();
+assertNoRetiredAdminApiSurfaceNaming();
+assertNoRetiredOpenApiSeedBuilder();
 assert.equal(descriptor.gateway.routesBySurface.app, 73);
 assert.equal(descriptor.gateway.routesBySurface.backend, 7);
 assert.deepEqual(descriptor.surfaces, ['app', 'backend']);
@@ -234,10 +396,11 @@ for (const route of routeCatalog) {
   }
 }
 
-const openApiDocument = buildBirdCoderCodingServerOpenApiDocumentSeed();
+const openApiDocument = buildBirdCoderCodingServerOpenApiDocument();
 assert.deepEqual(openApiDocument.tags.map((tag) => tag.name), [
   'auth',
   'billing',
+  'collaboration',
   'content',
   'iam',
   'intelligence',
@@ -281,6 +444,10 @@ for (const [pathKey, methods] of Object.entries(openApiDocument.paths)) {
     );
     assertStandardOpenApiGovernanceExtensions(
       operation,
+      `${operation.operationId} OpenAPI operation`,
+    );
+    assertProblemJsonErrorResponses(
+      operation.responses,
       `${operation.operationId} OpenAPI operation`,
     );
     if (

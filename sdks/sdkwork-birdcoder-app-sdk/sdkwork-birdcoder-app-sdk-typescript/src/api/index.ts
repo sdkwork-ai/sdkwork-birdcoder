@@ -2,6 +2,7 @@
 
 export * from './auth';
 export * from './billing';
+export * from './collaboration';
 export * from './content';
 export * from './iam';
 export * from './intelligence';

@@ -209,12 +209,12 @@ export interface BirdCoderTeamSummaryListEnvelope {
   timestamp: string;
 }
 
-export interface IamTeamGovernanceListQuery extends Record<string, BirdcoderSdkQueryValue> {
+export interface IamTeamsListQuery extends Record<string, BirdcoderSdkQueryValue> {
   userId?: string;
   workspaceId?: string;
 }
 
-export interface IamTeamGovernanceMembersListPathParams {
+export interface IamTeamsMembersListPathParams {
   teamId: string;
 }
 
@@ -256,25 +256,25 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "tenantScope": "tenant"
   },
   {
-    "key": "iam.teamGovernance.list",
+    "key": "iam.teams.list",
     "method": "GET",
-    "operationId": "teamGovernance.list",
+    "operationId": "teams.list",
     "path": "/backend/v3/api/iam/teams",
     "pathParamNames": [],
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.teamGovernance.read",
+    "permission": "iam.teams.read",
     "public": false,
-    "resource": "iam.teamGovernance",
+    "resource": "iam.teams",
     "summary": "List teams",
     "tag": "iam",
     "tenantScope": "tenant"
   },
   {
-    "key": "iam.teamGovernance.members.list",
+    "key": "iam.teams.members.list",
     "method": "GET",
-    "operationId": "teamGovernance.members.list",
+    "operationId": "teams.members.list",
     "path": "/backend/v3/api/iam/teams/{teamId}/members",
     "pathParamNames": [
       "teamId"
@@ -282,9 +282,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.teamGovernance.members.read",
+    "permission": "iam.teams.members.read",
     "public": false,
-    "resource": "iam.teamGovernance.members",
+    "resource": "iam.teams.members",
     "summary": "List team members",
     "tag": "iam",
     "tenantScope": "tenant"

@@ -59,17 +59,24 @@ const appbaseOwnedLegacyIamTableNames = [
   'plus_organization',
   'plus_organization_member',
   'plus_member_relations',
+  'plus_department',
+  'plus_position',
   'plus_role',
   'plus_permission',
   'plus_role_permission',
   'plus_user_role',
   'plus_user',
   'plus_oauth_account',
+  'plus_user_address',
   'plus_vip_user',
   'plus_account',
   'plus_user_auth_session',
   'plus_user_verify_code',
   'plus_user_login_qr',
+  'plus_api_key',
+  'plus_api_security_policy',
+  'plus_invitation_code',
+  'plus_invitation_relation',
 ];
 
 const sqliteWorkspaceMigration = findCreateTableStatement(
@@ -90,61 +97,6 @@ for (const tableName of appbaseOwnedLegacyIamTableNames) {
     `PostgreSQL coding server migration must not declare appbase-owned legacy IAM table ${tableName}.`,
   );
 }
-const sqliteDepartmentMigration = findCreateTableStatement(
-  codingServerMigration,
-  'sqlite',
-  'plus_department',
-);
-assert.ok(sqliteDepartmentMigration, 'SQLite coding server migration must declare plus_department.');
-assertSqliteLongIdentifierColumns(sqliteDepartmentMigration, 'plus_department', {
-  id: 'INTEGER PRIMARY KEY',
-  tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-  organization_id: 'INTEGER NOT NULL DEFAULT 0',
-  parent_id: 'INTEGER NULL',
-  owner_id: 'INTEGER NOT NULL',
-  manager_id: 'INTEGER NULL',
-});
-assert.match(
-  sqliteDepartmentMigration,
-  /\bowner INTEGER NOT NULL\b/,
-  'SQLite plus_department.owner must store PlusPlatformOwner converter values as integer.',
-);
-const sqlitePositionMigration = findCreateTableStatement(
-  codingServerMigration,
-  'sqlite',
-  'plus_position',
-);
-assert.ok(sqlitePositionMigration, 'SQLite coding server migration must declare plus_position.');
-assertSqliteLongIdentifierColumns(sqlitePositionMigration, 'plus_position', {
-  id: 'INTEGER PRIMARY KEY',
-  tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-  organization_id: 'INTEGER NOT NULL DEFAULT 0',
-  parent_id: 'INTEGER NULL',
-  owner_id: 'INTEGER NOT NULL',
-});
-assert.match(
-  sqlitePositionMigration,
-  /\bowner INTEGER NOT NULL\b/,
-  'SQLite plus_position.owner must store PlusPlatformOwner converter values as integer.',
-);
-const sqliteUserAddressMigration = findCreateTableStatement(
-  codingServerMigration,
-  'sqlite',
-  'plus_user_address',
-);
-assert.ok(sqliteUserAddressMigration, 'SQLite coding server migration must declare plus_user_address.');
-assertSqliteLongIdentifierColumns(sqliteUserAddressMigration, 'plus_user_address', {
-  id: 'INTEGER PRIMARY KEY',
-  tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-  organization_id: 'INTEGER NOT NULL DEFAULT 0',
-  user_id: 'INTEGER NOT NULL',
-});
-assert.match(
-  sqliteUserAddressMigration,
-  /\bis_default INTEGER NOT NULL DEFAULT 0\b/,
-  'SQLite plus_user_address.is_default must use Java Boolean-compatible integer storage with false default.',
-);
-
 const canonicalUserCenterBusinessTables = [
   'plus_account_history',
   'plus_account_exchange_config',
@@ -176,7 +128,6 @@ const canonicalUserCenterBusinessTables = [
   'plus_channel_account',
   'plus_channel_proxy',
   'plus_channel_resource',
-  'plus_api_key',
   'plus_app',
   'plus_ai_model_availability',
   'plus_ai_model_compliance_profile',
@@ -191,7 +142,6 @@ const canonicalUserCenterBusinessTables = [
   'plus_ai_prompt',
   'plus_ai_prompt_history',
   'plus_ai_tool',
-  'plus_api_security_policy',
   'plus_category',
   'plus_attribute',
   'plus_tags',
@@ -211,8 +161,6 @@ const canonicalUserCenterBusinessTables = [
   'plus_favorite_folder',
   'plus_share',
   'plus_share_visit_record',
-  'plus_invitation_code',
-  'plus_invitation_relation',
   'plus_sns_follow_relation',
   'plus_sns_follow_statistics',
   'plus_comments',
@@ -460,12 +408,6 @@ const sqliteLongIdentifierColumnsByTable = {
     organization_id: 'INTEGER NOT NULL DEFAULT 0',
     channel_account_id: 'INTEGER NOT NULL',
   },
-  plus_api_key: {
-    id: 'INTEGER PRIMARY KEY',
-    tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-    organization_id: 'INTEGER NOT NULL DEFAULT 0',
-    user_id: 'INTEGER NULL',
-  },
   plus_app: {
     id: 'INTEGER PRIMARY KEY',
     tenant_id: 'INTEGER NOT NULL DEFAULT 0',
@@ -563,11 +505,6 @@ const sqliteLongIdentifierColumnsByTable = {
     organization_id: 'INTEGER NOT NULL DEFAULT 0',
     user_id: 'INTEGER NULL',
     owner_id: 'INTEGER NOT NULL',
-  },
-  plus_api_security_policy: {
-    id: 'INTEGER PRIMARY KEY',
-    tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-    organization_id: 'INTEGER NOT NULL DEFAULT 0',
   },
   plus_category: {
     id: 'INTEGER PRIMARY KEY',
@@ -724,19 +661,6 @@ const sqliteLongIdentifierColumnsByTable = {
     organization_id: 'INTEGER NOT NULL DEFAULT 0',
     user_id: 'INTEGER NULL',
     share_id: 'INTEGER NOT NULL',
-  },
-  plus_invitation_code: {
-    id: 'INTEGER PRIMARY KEY',
-    tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-    organization_id: 'INTEGER NOT NULL DEFAULT 0',
-    creator_user_id: 'INTEGER NOT NULL',
-  },
-  plus_invitation_relation: {
-    id: 'INTEGER PRIMARY KEY',
-    tenant_id: 'INTEGER NOT NULL DEFAULT 0',
-    organization_id: 'INTEGER NOT NULL DEFAULT 0',
-    inviter_user_id: 'INTEGER NOT NULL',
-    invitee_user_id: 'INTEGER NOT NULL',
   },
   plus_sns_follow_relation: {
     id: 'INTEGER PRIMARY KEY',
@@ -1056,7 +980,6 @@ for (const tableName of [
   'plus_channel_account',
   'plus_channel_proxy',
   'plus_channel_resource',
-  'plus_api_key',
   'plus_app',
   'plus_ai_model_availability',
   'plus_ai_model_compliance_profile',
@@ -1071,7 +994,6 @@ for (const tableName of [
   'plus_ai_prompt',
   'plus_ai_prompt_history',
   'plus_ai_tool',
-  'plus_api_security_policy',
   'plus_category',
   'plus_attribute',
   'plus_tags',
@@ -1091,8 +1013,6 @@ for (const tableName of [
   'plus_favorite_folder',
   'plus_share',
   'plus_share_visit_record',
-  'plus_invitation_code',
-  'plus_invitation_relation',
   'plus_sns_follow_relation',
   'plus_sns_follow_statistics',
   'plus_comments',
@@ -1311,9 +1231,6 @@ for (const [tableName, columnName, nullability] of [
   ['plus_channel_proxy', 'status', 'NOT NULL'],
   ['plus_channel_resource', 'resource', 'NOT NULL'],
   ['plus_channel_resource', 'channel', 'NOT NULL'],
-  ['plus_api_key', 'key_type', 'NOT NULL'],
-  ['plus_api_key', 'owner', 'NULL'],
-  ['plus_api_key', 'status', 'NOT NULL'],
   ['plus_app', 'status', 'NULL'],
   ['plus_app', 'app_type', 'NULL'],
   ['plus_ai_model_availability', 'status', 'NOT NULL'],
@@ -1367,9 +1284,6 @@ for (const [tableName, columnName, nullability] of [
   ['plus_favorite', 'content_type', 'NOT NULL'],
   ['plus_favorite', 'status', 'NOT NULL'],
   ['plus_favorite_folder', 'status', 'NOT NULL'],
-  ['plus_invitation_code', 'status', 'NOT NULL'],
-  ['plus_invitation_relation', 'reward_status', 'NOT NULL'],
-  ['plus_invitation_relation', 'reward_type', 'NULL'],
   ['plus_sns_follow_relation', 'relation_type', 'NOT NULL'],
   ['plus_sns_follow_relation', 'owner', 'NOT NULL'],
   ['plus_comments', 'content_type', 'NOT NULL'],
@@ -1638,7 +1552,6 @@ for (const [indexName, tableName, columnNames] of [
     'user_id, type, idempotency_key',
   ],
   ['uk_plus_channel_account_key', 'plus_channel_account', 'account_key'],
-  ['uk_plus_api_key_key_value', 'plus_api_key', 'key_value'],
   [
     'uk_ai_model_availability_scope',
     'plus_ai_model_availability',
@@ -1672,7 +1585,6 @@ for (const [indexName, tableName, columnNames] of [
   ],
   ['uk_agent_tool', 'plus_ai_agent_tool_relation', 'agent_id, tool_id'],
   ['uk_ai_agent_user_id_name', 'plus_ai_agent', 'tenant_id, organization_id, user_id, name'],
-  ['uk_plus_api_security_policy_policy_code', 'plus_api_security_policy', 'policy_code'],
   ['uk_plus_attribute_scope_code', 'plus_attribute', 'content_type, content_id, code'],
   ['uk_plus_push_device_endpoint_endpoint_id', 'plus_push_device_endpoint', 'endpoint_id'],
   [
@@ -1683,7 +1595,6 @@ for (const [indexName, tableName, columnNames] of [
   ['uk_plus_chat_message_content_message_id', 'plus_chat_message_content', 'message_id'],
   ['uk_favorite_user_content', 'plus_favorite', 'user_id, content_type, content_id'],
   ['uk_plus_share_share_code', 'plus_share', 'share_code'],
-  ['uk_plus_invitation_code_code', 'plus_invitation_code', 'code'],
   ['uk_sns_follow_relation', 'plus_sns_follow_relation', 'follower_id, following_id'],
   ['uk_sns_follow_statistics', 'plus_sns_follow_statistics', 'user_id, owner_id'],
   ['uk_vote_user_content', 'plus_content_vote', 'user_id, content_type, content_id'],
@@ -1758,8 +1669,6 @@ for (const [indexName, tableName, columnNames] of [
   ['idx_plus_channel_proxy_channel', 'plus_channel_proxy', 'channel'],
   ['idx_plus_channel_proxy_status', 'plus_channel_proxy', 'status'],
   ['idx_plus_channel_resource_account', 'plus_channel_resource', 'channel_account_id'],
-  ['idx_plus_api_key_user', 'plus_api_key', 'user_id'],
-  ['idx_plus_api_key_status', 'plus_api_key', 'status'],
   ['idx_app_user_id', 'plus_app', 'user_id'],
   ['idx_app_project_id', 'plus_app', 'project_id'],
   ['idx_app_status', 'plus_app', 'status'],
@@ -2151,52 +2060,6 @@ const postgresProjectMigration = codingServerMigration.sqlByProvider.postgresql?
 assert.ok(postgresProjectMigration, 'PostgreSQL coding server migration must declare studio_project.');
 const postgresWorkspaceMigration = findCreateTableStatement(codingServerMigration, 'postgresql', 'studio_workspace');
 assert.ok(postgresWorkspaceMigration, 'PostgreSQL coding server migration must declare studio_workspace.');
-const postgresDepartmentMigration = findCreateTableStatement(
-  codingServerMigration,
-  'postgresql',
-  'plus_department',
-);
-assert.ok(postgresDepartmentMigration, 'PostgreSQL coding server migration must declare plus_department.');
-assert.match(
-  postgresDepartmentMigration,
-  /\bowner_id BIGINT NOT NULL\b/,
-  'PostgreSQL plus_department.owner_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresDepartmentMigration,
-  /\bmanager_id BIGINT NULL\b/,
-  'PostgreSQL plus_department.manager_id must use Java Long-compatible bigint storage.',
-);
-const postgresPositionMigration = findCreateTableStatement(
-  codingServerMigration,
-  'postgresql',
-  'plus_position',
-);
-assert.ok(postgresPositionMigration, 'PostgreSQL coding server migration must declare plus_position.');
-assert.match(
-  postgresPositionMigration,
-  /\bowner_id BIGINT NOT NULL\b/,
-  'PostgreSQL plus_position.owner_id must use Java Long-compatible bigint storage.',
-);
-const postgresUserAddressMigration = findCreateTableStatement(
-  codingServerMigration,
-  'postgresql',
-  'plus_user_address',
-);
-assert.ok(
-  postgresUserAddressMigration,
-  'PostgreSQL coding server migration must declare plus_user_address.',
-);
-assert.match(
-  postgresUserAddressMigration,
-  /\buser_id BIGINT NOT NULL\b/,
-  'PostgreSQL plus_user_address.user_id must use Java Long-compatible bigint storage.',
-);
-assert.match(
-  postgresUserAddressMigration,
-  /\bis_default BOOLEAN NOT NULL\b/,
-  'PostgreSQL plus_user_address.is_default must use Java Boolean-compatible boolean storage.',
-);
 
 const postgresLongIdentifierColumnsByTable = {
   plus_account_history: {
@@ -2485,12 +2348,6 @@ const postgresLongIdentifierColumnsByTable = {
     organization_id: 'BIGINT NOT NULL DEFAULT 0',
     channel_account_id: 'BIGINT NOT NULL',
   },
-  plus_api_key: {
-    id: 'BIGINT PRIMARY KEY',
-    tenant_id: 'BIGINT NOT NULL DEFAULT 0',
-    organization_id: 'BIGINT NOT NULL DEFAULT 0',
-    user_id: 'BIGINT NULL',
-  },
   plus_app: {
     id: 'BIGINT PRIMARY KEY',
     tenant_id: 'BIGINT NOT NULL DEFAULT 0',
@@ -2588,11 +2445,6 @@ const postgresLongIdentifierColumnsByTable = {
     organization_id: 'BIGINT NOT NULL DEFAULT 0',
     user_id: 'BIGINT NULL',
     owner_id: 'BIGINT NOT NULL',
-  },
-  plus_api_security_policy: {
-    id: 'BIGINT PRIMARY KEY',
-    tenant_id: 'BIGINT NOT NULL DEFAULT 0',
-    organization_id: 'BIGINT NOT NULL DEFAULT 0',
   },
   plus_category: {
     id: 'BIGINT PRIMARY KEY',
@@ -2749,19 +2601,6 @@ const postgresLongIdentifierColumnsByTable = {
     organization_id: 'BIGINT NOT NULL DEFAULT 0',
     user_id: 'BIGINT NULL',
     share_id: 'BIGINT NOT NULL',
-  },
-  plus_invitation_code: {
-    id: 'BIGINT PRIMARY KEY',
-    tenant_id: 'BIGINT NOT NULL DEFAULT 0',
-    organization_id: 'BIGINT NOT NULL DEFAULT 0',
-    creator_user_id: 'BIGINT NOT NULL',
-  },
-  plus_invitation_relation: {
-    id: 'BIGINT PRIMARY KEY',
-    tenant_id: 'BIGINT NOT NULL DEFAULT 0',
-    organization_id: 'BIGINT NOT NULL DEFAULT 0',
-    inviter_user_id: 'BIGINT NOT NULL',
-    invitee_user_id: 'BIGINT NOT NULL',
   },
   plus_sns_follow_relation: {
     id: 'BIGINT PRIMARY KEY',
@@ -2948,7 +2787,6 @@ for (const tableName of [
   'plus_channel_account',
   'plus_channel_proxy',
   'plus_channel_resource',
-  'plus_api_key',
   'plus_app',
   'plus_ai_model_availability',
   'plus_ai_model_compliance_profile',
@@ -2963,7 +2801,6 @@ for (const tableName of [
   'plus_ai_prompt',
   'plus_ai_prompt_history',
   'plus_ai_tool',
-  'plus_api_security_policy',
   'plus_category',
   'plus_attribute',
   'plus_tags',
@@ -2983,8 +2820,6 @@ for (const tableName of [
   'plus_favorite_folder',
   'plus_share',
   'plus_share_visit_record',
-  'plus_invitation_code',
-  'plus_invitation_relation',
   'plus_sns_follow_relation',
   'plus_sns_follow_statistics',
   'plus_comments',
@@ -3176,9 +3011,6 @@ for (const [tableName, columnName, nullability] of [
   ['plus_channel_proxy', 'status', 'NOT NULL'],
   ['plus_channel_resource', 'resource', 'NOT NULL'],
   ['plus_channel_resource', 'channel', 'NOT NULL'],
-  ['plus_api_key', 'key_type', 'NOT NULL'],
-  ['plus_api_key', 'owner', 'NULL'],
-  ['plus_api_key', 'status', 'NOT NULL'],
   ['plus_app', 'status', 'NULL'],
   ['plus_app', 'app_type', 'NULL'],
   ['plus_ai_model_availability', 'status', 'NOT NULL'],
@@ -3232,9 +3064,6 @@ for (const [tableName, columnName, nullability] of [
   ['plus_favorite', 'content_type', 'NOT NULL'],
   ['plus_favorite', 'status', 'NOT NULL'],
   ['plus_favorite_folder', 'status', 'NOT NULL'],
-  ['plus_invitation_code', 'status', 'NOT NULL'],
-  ['plus_invitation_relation', 'reward_status', 'NOT NULL'],
-  ['plus_invitation_relation', 'reward_type', 'NULL'],
   ['plus_sns_follow_relation', 'relation_type', 'NOT NULL'],
   ['plus_sns_follow_relation', 'owner', 'NOT NULL'],
   ['plus_comments', 'content_type', 'NOT NULL'],
@@ -3329,7 +3158,6 @@ for (const [indexName, tableName, columnNames] of [
     'user_id, type, idempotency_key',
   ],
   ['uk_plus_channel_account_key', 'plus_channel_account', 'account_key'],
-  ['uk_plus_api_key_key_value', 'plus_api_key', 'key_value'],
   [
     'uk_ai_model_availability_scope',
     'plus_ai_model_availability',
@@ -3363,7 +3191,6 @@ for (const [indexName, tableName, columnNames] of [
   ],
   ['uk_agent_tool', 'plus_ai_agent_tool_relation', 'agent_id, tool_id'],
   ['uk_ai_agent_user_id_name', 'plus_ai_agent', 'tenant_id, organization_id, user_id, name'],
-  ['uk_plus_api_security_policy_policy_code', 'plus_api_security_policy', 'policy_code'],
   ['uk_plus_attribute_scope_code', 'plus_attribute', 'content_type, content_id, code'],
   ['uk_plus_push_device_endpoint_endpoint_id', 'plus_push_device_endpoint', 'endpoint_id'],
   [
@@ -3374,7 +3201,6 @@ for (const [indexName, tableName, columnNames] of [
   ['uk_plus_chat_message_content_message_id', 'plus_chat_message_content', 'message_id'],
   ['uk_favorite_user_content', 'plus_favorite', 'user_id, content_type, content_id'],
   ['uk_plus_share_share_code', 'plus_share', 'share_code'],
-  ['uk_plus_invitation_code_code', 'plus_invitation_code', 'code'],
   ['uk_sns_follow_relation', 'plus_sns_follow_relation', 'follower_id, following_id'],
   ['uk_sns_follow_statistics', 'plus_sns_follow_statistics', 'user_id, owner_id'],
   ['uk_vote_user_content', 'plus_content_vote', 'user_id, content_type, content_id'],
@@ -3413,8 +3239,6 @@ for (const [indexName, tableName, columnNames] of [
   ['idx_plus_channel_proxy_channel', 'plus_channel_proxy', 'channel'],
   ['idx_plus_channel_proxy_status', 'plus_channel_proxy', 'status'],
   ['idx_plus_channel_resource_account', 'plus_channel_resource', 'channel_account_id'],
-  ['idx_plus_api_key_user', 'plus_api_key', 'user_id'],
-  ['idx_plus_api_key_status', 'plus_api_key', 'status'],
   ['idx_app_user_id', 'plus_app', 'user_id'],
   ['idx_app_project_id', 'plus_app', 'project_id'],
   ['idx_app_status', 'plus_app', 'status'],

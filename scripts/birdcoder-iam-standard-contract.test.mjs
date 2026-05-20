@@ -100,6 +100,28 @@ const activeIamStandardDocSources = [
     readText('docs/step/14-appbase-auth-user-vip-统一接入实施.md'),
   ],
 ];
+const activeIamEvidenceDocSources = [
+  [
+    'architecture capability evidence matrix',
+    readText('docs/step/90-架构能力-Step-目录-证据映射矩阵.md'),
+  ],
+];
+const releaseIamDocSources = [
+  [
+    'release 2026-04-09-95 notes',
+    readText('docs/release/release-2026-04-09-95.md'),
+  ],
+  [
+    'release registry',
+    readText('docs/release/releases.json'),
+  ],
+];
+const sdkIamSpecSources = [
+  [
+    'SDK family component spec',
+    readText('sdks/specs/component.spec.json'),
+  ],
+];
 const { createBirdcoderIamEnvReport, pickManagedEnv } = await import(
   pathToFileURL(path.join(rootDir, 'scripts/show-birdcoder-iam-env.mjs')).href
 );
@@ -116,7 +138,7 @@ assert.equal(
 );
 assert.equal(
   workspacePackageJson.scripts?.['check:iam-standard'],
-  'node scripts/appbase-package-boundary-contract.test.mjs && node scripts/birdcoder-iam-appbase-parity-contract.test.mjs && node scripts/auth-ui-standard-contract.test.mjs && node scripts/iam-command-matrix-contract.test.mjs && node scripts/run-birdcoder-dev-stack-contract.test.mjs && node scripts/user-center-plus-entity-standard-contract.test.mjs && node --experimental-strip-types scripts/user-center-plugin-contract.test.ts',
+  'node scripts/appbase-package-boundary-contract.test.mjs && node scripts/birdcoder-iam-standard-contract.test.mjs && node scripts/birdcoder-iam-appbase-parity-contract.test.mjs && node scripts/auth-ui-standard-contract.test.mjs && node scripts/iam-command-matrix-contract.test.mjs && node scripts/run-birdcoder-dev-stack-contract.test.mjs && node scripts/user-center-plus-entity-standard-contract.test.mjs && node --experimental-strip-types scripts/user-center-plugin-contract.test.ts',
 );
 assert.equal(
   workspacePackageJson.scripts?.['test:iam-seed-parity-contract'],
@@ -178,6 +200,31 @@ for (const [label, source] of activeIamStandardDocSources) {
     source,
     /`identity`|\bidentity\./u,
     `${label} must name the standard domain iam, not the retired identity domain.`,
+  );
+}
+
+for (const [label, source] of activeIamEvidenceDocSources) {
+  assert.doesNotMatch(
+    source,
+    /\bIdentity Contract\b/u,
+    `${label} must describe appbase auth/user/vip evidence as IAM, not the retired identity domain.`,
+  );
+}
+
+for (const [label, source] of releaseIamDocSources) {
+  assert.doesNotMatch(
+    source,
+    /\b(?:BirdCoder identity|local identity|identity boundary|identity packages?)\b/iu,
+    `${label} must describe appbase IAM/user-center ownership without retired identity-domain wording.`,
+  );
+}
+
+for (const [label, source] of sdkIamSpecSources) {
+  assertNoLegacyIdentitySurface(source, label);
+  assert.doesNotMatch(
+    source,
+    /\bidentity\b/iu,
+    `${label} must describe the app/backend SDK IAM surface without retired identity-domain wording.`,
   );
 }
 
@@ -244,14 +291,14 @@ for (const [relativePath, label] of [
   ['packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts', 'default IDE services'],
   ['packages/sdkwork-birdcoder-infrastructure/src/services/lazyDefaultIdeServices.ts', 'lazy default IDE services'],
   ['packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCollaborationService.ts', 'collaboration API service'],
-  ['packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCoreReadService.ts', 'core read API service'],
+  ['packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts', 'app runtime read API service'],
   ['packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts', 'project API service'],
   ['packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedTeamService.ts', 'team API service'],
   ['packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedWorkspaceService.ts', 'workspace API service'],
   ['scripts/api-backed-project-service-import-authority-contract.test.ts', 'project import authority contract'],
   ['scripts/api-backed-project-service-user-scope-fallback-contract.test.ts', 'project user-scope fallback contract'],
   ['scripts/api-backed-workspace-service-user-scope-fallback-contract.test.ts', 'workspace user-scope fallback contract'],
-  ['scripts/default-ide-services-core-read-service-contract.test.ts', 'default IDE core read contract'],
+  ['scripts/default-ide-services-app-runtime-read-service-contract.test.ts', 'default IDE app runtime read contract'],
   ['scripts/prompt-skill-template-evidence-consumer-contract.test.ts', 'prompt skill evidence consumer contract'],
 ]) {
   assertNoServiceIdentityProviderAlias(readText(relativePath), label);

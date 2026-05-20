@@ -154,13 +154,13 @@ assert.deepEqual(
 
 assert.doesNotMatch(
   selectedMessagesHookSource,
-  /if \(\s*!isActive \|\|\s*!normalizedCodingSessionId \|\|\s*!coreReadService\s*\)/,
-  'Selected-session hydration must not require coreReadService before local transcript hydration can run.',
+  /if \(\s*!isActive \|\|\s*!normalizedCodingSessionId \|\|\s*!appRuntimeReadService\s*\)/,
+  'Selected-session hydration must not require appRuntimeReadService before local transcript hydration can run.',
 );
 
 assert.match(
   selectedMessagesHookSource,
-  /const localTranscriptReader =\s*projectService\.getCodingSessionTranscript\?\.bind\(projectService\);[\s\S]*if \(\s*!isActive \|\|\s*!normalizedCodingSessionId \|\|\s*\(!coreReadService && !localTranscriptReader\)\s*\)/,
+  /const localTranscriptReader =\s*projectService\.getCodingSessionTranscript\?\.bind\(projectService\);[\s\S]*if \(\s*!isActive \|\|\s*!normalizedCodingSessionId \|\|\s*\(!appRuntimeReadService && !localTranscriptReader\)\s*\)/,
   'Selected-session hydration should run when either authority refresh or local transcript hydration is available.',
 );
 

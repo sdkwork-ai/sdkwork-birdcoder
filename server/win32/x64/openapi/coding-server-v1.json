@@ -21,6 +21,10 @@
       "description": "Membership, VIP, and billing-facing app resources."
     },
     {
+      "name": "collaboration",
+      "description": "Workspace collaboration and team catalog resources."
+    },
+    {
       "name": "content",
       "description": "Project document and content resources."
     },
@@ -6537,7 +6541,7 @@
           "404": {
             "description": "Coding session was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6547,7 +6551,7 @@
           "500": {
             "description": "Coding session summary could not be read.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6557,7 +6561,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6613,7 +6617,7 @@
           "404": {
             "description": "Coding session was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6623,7 +6627,7 @@
           "500": {
             "description": "Coding session could not be deleted.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6633,7 +6637,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6699,7 +6703,7 @@
           "400": {
             "description": "Coding session update request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6709,7 +6713,7 @@
           "404": {
             "description": "Coding session was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6719,7 +6723,7 @@
           "500": {
             "description": "Coding session could not be updated.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6729,7 +6733,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6826,7 +6830,7 @@
           "500": {
             "description": "Unified coding session inventory could not be read.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6836,7 +6840,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6891,7 +6895,7 @@
           "400": {
             "description": "Coding session creation request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6901,7 +6905,7 @@
           "500": {
             "description": "Coding session could not be created.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6911,7 +6915,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -6958,7 +6962,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7016,7 +7020,7 @@
           "404": {
             "description": "Engine capability matrix was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7026,7 +7030,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7073,7 +7077,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7141,7 +7145,7 @@
           "400": {
             "description": "Coding session fork request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7151,7 +7155,7 @@
           "404": {
             "description": "Coding session was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7161,7 +7165,7 @@
           "500": {
             "description": "Coding session could not be forked.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7171,7 +7175,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7259,7 +7263,7 @@
           "404": {
             "description": "Native engine session was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7269,7 +7273,7 @@
           "500": {
             "description": "Native engine session detail could not be read.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7279,7 +7283,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7326,7 +7330,7 @@
           "500": {
             "description": "Native engine session provider catalog could not be read.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7336,7 +7340,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7433,7 +7437,7 @@
           "500": {
             "description": "Native engine session inventory could not be read.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7443,7 +7447,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7501,7 +7505,7 @@
           "404": {
             "description": "Coding session was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7511,7 +7515,7 @@
           "500": {
             "description": "Coding session events could not be read.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7521,7 +7525,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7568,7 +7572,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7615,7 +7619,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7670,7 +7674,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7717,7 +7721,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7775,7 +7779,7 @@
           "404": {
             "description": "Operation was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7785,7 +7789,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7853,7 +7857,7 @@
           "400": {
             "description": "Approval decision request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7863,7 +7867,7 @@
           "404": {
             "description": "Approval checkpoint was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7873,7 +7877,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7941,7 +7945,7 @@
           "400": {
             "description": "User-question answer request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7951,7 +7955,7 @@
           "404": {
             "description": "User-question checkpoint was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -7961,7 +7965,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8008,7 +8012,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8055,7 +8059,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8113,7 +8117,7 @@
           "404": {
             "description": "Coding session was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8123,7 +8127,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8181,7 +8185,7 @@
           "404": {
             "description": "Coding session was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8191,7 +8195,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8258,7 +8262,7 @@
           "404": {
             "description": "Coding session message was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8268,7 +8272,7 @@
           "500": {
             "description": "Coding session message could not be deleted.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8278,7 +8282,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8353,7 +8357,7 @@
           "400": {
             "description": "Coding session message edit request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8363,7 +8367,7 @@
           "404": {
             "description": "Coding session message was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8373,7 +8377,7 @@
           "500": {
             "description": "Coding session message could not be edited.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8383,7 +8387,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8451,7 +8455,7 @@
           "400": {
             "description": "Coding session turn request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8461,7 +8465,7 @@
           "404": {
             "description": "Coding session was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8471,7 +8475,7 @@
           "500": {
             "description": "Coding session turn could not be created.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8481,7 +8485,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8528,7 +8532,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8575,7 +8579,7 @@
           "500": {
             "description": "User center login QR challenge could not be created.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8585,7 +8589,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8637,7 +8641,7 @@
           "404": {
             "description": "User center login QR challenge was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8647,7 +8651,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8724,7 +8728,7 @@
           "400": {
             "description": "OAuth authorization request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8734,7 +8738,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8785,7 +8789,7 @@
           "400": {
             "description": "OAuth login request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8795,7 +8799,7 @@
           "401": {
             "description": "OAuth authorization code was rejected.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8805,7 +8809,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8856,7 +8860,7 @@
           "400": {
             "description": "Project creation request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8866,7 +8870,7 @@
           "404": {
             "description": "Workspace was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8876,7 +8880,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -8947,7 +8951,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9025,7 +9029,7 @@
           "400": {
             "description": "Project collaborator request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9035,7 +9039,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9045,7 +9049,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9101,7 +9105,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9111,7 +9115,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9168,7 +9172,7 @@
           "400": {
             "description": "Workspace creation request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9178,7 +9182,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9233,7 +9237,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9311,7 +9315,7 @@
           "400": {
             "description": "Workspace member request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9321,7 +9325,7 @@
           "404": {
             "description": "Workspace was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9331,7 +9335,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9387,7 +9391,7 @@
           "404": {
             "description": "Workspace was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9397,7 +9401,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9455,7 +9459,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9465,7 +9469,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9521,7 +9525,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9531,7 +9535,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9597,7 +9601,7 @@
           "400": {
             "description": "Project update request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9607,7 +9611,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9617,7 +9621,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9675,7 +9679,7 @@
           "404": {
             "description": "Workspace was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9685,7 +9689,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9751,7 +9755,7 @@
           "400": {
             "description": "Workspace update request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9761,7 +9765,7 @@
           "404": {
             "description": "Workspace was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9771,7 +9775,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9830,7 +9834,7 @@
           "400": {
             "description": "Workspace realtime subscription request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9840,7 +9844,7 @@
           "401": {
             "description": "A valid user-center session is required.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9850,7 +9854,7 @@
           "404": {
             "description": "Workspace was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9860,7 +9864,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9908,7 +9912,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -9955,7 +9959,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10013,7 +10017,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10023,7 +10027,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10091,7 +10095,7 @@
           "400": {
             "description": "Project Git branch creation request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10101,7 +10105,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10111,7 +10115,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10179,7 +10183,7 @@
           "400": {
             "description": "Project Git branch switch request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10189,7 +10193,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10199,7 +10203,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10267,7 +10271,7 @@
           "400": {
             "description": "Project Git commit request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10277,7 +10281,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10287,7 +10291,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10355,7 +10359,7 @@
           "400": {
             "description": "Project Git push request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10365,7 +10369,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10375,7 +10379,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10443,7 +10447,7 @@
           "400": {
             "description": "Project Git worktree creation request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10453,7 +10457,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10463,7 +10467,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10531,7 +10535,7 @@
           "400": {
             "description": "Project Git worktree removal request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10541,7 +10545,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10551,7 +10555,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10609,7 +10613,7 @@
           "400": {
             "description": "Project Git worktree prune request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10619,7 +10623,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10629,7 +10633,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10697,7 +10701,7 @@
           "400": {
             "description": "Skill package installation request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10707,7 +10711,7 @@
           "404": {
             "description": "Skill package was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10717,7 +10721,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10785,7 +10789,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10795,7 +10799,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10860,7 +10864,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10887,11 +10891,11 @@
     },
     "/app/v3/api/teams": {
       "get": {
-        "operationId": "teams.list",
+        "operationId": "workspaceTeams.list",
         "summary": "List workspace teams",
         "description": "List workspace teams. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "iam"
+          "collaboration"
         ],
         "parameters": [
           {
@@ -10925,7 +10929,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -10942,10 +10946,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.teams.read",
+        "x-sdkwork-domain": "collaboration",
+        "x-sdkwork-permission": "collaboration.workspaceTeams.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.teams",
+        "x-sdkwork-resource": "collaboration.workspaceTeams",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10972,7 +10976,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11019,7 +11023,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11064,7 +11068,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11121,7 +11125,7 @@
           "400": {
             "description": "User center session exchange request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11131,7 +11135,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11172,7 +11176,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11227,7 +11231,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11274,7 +11278,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11329,7 +11333,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11386,7 +11390,7 @@
           "400": {
             "description": "User center login request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11396,7 +11400,7 @@
           "401": {
             "description": "User center credentials were rejected.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11406,7 +11410,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11457,7 +11461,7 @@
           "400": {
             "description": "Password reset challenge request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11467,7 +11471,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11518,7 +11522,7 @@
           "400": {
             "description": "User center registration request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11528,7 +11532,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11579,7 +11583,7 @@
           "400": {
             "description": "Password reset request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11589,7 +11593,7 @@
           "401": {
             "description": "Password reset verification failed.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11599,7 +11603,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11650,7 +11654,7 @@
           "400": {
             "description": "Verification code request is invalid.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11660,7 +11664,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11701,7 +11705,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11748,7 +11752,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11806,7 +11810,7 @@
           "404": {
             "description": "Project was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11816,7 +11820,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11863,7 +11867,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11910,7 +11914,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11937,7 +11941,7 @@
     },
     "/backend/v3/api/iam/teams/{teamId}/members": {
       "get": {
-        "operationId": "teamGovernance.members.list",
+        "operationId": "teams.members.list",
         "summary": "List team members",
         "description": "List team members. Requires an authenticated BirdCoder admin session.",
         "tags": [
@@ -11968,7 +11972,7 @@
           "404": {
             "description": "Team was not found.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11978,7 +11982,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -11996,16 +12000,16 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.teamGovernance.members.read",
+        "x-sdkwork-permission": "iam.teams.members.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.teamGovernance.members",
+        "x-sdkwork-resource": "iam.teams.members",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
     "/backend/v3/api/iam/teams": {
       "get": {
-        "operationId": "teamGovernance.list",
+        "operationId": "teams.list",
         "summary": "List teams",
         "description": "List teams. Requires an authenticated BirdCoder admin session.",
         "tags": [
@@ -12043,7 +12047,7 @@
           "default": {
             "description": "Problem response envelope.",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
@@ -12061,9 +12065,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.teamGovernance.read",
+        "x-sdkwork-permission": "iam.teams.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.teamGovernance",
+        "x-sdkwork-resource": "iam.teams",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }

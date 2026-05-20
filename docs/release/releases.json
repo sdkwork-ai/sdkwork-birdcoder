@@ -1135,7 +1135,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-09-104",
                          "date":  "2026-04-09",
                          "status":  "pending",
-                         "summary":  "Promotes workspace package governance into the unified governance regression asset and fully removes the remaining standalone auth/user directory shells so appbase becomes the only physical and logical identity boundary.",
+                         "summary":  "Promotes workspace package governance into the unified governance regression asset and fully removes the remaining standalone auth/user directory shells so appbase becomes the only physical and logical IAM boundary.",
                          "notesFile":  "release-2026-04-09-104.md",
                          "carryForward":  [
                                               "release-2026-04-09-103"
@@ -1960,7 +1960,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-10-16",
                          "date":  "2026-04-10",
                          "status":  "pending",
-                         "summary":  "Adds the first Rust coding-server core route skeleton, removes the legacy plain-text health endpoint, and promotes Rust host verification into the Step 17 executable baseline.",
+                         "summary":  "Adds the first Rust coding-server app-runtime route skeleton, removes the legacy plain-text health endpoint, and promotes Rust host verification into the Step 17 executable baseline.",
                          "notesFile":  "release-2026-04-10-16.md",
                          "carryForward":  [
                                               "release-2026-04-10-15"
@@ -2290,7 +2290,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-01",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Adds the first shared core read facade on top of the generated coding-server client for implemented representative core routes, and locks that scope into release-flow governance.",
+                         "summary":  "Adds the first app-runtime read facade on top of the generated coding-server client for implemented representative app-runtime routes, and locks that scope into release-flow governance.",
                          "notesFile":  "release-2026-04-11-01.md",
                          "carryForward":  [
                                               "release-2026-04-10-45"
@@ -2301,7 +2301,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-02",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Extends the shared core facade to implemented coding-session projection reads, makes that route set executable under release-flow governance, and keeps placeholder core writes outside the facade boundary.",
+                         "summary":  "Extends the app-runtime facade to implemented coding-session projection reads, makes that route set executable under release-flow governance, and keeps placeholder app-runtime writes outside the facade boundary.",
                          "notesFile":  "release-2026-04-11-02.md",
                          "carryForward":  [
                                               "release-2026-04-11-01"
@@ -2334,7 +2334,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-05",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Adopts the implemented shared core read facade into the default IDE service/context/app-consumer path and makes that overview-read closure executable under release-flow governance.",
+                         "summary":  "Adopts the implemented app-runtime read facade into the default IDE service/context/app-consumer path and makes that overview-read closure executable under release-flow governance.",
                          "notesFile":  "release-2026-04-11-05.md",
                          "carryForward":  [
                                               "release-2026-04-11-04"
@@ -2345,7 +2345,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-06",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Adopts the implemented core projection read facade into the first reusable app-level coding-session detail consumer boundary and makes that slice executable under release-flow governance.",
+                         "summary":  "Adopts the implemented app-runtime projection read facade into the first reusable app-level coding-session detail consumer boundary and makes that slice executable under release-flow governance.",
                          "notesFile":  "release-2026-04-11-06.md",
                          "carryForward":  [
                                               "release-2026-04-11-05"
@@ -2356,7 +2356,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-07",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Adds explicit promoted/excluded operation catalogs for the shared core high-level facade and locks placeholder core-write exclusion into release-flow governance.",
+                         "summary":  "Adds explicit promoted/excluded operation catalogs for the app-runtime high-level facade and locks placeholder core-write exclusion into release-flow governance.",
                          "notesFile":  "release-2026-04-11-07.md",
                          "carryForward":  [
                                               "release-2026-04-11-06"
@@ -2367,7 +2367,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-08",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Turns core.createCodingSession into a real Rust-host authority write route with in-process create/read closure, sqlite provider persistence, and updated governance that keeps the route excluded only until the typed write facade closes.",
+                         "summary":  "Turns codingSessions.create into a real Rust-host authority write route with in-process create/read closure, sqlite provider persistence, and updated governance that keeps the route excluded only until the typed write facade closes.",
                          "notesFile":  "release-2026-04-11-08.md",
                          "carryForward":  [
                                               "release-2026-04-11-07"
@@ -2378,7 +2378,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-09",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Closes the typed shared core write facade for core.createCodingSession, promotes it into app-runtime SDK governance, and wires the first API-backed project-service consumer path while preserving refreshed UI session visibility.",
+                         "summary":  "Closes the typed app-runtime write facade for codingSessions.create, promotes it into app-runtime SDK governance, and wires the first API-backed project-service consumer path while preserving refreshed UI session visibility.",
                          "notesFile":  "release-2026-04-11-09.md",
                          "carryForward":  [
                                               "release-2026-04-11-08"
@@ -2389,7 +2389,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-10",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Turns core.createCodingSessionTurn into a real Rust-host authority route with sqlite turn/event/operation persistence, refreshed session/runtime timestamps, and updated loop governance for the next typed-facade adoption lane.",
+                         "summary":  "Turns codingSessions.turns.create into a real Rust-host authority route with sqlite turn/event/operation persistence, refreshed session/runtime timestamps, and updated loop governance for the next typed-facade adoption lane.",
                          "notesFile":  "release-2026-04-11-10.md",
                          "carryForward":  [
                                               "release-2026-04-11-09"
@@ -2400,7 +2400,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-11",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Closes the typed shared core write facade for core.createCodingSessionTurn, promotes it into app-runtime SDK governance, and wires the first project-service consumer path that mirrors server-authoritative turn ids into refreshed local session state.",
+                         "summary":  "Closes the typed app-runtime write facade for codingSessions.turns.create, promotes it into app-runtime SDK governance, and wires the first project-service consumer path that mirrors server-authoritative turn ids into refreshed local session state.",
                          "notesFile":  "release-2026-04-11-11.md",
                          "carryForward":  [
                                               "release-2026-04-11-10"
@@ -2411,7 +2411,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-12",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Closes real core engine capability and model catalog reads, promotes both into the shared core read facade, and wires the first overview consumer path on top of coreReadService while leaving approval writes blocked.",
+                         "summary":  "Closes real app-runtime engine capability and model catalog reads, promotes both into the app-runtime read facade, and wires the first overview consumer path on top of appRuntimeReadService while leaving approval writes blocked.",
                          "notesFile":  "release-2026-04-11-12.md",
                          "carryForward":  [
                                               "release-2026-04-11-11"
@@ -2422,7 +2422,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-11-13",
                          "date":  "2026-04-11",
                          "status":  "pending",
-                         "summary":  "Closes the real core approval-decision lane by promoting submitApprovalDecision into the shared core write facade, wiring the first approval consumer path, and fixing canonical approvalDecision event replay across demo and sqlite authority modes.",
+                         "summary":  "Closes the real core approval-decision lane by promoting submitApprovalDecision into the app-runtime write facade, wiring the first approval consumer path, and fixing canonical approvalDecision event replay across demo and sqlite authority modes.",
                          "notesFile":  "release-2026-04-11-13.md",
                          "carryForward":  [
                                               "release-2026-04-11-12"

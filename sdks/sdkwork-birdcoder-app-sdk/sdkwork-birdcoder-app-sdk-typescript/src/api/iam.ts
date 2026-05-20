@@ -7,14 +7,10 @@ import type {
 import type * as Types from '../types';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
-type IamTeamsListQuery = Types.IamTeamsListQuery;
 type IamWorkspacesMembersListPathParams = Types.IamWorkspacesMembersListPathParams;
 type IamWorkspacesMembersUpsertPathParams = Types.IamWorkspacesMembersUpsertPathParams;
 
 export interface IamApi {
-  teams: {
-    list(query?: IamTeamsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderTeamSummaryListEnvelope>;
-  };
   users: {
     current: {
       retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserCenterProfileEnvelope>;
@@ -31,11 +27,6 @@ export interface IamApi {
 
 export function createIamApi(requestOperation: BirdcoderSdkRequestOperation): IamApi {
   return {
-    teams: {
-      list(query: IamTeamsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderTeamSummaryListEnvelope>("iam.teams.list", { query }, options);
-      }
-    },
     users: {
       current: {
         retrieve(options: BirdcoderSdkRequestOptions = {}) {

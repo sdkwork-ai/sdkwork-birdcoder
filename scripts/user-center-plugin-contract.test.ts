@@ -416,7 +416,7 @@ assert.match(
 assert.match(
   authSurfaceSource,
   /createSdkworkAuthUserFromCanonicalIdentity/u,
-  'BirdCoder auth surface adapter must map BirdCoder identity into the canonical shared auth model.',
+  'BirdCoder auth surface adapter must map the BirdCoder IAM user into the canonical shared auth model.',
 );
 assertRootImportOnly(
   userPageSource,
@@ -493,7 +493,7 @@ assert.doesNotMatch(
 assert.doesNotMatch(
   appbaseAuthRuntimeIndexSource,
   /export \* from ['"][^'"]*\/auth-(?:service|iam-runtime)\.ts['"]/u,
-  'sdkwork-appbase auth runtime package root must not value-export core-backed UI auth service modules.',
+  'sdkwork-appbase auth runtime package root must not value-export app-runtime-backed UI auth service modules.',
 );
 assert.match(
   appbaseAuthRuntimeIndexSource,

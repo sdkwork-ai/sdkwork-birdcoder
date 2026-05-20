@@ -90,7 +90,7 @@ function CodePageComponent({
   } = useProjects(effectiveWorkspaceId, {
     isActive: isVisible,
   });
-  const { coreReadService, projectService } = useIDEServices();
+  const { appRuntimeReadService, projectService } = useIDEServices();
   const { user } = useAuth();
 
   const { addToast } = useToast();
@@ -190,11 +190,11 @@ function CodePageComponent({
       return local;
     }
 
-    return coreReadService.getCodingSession(codingSessionId)
+    return appRuntimeReadService.getCodingSession(codingSessionId)
       .then((session) => session.nativeSessionId?.trim() || null)
       .catch(() => null);
   }, [
-    coreReadService,
+    appRuntimeReadService,
     resolveSession,
   ]);
   const projectGitOverviewState = useProjectGitOverview({
@@ -485,7 +485,7 @@ function CodePageComponent({
     refreshingProjectId,
   } = useSessionRefreshActions({
     addToast,
-    coreReadService,
+    appRuntimeReadService,
     getPreservedSelection: () => ({
       codingSessionId: sessionId,
       projectId: currentProjectId,
@@ -1030,7 +1030,7 @@ function CodePageComponent({
   const isSelectedCodingSessionTranscriptVisible =
     isVisible && (activeTab === 'ai' || activeTab === 'editor');
   const isSelectedCodingSessionMessagesLoading = useSelectedCodingSessionMessages({
-    coreReadService,
+    appRuntimeReadService,
     isActive: isSelectedCodingSessionTranscriptVisible,
     projectService,
     selectionRefreshToken,

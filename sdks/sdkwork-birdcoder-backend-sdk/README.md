@@ -12,7 +12,8 @@ Do not edit generated output by hand. Update `sdks/specs/openapi/birdcoder-backe
 Example TypeScript calls:
 
 ```ts
-client.iam.users.list(params);
-client.iam.roles.list(params);
+client.iam.auditEvents.list();
+client.iam.policies.list();
+client.iam.teams.list(params);
 client.platform.releases.list(params);
 ```

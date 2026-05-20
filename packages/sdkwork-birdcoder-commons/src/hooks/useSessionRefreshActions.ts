@@ -13,8 +13,8 @@ import {
 
 type ToastTone = 'error' | 'success';
 
-type SessionRefreshCoreReadService = NonNullable<
-  Parameters<typeof refreshCodingSessionMessages>[0]['coreReadService']
+type SessionRefreshAppRuntimeReadService = NonNullable<
+  Parameters<typeof refreshCodingSessionMessages>[0]['appRuntimeReadService']
 >;
 
 interface SessionRefreshCodingSessionLocation {
@@ -36,7 +36,7 @@ interface SessionRefreshMessages {
 
 export interface UseSessionRefreshActionsOptions {
   addToast: (message: string, tone: ToastTone) => void;
-  coreReadService?: SessionRefreshCoreReadService;
+  appRuntimeReadService?: SessionRefreshAppRuntimeReadService;
   getPreservedSelection: () => PreservedSessionRefreshSelection;
   messages: SessionRefreshMessages;
   projectService: IProjectService;
@@ -55,7 +55,7 @@ export interface UseSessionRefreshActionsOptions {
 
 export function useSessionRefreshActions({
   addToast,
-  coreReadService,
+  appRuntimeReadService,
   getPreservedSelection,
   messages,
   projectService,
@@ -86,7 +86,7 @@ export function useSessionRefreshActions({
     setRefreshingProjectId(targetProjectId);
     try {
       const result = await refreshProjectSessions({
-        coreReadService,
+        appRuntimeReadService,
         identityScope: normalizedUserScope,
         projectId: targetProjectId,
         projectService,
@@ -117,7 +117,7 @@ export function useSessionRefreshActions({
     }
   }, [
     addToast,
-    coreReadService,
+    appRuntimeReadService,
     getPreservedSelection,
     messages,
     normalizedUserScope,
@@ -149,7 +149,7 @@ export function useSessionRefreshActions({
     try {
       const result = await refreshCodingSessionMessages({
         codingSessionId,
-        coreReadService,
+        appRuntimeReadService,
         identityScope: normalizedUserScope,
         projectService,
         ...(resolvedLocation ? { resolvedLocation } : {}),
@@ -202,7 +202,7 @@ export function useSessionRefreshActions({
     }
   }, [
     addToast,
-    coreReadService,
+    appRuntimeReadService,
     getPreservedSelection,
     messages,
     normalizedUserScope,

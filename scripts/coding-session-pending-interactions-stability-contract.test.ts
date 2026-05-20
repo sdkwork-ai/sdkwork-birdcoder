@@ -98,7 +98,7 @@ const duplicateQuestionEvents: BirdCoderCodingSessionEvent[] = [
 ];
 
 const readCalls: string[] = [];
-const coreReadService = {
+const appRuntimeReadService = {
   async getCodingSession(codingSessionId: string): Promise<BirdCoderCodingSessionSummary> {
     readCalls.push(`getCodingSession:${codingSessionId}`);
     return session;
@@ -123,8 +123,8 @@ const coreReadService = {
   },
 };
 
-const duplicateProjectionCoreReadService = {
-  ...coreReadService,
+const duplicateProjectionAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async listCodingSessionCheckpoints(
     codingSessionId: string,
   ): Promise<BirdCoderCodingSessionCheckpoint[]> {
@@ -139,8 +139,8 @@ const duplicateProjectionCoreReadService = {
   },
 };
 
-const reversedDuplicateProjectionCoreReadService = {
-  ...coreReadService,
+const reversedDuplicateProjectionAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async listCodingSessionCheckpoints(
     codingSessionId: string,
   ): Promise<BirdCoderCodingSessionCheckpoint[]> {
@@ -155,8 +155,8 @@ const reversedDuplicateProjectionCoreReadService = {
   },
 };
 
-const first = await loadCodingSessionPendingInteractionState(coreReadService, sessionId);
-const second = await loadCodingSessionPendingInteractionState(coreReadService, sessionId);
+const first = await loadCodingSessionPendingInteractionState(appRuntimeReadService, sessionId);
+const second = await loadCodingSessionPendingInteractionState(appRuntimeReadService, sessionId);
 
 assert.equal(first.approvals.length, 0);
 assert.equal(first.questions.length, 0);
@@ -187,7 +187,7 @@ assert.deepEqual(
 
 readCalls.length = 0;
 const deduplicated = await loadCodingSessionPendingInteractionState(
-  duplicateProjectionCoreReadService,
+  duplicateProjectionAppRuntimeReadService,
   sessionId,
 );
 
@@ -225,7 +225,7 @@ assert.deepEqual(
 
 readCalls.length = 0;
 const reverseOrderedDeduplicated = await loadCodingSessionPendingInteractionState(
-  reversedDuplicateProjectionCoreReadService,
+  reversedDuplicateProjectionAppRuntimeReadService,
   sessionId,
 );
 

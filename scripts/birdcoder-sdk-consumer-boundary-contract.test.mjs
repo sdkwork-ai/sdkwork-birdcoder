@@ -70,6 +70,11 @@ assert.doesNotMatch(
   /BirdCoderAppAdminApiClient|createBirdCoderGeneratedAppAdminApiClient|CreateBirdCoderGeneratedAppAdminApiClientOptions|appAdminClient/u,
   'sdkClients.ts must not reintroduce the retired app-admin facade naming.',
 );
+assert.doesNotMatch(
+  sdkClientsSource,
+  /\b(?:BirdCoderSplitSdkApiClients|CreateBirdCoderSplitSdkApiClientsOptions|createBirdCoderSplitSdkApiClients)\b/u,
+  'sdkClients.ts must not publish a mixed split-SDK wrapper; consumers must compose app and backend SDK clients explicitly.',
+);
 
 const infrastructureIndexSource = read('packages/sdkwork-birdcoder-infrastructure/src/index.ts');
 assert.doesNotMatch(

@@ -593,31 +593,23 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "List skill packages",
       "surface": "app"
     },
-  "teamGovernance.list":     {
+  "teams.list":     {
       "method": "GET",
-      "operationId": "teamGovernance.list",
+      "operationId": "teams.list",
       "path": "/backend/v3/api/iam/teams",
       "pathParamNames": [],
       "summary": "List teams",
       "surface": "backend"
     },
-  "teamGovernance.members.list":     {
+  "teams.members.list":     {
       "method": "GET",
-      "operationId": "teamGovernance.members.list",
+      "operationId": "teams.members.list",
       "path": "/backend/v3/api/iam/teams/{teamId}/members",
       "pathParamNames": [
         "teamId"
       ],
       "summary": "List team members",
       "surface": "backend"
-    },
-  "teams.list":     {
-      "method": "GET",
-      "operationId": "teams.list",
-      "path": "/app/v3/api/teams",
-      "pathParamNames": [],
-      "summary": "List workspace teams",
-      "surface": "app"
     },
   "users.current.retrieve":     {
       "method": "GET",
@@ -725,6 +717,14 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Update workspace",
       "surface": "app"
     },
+  "workspaceTeams.list":     {
+      "method": "GET",
+      "operationId": "workspaceTeams.list",
+      "path": "/app/v3/api/teams",
+      "pathParamNames": [],
+      "summary": "List workspace teams",
+      "surface": "app"
+    },
 } as const;
 
 export type BirdCoderFinalizedCodingServerClientOperationId =
@@ -796,9 +796,8 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "sessions.current.retrieve": {};
   "skillPackages.installations.create": { packageId: string };
   "skillPackages.list": {};
-  "teamGovernance.list": {};
-  "teamGovernance.members.list": { teamId: string };
   "teams.list": {};
+  "teams.members.list": { teamId: string };
   "users.current.retrieve": {};
   "users.current.update": {};
   "verificationCodes.create": {};
@@ -811,6 +810,7 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "workspaces.members.upsert": { workspaceId: string };
   "workspaces.realtime.subscribe": { workspaceId: string };
   "workspaces.update": { workspaceId: string };
+  "workspaceTeams.list": {};
 }
 
 export type BirdCoderFinalizedCodingServerClientPathParams<

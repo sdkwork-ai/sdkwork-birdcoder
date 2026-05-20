@@ -8,8 +8,10 @@
   "sourceOfTruth": {
     "api": "../../../specs/API_SPEC.md",
     "sdk": "../../../specs/SDK_SPEC.md",
+    "domain": "../../../specs/DOMAIN_SPEC.md",
     "component": "../../../specs/COMPONENT_SPEC.md",
     "canonicalOpenApi": "server/windows/x64/openapi/coding-server-v1.json",
+    "domainCatalog": "specs/domain-catalog.json",
     "openapi": [
       "specs/openapi/birdcoder-app-v3.openapi.json",
       "specs/openapi/birdcoder-backend-v3.openapi.json"

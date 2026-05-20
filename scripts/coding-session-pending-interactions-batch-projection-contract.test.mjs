@@ -31,7 +31,7 @@ assert.match(
 
 assert.match(
   projectionHookSource,
-  /export async function loadCodingSessionPendingInteractionState\([\s\S]*const projection = await loadCodingSessionProjection\(coreReadService, codingSessionId\);[\s\S]*const pendingInteractionIndex = buildPendingInteractionDerivationIndex\(projection\);[\s\S]*approvals: deriveCodingSessionPendingApprovalsFromIndex\(projection,\s*pendingInteractionIndex\),[\s\S]*questions: deriveCodingSessionPendingUserQuestionsFromIndex\(pendingInteractionIndex\),/,
+  /export async function loadCodingSessionPendingInteractionState\([\s\S]*const projection = await loadCodingSessionProjection\(appRuntimeReadService, codingSessionId\);[\s\S]*const pendingInteractionIndex = buildPendingInteractionDerivationIndex\(projection\);[\s\S]*approvals: deriveCodingSessionPendingApprovalsFromIndex\(projection,\s*pendingInteractionIndex\),[\s\S]*questions: deriveCodingSessionPendingUserQuestionsFromIndex\(pendingInteractionIndex\),/,
   'Combined pending interaction loader must load the session projection once and derive both approvals and questions from one shared projection index.',
 );
 
@@ -43,7 +43,7 @@ assert.match(
 
 assert.match(
   projectionHookSource,
-  /const refreshPendingInteractions = useCallback\([\s\S]*loadCodingSessionPendingInteractionState\(\s*coreReadService,\s*codingSessionId,\s*expectedProjectId,\s*\)[\s\S]*useEffect\(\(\) => \{\s*void refreshPendingInteractions\(\);\s*\}, \[refreshPendingInteractions, refreshToken\]\);/s,
+  /const refreshPendingInteractions = useCallback\([\s\S]*loadCodingSessionPendingInteractionState\(\s*appRuntimeReadService,\s*codingSessionId,\s*expectedProjectId,\s*\)[\s\S]*useEffect\(\(\) => \{\s*void refreshPendingInteractions\(\);\s*\}, \[refreshPendingInteractions, refreshToken\]\);/s,
   'Combined pending interaction hook must refresh both interaction types through one project-scoped projection read when the refresh token changes.',
 );
 

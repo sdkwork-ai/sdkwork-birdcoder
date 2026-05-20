@@ -73,10 +73,11 @@ Remove false governance-regression blockers so the gate fails only on real produ
 - `scripts/governance-regression-report.mjs` now also clears parent `pnpm run` lifecycle metadata before executing command-backed checks, so the Step `19` lane stays deterministic even when governance runs as the final tier of `check:quality:release`.
 - The governed root `build` path now avoids recursive `pnpm --filter @sdkwork/birdcoder-web build` execution and instead runs the web Vite host directly through `pnpm --dir packages/sdkwork-birdcoder-web exec node ../../scripts/run-vite-host.mjs build --mode production`; `check:quality:standard` now reuses the same direct web-host build chain.
 - `scripts/ci-flow-contract.test.mjs` and `scripts/quality-gate-matrix-contract.test.mjs` now freeze that same direct `check:quality:standard` command string, closing the final Step `19` tail drift that was still failing only on stale contract expectations.
+- `scripts/governance-regression-report.mjs` now also includes the coding-server API_SPEC path contract, so the Step `19` deterministic baseline directly covers canonical `/app/v3/api` and `/backend/v3/api` path governance.
 - Fresh release-tier evidence on `2026-04-13` now confirms both command surfaces are green with the declared `fast -> standard -> matrix -> release-flow -> ci-flow -> governance` topology unchanged:
   - `cmd /d /s /c "pnpm.cmd check:quality:release"` passes
   - `node scripts/quality-gate-execution-report.mjs` returns `status: passed` with `passedCount: 3`
-- Fresh `node scripts/governance-regression-report.mjs` evidence now returns `111/111` passed checks with the governed bundle sizes:
+- Fresh `node scripts/governance-regression-report.mjs` evidence now returns `112/112` passed checks with the governed bundle sizes:
   - entry `index-DJsuPCYU.js`: `68.1 KiB`
   - largest JS asset `vendor-markdown-DqZNkVdw.js`: `598.2 KiB`
 

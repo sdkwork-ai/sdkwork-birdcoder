@@ -69,8 +69,8 @@ The orchestrator must branch by source truth:
   - mirror summary changes into the matching BirdCoder project
   - parse native session messages from the session JSONL file
   - synchronize parsed messages into local persisted `codingSession.messages`
-- Server/core-backed coding session
-  - fetch session summary and projection data through `coreReadService`
+- Server/app-runtime-backed coding session
+  - fetch session summary and projection data through `appRuntimeReadService`
   - synchronize refreshed assistant and user-visible message state into the local project mirror
 - Other engines
   - use the same extension point and return a typed "not supported yet" result until a real authority reader exists
@@ -146,7 +146,7 @@ All visible wording should use `Session` instead of legacy `Thread` wherever the
 ### Session refresh
 
 1. Resolve the selected session and its owning project.
-2. Detect whether the session is native Codex, server/core-backed, or other.
+2. Detect whether the session is native Codex, server/app-runtime-backed, or other.
 3. Reload authoritative session content.
 4. Synchronize refreshed message state into local persisted session messages.
 5. Reload project list.
@@ -179,10 +179,10 @@ The parser does not need to perfectly model every Codex internal event in the fi
 
 ## Server/Core Session Synchronization
 
-For sessions backed by the BirdCoder core API:
+For sessions backed by the BirdCoder app runtime API:
 
-- use `coreReadService.getCodingSession(...)`
-- use `coreReadService.listCodingSessionEvents(...)`
+- use `appRuntimeReadService.getCodingSession(...)`
+- use `appRuntimeReadService.listCodingSessionEvents(...)`
 - optionally use artifacts and checkpoints if needed for richer future mapping
 
 The first slice should at minimum:
@@ -220,7 +220,7 @@ Add focused contract coverage for the following:
 
 - project refresh triggers native Codex inventory reload and project mirror synchronization
 - session refresh for native Codex updates local `messages` without duplication
-- session refresh for core-backed sessions reloads truth from `coreReadService`
+- session refresh for app-runtime-backed sessions reloads truth from `appRuntimeReadService`
 - Code and Studio wire refresh actions to the same shared workbench refresh module
 - App-level session inventory reloads after project refresh
 - refresh preserves selected project and selected session

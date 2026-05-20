@@ -1965,7 +1965,7 @@ assert.equal(
 const authorityBackedNativeRecord = await readAuthorityBackedNativeSessionRecord(
   richReplaySession.id,
   {
-    coreReadService: {
+    appRuntimeReadService: {
       async getNativeSession() {
         return richReplayNativeSession;
       },

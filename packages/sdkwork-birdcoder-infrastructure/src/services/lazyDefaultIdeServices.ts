@@ -10,8 +10,8 @@ import { ApiBackedAdminPolicyService } from './impl/ApiBackedAdminPolicyService.
 import { ApiBackedAuditService } from './impl/ApiBackedAuditService.ts';
 import { ApiBackedCatalogService } from './impl/ApiBackedCatalogService.ts';
 import { ApiBackedCollaborationService } from './impl/ApiBackedCollaborationService.ts';
-import { ApiBackedCoreReadService } from './impl/ApiBackedCoreReadService.ts';
-import { ApiBackedCoreWriteService } from './impl/ApiBackedCoreWriteService.ts';
+import { ApiBackedAppRuntimeReadService } from './impl/ApiBackedAppRuntimeReadService.ts';
+import { ApiBackedAppRuntimeWriteService } from './impl/ApiBackedAppRuntimeWriteService.ts';
 import { ApiBackedDeploymentService } from './impl/ApiBackedDeploymentService.ts';
 import { ApiBackedDocumentService } from './impl/ApiBackedDocumentService.ts';
 import { ApiBackedGitService } from './impl/ApiBackedGitService.ts';
@@ -113,14 +113,14 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
           currentUserProvider: runtime.authService,
         });
       }
-      case 'coreReadService': {
-        return new ApiBackedCoreReadService({
+      case 'appRuntimeReadService': {
+        return new ApiBackedAppRuntimeReadService({
           client: runtime.appRuntimeClient,
           currentUserProvider: runtime.authService,
         });
       }
-      case 'coreWriteService': {
-        return new ApiBackedCoreWriteService({
+      case 'appRuntimeWriteService': {
+        return new ApiBackedAppRuntimeWriteService({
           client: runtime.appRuntimeClient,
         });
       }

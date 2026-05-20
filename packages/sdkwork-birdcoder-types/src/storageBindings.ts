@@ -103,15 +103,6 @@ export const BIRDCODER_APPBASE_PLATFORM_CHANNEL_RESOURCE_STORAGE_BINDING: BirdCo
     storageMode: 'table',
   };
 
-export const BIRDCODER_APPBASE_PLATFORM_API_KEY_STORAGE_BINDING: BirdCoderEntityStorageBinding =
-  {
-    entityName: 'api_key',
-    storageScope: 'appbase.platform.api-key',
-    storageKey: 'api-keys.java',
-    preferredProvider: 'sqlite',
-    storageMode: 'table',
-  };
-
 export const BIRDCODER_APPBASE_APP_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
   entityName: 'app',
   storageScope: 'appbase.app',
@@ -233,15 +224,6 @@ export const BIRDCODER_APPBASE_AI_TOOL_STORAGE_BINDING: BirdCoderEntityStorageBi
     entityName: 'ai_tool',
     storageScope: 'appbase.ai-tool',
     storageKey: 'tools.java',
-    preferredProvider: 'sqlite',
-    storageMode: 'table',
-  };
-
-export const BIRDCODER_APPBASE_API_SECURITY_POLICY_STORAGE_BINDING: BirdCoderEntityStorageBinding =
-  {
-    entityName: 'api_security_policy',
-    storageScope: 'appbase.security.api',
-    storageKey: 'api-security-policies.java',
     preferredProvider: 'sqlite',
     storageMode: 'table',
   };
@@ -412,24 +394,6 @@ export const BIRDCODER_APPBASE_SHARE_VISIT_RECORD_STORAGE_BINDING: BirdCoderEnti
     entityName: 'share_visit_record',
     storageScope: 'appbase.share',
     storageKey: 'share-visit-records.java',
-    preferredProvider: 'sqlite',
-    storageMode: 'table',
-  };
-
-export const BIRDCODER_APPBASE_INVITATION_CODE_STORAGE_BINDING: BirdCoderEntityStorageBinding =
-  {
-    entityName: 'invitation_code',
-    storageScope: 'appbase.invitation',
-    storageKey: 'invitation-codes.java',
-    preferredProvider: 'sqlite',
-    storageMode: 'table',
-  };
-
-export const BIRDCODER_APPBASE_INVITATION_RELATION_STORAGE_BINDING: BirdCoderEntityStorageBinding =
-  {
-    entityName: 'invitation_relation',
-    storageScope: 'appbase.invitation',
-    storageKey: 'invitation-relations.java',
     preferredProvider: 'sqlite',
     storageMode: 'table',
   };

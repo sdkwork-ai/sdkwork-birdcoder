@@ -481,7 +481,7 @@ test('prepareSharedSdkPackages bridges shared appbase router runtime fallbacks i
       appbaseSpec.repoRoot,
       'packages',
       'pc-react',
-      'identity',
+      'iam',
       'sdkwork-auth-pc-react',
     );
     fs.mkdirSync(authPackageRoot, { recursive: true });

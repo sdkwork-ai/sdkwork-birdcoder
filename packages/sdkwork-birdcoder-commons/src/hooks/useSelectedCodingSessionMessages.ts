@@ -13,12 +13,12 @@ import {
 } from '../stores/projectsStore.ts';
 import { refreshCodingSessionMessages } from '../workbench/sessionRefresh.ts';
 
-type SelectedCodingSessionMessagesCoreReadService = NonNullable<
-  Parameters<typeof refreshCodingSessionMessages>[0]['coreReadService']
+type SelectedCodingSessionMessagesAppRuntimeReadService = NonNullable<
+  Parameters<typeof refreshCodingSessionMessages>[0]['appRuntimeReadService']
 >;
 
 export interface UseSelectedCodingSessionMessagesOptions {
-  coreReadService?: SelectedCodingSessionMessagesCoreReadService;
+  appRuntimeReadService?: SelectedCodingSessionMessagesAppRuntimeReadService;
   isActive?: boolean;
   projectService: IProjectService;
   selectionRefreshToken: number;
@@ -150,7 +150,7 @@ function setTrackedScopeValue(
 }
 
 export function useSelectedCodingSessionMessages({
-  coreReadService,
+  appRuntimeReadService,
   isActive = true,
   projectService,
   selectionRefreshToken,
@@ -206,7 +206,7 @@ export function useSelectedCodingSessionMessages({
   useEffect(() => {
     if (
       !isActive ||
-      !coreReadService ||
+      !appRuntimeReadService ||
       isSelectedCodingSessionMessagesLoading ||
       !normalizedCodingSessionId ||
       canUseWorkspaceRealtime
@@ -226,7 +226,7 @@ export function useSelectedCodingSessionMessages({
       window.clearTimeout(refreshTimer);
     };
   }, [
-    coreReadService,
+    appRuntimeReadService,
     canUseWorkspaceRealtime,
     hasSelectedCodingSessionPendingReply,
     isActive,
@@ -241,7 +241,7 @@ export function useSelectedCodingSessionMessages({
     if (
       !isActive ||
       !normalizedCodingSessionId ||
-      (!coreReadService && !localTranscriptReader)
+      (!appRuntimeReadService && !localTranscriptReader)
     ) {
       activeSynchronizationCountRef.current = 0;
       setIsSelectedCodingSessionMessagesLoading((previousState) =>
@@ -417,7 +417,7 @@ export function useSelectedCodingSessionMessages({
       if (!refreshResolvedLocation) {
         return refreshCodingSessionMessages({
           codingSessionId: normalizedCodingSessionId,
-          coreReadService,
+          appRuntimeReadService,
           identityScope: normalizedUserScope,
           projectService,
           workspaceId,
@@ -426,7 +426,7 @@ export function useSelectedCodingSessionMessages({
 
       return refreshCodingSessionMessages({
         codingSessionId: normalizedCodingSessionId,
-        coreReadService,
+        appRuntimeReadService,
         identityScope: normalizedUserScope,
         projectService,
         resolvedLocation: refreshResolvedLocation,
@@ -514,7 +514,7 @@ export function useSelectedCodingSessionMessages({
       attemptedSessionVersionsByScopeKey.delete(synchronizationScopeKey);
     };
   }, [
-    coreReadService,
+    appRuntimeReadService,
     projectService,
     selectionRefreshToken,
     isActive,

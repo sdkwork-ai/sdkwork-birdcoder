@@ -224,7 +224,7 @@ assert.match(
 assert.match(
   useProjectsSource,
   /if \(previousCodingSession && projectService\.upsertCodingSession\) \{[\s\S]*const mirrorCodingSession = \{[\s\S]*projectId: previousCodingSession\.projectId\?\.trim\(\) \|\| projectId,[\s\S]*workspaceId:[\s\S]*previousCodingSession\.workspaceId\?\.trim\(\)[\s\S]*previousProject\?\.workspaceId\?\.trim\(\)[\s\S]*normalizedWorkspaceId,[\s\S]*await projectService\.upsertCodingSession\(projectId, mirrorCodingSession\);[\s\S]*const newMessage = await projectService\.addCodingSessionMessage\(projectId, codingSessionId,/s,
-  'sendMessage must repair the project-service session mirror from a selected store session enriched with project/workspace identity before creating the core turn so stale mirror misses do not surface as delayed coding-session-not-found toasts.',
+  'sendMessage must repair the project-service session mirror from a selected store session enriched with project/workspace identity before creating the app runtime turn so stale mirror misses do not surface as delayed coding-session-not-found toasts.',
 );
 
 console.log('universal chat send recovery contract passed.');

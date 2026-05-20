@@ -18,7 +18,7 @@ import type {
   BirdCoderOperationDescriptor,
 } from '@sdkwork/birdcoder-types';
 import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
-import { ApiBackedCoreReadService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCoreReadService.ts';
+import { ApiBackedAppRuntimeReadService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts';
 import { TEST_CODE_ENGINE_MODEL_CONFIG } from './test-code-engine-model-config-fixture.ts';
 
 const routeFixture: BirdCoderApiRouteCatalogEntry = {
@@ -146,18 +146,18 @@ const nativeSessionProviderFixture: BirdCoderNativeSessionProviderSummary = {
 };
 
 const operationFixture: BirdCoderOperationDescriptor = {
-  operationId: 'operation-core-read-contract',
+  operationId: 'operation-app-runtime-read-contract',
   status: 'running',
-  artifactRefs: ['artifact-core-read-contract'],
+  artifactRefs: ['artifact-app-runtime-read-contract'],
   streamKind: 'sse',
-  streamUrl: '/app/v3/api/coding_sessions/session-core-read-contract/events',
+  streamUrl: '/app/v3/api/coding_sessions/session-app-runtime-read-contract/events',
 };
 
 const sessionFixture: BirdCoderCodingSessionSummary = {
-  id: 'session-core-read-contract',
-  workspaceId: 'workspace-core-read-contract',
-  projectId: 'project-core-read-contract',
-  title: 'Core read service contract',
+  id: 'session-app-runtime-read-contract',
+  workspaceId: 'workspace-app-runtime-read-contract',
+  projectId: 'project-app-runtime-read-contract',
+  title: 'App runtime read service contract',
   status: 'active',
   hostMode: 'desktop',
   engineId: 'codex',
@@ -168,10 +168,10 @@ const sessionFixture: BirdCoderCodingSessionSummary = {
 };
 
 const eventFixture: BirdCoderCodingSessionEvent = {
-  id: 'event-core-read-contract',
+  id: 'event-app-runtime-read-contract',
   codingSessionId: sessionFixture.id,
-  turnId: 'turn-core-read-contract',
-  runtimeId: 'runtime-core-read-contract',
+  turnId: 'turn-app-runtime-read-contract',
+  runtimeId: 'runtime-app-runtime-read-contract',
   kind: 'message.completed',
   sequence: '1',
   payload: {
@@ -181,21 +181,21 @@ const eventFixture: BirdCoderCodingSessionEvent = {
 };
 
 const artifactFixture: BirdCoderCodingSessionArtifact = {
-  id: 'artifact-core-read-contract',
+  id: 'artifact-app-runtime-read-contract',
   codingSessionId: sessionFixture.id,
-  turnId: 'turn-core-read-contract',
+  turnId: 'turn-app-runtime-read-contract',
   kind: 'diff',
   status: 'sealed',
   title: 'Patch',
-  blobRef: 'memory://artifact-core-read-contract',
+  blobRef: 'memory://artifact-app-runtime-read-contract',
   metadata: {},
   createdAt: '2026-04-11T10:05:00.000Z',
 };
 
 const checkpointFixture: BirdCoderCodingSessionCheckpoint = {
-  id: 'checkpoint-core-read-contract',
+  id: 'checkpoint-app-runtime-read-contract',
   codingSessionId: sessionFixture.id,
-  runtimeId: 'runtime-core-read-contract',
+  runtimeId: 'runtime-app-runtime-read-contract',
   checkpointKind: 'resume',
   resumable: true,
   state: {
@@ -280,42 +280,42 @@ const services = createDefaultBirdCoderIdeServices({
   appRuntimeClient: codingRuntimeClient,
 });
 
-assert.deepEqual(await services.coreReadService.getDescriptor(), descriptorFixture);
-assert.deepEqual(await services.coreReadService.getRuntime(), runtimeFixture);
-assert.deepEqual(await services.coreReadService.getHealth(), healthFixture);
-assert.deepEqual(await services.coreReadService.listEngines(), [engineFixture]);
+assert.deepEqual(await services.appRuntimeReadService.getDescriptor(), descriptorFixture);
+assert.deepEqual(await services.appRuntimeReadService.getRuntime(), runtimeFixture);
+assert.deepEqual(await services.appRuntimeReadService.getHealth(), healthFixture);
+assert.deepEqual(await services.appRuntimeReadService.listEngines(), [engineFixture]);
 assert.deepEqual(
-  await services.coreReadService.getEngineCapabilities(engineFixture.engineKey),
+  await services.appRuntimeReadService.getEngineCapabilities(engineFixture.engineKey),
   capabilityFixture,
 );
-assert.deepEqual(await services.coreReadService.listModels(), [modelFixture]);
-assert.deepEqual(await services.coreReadService.listNativeSessionProviders(), [
+assert.deepEqual(await services.appRuntimeReadService.listModels(), [modelFixture]);
+assert.deepEqual(await services.appRuntimeReadService.listNativeSessionProviders(), [
   nativeSessionProviderFixture,
 ]);
-assert.deepEqual(await services.coreReadService.listRoutes(), [routeFixture]);
+assert.deepEqual(await services.appRuntimeReadService.listRoutes(), [routeFixture]);
 assert.deepEqual(
-  await services.coreReadService.getOperation(operationFixture.operationId),
+  await services.appRuntimeReadService.getOperation(operationFixture.operationId),
   operationFixture,
 );
 assert.deepEqual(
-  await services.coreReadService.getCodingSession(sessionFixture.id),
+  await services.appRuntimeReadService.getCodingSession(sessionFixture.id),
   sessionFixture,
 );
 assert.deepEqual(
-  await services.coreReadService.listCodingSessionEvents(sessionFixture.id),
+  await services.appRuntimeReadService.listCodingSessionEvents(sessionFixture.id),
   [eventFixture],
 );
 assert.deepEqual(
-  await services.coreReadService.listCodingSessionArtifacts(sessionFixture.id),
+  await services.appRuntimeReadService.listCodingSessionArtifacts(sessionFixture.id),
   [artifactFixture],
 );
 assert.deepEqual(
-  await services.coreReadService.listCodingSessionCheckpoints(sessionFixture.id),
+  await services.appRuntimeReadService.listCodingSessionCheckpoints(sessionFixture.id),
   [checkpointFixture],
 );
 
 const longCacheKeyCalls: unknown[] = [];
-const longSafeCacheService = new ApiBackedCoreReadService({
+const longSafeCacheService = new ApiBackedAppRuntimeReadService({
   client: {
     ...codingRuntimeClient,
     async listCodingSessions(request) {
@@ -339,7 +339,7 @@ assert.deepEqual(
     workspaceId: 101777208078558061n,
   }),
   [sessionFixture],
-  'core read service cache keys must serialize provider-native bigint request ids without crashing before the generated client boundary.',
+  'app runtime read service cache keys must serialize provider-native bigint request ids without crashing before the generated client boundary.',
 );
 assert.deepEqual(longCacheKeyCalls, [
   {
@@ -364,4 +364,4 @@ assert.deepEqual(calls, [
   `listCodingSessionCheckpoints:${sessionFixture.id}`,
 ]);
 
-console.log('default IDE services core read service contract passed.');
+console.log('default IDE services app runtime read service contract passed.');

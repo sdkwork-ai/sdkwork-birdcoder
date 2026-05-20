@@ -46,7 +46,7 @@ const client = createBirdCoderAppSdkApiClient({
               id: 'coding-session-generated-write',
               workspaceId: 'workspace-generated-write',
               projectId: 'project-generated-write',
-              title: 'Generated Core Write Session',
+              title: 'Generated App Runtime Write Session',
               status: 'active',
               hostMode: 'server',
               engineId: 'codex',
@@ -63,7 +63,7 @@ const client = createBirdCoderAppSdkApiClient({
               id: 'coding-session-generated-write-fork',
               workspaceId: 'workspace-generated-write',
               projectId: 'project-generated-write',
-              title: 'Forked Generated Core Write Session',
+              title: 'Forked Generated App Runtime Write Session',
               status: 'active',
               hostMode: 'server',
               engineId: 'codex',
@@ -81,7 +81,7 @@ const client = createBirdCoderAppSdkApiClient({
                 id: 'coding-session-generated-write',
                 workspaceId: 'workspace-generated-write',
                 projectId: 'project-generated-write',
-                title: 'Renamed Generated Core Write Session',
+                title: 'Renamed Generated App Runtime Write Session',
                 status: 'paused',
                 hostMode: 'server',
                 engineId: 'codex',
@@ -128,7 +128,7 @@ const client = createBirdCoderAppSdkApiClient({
               runtimeId: 'runtime-generated-write',
               requestKind: 'chat',
               status: 'running',
-              inputSummary: 'Implement shared core write turn facade',
+              inputSummary: 'Implement app runtime write turn facade',
               startedAt: '2026-04-11T11:01:00.000Z',
               completedAt: null,
             },
@@ -187,7 +187,7 @@ const client = createBirdCoderAppSdkApiClient({
 const createdSession = await client.createCodingSession({
   workspaceId: 'workspace-generated-write',
   projectId: 'project-generated-write',
-  title: 'Generated Core Write Session',
+  title: 'Generated App Runtime Write Session',
   hostMode: 'server',
   engineId: 'codex',
   modelId: 'gpt-5-codex',
@@ -196,22 +196,22 @@ const createdSession = await client.createCodingSession({
 assert.equal(createdSession.id, 'coding-session-generated-write');
 assert.equal(createdSession.workspaceId, 'workspace-generated-write');
 assert.equal(createdSession.projectId, 'project-generated-write');
-assert.equal(createdSession.title, 'Generated Core Write Session');
+assert.equal(createdSession.title, 'Generated App Runtime Write Session');
 
 const forkedSession = await client.forkCodingSession('coding-session-generated-write', {
-  title: 'Forked Generated Core Write Session',
+  title: 'Forked Generated App Runtime Write Session',
 });
 
 assert.equal(forkedSession.id, 'coding-session-generated-write-fork');
-assert.equal(forkedSession.title, 'Forked Generated Core Write Session');
+assert.equal(forkedSession.title, 'Forked Generated App Runtime Write Session');
 
 const updatedSession = await client.updateCodingSession('coding-session-generated-write', {
-  title: 'Renamed Generated Core Write Session',
+  title: 'Renamed Generated App Runtime Write Session',
   status: 'paused',
 });
 
 assert.equal(updatedSession.id, 'coding-session-generated-write');
-assert.equal(updatedSession.title, 'Renamed Generated Core Write Session');
+assert.equal(updatedSession.title, 'Renamed Generated App Runtime Write Session');
 assert.equal(updatedSession.status, 'paused');
 assert.equal(updatedSession.modelId, 'gpt-5-codex');
 
@@ -242,7 +242,7 @@ assert.equal(deletedSession.id, 'coding-session-generated-write');
 const createdTurn = await client.createCodingSessionTurn('coding-session-generated-write', {
   runtimeId: 'runtime-generated-write',
   requestKind: 'chat',
-  inputSummary: 'Implement shared core write turn facade',
+  inputSummary: 'Implement app runtime write turn facade',
   stream: true,
 });
 
@@ -250,7 +250,7 @@ assert.equal(createdTurn.id, 'coding-turn-generated-write');
 assert.equal(createdTurn.codingSessionId, 'coding-session-generated-write');
 assert.equal(createdTurn.runtimeId, 'runtime-generated-write');
 assert.equal(createdTurn.requestKind, 'chat');
-assert.equal(createdTurn.inputSummary, 'Implement shared core write turn facade');
+assert.equal(createdTurn.inputSummary, 'Implement app runtime write turn facade');
 
 const approvalResult = await client.submitApprovalDecision('approval-generated-write', {
   decision: 'approved',
@@ -284,7 +284,7 @@ assert.equal(questionRejectResult.rejected, true);
 assert.equal(
   questionRejectResult.answer,
   undefined,
-  'generated core write client must not fake an empty answer when rejecting a user question.',
+  'app runtime write client must not fake an empty answer when rejecting a user question.',
 );
 assert.deepEqual(observedRequests, [
   {
@@ -293,7 +293,7 @@ assert.deepEqual(observedRequests, [
     body: {
       workspaceId: 'workspace-generated-write',
       projectId: 'project-generated-write',
-      title: 'Generated Core Write Session',
+      title: 'Generated App Runtime Write Session',
       hostMode: 'server',
       engineId: 'codex',
       modelId: 'gpt-5-codex',
@@ -303,14 +303,14 @@ assert.deepEqual(observedRequests, [
     method: 'POST',
     path: '/app/v3/api/coding_sessions/coding-session-generated-write/fork',
     body: {
-      title: 'Forked Generated Core Write Session',
+      title: 'Forked Generated App Runtime Write Session',
     },
   },
   {
     method: 'PATCH',
     path: '/app/v3/api/coding_sessions/coding-session-generated-write',
     body: {
-      title: 'Renamed Generated Core Write Session',
+      title: 'Renamed Generated App Runtime Write Session',
       status: 'paused',
     },
   },
@@ -335,7 +335,7 @@ assert.deepEqual(observedRequests, [
     body: {
       runtimeId: 'runtime-generated-write',
       requestKind: 'chat',
-      inputSummary: 'Implement shared core write turn facade',
+      inputSummary: 'Implement app runtime write turn facade',
       stream: true,
     },
   },

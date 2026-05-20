@@ -145,6 +145,23 @@ const requiredPaths = [
   'scripts/release/studio-preview-evidence-archive.mjs',
   'scripts/release/studio-simulator-evidence-archive.mjs',
   'scripts/release/studio-test-evidence-archive.mjs',
+  'sdks/.sdkwork-assembly.json',
+  'sdks/README.md',
+  'sdks/specs/README.md',
+  'sdks/specs/component.spec.json',
+  'sdks/specs/domain-catalog.json',
+  'sdks/specs/openapi/birdcoder-app-v3.openapi.json',
+  'sdks/specs/openapi/birdcoder-backend-v3.openapi.json',
+  'sdks/sdkwork-birdcoder-app-sdk/README.md',
+  'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/package.json',
+  'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts',
+  'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-rust/Cargo.toml',
+  'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-rust/src/lib.rs',
+  'sdks/sdkwork-birdcoder-backend-sdk/README.md',
+  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/package.json',
+  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts',
+  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-rust/Cargo.toml',
+  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-rust/src/lib.rs',
   'packages/sdkwork-birdcoder-studio/src/evidence/viewer.ts',
   'packages/sdkwork-birdcoder-studio/src/evidence/StudioEvidencePanel.tsx',
 ];
@@ -152,6 +169,8 @@ const requiredPaths = [
 const forbiddenResidualPaths = [
   'packages/sdkwork-birdcoder-appbase',
   'packages/sdkwork-birdcoder-appbase-storage',
+  'sdks/sdkwork-birdcoder-sdk',
+  'sdks/sdkwork-birdcoder-sdk-admin',
 ];
 
 const rootScanTargets = [
@@ -162,6 +181,7 @@ const rootScanTargets = [
   'docs',
   '.github/workflows',
   'src',
+  'sdks',
 ];
 
 const legacyReferencePatterns = [

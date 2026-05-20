@@ -20,11 +20,11 @@ import type {
 } from '../services/interfaces/IProjectService.ts';
 import {
   isAuthorityBackedNativeSessionId,
-  type NativeSessionAuthorityCoreReadService,
+  type NativeSessionAuthorityAppRuntimeReadService,
 } from './nativeSessionAuthority.ts';
 
-type CodingSessionRefreshCoreReadService =
-  NativeSessionAuthorityCoreReadService &
+type CodingSessionRefreshAppRuntimeReadService =
+  NativeSessionAuthorityAppRuntimeReadService &
   Pick<
     {
       getCodingSession(codingSessionId: string): Promise<BirdCoderCodingSessionSummary>;
@@ -41,7 +41,7 @@ type CodingSessionRefreshCoreReadService =
   >;
 
 export interface RefreshProjectSessionsOptions {
-  coreReadService?: CodingSessionRefreshCoreReadService;
+  appRuntimeReadService?: CodingSessionRefreshAppRuntimeReadService;
   identityScope?: string;
   projectId?: string;
   projectService: IProjectService;
@@ -51,7 +51,7 @@ export interface RefreshProjectSessionsOptions {
 
 export interface RefreshCodingSessionMessagesOptions {
   codingSessionId: string;
-  coreReadService?: CodingSessionRefreshCoreReadService;
+  appRuntimeReadService?: CodingSessionRefreshAppRuntimeReadService;
   identityScope?: string;
   projectService: IProjectService;
   refreshTimeoutMs?: number;
@@ -63,7 +63,7 @@ export interface RefreshProjectSessionsResult {
   mirroredSessionIds: string[];
   projectIds: string[];
   projects?: BirdCoderProject[];
-  source: 'core' | 'project-service';
+  source: 'app-runtime' | 'project-service';
   status: 'failed' | 'refreshed';
 }
 
@@ -72,7 +72,7 @@ export interface RefreshCodingSessionMessagesResult {
   codingSession?: BirdCoderCodingSession;
   messageCount: number;
   projectId: string;
-  source: 'core' | 'engine' | 'native-engine';
+  source: 'app-runtime' | 'engine' | 'native-engine';
   status: 'failed' | 'not-found' | 'refreshed' | 'unsupported';
   synchronizationVersion?: string;
   workspaceId?: string;
@@ -743,7 +743,7 @@ async function resolveCodingSessionLocation(
   projectService: IProjectService,
   codingSessionId: string,
   workspaceId?: string,
-  coreReadService?: CodingSessionRefreshCoreReadService,
+  appRuntimeReadService?: CodingSessionRefreshAppRuntimeReadService,
 ): Promise<ResolvedCodingSessionLocation | null> {
   const normalizedCodingSessionId = codingSessionId.trim();
   const normalizedWorkspaceId = workspaceId?.trim() || '';
@@ -753,9 +753,9 @@ async function resolveCodingSessionLocation(
     return null;
   }
 
-  if (coreReadService) {
+  if (appRuntimeReadService) {
     try {
-      const summary = await coreReadService.getCodingSession(normalizedCodingSessionId);
+      const summary = await appRuntimeReadService.getCodingSession(normalizedCodingSessionId);
       const authorityProject = await resolveAuthorityProjectForCodingSession(
         projectService,
         summary,
@@ -788,7 +788,7 @@ async function resolveCodingSessionLocation(
 
   if (normalizedWorkspaceId) {
     try {
-      if (coreReadService) {
+      if (appRuntimeReadService) {
         const mirrorLocation = await resolveCodingSessionLocationFromMirrorSnapshots(
           projectService,
           normalizedCodingSessionId,
@@ -852,7 +852,7 @@ export async function refreshProjectSessions(
           mirroredSessionIds: [],
           projectIds: [],
           projects: [],
-          source: options.coreReadService ? 'core' : 'project-service',
+          source: options.appRuntimeReadService ? 'app-runtime' : 'project-service',
           status: 'failed',
         } satisfies RefreshProjectSessionsResult;
       }
@@ -867,7 +867,7 @@ export async function refreshProjectSessions(
           mirroredSessionIds: [],
           projectIds: [],
           projects: [],
-          source: options.coreReadService ? 'core' : 'project-service',
+          source: options.appRuntimeReadService ? 'app-runtime' : 'project-service',
           status: 'failed',
         } satisfies RefreshProjectSessionsResult;
       }
@@ -880,7 +880,7 @@ export async function refreshProjectSessions(
         mirroredSessionIds,
         projectIds,
         projects,
-        source: options.coreReadService ? 'core' : 'project-service',
+        source: options.appRuntimeReadService ? 'app-runtime' : 'project-service',
         status: 'refreshed',
       } satisfies RefreshProjectSessionsResult;
     },
@@ -914,7 +914,7 @@ export async function refreshCodingSessionMessages(
         options.projectService,
         normalizedCodingSessionId,
         normalizedWorkspaceId,
-        options.coreReadService,
+        options.appRuntimeReadService,
       ),
     ));
   if (!resolvedLocation) {
@@ -942,7 +942,7 @@ export async function refreshCodingSessionMessages(
     async () => {
       requireProjectServiceUpsert(options.projectService);
 
-      if (!options.coreReadService) {
+      if (!options.appRuntimeReadService) {
         const settledRefresh = await settleStaleOrphanedRefreshRuntimeStatus({
           codingSessionId: normalizedCodingSessionId,
           projectService: options.projectService,
@@ -962,14 +962,14 @@ export async function refreshCodingSessionMessages(
         } satisfies RefreshCodingSessionMessagesResult;
       }
 
-      const coreReadService = options.coreReadService;
+      const appRuntimeReadService = options.appRuntimeReadService;
       let summary: BirdCoderCodingSessionSummary;
       let events: BirdCoderCodingSessionEvent[];
       try {
         summary =
           resolvedLocation.summary ??
-          (await coreReadService.getCodingSession(normalizedCodingSessionId));
-        events = await coreReadService.listCodingSessionEvents(
+          (await appRuntimeReadService.getCodingSession(normalizedCodingSessionId));
+        events = await appRuntimeReadService.listCodingSessionEvents(
           normalizedCodingSessionId,
         );
       } catch (error) {
@@ -977,7 +977,7 @@ export async function refreshCodingSessionMessages(
           codingSessionId: normalizedCodingSessionId,
           projectService: options.projectService,
           resolvedLocation,
-          source: 'core',
+          source: 'app-runtime',
         });
         if (settledRefresh) {
           return settledRefresh;
@@ -997,7 +997,7 @@ export async function refreshCodingSessionMessages(
           codingSessionId: normalizedCodingSessionId,
           messageCount: resolvedLocation.codingSession.messages.length,
           projectId: resolvedLocation.project.id,
-          source: 'core',
+          source: 'app-runtime',
           status: 'not-found',
           workspaceId: resolvedLocation.project.workspaceId,
         } satisfies RefreshCodingSessionMessagesResult;
@@ -1043,7 +1043,7 @@ export async function refreshCodingSessionMessages(
           resolvedLocation.codingSession.nativeSessionId,
         )
           ? 'native-engine'
-          : 'core',
+          : 'app-runtime',
         status: 'refreshed',
         synchronizationVersion: buildBirdCoderSessionSynchronizationVersion(
           refreshedSession,

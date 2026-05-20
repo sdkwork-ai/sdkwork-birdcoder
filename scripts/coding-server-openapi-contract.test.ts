@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 
-import { buildBirdCoderCodingServerOpenApiDocumentSeed } from '../packages/sdkwork-birdcoder-server/src/index.ts';
+import { buildBirdCoderCodingServerOpenApiDocument } from '../packages/sdkwork-birdcoder-server/src/index.ts';
 
-const documentSeed = buildBirdCoderCodingServerOpenApiDocumentSeed();
+const document = buildBirdCoderCodingServerOpenApiDocument();
 const rustServerSource = readFileSync(
   new URL('../packages/sdkwork-birdcoder-server/src-host/src/lib.rs', import.meta.url),
   'utf8',
@@ -13,14 +13,15 @@ function readJsonFixture<T>(url: URL): T {
   return JSON.parse(readFileSync(url, 'utf8').replace(/^\uFEFF/u, '')) as T;
 }
 
-assert.equal(documentSeed.openapi, '3.1.0');
-assert.equal(documentSeed.info.title, 'SDKWork BirdCoder Coding Server API');
-assert.equal(documentSeed.info.version, 'v1');
-assert.match(documentSeed.info.description, /unified same-port API gateway/i);
-assert.equal(documentSeed.servers[0]?.url, '/');
-assert.deepEqual(documentSeed.tags.map((tag) => tag.name), [
+assert.equal(document.openapi, '3.1.0');
+assert.equal(document.info.title, 'SDKWork BirdCoder Coding Server API');
+assert.equal(document.info.version, 'v1');
+assert.match(document.info.description, /unified same-port API gateway/i);
+assert.equal(document.servers[0]?.url, '/');
+assert.deepEqual(document.tags.map((tag) => tag.name), [
   'auth',
   'billing',
+  'collaboration',
   'content',
   'iam',
   'intelligence',
@@ -30,32 +31,32 @@ assert.deepEqual(documentSeed.tags.map((tag) => tag.name), [
   'system',
   'templates',
 ]);
-assert.equal(documentSeed.components.securitySchemes.bearerAuth.type, 'http');
-assert.equal(documentSeed.components.securitySchemes.sdkworkAccessToken.type, 'apiKey');
-assert.equal(documentSeed.components.securitySchemes.sdkworkAccessToken.in, 'header');
-assert.equal(documentSeed.components.securitySchemes.sdkworkAccessToken.name, 'Sdkwork-Access-Token');
-assert.equal(documentSeed['x-sdkwork-api-gateway'].liveOpenApiPath, '/openapi.json');
-assert.equal(documentSeed['x-sdkwork-api-gateway'].docsPath, '/docs');
-assert.equal(documentSeed['x-sdkwork-api-gateway'].routeCatalogPath, '/app/v3/api/system/routes');
+assert.equal(document.components.securitySchemes.bearerAuth.type, 'http');
+assert.equal(document.components.securitySchemes.sdkworkAccessToken.type, 'apiKey');
+assert.equal(document.components.securitySchemes.sdkworkAccessToken.in, 'header');
+assert.equal(document.components.securitySchemes.sdkworkAccessToken.name, 'Sdkwork-Access-Token');
+assert.equal(document['x-sdkwork-api-gateway'].liveOpenApiPath, '/openapi.json');
+assert.equal(document['x-sdkwork-api-gateway'].docsPath, '/docs');
+assert.equal(document['x-sdkwork-api-gateway'].routeCatalogPath, '/app/v3/api/system/routes');
 assert.equal(
-  documentSeed['x-sdkwork-api-gateway'].routeCount,
-  Object.values(documentSeed['x-sdkwork-api-gateway'].routesBySurface).reduce(
+  document['x-sdkwork-api-gateway'].routeCount,
+  Object.values(document['x-sdkwork-api-gateway'].routesBySurface).reduce(
     (total, routeCount) => total + routeCount,
     0,
   ),
 );
 assert.deepEqual(
-  documentSeed['x-sdkwork-api-gateway'].surfaces.map((surface) => surface.name),
+  document['x-sdkwork-api-gateway'].surfaces.map((surface) => surface.name),
   ['app', 'backend'],
 );
 assert.deepEqual(
-  documentSeed['x-sdkwork-api-gateway'].surfaces.map((surface) => surface.routeCount),
+  document['x-sdkwork-api-gateway'].surfaces.map((surface) => surface.routeCount),
   [
-    documentSeed['x-sdkwork-api-gateway'].routesBySurface.app,
-    documentSeed['x-sdkwork-api-gateway'].routesBySurface.backend,
+    document['x-sdkwork-api-gateway'].routesBySurface.app,
+    document['x-sdkwork-api-gateway'].routesBySurface.backend,
   ],
 );
-const operationsWithoutSuccessSchema = Object.entries(documentSeed.paths).flatMap(([pathKey, methods]) =>
+const operationsWithoutSuccessSchema = Object.entries(document.paths).flatMap(([pathKey, methods]) =>
   Object.entries(methods ?? {}).flatMap(([methodKey, operation]) => {
     if (operation['x-sdkwork-stream-kind'] === 'websocket') {
       return operation.responses['101']
@@ -70,8 +71,23 @@ const operationsWithoutSuccessSchema = Object.entries(documentSeed.paths).flatMa
   }),
 );
 assert.deepEqual(operationsWithoutSuccessSchema, []);
-const publishedOperationIds = Object.values(documentSeed.paths).flatMap((methods) =>
+const publishedOperationIds = Object.values(document.paths).flatMap((methods) =>
   Object.values(methods ?? {}).map((operation) => operation.operationId),
+);
+assert.equal(
+  publishedOperationIds.length,
+  new Set(publishedOperationIds).size,
+  'coding-server OpenAPI operationIds must stay globally unique without implementation-detail aliases.',
+);
+assert.equal(
+  publishedOperationIds.includes('teamGovernance.list'),
+  false,
+  'backend IAM teams must use the canonical resource operationId teams.list instead of teamGovernance.list.',
+);
+assert.equal(
+  publishedOperationIds.includes('teamGovernance.members.list'),
+  false,
+  'backend IAM team members must use the canonical resource operationId teams.members.list instead of teamGovernance.members.list.',
 );
 assert.equal(
   publishedOperationIds.includes('sessions.createWithEmailCode'),
@@ -96,53 +112,53 @@ for (const oldAppbasePath of [
   '/app/v3/api/billing/vip_info',
 ]) {
   assert.equal(
-    documentSeed.paths[oldAppbasePath],
+    document.paths[oldAppbasePath],
     undefined,
     `${oldAppbasePath} must not be exposed because BirdCoder uses the canonical appbase IAM route set.`,
   );
 }
-assert.equal(documentSeed.paths['/app/v3/api/system/routes']?.get?.operationId, 'routes.list');
-assert.equal(documentSeed.paths['/app/v3/api/system/routes']?.get?.['x-sdkwork-auth-mode'], 'user');
-assert.equal(documentSeed.paths['/app/v3/api/native_sessions']?.get?.operationId, 'nativeSessions.list');
-assert.equal(documentSeed.paths['/app/v3/api/native_sessions/{id}']?.get?.operationId, 'nativeSessions.retrieve');
-assert.equal(documentSeed.paths['/app/v3/api/coding_sessions']?.post?.operationId, 'codingSessions.create');
-assert.equal(documentSeed.paths['/app/v3/api/coding_sessions/{id}']?.patch?.operationId, 'codingSessions.update');
-assert.equal(documentSeed.paths['/app/v3/api/coding_sessions/{id}']?.delete?.operationId, 'codingSessions.delete');
+assert.equal(document.paths['/app/v3/api/system/routes']?.get?.operationId, 'routes.list');
+assert.equal(document.paths['/app/v3/api/system/routes']?.get?.['x-sdkwork-auth-mode'], 'user');
+assert.equal(document.paths['/app/v3/api/native_sessions']?.get?.operationId, 'nativeSessions.list');
+assert.equal(document.paths['/app/v3/api/native_sessions/{id}']?.get?.operationId, 'nativeSessions.retrieve');
+assert.equal(document.paths['/app/v3/api/coding_sessions']?.post?.operationId, 'codingSessions.create');
+assert.equal(document.paths['/app/v3/api/coding_sessions/{id}']?.patch?.operationId, 'codingSessions.update');
+assert.equal(document.paths['/app/v3/api/coding_sessions/{id}']?.delete?.operationId, 'codingSessions.delete');
 assert.equal(
-  documentSeed.paths['/app/v3/api/coding_sessions/{id}/messages/{messageId}']?.patch?.operationId,
+  document.paths['/app/v3/api/coding_sessions/{id}/messages/{messageId}']?.patch?.operationId,
   'codingSessions.messages.update',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/coding_sessions/{id}/messages/{messageId}']?.delete?.operationId,
+  document.paths['/app/v3/api/coding_sessions/{id}/messages/{messageId}']?.delete?.operationId,
   'codingSessions.messages.delete',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/coding_sessions/{id}/fork']?.post?.operationId,
+  document.paths['/app/v3/api/coding_sessions/{id}/fork']?.post?.operationId,
   'codingSessions.forks.create',
 );
-assert.equal(documentSeed.paths['/app/v3/api/coding_sessions/{id}/events']?.get?.operationId, 'codingSessions.events.list');
-assert.equal(documentSeed.paths['/app/v3/api/operations/{operationId}']?.get?.operationId, 'operations.retrieve');
+assert.equal(document.paths['/app/v3/api/coding_sessions/{id}/events']?.get?.operationId, 'codingSessions.events.list');
+assert.equal(document.paths['/app/v3/api/operations/{operationId}']?.get?.operationId, 'operations.retrieve');
 assert.equal(
-  documentSeed.paths['/app/v3/api/questions/{questionId}/answer']?.post?.operationId,
+  document.paths['/app/v3/api/questions/{questionId}/answer']?.post?.operationId,
   'questions.answers.create',
 );
-assert.equal(documentSeed.paths['/app/v3/api/auth/config']?.get?.operationId, 'config.retrieve');
-assert.equal(documentSeed.paths['/app/v3/api/auth/sessions/current']?.get?.operationId, 'sessions.current.retrieve');
-assert.equal(documentSeed.paths['/app/v3/api/auth/sessions']?.post?.operationId, 'sessions.create');
+assert.equal(document.paths['/app/v3/api/auth/config']?.get?.operationId, 'config.retrieve');
+assert.equal(document.paths['/app/v3/api/auth/sessions/current']?.get?.operationId, 'sessions.current.retrieve');
+assert.equal(document.paths['/app/v3/api/auth/sessions']?.post?.operationId, 'sessions.create');
 assert.equal(
-  documentSeed.paths['/app/v3/api/auth/qr_login_codes']?.post?.operationId,
+  document.paths['/app/v3/api/auth/qr_login_codes']?.post?.operationId,
   'qrLoginCodes.create',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/auth/qr_login_codes/{qrKey}']?.get?.operationId,
+  document.paths['/app/v3/api/auth/qr_login_codes/{qrKey}']?.get?.operationId,
   'qrLoginCodes.retrieve',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/auth/oauth_authorization_urls']?.get?.operationId,
+  document.paths['/app/v3/api/auth/oauth_authorization_urls']?.get?.operationId,
   'oauthAuthorizationUrls.retrieve',
 );
 assert.deepEqual(
-  documentSeed.paths['/app/v3/api/auth/oauth_authorization_urls']?.get?.parameters?.map(
+  document.paths['/app/v3/api/auth/oauth_authorization_urls']?.get?.parameters?.map(
     (parameter) => [parameter.name, parameter.in, Boolean(parameter.required)],
   ),
   [
@@ -154,92 +170,107 @@ assert.deepEqual(
   'OAuth authorization URL retrieval must use the appbase GET query-parameter contract.',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/auth/oauth_sessions']?.post?.operationId,
+  document.paths['/app/v3/api/auth/oauth_sessions']?.post?.operationId,
   'oauthSessions.create',
 );
-assert.equal(documentSeed.paths['/app/v3/api/auth/registrations']?.post?.operationId, 'registrations.create');
+assert.equal(document.paths['/app/v3/api/auth/registrations']?.post?.operationId, 'registrations.create');
 assert.equal(
-  documentSeed.paths['/app/v3/api/auth/verification_codes']?.post?.operationId,
+  document.paths['/app/v3/api/auth/verification_codes']?.post?.operationId,
   'verificationCodes.create',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/auth/password_reset_requests']?.post?.operationId,
+  document.paths['/app/v3/api/auth/password_reset_requests']?.post?.operationId,
   'passwordResetRequests.create',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/auth/password_resets']?.post?.operationId,
+  document.paths['/app/v3/api/auth/password_resets']?.post?.operationId,
   'passwordResets.create',
 );
-assert.equal(documentSeed.paths['/app/v3/api/auth/sessions/current']?.post?.operationId, 'sessions.current.delete');
-assert.equal(documentSeed.paths['/app/v3/api/auth/session_exchanges']?.post?.operationId, 'sessionExchanges.create');
-assert.equal(documentSeed.paths['/app/v3/api/iam/users/current']?.get?.operationId, 'users.current.retrieve');
-assert.equal(documentSeed.paths['/app/v3/api/iam/users/current']?.patch?.operationId, 'users.current.update');
-assert.equal(documentSeed.paths['/app/v3/api/billing/vip/info']?.get?.operationId, 'vip.info.retrieve');
-assert.equal(documentSeed.paths['/app/v3/api/billing/vip/info']?.patch?.operationId, 'vip.info.update');
-assert.equal(documentSeed.paths['/app/v3/api/projects']?.get?.operationId, 'projects.list');
-assert.equal(documentSeed.paths['/app/v3/api/projects']?.post?.operationId, 'projects.create');
+assert.equal(document.paths['/app/v3/api/auth/sessions/current']?.post?.operationId, 'sessions.current.delete');
+assert.equal(document.paths['/app/v3/api/auth/session_exchanges']?.post?.operationId, 'sessionExchanges.create');
+assert.equal(document.paths['/app/v3/api/iam/users/current']?.get?.operationId, 'users.current.retrieve');
+assert.equal(document.paths['/app/v3/api/iam/users/current']?.patch?.operationId, 'users.current.update');
+assert.equal(document.paths['/app/v3/api/billing/vip/info']?.get?.operationId, 'vip.info.retrieve');
+assert.equal(document.paths['/app/v3/api/billing/vip/info']?.patch?.operationId, 'vip.info.update');
+assert.equal(document.paths['/app/v3/api/projects']?.get?.operationId, 'projects.list');
+assert.equal(document.paths['/app/v3/api/projects']?.post?.operationId, 'projects.create');
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/overview']?.get?.operationId,
+  document.paths['/app/v3/api/projects/{projectId}/git/overview']?.get?.operationId,
   'projects.git.overview.retrieve',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/branches']?.post?.operationId,
+  document.paths['/app/v3/api/projects/{projectId}/git/branches']?.post?.operationId,
   'projects.git.branches.create',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/branch_switch']?.post?.operationId,
+  document.paths['/app/v3/api/projects/{projectId}/git/branch_switch']?.post?.operationId,
   'projects.git.branchSwitch.create',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/commits']?.post?.operationId,
+  document.paths['/app/v3/api/projects/{projectId}/git/commits']?.post?.operationId,
   'projects.git.commits.create',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/pushes']?.post?.operationId,
+  document.paths['/app/v3/api/projects/{projectId}/git/pushes']?.post?.operationId,
   'projects.git.pushes.create',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/worktrees']?.post?.operationId,
+  document.paths['/app/v3/api/projects/{projectId}/git/worktrees']?.post?.operationId,
   'projects.git.worktrees.create',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/worktree_removals']?.post?.operationId,
+  document.paths['/app/v3/api/projects/{projectId}/git/worktree_removals']?.post?.operationId,
   'projects.git.worktreeRemovals.create',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/worktree_prune']?.post?.operationId,
+  document.paths['/app/v3/api/projects/{projectId}/git/worktree_prune']?.post?.operationId,
   'projects.git.worktreePrune.create',
 );
-assert.equal(documentSeed.paths['/app/v3/api/projects/{projectId}']?.patch?.operationId, 'projects.update');
-assert.equal(documentSeed.paths['/app/v3/api/projects/{projectId}']?.delete?.operationId, 'projects.delete');
+assert.equal(document.paths['/app/v3/api/projects/{projectId}']?.patch?.operationId, 'projects.update');
+assert.equal(document.paths['/app/v3/api/projects/{projectId}']?.delete?.operationId, 'projects.delete');
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/publish']?.post?.operationId,
+  document.paths['/app/v3/api/projects/{projectId}/publish']?.post?.operationId,
   'projects.publish.create',
 );
-assert.equal(documentSeed.paths['/app/v3/api/workspaces']?.post?.operationId, 'workspaces.create');
-assert.equal(documentSeed.paths['/app/v3/api/workspaces/{workspaceId}']?.patch?.operationId, 'workspaces.update');
-assert.equal(documentSeed.paths['/app/v3/api/workspaces/{workspaceId}']?.delete?.operationId, 'workspaces.delete');
+assert.equal(document.paths['/app/v3/api/workspaces']?.post?.operationId, 'workspaces.create');
+assert.equal(document.paths['/app/v3/api/workspaces/{workspaceId}']?.patch?.operationId, 'workspaces.update');
+assert.equal(document.paths['/app/v3/api/workspaces/{workspaceId}']?.delete?.operationId, 'workspaces.delete');
 assert.equal(
-  documentSeed.paths['/app/v3/api/workspaces/{workspaceId}/realtime']?.get?.operationId,
+  document.paths['/app/v3/api/workspaces/{workspaceId}/realtime']?.get?.operationId,
   'workspaces.realtime.subscribe',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/workspaces/{workspaceId}/realtime']?.get?.['x-sdkwork-stream-kind'],
+  document.paths['/app/v3/api/workspaces/{workspaceId}/realtime']?.get?.['x-sdkwork-stream-kind'],
   'websocket',
 );
-assert.equal(documentSeed.paths['/backend/v3/api/releases']?.get?.operationId, 'releases.list');
-assert.ok(documentSeed.components.schemas?.BirdCoderCodingSessionSummary);
+assert.equal(document.paths['/app/v3/api/teams']?.get?.operationId, 'workspaceTeams.list');
+assert.equal(document.paths['/app/v3/api/teams']?.get?.['x-sdkwork-domain'], 'collaboration');
+assert.equal(document.paths['/app/v3/api/teams']?.get?.['x-sdkwork-resource'], 'collaboration.workspaceTeams');
+assert.equal(document.paths['/app/v3/api/teams']?.get?.['x-sdkwork-permission'], 'collaboration.workspaceTeams.read');
+assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.operationId, 'teams.list');
+assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.['x-sdkwork-domain'], 'iam');
+assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.['x-sdkwork-resource'], 'iam.teams');
+assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.['x-sdkwork-permission'], 'iam.teams.read');
+assert.equal(document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.operationId, 'teams.members.list');
+assert.equal(document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.['x-sdkwork-domain'], 'iam');
+assert.equal(document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.['x-sdkwork-resource'], 'iam.teams.members');
+assert.equal(
+  document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.['x-sdkwork-permission'],
+  'iam.teams.members.read',
+);
+assert.equal(document.paths['/backend/v3/api/releases']?.get?.operationId, 'releases.list');
+assert.ok(document.components.schemas?.BirdCoderCodingSessionSummary);
 const codingSessionSummaryRequired = Array.isArray(
-  documentSeed.components.schemas?.BirdCoderCodingSessionSummary?.required,
+  document.components.schemas?.BirdCoderCodingSessionSummary?.required,
 )
-  ? documentSeed.components.schemas.BirdCoderCodingSessionSummary.required
+  ? document.components.schemas.BirdCoderCodingSessionSummary.required
   : [];
 assert.ok(
   codingSessionSummaryRequired.includes('modelId'),
   'coding session summary schema must require modelId so server contracts match immutable session engine/model selection.',
 );
 const initialCodingSessionSummaryProperties =
-  (documentSeed.components.schemas?.BirdCoderCodingSessionSummary?.properties ?? {}) as Record<
+  (document.components.schemas?.BirdCoderCodingSessionSummary?.properties ?? {}) as Record<
     string,
     { type?: string }
   >;
@@ -257,50 +288,50 @@ assert.equal(
   false,
   'nativeSessionId is optional because newly-created sessions may not have a provider session until the first engine turn completes.',
 );
-assert.ok(documentSeed.components.schemas?.BirdCoderCreateCodingSessionRequest);
+assert.ok(document.components.schemas?.BirdCoderCreateCodingSessionRequest);
 const createCodingSessionRequestRequired = Array.isArray(
-  documentSeed.components.schemas?.BirdCoderCreateCodingSessionRequest?.required,
+  document.components.schemas?.BirdCoderCreateCodingSessionRequest?.required,
 )
-  ? documentSeed.components.schemas.BirdCoderCreateCodingSessionRequest.required
+  ? document.components.schemas.BirdCoderCreateCodingSessionRequest.required
   : [];
 assert.ok(
   createCodingSessionRequestRequired.includes('engineId') &&
     createCodingSessionRequestRequired.includes('modelId'),
   'create coding session request schema must require explicit engineId and modelId.',
 );
-assert.ok(documentSeed.components.schemas?.BirdCoderUpdateCodingSessionRequest);
-assert.ok(documentSeed.components.schemas?.BirdCoderForkCodingSessionRequest);
-assert.ok(documentSeed.components.schemas?.BirdCoderDeleteCodingSessionMessageResult);
-assert.ok(documentSeed.components.schemas?.BirdCoderCreateCodingSessionTurnRequest);
-assert.ok(documentSeed.components.schemas?.BirdCoderWorkspaceSummary);
-assert.ok(documentSeed.components.schemas?.BirdCoderProjectSummary);
-const workspaceSummaryProperties = documentSeed.components.schemas.BirdCoderWorkspaceSummary
+assert.ok(document.components.schemas?.BirdCoderUpdateCodingSessionRequest);
+assert.ok(document.components.schemas?.BirdCoderForkCodingSessionRequest);
+assert.ok(document.components.schemas?.BirdCoderDeleteCodingSessionMessageResult);
+assert.ok(document.components.schemas?.BirdCoderCreateCodingSessionTurnRequest);
+assert.ok(document.components.schemas?.BirdCoderWorkspaceSummary);
+assert.ok(document.components.schemas?.BirdCoderProjectSummary);
+const workspaceSummaryProperties = document.components.schemas.BirdCoderWorkspaceSummary
   .properties as Record<string, { type?: string }>;
-const createWorkspaceRequestProperties = documentSeed.components.schemas.BirdCoderCreateWorkspaceRequest
+const createWorkspaceRequestProperties = document.components.schemas.BirdCoderCreateWorkspaceRequest
   .properties as Record<string, { type?: string }>;
-const updateWorkspaceRequestProperties = documentSeed.components.schemas.BirdCoderUpdateWorkspaceRequest
+const updateWorkspaceRequestProperties = document.components.schemas.BirdCoderUpdateWorkspaceRequest
   .properties as Record<string, { type?: string }>;
-const projectSummaryProperties = documentSeed.components.schemas.BirdCoderProjectSummary
+const projectSummaryProperties = document.components.schemas.BirdCoderProjectSummary
   .properties as Record<string, { type?: string }>;
-const codingSessionSummaryProperties = documentSeed.components.schemas.BirdCoderCodingSessionSummary
+const codingSessionSummaryProperties = document.components.schemas.BirdCoderCodingSessionSummary
   .properties as Record<string, { type?: string }>;
-const codingSessionEventProperties = documentSeed.components.schemas.BirdCoderCodingSessionEvent
+const codingSessionEventProperties = document.components.schemas.BirdCoderCodingSessionEvent
   .properties as Record<string, { type?: string }>;
-const createCodingSessionTurnRequestProperties = documentSeed.components.schemas
+const createCodingSessionTurnRequestProperties = document.components.schemas
   .BirdCoderCreateCodingSessionTurnRequest.properties as Record<string, { type?: string }>;
-const nativeSessionSummaryProperties = documentSeed.components.schemas.BirdCoderNativeSessionSummary
+const nativeSessionSummaryProperties = document.components.schemas.BirdCoderNativeSessionSummary
   .properties as Record<string, { type?: string }>;
-const createProjectRequestProperties = documentSeed.components.schemas.BirdCoderCreateProjectRequest
+const createProjectRequestProperties = document.components.schemas.BirdCoderCreateProjectRequest
   .properties as Record<string, { type?: string }>;
-const updateProjectRequestProperties = documentSeed.components.schemas.BirdCoderUpdateProjectRequest
+const updateProjectRequestProperties = document.components.schemas.BirdCoderUpdateProjectRequest
   .properties as Record<string, { type?: string }>;
-const skillCatalogEntryProperties = documentSeed.components.schemas.BirdCoderSkillCatalogEntrySummary
+const skillCatalogEntryProperties = document.components.schemas.BirdCoderSkillCatalogEntrySummary
   .properties as Record<string, { type?: string }>;
-const skillPackageProperties = documentSeed.components.schemas.BirdCoderSkillPackageSummary
+const skillPackageProperties = document.components.schemas.BirdCoderSkillPackageSummary
   .properties as Record<string, { type?: string }>;
-const userCenterMembershipProperties = documentSeed.components.schemas.BirdCoderUserCenterMembershipSummary
+const userCenterMembershipProperties = document.components.schemas.BirdCoderUserCenterMembershipSummary
   .properties as Record<string, { type?: string }>;
-const updateUserCenterMembershipRequestProperties = documentSeed.components.schemas
+const updateUserCenterMembershipRequestProperties = document.components.schemas
   .BirdCoderUpdateCurrentUserMembershipRequest.properties as Record<string, { type?: string }>;
 const standardDataScopeEnum = ['DEFAULT', 'PRIVATE', 'ORGANIZATION', 'TENANT', 'PUBLIC'];
 for (const [schemaName, properties] of [
@@ -410,19 +441,19 @@ for (const [schemaName, properties] of [
     `${schemaName}.totalRechargedPoints must be a string because it maps to a Java Long/BIGINT field.`,
   );
 }
-assert.ok(documentSeed.components.schemas?.BirdCoderProjectGitOverview);
-assert.ok(documentSeed.components.schemas?.BirdCoderCreateProjectGitBranchRequest);
-assert.ok(documentSeed.components.schemas?.BirdCoderSwitchProjectGitBranchRequest);
-assert.ok(documentSeed.components.schemas?.BirdCoderCommitProjectGitChangesRequest);
-assert.ok(documentSeed.components.schemas?.BirdCoderPushProjectGitBranchRequest);
-assert.ok(documentSeed.components.schemas?.BirdCoderCreateProjectGitWorktreeRequest);
-assert.ok(documentSeed.components.schemas?.BirdCoderRemoveProjectGitWorktreeRequest);
-assert.ok(documentSeed.components.schemas?.BirdCoderUserCenterSessionSummary);
-const userCenterMetadataProperties = documentSeed.components.schemas
+assert.ok(document.components.schemas?.BirdCoderProjectGitOverview);
+assert.ok(document.components.schemas?.BirdCoderCreateProjectGitBranchRequest);
+assert.ok(document.components.schemas?.BirdCoderSwitchProjectGitBranchRequest);
+assert.ok(document.components.schemas?.BirdCoderCommitProjectGitChangesRequest);
+assert.ok(document.components.schemas?.BirdCoderPushProjectGitBranchRequest);
+assert.ok(document.components.schemas?.BirdCoderCreateProjectGitWorktreeRequest);
+assert.ok(document.components.schemas?.BirdCoderRemoveProjectGitWorktreeRequest);
+assert.ok(document.components.schemas?.BirdCoderUserCenterSessionSummary);
+const userCenterMetadataProperties = document.components.schemas
   ?.BirdCoderUserCenterMetadataSummary?.properties as
   | Record<string, { enum?: unknown }>
   | undefined;
-const userCenterSessionProperties = documentSeed.components.schemas
+const userCenterSessionProperties = document.components.schemas
   ?.BirdCoderUserCenterSessionSummary?.properties as
   | Record<string, { enum?: unknown }>
   | undefined;
@@ -436,198 +467,198 @@ assert.deepEqual(
   ['builtin-local', 'sdkwork-cloud-app-api', 'external-user-center'],
   'user-center session schema must expose the canonical unified deployment selectors.',
 );
-assert.ok(documentSeed.components.schemas?.BirdCoderAdminPolicySummary);
-assert.ok(documentSeed.components.schemas?.BirdCoderEngineDescriptor);
+assert.ok(document.components.schemas?.BirdCoderAdminPolicySummary);
+assert.ok(document.components.schemas?.BirdCoderEngineDescriptor);
 const engineDescriptorRequired = Array.isArray(
-  documentSeed.components.schemas?.BirdCoderEngineDescriptor?.required,
+  document.components.schemas?.BirdCoderEngineDescriptor?.required,
 )
-  ? documentSeed.components.schemas.BirdCoderEngineDescriptor.required
+  ? document.components.schemas.BirdCoderEngineDescriptor.required
   : [];
 assert.ok(
   engineDescriptorRequired.includes('defaultModelId'),
   'engine descriptor schema must require defaultModelId so every engine catalog consumer sees an explicit default model contract.',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/coding_sessions']?.post?.requestBody?.content['application/json']
+  document.paths['/app/v3/api/coding_sessions']?.post?.requestBody?.content['application/json']
     ?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCreateCodingSessionRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/coding_sessions/{id}']?.patch?.requestBody?.content[
+  document.paths['/app/v3/api/coding_sessions/{id}']?.patch?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderUpdateCodingSessionRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/coding_sessions/{id}/fork']?.post?.requestBody?.content[
+  document.paths['/app/v3/api/coding_sessions/{id}/fork']?.post?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderForkCodingSessionRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/coding_sessions/{id}']?.delete?.responses['200']?.content[
+  document.paths['/app/v3/api/coding_sessions/{id}']?.delete?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderDeletedResourceEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/coding_sessions/{id}/messages/{messageId}']?.delete?.responses[
+  document.paths['/app/v3/api/coding_sessions/{id}/messages/{messageId}']?.delete?.responses[
     '200'
   ]?.content['application/json']?.schema?.['$ref'],
   '#/components/schemas/BirdCoderDeleteCodingSessionMessageResultEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/coding_sessions/{id}/fork']?.post?.responses['201']?.content[
+  document.paths['/app/v3/api/coding_sessions/{id}/fork']?.post?.responses['201']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCodingSessionSummaryEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/coding_sessions/{id}/turns']?.post?.requestBody?.content[
+  document.paths['/app/v3/api/coding_sessions/{id}/turns']?.post?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCreateCodingSessionTurnRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/questions/{questionId}/answer']?.post?.requestBody?.content[
+  document.paths['/app/v3/api/questions/{questionId}/answer']?.post?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderSubmitUserQuestionAnswerRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/coding_sessions']?.get?.responses['200']?.content[
+  document.paths['/app/v3/api/coding_sessions']?.get?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCodingSessionSummaryListEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/native_sessions/{id}']?.get?.responses['200']?.content[
+  document.paths['/app/v3/api/native_sessions/{id}']?.get?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderNativeSessionDetailEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/auth/sessions']?.post?.requestBody?.content['application/json']
+  document.paths['/app/v3/api/auth/sessions']?.post?.requestBody?.content['application/json']
     ?.schema?.['$ref'],
   '#/components/schemas/BirdCoderUserCenterLoginRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/auth/sessions/current']?.get?.responses['200']?.content[
+  document.paths['/app/v3/api/auth/sessions/current']?.get?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderNullableUserCenterSessionEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/workspaces']?.get?.responses['200']?.content['application/json']
+  document.paths['/app/v3/api/workspaces']?.get?.responses['200']?.content['application/json']
     ?.schema?.['$ref'],
   '#/components/schemas/BirdCoderWorkspaceSummaryListEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/workspaces']?.post?.requestBody?.content['application/json']
+  document.paths['/app/v3/api/workspaces']?.post?.requestBody?.content['application/json']
     ?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCreateWorkspaceRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects']?.post?.requestBody?.content['application/json']
+  document.paths['/app/v3/api/projects']?.post?.requestBody?.content['application/json']
     ?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCreateProjectRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/overview']?.get?.responses['200']?.content[
+  document.paths['/app/v3/api/projects/{projectId}/git/overview']?.get?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/branches']?.post?.requestBody?.content[
+  document.paths['/app/v3/api/projects/{projectId}/git/branches']?.post?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCreateProjectGitBranchRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/branch_switch']?.post?.requestBody?.content[
+  document.paths['/app/v3/api/projects/{projectId}/git/branch_switch']?.post?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderSwitchProjectGitBranchRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/commits']?.post?.requestBody?.content[
+  document.paths['/app/v3/api/projects/{projectId}/git/commits']?.post?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCommitProjectGitChangesRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/pushes']?.post?.requestBody?.content[
+  document.paths['/app/v3/api/projects/{projectId}/git/pushes']?.post?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderPushProjectGitBranchRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/worktrees']?.post?.requestBody?.content[
+  document.paths['/app/v3/api/projects/{projectId}/git/worktrees']?.post?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCreateProjectGitWorktreeRequest',
 );
 assert.equal(
-  documentSeed.paths[
+  document.paths[
     '/app/v3/api/projects/{projectId}/git/worktree_removals'
   ]?.post?.requestBody?.content['application/json']?.schema?.['$ref'],
   '#/components/schemas/BirdCoderRemoveProjectGitWorktreeRequest',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/branches']?.post?.responses['200']?.content[
+  document.paths['/app/v3/api/projects/{projectId}/git/branches']?.post?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/branch_switch']?.post?.responses['200']?.content[
+  document.paths['/app/v3/api/projects/{projectId}/git/branch_switch']?.post?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/commits']?.post?.responses['200']?.content[
+  document.paths['/app/v3/api/projects/{projectId}/git/commits']?.post?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/pushes']?.post?.responses['200']?.content[
+  document.paths['/app/v3/api/projects/{projectId}/git/pushes']?.post?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/git/worktrees']?.post?.responses['200']
+  document.paths['/app/v3/api/projects/{projectId}/git/worktrees']?.post?.responses['200']
     ?.content['application/json']?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(
-  documentSeed.paths[
+  document.paths[
     '/app/v3/api/projects/{projectId}/git/worktree_removals'
   ]?.post?.responses['200']?.content['application/json']?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(
-  documentSeed.paths[
+  document.paths[
     '/app/v3/api/projects/{projectId}/git/worktree_prune'
   ]?.post?.responses['200']?.content['application/json']?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/app/v3/api/projects/{projectId}/collaborators']?.post?.requestBody?.content[
+  document.paths['/app/v3/api/projects/{projectId}/collaborators']?.post?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderUpsertProjectCollaboratorRequest',
 );
 assert.equal(
-  documentSeed.paths['/backend/v3/api/iam/policies']?.get?.responses['200']?.content['application/json']
+  document.paths['/backend/v3/api/iam/policies']?.get?.responses['200']?.content['application/json']
     ?.schema?.['$ref'],
   '#/components/schemas/BirdCoderAdminPolicySummaryListEnvelope',
 );
 assert.equal(
-  documentSeed.paths['/backend/v3/api/projects/{projectId}/deployment_targets']?.get?.responses[
+  document.paths['/backend/v3/api/projects/{projectId}/deployment_targets']?.get?.responses[
     '200'
   ]?.content['application/json']?.schema?.['$ref'],
   '#/components/schemas/BirdCoderDeploymentTargetSummaryListEnvelope',

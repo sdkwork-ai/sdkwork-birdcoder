@@ -18,8 +18,8 @@ import type {
   BirdCoderUserQuestionAnswerResult,
 } from '@sdkwork/birdcoder-types';
 import type {
-  ICoreReadService,
-  ICoreWriteService,
+  IAppRuntimeReadService,
+  IAppRuntimeWriteService,
 } from '../packages/sdkwork-birdcoder-infrastructure/src/index.ts';
 import {
   TEST_CODE_ENGINE_MODEL_CONFIG,
@@ -225,7 +225,7 @@ const observedAnswers: Array<{
   rejected?: boolean;
 }> = [];
 
-const coreReadService: ICoreReadService = {
+const appRuntimeReadService: IAppRuntimeReadService = {
   async getCodingSession() {
     return sessionFixture;
   },
@@ -339,20 +339,20 @@ const { createDefaultBirdCoderIdeServices } = await import(
 
 const services = createDefaultBirdCoderIdeServices({
   appRuntimeClient: {
-    ...coreReadService,
+    ...appRuntimeReadService,
     ...codingRuntimeClient,
   },
 });
 
 assert.equal(
-  typeof services.coreWriteService.submitUserQuestionAnswer,
+  typeof services.appRuntimeWriteService.submitUserQuestionAnswer,
   'function',
-  'default IDE services must expose submitUserQuestionAnswer through the shared core write service.',
+  'default IDE services must expose submitUserQuestionAnswer through the shared app runtime write service.',
 );
 
 const questions = await projectionModule.loadCodingSessionUserQuestionState(
-  services.coreReadService as Pick<
-    ICoreReadService,
+  services.appRuntimeReadService as Pick<
+    IAppRuntimeReadService,
     'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
   >,
   sessionId,
@@ -382,8 +382,8 @@ assert.deepEqual(questions, [
   },
 ]);
 
-const answeredCoreReadService: ICoreReadService = {
-  ...coreReadService,
+const answeredAppRuntimeReadService: IAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async getCodingSession() {
     return {
       ...sessionFixture,
@@ -397,8 +397,8 @@ const answeredCoreReadService: ICoreReadService = {
 };
 
 const answeredQuestions = await projectionModule.loadCodingSessionUserQuestionState(
-  answeredCoreReadService as Pick<
-    ICoreReadService,
+  answeredAppRuntimeReadService as Pick<
+    IAppRuntimeReadService,
     'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
   >,
   sessionId,
@@ -410,8 +410,8 @@ assert.deepEqual(
   'answered user_question prompts must be removed from pending question state after submitUserQuestionAnswer persists an answer event.',
 );
 
-const toolArgumentsAnsweredCoreReadService: ICoreReadService = {
-  ...coreReadService,
+const toolArgumentsAnsweredAppRuntimeReadService: IAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async getCodingSession() {
     return {
       ...sessionFixture,
@@ -425,8 +425,8 @@ const toolArgumentsAnsweredCoreReadService: ICoreReadService = {
 };
 
 const toolArgumentsAnsweredQuestions = await projectionModule.loadCodingSessionUserQuestionState(
-  toolArgumentsAnsweredCoreReadService as Pick<
-    ICoreReadService,
+  toolArgumentsAnsweredAppRuntimeReadService as Pick<
+    IAppRuntimeReadService,
     'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
   >,
   sessionId,
@@ -438,8 +438,8 @@ assert.deepEqual(
   'answered user_question prompts must also be removed when provider lifecycle events carry the answer inside toolArguments.',
 );
 
-const rejectedCoreReadService: ICoreReadService = {
-  ...coreReadService,
+const rejectedAppRuntimeReadService: IAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async getCodingSession() {
     return {
       ...sessionFixture,
@@ -453,8 +453,8 @@ const rejectedCoreReadService: ICoreReadService = {
 };
 
 const rejectedQuestions = await projectionModule.loadCodingSessionUserQuestionState(
-  rejectedCoreReadService as Pick<
-    ICoreReadService,
+  rejectedAppRuntimeReadService as Pick<
+    IAppRuntimeReadService,
     'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
   >,
   sessionId,
@@ -466,16 +466,16 @@ assert.deepEqual(
   'rejected user_question lifecycle updates must settle the pending prompt instead of keeping a stale reply UI.',
 );
 
-const duplicateProgressCoreReadService: ICoreReadService = {
-  ...coreReadService,
+const duplicateProgressAppRuntimeReadService: IAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async listCodingSessionEvents() {
     return [questionEventFixture, duplicateProgressQuestionEventFixture];
   },
 };
 
 const deduplicatedQuestions = await projectionModule.loadCodingSessionUserQuestionState(
-  duplicateProgressCoreReadService as Pick<
-    ICoreReadService,
+  duplicateProgressAppRuntimeReadService as Pick<
+    IAppRuntimeReadService,
     'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
   >,
   sessionId,
@@ -487,16 +487,16 @@ assert.equal(
   'requested/progress events for the same user_question tool call must collapse into one pending prompt.',
 );
 
-const opencodeRequestIdQuestionCoreReadService: ICoreReadService = {
-  ...coreReadService,
+const opencodeRequestIdQuestionAppRuntimeReadService: IAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async listCodingSessionEvents() {
     return [opencodeRequestIdQuestionEventFixture];
   },
 };
 
 const opencodeRequestIdQuestions = await projectionModule.loadCodingSessionUserQuestionState(
-  opencodeRequestIdQuestionCoreReadService as Pick<
-    ICoreReadService,
+  opencodeRequestIdQuestionAppRuntimeReadService as Pick<
+    IAppRuntimeReadService,
     'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
   >,
   sessionId,
@@ -518,8 +518,8 @@ assert.deepEqual(
   'user_question consumers must resolve provider requestID/callID aliases into canonical question and tool-call identity.',
 );
 
-const opencodeRequestIdAnsweredCoreReadService: ICoreReadService = {
-  ...coreReadService,
+const opencodeRequestIdAnsweredAppRuntimeReadService: IAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async listCodingSessionEvents() {
     return [
       opencodeRequestIdQuestionEventFixture,
@@ -530,8 +530,8 @@ const opencodeRequestIdAnsweredCoreReadService: ICoreReadService = {
 
 const opencodeRequestIdAnsweredQuestions =
   await projectionModule.loadCodingSessionUserQuestionState(
-    opencodeRequestIdAnsweredCoreReadService as Pick<
-      ICoreReadService,
+    opencodeRequestIdAnsweredAppRuntimeReadService as Pick<
+      IAppRuntimeReadService,
       'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
     >,
     sessionId,
@@ -543,16 +543,16 @@ assert.deepEqual(
   'user_question settlement must resolve provider requestID/callID aliases so answered prompts do not remain pending.',
 );
 
-const unsafeLongQuestionCoreReadService: ICoreReadService = {
-  ...coreReadService,
+const unsafeLongQuestionAppRuntimeReadService: IAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async listCodingSessionEvents() {
     return [unsafeLongQuestionEventFixture];
   },
 };
 
 const unsafeLongQuestions = await projectionModule.loadCodingSessionUserQuestionState(
-  unsafeLongQuestionCoreReadService as Pick<
-    ICoreReadService,
+  unsafeLongQuestionAppRuntimeReadService as Pick<
+    IAppRuntimeReadService,
     'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
   >,
   sessionId,
@@ -565,7 +565,7 @@ assert.equal(
 );
 
 const answerResult = await projectionModule.submitCodingSessionUserQuestionAnswer(
-  services.coreWriteService as Pick<ICoreWriteService, 'submitUserQuestionAnswer'>,
+  services.appRuntimeWriteService as Pick<IAppRuntimeWriteService, 'submitUserQuestionAnswer'>,
   questionId,
   {
     answer: 'Unit',
@@ -574,7 +574,7 @@ const answerResult = await projectionModule.submitCodingSessionUserQuestionAnswe
 );
 
 const rejectionResult = await projectionModule.submitCodingSessionUserQuestionAnswer(
-  services.coreWriteService as Pick<ICoreWriteService, 'submitUserQuestionAnswer'>,
+  services.appRuntimeWriteService as Pick<IAppRuntimeWriteService, 'submitUserQuestionAnswer'>,
   'question-request-reject',
   {
     rejected: true,

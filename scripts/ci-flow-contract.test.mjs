@@ -233,7 +233,7 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:project-session-index-performance'],
-  'node scripts/project-session-index-performance-contract.test.mjs && node --experimental-strip-types scripts/project-session-index-cache-performance-contract.test.ts && node --experimental-strip-types scripts/project-session-location-cache-performance-contract.test.ts && node --experimental-strip-types scripts/project-session-navigation-cache-performance-contract.test.ts && node scripts/run-local-tsx.mjs scripts/coding-session-authoritative-summary-cache-contract.test.ts && node scripts/core-read-cache-memory-bound-contract.test.mjs',
+  'node scripts/project-session-index-performance-contract.test.mjs && node --experimental-strip-types scripts/project-session-index-cache-performance-contract.test.ts && node --experimental-strip-types scripts/project-session-location-cache-performance-contract.test.ts && node --experimental-strip-types scripts/project-session-navigation-cache-performance-contract.test.ts && node scripts/run-local-tsx.mjs scripts/coding-session-authoritative-summary-cache-contract.test.ts && node scripts/app-runtime-read-cache-memory-bound-contract.test.mjs',
   'Root quality scripts must expose project/session index, location lookup, navigation lookup, and authoritative summary cache behavior as one first-class session loading performance standard.',
 );
 assert.equal(
@@ -243,14 +243,28 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:api-transport-standard'],
-  'node --experimental-strip-types scripts/http-api-transport-cors-contract.test.ts && node scripts/run-local-tsx.mjs scripts/in-process-app-runtime-api-descriptor-contract.test.ts',
-  'Root quality scripts must expose API transport/CORS behavior and in-process app/backend descriptor parity as a first-class standard.',
+  'node --experimental-strip-types scripts/http-api-transport-cors-contract.test.ts && node scripts/run-local-tsx.mjs scripts/in-process-app-runtime-api-descriptor-contract.test.ts && node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts',
+  'Root quality scripts must expose API transport/CORS behavior, in-process app/backend descriptor parity, and canonical API_SPEC path governance as a first-class standard.',
 );
 assert.match(
   rootPackageJson.scripts['check:data-kernel'] ?? '',
   /provider-dialect-contract\.test\.mjs/,
   'Root quality scripts must expose provider dialect and data-kernel storage contracts as a first-class standard.',
 );
+for (const plusEntityContract of [
+  'birdcoder-plus-entity-standard-contract.test.ts',
+  'runtime-plus-entity-standard-contract.test.mjs',
+  'engine-plus-entity-standard-contract.test.mjs',
+  'catalog-plus-entity-standard-contract.test.mjs',
+  'collaboration-plus-entity-standard-contract.test.mjs',
+  'delivery-governance-plus-entity-standard-contract.test.mjs',
+]) {
+  assert.match(
+    rootPackageJson.scripts['check:data-kernel'] ?? '',
+    new RegExp(escapeRegex(plusEntityContract)),
+    `Root quality scripts must expose ${plusEntityContract} so DATABASE_SPEC-aligned Plus entity contracts cannot drift outside the data-kernel gate.`,
+  );
+}
 assert.match(
   rootPackageJson.scripts['check:data-kernel'] ?? '',
   /coding-session-repository-batch-loading-contract\.test\.ts/,
@@ -337,9 +351,10 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:file-explorer-rendering-performance',
     'node scripts/run-workspace-package-script.mjs . check:code-workbench-command-boundary',
     'node scripts/run-workspace-package-script.mjs . check:code-run-entry-boundary',
-    'node scripts/run-workspace-package-script.mjs . check:api-transport-standard',
-    'node scripts/run-workspace-package-script.mjs . check:appbase-package-boundary',
-    'node scripts/run-workspace-package-script.mjs . check:auth-session-standard',
+  'node scripts/run-workspace-package-script.mjs . check:api-transport-standard',
+  'node scripts/run-workspace-package-script.mjs . check:appbase-package-boundary',
+  'node scripts/run-workspace-package-script.mjs . check:iam-standard',
+  'node scripts/run-workspace-package-script.mjs . check:auth-session-standard',
   'node scripts/run-workspace-package-script.mjs . check:terminal-surface-standard',
   'node scripts/run-workspace-package-script.mjs . check:workbench-session-standard',
   'node scripts/run-workspace-package-script.mjs . check:project-inventory-standard',

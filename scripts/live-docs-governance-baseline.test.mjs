@@ -1138,7 +1138,7 @@ assert.match(
 );
 
 const staleArchitecture20NextTargetPatterns = [
-  /the next non-environmental serial slice is closing real `core\.getEngineCapabilities` \/ `core\.listModels` behavior plus shared-facade adoption while `core\.submitApprovalDecision` stays blocked until approvals are real/,
+  /the next non-environmental serial slice is closing real `engines\.capabilities\.retrieve` \/ `models\.list` behavior plus direct app\/backend client adoption while `approvals\.decisions\.create` stays blocked until approvals are real/,
 ];
 
 for (const pattern of staleArchitecture20NextTargetPatterns) {
@@ -1151,7 +1151,7 @@ for (const pattern of staleArchitecture20NextTargetPatterns) {
 
 assert.match(
   architecture20Source,
-  /at that checkpoint, the next non-environmental serial slice was closing real `core\.getEngineCapabilities` \/ `core\.listModels` behavior plus shared-facade adoption while `core\.submitApprovalDecision` was still blocked until approvals became real, and the later closure is recorded in `docs\/release\/release-2026-04-11-12\.md`\./,
+  /at that checkpoint, the next non-environmental serial slice was closing real `engines\.capabilities\.retrieve` \/ `models\.list` behavior plus direct app\/backend client adoption while `approvals\.decisions\.create` was still blocked until approvals became real, and the later closure is recorded in `docs\/release\/release-2026-04-11-12\.md`\./,
   'architecture 20 docs must keep the engine/model next-target note as superseded checkpoint history only.',
 );
 

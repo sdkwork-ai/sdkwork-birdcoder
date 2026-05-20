@@ -24,7 +24,7 @@
 - desktop 共享 SQLite authority 已把 `table.sqlite.*` payload materialize 为真实 provider tables。
 - Rust host 已把 legacy `kv_store` 降级为一次性迁移源；运行时真相只能是 direct provider tables。
 - `snapshot file` 只允许 fallback-only；Node in-memory 只允许合同执行，不计入最终 authority。
-- 独立的 admin policy governance 闭环已关闭：`/backend/v3/api/policies` 已真实化，authority 真相收敛到 `governance_policies`，高层只允许走 `listPolicies()` / `adminPolicyService`。
+- 独立的 backend policy governance 闭环已关闭：`/backend/v3/api/iam/policies` 已真实化，authority 真相收敛到 `governance_policies`，高层只允许走 `listPolicies()` / `adminPolicyService`。
 
 ## 3. 闭环顺序
 
@@ -162,15 +162,15 @@
 - Representative `project / team / release_record` repositories are now closed on the same provider/UoW plus row/plan contract used by `coding-server` projection persistence.
 - `appConsoleRepository.ts`, `consoleQueries.ts`, and `createDefaultBirdCoderIdeServices()` now close the first console-side consumer path for `workspace / project / team / release_record`, so default workspace/project catalog reads no longer stay on mock-only service truth.
 - `server-api.ts`, `sdkClients.ts`, `ApiBackedWorkspaceService.ts`, `ApiBackedProjectService.ts`, `ApiBackedTeamService.ts`, and `createDefaultBirdCoderIdeServices()` now close the first unified app/backend SDK/OpenAPI consumer boundary for default workspace/project/team catalog reads; local writes and coding-session memory state stay on the existing sidecars.
-- The shared app/backend facade now splits workspace team reads from admin team reads:
-  - `listTeams()` -> `/api/app/v1/teams`
-  - `listAdminTeams()` -> `/api/admin/v1/teams`
+- The shared app/backend facade now splits workspace team reads from backend governance team reads:
+  - `listTeams()` -> `/app/v3/api/teams`
+  - `listAdminTeams()` -> `/backend/v3/api/iam/teams`
   - default IDE/runtime team reads must stay on the app surface
-- `BirdCoderBackendSdkApiClient.listReleases()` remains the explicit admin release catalog surface on `/api/admin/v1/releases`.
+- `BirdCoderBackendSdkApiClient.listReleases()` remains the explicit backend release catalog surface on `/backend/v3/api/releases`.
 - `IReleaseService`, `ApiBackedReleaseService`, `createDefaultBirdCoderIdeServices()`, `IDEContext`, `ServiceContext`, and `useReleases()` now close the first default IDE/app consumer slice for governed release catalogs on the shared app/backend facade.
-- `ICoreReadService`, `ApiBackedCoreReadService`, `createDefaultBirdCoderIdeServices()`, `IDEContext`, `ServiceContext`, and `useCodingServerOverview()` now close the first default IDE/app consumer slice for the implemented shared core read facade.
-- `loadCodingSessionProjection()` and `useCodingSessionProjection()` now close the first default IDE/app consumer slice for implemented coding-session detail / events / artifacts / checkpoints on top of `coreReadService`.
-- `BIRDCODER_SHARED_CORE_FACADE_OPERATION_IDS` and `BIRDCODER_SHARED_CORE_FACADE_EXCLUDED_OPERATION_IDS` now make promoted vs blocked core high-level operations explicit in `@sdkwork/birdcoder-types`.
+- `IAppRuntimeReadService`, `ApiBackedAppRuntimeReadService`, `createDefaultBirdCoderIdeServices()`, `IDEContext`, `ServiceContext`, and `useCodingServerOverview()` now close the first default IDE/app consumer slice for the implemented app runtime read SDK facade.
+- `loadCodingSessionProjection()` and `useCodingSessionProjection()` now close the first default IDE/app consumer slice for implemented coding-session detail / events / artifacts / checkpoints on top of `appRuntimeReadService`.
+- `BIRDCODER_APP_RUNTIME_SDK_OPERATION_IDS` and `BIRDCODER_APP_RUNTIME_SDK_EXCLUDED_OPERATION_IDS` now make promoted vs blocked app runtime high-level operations explicit in `@sdkwork/birdcoder-types`.
 - The first Step 06 `CP06-3` command-boundary slice is now closed:
   - `useCodeWorkbenchCommands()` is the only valid `CodePage` subscription boundary for workbench commands
   - `CodePage` must not call `globalEventBus.on/off` directly
@@ -185,8 +185,8 @@
   - `CodeEditorWorkspacePanel` must not import `CodeEditor` or `DiffEditor` directly, and it must not own diff header buttons or empty-state icon or CTA details
   - `pnpm.cmd run check:code-editor-surface-boundary` is part of both `lint` and `check:release-flow`
 - Step 06 is now fully closed; do not reopen the frozen page-shell, file-system, command, run-entry, or editor-surface boundaries while moving back to the `09 -> 17` mainline.
-- Runtime-bound default IDE services must compose `createBirdCoderGeneratedCoreReadApiClient({ transport: createBirdCoderHttpApiTransport(...) })` directly.
-- Do not claim a local in-process core transport closure until a real transport-backed core truth exists; unbound core reads must stay explicitly unavailable.
+- Runtime-bound default IDE services must compose `createBirdCoderAppSdkApiClient({ transport: createBirdCoderHttpApiTransport(...) })` directly.
+- Do not claim a local in-process app runtime transport closure until a real transport-backed core truth exists; unbound app runtime reads must stay explicitly unavailable.
 - The host-derived transport binding is now closed across `web / desktop / server`.
 - The PostgreSQL live-smoke preflight runner is now closed: `scripts/postgresql-live-smoke.ts` and `scripts/run-postgresql-live-smoke.ts` standardize `blocked | passed | failed` reporting plus DSN-source audit fields and blocked-state recovery fields (`dsnCmdSetExample`, `dsnExample`, `dsnEnvPriority`, `dsnEnvStatus`, `dsnPowerShellSetExample`, `rerunCommand`, `resolutionSteps`, `resolutionHint`).
 - The canonical `coding-server` OpenAPI export is now closed: `buildBirdCoderCodingServerOpenApiDocument()` is materialized by `scripts/coding-server-openapi-export.ts` into `artifacts/openapi/coding-server-v1.json`.
@@ -206,88 +206,88 @@
   - `packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts` is the fixed generated output
   - representative shared app/backend consumers now build requests through generated helpers instead of handwritten route strings
   - type governance proves route-less operations do not require `pathParams`
-- The first shared high-level representative app/backend facade is now closed:
-  - `packages/sdkwork-birdcoder-types/src/server-api.ts` owns `createBirdCoderSplitSdkApiClients({ appTransport, backendTransport })`
+- The first explicit high-level app/backend SDK client pair is now closed:
+  - `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` owns `createBirdCoderAppSdkApiClient({ transport: appTransport }) and createBirdCoderBackendSdkApiClient({ transport: backendTransport })`
   - `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` may only contribute transport implementations and must not reassemble representative app/backend request paths
-  - `scripts/generated-app/backend-client-facade-contract.test.ts` is part of `check:release-flow`
-- Default IDE service composition is now also closed on that shared facade:
-  - `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts` must compose runtime HTTP and in-process fallback clients directly through `createBirdCoderSplitSdkApiClients({ appTransport, backendTransport })`
-  - `scripts/default-ide-services-generated-app/backend-facade-contract.test.ts` is part of `check:release-flow`
+  - `scripts/split-sdk-client-facade-contract.test.ts` is part of `check:release-flow`
+- Default IDE service composition is now also closed on that explicit app/backend SDK client pair:
+  - `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts` must compose runtime HTTP and in-process fallback clients directly through `createBirdCoderAppSdkApiClient({ transport: appTransport }) and createBirdCoderBackendSdkApiClient({ transport: backendTransport })`
+  - `scripts/default-ide-services-split-sdk-client-contract.test.ts` is part of `check:release-flow`
 - The redundant infrastructure-side app/backend high-level wrapper is now deleted:
   - `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` keeps transport factories only
-  - `scripts/app/backend-sdk-consumer-contract.test.ts` now consumes the shared generated facade directly
-  - `scripts/no-app/backend-client-wrapper-contract.test.ts` is part of `check:release-flow`
-- The first shared core read facade is now closed:
-  - `packages/sdkwork-birdcoder-types/src/server-api.ts` owns `createBirdCoderGeneratedCoreReadApiClient({ transport })`
-  - current scope is limited to implemented representative core routes: `descriptor / runtime / health / engines / operation`
+  - `scripts/split-sdk-consumer-contract.test.ts` now consumes the explicit app/backend SDK clients directly
+  - `scripts/birdcoder-sdk-consumer-boundary-contract.test.mjs` is part of `check:release-flow`
+- The first app runtime read SDK facade is now closed:
+  - `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` owns `createBirdCoderAppSdkApiClient({ transport })`
+  - current scope is limited to implemented representative app runtime routes: `descriptor / runtime / health / engines / operation`
   - `scripts/app-runtime-read-sdk-client-contract.test.ts` is part of `check:release-flow`
-  - unimplemented core routes must stay outside the shared facade until they stop returning `not_implemented`
-- The shared core projection read facade is now also closed:
-  - `packages/sdkwork-birdcoder-types/src/server-api.ts` extends `createBirdCoderGeneratedCoreReadApiClient({ transport })` to implemented projection reads: `coding-session detail / events / artifacts / checkpoints`
+  - unimplemented app runtime routes must stay outside the explicit app/backend SDK client pair until they stop returning `not_implemented`
+- The app runtime projection read SDK facade is now also closed:
+  - `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` extends `createBirdCoderAppSdkApiClient({ transport })` to implemented projection reads: `coding-session detail / events / artifacts / checkpoints`
   - `scripts/app-runtime-projection-read-sdk-client-contract.test.ts` is part of `check:release-flow`
-  - projection reads must stay on the shared generated-client-based facade; not-yet-promoted core writes and unimplemented reads must stay outside
-- Rust host `POST /api/core/v1/coding-sessions` is now real:
+  - projection reads must stay on the shared generated-client-based facade; not-yet-promoted app runtime writes and unimplemented reads must stay outside
+- Rust host `POST /app/v3/api/coding_sessions` is now real:
   - it returns `201 Created`
   - it mutates shared in-process projection authority state on demo/snapshot-backed hosts
   - it persists `coding_sessions` plus `coding_session_runtimes` rows when the host is backed by a sqlite provider authority
-  - `core.createCodingSession` must no longer be described as `not_implemented`
-- The typed shared core write facade is now closed for `core.createCodingSession`:
-  - `packages/sdkwork-birdcoder-types/src/server-api.ts` exposes `createBirdCoderGeneratedCoreWriteApiClient({ transport })`
-  - `BIRDCODER_SHARED_CORE_FACADE_OPERATION_IDS` now promotes `core.createCodingSession`
-  - `BIRDCODER_SHARED_CORE_FACADE_EXCLUDED_OPERATION_IDS` now keeps `core.createCodingSessionTurn` blocked instead
+  - `codingSessions.create` must no longer be described as `not_implemented`
+- The typed app runtime write SDK facade is now closed for `codingSessions.create`:
+  - `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` exposes `createBirdCoderAppSdkApiClient({ transport })`
+  - `BIRDCODER_APP_RUNTIME_SDK_OPERATION_IDS` now promotes `codingSessions.create`
+  - `BIRDCODER_APP_RUNTIME_SDK_EXCLUDED_OPERATION_IDS` now keeps `codingSessions.turns.create` blocked instead
 - `createDefaultBirdCoderIdeServices()` and `ApiBackedProjectService.createCodingSession()` now close the first real consumer path on top of that facade:
-  - runtime HTTP composition builds `createBirdCoderGeneratedCoreWriteApiClient({ transport: createBirdCoderHttpApiTransport(...) })`
+  - runtime HTTP composition builds `createBirdCoderAppSdkApiClient({ transport: createBirdCoderHttpApiTransport(...) })`
   - remote create resolves `workspaceId` from project truth
   - provider-backed local session state mirrors the server-created session so refreshed project catalogs keep the authoritative session id visible
-- Rust host `POST /api/core/v1/coding-sessions/{id}/turns` is now real:
+- Rust host `POST /app/v3/api/coding_sessions/{id}/turns` is now real:
   - it returns `201 Created`
   - it validates `requestKind` plus `inputSummary`
   - it mutates shared in-process projection authority state on demo/snapshot-backed hosts
   - it persists `coding_session_turns`, `coding_session_events`, and `coding_session_operations` rows when the host is backed by a sqlite provider authority
   - it refreshes `coding_sessions.updated_at` / `last_turn_at` plus the active runtime row before provider-backed projection reload
-  - `core.createCodingSessionTurn` must no longer be described as `not_implemented`
-- The typed shared core write facade is now also closed for `core.createCodingSessionTurn`:
-  - `packages/sdkwork-birdcoder-types/src/server-api.ts` exposes `createCodingSessionTurn(codingSessionId, request)` on top of `createBirdCoderGeneratedCoreWriteApiClient({ transport })`
-  - `BIRDCODER_SHARED_CORE_FACADE_OPERATION_IDS` now promotes `core.createCodingSessionTurn`
-  - `BIRDCODER_SHARED_CORE_FACADE_EXCLUDED_OPERATION_IDS` is now empty after the approval lane closure
+  - `codingSessions.turns.create` must no longer be described as `not_implemented`
+- The typed app runtime write SDK facade is now also closed for `codingSessions.turns.create`:
+  - `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` exposes `createCodingSessionTurn(codingSessionId, request)` on top of `createBirdCoderAppSdkApiClient({ transport })`
+  - `BIRDCODER_APP_RUNTIME_SDK_OPERATION_IDS` now promotes `codingSessions.turns.create`
+  - `BIRDCODER_APP_RUNTIME_SDK_EXCLUDED_OPERATION_IDS` is now empty after the approval lane closure
 - `ApiBackedProjectService.addCodingSessionMessage()` and `ProviderBackedProjectService.addCodingSessionMessage()` now close the first real consumer path on top of that facade:
   - supported message roles map to canonical turn request kinds
   - provider-backed local message state mirrors the server-created `turnId`
   - missing-session `404` falls back to the local sidecar path instead of reopening already-closed session-write work
-- The shared core read facade is now also closed for real engine/model reads:
-  - Rust host serves canonical catalog truth on `/api/core/v1/engines`, `/api/core/v1/engines/:engineKey/capabilities`, and `/api/core/v1/models`
-  - `ICoreReadService`, `ApiBackedCoreReadService`, and default IDE services now expose `getEngineCapabilities()` and `listModels()`
-  - `loadCodingServerOverview()` plus `useCodingServerOverview()` now consume descriptor/runtime/health/engines/engineCapabilities/models through `coreReadService`
+- The app runtime read SDK facade is now also closed for real engine/model reads:
+  - Rust host serves canonical catalog truth on `/app/v3/api/engines`, `/app/v3/api/engines/:engineKey/capabilities`, and `/app/v3/api/models`
+  - `IAppRuntimeReadService`, `ApiBackedAppRuntimeReadService`, and default IDE services now expose `getEngineCapabilities()` and `listModels()`
+  - `loadCodingServerOverview()` plus `useCodingServerOverview()` now consume descriptor/runtime/health/engines/engineCapabilities/models through `appRuntimeReadService`
 - The approval-decision lane is now closed end-to-end:
-  - Rust host serves real `POST /api/core/v1/approvals/:approvalId/decision`
-  - approval writes flow through `createBirdCoderGeneratedCoreWriteApiClient({ transport }).submitApprovalDecision(...)`
+  - Rust host serves real `POST /app/v3/api/approvals/:approvalId/decision`
+  - approval writes flow through `createBirdCoderAppSdkApiClient({ transport }).submitApprovalDecision(...)`
   - approval consumer adoption is closed in `loadCodingSessionApprovalState()` / `submitCodingSessionApprovalDecision()` / `useCodingSessionApprovalState()`
   - canonical approval-resolution events must use `operation.updated.payload.approvalDecision`
 - The representative app document catalog lane is now closed end-to-end:
-  - Rust host serves real `GET /api/app/v1/documents`
+  - Rust host serves real `GET /app/v3/api/documents`
   - demo host, legacy sqlite `kv_store`, and direct sqlite provider tables now converge on `project_documents` truth
-  - app/backend shared facade exposes `listDocuments()`
+  - app/backend explicit app/backend SDK client pair exposes `listDocuments()`
   - `documentService` plus `loadDocuments()` / `useDocuments()` close the first document-facing consumer path
-- The representative admin audit lane is now closed end-to-end:
-  - Rust host serves real `GET /api/admin/v1/audit`
+- The representative backend audit lane is now closed end-to-end:
+  - Rust host serves real `GET /backend/v3/api/iam/audit_events`
   - demo host, legacy sqlite `kv_store`, and direct sqlite provider tables now converge on `audit_events` truth
-  - app/backend shared facade exposes `listAuditEvents()`
+  - app/backend explicit app/backend SDK client pair exposes `listAuditEvents()`
   - `auditService` plus `loadAuditEvents()` / `useAuditEvents()` close the first audit-facing consumer path
 - The representative app deployment catalog lane is now closed end-to-end:
-  - Rust host serves real `GET /api/app/v1/deployments`
+  - Rust host serves real `GET /app/v3/api/deployments`
   - demo host, legacy sqlite `kv_store`, and direct sqlite provider tables now converge on `deployment_records` truth
-  - app/backend shared facade exposes `listDeployments()`
+  - app/backend explicit app/backend SDK client pair exposes `listDeployments()`
   - `deploymentService` plus `loadDeployments()` / `useDeployments()` close the first deployment-facing consumer path
-- The representative admin deployment governance lane is now closed end-to-end:
-  - Rust host serves real `GET /api/admin/v1/deployments`
+- The representative backend deployment governance lane is now closed end-to-end:
+  - Rust host serves real `GET /backend/v3/api/deployments`
   - demo host, legacy sqlite `kv_store`, and direct sqlite provider tables now converge on `deployment_records` truth
-  - app/backend shared facade exposes `listAdminDeployments()`
-  - `adminDeploymentService` plus `loadAdminDeployments()` / `useAdminDeployments()` close the first admin deployment-facing consumer path
-- The representative admin policy governance lane is now closed end-to-end:
-  - Rust host serves real `GET /api/admin/v1/policies`
+  - app/backend explicit app/backend SDK client pair exposes `listAdminDeployments()`
+  - `adminDeploymentService` plus `loadAdminDeployments()` / `useAdminDeployments()` close the first backend deployment-facing consumer path
+- The representative backend policy governance lane is now closed end-to-end:
+  - Rust host serves real `GET /backend/v3/api/iam/policies`
   - demo host, legacy sqlite `kv_store`, and direct sqlite provider tables now converge on `governance_policies` truth
-  - app/backend shared facade exposes `listPolicies()`
-  - `adminPolicyService` plus `loadAdminPolicies()` / `useAdminPolicies()` close the first admin policy-facing consumer path
+  - app/backend explicit app/backend SDK client pair exposes `listPolicies()`
+  - `adminPolicyService` plus `loadAdminPolicies()` / `useAdminPolicies()` close the first backend policy-facing consumer path
 - The first Step 18 engine-source-truth slice is now closed:
   - `workbench/kernel.ts` freezes real mirror truth for `codex / claude-code / gemini / opencode`
   - `scripts/engine-kernel-contract.test.ts` and `scripts/engine-source-mirror-contract.test.ts` make source drift executable
@@ -303,7 +303,7 @@
   - Rust host engine/model routes must no longer depend on local manual engine fixture helpers
   - `scripts/rust-host-engine-truth-contract.test.ts` makes shared-artifact adoption executable
 - The fourth Step 18 Rust-host-engine-route-parity slice is now closed:
-  - Rust host route parity is executable for `/api/core/v1/engines`, `/api/core/v1/engines/:engineKey/capabilities`, and `/api/core/v1/models`
+  - Rust host route parity is executable for `/app/v3/api/engines`, `/app/v3/api/engines/:engineKey/capabilities`, and `/app/v3/api/models`
   - `core_engine_catalog_routes_match_generated_shared_engine_catalog` compares live Rust HTTP payloads against `packages/sdkwork-birdcoder-server/src-host/generated/engine-catalog.json`
   - Rust route payload optionals must omit absent fields so shared artifact JSON shape and live route JSON shape stay identical
   - `pnpm.cmd run test:rust-host-engine-route-parity-contract` is part of `check:release-flow`
@@ -327,29 +327,29 @@
 - 每次循环都必须让系统更接近可商业化交付。
 
 
-## 10. Current Loop Override - Host Runtime, Admin Team, And Server Binding Closure
+## 10. Current Loop Override - Host Runtime, Backend Governance Team, And Server Binding Closure
 
 - Treat these items as already closed and do not reopen them unless a verification command fails:
   - `bootstrapShellRuntime({ host })` drives default IDE read transport.
   - web and desktop pass explicit distribution-derived host runtime descriptors.
   - `IDEContext` / `ServiceContext` default services are lazy.
   - HTTP transport preserves `apiBaseUrl` path prefixes.
-  - representative runtime team catalog reads now flow through the shared typed client on `/api/app/v1/teams`.
-  - explicit admin team reads remain available on `/api/admin/v1/teams`.
+  - representative runtime team catalog reads now flow through the shared typed client on `/app/v3/api/teams`.
+  - explicit backend governance team reads remain available on `/backend/v3/api/iam/teams`.
   - `createDefaultBirdCoderIdeServices()` and shared contexts now expose `teamService`.
   - `bindBirdCoderServerRuntimeTransport()` binds `resolveServerRuntime()` onto the same shared default-service transport contract without pretending the server package has a shell UI entrypoint.
   - `runBirdCoderPostgresqlLiveSmoke()` now standardizes PostgreSQL smoke outcomes as `blocked | passed | failed`.
   - DSN lookup priority is fixed to `BIRDCODER_POSTGRESQL_DSN -> BIRDCODER_DATABASE_URL -> DATABASE_URL -> PGURL`.
 - Mandatory verification when touching this area:
-  - `pnpm.cmd run test:app/backend-sdk-consumer-contract`
+  - `pnpm.cmd run test:split-sdk-consumer-contract`
   - `pnpm.cmd run test:shell-runtime-app-client-contract`
   - `pnpm.cmd run test:server-runtime-transport-contract`
   - `pnpm.cmd run test:app-runtime-write-sdk-client-contract`
   - `pnpm.cmd run test:default-ide-services-app-runtime-write-sdk-contract`
   - `pnpm.cmd run test:default-ide-services-app-runtime-read-sdk-contract`
-  - `pnpm.cmd run test:default-ide-services-core-read-service-contract`
-  - `pnpm.cmd run test:api-backed-project-service-core-create-coding-session-contract`
-  - `pnpm.cmd run test:api-backed-project-service-core-create-coding-session-turn-contract`
+  - `pnpm.cmd run test:default-ide-services-app-runtime-read-service-contract`
+  - `pnpm.cmd run test:api-backed-project-service-app-runtime-create-coding-session-contract`
+  - `pnpm.cmd run test:api-backed-project-service-app-runtime-create-coding-session-turn-contract`
   - `pnpm.cmd run test:coding-session-projection-app-consumer-contract`
   - `pnpm.cmd run test:coding-server-overview-engine-model-consumer-contract`
   - `pnpm.cmd run test:coding-server-engine-truth-contract`
@@ -361,7 +361,7 @@
   - `pnpm.cmd run test:tool-protocol-contract`
   - `pnpm.cmd run test:engine-resume-recovery-contract`
   - `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
-  - `pnpm.cmd run test:generated-app/backend-client-facade-contract`
+  - `pnpm.cmd run test:split-sdk-client-facade-contract`
   - `pnpm.cmd run test:default-ide-services-document-service-contract`
   - `pnpm.cmd run test:document-app-consumer-contract`
   - `pnpm.cmd run test:default-ide-services-audit-service-contract`
@@ -383,23 +383,23 @@
   1. PostgreSQL live smoke is now closed on this host with a real DSN-backed `passed` report via a temporary Docker-backed PostgreSQL 16 runtime on `127.0.0.1:55432`; do not reopen this lane unless a fresh rerun fails
   2. if a future rerun returns `missing_postgresql_dsn` or `missing_postgresql_driver`, keep that state blocked and backwrite the environment regression explicitly
   - if a future rerun returns `failed`, treat the PostgreSQL smoke path as a real executable defect and close it before claiming the environment gate is understood
-  3. the Step 18 server-side canonical-runtime sink into `coding-server` / Core projection is now also closed; do not reopen it without a fresh failing contract
+  3. the Step 18 server-side canonical-runtime sink into `coding-server` / app runtime projection is now also closed; do not reopen it without a fresh failing contract
   4. if no lower-score unresolved Step is evidenced by current code/tests/docs, stop feature expansion, backwrite the alignment, and define the next Step before writing new production code
   5. the second-stage typed SDK/client generation lane is already closed on top of `packages/sdkwork-birdcoder-types/src/generated/coding-server-openapi.ts`
   6. the shared generated app/backend facade is already closed on top of `packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts`
-  7. default IDE services already consume that shared facade directly for runtime HTTP and in-process fallback composition, and now expose governed release catalogs through `releaseService`
+  7. default IDE services already consume that explicit app/backend SDK client pair directly for runtime HTTP and in-process fallback composition, and now expose governed release catalogs through `releaseService`
   8. the redundant infrastructure-side app/backend high-level wrapper is already removed; only transport factories remain in infrastructure
-  9. the first shared core read facade is already closed for implemented representative core routes only
-  10. default IDE services, shared contexts, and `useCodingServerOverview()` now adopt the implemented shared core read facade for overview reads without fabricating local in-process core authority
-  11. the shared core projection read facade is already closed for implemented session detail / events / artifacts / checkpoints
-  12. `loadCodingSessionProjection()` and `useCodingSessionProjection()` now adopt the implemented core projection read facade into the first app-level coding-session detail consumer boundary
-  13. `BIRDCODER_SHARED_CORE_FACADE_OPERATION_IDS` and `BIRDCODER_SHARED_CORE_FACADE_EXCLUDED_OPERATION_IDS` now lock promoted vs blocked core high-level operations into executable governance
-  14. the typed shared core write facade plus first consumer adoption for `core.createCodingSessionTurn` is now closed on top of the real Rust route
-  15. the shared core read facade plus first overview-consumer adoption for `core.getEngineCapabilities` and `core.listModels` is now closed on top of the real Rust routes
-  16. the representative admin audit lane is already closed end-to-end on top of `audit_events` truth and the shared audit service/consumer boundary
+  9. the first app runtime read SDK facade is already closed for implemented representative app runtime routes only
+  10. default IDE services, shared contexts, and `useCodingServerOverview()` now adopt the implemented app runtime read SDK facade for overview reads without fabricating local in-process app runtime authority
+  11. the app runtime projection read SDK facade is already closed for implemented session detail / events / artifacts / checkpoints
+  12. `loadCodingSessionProjection()` and `useCodingSessionProjection()` now adopt the implemented app runtime projection read facade into the first app-level coding-session detail consumer boundary
+  13. `BIRDCODER_APP_RUNTIME_SDK_OPERATION_IDS` and `BIRDCODER_APP_RUNTIME_SDK_EXCLUDED_OPERATION_IDS` now lock promoted vs blocked app runtime high-level operations into executable governance
+  14. the typed app runtime write SDK facade plus first consumer adoption for `codingSessions.turns.create` is now closed on top of the real Rust route
+  15. the app runtime read SDK facade plus first overview-consumer adoption for `engines.capabilities.retrieve` and `models.list` is now closed on top of the real Rust routes
+  16. the representative backend audit lane is already closed end-to-end on top of `audit_events` truth and the shared audit service/consumer boundary
   17. the representative app deployment lane is already closed end-to-end on top of `deployment_records` truth and the shared deployment service/consumer boundary
-  18. the representative admin deployment governance lane is already closed end-to-end on top of the same `deployment_records` truth and the shared admin deployment service/consumer boundary
-  19. the dedicated admin policy governance lane is already closed: `/backend/v3/api/policies` is real, truth converges on `governance_policies`, and high-level policy consumption must stay on `listPolicies()` / `adminPolicyService` / `loadAdminPolicies()` / `useAdminPolicies()`
+  18. the representative backend deployment governance lane is already closed end-to-end on top of the same `deployment_records` truth and the shared backend deployment service/consumer boundary
+  19. the dedicated backend policy governance lane is already closed: `/backend/v3/api/iam/policies` is real, truth converges on `governance_policies`, and high-level policy consumption must stay on `listPolicies()` / `adminPolicyService` / `loadAdminPolicies()` / `useAdminPolicies()`
   20. PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`
   21. the first Step 18 source-mirror-truth slice is already closed through `engine-kernel-contract` plus `engine-source-mirror-contract`
   22. the second Step 18 coding-server-engine-truth slice is already closed through `coding-server-engine-truth-contract`
@@ -547,28 +547,28 @@
   - `executeBirdCoderCoreSessionRun()` now demonstrably consumes shared `describeRuntime()` plus `sendCanonicalEvents()` as the only valid server-side engine projection boundary
   - `streamBirdCoderCoreSessionEventEnvelopes()` now preserves canonical event flow through Core SSE envelopes
   - provider-backed projection persistence now demonstrably round-trips `nativeRef.transportKind`, `nativeSessionId`, `capabilitySnapshot`, canonical event kinds, and canonical artifact kinds
-  - architecture and Step docs no longer describe this `coding-server` / Core projection sink as an open gap
+  - architecture and Step docs no longer describe this `coding-server` / app runtime projection sink as an open gap
   - the next loop must not reopen this lane without a fresh failing contract or a newly defined Step
 55. Step `20` is now fully closed for the remaining `runtime-data-kernel-v2` authority entities:
-  - `team_member` and `deployment_target` are both closed on shared repository, real route, shared facade, first consumer, and Rust host authority truth
+  - `team_member` and `deployment_target` are both closed on shared repository, real route, explicit app/backend SDK client pair, first consumer, and Rust host authority truth
   - future loops must not reopen Step `20` unless fresh failing evidence appears on those already-closed lanes
 56. The first Step 20 `team_member` authority slice remains closed:
   - `packages/sdkwork-birdcoder-types/src/server-api.ts` exposes `listTeamMembers(teamId)` on the shared generated app/backend facade
-  - `/api/admin/v1/teams/:teamId/members` is real across shared TS route contracts, generated client requests, in-process transport, and Rust host demo/sqlite authorities
+  - `/backend/v3/api/iam/teams/:teamId/members` is real across shared TS route contracts, generated client requests, in-process transport, and Rust host demo/sqlite authorities
   - `packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts` and `packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts` now materialize `team_members` on the shared provider/UoW repository boundary
 57. The second Step 20 `deployment_target` authority slice is now also closed:
   - `packages/sdkwork-birdcoder-types/src/server-api.ts` exposes `listDeploymentTargets(projectId)` on the shared generated app/backend facade
-  - `/api/admin/v1/projects/:projectId/deployment-targets` is real across shared TS route contracts, generated client requests, in-process transport, and Rust host demo/sqlite authorities
+  - `/backend/v3/api/projects/:projectId/deployment_targets` is real across shared TS route contracts, generated client requests, in-process transport, and Rust host demo/sqlite authorities
   - `packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts` and `packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts` now materialize `deployment_targets` on the shared provider/UoW repository boundary
   - the next autonomous loop must select a new lowest-score Step from fresh evidence instead of continuing Step `20`
 58. The remaining release-tier contract-tail drift is now also closed:
   - `scripts/ci-flow-contract.test.mjs` and `scripts/quality-gate-matrix-contract.test.mjs` now freeze the same direct web-host `check:quality:standard` chain already used by `build`, `build:prod`, `check:quality:standard`, and governance regression
-  - the current direct-runner evidence returns `111/111` passed checks with `failedCheckIds: []`
+  - the current direct-runner evidence returns `112/112` passed checks with `failedCheckIds: []`
   - the 2026-04-13 direct-runner quality execution evidence returned `status: passed`, `passedCount: 3`, `failedCount: 0`, `blockedCount: 0`, and `lastExecutedTierId: release`
   - the declared `fast -> standard -> matrix -> release-flow -> ci-flow -> governance` topology remains unchanged; only the last stale contract expectations were realigned to the already-governed command truth
 59. The Step 17 live-docs truth-drift closure is now also closed:
-  - `scripts/live-docs-governance-baseline.test.mjs` now freezes that Step 17 and architecture docs must not preserve already-closed OpenAPI/codegen, shared-facade, representative-placeholder-route, or PostgreSQL-blocker language
-  - `docs/step/17-Coding-Server-Core-App/Backend-API与控制台实现.md` and `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md` now backwrite the final Step 17 truth: representative placeholder routes are `none`, Step 17 has no remaining non-environmental representative-route gap, and PostgreSQL live smoke already has a recorded DSN-backed `passed` report on this host
+  - `scripts/live-docs-governance-baseline.test.mjs` now freezes that Step 17 and architecture docs must not preserve already-closed OpenAPI/codegen, direct app/backend client, representative-placeholder-route, or PostgreSQL-blocker language
+  - `docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md` and `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md` now backwrite the final Step 17 truth: representative placeholder routes are `none`, Step 17 has no remaining non-environmental representative-route gap, and PostgreSQL live smoke already has a recorded DSN-backed `passed` report on this host
   - future loops must not reopen Step 17 doc drift without fresh failing evidence from the live docs contract or a fresh PostgreSQL rerun regression
 60. The PostgreSQL host-pass live-docs alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now freezes the current host-pass truth across architecture `09/10` and step `12/13/17D/17E-17ZB/18A-18G/19/19A` live docs and rejects stale current-state phrases such as `active environment gate`, `remains environment-gated`, `remains an independent environment gate`, or `blocked until first passed`
@@ -593,17 +593,17 @@
   - future loops must not reopen these Step 16 or Step 18 docs as active next targets unless fresh failing evidence appears on the corresponding closed lanes
 64. The architecture 09 coding-server maturity summary alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale Architecture 09 summary that still described Rust host as a minimal `/health` placeholder and Step 17/18 route or OpenAPI landing as future work
-  - `docs/架构/09-安装-部署-发布标准.md` now records the current truth: representative `core / app / admin` routes, canonical OpenAPI export and release evidence, and PostgreSQL host-pass truth are already closed on this host; representative placeholder routes are `none`
+  - `docs/架构/09-安装-部署-发布标准.md` now records the current truth: representative `app / backend` routes, canonical OpenAPI export and release evidence, and PostgreSQL host-pass truth are already closed on this host; representative placeholder routes are `none`
   - `docs/step/09-server-runtime-openapi-桌面-服务双模落地.md` now backwrites that later closure as a historical Step 09 outcome instead of leaving Architecture 09 free to regress to the earlier placeholder summary
   - future loops must not reopen the Architecture 09 maturity summary unless fresh failing evidence appears on the same coding-server route, OpenAPI, or PostgreSQL host-pass closures
 65. The architecture README coding-server maturity summary alignment is now also closed:
-  - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale architecture README summary that still described Rust host as a minimal host skeleton and `core / app / admin` implementation as future work
-  - `docs/架构/README.md` now records the current truth: representative `core / app / admin` routes, canonical OpenAPI release evidence, representative placeholder routes `none`, and PostgreSQL host-pass truth are already closed on this host
+  - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale architecture README summary that still described Rust host as a minimal host skeleton and `app / backend` implementation as future work
+  - `docs/架构/README.md` now records the current truth: representative `app / backend` routes, canonical OpenAPI release evidence, representative placeholder routes `none`, and PostgreSQL host-pass truth are already closed on this host
   - `docs/step/09-server-runtime-openapi-桌面-服务双模落地.md` now backwrites that the top-level architecture README must stay aligned with the same Step 09 maturity closure
   - future loops must not reopen the architecture README maturity summary unless fresh failing evidence appears on the same coding-server route, OpenAPI, or PostgreSQL host-pass closures
 66. The architecture 11 industry-position maturity summary alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale Architecture 11 summary that still described `coding-server` as a minimal host skeleton and the multi-engine adapter/tool/server lane as not yet landed
-  - `docs/架构/11-行业对标与能力矩阵.md` now records the current truth: representative `core / app / admin` routes, canonical OpenAPI release evidence, and multi-engine canonical runtime are already closed; Step 18 only reopens on new engine onboarding or fresh failing evidence
+  - `docs/架构/11-行业对标与能力矩阵.md` now records the current truth: representative `app / backend` routes, canonical OpenAPI release evidence, and multi-engine canonical runtime are already closed; Step 18 only reopens on new engine onboarding or fresh failing evidence
   - `docs/step/18-多Code-Engine-Adapter-统一工具协议闭环.md` now backwrites that active industry-comparison docs must not regress to the earlier minimal-host or open-mainline summary
   - future loops must not reopen the Architecture 11 maturity summary unless fresh failing evidence appears on the same coding-server or Step 18 closures
 67. The architecture 22 and 23 Step 18 next-target alignment is now also closed:
@@ -643,7 +643,7 @@
 74. The architecture 09 and 20 engine-model next-target alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects stale active Architecture 09 and 20 wording that still treats real `engineCapabilities` / `models` server truth as the current next serial slice after that lane had already closed in `docs/release/release-2026-04-11-12.md`
   - `docs/架构/09-安装-部署-发布标准.md` and `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md` now keep those engine/model next-target notes only as checkpoint-local history explicitly superseded by `docs/release/release-2026-04-11-12.md`
-  - future loops must not reopen Architecture 09 or 20 as if the engine/model lane were still the current next serial slice unless fresh failing evidence appears on the already-closed engine/model route and shared-facade adoption lane
+  - future loops must not reopen Architecture 09 or 20 as if the engine/model lane were still the current next serial slice unless fresh failing evidence appears on the already-closed engine/model route and direct app/backend client adoption lane
 75. The Step 13 nested-wrapper runtime-blocker history alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects stale Step 13 wording that still treats the `check:release-flow` nested `pnpm run` lane as the current runtime blocker after that lane had already closed in `docs/release/release-2026-04-13-02.md`
   - `docs/step/13-发布就绪-github-flow-灰度回滚闭环.md` now keeps that nested-wrapper blocker note only as checkpoint-local history explicitly superseded by `docs/release/release-2026-04-13-02.md`

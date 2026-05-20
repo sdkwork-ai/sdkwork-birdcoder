@@ -6,7 +6,7 @@
 
 ## Goal
 
-Turn `GET /app/v3/api/deployments` from a `not_implemented` placeholder into a real representative app-surface authority read, then wire the first shared facade and first consumer path on top of the existing deployment data model without prematurely closing admin deployment governance.
+Turn `GET /app/v3/api/deployments` from a `not_implemented` placeholder into a real representative app-surface authority read, then wire the first explicit app/backend SDK client pair and first consumer path on top of the existing deployment data model without prematurely closing backend deployment governance.
 
 ## Scope
 
@@ -49,7 +49,7 @@ Turn `GET /app/v3/api/deployments` from a `not_implemented` placeholder into a r
   - direct sqlite provider: loaded from `deployment_records`
 - `packages/sdkwork-birdcoder-types/src/server-api.ts` now promotes `app.listDeployments` into the shared generated app/backend facade through `listDeployments()`.
 - `appConsoleRepository.ts`, `consoleQueries.ts`, and transport-backed app/backend client wiring now close the representative deployment repository/query/transport slice on top of shared provider truth.
-- `IDeploymentService`, `ApiBackedDeploymentService`, `createDefaultBirdCoderIdeServices()`, shared contexts, `loadDeployments()`, and `useDeployments()` now close the first deployment-facing consumer path on the shared facade boundary.
+- `IDeploymentService`, `ApiBackedDeploymentService`, `createDefaultBirdCoderIdeServices()`, shared contexts, `loadDeployments()`, and `useDeployments()` now close the first deployment-facing consumer path on the explicit app/backend SDK client pair boundary.
 - `check:release-flow` now executes deployment service and deployment consumer governance alongside the existing app/backend facade, audit, document, and release contracts.
 
 ## Next Serial Path

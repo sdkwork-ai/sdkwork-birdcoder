@@ -101,7 +101,7 @@ const client = {
   },
 } as unknown as BirdCoderAppSdkApiClient;
 
-const coreReadClient = {
+const appRuntimeReadClient = {
   async listCodingSessions(
     request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listCodingSessions']>[0],
   ): Promise<BirdCoderCodingSessionSummary[]> {
@@ -118,7 +118,7 @@ const writeService = {
 
 const service = new ApiBackedProjectService({
   appClient: client,
-  codingRuntimeClient: coreReadClient,
+  codingRuntimeClient: appRuntimeReadClient,
   writeService,
 });
 
@@ -524,7 +524,7 @@ assert.equal(
 let refreshedSessionUpsert: BirdCoderCodingSession | null = null;
 const refreshResult = await refreshCodingSessionMessages({
   codingSessionId,
-  coreReadService: {
+  appRuntimeReadService: {
     async getCodingSession() {
       return authoritativeCompletedSession;
     },
@@ -588,7 +588,7 @@ const orphanedLocalStreamingSession: BirdCoderCodingSession = {
 };
 const orphanedRefreshResult = await refreshCodingSessionMessages({
   codingSessionId: orphanedLocalStreamingSession.id,
-  coreReadService: {
+  appRuntimeReadService: {
     async getCodingSession() {
       throw new Error('authoritative session is unavailable');
     },

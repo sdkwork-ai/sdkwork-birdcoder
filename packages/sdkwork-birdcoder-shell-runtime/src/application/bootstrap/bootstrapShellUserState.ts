@@ -120,7 +120,7 @@ async function ensureRecoverySnapshotPersisted(): Promise<WorkbenchRecoverySnaps
 function hasModelConfigSyncServices(
   options: BootstrapShellUserStateOptions,
 ): options is SyncWorkbenchCodeEngineModelConfigOptions {
-  return Boolean(options.coreReadService && options.coreWriteService);
+  return Boolean(options.appRuntimeReadService && options.appRuntimeWriteService);
 }
 
 async function runCodeEngineModelConfigSynchronization(
@@ -130,8 +130,8 @@ async function runCodeEngineModelConfigSynchronization(
     await runBootstrapTaskWithTimeout(
       'code engine model config synchronization',
       syncWorkbenchCodeEngineModelConfig({
-        coreReadService: options.coreReadService,
-        coreWriteService: options.coreWriteService,
+        appRuntimeReadService: options.appRuntimeReadService,
+        appRuntimeWriteService: options.appRuntimeWriteService,
       }),
       MODEL_CONFIG_SYNC_BOOTSTRAP_TIMEOUT_MS,
     );

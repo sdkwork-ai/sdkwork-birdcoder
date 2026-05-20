@@ -13,6 +13,7 @@ const scanRoots = [
   'packages',
   'pnpm-workspace.yaml',
   'scripts',
+  'sdks',
 ];
 
 const scannableExtensions = new Set([
@@ -103,6 +104,17 @@ const allowedDebtTokenLines = [
     relativePath: 'scripts/user-center-plus-entity-standard-contract.test.mjs',
     pattern: /deprecated_at: 'TEXT NULL'/u,
     reason: 'user-center schema contract freezes nullable lifecycle timestamp DDL',
+  },
+  {
+    relativePath: 'sdks/specs/openapi/birdcoder-app-v3.openapi.json',
+    pattern: /^\s*"deprecated",\s*$/u,
+    reason: 'SDK OpenAPI model catalog exposes deprecated as a business lifecycle status',
+  },
+  {
+    relativePath:
+      'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/types/index.ts',
+    pattern: /status: "active" \| "preview" \| "deprecated" \| "disabled";/u,
+    reason: 'generated app SDK model catalog exposes deprecated as a business lifecycle status',
   },
 ];
 

@@ -29,9 +29,6 @@ export type BirdCoderLogicalColumnType =
   | 'timestamp';
 
 export type BirdCoderEntityName =
-  | 'department'
-  | 'position'
-  | 'user_address'
   | 'card'
   | 'user_card'
   | 'member_card'
@@ -59,7 +56,6 @@ export type BirdCoderEntityName =
   | 'channel_account'
   | 'channel_proxy'
   | 'channel_resource'
-  | 'api_key'
   | 'app'
   | 'ai_model_availability'
   | 'ai_model_compliance_profile'
@@ -74,7 +70,6 @@ export type BirdCoderEntityName =
   | 'ai_prompt'
   | 'ai_prompt_history'
   | 'ai_tool'
-  | 'api_security_policy'
   | 'category'
   | 'attribute'
   | 'tags'
@@ -94,8 +89,6 @@ export type BirdCoderEntityName =
   | 'favorite_folder'
   | 'share'
   | 'share_visit_record'
-  | 'invitation_code'
-  | 'invitation_relation'
   | 'sns_follow_relation'
   | 'sns_follow_statistics'
   | 'comments'
@@ -462,169 +455,6 @@ const APPBASE_IAM_LONG_INTEGER_JSON_SCALAR_KEYS = [
 ];
 
 export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefinition[] = [
-  defineEntity(
-    'department',
-    'plus_department',
-    'iam',
-    'Organization department aligned with spring-ai-plus PlusDepartment.',
-    [
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'parent_id', logicalType: 'id', nullable: true, description: 'Parent department id.' },
-      { name: 'parent_uuid', logicalType: 'text', nullable: true, description: 'Parent department UUID.' },
-      {
-        name: 'parent_metadata',
-        logicalType: 'json',
-        nullable: true,
-        description: 'Parent tree metadata JSON.',
-      },
-      { name: 'name', logicalType: 'text', description: 'Department name.' },
-      { name: 'description', logicalType: 'text', nullable: true, description: 'Department description.' },
-      { name: 'owner', logicalType: 'enum', description: 'PlusPlatformOwner value.' },
-      { name: 'owner_id', logicalType: 'id', description: 'Owning organization id.' },
-      { name: 'code', logicalType: 'text', nullable: true, description: 'Department code.' },
-      { name: 'sort_order', logicalType: 'int', nullable: true, description: 'Department sort order.' },
-      { name: 'is_active', logicalType: 'bool', description: 'Whether the department is active.' },
-      { name: 'tree_path', logicalType: 'json', nullable: true, description: 'Department tree path JSON.' },
-      { name: 'level', logicalType: 'int', nullable: true, description: 'Department tree level.' },
-      { name: 'manager_id', logicalType: 'id', nullable: true, description: 'Department manager user id.' },
-      { name: 'phone', logicalType: 'text', nullable: true, description: 'Department phone.' },
-      { name: 'email', logicalType: 'text', nullable: true, description: 'Department email.' },
-    ],
-    [
-      {
-        name: 'idx_dept_org_id',
-        columns: ['owner_id'],
-        description: 'Lookup departments by owner organization.',
-      },
-      {
-        name: 'idx_dept_code',
-        columns: ['code'],
-        description: 'Lookup departments by code.',
-      },
-      {
-        name: 'idx_dept_parent_id',
-        columns: ['parent_id'],
-        description: 'Lookup departments by parent.',
-      },
-      {
-        name: 'idx_dept_is_active',
-        columns: ['is_active'],
-        description: 'Lookup active departments.',
-      },
-      {
-        name: 'idx_dept_org_parent',
-        columns: ['owner_id', 'parent_id'],
-        description: 'Lookup departments by owner and parent.',
-      },
-      {
-        name: 'idx_dept_level',
-        columns: ['level'],
-        description: 'Lookup departments by tree level.',
-      },
-    ],
-  ),
-  defineEntity(
-    'position',
-    'plus_position',
-    'iam',
-    'Organization position aligned with spring-ai-plus PlusPosition.',
-    [
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'parent_id', logicalType: 'id', nullable: true, description: 'Parent position id.' },
-      { name: 'parent_uuid', logicalType: 'text', nullable: true, description: 'Parent position UUID.' },
-      {
-        name: 'parent_metadata',
-        logicalType: 'json',
-        nullable: true,
-        description: 'Parent tree metadata JSON.',
-      },
-      { name: 'name', logicalType: 'text', description: 'Position name.' },
-      { name: 'description', logicalType: 'text', nullable: true, description: 'Position description.' },
-      { name: 'owner', logicalType: 'enum', description: 'PlusPlatformOwner value.' },
-      { name: 'owner_id', logicalType: 'id', description: 'Owning organization id.' },
-      { name: 'code', logicalType: 'text', nullable: true, description: 'Position code.' },
-      { name: 'level', logicalType: 'int', description: 'Position level.' },
-      { name: 'sort_order', logicalType: 'int', nullable: true, description: 'Position sort order.' },
-      { name: 'is_active', logicalType: 'bool', description: 'Whether the position is active.' },
-      { name: 'tree_path', logicalType: 'json', nullable: true, description: 'Position tree path JSON.' },
-      { name: 'category', logicalType: 'text', nullable: true, description: 'Position category.' },
-      {
-        name: 'required_experience_years',
-        logicalType: 'int',
-        nullable: true,
-        description: 'Required experience years.',
-      },
-      { name: 'required_education', logicalType: 'text', nullable: true, description: 'Required education.' },
-      { name: 'max_member_count', logicalType: 'int', nullable: true, description: 'Maximum member count.' },
-    ],
-    [
-      {
-        name: 'idx_position_org_id',
-        columns: ['owner_id'],
-        description: 'Lookup positions by owner organization.',
-      },
-      {
-        name: 'idx_position_code',
-        columns: ['code'],
-        description: 'Lookup positions by code.',
-      },
-      {
-        name: 'idx_position_level',
-        columns: ['level'],
-        description: 'Lookup positions by level.',
-      },
-      {
-        name: 'idx_position_parent_id',
-        columns: ['parent_id'],
-        description: 'Lookup positions by parent.',
-      },
-      {
-        name: 'idx_position_is_active',
-        columns: ['is_active'],
-        description: 'Lookup active positions.',
-      },
-    ],
-  ),
-  defineEntity(
-    'user_address',
-    'plus_user_address',
-    'iam',
-    'User address book entry aligned with spring-ai-plus PlusUserAddress.',
-    [
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      {
-        name: 'organization_id',
-        logicalType: 'id',
-        description: 'Organization ownership id.',
-      },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', description: 'Linked iam_user id.' },
-      { name: 'name', logicalType: 'text', description: 'Consignee name.' },
-      { name: 'phone', logicalType: 'text', description: 'Consignee mobile phone number.' },
-      { name: 'country_code', logicalType: 'text', nullable: true, description: 'Country code.' },
-      { name: 'province_code', logicalType: 'text', nullable: true, description: 'Province code.' },
-      { name: 'city_code', logicalType: 'text', nullable: true, description: 'City code.' },
-      { name: 'district_code', logicalType: 'text', nullable: true, description: 'District code.' },
-      { name: 'address_detail', logicalType: 'text', description: 'Detailed address.' },
-      { name: 'postal_code', logicalType: 'text', nullable: true, description: 'Postal code.' },
-      { name: 'is_default', logicalType: 'bool', description: 'Whether this is the default address.' },
-      { name: 'tag', logicalType: 'json', nullable: true, description: 'Address tags JSON.' },
-    ],
-    [
-      {
-        name: 'idx_plus_user_address_user_default',
-        columns: ['user_id', 'is_default'],
-        description: 'Lookup default address by user.',
-      },
-    ],
-  ),
   defineEntity(
     'card',
     'plus_card',
@@ -1890,49 +1720,6 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
   ),
   defineExactEntity(
-    'api_key',
-    'plus_api_key',
-    'iam',
-    'Platform API key aligned with spring-ai-plus PlusApiKey.',
-    [
-      { name: 'id', logicalType: 'id', description: 'Primary key.' },
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'created_at', logicalType: 'timestamp', description: 'Creation timestamp.' },
-      { name: 'updated_at', logicalType: 'timestamp', description: 'Last update timestamp.' },
-      { name: 'v', logicalType: 'bigint', description: 'Java PlusBaseEntity optimistic lock version.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'user_id', logicalType: 'id', nullable: true, description: 'Owning iam_user id.' },
-      { name: 'name', logicalType: 'text', description: 'API key name.' },
-      { name: 'key_value', logicalType: 'text', description: 'Encrypted API key value.' },
-      { name: 'key_type', logicalType: 'enum', description: 'ApiKeyType integer value.' },
-      { name: 'owner', logicalType: 'enum', nullable: true, description: 'PlusPlatformOwner integer value.' },
-      { name: 'status', logicalType: 'enum', description: 'ApiKeyStatus integer value.' },
-      { name: 'expire_time', logicalType: 'timestamp', nullable: true, description: 'Expiration time.' },
-      { name: 'description', logicalType: 'text', nullable: true, description: 'API key description.' },
-      { name: 'last_used_time', logicalType: 'timestamp', nullable: true, description: 'Last usage time.' },
-    ],
-    [
-      {
-        name: 'uk_plus_api_key_key_value',
-        columns: ['key_value'],
-        description: 'Unique encrypted API key value.',
-        unique: true,
-      },
-      {
-        name: 'idx_plus_api_key_user',
-        columns: ['user_id'],
-        description: 'Lookup API keys by user.',
-      },
-      {
-        name: 'idx_plus_api_key_status',
-        columns: ['status'],
-        description: 'Lookup API keys by status.',
-      },
-    ],
-  ),
-  defineExactEntity(
     'app',
     'plus_app',
     'studio',
@@ -2829,47 +2616,6 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     ],
   ),
   defineExactEntity(
-    'api_security_policy',
-    'plus_api_security_policy',
-    'iam',
-    'API security policy aligned with spring-ai-plus PlusApiSecurityPolicyEntity.',
-    [
-      { name: 'id', logicalType: 'id', description: 'Primary key.' },
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'created_at', logicalType: 'timestamp', description: 'Creation timestamp.' },
-      { name: 'updated_at', logicalType: 'timestamp', description: 'Last update timestamp.' },
-      { name: 'v', logicalType: 'bigint', description: 'Java PlusBaseEntity optimistic lock version.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'policy_code', logicalType: 'text', description: 'Security policy code.' },
-      { name: 'api_type', logicalType: 'text', description: 'API type.' },
-      { name: 'path_pattern', logicalType: 'text', description: 'Path match pattern.' },
-      { name: 'http_method', logicalType: 'text', description: 'HTTP method.' },
-      { name: 'match_mode', logicalType: 'text', description: 'Path match mode string value.' },
-      { name: 'auth_mode', logicalType: 'text', description: 'Authentication mode string value.' },
-      { name: 'allow_anonymous', logicalType: 'bool', description: 'Whether anonymous access is allowed.' },
-      { name: 'required_roles', logicalType: 'text', nullable: true, description: 'Required role codes.' },
-      {
-        name: 'required_permissions',
-        logicalType: 'text',
-        nullable: true,
-        description: 'Required permission codes.',
-      },
-      { name: 'priority', logicalType: 'int', description: 'Policy priority.' },
-      { name: 'enabled', logicalType: 'bool', description: 'Whether policy is enabled.' },
-      { name: 'description', logicalType: 'text', nullable: true, description: 'Policy description.' },
-    ],
-    [
-      {
-        name: 'uk_plus_api_security_policy_policy_code',
-        columns: ['policy_code'],
-        description: 'Unique API security policy code.',
-        unique: true,
-      },
-    ],
-  ),
-  defineExactEntity(
     'category',
     'plus_category',
     'content',
@@ -3723,60 +3469,6 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       { name: 'idx_share_id', columns: ['share_id'], description: 'Lookup share visits by share id.' },
       { name: 'idx_ip_address', columns: ['ip_address'], description: 'Lookup share visits by IP address.' },
       { name: 'idx_created_at', columns: ['created_at'], description: 'Lookup share visits by creation time.' },
-    ],
-  ),
-  defineExactEntity(
-    'invitation_code',
-    'plus_invitation_code',
-    'iam',
-    'Invitation code aligned with spring-ai-plus InvitationCode.',
-    [
-      { name: 'id', logicalType: 'id', description: 'Primary key.' },
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'created_at', logicalType: 'timestamp', description: 'Creation timestamp.' },
-      { name: 'updated_at', logicalType: 'timestamp', description: 'Last update timestamp.' },
-      { name: 'v', logicalType: 'bigint', description: 'Java PlusBaseEntity optimistic lock version.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'code', logicalType: 'text', description: 'Unique invitation code.' },
-      { name: 'creator_user_id', logicalType: 'id', description: 'Creator iam_user id.' },
-      { name: 'status', logicalType: 'enum', description: 'InvitationCodeStatus integer value.' },
-      { name: 'expire_time', logicalType: 'timestamp', nullable: true, description: 'Expiration timestamp.' },
-      { name: 'usage_limit', logicalType: 'int', nullable: true, description: 'Maximum allowed usage count.' },
-      { name: 'used_count', logicalType: 'int', nullable: true, description: 'Current usage count.' },
-    ],
-    [
-      {
-        name: 'uk_plus_invitation_code_code',
-        columns: ['code'],
-        description: 'Preserve Java unique invitation code constraint.',
-        unique: true,
-      },
-    ],
-  ),
-  defineExactEntity(
-    'invitation_relation',
-    'plus_invitation_relation',
-    'iam',
-    'Invitation relation aligned with spring-ai-plus InvitationRelation.',
-    [
-      { name: 'id', logicalType: 'id', description: 'Primary key.' },
-      { name: 'uuid', logicalType: 'text', description: 'Stable business UUID.' },
-      { name: 'created_at', logicalType: 'timestamp', description: 'Creation timestamp.' },
-      { name: 'updated_at', logicalType: 'timestamp', description: 'Last update timestamp.' },
-      { name: 'v', logicalType: 'bigint', description: 'Java PlusBaseEntity optimistic lock version.' },
-      { name: 'tenant_id', logicalType: 'id', description: 'Tenant ownership id.' },
-      { name: 'organization_id', logicalType: 'id', description: 'Organization ownership id.' },
-      { name: 'data_scope', logicalType: 'enum', description: 'Plus data scope.' },
-      { name: 'inviter_user_id', logicalType: 'id', description: 'Inviter iam_user id.' },
-      { name: 'invitee_user_id', logicalType: 'id', description: 'Invitee iam_user id.' },
-      { name: 'invite_code', logicalType: 'text', description: 'Invitation code.' },
-      { name: 'used_time', logicalType: 'timestamp', description: 'Invitation binding timestamp.' },
-      { name: 'relation_level', logicalType: 'int', description: 'Invitation relation level.' },
-      { name: 'reward_status', logicalType: 'enum', description: 'RewardStatus integer value.' },
-      { name: 'reward_amount', logicalType: 'decimal', nullable: true, description: 'Reward amount.' },
-      { name: 'reward_type', logicalType: 'enum', nullable: true, description: 'RewardType integer value.' },
     ],
   ),
   defineExactEntity(

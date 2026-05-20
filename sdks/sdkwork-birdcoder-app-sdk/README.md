@@ -15,4 +15,5 @@ Example TypeScript calls:
 client.auth.sessions.create(body);
 client.auth.sessions.current.retrieve();
 client.platform.workspaces.list(params);
+client.collaboration.workspaceTeams.list(params);
 ```

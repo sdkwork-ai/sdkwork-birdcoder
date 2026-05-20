@@ -1,8 +1,8 @@
-# Step 17K - App/Admin Wrapper Removal Lane
+# Step 17K - App/Backend Wrapper Removal Lane
 
 ## Goal
 
-Delete the redundant infrastructure-side app/backend high-level wrapper so transport creation remains in infrastructure while representative request assembly stays only in `@sdkwork/birdcoder-types`.
+Delete the redundant infrastructure-side mixed app/backend wrapper so consumers compose the generated app SDK client and backend SDK client explicitly.
 
 ## Closed Scope
 
@@ -13,10 +13,10 @@ Delete the redundant infrastructure-side app/backend high-level wrapper so trans
 
 ## Checkpoints
 
-- `CP17K-1` `sdkClients.ts` must not export `CreateBirdCoderSplitSdkApiClientsOptions`.
-- `CP17K-2` `sdkClients.ts` must not export `createBirdCoderSplitSdkApiClients()`.
+- `CP17K-1` `sdkClients.ts` must not export a mixed split-client options type.
+- `CP17K-2` `sdkClients.ts` must not export a mixed split SDK wrapper.
 - `CP17K-3` the infrastructure module must keep only transport factories for app/backend representative reads.
-- `CP17K-4` the representative SDK consumer contract must consume `createBirdCoderSplitSdkApiClients({ appTransport, backendTransport })` directly.
+- `CP17K-4` the representative SDK consumer contract must consume `createBirdCoderAppSdkApiClient({ transport: appTransport })` and `createBirdCoderBackendSdkApiClient({ transport: backendTransport })` directly.
 - `CP17K-5` executable governance must prevent wrapper reintroduction.
 - `CP17K-6` `check:release-flow` must execute the no-wrapper contract.
 
@@ -34,4 +34,4 @@ Delete the redundant infrastructure-side app/backend high-level wrapper so trans
 
 1. PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`.
 2. Repeat the same transport-only hard cutover on the next shared `app / backend` transport consumer slice.
-3. Add typed write/response facades only on top of the generated client plus shared-facade stack.
+3. Add typed write/response facades only on top of the generated client plus direct app/backend client stack.

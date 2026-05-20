@@ -10,7 +10,7 @@ import type {
 } from '../packages/sdkwork-birdcoder-types/src/index.ts';
 
 type RefreshCodingSessionMessagesOptions = Parameters<typeof refreshCodingSessionMessages>[0];
-type RefreshCoreReadService = NonNullable<RefreshCodingSessionMessagesOptions['coreReadService']>;
+type RefreshAppRuntimeReadService = NonNullable<RefreshCodingSessionMessagesOptions['appRuntimeReadService']>;
 type RefreshProjectService = RefreshCodingSessionMessagesOptions['projectService'];
 
 const workspaceId = 'workspace-refresh-timeout';
@@ -135,10 +135,10 @@ function buildProjectService(
   };
 }
 
-function buildCoreReadService(
+function buildAppRuntimeReadService(
   summary: BirdCoderCodingSessionSummary,
-  overrides: Partial<RefreshCoreReadService> = {},
-): RefreshCoreReadService {
+  overrides: Partial<RefreshAppRuntimeReadService> = {},
+): RefreshAppRuntimeReadService {
   return {
     async getCodingSession() {
       return summary;
@@ -246,7 +246,7 @@ const locationSummary = buildSummary(locationSession);
 await assertRejectsWithin(
   refreshCodingSessionMessages({
     codingSessionId: locationSession.id,
-    coreReadService: buildCoreReadService(locationSummary, {
+    appRuntimeReadService: buildAppRuntimeReadService(locationSummary, {
       async getCodingSession() {
         return never;
       },
@@ -266,7 +266,7 @@ const messageSummary = buildSummary(messageSession);
 await assertRejectsWithin(
   refreshCodingSessionMessages({
     codingSessionId: messageSession.id,
-    coreReadService: buildCoreReadService(messageSummary, {
+    appRuntimeReadService: buildAppRuntimeReadService(messageSummary, {
       async listCodingSessionEvents() {
         return never;
       },
@@ -288,7 +288,7 @@ await assertRejectsWithin(
 let messageRefreshUpserts = 0;
 const messageRetryResult = await refreshCodingSessionMessages({
   codingSessionId: messageSession.id,
-  coreReadService: buildCoreReadService(messageSummary),
+  appRuntimeReadService: buildAppRuntimeReadService(messageSummary),
   identityScope: 'message-timeout-user',
   projectService: buildProjectService(messageProject, {
     async upsertCodingSession() {

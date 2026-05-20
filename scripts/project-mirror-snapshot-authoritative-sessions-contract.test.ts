@@ -65,7 +65,7 @@ const client = {
   },
 } as unknown as BirdCoderAppSdkApiClient;
 
-const coreReadClient = {
+const appRuntimeReadClient = {
   async listCodingSessions(
     request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listCodingSessions']>[0],
   ): Promise<BirdCoderCodingSessionSummary[]> {
@@ -87,7 +87,7 @@ const writeService = {
 
 const service = new ApiBackedProjectService({
   appClient: client,
-  codingRuntimeClient: coreReadClient,
+  codingRuntimeClient: appRuntimeReadClient,
   writeService,
 });
 

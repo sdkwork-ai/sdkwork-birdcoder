@@ -1484,7 +1484,7 @@ export interface AuthQrLoginCodesRetrievePathParams {
   qrKey: string;
 }
 
-export interface IamTeamsListQuery extends Record<string, BirdcoderSdkQueryValue> {
+export interface CollaborationWorkspaceTeamsListQuery extends Record<string, BirdcoderSdkQueryValue> {
   userId?: string;
   workspaceId?: string;
 }
@@ -1906,6 +1906,22 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "tenantScope": "tenant"
   },
   {
+    "key": "collaboration.workspaceTeams.list",
+    "method": "GET",
+    "operationId": "workspaceTeams.list",
+    "path": "/app/v3/api/teams",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "collaboration",
+    "permission": "collaboration.workspaceTeams.read",
+    "public": false,
+    "resource": "collaboration.workspaceTeams",
+    "summary": "List workspace teams",
+    "tag": "collaboration",
+    "tenantScope": "tenant"
+  },
+  {
     "key": "content.documents.list",
     "method": "GET",
     "operationId": "documents.list",
@@ -1919,22 +1935,6 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "resource": "content.documents",
     "summary": "List project documents",
     "tag": "content",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "iam.teams.list",
-    "method": "GET",
-    "operationId": "teams.list",
-    "path": "/app/v3/api/teams",
-    "pathParamNames": [],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "iam",
-    "permission": "iam.teams.read",
-    "public": false,
-    "resource": "iam.teams",
-    "summary": "List workspace teams",
-    "tag": "iam",
     "tenantScope": "tenant"
   },
   {

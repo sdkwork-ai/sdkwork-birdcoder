@@ -10,7 +10,7 @@ import {
   type BirdCoderUpdateCodingSessionRequest as GeneratedBirdCoderUpdateCodingSessionRequest,
   type BirdCoderUpdateProjectRequest as GeneratedBirdCoderUpdateProjectRequest,
   type BirdCoderUpdateWorkspaceRequest as GeneratedBirdCoderUpdateWorkspaceRequest,
-  type IamTeamsListQuery,
+  type CollaborationWorkspaceTeamsListQuery,
   type IntelligenceCodingSessionsListQuery,
   type PlatformProjectsListQuery,
   type PlatformWorkspacesListQuery,
@@ -21,7 +21,7 @@ import {
 import {
   createBirdcoderBackendSdkClient,
   type BirdcoderBackendSdkClient,
-  type IamTeamGovernanceListQuery,
+  type IamTeamsListQuery as BackendIamTeamsListQuery,
 } from '@sdkwork/birdcoder-backend-sdk';
 import type {
   BirdCoderAdminAuditEventSummary,
@@ -277,11 +277,6 @@ export type BirdCoderAppRuntimeSdkApiClient =
   BirdCoderAppRuntimeReadSdkApiClient &
   BirdCoderAppRuntimeWriteSdkApiClient;
 
-export interface BirdCoderSplitSdkApiClients {
-  appClient: BirdCoderAppSdkApiClient;
-  backendClient: BirdCoderBackendSdkApiClient;
-}
-
 export interface CreateBirdCoderAppSdkApiClientOptions {
   accessToken?: string;
   authToken?: string;
@@ -292,13 +287,6 @@ export interface CreateBirdCoderBackendSdkApiClientOptions {
   accessToken?: string;
   authToken?: string;
   transport: BirdCoderApiTransport;
-}
-
-export interface CreateBirdCoderSplitSdkApiClientsOptions {
-  accessToken?: string;
-  appTransport: BirdCoderApiTransport;
-  authToken?: string;
-  backendTransport: BirdCoderApiTransport;
 }
 
 interface DataEnvelope<TData> {
@@ -400,9 +388,9 @@ function toGeneratedProjectQuery(
   };
 }
 
-function toGeneratedTeamQuery(
+function toGeneratedWorkspaceTeamQuery(
   options: BirdCoderWorkspaceScopedListRequest,
-): IamTeamsListQuery {
+): CollaborationWorkspaceTeamsListQuery {
   return {
     ...(options.userId ? { userId: options.userId } : {}),
     ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
@@ -452,9 +440,9 @@ function toGeneratedSkillPackageQuery(
   };
 }
 
-function toGeneratedTeamGovernanceQuery(
+function toGeneratedBackendTeamQuery(
   options: BirdCoderWorkspaceScopedListRequest,
-): IamTeamGovernanceListQuery {
+): BackendIamTeamsListQuery {
   return {
     ...(options.userId ? { userId: options.userId } : {}),
     ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
@@ -701,7 +689,7 @@ export function createBirdCoderAppSdkApiClient({
       return readData(await client.platform.projects.publish.create({ projectId }, request));
     },
     async listTeams(options = {}) {
-      return readItems(await client.iam.teams.list(toGeneratedTeamQuery(options)));
+      return readItems(await client.collaboration.workspaceTeams.list(toGeneratedWorkspaceTeamQuery(options)));
     },
     async listWorkspaceMembers(workspaceId) {
       return readItems(await client.iam.workspaces.members.list({ workspaceId }));
@@ -746,10 +734,10 @@ export function createBirdCoderBackendSdkApiClient({
       return readItems(await client.platform.projects.deploymentTargets.list({ projectId }));
     },
     async listGovernanceTeams(options = {}) {
-      return readItems(await client.iam.teamGovernance.list(toGeneratedTeamGovernanceQuery(options)));
+      return readItems(await client.iam.teams.list(toGeneratedBackendTeamQuery(options)));
     },
     async listTeamMembers(teamId) {
-      return readItems(await client.iam.teamGovernance.members.list({ teamId }));
+      return readItems(await client.iam.teams.members.list({ teamId }));
     },
     async listReleases() {
       return readItems(await client.platform.releases.list());
@@ -760,25 +748,5 @@ export function createBirdCoderBackendSdkApiClient({
     async listPolicies() {
       return readItems(await client.iam.policies.list());
     },
-  };
-}
-
-export function createBirdCoderSplitSdkApiClients({
-  accessToken,
-  appTransport,
-  authToken,
-  backendTransport,
-}: CreateBirdCoderSplitSdkApiClientsOptions): BirdCoderSplitSdkApiClients {
-  return {
-    appClient: createBirdCoderAppSdkApiClient({
-      accessToken,
-      authToken,
-      transport: appTransport,
-    }),
-    backendClient: createBirdCoderBackendSdkApiClient({
-      accessToken,
-      authToken,
-      transport: backendTransport,
-    }),
   };
 }

@@ -69,19 +69,19 @@ interface PersistedWorkbenchPreferencesRecord {
   };
 }
 
-export interface WorkbenchCodeEngineModelConfigCoreReadService {
+export interface WorkbenchCodeEngineModelConfigAppRuntimeReadService {
   getModelConfig(): Promise<BirdCoderCodeEngineModelConfig>;
 }
 
-export interface WorkbenchCodeEngineModelConfigCoreWriteService {
+export interface WorkbenchCodeEngineModelConfigAppRuntimeWriteService {
   syncModelConfig(
     request: BirdCoderSyncCodeEngineModelConfigRequest,
   ): Promise<BirdCoderCodeEngineModelConfigSyncResult>;
 }
 
 export interface SyncWorkbenchCodeEngineModelConfigOptions {
-  coreReadService: WorkbenchCodeEngineModelConfigCoreReadService;
-  coreWriteService: WorkbenchCodeEngineModelConfigCoreWriteService;
+  appRuntimeReadService: WorkbenchCodeEngineModelConfigAppRuntimeReadService;
+  appRuntimeWriteService: WorkbenchCodeEngineModelConfigAppRuntimeWriteService;
 }
 
 const DEFAULT_TERMINAL_PROFILE_ID: TerminalProfileId = 'powershell';
@@ -421,12 +421,12 @@ async function readWorkbenchCodeEngineModelConfig(): Promise<
 }
 
 export async function syncWorkbenchCodeEngineModelConfig({
-  coreReadService,
-  coreWriteService,
+  appRuntimeReadService,
+  appRuntimeWriteService,
 }: SyncWorkbenchCodeEngineModelConfigOptions): Promise<BirdCoderCodeEngineModelConfigSyncResult> {
   const localConfig = await readWorkbenchCodeEngineModelConfig();
   if (!localConfig) {
-    const serverConfig = await coreReadService.getModelConfig();
+    const serverConfig = await appRuntimeReadService.getModelConfig();
     const syncPlan = createBirdCoderCodeEngineModelConfigSyncPlan({
       localConfig: null,
       serverConfig,
@@ -438,7 +438,7 @@ export async function syncWorkbenchCodeEngineModelConfig({
     return syncPlan;
   }
 
-  const syncResult = await coreWriteService.syncModelConfig({ localConfig });
+  const syncResult = await appRuntimeWriteService.syncModelConfig({ localConfig });
   if (syncResult.shouldWriteLocal) {
     await writeWorkbenchCodeEngineModelConfig(syncResult.config);
   }

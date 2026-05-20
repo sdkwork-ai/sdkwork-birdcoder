@@ -1,9 +1,9 @@
 import { stringifyBirdCoderApiJson } from '@sdkwork/birdcoder-types';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
-import type { ICoreReadService } from '../interfaces/ICoreReadService.ts';
+import type { IAppRuntimeReadService } from '../interfaces/IAppRuntimeReadService.ts';
 import type { BirdCoderAppRuntimeReadSdkApiClient } from '../sdkClients.ts';
 
-export interface ApiBackedCoreReadServiceOptions {
+export interface ApiBackedAppRuntimeReadServiceOptions {
   client: BirdCoderAppRuntimeReadSdkApiClient;
   currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
 }
@@ -21,7 +21,7 @@ const INFLIGHT_ONLY_TTL_MS = 0;
 const SESSION_DETAIL_TTL_MS = INFLIGHT_ONLY_TTL_MS;
 const SESSION_INVENTORY_TTL_MS = 10_000;
 const STATIC_CATALOG_TTL_MS = 30_000;
-const CORE_READ_CACHE_MAX_ENTRIES = 256;
+const APP_RUNTIME_READ_CACHE_MAX_ENTRIES = 256;
 
 function stableSerializeCacheKeyPart(value: unknown): string {
   if (value === null || value === undefined) {
@@ -47,12 +47,12 @@ function stableSerializeCacheKeyPart(value: unknown): string {
   return stringifyBirdCoderApiJson(value);
 }
 
-export class ApiBackedCoreReadService implements ICoreReadService {
+export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
   private readonly client: BirdCoderAppRuntimeReadSdkApiClient;
   private readonly currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
   private readonly readCache = new Map<string, ReadCacheEntry<unknown>>();
 
-  constructor({ client, currentUserProvider }: ApiBackedCoreReadServiceOptions) {
+  constructor({ client, currentUserProvider }: ApiBackedAppRuntimeReadServiceOptions) {
     this.client = client;
     this.currentUserProvider = currentUserProvider;
   }
@@ -86,7 +86,7 @@ export class ApiBackedCoreReadService implements ICoreReadService {
       }
     }
 
-    while (this.readCache.size > CORE_READ_CACHE_MAX_ENTRIES) {
+    while (this.readCache.size > APP_RUNTIME_READ_CACHE_MAX_ENTRIES) {
       let evictedEntry = false;
       for (const [cacheKey, entry] of this.readCache) {
         if (entry.inflight) {

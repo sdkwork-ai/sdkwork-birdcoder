@@ -96,7 +96,7 @@ function StudioPageComponent({
   } = useProjects(workspaceId, {
     isActive: isVisible,
   });
-  const { collaborationService, coreReadService, projectService } = useIDEServices();
+  const { collaborationService, appRuntimeReadService, projectService } = useIDEServices();
   const { user } = useAuth();
   const { addToast } = useToast();
   const [sessionId, setSessionId] = useState<string>('');
@@ -673,7 +673,7 @@ function StudioPageComponent({
 
   const isSelectedCodingSessionTranscriptVisible = isVisible && isSidebarVisible;
   const isSelectedCodingSessionMessagesLoading = useSelectedCodingSessionMessages({
-    coreReadService,
+    appRuntimeReadService,
     isActive: isSelectedCodingSessionTranscriptVisible,
     projectService,
     selectionRefreshToken,
@@ -694,7 +694,7 @@ function StudioPageComponent({
     refreshingProjectId,
   } = useSessionRefreshActions({
     addToast,
-    coreReadService,
+    appRuntimeReadService,
     getPreservedSelection: () => ({
       codingSessionId: sessionId,
       projectId: currentProjectId,

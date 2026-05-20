@@ -20,6 +20,7 @@ Root SDKWork standards remain authoritative. The SDK family narrows those standa
 
 - [component.spec.json](./component.spec.json) is the machine-readable component contract.
 - [../.sdkwork-assembly.json](../.sdkwork-assembly.json) is the SDK generation manifest.
+- [domain-catalog.json](./domain-catalog.json) registers the standard and app-local domains used by SDK OpenAPI `x-sdkwork-domain` metadata.
 - [openapi/birdcoder-app-v3.openapi.json](./openapi/birdcoder-app-v3.openapi.json) is the app SDK OpenAPI source.
 - [openapi/birdcoder-backend-v3.openapi.json](./openapi/birdcoder-backend-v3.openapi.json) is the backend SDK OpenAPI source.
 
@@ -33,7 +34,7 @@ Root SDKWork standards remain authoritative. The SDK family narrows those standa
 | [COMPONENT_SPEC.md](../../../../specs/COMPONENT_SPEC.md) | Local sdk-family component spec and manifest rules. |
 | [DOCUMENTATION_SPEC.md](../../../../specs/DOCUMENTATION_SPEC.md) | SDK README and example documentation rules. |
 | [TEST_SPEC.md](../../../../specs/TEST_SPEC.md) | Executable API, SDK, generated output, and documentation verification rules. |
-| [DOMAIN_SPEC.md](../../../../specs/DOMAIN_SPEC.md) | Canonical `iam`, `platform`, and `intelligence` domain naming. |
+| [DOMAIN_SPEC.md](../../../../specs/DOMAIN_SPEC.md) | Canonical domain naming plus the local extension catalog for BirdCoder runtime and billing API domains. |
 
 ## Verification
 

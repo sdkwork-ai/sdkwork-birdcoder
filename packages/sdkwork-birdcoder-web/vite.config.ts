@@ -57,6 +57,22 @@ export default defineConfig(({ mode }) => {
             const isSourcePath = (sourcePath: string) => id.includes(sourcePath);
             const isAnySourcePath = (sourcePaths: readonly string[]) =>
               sourcePaths.some((sourcePath) => isSourcePath(sourcePath));
+            const getSourcePathFileStem = (sourcePath: string) => {
+              const sourcePathIndex = id.indexOf(sourcePath);
+              if (sourcePathIndex < 0) {
+                return '';
+              }
+
+              const relativePath = id.slice(sourcePathIndex + sourcePath.length).split('?')[0] ?? '';
+              return (relativePath.split('/').pop() ?? '')
+                .replace(/\.[cm]?[jt]sx?$/u, '')
+                .replace(/[^A-Za-z0-9_-]+/gu, '-')
+                .replace(/^-+|-+$/gu, '')
+                .toLowerCase();
+            };
+            const appSdkSourceRoot = '/spring-ai-plus-app-api/sdkwork-sdk-app/sdkwork-app-sdk-typescript/src/';
+            const appSdkApiSourceRoot = `${appSdkSourceRoot}api/`;
+            const sdkCommonSourceRoot = '/sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/';
             if (
               id.includes('/packages/sdkwork-birdcoder-i18n/src/') ||
               id.includes('/node_modules/react-i18next/') ||
@@ -95,6 +111,42 @@ export default defineConfig(({ mode }) => {
 
           if (id.includes('/node_modules/qrcode/')) {
             return 'vendor-qrcode';
+          }
+
+          if (isSourcePath(sdkCommonSourceRoot)) {
+            return 'birdcoder-platform-sdk-common';
+          }
+
+          if (isSourcePath(appSdkApiSourceRoot)) {
+            const appSdkApiModule = getSourcePathFileStem(appSdkApiSourceRoot);
+            if (appSdkApiModule === 'base' || appSdkApiModule === 'index') {
+              return 'birdcoder-platform-app-sdk-client';
+            }
+            return appSdkApiModule
+              ? `birdcoder-platform-app-sdk-api-${appSdkApiModule}`
+              : 'birdcoder-platform-app-sdk-api';
+          }
+
+          if (
+            isAnySourcePath([
+              `${appSdkSourceRoot}http/`,
+              `${appSdkSourceRoot}auth/`,
+            ])
+          ) {
+            return 'birdcoder-platform-app-sdk-runtime';
+          }
+
+          if (isSourcePath(`${appSdkSourceRoot}types/`)) {
+            return 'birdcoder-platform-app-sdk-types';
+          }
+
+          if (
+            isAnySourcePath([
+              `${appSdkSourceRoot}index.ts`,
+              `${appSdkSourceRoot}sdk.ts`,
+            ])
+          ) {
+            return 'birdcoder-platform-app-sdk-client';
           }
 
           if (
@@ -636,8 +688,8 @@ export default defineConfig(({ mode }) => {
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAuditService.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCatalogService.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCollaborationService.ts',
-              '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCoreReadService.ts',
-              '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCoreWriteService.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeWriteService.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedDeploymentService.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedDocumentService.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedGitService.ts',

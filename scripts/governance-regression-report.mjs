@@ -176,67 +176,78 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     id: 'studio-preview-execution',
     label: 'Studio preview execution contract',
     scriptPath: 'scripts/studio-preview-execution-contract.test.ts',
-    command: 'node scripts/studio-preview-execution-contract.test.ts',
+    command: 'node scripts/run-local-tsx.mjs scripts/studio-preview-execution-contract.test.ts',
+    execution: 'command',
   },
   {
     id: 'studio-build-execution',
     label: 'Studio build execution contract',
     scriptPath: 'scripts/studio-build-execution-contract.test.ts',
-    command: 'node scripts/studio-build-execution-contract.test.ts',
+    command: 'node scripts/run-local-tsx.mjs scripts/studio-build-execution-contract.test.ts',
+    execution: 'command',
   },
   {
     id: 'studio-test-execution',
     label: 'Studio test execution contract',
     scriptPath: 'scripts/studio-test-execution-contract.test.ts',
-    command: 'node scripts/studio-test-execution-contract.test.ts',
+    command: 'node scripts/run-local-tsx.mjs scripts/studio-test-execution-contract.test.ts',
+    execution: 'command',
   },
   {
     id: 'studio-simulator-execution',
     label: 'Studio simulator execution contract',
     scriptPath: 'scripts/studio-simulator-execution-contract.test.ts',
-    command: 'node scripts/studio-simulator-execution-contract.test.ts',
+    command: 'node scripts/run-local-tsx.mjs scripts/studio-simulator-execution-contract.test.ts',
+    execution: 'command',
   },
   {
     id: 'studio-preview-evidence-store',
     label: 'Studio preview evidence store contract',
     scriptPath: 'scripts/studio-preview-evidence-store-contract.test.ts',
-    command: 'node scripts/studio-preview-evidence-store-contract.test.ts',
+    command: 'node scripts/run-local-tsx.mjs scripts/studio-preview-evidence-store-contract.test.ts',
+    execution: 'command',
   },
   {
     id: 'studio-build-evidence-store',
     label: 'Studio build evidence store contract',
     scriptPath: 'scripts/studio-build-evidence-store-contract.test.ts',
-    command: 'node scripts/studio-build-evidence-store-contract.test.ts',
+    command: 'node scripts/run-local-tsx.mjs scripts/studio-build-evidence-store-contract.test.ts',
+    execution: 'command',
   },
   {
     id: 'studio-test-evidence-store',
     label: 'Studio test evidence store contract',
     scriptPath: 'scripts/studio-test-evidence-store-contract.test.ts',
-    command: 'node scripts/studio-test-evidence-store-contract.test.ts',
+    command: 'node scripts/run-local-tsx.mjs scripts/studio-test-evidence-store-contract.test.ts',
+    execution: 'command',
   },
   {
     id: 'studio-simulator-evidence-store',
     label: 'Studio simulator evidence store contract',
     scriptPath: 'scripts/studio-simulator-evidence-store-contract.test.ts',
-    command: 'node scripts/studio-simulator-evidence-store-contract.test.ts',
+    command: 'node scripts/run-local-tsx.mjs scripts/studio-simulator-evidence-store-contract.test.ts',
+    execution: 'command',
   },
   {
     id: 'studio-evidence-viewer',
     label: 'Studio evidence viewer contract',
     scriptPath: 'scripts/studio-evidence-viewer-contract.test.ts',
-    command: 'node scripts/studio-evidence-viewer-contract.test.ts',
+    command: 'node scripts/run-local-tsx.mjs scripts/studio-evidence-viewer-contract.test.ts',
+    execution: 'command',
   },
   {
     id: 'studio-evidence-viewer-ui',
     label: 'Studio evidence viewer UI contract',
     scriptPath: 'scripts/studio-evidence-viewer-ui-contract.test.ts',
-    command: 'node scripts/studio-evidence-viewer-ui-contract.test.ts',
+    command: 'node scripts/run-local-tsx.mjs scripts/studio-evidence-viewer-ui-contract.test.ts',
+    execution: 'command',
   },
   {
     id: 'studio-simulator-ui',
     label: 'Studio simulator UI contract',
     scriptPath: 'scripts/studio-simulator-ui-contract.test.ts',
-    command: 'node scripts/studio-simulator-ui-contract.test.ts',
+    command: 'node scripts/run-local-tsx.mjs scripts/studio-simulator-ui-contract.test.ts',
+    execution: 'command',
   },
   {
     id: 'run-config-request',
@@ -448,6 +459,7 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     label: 'Prompt, skill, and template evidence consumer contract',
     scriptPath: 'scripts/prompt-skill-template-evidence-consumer-contract.test.ts',
     command: 'pnpm run test:prompt-skill-template-evidence-consumer-contract',
+    execution: 'command',
   },
   {
     id: 'coding-server-prompt-skill-template-evidence-consumer',
@@ -466,6 +478,12 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     label: 'Live docs governance baseline contract',
     scriptPath: 'scripts/live-docs-governance-baseline.test.mjs',
     command: 'node scripts/live-docs-governance-baseline.test.mjs',
+  },
+  {
+    id: 'coding-server-api-spec-path',
+    label: 'Coding server API_SPEC path contract',
+    scriptPath: 'scripts/coding-server-api-spec-path-contract.test.ts',
+    command: 'node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts',
   },
   {
     id: 'quality-loop-scoreboard',
@@ -662,8 +680,8 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
   {
     id: 'birdcoder-iam-standard',
     label: 'BirdCoder IAM standard contract',
-    scriptPath: 'scripts/birdcoder-iam-appbase-parity-contract.test.mjs',
-    command: 'node scripts/birdcoder-iam-appbase-parity-contract.test.mjs',
+    scriptPath: 'scripts/birdcoder-iam-standard-contract.test.mjs',
+    command: 'node scripts/birdcoder-iam-standard-contract.test.mjs',
   },
   {
     id: 'user-center-standard',
@@ -821,29 +839,24 @@ async function importGovernanceRegressionScript(scriptPath, cacheKey = '') {
   await import(scriptUrl.href);
 }
 
-async function executeGovernanceRegressionNodeCommandInProcess(
-  command,
-  { rootDir = process.cwd(), execPath = process.execPath } = {},
-) {
-  const execution = resolveGovernanceRegressionInProcessNodeExecution(command, {
-    rootDir,
-    execPath,
-  });
-
-  if (!execution) {
-    throw new Error(`Governance regression in-process node execution requires a node script command, received: ${command}`);
-  }
-
+async function importGovernanceRegressionScriptWithExitCapture({
+  scriptPath,
+  cacheKey = '',
+  argv,
+  execPath = process.execPath,
+} = {}) {
   const previousArgv = process.argv;
   const previousExit = process.exit;
   const previousExitCode = process.exitCode;
   const exitSignalName = 'GovernanceRegressionProcessExit';
 
-  process.argv = [...execution.argv];
+  if (Array.isArray(argv)) {
+    process.argv = [...argv];
+  }
   process.exitCode = undefined;
   process.exit = ((code = 0) => {
     throw Object.assign(
-      new Error(`Governance regression in-process node execution exited with code ${code}.`),
+      new Error(`Governance regression in-process script execution exited with code ${code}.`),
       {
         name: exitSignalName,
         exitCode: typeof code === 'number' ? code : Number(code) || 0,
@@ -852,7 +865,7 @@ async function executeGovernanceRegressionNodeCommandInProcess(
   });
 
   try {
-    await importGovernanceRegressionScript(execution.scriptPath);
+    await importGovernanceRegressionScript(scriptPath, cacheKey);
     return typeof process.exitCode === 'number' ? process.exitCode : 0;
   } catch (error) {
     if (error instanceof Error && error.name === exitSignalName) {
@@ -1207,58 +1220,47 @@ export async function executeGovernanceRegressionCheck(
 
   try {
     if (check.execution === 'command') {
-      const inProcessNodeExecution = resolveGovernanceRegressionInProcessNodeExecution(check.command, {
-        rootDir,
-      });
-      const commandResult = inProcessNodeExecution
-        ? {
-            exitCode: await executeGovernanceRegressionNodeCommandInProcess(check.command, { rootDir }),
+      const commandResult = await (async () => {
+        const invocation = resolveGovernanceRegressionCommandInvocation(check.command, { platform });
+        if (invocation.shell === true && platform === 'win32') {
+          const shellResult = runWindowsShellCommandWithOutputCapture(check.command, {
+            cwd: rootDir,
+            env: buildGovernanceRegressionCommandEnv({ platform }),
+          });
+          return {
+            exitCode: typeof shellResult.status === 'number' ? shellResult.status : 1,
+            stdout: shellResult.stdout,
+            stderr: shellResult.stderr,
+            errorCode: shellResult.error instanceof Error ? String(shellResult.error.code ?? '').trim() : '',
+            errorSyscall: shellResult.error instanceof Error ? String(shellResult.error.syscall ?? '').trim() : '',
+          };
+        }
+
+        return new Promise((resolve, reject) => {
+          const child = spawn(invocation.command, invocation.args, {
+            cwd: rootDir,
+            env: buildGovernanceRegressionCommandEnv({ platform }),
+            shell: invocation.shell === true,
+            windowsHide: true,
+            stdio: ['ignore', 'pipe', 'pipe'],
+          });
+
+          child.stdout.on('data', (chunk) => {
+            process.stdout.write(chunk);
+          });
+          child.stderr.on('data', (chunk) => {
+            process.stderr.write(chunk);
+          });
+          child.on('error', reject);
+          child.on('close', (code) => resolve({
+            exitCode: typeof code === 'number' ? code : 1,
             stdout: trimOutput(stdoutChunks.join('')),
             stderr: trimOutput(stderrChunks.join('')),
             errorCode: '',
             errorSyscall: '',
-          }
-        : await (async () => {
-            const invocation = resolveGovernanceRegressionCommandInvocation(check.command, { platform });
-            if (invocation.shell === true && platform === 'win32') {
-              const shellResult = runWindowsShellCommandWithOutputCapture(check.command, {
-                cwd: rootDir,
-                env: buildGovernanceRegressionCommandEnv({ platform }),
-              });
-              return {
-                exitCode: typeof shellResult.status === 'number' ? shellResult.status : 1,
-                stdout: shellResult.stdout,
-                stderr: shellResult.stderr,
-                errorCode: shellResult.error instanceof Error ? String(shellResult.error.code ?? '').trim() : '',
-                errorSyscall: shellResult.error instanceof Error ? String(shellResult.error.syscall ?? '').trim() : '',
-              };
-            }
-
-            return new Promise((resolve, reject) => {
-              const child = spawn(invocation.command, invocation.args, {
-                cwd: rootDir,
-                env: buildGovernanceRegressionCommandEnv({ platform }),
-                shell: invocation.shell === true,
-                windowsHide: true,
-                stdio: ['ignore', 'pipe', 'pipe'],
-              });
-
-              child.stdout.on('data', (chunk) => {
-                process.stdout.write(chunk);
-              });
-              child.stderr.on('data', (chunk) => {
-                process.stderr.write(chunk);
-              });
-              child.on('error', reject);
-              child.on('close', (code) => resolve({
-                exitCode: typeof code === 'number' ? code : 1,
-                stdout: trimOutput(stdoutChunks.join('')),
-                stderr: trimOutput(stderrChunks.join('')),
-                errorCode: '',
-                errorSyscall: '',
-              }));
-            });
-          })();
+          }));
+        });
+      })();
 
       return {
         status: commandResult.exitCode === 0 ? 'passed' : 'failed',
@@ -1274,11 +1276,15 @@ export async function executeGovernanceRegressionCheck(
     const resolvedScriptPath = path.isAbsolute(check.scriptPath)
       ? check.scriptPath
       : path.resolve(rootDir, check.scriptPath);
-    await importGovernanceRegressionScript(resolvedScriptPath, `${check.id}-${Date.now()}`);
+    const exitCode = await importGovernanceRegressionScriptWithExitCapture({
+      scriptPath: resolvedScriptPath,
+      cacheKey: `${check.id}-${Date.now()}`,
+      argv: [process.execPath, resolvedScriptPath],
+    });
 
     return {
-      status: 'passed',
-      exitCode: 0,
+      status: exitCode === 0 ? 'passed' : 'failed',
+      exitCode,
       stdout: trimOutput(stdoutChunks.join('')),
       stderr: trimOutput(stderrChunks.join('')),
       errorCode: '',

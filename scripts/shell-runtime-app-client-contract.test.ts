@@ -295,8 +295,8 @@ try {
   );
   assert.match(
     bootstrapImplSource,
-    /const \[coreReadService, coreWriteService\] = await Promise\.all\(\[[\s\S]*loadDefaultBirdCoderIdeService\('coreReadService'\),[\s\S]*loadDefaultBirdCoderIdeService\('coreWriteService'\),[\s\S]*\]\);[\s\S]*await bootstrapShellUserState\(\{[\s\S]*coreReadService,[\s\S]*coreWriteService,[\s\S]*\}\);/u,
-    'shell runtime bootstrap must initialize persisted shell user state with bound core services so model-config synchronization uses the same runtime authority.',
+    /const \[appRuntimeReadService, appRuntimeWriteService\] = await Promise\.all\(\[[\s\S]*loadDefaultBirdCoderIdeService\('appRuntimeReadService'\),[\s\S]*loadDefaultBirdCoderIdeService\('appRuntimeWriteService'\),[\s\S]*\]\);[\s\S]*await bootstrapShellUserState\(\{[\s\S]*appRuntimeReadService,[\s\S]*appRuntimeWriteService,[\s\S]*\}\);/u,
+    'shell runtime bootstrap must initialize persisted shell user state with bound app runtime services so model-config synchronization uses the same runtime authority.',
   );
 
   bindDefaultBirdCoderIdeServicesRuntime({

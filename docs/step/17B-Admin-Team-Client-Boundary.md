@@ -2,7 +2,7 @@
 
 ## Goal
 
-Close the first representative team service boundary so default IDE services consume workspace team reads through the shared typed app/backend client instead of local repository bypasses or UI-local DTO forks, while explicit admin team reads stay separately named.
+Close the first representative team service boundary so default IDE services consume workspace team reads through the shared typed app/backend client instead of local repository bypasses or UI-local DTO forks, while explicit backend governance team reads stay separately named.
 
 ## Closed Scope
 
@@ -19,7 +19,7 @@ Close the first representative team service boundary so default IDE services con
 ## Checkpoints
 
 - CP17B-1 `BirdCoderAppSdkApiClient.listTeams()` resolves against `/app/v3/api/teams` for workspace-scoped runtime reads.
-- CP17B-2 `BirdCoderBackendSdkApiClient.listGovernanceTeams()` remains the explicit backend-surface team reader on `/backend/v3/api/teams`.
+- CP17B-2 `BirdCoderBackendSdkApiClient.listGovernanceTeams()` remains the explicit backend-surface team reader on `/backend/v3/api/iam/teams`.
 - CP17B-3 `createDefaultBirdCoderIdeServices()` exposes `teamService` on the same shared client boundary already used by workspace/project reads.
 - CP17B-4 `BirdCoderTeam` and `ITeamService` provide one minimal domain/service standard for later console and UI adoption.
 - CP17B-5 `IDEContext` and `ServiceContext` forward `teamService` without reintroducing eager default-service allocation.

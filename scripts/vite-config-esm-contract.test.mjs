@@ -569,7 +569,7 @@ assert.equal(
 );
 for (const apiRuntimeModuleId of [
   '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCoreReadService.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts',
 ]) {
   assert.equal(
     webManualChunks(apiRuntimeModuleId),

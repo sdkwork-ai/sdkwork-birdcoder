@@ -2,7 +2,7 @@
 
 ## Goal
 
-Turn the "not-yet-promoted core writes and still-unimplemented core reads must stay outside the shared high-level facade" rule into explicit types-layer metadata plus an executable release-flow contract.
+Turn the "not-yet-promoted app runtime writes and still-unimplemented app runtime reads must stay outside the shared high-level facade" rule into explicit types-layer metadata plus an executable release-flow contract.
 
 ## Closed Scope
 
@@ -12,11 +12,11 @@ Turn the "not-yet-promoted core writes and still-unimplemented core reads must s
 
 ## Checkpoints
 
-- `CP17R-1` `@sdkwork/birdcoder-types` must expose an explicit promoted-operation catalog for the shared high-level core facade.
-- `CP17R-2` `@sdkwork/birdcoder-types` must expose an explicit excluded-operation catalog for not-yet-promoted core writes and still-unimplemented core reads.
-- `CP17R-3` helper predicates must let downstream governance distinguish promoted and excluded core operations without scanning implementation text.
-- `CP17R-4` executable governance must prove excluded operations remain available in the low-level generated client while staying absent from the shared high-level core facade.
-- `CP17R-5` `check:release-flow` must execute the shared core facade governance contract.
+- `CP17R-1` `@sdkwork/birdcoder-types` must expose an explicit promoted-operation catalog for the app runtime SDK facade.
+- `CP17R-2` `@sdkwork/birdcoder-types` must expose an explicit excluded-operation catalog for not-yet-promoted app runtime writes and still-unimplemented app runtime reads.
+- `CP17R-3` helper predicates must let downstream governance distinguish promoted and excluded app runtime operations without scanning implementation text.
+- `CP17R-4` executable governance must prove excluded operations remain available in the low-level generated client while staying absent from the app runtime SDK facade.
+- `CP17R-5` `check:release-flow` must execute the app runtime SDK facade governance contract.
 
 ## Verification
 
@@ -29,5 +29,5 @@ Turn the "not-yet-promoted core writes and still-unimplemented core reads must s
 ## Next Serial Path
 
 1. PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`.
-2. Keep excluded core writes out of the shared high-level facade until the corresponding typed write/response facade is closed.
-3. Once a server-backed core write route becomes real, move the next serial closure to typed write/response facade promotion for that route.
+2. Keep excluded app runtime writes out of the shared high-level facade until the corresponding typed write/response facade is closed.
+3. Once a server-backed app runtime write route becomes real, move the next serial closure to typed write/response facade promotion for that route.

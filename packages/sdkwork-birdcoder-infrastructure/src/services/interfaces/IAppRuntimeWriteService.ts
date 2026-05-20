@@ -16,7 +16,7 @@ import type {
   BirdCoderUserQuestionAnswerResult,
 } from '@sdkwork/birdcoder-types';
 
-export interface ICoreWriteService {
+export interface IAppRuntimeWriteService {
   createCodingSession(
     request: BirdCoderCreateCodingSessionRequest,
   ): Promise<BirdCoderCodingSessionSummary>;

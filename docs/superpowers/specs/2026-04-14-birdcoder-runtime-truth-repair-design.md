@@ -8,7 +8,7 @@ Repair the BirdCoder runtime so the user-visible AI, terminal, and host integrat
 
 ### Option A: Strict runtime truth repair
 
-- Route coding-session creation, turn execution, approvals, and projections through the existing `coreReadService` and `coreWriteService` contracts instead of generating assistant output in the page layer.
+- Route coding-session creation, turn execution, approvals, and projections through the existing `appRuntimeReadService` and `appRuntimeWriteService` contracts instead of generating assistant output in the page layer.
 - Promote the Rust coding-server host from authority-only turn creation to turn execution that emits real session events, artifacts, and approval checkpoints.
 - Preserve browser-host behavior only for explicitly safe read-only interactions; block or disable destructive terminal fallbacks that currently bypass governance.
 - Replace desktop shell-string Git execution with parameterized command execution that is safe on Windows and does not rely on `sh -c`.
@@ -32,7 +32,7 @@ Use Option A.
 ### Coding-session runtime
 
 - `CodePage` and `StudioPage` stop streaming assistant output from `chatEngine` in the page layer.
-- User messages continue to enter through `projectService.addCodingSessionMessage`, but assistant-side truth moves behind `coreWriteClient.createCodingSessionTurn` plus `coreReadClient` projection reloads.
+- User messages continue to enter through `projectService.addCodingSessionMessage`, but assistant-side truth moves behind `appRuntimeWriteClient.createCodingSessionTurn` plus `appRuntimeReadClient` projection reloads.
 - `useProjects.sendMessage()` becomes a runtime-orchestration helper that:
   - persists the user message,
   - creates a placeholder assistant message only when a local projection mirror needs it,

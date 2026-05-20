@@ -70,12 +70,13 @@ The Step 18 packaged release-evidence promotion is now closed; PostgreSQL live s
 - Command-backed governance execution now strips parent `pnpm run` lifecycle metadata before spawning nested commands, so `check:quality:release` cannot leak outer script context into the governed build lane.
 - The governed root build path now bypasses recursive `pnpm --filter @sdkwork/birdcoder-web build` script execution and instead calls the web host build directly through `pnpm --dir packages/sdkwork-birdcoder-web exec node ../../scripts/run-vite-host.mjs build --mode production`.
 - `scripts/ci-flow-contract.test.mjs` and `scripts/quality-gate-matrix-contract.test.mjs` now freeze that same direct web-host `check:quality:standard` chain, so governance regression no longer fails at the tail on stale release-tier contract metadata.
+- `scripts/governance-regression-report.mjs` now also includes the coding-server API_SPEC path contract, so canonical `/app/v3/api` and `/backend/v3/api` path governance is visible in the deterministic regression baseline instead of living only in isolated API checks.
 - Fresh evidence on `2026-04-13` reconfirms the same governed outcome:
   - entry `index-DJsuPCYU.js`: `68.1 KiB`
   - largest JS asset `vendor-markdown-DqZNkVdw.js`: `598.2 KiB`
   - allowed cap: `700.0 KiB`
 - Historical direct-runner evidence on `2026-04-13` re-verified:
-  - `artifacts/governance/governance-regression-report.json`: `111/111` passed with `failedCheckIds: []`
+  - `artifacts/governance/governance-regression-report.json`: `112/112` passed with `failedCheckIds: []`
   - `artifacts/quality/quality-gate-execution-report.json`: `status: passed` with `passedCount: 3`
 - Current host evidence on `2026-04-15` now preserves the governed Vite-host blocker explicitly instead of fabricating a repository failure:
   - direct `pnpm.cmd run build` still passes with entry `68.1 KiB`, largest JS asset `598.2 KiB`, and cap `700.0 KiB`

@@ -6,7 +6,7 @@
 
 ## Goal
 
-Turn `GET /backend/v3/api/policies` from a `not_implemented` placeholder into a real representative admin governance read by first defining a dedicated policy authority model, then wiring the shared facade and first consumer path without overloading deployment or audit truth.
+Turn `GET /backend/v3/api/iam/policies` from a `not_implemented` placeholder into a real representative admin governance read by first defining a dedicated policy authority model, then wiring the explicit app/backend SDK client pair and first consumer path without overloading deployment or audit truth.
 
 ## Scope
 
@@ -14,13 +14,13 @@ Turn `GET /backend/v3/api/policies` from a `not_implemented` placeholder into a 
 - `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
 - `packages/sdkwork-birdcoder-types/src/server-api.ts`
 - shared app/backend facade governance for `admin.listPolicies`
-- first admin policy-facing consumer in `packages/sdkwork-birdcoder-commons` or `packages/sdkwork-birdcoder-studio`
+- first backend policy-facing consumer in `packages/sdkwork-birdcoder-commons` or `packages/sdkwork-birdcoder-studio`
 - governance scripts and release-flow writeback
 
 ## Checkpoints
 
 - `CP17ZB-1` policy governance must have its own modeled authority entity before any route promotion.
-- `CP17ZB-2` Rust host must stop returning `not_implemented` for `GET /backend/v3/api/policies`.
+- `CP17ZB-2` Rust host must stop returning `not_implemented` for `GET /backend/v3/api/iam/policies`.
 - `CP17ZB-3` the shared typed app/backend facade must promote `admin.listPolicies` only after server behavior is real.
 - `CP17ZB-4` one real consumer path must read policies through the shared service/facade instead of rebuilding the route locally.
 - `CP17ZB-5` docs/release must record policy truth separately from deployment and audit truth.
@@ -43,7 +43,7 @@ Turn `GET /backend/v3/api/policies` from a `not_implemented` placeholder into a 
 ## Closure Facts
 
 - Dedicated policy authority is now modeled as `governance_policy -> governance_policies`, not reused from `deployment_records` or `audit_events`.
-- Rust host now serves real `GET /backend/v3/api/policies` authority truth across:
+- Rust host now serves real `GET /backend/v3/api/iam/policies` authority truth across:
   - demo host state
   - legacy sqlite materialization from `table.sqlite.governance-policies.v1`
   - direct sqlite provider reads from `governance_policies`
@@ -64,7 +64,7 @@ Turn `GET /backend/v3/api/policies` from a `not_implemented` placeholder into a 
   - docs/release writeback drafts
 - Must stay serial:
   - authority-model freeze
-  - shared facade promotion in `server-api.ts`
+  - explicit app/backend SDK client pair promotion in `server-api.ts`
   - final release numbering and backwrite
 
 ## Serial Notes

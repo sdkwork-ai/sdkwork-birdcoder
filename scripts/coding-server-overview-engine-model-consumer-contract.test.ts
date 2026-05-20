@@ -9,7 +9,7 @@ import type {
   BirdCoderModelCatalogEntry,
   BirdCoderOperationDescriptor,
 } from '@sdkwork/birdcoder-types';
-import type { ICoreReadService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/ICoreReadService.ts';
+import type { IAppRuntimeReadService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IAppRuntimeReadService.ts';
 import { loadCodingServerOverview } from '../packages/sdkwork-birdcoder-commons/src/hooks/useCodingServerOverview.ts';
 import { TEST_CODE_ENGINE_MODEL_CONFIG } from './test-code-engine-model-config-fixture.ts';
 
@@ -170,7 +170,7 @@ const routesFixture: BirdCoderApiRouteCatalogEntry[] = [
 
 const callLog: string[] = [];
 
-const coreReadService: ICoreReadService = {
+const appRuntimeReadService: IAppRuntimeReadService = {
   async getCodingSession() {
     throw new Error('not needed');
   },
@@ -231,7 +231,7 @@ const coreReadService: ICoreReadService = {
   },
 };
 
-const overview = await loadCodingServerOverview(coreReadService);
+const overview = await loadCodingServerOverview(appRuntimeReadService);
 
 assert.deepEqual(overview, {
   descriptor: descriptorFixture,

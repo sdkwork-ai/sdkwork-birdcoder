@@ -17,7 +17,7 @@
 
 - [ ] **Step 1: Write the failing test**
 
-Add assertions that reject stale Step 17 and architecture phrases which still describe already-closed route, SDK/codegen, or shared-facade gaps.
+Add assertions that reject stale Step 17 and architecture phrases which still describe already-closed route, SDK/codegen, or direct app/backend client gaps.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -27,7 +27,7 @@ Expected: FAIL because Step 17 and architecture docs still contain stale closure
 ### Task 2: Realign Step 17 and architecture docs to repo truth
 
 **Files:**
-- Modify: `docs/step/17-Coding-Server-Core-App/Backend-API与控制台实现.md`
+- Modify: `docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md`
 - Modify: `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md`
 
 - [ ] **Step 1: Update stale Step 17 summary and outcome sections**

@@ -1,14 +1,14 @@
-import type { ICoreWriteService } from '../interfaces/ICoreWriteService.ts';
+import type { IAppRuntimeWriteService } from '../interfaces/IAppRuntimeWriteService.ts';
 import type { BirdCoderAppRuntimeWriteSdkApiClient } from '../sdkClients.ts';
 
-export interface ApiBackedCoreWriteServiceOptions {
+export interface ApiBackedAppRuntimeWriteServiceOptions {
   client: BirdCoderAppRuntimeWriteSdkApiClient;
 }
 
-export class ApiBackedCoreWriteService implements ICoreWriteService {
+export class ApiBackedAppRuntimeWriteService implements IAppRuntimeWriteService {
   private readonly client: BirdCoderAppRuntimeWriteSdkApiClient;
 
-  constructor({ client }: ApiBackedCoreWriteServiceOptions) {
+  constructor({ client }: ApiBackedAppRuntimeWriteServiceOptions) {
     this.client = client;
   }
 

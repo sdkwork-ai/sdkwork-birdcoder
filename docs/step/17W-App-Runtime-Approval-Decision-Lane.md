@@ -1,4 +1,4 @@
-# Step 17W - Real Core Approval Decision Lane
+# Step 17W - Real App Runtime Approval Decision Lane
 
 ## Status
 
@@ -6,7 +6,7 @@
 
 ## Goal
 
-Close real server behavior for `core.submitApprovalDecision`, promote it only when approval authority truth is real, and wire the first governed consumer path for approval handling.
+Close real server behavior for `approvals.decisions.create`, promote it only when approval authority truth is real, and wire the first governed consumer path for approval handling.
 
 ## Scope
 
@@ -21,14 +21,14 @@ Close real server behavior for `core.submitApprovalDecision`, promote it only wh
 
 - `CP17W-1` Rust host must stop returning `not_implemented` for `POST /app/v3/api/approvals/:approvalId/decision`.
 - `CP17W-2` approval decisions must mutate one real approval authority truth, not a demo-only placeholder.
-- `CP17W-3` shared core governance must promote `core.submitApprovalDecision` only when the typed write facade is executable.
-- `CP17W-4` one real consumer path must submit approval decisions through the shared facade instead of rebuilding the route locally.
+- `CP17W-3` app runtime SDK governance must promote `approvals.decisions.create` only when the typed write facade is executable.
+- `CP17W-4` one real consumer path must submit approval decisions through the explicit app/backend SDK client pair instead of rebuilding the route locally.
 - `CP17W-5` docs/release must state the approval truth source, blocked conditions, and verification evidence explicitly.
 
 ## Verification
 
 - targeted Rust approval-decision route tests
-- typed shared core write facade contract for `core.submitApprovalDecision`
+- typed app runtime write SDK facade contract for `approvals.decisions.create`
 - app-runtime SDK governance contract
 - first approval consumer contract
 - `pnpm.cmd run typecheck`
@@ -41,9 +41,9 @@ Close real server behavior for `core.submitApprovalDecision`, promote it only wh
 - Approval decisions now mutate one approval truth path in both execution modes:
   - demo/snapshot-backed host: shared in-memory projection authority
   - sqlite provider-backed host: provider tables followed by authoritative projection reload
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now promotes `core.submitApprovalDecision` into the shared core write facade; `BIRDCODER_SHARED_CORE_FACADE_EXCLUDED_OPERATION_IDS` is now empty.
-- `ICoreWriteService`, `ApiBackedCoreWriteService`, and default IDE/context wiring now expose approval submission as a first-class shared write boundary.
-- `loadCodingSessionApprovalState()`, `submitCodingSessionApprovalDecision()`, and `useCodingSessionApprovalState()` now close the first approval-facing consumer path on top of the shared facade.
+- `packages/sdkwork-birdcoder-types/src/server-api.ts` now promotes `approvals.decisions.create` into the app runtime write SDK facade; `BIRDCODER_APP_RUNTIME_SDK_EXCLUDED_OPERATION_IDS` is now empty.
+- `IAppRuntimeWriteService`, `ApiBackedAppRuntimeWriteService`, and default IDE/context wiring now expose approval submission as a first-class shared write boundary.
+- `loadCodingSessionApprovalState()`, `submitCodingSessionApprovalDecision()`, and `useCodingSessionApprovalState()` now close the first approval-facing consumer path on top of the explicit app/backend SDK client pair.
 - Canonical approval-resolution replay is now stable:
   - checkpoint state persists `decision`, `decisionReason`, `runtimeStatus`, `operationStatus`, `turnId`, and `operationId`
   - `operation.updated` emits `approvalDecision`, `decisionReason`, `runtimeStatus`, and `operationStatus`

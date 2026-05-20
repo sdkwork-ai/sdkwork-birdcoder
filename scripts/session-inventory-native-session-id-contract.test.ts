@@ -55,7 +55,7 @@ async function listInventoryFor(
   projectionSummaries: readonly BirdCoderCodingSessionSummary[],
   nativeSummaries: readonly BirdCoderNativeSessionSummary[],
 ) {
-  const coreReadService = {
+  const appRuntimeReadService = {
     async listCodingSessions() {
       return [...projectionSummaries];
     },
@@ -65,7 +65,7 @@ async function listInventoryFor(
   } as Pick<BirdCoderAppRuntimeReadSdkApiClient, 'listCodingSessions' | 'listNativeSessions'>;
 
   return listStoredSessionInventory({
-    coreReadService: coreReadService as BirdCoderAppRuntimeReadSdkApiClient,
+    appRuntimeReadService: appRuntimeReadService as BirdCoderAppRuntimeReadSdkApiClient,
     projectId,
     workspaceId,
   });

@@ -45,7 +45,7 @@ const sessionRefreshActionsSource = fs.readFileSync(
 );
 
 type RefreshCodingSessionMessagesOptions = Parameters<typeof refreshCodingSessionMessages>[0];
-type RefreshCoreReadService = NonNullable<RefreshCodingSessionMessagesOptions['coreReadService']>;
+type RefreshAppRuntimeReadService = NonNullable<RefreshCodingSessionMessagesOptions['appRuntimeReadService']>;
 type RefreshProjectService = RefreshCodingSessionMessagesOptions['projectService'];
 
 const workspaceId = 'workspace-shared';
@@ -168,10 +168,10 @@ function buildProjectService(
   };
 }
 
-function buildCoreReadService(
+function buildAppRuntimeReadService(
   summary: BirdCoderCodingSessionSummary,
   onListEvents: () => Promise<void> | void,
-): RefreshCoreReadService {
+): RefreshAppRuntimeReadService {
   return {
     async getCodingSession() {
       return summary;
@@ -256,7 +256,7 @@ let newUserUpserts = 0;
 
 const oldUserRefresh = refreshCodingSessionMessages({
   codingSessionId,
-  coreReadService: buildCoreReadService(oldUserSummary, async () => {
+  appRuntimeReadService: buildAppRuntimeReadService(oldUserSummary, async () => {
     oldUserEventReads += 1;
     await oldUserEventsGate;
   }),
@@ -276,7 +276,7 @@ await Promise.resolve();
 
 const newUserRefresh = refreshCodingSessionMessages({
   codingSessionId,
-  coreReadService: buildCoreReadService(newUserSummary, () => {
+  appRuntimeReadService: buildAppRuntimeReadService(newUserSummary, () => {
     newUserEventReads += 1;
   }),
   identityScope: 'new-user',
@@ -332,7 +332,7 @@ let workspaceBUpserts = 0;
 
 const workspaceARefresh = refreshCodingSessionMessages({
   codingSessionId,
-  coreReadService: buildCoreReadService(workspaceASummary, async () => {
+  appRuntimeReadService: buildAppRuntimeReadService(workspaceASummary, async () => {
     workspaceAEventReads += 1;
     await workspaceAEventsGate;
   }),
@@ -352,7 +352,7 @@ await Promise.resolve();
 
 const workspaceBRefresh = refreshCodingSessionMessages({
   codingSessionId,
-  coreReadService: buildCoreReadService(workspaceBSummary, () => {
+  appRuntimeReadService: buildAppRuntimeReadService(workspaceBSummary, () => {
     workspaceBEventReads += 1;
   }),
   identityScope: 'shared-user',

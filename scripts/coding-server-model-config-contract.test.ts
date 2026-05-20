@@ -8,7 +8,7 @@ import type {
   BirdCoderCodeEngineModelConfigSyncResult,
 } from '../packages/sdkwork-birdcoder-types/src/index.ts';
 import {
-  buildBirdCoderCodingServerOpenApiDocumentSeed,
+  buildBirdCoderCodingServerOpenApiDocument,
   getBirdCoderAppRuntimeApiContract,
   listBirdCoderCodingServerRouteCatalogEntries,
 } from '../packages/sdkwork-birdcoder-server/src/index.ts';
@@ -48,17 +48,17 @@ assert.deepEqual(
   },
 );
 
-const openApiSeed = buildBirdCoderCodingServerOpenApiDocumentSeed();
+const openApiDocument = buildBirdCoderCodingServerOpenApiDocument();
 assert.equal(
-  openApiSeed.paths['/app/v3/api/model_config']?.get?.operationId,
+  openApiDocument.paths['/app/v3/api/model_config']?.get?.operationId,
   'modelConfig.retrieve',
 );
 assert.equal(
-  openApiSeed.paths['/app/v3/api/model_config']?.put?.operationId,
+  openApiDocument.paths['/app/v3/api/model_config']?.put?.operationId,
   'modelConfig.sync',
 );
-assert.ok(openApiSeed.components.schemas?.BirdCoderCodeEngineModelConfig);
-assert.ok(openApiSeed.components.schemas?.BirdCoderCodeEngineModelConfigSyncResult);
+assert.ok(openApiDocument.components.schemas?.BirdCoderCodeEngineModelConfig);
+assert.ok(openApiDocument.components.schemas?.BirdCoderCodeEngineModelConfigSyncResult);
 
 const fixtureConfig: BirdCoderCodeEngineModelConfig = {
   schemaVersion: 1,

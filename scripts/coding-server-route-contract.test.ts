@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 import {
-  getBirdCoderAdminApiContract,
+  getBirdCoderBackendApiContract,
   getBirdCoderAppApiContract,
   getBirdCoderAppRuntimeApiContract,
   getBirdCoderCodingServerDescriptor,
@@ -150,7 +150,7 @@ assert.equal(app.documents.path, '/app/v3/api/documents');
 assert.equal(app.teams.path, '/app/v3/api/teams');
 assert.equal(app.deployments.path, '/app/v3/api/deployments');
 
-const admin = getBirdCoderAdminApiContract();
+const admin = getBirdCoderBackendApiContract();
 assert.equal(admin.audit.path, '/backend/v3/api/iam/audit_events');
 assert.equal(admin.policies.path, '/backend/v3/api/iam/policies');
 assert.equal(admin.teams.path, '/backend/v3/api/iam/teams');

@@ -29,7 +29,7 @@ import {
 } from '../terminal/sessions.ts';
 import {
   type StoredCodingSessionInventoryRecord,
-  type NativeSessionAuthorityCoreReadService,
+  type NativeSessionAuthorityAppRuntimeReadService,
 } from './nativeSessionAuthority.ts';
 export type { StoredCodingSessionInventoryRecord } from './nativeSessionAuthority.ts';
 
@@ -65,7 +65,7 @@ export interface ListStoredCodingSessionsOptions {
 }
 
 export interface ListStoredSessionInventoryOptions {
-  coreReadService?: SessionInventoryCoreReadService;
+  appRuntimeReadService?: SessionInventoryAppRuntimeReadService;
   includeGlobal?: boolean;
   limit?: number;
   offset?: number;
@@ -83,8 +83,8 @@ export interface BuildProjectBackedSessionInventoryOptions {
   workspaceId?: string | null;
 }
 
-type SessionInventoryCoreReadService =
-  NativeSessionAuthorityCoreReadService &
+type SessionInventoryAppRuntimeReadService =
+  NativeSessionAuthorityAppRuntimeReadService &
   Pick<
     {
       listCodingSessions(
@@ -332,18 +332,18 @@ function findNativeCodingSessionRecord(
 async function listAuthorityBackedCodingSessions(
   options: ListStoredSessionInventoryOptions,
 ): Promise<StoredCodingSessionInventoryRecord[]> {
-  if (!options.coreReadService) {
+  if (!options.appRuntimeReadService) {
     return [];
   }
 
   const [projectionSummaries, nativeSummaries] = await Promise.all([
-    options.coreReadService.listCodingSessions({
+    options.appRuntimeReadService.listCodingSessions({
       limit: options.limit,
       offset: options.offset,
       projectId: options.projectId ?? undefined,
       workspaceId: options.workspaceId ?? undefined,
     }),
-    options.coreReadService.listNativeSessions({
+    options.appRuntimeReadService.listNativeSessions({
       limit: options.limit,
       offset: options.offset,
       projectId: options.projectId ?? undefined,
@@ -543,7 +543,7 @@ export async function listStoredSessionInventory(
       limit: undefined,
       projectId: options.projectId,
     }),
-    options.coreReadService
+    options.appRuntimeReadService
       ? Promise.resolve([] as BirdCoderCodingSessionSummary[])
       : listStoredCodingSessions({
         limit: undefined,

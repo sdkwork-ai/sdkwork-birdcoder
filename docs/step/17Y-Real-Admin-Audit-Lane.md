@@ -6,7 +6,7 @@
 
 ## Goal
 
-Turn `GET /backend/v3/api/audit` from a `not_implemented` placeholder into a real representative backend-surface authority read, then wire the first shared facade and first consumer path without reopening already-closed document or core lanes.
+Turn `GET /backend/v3/api/audit` from a `not_implemented` placeholder into a real representative backend-surface authority read, then wire the first explicit app/backend SDK client pair and first consumer path without reopening already-closed document or core lanes.
 
 ## Scope
 
@@ -51,7 +51,7 @@ Turn `GET /backend/v3/api/audit` from a `not_implemented` placeholder into a rea
   - direct sqlite provider: loaded from `audit_events`
 - `packages/sdkwork-birdcoder-types/src/server-api.ts` now promotes `admin.listAuditEvents` into the shared generated app/backend facade through `listAuditEvents()`.
 - `appConsoleRepository.ts`, `consoleQueries.ts`, and `sdkClients.ts` now close the representative audit repository/query/transport slice on top of shared provider truth.
-- `IAuditService`, `ApiBackedAuditService`, `createDefaultBirdCoderIdeServices()`, shared contexts, `loadAuditEvents()`, and `useAuditEvents()` now close the first audit-facing consumer path on the shared facade boundary.
+- `IAuditService`, `ApiBackedAuditService`, `createDefaultBirdCoderIdeServices()`, shared contexts, `loadAuditEvents()`, and `useAuditEvents()` now close the first audit-facing consumer path on the explicit app/backend SDK client pair boundary.
 - `check:release-flow` now executes audit service and audit consumer governance alongside the existing app/backend facade, document, and release contracts.
 
 ## Next Serial Path
@@ -62,6 +62,6 @@ Turn `GET /backend/v3/api/audit` from a `not_implemented` placeholder into a rea
 
 ## Serial Notes
 
-1. This lane is serial because it changes representative admin route truth, shared app/backend facade governance, and consumer adoption together.
+1. This lane is serial because it changes representative backend route truth, shared app/backend facade governance, and consumer adoption together.
 2. Keep `app.listDeployments`, `admin.listPolicies`, and `admin.listDeployments` blocked until their own authority lanes close.
 3. Future reruns must preserve executable PostgreSQL smoke truth as `blocked`, `failed`, or `passed`; do not fabricate closure.

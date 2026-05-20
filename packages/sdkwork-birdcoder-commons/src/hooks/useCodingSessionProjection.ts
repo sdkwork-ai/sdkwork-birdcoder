@@ -19,7 +19,7 @@ import type {
   BirdCoderSubmitUserQuestionAnswerRequest,
   BirdCoderUserQuestionAnswerResult,
 } from '@sdkwork/birdcoder-types';
-import type { ICoreReadService, ICoreWriteService } from '@sdkwork/birdcoder-infrastructure-runtime';
+import type { IAppRuntimeReadService, IAppRuntimeWriteService } from '@sdkwork/birdcoder-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
 
 export interface BirdCoderCodingSessionProjection {
@@ -917,8 +917,8 @@ function deriveCodingSessionPendingUserQuestionsFromIndex(
 }
 
 export async function loadCodingSessionProjection(
-  coreReadService: Pick<
-    ICoreReadService,
+  appRuntimeReadService: Pick<
+    IAppRuntimeReadService,
     | 'getCodingSession'
     | 'listCodingSessionArtifacts'
     | 'listCodingSessionCheckpoints'
@@ -927,10 +927,10 @@ export async function loadCodingSessionProjection(
   codingSessionId: string,
 ): Promise<BirdCoderCodingSessionProjection> {
   const [session, events, artifacts, checkpoints] = await Promise.all([
-    coreReadService.getCodingSession(codingSessionId),
-    coreReadService.listCodingSessionEvents(codingSessionId),
-    coreReadService.listCodingSessionArtifacts(codingSessionId),
-    coreReadService.listCodingSessionCheckpoints(codingSessionId),
+    appRuntimeReadService.getCodingSession(codingSessionId),
+    appRuntimeReadService.listCodingSessionEvents(codingSessionId),
+    appRuntimeReadService.listCodingSessionArtifacts(codingSessionId),
+    appRuntimeReadService.listCodingSessionCheckpoints(codingSessionId),
   ]);
 
   return {
@@ -942,32 +942,32 @@ export async function loadCodingSessionProjection(
 }
 
 type BirdCoderCodingSessionApprovalReader = Pick<
-  ICoreReadService,
+  IAppRuntimeReadService,
   'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
 >;
 
 export async function loadCodingSessionApprovalState(
-  coreReadService: BirdCoderCodingSessionApprovalReader,
+  appRuntimeReadService: BirdCoderCodingSessionApprovalReader,
   codingSessionId: string,
 ): Promise<BirdCoderCodingSessionPendingApproval[]> {
-  const projection = await loadCodingSessionProjection(coreReadService, codingSessionId);
+  const projection = await loadCodingSessionProjection(appRuntimeReadService, codingSessionId);
   return deriveCodingSessionPendingApprovals(projection);
 }
 
 export async function loadCodingSessionUserQuestionState(
-  coreReadService: BirdCoderCodingSessionApprovalReader,
+  appRuntimeReadService: BirdCoderCodingSessionApprovalReader,
   codingSessionId: string,
 ): Promise<BirdCoderCodingSessionPendingUserQuestion[]> {
-  const projection = await loadCodingSessionProjection(coreReadService, codingSessionId);
+  const projection = await loadCodingSessionProjection(appRuntimeReadService, codingSessionId);
   return deriveCodingSessionPendingUserQuestions(projection);
 }
 
 export async function loadCodingSessionPendingInteractionState(
-  coreReadService: BirdCoderCodingSessionApprovalReader,
+  appRuntimeReadService: BirdCoderCodingSessionApprovalReader,
   codingSessionId: string,
   expectedProjectId?: string | null,
 ): Promise<BirdCoderCodingSessionPendingInteractions> {
-  const projection = await loadCodingSessionProjection(coreReadService, codingSessionId);
+  const projection = await loadCodingSessionProjection(appRuntimeReadService, codingSessionId);
   const normalizedExpectedProjectId = expectedProjectId?.trim() ?? '';
   const projectionProjectId = projection.session.projectId.trim();
   if (
@@ -986,26 +986,26 @@ export async function loadCodingSessionPendingInteractionState(
 }
 
 export async function submitCodingSessionApprovalDecision(
-  coreWriteService: Pick<ICoreWriteService, 'submitApprovalDecision'>,
+  appRuntimeWriteService: Pick<IAppRuntimeWriteService, 'submitApprovalDecision'>,
   approvalId: string,
   request: BirdCoderSubmitApprovalDecisionRequest,
 ): Promise<BirdCoderApprovalDecisionResult> {
-  return coreWriteService.submitApprovalDecision(approvalId, request);
+  return appRuntimeWriteService.submitApprovalDecision(approvalId, request);
 }
 
 export async function submitCodingSessionUserQuestionAnswer(
-  coreWriteService: Pick<ICoreWriteService, 'submitUserQuestionAnswer'>,
+  appRuntimeWriteService: Pick<IAppRuntimeWriteService, 'submitUserQuestionAnswer'>,
   questionId: string,
   request: BirdCoderSubmitUserQuestionAnswerRequest,
 ): Promise<BirdCoderUserQuestionAnswerResult> {
-  return coreWriteService.submitUserQuestionAnswer(questionId, request);
+  return appRuntimeWriteService.submitUserQuestionAnswer(questionId, request);
 }
 
 export function useCodingSessionProjection(
   codingSessionId?: string | null,
   refreshToken?: string | number | null,
 ) {
-  const { coreReadService } = useIDEServices();
+  const { appRuntimeReadService } = useIDEServices();
   const [state, setState] = useState<BirdCoderCodingSessionProjectionState>(INITIAL_STATE);
   const latestRefreshTokenRef = useRef(0);
   const latestCodingSessionIdRef = useRef<string | null>(null);
@@ -1035,7 +1035,7 @@ export function useCodingSessionProjection(
     ));
 
     try {
-      const projection = await loadCodingSessionProjection(coreReadService, codingSessionId);
+      const projection = await loadCodingSessionProjection(appRuntimeReadService, codingSessionId);
       if (latestRefreshTokenRef.current === refreshToken) {
         setState({
           ...projection,
@@ -1055,7 +1055,7 @@ export function useCodingSessionProjection(
         ...EMPTY_PROJECTION,
       };
     }
-  }, [codingSessionId, coreReadService]);
+  }, [codingSessionId, appRuntimeReadService]);
 
   useEffect(() => {
     void refreshProjection();
@@ -1076,7 +1076,7 @@ export function useCodingSessionApprovalState(
   codingSessionId?: string | null,
   refreshToken?: string | number | null,
 ) {
-  const { coreReadService, coreWriteService } = useIDEServices();
+  const { appRuntimeReadService, appRuntimeWriteService } = useIDEServices();
   const [state, setState] = useState<BirdCoderCodingSessionApprovalState>(INITIAL_APPROVAL_STATE);
   const latestRefreshTokenRef = useRef(0);
   const latestCodingSessionIdRef = useRef<string | null>(null);
@@ -1106,7 +1106,7 @@ export function useCodingSessionApprovalState(
     ));
 
     try {
-      const approvals = await loadCodingSessionApprovalState(coreReadService, codingSessionId);
+      const approvals = await loadCodingSessionApprovalState(appRuntimeReadService, codingSessionId);
       if (latestRefreshTokenRef.current === refreshToken) {
         setState({
           approvals,
@@ -1124,15 +1124,15 @@ export function useCodingSessionApprovalState(
       }
       return EMPTY_APPROVALS;
     }
-  }, [codingSessionId, coreReadService]);
+  }, [codingSessionId, appRuntimeReadService]);
 
   const submitApprovalDecision = useCallback(
     async (approvalId: string, request: BirdCoderSubmitApprovalDecisionRequest) => {
-      const decision = await submitCodingSessionApprovalDecision(coreWriteService, approvalId, request);
+      const decision = await submitCodingSessionApprovalDecision(appRuntimeWriteService, approvalId, request);
       await refreshApprovals();
       return decision;
     },
-    [coreWriteService, refreshApprovals],
+    [appRuntimeWriteService, refreshApprovals],
   );
 
   useEffect(() => {
@@ -1157,7 +1157,7 @@ export function useCodingSessionPendingInteractionState(
   scopeKey?: string | null,
   expectedProjectId?: string | null,
 ) {
-  const { coreReadService, coreWriteService } = useIDEServices();
+  const { appRuntimeReadService, appRuntimeWriteService } = useIDEServices();
   const [state, setState] = useState<BirdCoderCodingSessionPendingInteractionState>(
     INITIAL_PENDING_INTERACTION_STATE,
   );
@@ -1194,7 +1194,7 @@ export function useCodingSessionPendingInteractionState(
 
     try {
       const pendingInteractions = await loadCodingSessionPendingInteractionState(
-        coreReadService,
+        appRuntimeReadService,
         codingSessionId,
         expectedProjectId,
       );
@@ -1215,28 +1215,28 @@ export function useCodingSessionPendingInteractionState(
       }
       return EMPTY_PENDING_INTERACTIONS;
     }
-  }, [codingSessionId, coreReadService, expectedProjectId, normalizedScopeKey]);
+  }, [codingSessionId, appRuntimeReadService, expectedProjectId, normalizedScopeKey]);
 
   const submitApprovalDecision = useCallback(
     async (approvalId: string, request: BirdCoderSubmitApprovalDecisionRequest) => {
-      const decision = await submitCodingSessionApprovalDecision(coreWriteService, approvalId, request);
+      const decision = await submitCodingSessionApprovalDecision(appRuntimeWriteService, approvalId, request);
       await refreshPendingInteractions();
       return decision;
     },
-    [coreWriteService, refreshPendingInteractions],
+    [appRuntimeWriteService, refreshPendingInteractions],
   );
 
   const submitUserQuestionAnswer = useCallback(
     async (questionId: string, request: BirdCoderSubmitUserQuestionAnswerRequest) => {
       const answer = await submitCodingSessionUserQuestionAnswer(
-        coreWriteService,
+        appRuntimeWriteService,
         questionId,
         request,
       );
       await refreshPendingInteractions();
       return answer;
     },
-    [coreWriteService, refreshPendingInteractions],
+    [appRuntimeWriteService, refreshPendingInteractions],
   );
 
   useEffect(() => {
@@ -1260,7 +1260,7 @@ export function useCodingSessionUserQuestionState(
   codingSessionId?: string | null,
   refreshToken?: string | number | null,
 ) {
-  const { coreReadService, coreWriteService } = useIDEServices();
+  const { appRuntimeReadService, appRuntimeWriteService } = useIDEServices();
   const [state, setState] = useState<BirdCoderCodingSessionUserQuestionState>(
     INITIAL_USER_QUESTION_STATE,
   );
@@ -1292,7 +1292,7 @@ export function useCodingSessionUserQuestionState(
     ));
 
     try {
-      const questions = await loadCodingSessionUserQuestionState(coreReadService, codingSessionId);
+      const questions = await loadCodingSessionUserQuestionState(appRuntimeReadService, codingSessionId);
       if (latestRefreshTokenRef.current === refreshToken) {
         setState({
           questions,
@@ -1310,19 +1310,19 @@ export function useCodingSessionUserQuestionState(
       }
       return EMPTY_USER_QUESTIONS;
     }
-  }, [codingSessionId, coreReadService]);
+  }, [codingSessionId, appRuntimeReadService]);
 
   const submitUserQuestionAnswer = useCallback(
     async (questionId: string, request: BirdCoderSubmitUserQuestionAnswerRequest) => {
       const answer = await submitCodingSessionUserQuestionAnswer(
-        coreWriteService,
+        appRuntimeWriteService,
         questionId,
         request,
       );
       await refreshQuestions();
       return answer;
     },
-    [coreWriteService, refreshQuestions],
+    [appRuntimeWriteService, refreshQuestions],
   );
 
   useEffect(() => {

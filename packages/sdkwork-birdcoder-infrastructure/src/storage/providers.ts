@@ -50,9 +50,6 @@ const RUNTIME_DATA_KERNEL_ENTITY_NAMES = [
 ] as const satisfies readonly BirdCoderEntityName[];
 
 const CODING_SERVER_KERNEL_ENTITY_NAMES = [
-  'department',
-  'position',
-  'user_address',
   'card',
   'user_card',
   'member_card',
@@ -80,7 +77,6 @@ const CODING_SERVER_KERNEL_ENTITY_NAMES = [
   'channel_account',
   'channel_proxy',
   'channel_resource',
-  'api_key',
   'app',
   'ai_model_availability',
   'ai_model_compliance_profile',
@@ -95,7 +91,6 @@ const CODING_SERVER_KERNEL_ENTITY_NAMES = [
   'ai_prompt',
   'ai_prompt_history',
   'ai_tool',
-  'api_security_policy',
   'category',
   'attribute',
   'tags',
@@ -115,8 +110,6 @@ const CODING_SERVER_KERNEL_ENTITY_NAMES = [
   'favorite_folder',
   'share',
   'share_visit_record',
-  'invitation_code',
-  'invitation_relation',
   'sns_follow_relation',
   'sns_follow_statistics',
   'comments',
@@ -196,9 +189,6 @@ const CODING_SERVER_KERNEL_ENTITY_NAMES = [
 ] as const satisfies readonly BirdCoderEntityName[];
 
 const JAVA_LONG_IDENTIFIER_COLUMNS_BY_ENTITY = {
-  department: ['id', 'tenant_id', 'organization_id', 'parent_id', 'owner_id', 'manager_id'],
-  position: ['id', 'tenant_id', 'organization_id', 'parent_id', 'owner_id'],
-  user_address: ['id', 'tenant_id', 'organization_id', 'user_id'],
   card: ['id', 'tenant_id', 'organization_id', 'card_organization_id'],
   user_card: ['id', 'tenant_id', 'organization_id', 'user_id', 'card_id'],
   member_card: ['id', 'tenant_id', 'organization_id', 'card_id'],
@@ -266,7 +256,6 @@ const JAVA_LONG_IDENTIFIER_COLUMNS_BY_ENTITY = {
   channel_account: ['id', 'tenant_id', 'organization_id', 'user_id'],
   channel_proxy: ['id', 'tenant_id', 'organization_id', 'user_id'],
   channel_resource: ['id', 'tenant_id', 'organization_id', 'channel_account_id'],
-  api_key: ['id', 'tenant_id', 'organization_id', 'user_id'],
   app: ['id', 'tenant_id', 'organization_id', 'user_id', 'project_id'],
   ai_model_availability: ['id', 'tenant_id', 'organization_id', 'model_id'],
   ai_model_compliance_profile: ['id', 'tenant_id', 'organization_id', 'model_id'],
@@ -305,7 +294,6 @@ const JAVA_LONG_IDENTIFIER_COLUMNS_BY_ENTITY = {
     'duration',
   ],
   ai_tool: ['id', 'tenant_id', 'organization_id', 'user_id', 'owner_id'],
-  api_security_policy: ['id', 'tenant_id', 'organization_id'],
   category: ['id', 'tenant_id', 'organization_id', 'parent_id', 'shop_id'],
   attribute: ['id', 'tenant_id', 'organization_id', 'content_id', 'category_id'],
   tags: ['id', 'tenant_id', 'organization_id', 'user_id'],
@@ -377,8 +365,6 @@ const JAVA_LONG_IDENTIFIER_COLUMNS_BY_ENTITY = {
   favorite_folder: ['id', 'tenant_id', 'organization_id', 'user_id', 'parent_id'],
   share: ['id', 'tenant_id', 'organization_id', 'user_id'],
   share_visit_record: ['id', 'tenant_id', 'organization_id', 'user_id', 'share_id'],
-  invitation_code: ['id', 'tenant_id', 'organization_id', 'creator_user_id'],
-  invitation_relation: ['id', 'tenant_id', 'organization_id', 'inviter_user_id', 'invitee_user_id'],
   sns_follow_relation: ['id', 'tenant_id', 'organization_id', 'follower_id', 'following_id', 'owner_id'],
   sns_follow_statistics: [
     'id',
@@ -575,7 +561,6 @@ const JAVA_PLUS_BASE_BOOTSTRAP_ENTITY_NAMES = new Set<BirdCoderEntityName>([
   'channel_account',
   'channel_proxy',
   'channel_resource',
-  'api_key',
   'app',
   'ai_model_availability',
   'ai_model_compliance_profile',
@@ -590,7 +575,6 @@ const JAVA_PLUS_BASE_BOOTSTRAP_ENTITY_NAMES = new Set<BirdCoderEntityName>([
   'ai_prompt',
   'ai_prompt_history',
   'ai_tool',
-  'api_security_policy',
   'category',
   'attribute',
   'tags',
@@ -610,8 +594,6 @@ const JAVA_PLUS_BASE_BOOTSTRAP_ENTITY_NAMES = new Set<BirdCoderEntityName>([
   'favorite_folder',
   'share',
   'share_visit_record',
-  'invitation_code',
-  'invitation_relation',
   'sns_follow_relation',
   'sns_follow_statistics',
   'comments',
@@ -851,16 +833,6 @@ function buildJavaConvertedEnumColumnSql(
 ): string | null {
   if (
     (
-      definition.entityName === 'department' ||
-      definition.entityName === 'position'
-    ) &&
-    column.name === 'owner'
-  ) {
-    return `${column.name} INTEGER NOT NULL`;
-  }
-
-  if (
-    (
       definition.entityName === 'card' &&
       (column.name === 'card_type' || column.name === 'code_type' || column.name === 'status')
     ) ||
@@ -958,10 +930,6 @@ function buildJavaConvertedEnumColumnSql(
     (
       definition.entityName === 'channel_resource' &&
       (column.name === 'resource' || column.name === 'channel')
-    ) ||
-    (
-      definition.entityName === 'api_key' &&
-      (column.name === 'key_type' || column.name === 'owner' || column.name === 'status')
     ) ||
     (
       definition.entityName === 'app' &&
@@ -1089,14 +1057,6 @@ function buildJavaConvertedEnumColumnSql(
       column.name === 'status'
     ) ||
     (
-      definition.entityName === 'invitation_code' &&
-      column.name === 'status'
-    ) ||
-    (
-      definition.entityName === 'invitation_relation' &&
-      (column.name === 'reward_status' || column.name === 'reward_type')
-    ) ||
-    (
       definition.entityName === 'sns_follow_relation' &&
       (column.name === 'relation_type' || column.name === 'owner')
     ) ||
@@ -1186,20 +1146,6 @@ function buildJavaConvertedEnumColumnSql(
   return null;
 }
 
-function buildJavaBooleanDefaultColumnSql(
-  definition: BirdCoderEntityDefinition,
-  column: BirdCoderSchemaColumnDefinition,
-  providerId: SupportedBirdCoderProviderId,
-): string | null {
-  if (definition.entityName === 'user_address' && column.name === 'is_default') {
-    const storageType = providerId === 'postgresql' ? 'BOOLEAN' : 'INTEGER';
-    const defaultClause = providerId === 'postgresql' ? '' : ' DEFAULT 0';
-    return `${column.name} ${storageType} NOT NULL${defaultClause}`;
-  }
-
-  return null;
-}
-
 function buildJavaBaseJsonConverterTextColumnSql(
   definition: BirdCoderEntityDefinition,
   column: BirdCoderSchemaColumnDefinition,
@@ -1269,15 +1215,6 @@ function buildColumnSql(
   );
   if (javaConvertedEnumColumnSql) {
     return javaConvertedEnumColumnSql;
-  }
-
-  const javaBooleanDefaultColumnSql = buildJavaBooleanDefaultColumnSql(
-    definition,
-    column,
-    providerId,
-  );
-  if (javaBooleanDefaultColumnSql) {
-    return javaBooleanDefaultColumnSql;
   }
 
   const javaBaseJsonConverterTextColumnSql = buildJavaBaseJsonConverterTextColumnSql(

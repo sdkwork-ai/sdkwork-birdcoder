@@ -55,7 +55,7 @@ const client = createBirdCoderAppSdkApiClient({
               workspaceId: 'workspace-1',
               projectId: 'project-1',
               engineKey: 'codex',
-              title: 'Generated Core Projection Session',
+              title: 'Generated App Runtime Projection Session',
               status: 'running',
               mode: 'agent',
               createdAt: '2026-04-11T10:00:00.000Z',

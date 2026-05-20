@@ -29,8 +29,8 @@ export * from "../../sdkwork-birdcoder-infrastructure/src/services/interfaces/ID
 export * from "../../sdkwork-birdcoder-infrastructure/src/services/interfaces/IDocumentService.ts";
 export * from "../../sdkwork-birdcoder-infrastructure/src/services/interfaces/IWorkspaceService.ts";
 export * from "../../sdkwork-birdcoder-infrastructure/src/services/interfaces/IProjectService.ts";
-export * from "../../sdkwork-birdcoder-infrastructure/src/services/interfaces/ICoreReadService.ts";
-export * from "../../sdkwork-birdcoder-infrastructure/src/services/interfaces/ICoreWriteService.ts";
+export * from "../../sdkwork-birdcoder-infrastructure/src/services/interfaces/IAppRuntimeReadService.ts";
+export * from "../../sdkwork-birdcoder-infrastructure/src/services/interfaces/IAppRuntimeWriteService.ts";
 export * from "../../sdkwork-birdcoder-infrastructure/src/services/interfaces/IGitService.ts";
 export * from "../../sdkwork-birdcoder-infrastructure/src/services/interfaces/IPromptService.ts";
 export * from "../../sdkwork-birdcoder-infrastructure/src/services/interfaces/IReleaseService.ts";

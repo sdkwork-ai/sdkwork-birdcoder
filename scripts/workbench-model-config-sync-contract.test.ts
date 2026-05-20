@@ -57,12 +57,12 @@ await writeUserHomeTextFile(
 );
 
 const missingLocalSyncResult = await syncWorkbenchCodeEngineModelConfig({
-  coreReadService: {
+  appRuntimeReadService: {
     async getModelConfig() {
       return serverNewerConfig;
     },
   },
-  coreWriteService: {
+  appRuntimeWriteService: {
     async syncModelConfig() {
       throw new Error('Missing local config must not push a generated default to the server.');
     },
@@ -87,12 +87,12 @@ await writeUserHomeTextFile(
 
 let syncedRequest: BirdCoderSyncCodeEngineModelConfigRequest | null = null;
 const serverOverwriteResult = await syncWorkbenchCodeEngineModelConfig({
-  coreReadService: {
+  appRuntimeReadService: {
     async getModelConfig() {
       return serverNewerConfig;
     },
   },
-  coreWriteService: {
+  appRuntimeWriteService: {
     async syncModelConfig(request) {
       syncedRequest = request;
       return createBirdCoderCodeEngineModelConfigSyncPlan({
@@ -120,12 +120,12 @@ await writeUserHomeTextFile(
 );
 
 const localPushResult = await syncWorkbenchCodeEngineModelConfig({
-  coreReadService: {
+  appRuntimeReadService: {
     async getModelConfig() {
       return serverNewerConfig;
     },
   },
-  coreWriteService: {
+  appRuntimeWriteService: {
     async syncModelConfig(request) {
       return createBirdCoderCodeEngineModelConfigSyncPlan({
         localConfig: request.localConfig,

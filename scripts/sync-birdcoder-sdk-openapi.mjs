@@ -36,9 +36,10 @@ function writeJsonFile(filePath, value, { check, mismatches }) {
   fs.writeFileSync(filePath, nextContent, 'utf8');
 }
 
-function collectSurfacePaths(canonicalDocument, apiPrefix) {
+function collectSurfacePaths(canonicalDocument, surface) {
   const paths = {};
   const usedTags = new Set();
+  const apiPrefix = surface.apiPrefix;
 
   for (const [pathKey, methodMap] of Object.entries(canonicalDocument.paths ?? {})) {
     if (!pathKey.startsWith(apiPrefix)) {
@@ -147,7 +148,7 @@ function pruneComponentsForSurface(canonicalComponents, paths) {
 }
 
 function createSurfaceOpenApi(canonicalDocument, surface) {
-  const { paths, usedTags } = collectSurfacePaths(canonicalDocument, surface.apiPrefix);
+  const { paths, usedTags } = collectSurfacePaths(canonicalDocument, surface);
   assert.ok(
     Object.keys(paths).length > 0,
     `No canonical OpenAPI paths matched ${surface.surface} prefix ${surface.apiPrefix}.`,

@@ -64,13 +64,13 @@ function createShellRuntimeBootstrapTimeoutPromise(
 
 async function runBootstrapShellRuntimeOnce(attemptId: number): Promise<void> {
   try {
-    const [coreReadService, coreWriteService] = await Promise.all([
-      loadDefaultBirdCoderIdeService('coreReadService'),
-      loadDefaultBirdCoderIdeService('coreWriteService'),
+    const [appRuntimeReadService, appRuntimeWriteService] = await Promise.all([
+      loadDefaultBirdCoderIdeService('appRuntimeReadService'),
+      loadDefaultBirdCoderIdeService('appRuntimeWriteService'),
     ]);
     await bootstrapShellUserState({
-      coreReadService,
-      coreWriteService,
+      appRuntimeReadService,
+      appRuntimeWriteService,
     });
     if (
       attemptId === bootstrapShellRuntimeAttemptId &&

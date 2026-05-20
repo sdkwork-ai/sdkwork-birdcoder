@@ -31,6 +31,11 @@ assert.equal(
 );
 assert.match(
   rootPackageJson.scripts['check:iam-standard'] ?? '',
+  /birdcoder-iam-standard-contract\.test\.mjs/,
+  'BirdCoder IAM standard must keep the repository-local IAM naming and retired identity guard in the standard lane.',
+);
+assert.match(
+  rootPackageJson.scripts['check:iam-standard'] ?? '',
   /birdcoder-iam-appbase-parity-contract\.test\.mjs/,
   'BirdCoder IAM standard must keep the shared appbase parity contract in the standard lane.',
 );
@@ -56,7 +61,11 @@ const governedSubchecks = [
     args: ['scripts/runtime-user-center-bridge-contract.test.mjs'],
   },
   {
-    label: 'birdcoder IAM standard contract',
+    label: 'birdcoder repository-local IAM standard contract',
+    args: ['scripts/birdcoder-iam-standard-contract.test.mjs'],
+  },
+  {
+    label: 'birdcoder IAM appbase parity contract',
     args: ['scripts/birdcoder-iam-appbase-parity-contract.test.mjs'],
   },
   {

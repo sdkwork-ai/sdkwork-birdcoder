@@ -37,6 +37,21 @@ assert.equal(
   'release-flow runner must execute the quality gate execution runner contract before downstream lanes',
 );
 assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release-docs-api-sdk-standard-contract.test.mjs'),
+  true,
+  'release-flow runner must execute the release docs API/SDK standard contract before downstream lanes',
+);
+assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts'),
+  true,
+  'release-flow runner must execute the coding-server API_SPEC path contract before downstream lanes',
+);
+assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/birdcoder-iam-standard-contract.test.mjs'),
+  true,
+  'release-flow runner must execute the repository-local BirdCoder IAM standard contract before downstream lanes',
+);
+assert.equal(
   RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/check-sdkwork-birdcoder-structure-contract.test.mjs'),
   true,
   'release-flow runner must execute the sdkwork-birdcoder structure contract before downstream lanes',

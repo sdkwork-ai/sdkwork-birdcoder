@@ -8,6 +8,7 @@ import {
 import { BIRDCODER_APP_SDK_OPERATION_INDEX } from './types';
 import { createAuthApi, type AuthApi } from './api/auth';
 import { createBillingApi, type BillingApi } from './api/billing';
+import { createCollaborationApi, type CollaborationApi } from './api/collaboration';
 import { createContentApi, type ContentApi } from './api/content';
 import { createIamApi, type IamApi } from './api/iam';
 import { createIntelligenceApi, type IntelligenceApi } from './api/intelligence';
@@ -28,6 +29,7 @@ export interface BirdcoderAppSdkClient {
   setSdkworkAuthTokens(tokens: BirdcoderSdkAuthTokens): void;
   auth: AuthApi;
   billing: BillingApi;
+  collaboration: CollaborationApi;
   content: ContentApi;
   iam: IamApi;
   intelligence: IntelligenceApi;
@@ -54,6 +56,7 @@ export function createBirdcoderAppSdkClient(
     setSdkworkAuthTokens: requester.setSdkworkAuthTokens,
     auth: createAuthApi(requester.requestOperation),
     billing: createBillingApi(requester.requestOperation),
+    collaboration: createCollaborationApi(requester.requestOperation),
     content: createContentApi(requester.requestOperation),
     iam: createIamApi(requester.requestOperation),
     intelligence: createIntelligenceApi(requester.requestOperation),

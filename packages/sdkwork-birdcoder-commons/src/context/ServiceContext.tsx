@@ -3,8 +3,8 @@ import {
   IAdminDeploymentService,
   IAdminPolicyService,
   IAuditService,
-  ICoreReadService,
-  ICoreWriteService,
+  IAppRuntimeReadService,
+  IAppRuntimeWriteService,
   IDeploymentService,
   IDocumentService,
   IFileSystemService,
@@ -22,8 +22,8 @@ export interface IServices {
   adminPolicyService: IAdminPolicyService;
   workspaceService: IWorkspaceService;
   projectService: IProjectService;
-  coreReadService: ICoreReadService;
-  coreWriteService: ICoreWriteService;
+  appRuntimeReadService: IAppRuntimeReadService;
+  appRuntimeWriteService: IAppRuntimeWriteService;
   auditService: IAuditService;
   deploymentService: IDeploymentService;
   documentService: IDocumentService;
@@ -41,8 +41,8 @@ function createDefaultServicesValue(): IServices {
     adminPolicyService: defaultIdeServices.adminPolicyService,
     workspaceService: defaultIdeServices.workspaceService,
     projectService: defaultIdeServices.projectService,
-    coreReadService: defaultIdeServices.coreReadService,
-    coreWriteService: defaultIdeServices.coreWriteService,
+    appRuntimeReadService: defaultIdeServices.appRuntimeReadService,
+    appRuntimeWriteService: defaultIdeServices.appRuntimeWriteService,
     auditService: defaultIdeServices.auditService,
     deploymentService: defaultIdeServices.deploymentService,
     documentService: defaultIdeServices.documentService,

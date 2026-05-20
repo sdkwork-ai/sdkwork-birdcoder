@@ -50,12 +50,12 @@ await writeUserHomeTextFile(
 
 await bootstrapModule.bootstrapShellUserState();
 await bootstrapModule.bootstrapShellUserState({
-  coreReadService: {
+  appRuntimeReadService: {
     async getModelConfig() {
       return serverConfig;
     },
   },
-  coreWriteService: {
+  appRuntimeWriteService: {
     async syncModelConfig(request) {
       return createBirdCoderCodeEngineModelConfigSyncPlan({
         localConfig: request.localConfig,

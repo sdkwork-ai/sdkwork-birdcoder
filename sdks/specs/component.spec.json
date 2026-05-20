@@ -16,6 +16,9 @@
     ],
     "generated": true,
     "private": true,
+    "domainCatalogs": [
+      "specs/domain-catalog.json"
+    ],
     "manifests": [
       ".sdkwork-assembly.json"
     ]
@@ -77,6 +80,7 @@
       "sdkwork_birdcoder_backend_sdk"
     ],
     "events": [],
+    "domainCatalog": "specs/domain-catalog.json",
     "configKeys": [
       ".sdkwork-assembly.json#standardProfile",
       ".sdkwork-assembly.json#surfaces"
@@ -86,7 +90,7 @@
     "authority": "OpenAPI documents under sdks/specs/openapi are the SDK source of truth and must follow API_SPEC.md.",
     "dependencyPolicy": "Consumers integrate through generated SDK package exports or injected service facades; raw HTTP, manual token headers, local DTO forks, and hand-edited generated output are forbidden.",
     "sdkPolicy": "Generation uses --standard-profile sdkwork-v3 and exposes resource-oriented clients derived from OpenAPI tags and dotted operationIds.",
-    "iamPolicy": "IAM and auth capabilities use the canonical iam/auth API domains and Sdkwork-Access-Token handling; identity naming is not allowed."
+    "iamPolicy": "IAM and auth capabilities use the canonical iam/auth API domains and Sdkwork-Access-Token handling; retired legacy domain aliases are not allowed."
   },
   "verification": {
     "commands": [

@@ -18,7 +18,7 @@ Close the first governed admin release consumer slice in the default IDE/app lay
 ## Checkpoints
 
 - `CP17O-1` `BirdCoderBackendSdkApiClient.listReleases()` must remain the explicit backend-surface release reader on `/backend/v3/api/releases`.
-- `CP17O-2` `IReleaseService` and `ApiBackedReleaseService` must expose governed release catalog reads without rebuilding admin HTTP or DTOs locally.
+- `CP17O-2` `IReleaseService` and `ApiBackedReleaseService` must expose governed release catalog reads without rebuilding backend HTTP or DTOs locally.
 - `CP17O-3` `createDefaultBirdCoderIdeServices()`, `IDEContext`, `ServiceContext`, and `useReleases()` must expose one shared default IDE/app consumer boundary for release catalogs.
 - `CP17O-4` `check:release-flow` must execute `scripts/default-ide-services-release-service-contract.test.ts`.
 
@@ -32,5 +32,5 @@ Close the first governed admin release consumer slice in the default IDE/app lay
 ## Next Serial Path
 
 1. PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`.
-2. Move the implemented shared core read facade into default service/context/app consumers before adding typed write surfaces.
+2. Move the implemented app runtime read SDK facade into default service/context/app consumers before adding typed write surfaces.
 3. Add higher-level typed write/response facades only after shared read adoption remains stable under release-flow governance.

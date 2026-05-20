@@ -20,7 +20,7 @@ import type {
   BirdCoderOperationDescriptor,
 } from '@sdkwork/birdcoder-types';
 
-export interface ICoreReadService {
+export interface IAppRuntimeReadService {
   getCodingSession(codingSessionId: string): Promise<BirdCoderCodingSessionSummary>;
   getDescriptor(): Promise<BirdCoderCodingServerDescriptor>;
   getEngineCapabilities(engineKey: string): Promise<BirdCoderEngineCapabilityMatrix>;

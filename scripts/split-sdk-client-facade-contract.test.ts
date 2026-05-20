@@ -118,7 +118,7 @@ const transport = {
           {
             id: 'admin-team-generated-facade',
             workspaceId: String(request.query?.workspaceId ?? ''),
-            name: 'Generated Facade Admin Team',
+            name: 'Generated Facade Backend Governance Team',
             description: 'Admin team served through shared generated backend SDK facade.',
             status: 'active',
           },

@@ -8,7 +8,7 @@ import type {
   BirdCoderEngineDescriptor,
   BirdCoderModelCatalogEntry,
 } from '@sdkwork/birdcoder-types';
-import type { ICoreReadService } from '@sdkwork/birdcoder-infrastructure-runtime';
+import type { IAppRuntimeReadService } from '@sdkwork/birdcoder-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
 
 export interface BirdCoderCodingServerOverviewData {
@@ -41,7 +41,7 @@ const INITIAL_STATE: BirdCoderCodingServerOverviewState = {
 };
 
 type BirdCoderCodingServerOverviewReader = Pick<
-  ICoreReadService,
+  IAppRuntimeReadService,
   | 'getDescriptor'
   | 'getEngineCapabilities'
   | 'getHealth'
@@ -52,20 +52,20 @@ type BirdCoderCodingServerOverviewReader = Pick<
 >;
 
 export async function loadCodingServerOverview(
-  coreReadService: BirdCoderCodingServerOverviewReader,
+  appRuntimeReadService: BirdCoderCodingServerOverviewReader,
 ): Promise<BirdCoderCodingServerOverviewData> {
   const [descriptor, runtime, health, engines, models, routes] = await Promise.all([
-    coreReadService.getDescriptor(),
-    coreReadService.getRuntime(),
-    coreReadService.getHealth(),
-    coreReadService.listEngines(),
-    coreReadService.listModels(),
-    coreReadService.listRoutes(),
+    appRuntimeReadService.getDescriptor(),
+    appRuntimeReadService.getRuntime(),
+    appRuntimeReadService.getHealth(),
+    appRuntimeReadService.listEngines(),
+    appRuntimeReadService.listModels(),
+    appRuntimeReadService.listRoutes(),
   ]);
 
   const engineCapabilityEntries = await Promise.all(
     engines.map(async (engine) => {
-      const capabilities = await coreReadService.getEngineCapabilities(engine.engineKey);
+      const capabilities = await appRuntimeReadService.getEngineCapabilities(engine.engineKey);
       return [engine.engineKey, capabilities] as const;
     }),
   );
@@ -82,7 +82,7 @@ export async function loadCodingServerOverview(
 }
 
 export function useCodingServerOverview() {
-  const { coreReadService } = useIDEServices();
+  const { appRuntimeReadService } = useIDEServices();
   const [state, setState] = useState<BirdCoderCodingServerOverviewState>(INITIAL_STATE);
 
   const refreshOverview = useCallback(async () => {
@@ -92,7 +92,7 @@ export function useCodingServerOverview() {
     }));
 
     try {
-      const overview = await loadCodingServerOverview(coreReadService);
+      const overview = await loadCodingServerOverview(appRuntimeReadService);
       setState({
         ...overview,
         isLoading: false,
@@ -104,7 +104,7 @@ export function useCodingServerOverview() {
         isLoading: false,
       }));
     }
-  }, [coreReadService]);
+  }, [appRuntimeReadService]);
 
   useEffect(() => {
     void refreshOverview();

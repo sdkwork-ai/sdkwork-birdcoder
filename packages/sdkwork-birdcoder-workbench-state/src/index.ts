@@ -46,8 +46,8 @@ export type {
 } from '@sdkwork/birdcoder-commons';
 export type {
   SyncWorkbenchCodeEngineModelConfigOptions,
-  WorkbenchCodeEngineModelConfigCoreReadService,
-  WorkbenchCodeEngineModelConfigCoreWriteService,
+  WorkbenchCodeEngineModelConfigAppRuntimeReadService,
+  WorkbenchCodeEngineModelConfigAppRuntimeWriteService,
   WorkbenchCodeEngineDefinition,
   WorkbenchCodeEngineId,
   WorkbenchCodeEngineSettingsMap,

@@ -7,7 +7,7 @@ import type {
 } from '../packages/sdkwork-birdcoder-types/src/index.ts';
 
 type RefreshCodingSessionMessagesOptions = Parameters<typeof refreshCodingSessionMessages>[0];
-type RefreshCoreReadService = NonNullable<RefreshCodingSessionMessagesOptions['coreReadService']>;
+type RefreshAppRuntimeReadService = NonNullable<RefreshCodingSessionMessagesOptions['appRuntimeReadService']>;
 type RefreshProjectService = RefreshCodingSessionMessagesOptions['projectService'];
 
 const workspaceId = 'workspace-selected-location-mirror';
@@ -105,7 +105,7 @@ const projectService: RefreshProjectService = {
   async deleteCodingSessionMessage() {},
 };
 
-const coreReadService: RefreshCoreReadService = {
+const appRuntimeReadService: RefreshAppRuntimeReadService = {
   async getCodingSession(requestedCodingSessionId: string) {
     assert.equal(requestedCodingSessionId, codingSessionId);
     return summary;
@@ -127,7 +127,7 @@ const coreReadService: RefreshCoreReadService = {
 
 const result = await refreshCodingSessionMessages({
   codingSessionId,
-  coreReadService,
+  appRuntimeReadService,
   identityScope: 'user-selected-location-mirror',
   projectService,
   workspaceId,

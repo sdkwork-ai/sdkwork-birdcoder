@@ -1,4 +1,4 @@
-# Step 17 - Coding-Server Core、App、Admin API与控制台实现
+# Step 17 - Coding-Server Core、App、Backend API与控制台实现
 
 ## 1. 目标与范围
 
@@ -8,11 +8,11 @@
 
 - `packages/sdkwork-birdcoder-server/src/index.ts`
   - `getBirdCoderCodingServerDescriptor()`
-  - `getBirdCoderCoreApiContract()`
+  - `getBirdCoderAppRuntimeApiContract()`
   - `getBirdCoderAppApiContract()`
-  - `getBirdCoderAdminApiContract()`
+  - `getBirdCoderBackendApiContract()`
   - `listBirdCoderCodingServerRoutes()`
-  - `buildBirdCoderCodingServerOpenApiDocumentSeed()`
+  - `buildBirdCoderCodingServerOpenApiDocument()`
   - `executeBirdCoderCoreSessionRun()`
   - `streamBirdCoderCoreSessionEventEnvelopes()`
   - `createInMemoryBirdCoderCoreSessionProjectionStore()`
@@ -23,18 +23,18 @@
   - `createJsonBirdCoderCoreSessionProjectionStore()`
 - `packages/sdkwork-birdcoder-server/src-host`
   - `build_app()`
-  - `/api/core/v1/health`
-  - `/api/core/v1/descriptor`
-  - `/api/core/v1/runtime`
+  - `/app/v3/api/system/health`
+  - `/app/v3/api/system/descriptor`
+  - `/app/v3/api/system/runtime`
   - `/openapi/coding-server-v1.json`
-  - representative `app / admin` placeholder routes with统一问题 envelope
+  - representative `app / backend` placeholder routes with统一问题 envelope
 - `packages/sdkwork-birdcoder-types/src/data.ts`
   - `coding_session_operation`
   - server projection storage bindings
 - `packages/sdkwork-birdcoder-types/src/server-api.ts`
   - `BIRDCODER_CODING_SERVER_API_VERSION`
   - `BirdCoderApiTransport`
-  - `BirdCoderSplitSdkApiClients`
+  - `BirdCoderAppSdkApiClient / BirdCoderBackendSdkApiClient`
   - timestamped `project` summary DTOs
 - `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts`
   - typed app/backend client
@@ -42,14 +42,14 @@
   - HTTP transport boundary
 - `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedWorkspaceService.ts`
 - `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts`
-- 统一 `core / app / admin` 路由矩阵与 OpenAPI seed。
+- 统一 `app / backend` 路由矩阵与 OpenAPI seed。
 - 统一把 canonical engine runtime 投影为 `runtime / event / artifact / operation`。
 - 统一 SSE envelope：`requestId`、`timestamp`、`data`、`meta.version`。
 - 增加最小 projection store，允许同一 `coding_session` 聚合多 turn 的 runtime、event、artifact、operation。
 - 增加 provider-scoped table repository 版 projection store，允许基于共享 data-kernel binding 读回 runtime、event、artifact、operation 快照。
 - 共享 data-kernel 已补齐 Node 直跑时的 in-memory fallback，使 provider 合同测试不依赖浏览器 `window.localStorage`。
 - Rust host 已切到统一 `core` 前缀，并移除旧 `/health` 文本接口。
-- Rust OpenAPI 已补齐 representative `core / app / admin` 路由矩阵，不再只暴露 3 个 core 路径。
+- Rust OpenAPI 已补齐 representative `app / backend` 路由矩阵，不再只暴露 3 个 core 路径。
 - 修复 event id 生成规则，改为 turn-aware，避免同一 runtime 多 turn 时撞 id。
 - 修复 direct Node 合同测试链路，合同执行路径改为跨包源码相对导入，避免 TS path alias 阻断。
 
@@ -65,16 +65,16 @@
 - Shared data-kernel now exposes reusable `StorageProvider` / `UnitOfWork` primitives through `createBirdCoderStorageProvider()` plus `open / healthCheck / runMigrations / beginUnitOfWork`.
 - Provider-backed projection persistence now commits `runtime / event / artifact / operation` through one UoW boundary and keeps staged rows invisible before commit.
 - Rust host 最小 `core` 路由骨架与统一 JSON envelope
-- Rust host representative `core / app / admin` OpenAPI parity
-- Rust host representative list reads now return unified empty list envelopes on `/api/core/v1/engines`, `/api/app/v1/workspaces`, and `/api/admin/v1/releases`
-- Rust host now exposes projection-backed read handlers on `/api/core/v1/coding-sessions/:id`, `/api/core/v1/operations/:operationId`, `/api/core/v1/coding-sessions/:id/events`, `/api/core/v1/coding-sessions/:id/artifacts`, and `/api/core/v1/coding-sessions/:id/checkpoints`
+- Rust host representative `app / backend` OpenAPI parity
+- Rust host representative list reads now return unified empty list envelopes on `/app/v3/api/engines`, `/app/v3/api/workspaces`, and `/backend/v3/api/releases`
+- Rust host now exposes projection-backed read handlers on `/app/v3/api/coding_sessions/:id`, `/app/v3/api/operations/:operationId`, `/app/v3/api/coding_sessions/:id/events`, `/app/v3/api/coding_sessions/:id/artifacts`, and `/app/v3/api/coding_sessions/:id/checkpoints`
 - Rust host missing projection reads now return unified `not_found` problem envelopes instead of `not_implemented`
 - Rust host now treats the shared desktop SQLite authority file as the primary runtime source through `BIRDCODER_CODING_SERVER_SQLITE_FILE`; when it encounters only legacy `coding-session` + `table.sqlite.*` `kv_store` rows, startup materializes the matching direct provider tables once before serving reads
 - Rust host startup now resolves authority bootstrap from the default `bird-server.config.json` first and falls back to env vars second; `build_app_from_runtime_config()` removes the previous env-only startup dependency, and the shared TS path now closes provider/UoW semantics without ad hoc projection writes
 - `BIRDCODER_CODING_SERVER_SNAPSHOT_FILE` is retained only as a transition fallback bridge when the shared SQLite authority file is not yet available
 - `packages/sdkwork-birdcoder-types/src/data.ts` now exposes `coding_session_checkpoint` storage binding so checkpoint authority keying stays on the shared type standard
-- Rust host now exposes representative real app/backend handlers on `/api/app/v1/projects`, `/api/app/v1/teams`, `/api/admin/v1/teams`, and `/api/admin/v1/releases`; these routes now return unified list envelopes backed by runtime state instead of placeholder or empty-shell payloads
-- The shared type standard now also exposes `workspace` / `project` / `team` / `release_record` storage bindings so app/backend truth paths reuse the same authority-key naming model as core projection resources
+- Rust host now exposes representative real app/backend handlers on `/app/v3/api/projects`, `/app/v3/api/teams`, `/backend/v3/api/iam/teams`, and `/backend/v3/api/releases`; these routes now return unified list envelopes backed by runtime state instead of placeholder or empty-shell payloads
+- The shared type standard now also exposes `workspace` / `project` / `team` / `release_record` storage bindings so app/backend truth paths reuse the same authority-key naming model as app runtime projection resources
 - Desktop `src-tauri` SQLite bootstrap now creates the first real direct authority tables for `coding_sessions` / `coding_session_runtimes` / `coding_session_events` / `coding_session_artifacts` / `coding_session_checkpoints` / `coding_session_operations` / `projects` / `teams` / `release_records`, records `coding-server-kernel-v2`, and keeps `kv_store` as a bridge instead of the only authority shape
 - Desktop `local_store_set` / `local_store_delete` now mirror shared `table.sqlite.*` table payloads into those real provider tables, and first-open backfill replays existing `kv_store` rows once so older local authority data becomes Rust-readable without manual migration
 - Rust host now materializes legacy `kv_store` authority into the full direct SQLite provider-table set once and then reads only provider tables at runtime, eliminating `kv_store` as a normal host-side truth path
@@ -82,7 +82,7 @@
 
 未闭环：
 
-- 当前文档顶部不再保留新的非环境未闭环项；Representative route、共享 provider/UoW、OpenAPI export/codegen、shared facade、console adoption、approval、document、audit、deployment、policy 等闭环已在本页 `11` 到 `33` 节完成回写。
+- 当前文档顶部不再保留新的非环境未闭环项；Representative route、共享 provider/UoW、OpenAPI export/codegen、explicit app/backend SDK client pair、console adoption、approval、document、audit、deployment、policy 等闭环已在本页 `11` 到 `33` 节完成回写。
 - Representative placeholder routes 已全部关闭，当前真相为 `none`。
 - PostgreSQL live-smoke preflight governance 已在 `34` 节关闭，主机实证 `passed` 闭环已在 `35` 节记录。
 - PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`.
@@ -106,7 +106,7 @@
 
 - `A1` 路由矩阵、OpenAPI seed、合同测试
 - `A2` Rust handler 与 SSE/operation 落地
-- `A3` App/Admin Console 接统一 SDK
+- `A3` App/Backend Console 接统一 SDK
 
 并行约束：
 
@@ -115,7 +115,7 @@
 
 ## 6. 检查点
 
-- `CP17-1` `core / app / admin` 路由前缀冻结
+- `CP17-1` `app / backend` 路由前缀冻结
 - `CP17-2` OpenAPI seed 与 route contract 对齐
 - `CP17-3` canonical runtime 可投影为 core session 事件流
 - `CP17-4` SSE envelope 可回放同一事件序列
@@ -125,7 +125,7 @@
 
 - `pnpm.cmd run test:coding-server-route-contract`
 - `pnpm.cmd run test:coding-server-openapi-contract`
-- `pnpm.cmd run test:app/backend-sdk-consumer-contract`
+- `pnpm.cmd run test:split-sdk-consumer-contract`
 - `pnpm.cmd run test:coding-server-sse-contract`
 - `pnpm.cmd run test:coding-server-projection-store-contract`
 - `pnpm.cmd run test:coding-server-projection-repository-contract`
@@ -149,8 +149,8 @@
 - 多 engine runtime 已能稳定投影到统一 core session 语义。
 - 新增 Step 17 合同测试已纳入根脚本，可重复执行。
 - server 侧已经具备最小聚合快照能力、provider-scoped table repository 契约，以及 shared data-kernel 持久化接线。
-- Rust host 已有最小 core 路由骨架，可承接后续完整 handler 与 replay 接线。
-- Rust host OpenAPI 已能覆盖 representative `core / app / admin` 路径与 operationId。
+- Rust host 已有最小 app/backend 路由骨架，可承接后续完整 handler 与 replay 接线。
+- Rust host OpenAPI 已能覆盖 representative `app / backend` 路径与 operationId。
 
 未达成：
 
@@ -158,7 +158,7 @@
 
 ## 9. 下一步最短路径
 
-1. 不要在没有 fresh failing evidence 的情况下重开 Step 17 的 representative route、OpenAPI/codegen、shared facade、console adoption 或 PostgreSQL 治理闭环。
+1. 不要在没有 fresh failing evidence 的情况下重开 Step 17 的 representative route、OpenAPI/codegen、explicit app/backend SDK client pair、console adoption 或 PostgreSQL 治理闭环。
 2. 若未来重跑 `pnpm.cmd run release:smoke:postgresql-live`，必须继续如实区分 `blocked | failed | passed`，并仅按新鲜结果回写。
 3. Step 17 关闭后的下一条非环境串行切片是 `docs/step/18-多Code-Engine-Adapter-统一工具协议闭环.md`；当前主循环真相已经继续推进到后续 Step。
 
@@ -208,98 +208,98 @@
 - `check:release-flow` now includes `scripts/generate-coding-server-client-types.test.ts`.
 - Follow-on closure from this point is now superseded by later Step 17 writebacks; representative generated-client adoption now sits behind shared high-level facades plus the later typed response/write facades.
 
-## 15. Current Loop Addendum - Shared Generated App/Admin Facade
+## 15. Current Loop Addendum - Generated App/Backend SDK Client
 
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now owns `createBirdCoderSplitSdkApiClients({ appTransport, backendTransport })` on top of `createBirdCoderFinalizedCodingServerClient()`.
-- The shared facade is now the approved representative entry for:
-  - `/api/app/v1/workspaces`
-  - `/api/app/v1/projects`
-  - `/api/admin/v1/teams`
-  - `/api/admin/v1/releases`
-- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now delegates to that shared facade and keeps only in-process/HTTP transport wiring locally.
-- `scripts/generated-app/backend-client-facade-contract.test.ts` now verifies representative path/query/list-envelope behavior for the shared facade.
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now owns `createBirdCoderAppSdkApiClient({ transport: appTransport }) and createBirdCoderBackendSdkApiClient({ transport: backendTransport })` on top of `createBirdCoderFinalizedCodingServerClient()`.
+- The explicit app/backend SDK client pair is now the approved representative entry for:
+  - `/app/v3/api/workspaces`
+  - `/app/v3/api/projects`
+  - `/backend/v3/api/iam/teams`
+  - `/backend/v3/api/releases`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now delegates to that explicit app/backend SDK client pair and keeps only in-process/HTTP transport wiring locally.
+- `scripts/split-sdk-client-facade-contract.test.ts` now verifies representative path/query/list-envelope behavior for the explicit app/backend SDK client pair.
 - `check:release-flow` now executes that contract.
-- Follow-on closure from this point is now superseded by later Step 17 writebacks; the same shared-facade pattern now covers the remaining representative `core / app / admin` consumers without reopening host-local route assembly.
+- Follow-on closure from this point is now superseded by later Step 17 writebacks; the same direct app/backend client pattern now covers the remaining representative `app / backend` consumers without reopening host-local route assembly.
 
-## 16. Current Loop Addendum - Default IDE Services Direct Shared-Facade Adoption
+## 16. Current Loop Addendum - Default IDE Services App/Backend SDK Adoption
 
-- `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts` now builds transport-based representative app/backend clients directly through `createBirdCoderSplitSdkApiClients({ appTransport, backendTransport })`.
-- Runtime HTTP composition and in-process fallback composition are both now aligned with the shared types-layer facade.
-- `scripts/default-ide-services-generated-app/backend-facade-contract.test.ts` now verifies this default-composition rule.
+- `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts` now builds transport-based representative app/backend clients directly through `createBirdCoderAppSdkApiClient({ transport: appTransport }) and createBirdCoderBackendSdkApiClient({ transport: backendTransport })`.
+- Runtime HTTP composition and in-process fallback composition are both now aligned with the explicit app/backend SDK client pair.
+- `scripts/default-ide-services-split-sdk-client-contract.test.ts` now verifies this default-composition rule.
 - `check:release-flow` now executes that contract.
-- Follow-on closure from this point is now superseded by later Step 17 writebacks; the direct shared-facade adoption rule already covers the remaining representative `core / app / admin` transport consumers.
+- Follow-on closure from this point is now superseded by later Step 17 writebacks; the direct app/backend client adoption rule already covers the remaining representative `app / backend` transport consumers.
 
-## 17. Current Loop Addendum - App/Admin Wrapper Removal
+## 17. Current Loop Addendum - App/Backend Wrapper Removal
 
-- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now owns transport factories only and no longer exports `createBirdCoderSplitSdkApiClients()`.
-- `scripts/app/backend-sdk-consumer-contract.test.ts` now consumes `createBirdCoderSplitSdkApiClients({ appTransport, backendTransport })` directly.
-- `scripts/no-app/backend-client-wrapper-contract.test.ts` now prevents the deleted wrapper from reappearing.
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now owns transport factories only and no longer exports a mixed split SDK wrapper.
+- `scripts/split-sdk-consumer-contract.test.ts` now consumes `createBirdCoderAppSdkApiClient({ transport: appTransport }) and createBirdCoderBackendSdkApiClient({ transport: backendTransport })` directly.
+- `scripts/birdcoder-sdk-consumer-boundary-contract.test.mjs` now prevents the deleted wrapper from reappearing.
 - `check:release-flow` now executes that contract.
-- Follow-on closure from this point is now superseded by later Step 17 writebacks; the same transport-only versus shared-facade cutover now covers the later representative consumers.
+- Follow-on closure from this point is now superseded by later Step 17 writebacks; the same transport-only versus direct app/backend client cutover now covers the later representative consumers.
 
 ## 18. Current Loop Addendum - App Runtime SDK Read Facade
 
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now owns `createBirdCoderGeneratedCoreReadApiClient({ transport })`.
-- The current shared core facade closes only the implemented representative routes:
-  - `/api/core/v1/descriptor`
-  - `/api/core/v1/runtime`
-  - `/api/core/v1/health`
-  - `/api/core/v1/engines`
-  - `/api/core/v1/operations/:operationId`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now owns `createBirdCoderAppSdkApiClient({ transport })`.
+- The current app runtime SDK facade closes only the implemented representative routes:
+  - `/app/v3/api/system/descriptor`
+  - `/app/v3/api/system/runtime`
+  - `/app/v3/api/system/health`
+  - `/app/v3/api/engines`
+  - `/app/v3/api/operations/:operationId`
 - `scripts/app-runtime-read-sdk-client-contract.test.ts` now verifies those five routes on one shared generated-client-based facade.
 - `check:release-flow` now executes that contract.
-- Follow-on closure from this point is now superseded by later Step 17 writebacks; the implemented core projection reads already sit behind the same shared facade pattern.
+- Follow-on closure from this point is now superseded by later Step 17 writebacks; the implemented app runtime projection reads already sit behind the same explicit app/backend SDK client pair pattern.
 
 ## 19. Current Loop Addendum - App Runtime SDK Projection Read Facade
 
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now extends `createBirdCoderGeneratedCoreReadApiClient({ transport })` to the already implemented projection reads for:
-  - `/api/core/v1/coding-sessions/:id`
-  - `/api/core/v1/coding-sessions/:id/events`
-  - `/api/core/v1/coding-sessions/:id/artifacts`
-  - `/api/core/v1/coding-sessions/:id/checkpoints`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now extends `createBirdCoderAppSdkApiClient({ transport })` to the already implemented projection reads for:
+  - `/app/v3/api/coding_sessions/:id`
+  - `/app/v3/api/coding_sessions/:id/events`
+  - `/app/v3/api/coding_sessions/:id/artifacts`
+  - `/app/v3/api/coding_sessions/:id/checkpoints`
 - Shared projection-read mapping now lands directly on:
   - `BirdCoderCodingSessionSummary`
   - `BirdCoderCodingSessionEvent[]`
   - `BirdCoderCodingSessionArtifact[]`
   - `BirdCoderCodingSessionCheckpoint[]`
 - `scripts/app-runtime-projection-read-sdk-client-contract.test.ts` now verifies the four method/path bindings on one shared generated-client-based facade.
-- `check:release-flow` now executes that contract beside the earlier representative core-read facade contract.
-- Follow-on closure from this point is now superseded by later Step 17 writebacks; shared-facade adoption already covers the remaining representative `core / app / admin` transport consumers.
+- `check:release-flow` now executes that contract beside the earlier representative app runtime read facade contract.
+- Follow-on closure from this point is now superseded by later Step 17 writebacks; direct app/backend client adoption already covers the remaining representative `app / backend` transport consumers.
 
 ## 20. Current Loop Addendum - App Team Surface Split
 
 - `packages/sdkwork-birdcoder-types/src/server-api.ts` now splits team reads on the shared app/backend facade:
-  - `listTeams()` -> `/api/app/v1/teams`
-  - `listAdminTeams()` -> `/api/admin/v1/teams`
-- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now serves both routes in the in-process transport, so runtime team reads no longer piggyback on the admin-only surface.
+  - `listTeams()` -> `/app/v3/api/teams`
+  - `listAdminTeams()` -> `/backend/v3/api/iam/teams`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now serves both routes in the in-process transport, so runtime team reads no longer piggyback on the backend-only governance surface.
 - `ApiBackedTeamService` and the default host-derived runtime transport path now consume the app-surface team catalog by default.
-- `scripts/generated-app/backend-client-facade-contract.test.ts`, `scripts/app/backend-sdk-consumer-contract.test.ts`, and `scripts/server-runtime-transport-contract.test.ts` now verify:
-  - shared facade route split
+- `scripts/split-sdk-client-facade-contract.test.ts`, `scripts/split-sdk-consumer-contract.test.ts`, and `scripts/server-runtime-transport-contract.test.ts` now verify:
+  - explicit app/backend SDK client pair route split
   - default IDE team reads on the app surface
   - server runtime transport parity on the app surface
-- Follow-on closure from this point is now superseded by later Step 17 writebacks; the remaining real transport consumers already follow the shared-facade adoption rule.
+- Follow-on closure from this point is now superseded by later Step 17 writebacks; the remaining real transport consumers already follow the direct app/backend client adoption rule.
 
 ## 21. Current Loop Addendum - Default IDE Release Service Adoption
 
-- `BirdCoderBackendSdkApiClient.listReleases()` remains the explicit admin release catalog reader on `GET /api/admin/v1/releases`.
+- `BirdCoderBackendSdkApiClient.listReleases()` remains the explicit backend release catalog reader on `GET /backend/v3/api/releases`.
 - `packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IReleaseService.ts` and `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedReleaseService.ts` now close the first representative governed release-read service boundary on top of the shared app/backend facade.
-- `createDefaultBirdCoderIdeServices()`, `IDEContext`, `ServiceContext`, and `useReleases()` now expose one default IDE/app consumer path for governed release catalogs without rebuilding admin HTTP or DTOs locally.
+- `createDefaultBirdCoderIdeServices()`, `IDEContext`, `ServiceContext`, and `useReleases()` now expose one default IDE/app consumer path for governed release catalogs without rebuilding backend HTTP or DTOs locally.
 - `scripts/default-ide-services-release-service-contract.test.ts` now locks this closure into `check:release-flow`.
-- Follow-on closure from this point is now superseded by later Step 17 writebacks; the implemented core projection read facade is already adopted by app-level coding-session detail consumers.
+- Follow-on closure from this point is now superseded by later Step 17 writebacks; the implemented app runtime projection read facade is already adopted by app-level coding-session detail consumers.
 
-## 22. Current Loop Addendum - Default IDE Core Read Adoption
+## 22. Current Loop Addendum - Default IDE App Runtime Read Adoption
 
-- `packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/ICoreReadService.ts` and `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCoreReadService.ts` now close the first default service boundary on top of `BirdCoderCoreReadApiClient`.
-- Runtime-bound default IDE services now compose `createBirdCoderGeneratedCoreReadApiClient({ transport: createBirdCoderHttpApiTransport(...) })` directly instead of rebuilding core request paths locally.
-- `createDefaultBirdCoderIdeServices()`, `IDEContext`, and `ServiceContext` now expose `coreReadService`; `useCodingServerOverview()` is the first app-level consumer of descriptor/runtime/health/engine overview reads.
-- When no runtime-bound `apiBaseUrl` or injected `coreReadClient` exists, core reads stay explicitly unavailable; this loop does not claim a local in-process core transport closure.
-- `scripts/default-ide-services-app-runtime-read-sdk-contract.test.ts` and `scripts/default-ide-services-core-read-service-contract.test.ts` now lock this adoption into `check:release-flow`.
-- Follow-on closure from this point is now superseded by later Step 17 writebacks; the implemented core projection read facade is already adopted by app-level coding-session detail consumers.
+- `packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IAppRuntimeReadService.ts` and `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts` now close the first default service boundary on top of `BirdCoderAppRuntimeReadSdkApiClient`.
+- Runtime-bound default IDE services now compose `createBirdCoderAppSdkApiClient({ transport: createBirdCoderHttpApiTransport(...) })` directly instead of rebuilding app runtime request paths locally.
+- `createDefaultBirdCoderIdeServices()`, `IDEContext`, and `ServiceContext` now expose `appRuntimeReadService`; `useCodingServerOverview()` is the first app-level consumer of descriptor/runtime/health/engine overview reads.
+- When no runtime-bound `apiBaseUrl` or injected `appRuntimeReadClient` exists, app runtime reads stay explicitly unavailable; this loop does not claim a local in-process app runtime transport closure.
+- `scripts/default-ide-services-app-runtime-read-sdk-contract.test.ts` and `scripts/default-ide-services-app-runtime-read-service-contract.test.ts` now lock this adoption into `check:release-flow`.
+- Follow-on closure from this point is now superseded by later Step 17 writebacks; the implemented app runtime projection read facade is already adopted by app-level coding-session detail consumers.
 
 ## 23. Current Loop Addendum - App-Level Coding Session Projection Consumer Adoption
 
 - `packages/sdkwork-birdcoder-commons/src/hooks/useCodingSessionProjection.ts` now exposes:
-  - `loadCodingSessionProjection(coreReadService, codingSessionId)`
+  - `loadCodingSessionProjection(appRuntimeReadService, codingSessionId)`
   - `useCodingSessionProjection(codingSessionId)`
 - The new app-level consumer slice reads:
   - `getCodingSession()`
@@ -308,60 +308,60 @@
   - `listCodingSessionCheckpoints()`
 - `packages/sdkwork-birdcoder-commons/src/context/ideServices.ts` now keeps shared service access available from a non-JSX module so direct Node contracts can validate the same consumer boundary without inventing alternate runtime wiring.
 - `scripts/coding-session-projection-app-consumer-contract.test.ts` now locks this closure into `check:release-flow`.
-- Follow-on closure from this point is now superseded by later Step 17 writebacks; the typed core write facade and first consumer path were closed after this checkpoint.
+- Follow-on closure from this point is now superseded by later Step 17 writebacks; the typed app runtime write SDK facade and first consumer path were closed after this checkpoint.
 
 ## 24. Current Loop Addendum - App Runtime SDK Facade Exclusion Governance
 
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now exposes explicit governance metadata for the shared high-level core facade:
-  - `BIRDCODER_SHARED_CORE_FACADE_OPERATION_IDS`
-  - `BIRDCODER_SHARED_CORE_FACADE_EXCLUDED_OPERATION_IDS`
-  - `isBirdCoderSharedCoreFacadeOperationId()`
-  - `isBirdCoderSharedCoreFacadeExcludedOperationId()`
+- `packages/sdkwork-birdcoder-types/src/server-api.ts` now exposes explicit governance metadata for the app runtime SDK facade:
+  - `BIRDCODER_APP_RUNTIME_SDK_OPERATION_IDS`
+  - `BIRDCODER_APP_RUNTIME_SDK_EXCLUDED_OPERATION_IDS`
+  - promoted app runtime operation governance
+  - excluded app runtime operation governance
 - The promoted catalog now covers only the already-real high-level operations:
-  - `core.getDescriptor`
-  - `core.getRuntime`
-  - `core.getHealth`
-  - `core.listEngines`
-  - `core.getOperation`
-  - `core.getCodingSession`
-  - `core.listCodingSessionEvents`
-  - `core.listCodingSessionArtifacts`
-  - `core.listCodingSessionCheckpoints`
+  - `descriptor.retrieve`
+  - `runtime.retrieve`
+  - `health.retrieve`
+  - `engines.list`
+  - `operations.retrieve`
+  - `codingSessions.retrieve`
+  - `codingSessions.events.list`
+  - `codingSessions.artifacts.list`
+  - `codingSessions.checkpoints.list`
 - The excluded catalog now makes the current blocked routes explicit:
-  - `core.getEngineCapabilities`
-  - `core.listModels`
-  - `core.createCodingSession`
-  - `core.createCodingSessionTurn`
-  - `core.submitApprovalDecision`
+  - `engines.capabilities.retrieve`
+  - `models.list`
+  - `codingSessions.create`
+  - `codingSessions.turns.create`
+  - `approvals.decisions.create`
 - `scripts/app-runtime-sdk-facade-governance-contract.test.ts` now proves the excluded operations still exist in the low-level generated client while staying outside the shared high-level facade, and `check:release-flow` executes that contract.
-- Follow-on closure from this point is now superseded by later Step 17 writebacks; `core.createCodingSession` is already promoted through the typed shared write facade.
+- Follow-on closure from this point is now superseded by later Step 17 writebacks; `codingSessions.create` is already promoted through the typed shared write facade.
 
-## 25. Current Loop Addendum - Typed Core Create Session Facade And Consumer Adoption
+## 25. Current Loop Addendum - Typed App Runtime Create Session Facade And Consumer Adoption
 
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now exposes `createBirdCoderGeneratedCoreWriteApiClient({ transport })` for the promoted `core.createCodingSession` operation.
-- Shared core governance is now split as:
-  - promoted: `core.createCodingSession` plus the existing implemented core read operations
-  - excluded: `core.getEngineCapabilities`, `core.listModels`, `core.createCodingSessionTurn`, `core.submitApprovalDecision`
-- `createDefaultBirdCoderIdeServices()` now resolves `coreWriteClient` in this order:
-  - explicit `coreWriteClient`
-  - runtime-configured `coreWriteClient`
-  - runtime HTTP transport composed through `createBirdCoderGeneratedCoreWriteApiClient({ transport: createBirdCoderHttpApiTransport(...) })`
-  - no remote core write client, which falls back to the existing local project sidecar write path
-- `ApiBackedProjectService.createCodingSession()` now closes the first real consumer path on top of the shared typed core write facade:
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now exposes `createBirdCoderAppSdkApiClient({ transport })` for the promoted `codingSessions.create` operation.
+- app runtime SDK governance is now split as:
+  - promoted: `codingSessions.create` plus the existing implemented app runtime read operations
+  - excluded: `engines.capabilities.retrieve`, `models.list`, `codingSessions.turns.create`, `approvals.decisions.create`
+- `createDefaultBirdCoderIdeServices()` now resolves `appRuntimeWriteClient` in this order:
+  - explicit `appRuntimeWriteClient`
+  - runtime-configured `appRuntimeWriteClient`
+  - runtime HTTP transport composed through `createBirdCoderAppSdkApiClient({ transport: createBirdCoderHttpApiTransport(...) })`
+  - no remote app runtime write SDK client, which falls back to the existing local project sidecar write path
+- `ApiBackedProjectService.createCodingSession()` now closes the first real consumer path on top of the shared typed app runtime write SDK facade:
   - resolve `workspaceId` from project truth
-  - call the remote server-authoritative `core.createCodingSession`
+  - call the remote server-authoritative `codingSessions.create`
   - mirror the returned session into local project session state
   - preserve the server-generated session id across refreshed project catalogs
 - `ProviderBackedProjectService` now implements a local `upsertCodingSession()` mirror path so remote creates do not disappear after `useProjects().fetchProjects()`.
 - Executable governance for this closure now includes:
   - `scripts/app-runtime-write-sdk-client-contract.test.ts`
   - `scripts/default-ide-services-app-runtime-write-sdk-contract.test.ts`
-  - `scripts/api-backed-project-service-core-create-coding-session-contract.test.ts`
-- Follow-on closure from this point is now superseded by later Step 17 writebacks; `core.createCodingSessionTurn` no longer remains excluded after the later facade and consumer closure.
+  - `scripts/api-backed-project-service-app-runtime-create-coding-session-contract.test.ts`
+- Follow-on closure from this point is now superseded by later Step 17 writebacks; `codingSessions.turns.create` no longer remains excluded after the later facade and consumer closure.
 
-## 26. Current Loop Addendum - Real Core Create Session Turn Route
+## 26. Current Loop Addendum - Real App Runtime Create Session Turn Route
 
-- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `POST /api/core/v1/coding-sessions/:id/turns` a real authority write route instead of `not_implemented`.
+- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `POST /app/v3/api/coding_sessions/:id/turns` a real authority write route instead of `not_implemented`.
 - Rust host turn creation now:
   - validates `requestKind` plus `inputSummary`
   - returns `201 Created` with a real turn payload
@@ -372,14 +372,14 @@
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml create_coding_session_turn_route_returns_created_turn_and_makes_projection_readable`
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml create_coding_session_turn_route_returns_not_found_for_missing_session`
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml create_coding_session_turn_route_persists_into_sqlite_provider_authority`
-- Follow-on closure from this point is now superseded by later Step 17 writebacks; the typed shared core write facade for `core.createCodingSessionTurn` and its first real consumer path are already closed.
+- Follow-on closure from this point is now superseded by later Step 17 writebacks; the typed app runtime write SDK facade for `codingSessions.turns.create` and its first real consumer path are already closed.
 
-## 27. Current Loop Addendum - Typed Core Create Session Turn Facade And Consumer Adoption
+## 27. Current Loop Addendum - Typed App Runtime Create Session Turn Facade And Consumer Adoption
 
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now exposes `createBirdCoderGeneratedCoreWriteApiClient({ transport }).createCodingSessionTurn(...)`.
-- Shared core governance is now split as:
-  - promoted: `core.createCodingSessionTurn`, `core.createCodingSession`, and the existing implemented core read operations
-  - excluded: `core.getEngineCapabilities`, `core.listModels`, `core.submitApprovalDecision`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now exposes `createBirdCoderAppSdkApiClient({ transport }).createCodingSessionTurn(...)`.
+- app runtime SDK governance is now split as:
+  - promoted: `codingSessions.turns.create`, `codingSessions.create`, and the existing implemented app runtime read operations
+  - excluded: `engines.capabilities.retrieve`, `models.list`, `approvals.decisions.create`
 - `ApiBackedProjectService.addCodingSessionMessage()` now closes the first real consumer path on top of the shared typed turn-write facade:
   - supported local message roles map to canonical turn request kinds
   - remote turn creation writes the server-authoritative `turnId` back into local message state
@@ -388,20 +388,20 @@
 - Executable governance for this closure now includes:
   - `scripts/app-runtime-write-sdk-client-contract.test.ts`
   - `scripts/app-runtime-sdk-facade-governance-contract.test.ts`
-  - `scripts/api-backed-project-service-core-create-coding-session-turn-contract.test.ts`
-- Follow-on closure from this point is now superseded by later Step 17 and architecture writebacks; `core.getEngineCapabilities` plus `core.listModels` are already real and promoted in the shared core read facade.
+  - `scripts/api-backed-project-service-app-runtime-create-coding-session-turn-contract.test.ts`
+- Follow-on closure from this point is now superseded by later Step 17 and architecture writebacks; `engines.capabilities.retrieve` plus `models.list` are already real and promoted in the app runtime read SDK facade.
 
-## 28. Current Loop Addendum - Real Core Approval Decision Lane
+## 28. Current Loop Addendum - Real App Runtime Approval Decision Lane
 
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now exposes `createBirdCoderGeneratedCoreWriteApiClient({ transport }).submitApprovalDecision(approvalId, request)`.
-- Shared core governance is now fully promoted for currently real core routes:
-  - promoted: `core.submitApprovalDecision`, `core.createCodingSessionTurn`, `core.createCodingSession`, and the existing implemented core read operations
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now exposes `createBirdCoderAppSdkApiClient({ transport }).submitApprovalDecision(approvalId, request)`.
+- app runtime SDK governance is now fully promoted for currently real app runtime routes:
+  - promoted: `approvals.decisions.create`, `codingSessions.turns.create`, `codingSessions.create`, and the existing implemented app runtime read operations
   - excluded: none
-- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `POST /api/core/v1/approvals/:approvalId/decision` a real authority write route instead of `not_implemented`.
+- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `POST /app/v3/api/approvals/:approvalId/decision` a real authority write route instead of `not_implemented`.
 - Approval authority truth is now replayable in both execution modes:
   - demo/snapshot-backed host mutates shared projection authority
   - sqlite provider-backed host persists checkpoint/event/operation/turn state, then reloads projection truth from provider tables
-- `ICoreWriteService`, `ApiBackedCoreWriteService`, default IDE service composition, and shared contexts now expose approval submission through one typed write boundary.
+- `IAppRuntimeWriteService`, `ApiBackedAppRuntimeWriteService`, default IDE service composition, and shared contexts now expose approval submission through one typed write boundary.
 - `loadCodingSessionApprovalState()`, `submitCodingSessionApprovalDecision()`, and `useCodingSessionApprovalState()` now close the first real approval-facing consumer path on top of that facade.
 - Canonical approval-resolution replay now uses `operation.updated.payload.approvalDecision`; do not emit a duplicate `decision` event field.
 - Executable verification for this closure now includes:
@@ -409,28 +409,28 @@
   - `pnpm.cmd run test:app-runtime-write-sdk-client-contract`
   - `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
   - `pnpm.cmd run test:coding-session-approval-consumer-contract`
-  - `pnpm.cmd run test:api-backed-project-service-core-create-coding-session-contract`
-  - `pnpm.cmd run test:api-backed-project-service-core-create-coding-session-turn-contract`
+  - `pnpm.cmd run test:api-backed-project-service-app-runtime-create-coding-session-contract`
+  - `pnpm.cmd run test:api-backed-project-service-app-runtime-create-coding-session-turn-contract`
   - `pnpm.cmd run typecheck`
 - Follow-on closure from this point is now recorded in sections `29` through `35`; the remaining representative app/backend routes and PostgreSQL host-pass lane no longer stay open.
 
 ## 29. Current Loop Addendum - Real App Document Catalog Lane
 
-- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `GET /api/app/v1/documents` a real authority read route instead of `not_implemented`.
+- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `GET /app/v3/api/documents` a real authority read route instead of `not_implemented`.
 - Representative document catalog truth is now replayable in all current authority modes:
   - demo host reads `AppState.documents`
   - legacy sqlite `kv_store` materializes `table.sqlite.project-documents.v1` into provider-side `project_documents`
   - direct sqlite provider reads `project_documents`
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now exposes `createBirdCoderSplitSdkApiClients({ appTransport, backendTransport }).listDocuments()`.
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now exposes `createBirdCoderAppSdkApiClient({ transport: appTransport }) and createBirdCoderBackendSdkApiClient({ transport: backendTransport }).listDocuments()`.
 - `appConsoleRepository.ts`, `consoleQueries.ts`, and `sdkClients.ts` now promote `project_documents` into the shared repository/query/transport boundary instead of leaving documents on mock-only state.
 - `IDocumentService`, `ApiBackedDocumentService`, default IDE service composition, shared contexts, `loadDocuments()`, and `useDocuments()` now close the first document-facing consumer path on top of the shared app/backend facade.
 - Executable verification for this closure now includes:
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data`
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured`
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured`
-  - `pnpm.cmd run test:generated-app/backend-client-facade-contract`
+  - `pnpm.cmd run test:split-sdk-client-facade-contract`
   - `pnpm.cmd run test:provider-backed-console-contract`
-  - `pnpm.cmd run test:app/backend-sdk-consumer-contract`
+  - `pnpm.cmd run test:split-sdk-consumer-contract`
   - `pnpm.cmd run test:default-ide-services-document-service-contract`
   - `pnpm.cmd run test:document-app-consumer-contract`
 - `pnpm.cmd run typecheck`
@@ -438,93 +438,93 @@
 
 ## 30. Current Loop Addendum - Real Admin Audit Lane
 
-- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `GET /api/admin/v1/audit` a real authority read route instead of `not_implemented`.
+- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `GET /backend/v3/api/iam/audit_events` a real authority read route instead of `not_implemented`.
 - Representative audit catalog truth is now replayable in all current authority modes:
   - demo host reads in-process audit state
   - legacy sqlite `kv_store` materializes `table.sqlite.audit-events.v1` into provider-side `audit_events`
   - direct sqlite provider reads `audit_events`
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now exposes `createBirdCoderSplitSdkApiClients({ appTransport, backendTransport }).listAuditEvents()`.
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now exposes `createBirdCoderAppSdkApiClient({ transport: appTransport }) and createBirdCoderBackendSdkApiClient({ transport: backendTransport }).listAuditEvents()`.
 - `appConsoleRepository.ts`, `consoleQueries.ts`, and `sdkClients.ts` now promote `audit_events` into the shared repository/query/transport boundary instead of leaving audit reads on mock-only state.
 - `IAuditService`, `ApiBackedAuditService`, default IDE service composition, shared contexts, `loadAuditEvents()`, and `useAuditEvents()` now close the first audit-facing consumer path on top of the shared app/backend facade.
 - Executable verification for this closure now includes:
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data`
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured`
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured`
-  - `pnpm.cmd run test:generated-app/backend-client-facade-contract`
+  - `pnpm.cmd run test:split-sdk-client-facade-contract`
   - `pnpm.cmd run test:default-ide-services-audit-service-contract`
   - `pnpm.cmd run test:audit-admin-consumer-contract`
   - `pnpm.cmd run test:sqlite-app/backend-repository-contract`
 - `pnpm.cmd run test:provider-backed-console-contract`
-- `pnpm.cmd run test:app/backend-sdk-consumer-contract`
+- `pnpm.cmd run test:split-sdk-consumer-contract`
 - `pnpm.cmd run typecheck`
 - Follow-on closure from this checkpoint is now recorded in sections `31` through `35`.
 
 ## 31. Current Loop Addendum - Real App Deployment Catalog Lane
 
-- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `GET /api/app/v1/deployments` a real authority read route instead of `not_implemented`.
+- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `GET /app/v3/api/deployments` a real authority read route instead of `not_implemented`.
 - Representative deployment catalog truth is now replayable in all current authority modes:
   - demo host reads in-process deployment state
   - legacy sqlite `kv_store` materializes deployment payloads into provider-side `deployment_records`
   - direct sqlite provider reads `deployment_records`
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now exposes `createBirdCoderSplitSdkApiClients({ appTransport, backendTransport }).listDeployments()`.
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now exposes `createBirdCoderAppSdkApiClient({ transport: appTransport }) and createBirdCoderBackendSdkApiClient({ transport: backendTransport }).listDeployments()`.
 - `appConsoleRepository.ts`, `consoleQueries.ts`, and transport-backed app/backend client wiring now promote `deployment_records` through the shared repository/query/transport boundary instead of leaving deployment reads on mock-only state.
 - `IDeploymentService`, `ApiBackedDeploymentService`, default IDE service composition, shared contexts, `loadDeployments()`, and `useDeployments()` now close the first deployment-facing consumer path on top of the shared app/backend facade.
 - Executable verification for this closure now includes:
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
-  - `pnpm.cmd run test:generated-app/backend-client-facade-contract`
+  - `pnpm.cmd run test:split-sdk-client-facade-contract`
   - `pnpm.cmd run test:provider-backed-console-contract`
   - `pnpm.cmd run test:sqlite-app/backend-repository-contract`
-  - `pnpm.cmd run test:app/backend-sdk-consumer-contract`
+  - `pnpm.cmd run test:split-sdk-consumer-contract`
   - `pnpm.cmd run test:default-ide-services-deployment-service-contract`
   - `pnpm.cmd run test:deployment-app-consumer-contract`
   - `pnpm.cmd run typecheck`
   - `pnpm.cmd run docs:build`
   - `pnpm.cmd run check:release-flow`
 - Remaining representative placeholder routes at this checkpoint were:
-  - `GET /api/admin/v1/policies`
-  - `GET /api/admin/v1/deployments`
+  - `GET /backend/v3/api/iam/policies`
+  - `GET /backend/v3/api/deployments`
 - Follow-on closure from this checkpoint is now recorded in sections `32` through `35`.
 
 ## 32. Current Loop Addendum - Real Admin Deployment Governance Lane
 
-- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `GET /api/admin/v1/deployments` a real authority read route instead of `not_implemented`.
-- Representative admin deployment truth is now replayable in all current authority modes:
+- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `GET /backend/v3/api/deployments` a real authority read route instead of `not_implemented`.
+- Representative backend deployment truth is now replayable in all current authority modes:
   - demo host reads in-process deployment state
   - legacy sqlite `kv_store` materializes deployment payloads into provider-side `deployment_records`
   - direct sqlite provider reads `deployment_records`
-- `packages/sdkwork-birdcoder-types/src/server-api.ts` now exposes `createBirdCoderSplitSdkApiClients({ appTransport, backendTransport }).listAdminDeployments()`.
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` now exposes `createBirdCoderAppSdkApiClient({ transport: appTransport }) and createBirdCoderBackendSdkApiClient({ transport: backendTransport }).listAdminDeployments()`.
 - In-process transport plus the shared deployment query/repository layer now serve both app/backend deployment surfaces from one authority path without DTO drift.
-- `IAdminDeploymentService`, `ApiBackedAdminDeploymentService`, default IDE service composition, shared contexts, `loadAdminDeployments()`, and `useAdminDeployments()` now close the first admin deployment-facing consumer path on top of the shared app/backend facade.
+- `IAdminDeploymentService`, `ApiBackedAdminDeploymentService`, default IDE service composition, shared contexts, `loadAdminDeployments()`, and `useAdminDeployments()` now close the first backend deployment-facing consumer path on top of the shared app/backend facade.
 - Executable verification for this closure now includes:
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
   - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
-  - `pnpm.cmd run test:generated-app/backend-client-facade-contract`
-  - `pnpm.cmd run test:app/backend-sdk-consumer-contract`
+  - `pnpm.cmd run test:split-sdk-client-facade-contract`
+  - `pnpm.cmd run test:split-sdk-consumer-contract`
   - `pnpm.cmd run test:default-ide-services-admin-deployment-service-contract`
   - `pnpm.cmd run test:admin-deployment-consumer-contract`
   - `pnpm.cmd run typecheck`
   - `pnpm.cmd run docs:build`
   - `pnpm.cmd run check:release-flow`
 - Remaining representative placeholder routes at this checkpoint were:
-  - `GET /api/admin/v1/policies`
+  - `GET /backend/v3/api/iam/policies`
 - Follow-on closure from this checkpoint is now recorded in sections `33` through `35`.
 
 ## 33. Current Loop Addendum - Real Admin Policy Governance Lane
 
-- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `GET /api/admin/v1/policies` a real authority read route instead of `not_implemented`.
-- Representative admin policy truth now converges on one dedicated governance authority path:
+- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` now makes `GET /backend/v3/api/iam/policies` a real authority read route instead of `not_implemented`.
+- Representative backend policy truth now converges on one dedicated governance authority path:
   - demo host: in-process policy state
   - legacy sqlite `kv_store`: `table.sqlite.governance-policies.v1` materialized into `governance_policies`
   - direct sqlite provider: `governance_policies`
-- `packages/sdkwork-birdcoder-types/src/data.ts` and `server-api.ts` now freeze the dedicated authority model plus the shared facade entry `listPolicies()`.
+- `packages/sdkwork-birdcoder-types/src/data.ts` and `server-api.ts` now freeze the dedicated authority model plus the explicit app/backend SDK client pair entry `listPolicies()`.
 - `appConsoleRepository.ts`, `consoleQueries.ts`, and transport-backed app/backend client wiring now promote `governance_policies` through the shared repository/query/transport boundary.
-- `IAdminPolicyService`, `ApiBackedAdminPolicyService`, default IDE service composition, shared contexts, `loadAdminPolicies()`, and `useAdminPolicies()` now close the first reusable admin policy consumer path on top of the shared app/backend facade.
+- `IAdminPolicyService`, `ApiBackedAdminPolicyService`, default IDE service composition, shared contexts, `loadAdminPolicies()`, and `useAdminPolicies()` now close the first reusable backend policy consumer path on top of the shared app/backend facade.
 - Executable verification for this closure now includes:
-  - `pnpm.cmd run test:generated-app/backend-client-facade-contract`
-  - `pnpm.cmd run test:app/backend-sdk-consumer-contract`
+  - `pnpm.cmd run test:split-sdk-client-facade-contract`
+  - `pnpm.cmd run test:split-sdk-consumer-contract`
   - `pnpm.cmd run test:default-ide-services-admin-policy-service-contract`
   - `pnpm.cmd run test:admin-policy-consumer-contract`
   - `pnpm.cmd run test:sqlite-app/backend-repository-contract`

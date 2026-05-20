@@ -17,8 +17,8 @@ import type {
   BirdCoderOperationDescriptor,
 } from '@sdkwork/birdcoder-types';
 import type {
-  ICoreReadService,
-  ICoreWriteService,
+  IAppRuntimeReadService,
+  IAppRuntimeWriteService,
 } from '../packages/sdkwork-birdcoder-infrastructure/src/index.ts';
 import {
   TEST_CODE_ENGINE_MODEL_CONFIG,
@@ -166,7 +166,7 @@ const observedApprovals: Array<{
   reason?: string;
 }> = [];
 
-const coreReadService: ICoreReadService = {
+const appRuntimeReadService: IAppRuntimeReadService = {
   async getCodingSession() {
     return sessionFixture;
   },
@@ -276,20 +276,20 @@ const { createDefaultBirdCoderIdeServices } = await import(
 
 const services = createDefaultBirdCoderIdeServices({
   appRuntimeClient: {
-    ...coreReadService,
+    ...appRuntimeReadService,
     ...codingRuntimeClient,
   },
 });
 
 assert.equal(
-  typeof services.coreWriteService.submitApprovalDecision,
+  typeof services.appRuntimeWriteService.submitApprovalDecision,
   'function',
-  'default IDE services must expose submitApprovalDecision through the shared core write service.',
+  'default IDE services must expose submitApprovalDecision through the shared app runtime write service.',
 );
 
 const approvals = await projectionModule.loadCodingSessionApprovalState(
-  services.coreReadService as Pick<
-    ICoreReadService,
+  services.appRuntimeReadService as Pick<
+    IAppRuntimeReadService,
     'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
   >,
   sessionId,
@@ -308,16 +308,16 @@ assert.deepEqual(approvals, [
   },
 ]);
 
-const decidedCoreReadService: ICoreReadService = {
-  ...coreReadService,
+const decidedAppRuntimeReadService: IAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async listCodingSessionEvents() {
     return [eventFixture, approvalDecisionEventFixture];
   },
 };
 
 const decidedApprovals = await projectionModule.loadCodingSessionApprovalState(
-  decidedCoreReadService as Pick<
-    ICoreReadService,
+  decidedAppRuntimeReadService as Pick<
+    IAppRuntimeReadService,
     'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
   >,
   sessionId,
@@ -329,16 +329,16 @@ assert.deepEqual(
   'approval decision lifecycle events must settle pending approvals even if a stale checkpoint snapshot still says resumable.',
 );
 
-const permissionIdDecisionCoreReadService: ICoreReadService = {
-  ...coreReadService,
+const permissionIdDecisionAppRuntimeReadService: IAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async listCodingSessionEvents() {
     return [eventFixture, permissionIdApprovalDecisionEventFixture];
   },
 };
 
 const permissionIdDecidedApprovals = await projectionModule.loadCodingSessionApprovalState(
-  permissionIdDecisionCoreReadService as Pick<
-    ICoreReadService,
+  permissionIdDecisionAppRuntimeReadService as Pick<
+    IAppRuntimeReadService,
     'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
   >,
   sessionId,
@@ -350,8 +350,8 @@ assert.deepEqual(
   'approval settlement must resolve provider permissionId aliases so stale checkpoints do not keep approval UI pending.',
 );
 
-const unsafeLongApprovalCoreReadService: ICoreReadService = {
-  ...coreReadService,
+const unsafeLongApprovalAppRuntimeReadService: IAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async listCodingSessionCheckpoints() {
     return [unsafeLongCheckpointFixture];
   },
@@ -361,8 +361,8 @@ const unsafeLongApprovalCoreReadService: ICoreReadService = {
 };
 
 const unsafeLongApprovals = await projectionModule.loadCodingSessionApprovalState(
-  unsafeLongApprovalCoreReadService as Pick<
-    ICoreReadService,
+  unsafeLongApprovalAppRuntimeReadService as Pick<
+    IAppRuntimeReadService,
     'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
   >,
   sessionId,
@@ -375,7 +375,7 @@ assert.deepEqual(
 );
 
 const approvalResult = await projectionModule.submitCodingSessionApprovalDecision(
-  services.coreWriteService as Pick<ICoreWriteService, 'submitApprovalDecision'>,
+  services.appRuntimeWriteService as Pick<IAppRuntimeWriteService, 'submitApprovalDecision'>,
   approvalId,
   {
     decision: 'approved',

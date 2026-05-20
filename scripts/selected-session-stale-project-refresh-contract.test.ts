@@ -17,7 +17,7 @@ const workspaceId = 'workspace-local';
 const codingSessionId = 'coding-session-authoritative';
 const sortTimestamp = String(Date.parse('2026-04-24T00:00:00.000Z'));
 type RefreshCodingSessionMessagesOptions = Parameters<typeof refreshCodingSessionMessages>[0];
-type RefreshCoreReadService = NonNullable<RefreshCodingSessionMessagesOptions['coreReadService']>;
+type RefreshAppRuntimeReadService = NonNullable<RefreshCodingSessionMessagesOptions['appRuntimeReadService']>;
 type RefreshProjectService = RefreshCodingSessionMessagesOptions['projectService'];
 
 function unexpectedProjectServiceCall(method: string): never {
@@ -136,7 +136,7 @@ const projectService: RefreshProjectService = {
   },
 };
 
-const coreReadService: RefreshCoreReadService = {
+const appRuntimeReadService: RefreshAppRuntimeReadService = {
   async getCodingSession() {
     return summary;
   },
@@ -156,7 +156,7 @@ const coreReadService: RefreshCoreReadService = {
 
 const result = await refreshCodingSessionMessages({
   codingSessionId,
-  coreReadService,
+  appRuntimeReadService,
   projectService,
   resolvedLocation: {
     codingSession: existingSession,
@@ -223,8 +223,8 @@ const staleLocationProjectService: RefreshProjectService = {
   },
 };
 
-const staleLocationCoreReadService: RefreshCoreReadService = {
-  ...coreReadService,
+const staleLocationAppRuntimeReadService: RefreshAppRuntimeReadService = {
+  ...appRuntimeReadService,
   async getCodingSession() {
     return staleLocationSummary;
   },
@@ -235,7 +235,7 @@ const staleLocationCoreReadService: RefreshCoreReadService = {
 
 const staleLocationResult = await refreshCodingSessionMessages({
   codingSessionId: staleLocationCodingSessionId,
-  coreReadService: staleLocationCoreReadService,
+  appRuntimeReadService: staleLocationAppRuntimeReadService,
   projectService: staleLocationProjectService,
   workspaceId: staleLocationWorkspaceId,
 });
@@ -383,8 +383,8 @@ let pollutedLocalEventReads = 0;
 let pollutedLocalUpserts = 0;
 const pollutedLocalResult = await refreshCodingSessionMessages({
   codingSessionId,
-  coreReadService: {
-    ...coreReadService,
+  appRuntimeReadService: {
+    ...appRuntimeReadService,
     async getCodingSession() {
       return pollutedLocalSummary;
     },
@@ -448,8 +448,8 @@ let externalEventReads = 0;
 let externalUpserts = 0;
 const externalSyncResult = await refreshCodingSessionMessages({
   codingSessionId,
-  coreReadService: {
-    ...coreReadService,
+  appRuntimeReadService: {
+    ...appRuntimeReadService,
     async getCodingSession() {
       return externallyUpdatedSummary;
     },
@@ -566,8 +566,8 @@ const previouslyFailedEvents: BirdCoderCodingSessionEvent[] = [
 let previouslyFailedUpserts = 0;
 const previouslyFailedResult = await refreshCodingSessionMessages({
   codingSessionId: previouslyFailedCodingSessionId,
-  coreReadService: {
-    ...coreReadService,
+  appRuntimeReadService: {
+    ...appRuntimeReadService,
     async getCodingSession() {
       return previouslyFailedSummary;
     },
@@ -620,8 +620,8 @@ const failedAfterAssistantEvents: BirdCoderCodingSessionEvent[] = [
 ];
 const failedAfterAssistantResult = await refreshCodingSessionMessages({
   codingSessionId: `${previouslyFailedCodingSessionId}-latest-failure`,
-  coreReadService: {
-    ...coreReadService,
+  appRuntimeReadService: {
+    ...appRuntimeReadService,
     async getCodingSession() {
       return {
         ...previouslyFailedSummary,
@@ -736,8 +736,8 @@ const staleStreamingEvents: BirdCoderCodingSessionEvent[] = [
 let staleStreamingUpserts = 0;
 const staleStreamingResult = await refreshCodingSessionMessages({
   codingSessionId: staleStreamingCodingSessionId,
-  coreReadService: {
-    ...coreReadService,
+  appRuntimeReadService: {
+    ...appRuntimeReadService,
     async getCodingSession() {
       return staleStreamingSummary;
     },
@@ -779,8 +779,8 @@ const freshStreamingTimestamp = new Date(Date.now() - 60 * 1000).toISOString();
 const freshStreamingCodingSessionId = 'coding-session-fresh-streaming-authority';
 const freshStreamingResult = await refreshCodingSessionMessages({
   codingSessionId: freshStreamingCodingSessionId,
-  coreReadService: {
-    ...coreReadService,
+  appRuntimeReadService: {
+    ...appRuntimeReadService,
     async getCodingSession() {
       return {
         ...staleStreamingSummary,

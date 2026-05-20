@@ -3,6 +3,7 @@ packages:
   - 'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript'
   - 'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript'
   - '../sdkwork-appbase/packages/common/iam/*'
+  - '../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap'
   - '../sdkwork-appbase/packages/pc-react/foundation/*'
   - '../sdkwork-appbase/packages/pc-react/iam/*'
   - '../sdkwork-appbase/packages/pc-react/commerce/sdkwork-vip-pc-react'

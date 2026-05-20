@@ -33,5 +33,5 @@ Close the host bootstrap loop so default workspace/project reads on web / deskto
 ## Next Serial Path
 
 1. Define server bootstrap transport binding on the same runtime contract.
-2. Keep representative runtime team reads on the shared app-surface client boundary and keep admin team reads explicit.
+2. Keep representative runtime team reads on the shared app-surface client boundary and keep backend governance team reads explicit.
 3. Add PostgreSQL live smoke only with a real DSN-backed environment.

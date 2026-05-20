@@ -1,4 +1,4 @@
-# Step 17S - Real Core Create Coding Session Route Lane
+# Step 17S - Real App Runtime Create Coding Session Route Lane
 
 ## Goal
 
@@ -19,8 +19,8 @@ Turn `POST /app/v3/api/coding_sessions` from a `not_implemented` skeleton into a
 - `CP17S-1` Rust host must return `201 Created` plus a real `CodingSessionPayload` for `POST /app/v3/api/coding_sessions`.
 - `CP17S-2` create/read requests in the same host process must share one projection authority state, so the newly created session is immediately readable through `GET /app/v3/api/coding_sessions/:id`.
 - `CP17S-3` sqlite provider-backed hosts must persist new rows into `coding_sessions` and `coding_session_runtimes`, then reload projection reads from provider tables.
-- `CP17S-4` shared high-level facade governance must stop describing `core.createCodingSession` as `not_implemented`; it remains excluded only because the typed write/response facade lane is not closed yet.
-- `CP17S-5` release writeback must move the next serial closure to typed `core.createCodingSession` facade promotion.
+- `CP17S-4` shared high-level facade governance must stop describing `codingSessions.create` as `not_implemented`; it remains excluded only because the typed write/response facade lane is not closed yet.
+- `CP17S-5` release writeback must move the next serial closure to typed `codingSessions.create` facade promotion.
 
 ## Verification
 
@@ -33,5 +33,5 @@ Turn `POST /app/v3/api/coding_sessions` from a `not_implemented` skeleton into a
 ## Next Serial Path
 
 1. PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`.
-2. Keep `core.createCodingSession` outside the shared high-level facade until the typed write/response facade is introduced on top of the now-real server route.
-3. Promote `core.createCodingSession` from the excluded catalog only after the typed facade, service adoption, and release-flow governance all close together.
+2. Keep `codingSessions.create` outside the shared high-level facade until the typed write/response facade is introduced on top of the now-real server route.
+3. Promote `codingSessions.create` from the excluded catalog only after the typed facade, service adoption, and release-flow governance all close together.

@@ -1348,7 +1348,7 @@ export interface BirdCoderAppApiContract {
   workspaces: BirdCoderApiRouteDefinition;
 }
 
-export interface BirdCoderAdminApiContract {
+export interface BirdCoderBackendApiContract {
   audit: BirdCoderApiRouteDefinition;
   deployments: BirdCoderApiRouteDefinition;
   deploymentTargets: BirdCoderApiRouteDefinition;
@@ -1390,7 +1390,7 @@ export interface BirdCoderAppApiModel {
   workspaces: BirdCoderWorkspaceSummary[];
 }
 
-export interface BirdCoderAdminApiModel {
+export interface BirdCoderBackendApiModel {
   audits: BirdCoderAdminAuditEventSummary[];
   deploymentTargets: BirdCoderDeploymentTargetSummary[];
   members: BirdCoderTeamMemberSummary[];

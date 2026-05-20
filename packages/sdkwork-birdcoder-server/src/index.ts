@@ -34,7 +34,7 @@ import type {
   BirdCoderApiGatewaySummary,
   BirdCoderApiRouteCatalogEntry,
   BirdCoderApiRouteDefinition,
-  BirdCoderAdminApiContract,
+  BirdCoderBackendApiContract,
   BirdCoderApiSurface,
   BirdCoderAppApiContract,
   BirdCoderApprovalDecisionResult,
@@ -119,6 +119,7 @@ type BirdCoderOpenApiSchema = Record<string, unknown>;
 type BirdCoderOpenApiScope = 'platform' | 'tenant' | 'organization' | 'user' | 'owner';
 type BirdCoderOpenApiDomain =
   | 'billing'
+  | 'collaboration'
   | 'content'
   | 'device'
   | 'ecosystem'
@@ -158,7 +159,10 @@ interface BirdCoderOpenApiRequestBodyObject {
 interface BirdCoderOpenApiResponseObject {
   description: string;
   content?: {
-    'application/json': {
+    'application/json'?: {
+      schema: BirdCoderOpenApiSchema;
+    };
+    'application/problem+json'?: {
       schema: BirdCoderOpenApiSchema;
     };
   };
@@ -185,7 +189,7 @@ interface BirdCoderOpenApiOperationObject {
   'x-sdkwork-tenant-scope': BirdCoderOpenApiScope;
 }
 
-export interface BirdCoderCodingServerOpenApiDocumentSeed {
+export interface BirdCoderCodingServerOpenApiDocument {
   openapi: '3.1.0';
   info: {
     title: 'SDKWork BirdCoder Coding Server API';
@@ -537,6 +541,8 @@ function getOpenApiTagDescription(tag: string): string {
       return 'Appbase IAM authentication and session resources.';
     case 'billing':
       return 'Membership, VIP, and billing-facing app resources.';
+    case 'collaboration':
+      return 'Workspace collaboration and team catalog resources.';
     case 'content':
       return 'Project document and content resources.';
     case 'iam':
@@ -576,7 +582,10 @@ function getOpenApiTagForOperationId(operationId: string): string {
   if (/^documents\./u.test(normalizedOperationId)) {
     return 'content';
   }
-  if (/^(?:users|teams|workspaces\.members|policies|auditEvents|teamGovernance)\./u.test(normalizedOperationId)) {
+  if (/^workspaceTeams\./u.test(normalizedOperationId)) {
+    return 'collaboration';
+  }
+  if (/^(?:users|teams|workspaces\.members|policies|auditEvents)\./u.test(normalizedOperationId)) {
     return 'iam';
   }
   if (/^(?:workspaces|projects|deployments|releases|deploymentGovernance)\./u.test(normalizedOperationId)) {
@@ -622,6 +631,14 @@ function createOpenApiSchemaReference(schemaName: string): BirdCoderOpenApiSchem
 function createOpenApiJsonContent(schema: BirdCoderOpenApiSchema) {
   return {
     'application/json': {
+      schema,
+    },
+  } as const;
+}
+
+function createOpenApiProblemJsonContent(schema: BirdCoderOpenApiSchema) {
+  return {
+    'application/problem+json': {
       schema,
     },
   } as const;
@@ -815,7 +832,12 @@ function createOpenApiQueryParameter(
 }
 
 function createProblemResponse(description: string): BirdCoderOpenApiResponseObject {
-  return createOpenApiResponse(description, createOpenApiSchemaReference('BirdCoderProblemEnvelope'));
+  return {
+    description,
+    content: createOpenApiProblemJsonContent(
+      createOpenApiSchemaReference('BirdCoderProblemEnvelope'),
+    ),
+  };
 }
 
 function buildOpenApiResponses(
@@ -3865,7 +3887,7 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successSchema: createOpenApiSchemaReference('BirdCoderProjectDocumentSummaryListEnvelope'),
       }),
     },
-    'teams.list': {
+    'workspaceTeams.list': {
       parameters: [userIdParameter, workspaceIdParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
@@ -3939,7 +3961,7 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successSchema: createOpenApiSchemaReference('BirdCoderAdminPolicySummaryListEnvelope'),
       }),
     },
-    'teamGovernance.list': {
+    'teams.list': {
       parameters: [userIdParameter, workspaceIdParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
@@ -3947,7 +3969,7 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successSchema: createOpenApiSchemaReference('BirdCoderTeamSummaryListEnvelope'),
       }),
     },
-    'teamGovernance.members.list': {
+    'teams.members.list': {
       parameters: [teamIdPathParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
@@ -4049,6 +4071,8 @@ function getOpenApiDomainForOperationId(operationId: string): BirdCoderOpenApiDo
       return 'iam';
     case 'billing':
       return 'billing';
+    case 'collaboration':
+      return 'collaboration';
     case 'content':
       return 'content';
     case 'intelligence':
@@ -4250,15 +4274,15 @@ function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
     ['POST /app/v3/api/skill_packages/:packageId/installations', 'skillPackages.installations.create'],
     ['GET /app/v3/api/app_templates', 'appTemplates.list'],
     ['GET /app/v3/api/documents', 'documents.list'],
-    ['GET /app/v3/api/teams', 'teams.list'],
+    ['GET /app/v3/api/teams', 'workspaceTeams.list'],
     ['GET /app/v3/api/workspaces/:workspaceId/members', 'workspaces.members.list'],
     ['POST /app/v3/api/workspaces/:workspaceId/members', 'workspaces.members.upsert'],
     ['POST /app/v3/api/projects/:projectId/publish', 'projects.publish.create'],
     ['GET /app/v3/api/deployments', 'deployments.list'],
     ['GET /backend/v3/api/iam/audit_events', 'auditEvents.list'],
     ['GET /backend/v3/api/iam/policies', 'policies.list'],
-    ['GET /backend/v3/api/iam/teams', 'teamGovernance.list'],
-    ['GET /backend/v3/api/iam/teams/:teamId/members', 'teamGovernance.members.list'],
+    ['GET /backend/v3/api/iam/teams', 'teams.list'],
+    ['GET /backend/v3/api/iam/teams/:teamId/members', 'teams.members.list'],
     ['GET /backend/v3/api/projects/:projectId/deployment_targets', 'projects.deploymentTargets.list'],
     ['GET /backend/v3/api/releases', 'releases.list'],
     ['GET /backend/v3/api/deployments', 'deploymentGovernance.list'],
@@ -4802,7 +4826,7 @@ function getResolvedBirdCoderAppApiContract(): BirdCoderAppApiContract {
   return birdCoderAppApiContract;
 }
 
-const ADMIN_API_CONTRACT: BirdCoderAdminApiContract = {
+const BACKEND_API_CONTRACT: BirdCoderBackendApiContract = {
   audit: createRoute('backend', 'admin', 'GET', '/backend/v3/api/iam/audit_events', 'List audit events'),
   deployments: createRoute(
     'backend',
@@ -4938,15 +4962,15 @@ export function getBirdCoderAppApiContract(): BirdCoderAppApiContract {
   return getResolvedBirdCoderAppApiContract();
 }
 
-export function getBirdCoderAdminApiContract(): BirdCoderAdminApiContract {
-  return ADMIN_API_CONTRACT;
+export function getBirdCoderBackendApiContract(): BirdCoderBackendApiContract {
+  return BACKEND_API_CONTRACT;
 }
 
 export function listBirdCoderCodingServerRoutes(): BirdCoderApiRouteDefinition[] {
   const routes = [
     ...Object.values(APP_RUNTIME_API_CONTRACT),
     ...Object.values(getResolvedBirdCoderAppApiContract()),
-    ...Object.values(ADMIN_API_CONTRACT),
+    ...Object.values(BACKEND_API_CONTRACT),
   ];
   const routesByMethodAndPath = new Map<string, BirdCoderApiRouteDefinition>();
 
@@ -4962,14 +4986,14 @@ export function listBirdCoderCodingServerRoutes(): BirdCoderApiRouteDefinition[]
 
 export function buildBirdCoderCodingServerOpenApiDocument(
   distributionId: BirdServerDistributionId = 'global',
-): BirdCoderCodingServerOpenApiDocumentSeed {
+): BirdCoderCodingServerOpenApiDocument {
   void distributionId;
   const routes = listBirdCoderCodingServerRoutes();
   const gateway = buildBirdCoderApiGatewaySummary();
   const operationDefinitions = buildBirdCoderOpenApiOperationDefinitions();
   const schemas = buildBirdCoderCodingServerOpenApiSchemas();
 
-  const paths: BirdCoderCodingServerOpenApiDocumentSeed['paths'] = {};
+  const paths: BirdCoderCodingServerOpenApiDocument['paths'] = {};
   for (const route of routes) {
     const method = route.method.toLowerCase() as Lowercase<BirdCoderApiRouteDefinition['method']>;
     const openApiPath = toOpenApiPathTemplate(route.path);
@@ -5057,12 +5081,6 @@ export function buildBirdCoderCodingServerOpenApiDocument(
       surfaces: [...gateway.surfaces],
     },
   };
-}
-
-export function buildBirdCoderCodingServerOpenApiDocumentSeed(
-  distributionId: BirdServerDistributionId = 'global',
-): BirdCoderCodingServerOpenApiDocumentSeed {
-  return buildBirdCoderCodingServerOpenApiDocument(distributionId);
 }
 
 export async function executeBirdCoderCoreSessionRun(

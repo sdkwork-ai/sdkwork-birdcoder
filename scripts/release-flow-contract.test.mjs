@@ -405,6 +405,7 @@ assert.match(
   /postgresql-live-smoke-contract\.test\.ts/,
 );
 assert.match(releaseFlowCommandsJoined, /live-docs-governance-baseline\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /coding-server-api-spec-path-contract\.test\.ts/);
 assert.match(releaseFlowCommandsJoined, /quality-loop-scoreboard-contract\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /rollback-plan-command\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /package-release-assets\.test\.mjs/);
@@ -426,6 +427,7 @@ assert.match(releaseFlowCommandsJoined, /smoke-desktop-installers\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /smoke-server-release-assets\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /coding-server-openapi-snapshot-drift\.test\.ts/);
 assert.match(releaseFlowCommandsJoined, /smoke-deployment-release-assets\.test\.mjs/);
+assert.match(releaseFlowCommandsJoined, /birdcoder-iam-standard-contract\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /birdcoder-iam-appbase-parity-contract\.test\.mjs/);
 assert.match(releaseFlowCommandsJoined, /engine-official-sdk-contract\.test\.ts/);
 assert.match(

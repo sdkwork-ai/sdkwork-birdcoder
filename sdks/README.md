@@ -22,14 +22,26 @@ OpenAPI is the source of truth. Generated output must not be edited by hand.
 
 ## Generated Client Shape
 
-The TypeScript SDK surface is resource-oriented. Examples:
+The TypeScript SDK surface is resource-oriented.
+
+App SDK examples:
 
 ```ts
 client.auth.sessions.create(body);
 client.auth.sessions.current.retrieve();
 client.platform.projects.list(params);
 client.intelligence.codingSessions.create(body);
-client.iam.users.list(params);
+client.iam.users.current.retrieve();
+client.collaboration.workspaceTeams.list(params);
+```
+
+Backend SDK examples:
+
+```ts
+client.iam.teams.list(params);
+client.iam.teams.members.list({ teamId });
+client.iam.policies.list();
+client.iam.auditEvents.list();
 ```
 
 Auth tokens are set through generated SDK APIs. Consumers must not assemble `Authorization` or `Sdkwork-Access-Token` headers in UI or service code.

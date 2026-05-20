@@ -145,7 +145,7 @@ Cover:
 - project refresh reloads authoritative session inventory for the workspace
 - native Codex project refresh reruns the mirror sync before returning
 - session refresh reloads messages for native Codex sessions
-- session refresh reloads summary plus visible messages for core-backed sessions
+- session refresh reloads summary plus visible messages for app-runtime-backed sessions
 - unsupported engines return a typed unsupported result instead of throwing generic UI errors
 
 - [ ] **Step 2: Run the orchestrator contract test to verify failure**
@@ -158,14 +158,14 @@ Expected: FAIL because the shared refresh module does not exist.
 Add `packages/sdkwork-birdcoder-commons/src/workbench/sessionRefresh.ts` with:
 - `refreshProjectSessions(...)`
 - `refreshCodingSessionMessages(...)`
-- source detection for native Codex vs. core-backed session
+- source detection for native Codex vs. app-runtime-backed session
 - a concurrency guard keyed by workspace/project/session so duplicate refreshes do not race
 - structured result objects for success, unsupported, and failure states
 
 Use:
 - the new native Codex authority reader for `codex-native:*` sessions
 - `projectService.getProjects(...)` plus `projectService.upsertCodingSession?.(...)` for mirror persistence
-- `coreReadService.getCodingSession(...)` and `coreReadService.listCodingSessionEvents(...)` for core-backed refresh truth
+- `appRuntimeReadService.getCodingSession(...)` and `appRuntimeReadService.listCodingSessionEvents(...)` for app-runtime-backed refresh truth
 
 - [ ] **Step 4: Run the orchestrator verification**
 

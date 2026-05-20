@@ -11,7 +11,7 @@ const source = fs.readFileSync(sourcePath, 'utf8');
 assert.doesNotMatch(
   source,
   /createBirdCoderGeneratedCoreWriteApiClient/,
-  'defaultIdeServices must not import the retired generated core write facade.',
+  'defaultIdeServices must not import the retired generated app runtime write facade.',
 );
 
 assert.match(

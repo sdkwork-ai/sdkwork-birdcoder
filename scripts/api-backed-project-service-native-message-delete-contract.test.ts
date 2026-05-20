@@ -77,7 +77,7 @@ const writeService = {
   },
 } as unknown as IProjectService;
 
-const coreWriteClient = {
+const appRuntimeWriteClient = {
   async editCodingSessionMessage(
     codingSessionId: string,
     messageId: string,
@@ -115,7 +115,7 @@ const appClient = {
 
 const service = new ApiBackedProjectService({
   appClient: appClient,
-  codingRuntimeClient: coreWriteClient,
+  codingRuntimeClient: appRuntimeWriteClient,
   writeService,
 });
 
@@ -142,7 +142,7 @@ assert.deepEqual(
       messageId: 'codex-native:session-1:authoritative:turn-1:user',
     },
   ],
-  'native code-engine transcript deletion must use the server core write API because Rust owns authoritative projection events.',
+  'native code-engine transcript deletion must use the server app runtime write API because Rust owns authoritative projection events.',
 );
 assert.deepEqual(
   observedCoreEdits,
@@ -153,7 +153,7 @@ assert.deepEqual(
       content: 'Edited native authoritative message',
     },
   ],
-  'native code-engine transcript editing must use the server core write API because Rust owns authoritative projection events.',
+  'native code-engine transcript editing must use the server app runtime write API because Rust owns authoritative projection events.',
 );
 assert.deepEqual(
   observedLocalDeletes,
@@ -164,7 +164,7 @@ assert.deepEqual(
       messageId: 'codex-native:session-1:authoritative:turn-1:user',
     },
   ],
-  'without a core read client, native deletion should still update the local transcript mirror after the authority accepts the delete event.',
+  'without a app runtime read client, native deletion should still update the local transcript mirror after the authority accepts the delete event.',
 );
 assert.deepEqual(
   observedLocalEdits,
@@ -176,7 +176,7 @@ assert.deepEqual(
       content: 'Edited native authoritative message',
     },
   ],
-  'without a core read client, native editing should still update the local transcript mirror after the authority accepts the edit event.',
+  'without a app runtime read client, native editing should still update the local transcript mirror after the authority accepts the edit event.',
 );
 
 console.log('api backed project service native message mutation contract passed.');

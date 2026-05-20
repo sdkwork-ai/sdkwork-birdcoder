@@ -315,6 +315,27 @@ pub mod billing {
     }
 }
 
+pub mod collaboration {
+    pub mod workspace_teams {
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "collaboration",
+            key: "collaboration.workspaceTeams.list",
+            method: "GET",
+            operation_id: "workspaceTeams.list",
+            path: "/app/v3/api/teams",
+            path_param_names: &[],
+            permission: Some("collaboration.workspaceTeams.read"),
+            public: false,
+            resource: "collaboration.workspaceTeams",
+            summary: "List workspace teams",
+            tag: "collaboration",
+            tenant_scope: "tenant",
+        };
+    }
+}
+
 pub mod content {
     pub mod documents {
         pub const LIST: crate::SdkOperation = crate::SdkOperation {
@@ -337,25 +358,6 @@ pub mod content {
 }
 
 pub mod iam {
-    pub mod teams {
-        pub const LIST: crate::SdkOperation = crate::SdkOperation {
-            data_scope: "organization",
-            deployment: "all",
-            domain: "iam",
-            key: "iam.teams.list",
-            method: "GET",
-            operation_id: "teams.list",
-            path: "/app/v3/api/teams",
-            path_param_names: &[],
-            permission: Some("iam.teams.read"),
-            public: false,
-            resource: "iam.teams",
-            summary: "List workspace teams",
-            tag: "iam",
-            tenant_scope: "tenant",
-        };
-    }
-
     pub mod users {
         pub mod current {
             pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
@@ -1425,8 +1427,8 @@ pub const OPERATIONS: &[SdkOperation] = &[
     auth::verification_codes::CREATE,
     billing::vip::info::RETRIEVE,
     billing::vip::info::UPDATE,
+    collaboration::workspace_teams::LIST,
     content::documents::LIST,
-    iam::teams::LIST,
     iam::users::current::RETRIEVE,
     iam::users::current::UPDATE,
     iam::workspaces::members::LIST,

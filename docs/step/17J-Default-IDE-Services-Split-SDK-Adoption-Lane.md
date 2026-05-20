@@ -12,10 +12,10 @@ Move the default IDE service-composition path onto the shared generated app/back
 
 ## Checkpoints
 
-- `CP17J-1` `defaultIdeServices.ts` must import `createBirdCoderSplitSdkApiClients` from `@sdkwork/birdcoder-types`.
-- `CP17J-2` runtime HTTP composition must build the shared facade directly from `createBirdCoderHttpApiTransport(...)`.
-- `CP17J-3` in-process fallback composition must build the shared facade directly from `createBirdCoderInProcessAppSdkTransport/createBirdCoderInProcessBackendSdkTransport(...)`.
-- `CP17J-4` `defaultIdeServices.ts` must not call `createBirdCoderSplitSdkApiClients()` for transport-based representative app/backend reads.
+- `CP17J-1` `defaultIdeServices.ts` must import `explicit app/backend SDK client composition` from `@sdkwork/birdcoder-types`.
+- `CP17J-2` runtime HTTP composition must build the explicit app/backend SDK client pair directly from `createBirdCoderHttpApiTransport(...)`.
+- `CP17J-3` in-process fallback composition must build the explicit app/backend SDK client pair directly from `createBirdCoderInProcessAppSdkTransport/createBirdCoderInProcessBackendSdkTransport(...)`.
+- `CP17J-4` `defaultIdeServices.ts` must not call a mixed split SDK wrapper for transport-based representative app/backend reads.
 - `CP17J-5` executable governance must lock this rule with a dedicated contract.
 - `CP17J-6` `check:release-flow` must execute that contract.
 
@@ -33,5 +33,5 @@ Move the default IDE service-composition path onto the shared generated app/back
 
 1. PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`.
 2. Remove redundant app/backend wrapper layers once the default path and consumer contracts no longer need them.
-3. Extend the same direct shared-facade composition rule to remaining shared `app / backend` transport consumers.
-4. Add typed write/response facades only on top of the generated client plus shared-facade stack.
+3. Extend the same direct app/backend client composition rule to remaining shared `app / backend` transport consumers.
+4. Add typed write/response facades only on top of the generated client plus direct app/backend client stack.

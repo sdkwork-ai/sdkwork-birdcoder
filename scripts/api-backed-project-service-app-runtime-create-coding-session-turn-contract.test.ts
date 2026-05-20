@@ -94,28 +94,28 @@ try {
   ]);
 
   await repositories.workspaces.save({
-    id: 'workspace-core-turn-contract',
-    name: 'Core Turn Contract Workspace',
-    description: 'Workspace for core write create-turn adoption.',
-    ownerId: 'user-core-turn-contract',
+    id: 'workspace-app-runtime-turn-contract',
+    name: 'App Runtime Turn Contract Workspace',
+    description: 'Workspace for app runtime write create-turn adoption.',
+    ownerId: 'user-app-runtime-turn-contract',
     createdAt: '2026-04-11T12:00:00.000Z',
     updatedAt: '2026-04-11T12:00:00.000Z',
   });
   await repositories.projects.save({
-    id: 'project-core-turn-contract',
-    workspaceId: 'workspace-core-turn-contract',
-    name: 'Core Turn Contract Project',
+    id: 'project-app-runtime-turn-contract',
+    workspaceId: 'workspace-app-runtime-turn-contract',
+    name: 'App Runtime Turn Contract Project',
     description: 'Project catalog item resolved before remote create turn.',
     status: 'active',
     createdAt: '2026-04-11T12:01:00.000Z',
     updatedAt: '2026-04-11T12:01:00.000Z',
   });
   await repositories.projectContents.save({
-    id: 'project-content-core-turn-contract',
-    projectId: 'project-core-turn-contract',
-    projectUuid: 'project-project-core-turn-contract',
+    id: 'project-content-app-runtime-turn-contract',
+    projectId: 'project-app-runtime-turn-contract',
+    projectUuid: 'project-project-app-runtime-turn-contract',
     configData: JSON.stringify({
-      rootPath: 'D:/workspace/core-turn-contract',
+      rootPath: 'D:/workspace/app-runtime-turn-contract',
     }),
     contentVersion: '1.0',
     createdAt: '2026-04-11T12:01:00.250Z',
@@ -189,10 +189,10 @@ try {
       }
 
       return {
-        id: 'coding-session-turn-contract',
+        id: 'coding-session-app-runtime-turn-contract',
         workspaceId: request.workspaceId,
         projectId: request.projectId,
-        title: request.title ?? 'Turn Contract Session',
+        title: request.title ?? 'App Runtime Turn Contract Session',
         status: 'active',
         hostMode: request.hostMode ?? 'server',
         engineId: request.engineId,
@@ -275,8 +275,8 @@ try {
 
       return {
         id: codingSessionId,
-        workspaceId: 'workspace-core-turn-contract',
-        projectId: 'project-core-turn-contract',
+        workspaceId: 'workspace-app-runtime-turn-contract',
+        projectId: 'project-app-runtime-turn-contract',
         title: 'Turn Contract Session',
         status: 'active',
         hostMode: 'server',
@@ -325,7 +325,7 @@ try {
           sequence: '1',
           payload: {
             requestKind: 'chat',
-            inputSummary: 'Implement shared core turn facade.',
+            inputSummary: 'Implement app runtime turn facade.',
             runtimeStatus: 'streaming',
           },
           createdAt: '2026-04-11T12:03:00.000Z',
@@ -339,7 +339,7 @@ try {
           sequence: '2',
           payload: {
             role: 'user',
-            content: 'Implement shared core turn facade.',
+            content: 'Implement app runtime turn facade.',
             runtimeStatus: 'completed',
           },
           createdAt: '2026-04-11T12:03:00.000Z',
@@ -353,7 +353,7 @@ try {
           sequence: '3',
           payload: {
             role: 'assistant',
-            content: 'Server runtime turn completed for shared core turn facade.',
+            content: 'Server runtime turn completed for app runtime turn facade.',
             runtimeStatus: 'completed',
           },
           createdAt: '2026-04-11T12:03:01.000Z',
@@ -376,9 +376,9 @@ try {
     async listCodingSessions() {
       return [
         {
-          id: 'coding-session-turn-contract',
-          workspaceId: 'workspace-core-turn-contract',
-          projectId: 'project-core-turn-contract',
+          id: 'coding-session-app-runtime-turn-contract',
+          workspaceId: 'workspace-app-runtime-turn-contract',
+          projectId: 'project-app-runtime-turn-contract',
           title: 'Turn Contract Session',
           status: 'active',
           hostMode: 'server',
@@ -416,8 +416,8 @@ try {
     storageProvider: provider,
   });
   const readProjectedCodingSession = async (codingSessionId: string) => {
-    const projects = await services.projectService.getProjects('workspace-core-turn-contract');
-    const project = projects.find((candidate) => candidate.id === 'project-core-turn-contract');
+    const projects = await services.projectService.getProjects('workspace-app-runtime-turn-contract');
+    const project = projects.find((candidate) => candidate.id === 'project-app-runtime-turn-contract');
     const codingSession = project?.codingSessions.find(
       (candidate) => candidate.id === codingSessionId,
     );
@@ -445,7 +445,7 @@ try {
   };
 
   const createdSession = await services.projectService.createCodingSession(
-    'project-core-turn-contract',
+    'project-app-runtime-turn-contract',
     'Turn Contract Session',
     {
       engineId: 'codex',
@@ -453,21 +453,21 @@ try {
     },
   );
   const createdMessage = await services.projectService.addCodingSessionMessage(
-    'project-core-turn-contract',
+    'project-app-runtime-turn-contract',
     createdSession.id,
     {
       role: 'user',
-      content: 'Implement shared core turn facade.',
+      content: 'Implement app runtime turn facade.',
     },
   );
 
   assert.equal(createdMessage.turnId, 'coding-turn-server-authoritative');
   assert.deepEqual(observedRemoteTurnCreates, [
     {
-      codingSessionId: 'coding-session-turn-contract',
+      codingSessionId: 'coding-session-app-runtime-turn-contract',
       runtimeId: undefined,
       requestKind: 'chat',
-      inputSummary: 'Implement shared core turn facade.',
+      inputSummary: 'Implement app runtime turn facade.',
       stream: true,
     },
   ]);
@@ -475,16 +475,16 @@ try {
     {
       engineId: 'codex',
       modelId: 'gpt-5-codex',
-      projectId: 'project-core-turn-contract',
+      projectId: 'project-app-runtime-turn-contract',
       title: 'Turn Contract Session',
-      workspaceId: 'workspace-core-turn-contract',
+      workspaceId: 'workspace-app-runtime-turn-contract',
     },
   ]);
 
   const { codingSession: immediateCodingSession, project } =
-    await readProjectedCodingSession('coding-session-turn-contract');
+    await readProjectedCodingSession('coding-session-app-runtime-turn-contract');
   const codingSession = await waitForProjectedAssistantMessage(
-    'coding-session-turn-contract',
+    'coding-session-app-runtime-turn-contract',
   );
 
   assert.ok(project, 'project catalog must still resolve through the shared app client.');
@@ -510,13 +510,13 @@ try {
     [
       {
         id: createdMessage.id,
-        content: 'Implement shared core turn facade.',
+        content: 'Implement app runtime turn facade.',
         role: 'user',
         turnId: 'coding-turn-server-authoritative',
       },
       {
         id: codingSession?.messages[1]?.id,
-        content: 'Server runtime turn completed for shared core turn facade.',
+        content: 'Server runtime turn completed for app runtime turn facade.',
         role: 'assistant',
         turnId: 'coding-turn-server-authoritative',
       },
@@ -525,7 +525,7 @@ try {
   );
 
   const remoteOnlyMessage = await services.projectService.addCodingSessionMessage(
-    'project-core-turn-contract',
+    'project-app-runtime-turn-contract',
     'coding-session-turn-remote-only',
     {
       role: 'user',
@@ -536,15 +536,15 @@ try {
   assert.equal(
     remoteOnlyMessage.turnId,
     'coding-turn-server-authoritative',
-    'send should create a core turn even when the authoritative session is not yet present in the local project mirror.',
+    'send should create an app runtime turn even when the authoritative session is not yet present in the local project mirror.',
   );
 
   await services.projectService.upsertCodingSession?.(
-    'project-core-turn-contract',
+    'project-app-runtime-turn-contract',
     {
       id: 'coding-session-turn-stale-local',
-      workspaceId: 'workspace-core-turn-contract',
-      projectId: 'project-core-turn-contract',
+      workspaceId: 'workspace-app-runtime-turn-contract',
+      projectId: 'project-app-runtime-turn-contract',
       title: 'Stale Local Session',
       status: 'active',
       hostMode: 'server',
@@ -560,7 +560,7 @@ try {
   );
 
   const recoveredMessage = await services.projectService.addCodingSessionMessage(
-    'project-core-turn-contract',
+    'project-app-runtime-turn-contract',
     'coding-session-turn-stale-local',
     {
       role: 'user',
@@ -577,18 +577,18 @@ try {
   assert.deepEqual(
     observedRemoteTurnCreates.map((entry) => entry.codingSessionId),
     [
-      'coding-session-turn-contract',
+      'coding-session-app-runtime-turn-contract',
       'coding-session-turn-remote-only',
       'coding-session-turn-recovered',
     ],
   );
 
   await services.projectService.upsertCodingSession?.(
-    'project-core-turn-contract',
+    'project-app-runtime-turn-contract',
     {
       id: postTurnSyncLagSessionId,
-      workspaceId: 'workspace-core-turn-contract',
-      projectId: 'project-core-turn-contract',
+      workspaceId: 'workspace-app-runtime-turn-contract',
+      projectId: 'project-app-runtime-turn-contract',
       title: 'Post Turn Sync Lag Session',
       status: 'active',
       hostMode: 'server',
@@ -605,7 +605,7 @@ try {
   postTurnSyncLagReadFailures.add(postTurnSyncLagSessionId);
 
   const postTurnSyncLagMessage = await services.projectService.addCodingSessionMessage(
-    'project-core-turn-contract',
+    'project-app-runtime-turn-contract',
     postTurnSyncLagSessionId,
     {
       role: 'user',
@@ -621,11 +621,11 @@ try {
   assert.equal(postTurnSyncLagMessage.turnId, 'coding-turn-server-authoritative');
 
   await services.projectService.upsertCodingSession?.(
-    'project-core-turn-contract',
+    'project-app-runtime-turn-contract',
     {
       id: nonBlockingPostTurnSyncSessionId,
-      workspaceId: 'workspace-core-turn-contract',
-      projectId: 'project-core-turn-contract',
+      workspaceId: 'workspace-app-runtime-turn-contract',
+      projectId: 'project-app-runtime-turn-contract',
       title: 'Non Blocking Post Turn Sync Session',
       status: 'active',
       hostMode: 'server',
@@ -641,7 +641,7 @@ try {
   );
 
   const nonBlockingSendPromise = services.projectService.addCodingSessionMessage(
-    'project-core-turn-contract',
+    'project-app-runtime-turn-contract',
     nonBlockingPostTurnSyncSessionId,
     {
       role: 'user',
@@ -673,11 +673,11 @@ try {
   assert.equal(nonBlockingMessage.turnId, 'coding-turn-server-authoritative');
 
   await services.projectService.upsertCodingSession?.(
-    'project-core-turn-contract',
+    'project-app-runtime-turn-contract',
     {
       id: coalescedPostTurnSyncSessionId,
-      workspaceId: 'workspace-core-turn-contract',
-      projectId: 'project-core-turn-contract',
+      workspaceId: 'workspace-app-runtime-turn-contract',
+      projectId: 'project-app-runtime-turn-contract',
       title: 'Coalesced Post Turn Sync Session',
       status: 'active',
       hostMode: 'server',
@@ -693,7 +693,7 @@ try {
   );
 
   const firstCoalescedSendPromise = services.projectService.addCodingSessionMessage(
-    'project-core-turn-contract',
+    'project-app-runtime-turn-contract',
     coalescedPostTurnSyncSessionId,
     {
       role: 'user',
@@ -706,7 +706,7 @@ try {
   }
 
   const secondCoalescedSendPromise = services.projectService.addCodingSessionMessage(
-    'project-core-turn-contract',
+    'project-app-runtime-turn-contract',
     coalescedPostTurnSyncSessionId,
     {
       role: 'user',
@@ -739,7 +739,7 @@ try {
   assert.deepEqual(
     observedRemoteTurnCreates.map((entry) => entry.codingSessionId),
     [
-      'coding-session-turn-contract',
+      'coding-session-app-runtime-turn-contract',
       'coding-session-turn-remote-only',
       'coding-session-turn-recovered',
       postTurnSyncLagSessionId,
@@ -756,4 +756,4 @@ try {
   }
 }
 
-console.log('api-backed project service core create-coding-session-turn contract passed.');
+console.log('api-backed project service app runtime create-coding-session-turn contract passed.');

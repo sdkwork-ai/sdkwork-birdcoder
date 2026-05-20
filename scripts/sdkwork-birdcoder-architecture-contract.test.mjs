@@ -60,9 +60,23 @@ const requiredPaths = [
   'scripts/engine-canonical-registry-governance-contract.test.ts',
   'scripts/package-governance-contract.test.mjs',
   'scripts/technical-debt-contract.test.mjs',
+  'scripts/birdcoder-plus-entity-standard-contract.test.ts',
+  'scripts/runtime-plus-entity-standard-contract.test.mjs',
+  'scripts/engine-plus-entity-standard-contract.test.mjs',
+  'scripts/catalog-plus-entity-standard-contract.test.mjs',
+  'scripts/collaboration-plus-entity-standard-contract.test.mjs',
+  'scripts/delivery-governance-plus-entity-standard-contract.test.mjs',
+  'scripts/desktop-data-schema-contract.test.mjs',
+  'scripts/coding-server-api-spec-path-contract.test.ts',
+  'scripts/sync-birdcoder-sdk-openapi.mjs',
+  'scripts/generate-birdcoder-sdk-family.mjs',
+  'scripts/birdcoder-sdk-family-standard-contract.test.mjs',
+  'scripts/birdcoder-sdk-family-generated-contract.test.mjs',
   'scripts/run-user-center-standard.mjs',
   'scripts/run-user-center-standard.test.mjs',
+  'scripts/birdcoder-iam-standard-contract.test.mjs',
   'scripts/birdcoder-iam-appbase-parity-contract.test.mjs',
+  'scripts/user-center-plus-entity-standard-contract.test.mjs',
   'scripts/user-center-upstream-sync-payload.mjs',
   'scripts/user-center-upstream-sync-payload.test.mjs',
   'scripts/user-center-upstream-sync-workflow.test.mjs',
@@ -99,6 +113,7 @@ const requiredPaths = [
   'scripts/run-birdcoder-server-build.mjs',
   'scripts/run-release-flow-check.mjs',
   'scripts/run-release-flow-check.test.mjs',
+  'scripts/release-docs-api-sdk-standard-contract.test.mjs',
   'scripts/run-vitepress.mjs',
   'scripts/shared-sdk-mode.mjs',
   'scripts/release-flow-contract.test.mjs',
@@ -141,6 +156,23 @@ const requiredPaths = [
   'scripts/release/studio-preview-evidence-archive.mjs',
   'scripts/release/studio-simulator-evidence-archive.mjs',
   'scripts/release/studio-test-evidence-archive.mjs',
+  'sdks/.sdkwork-assembly.json',
+  'sdks/README.md',
+  'sdks/specs/README.md',
+  'sdks/specs/component.spec.json',
+  'sdks/specs/domain-catalog.json',
+  'sdks/specs/openapi/birdcoder-app-v3.openapi.json',
+  'sdks/specs/openapi/birdcoder-backend-v3.openapi.json',
+  'sdks/sdkwork-birdcoder-app-sdk/README.md',
+  'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/package.json',
+  'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts',
+  'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-rust/Cargo.toml',
+  'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-rust/src/lib.rs',
+  'sdks/sdkwork-birdcoder-backend-sdk/README.md',
+  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/package.json',
+  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts',
+  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-rust/Cargo.toml',
+  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-rust/src/lib.rs',
   'packages/sdkwork-birdcoder-shell/package.json',
   'packages/sdkwork-birdcoder-shell-runtime/package.json',
   'packages/sdkwork-birdcoder-auth/package.json',
@@ -195,6 +227,32 @@ assert.ok(rootPackageJson.scripts?.['docs:build'], 'Missing docs:build script');
 assert.ok(rootPackageJson.scripts?.['check:ci-flow'], 'Missing check:ci-flow script');
 assert.ok(rootPackageJson.scripts?.['check:multi-mode'], 'Missing check:multi-mode script');
 assert.ok(rootPackageJson.scripts?.['check:iam-standard'], 'Missing check:iam-standard script');
+assert.match(
+  rootPackageJson.scripts?.['check:iam-standard'] ?? '',
+  /birdcoder-iam-standard-contract\.test\.mjs/,
+  'check:iam-standard must include the repository-local IAM standard contract so retired identity surfaces cannot bypass architecture governance.',
+);
+assert.match(
+  rootPackageJson.scripts?.['check:iam-standard'] ?? '',
+  /user-center-plus-entity-standard-contract\.test\.mjs/,
+  'check:iam-standard must include the appbase user-center physical schema contract so IAM database standard drift cannot bypass architecture governance.',
+);
+assert.ok(rootPackageJson.scripts?.['check:data-kernel'], 'Missing check:data-kernel script');
+for (const dataKernelContract of [
+  'birdcoder-plus-entity-standard-contract.test.ts',
+  'runtime-plus-entity-standard-contract.test.mjs',
+  'engine-plus-entity-standard-contract.test.mjs',
+  'catalog-plus-entity-standard-contract.test.mjs',
+  'collaboration-plus-entity-standard-contract.test.mjs',
+  'delivery-governance-plus-entity-standard-contract.test.mjs',
+  'desktop-data-schema-contract.test.mjs',
+]) {
+  assert.match(
+    rootPackageJson.scripts?.['check:data-kernel'] ?? '',
+    new RegExp(dataKernelContract.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `check:data-kernel must include ${dataKernelContract} so DATABASE_SPEC-aligned local table contracts cannot drift out of architecture governance.`,
+  );
+}
 assert.equal(
   rootPackageJson.scripts?.['test:user-center-standard'],
   'node scripts/run-user-center-standard.mjs',
@@ -219,6 +277,26 @@ assert.equal(
   rootPackageJson.scripts?.['check:technical-debt'],
   'node scripts/technical-debt-contract.test.mjs',
   'Root package must expose a dedicated technical debt scan contract.',
+);
+assert.equal(
+  rootPackageJson.scripts?.['test:coding-server-api-spec-path-contract'],
+  'node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts',
+  'Root package must expose the API_SPEC path contract so app/backend prefix drift cannot bypass repository governance.',
+);
+assert.equal(
+  rootPackageJson.scripts?.['check:sdk-family-standard'],
+  'node scripts/birdcoder-sdk-family-standard-contract.test.mjs',
+  'Root package must expose the BirdCoder app/backend SDK family standard contract.',
+);
+assert.equal(
+  rootPackageJson.scripts?.['check:sdk-family-generated'],
+  'node scripts/birdcoder-sdk-family-generated-contract.test.mjs',
+  'Root package must expose the BirdCoder app/backend generated SDK reproducibility contract.',
+);
+assert.equal(
+  rootPackageJson.scripts?.['generate:sdk:birdcoder'],
+  'node scripts/sync-birdcoder-sdk-openapi.mjs && node scripts/generate-birdcoder-sdk-family.mjs',
+  'BirdCoder SDK generation must sync OpenAPI source contracts before regenerating app/backend SDK packages.',
 );
 assert.equal(
   rootPackageJson.scripts?.['check:package-script-entrypoints'],
@@ -271,6 +349,36 @@ assert.match(
   structureCheckSource,
   /'scripts\/provider-sdk-package-manifest-contract\.test\.mjs'/,
   'structure check must require provider SDK package manifest governance so adapter package contracts cannot drift.',
+);
+assert.match(
+  structureCheckSource,
+  /'sdks\/\.sdkwork-assembly\.json'/,
+  'structure check must require the SDK assembly manifest so app/backend SDK family topology cannot drift.',
+);
+assert.match(
+  structureCheckSource,
+  /'sdks\/specs\/openapi\/birdcoder-app-v3\.openapi\.json'/,
+  'structure check must require the app SDK OpenAPI source contract.',
+);
+assert.match(
+  structureCheckSource,
+  /'sdks\/specs\/domain-catalog\.json'/,
+  'structure check must require the SDK domain catalog so DOMAIN_SPEC ownership cannot drift.',
+);
+assert.match(
+  structureCheckSource,
+  /'sdks\/specs\/openapi\/birdcoder-backend-v3\.openapi\.json'/,
+  'structure check must require the backend SDK OpenAPI source contract.',
+);
+assert.match(
+  structureCheckSource,
+  /'sdks\/sdkwork-birdcoder-sdk'/,
+  'structure check must forbid the retired single-surface SDK directory.',
+);
+assert.match(
+  structureCheckSource,
+  /'sdks'/,
+  'structure check must scan SDK topology for legacy package-name residue.',
 );
 
 const shellPackageJson = JSON.parse(

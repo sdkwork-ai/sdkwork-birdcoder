@@ -7,7 +7,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_EVIDENCE = {
   ],
   "openapi": "3.1.0",
   "releaseTag": "release-local",
-  "sha256": "4ec08bf3e9bb336fb706558da33e59ea91559c7e467b8b7eb79701bf5081c6ed",
+  "sha256": "91d632c60f79db3c516e6972d06de1c311f6c97f88f760a1178a7dcb2e9d460d",
   "targetCount": 1,
   "targets": [
     "windows/x64"
@@ -474,7 +474,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   },
   {
     "method": "GET",
-    "operationId": "teams.list",
+    "operationId": "workspaceTeams.list",
     "path": "/app/v3/api/teams",
     "summary": "List workspace teams",
     "surface": "app"
@@ -551,14 +551,14 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   },
   {
     "method": "GET",
-    "operationId": "teamGovernance.list",
+    "operationId": "teams.list",
     "path": "/backend/v3/api/iam/teams",
     "summary": "List teams",
     "surface": "backend"
   },
   {
     "method": "GET",
-    "operationId": "teamGovernance.members.list",
+    "operationId": "teams.members.list",
     "path": "/backend/v3/api/iam/teams/{teamId}/members",
     "summary": "List team members",
     "surface": "backend"

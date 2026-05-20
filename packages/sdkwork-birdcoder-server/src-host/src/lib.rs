@@ -2252,6 +2252,7 @@ fn openapi_tag_description(tag: &str) -> &'static str {
         "audit" => "Audit and operational evidence resources.",
         "auth" => "Appbase IAM authentication and session resources.",
         "billing" => "Membership, VIP, and billing-facing app resources.",
+        "collaboration" => "Workspace collaboration and team catalog resources.",
         "coding" => "Coding session, checkpoint, approval, and question resources.",
         "content" => "Project document and content resources.",
         "iam" => "IAM user, team, member, and policy resources.",
@@ -2290,12 +2291,14 @@ fn openapi_tag_for_operation_id(operation_id: &str) -> &'static str {
     if operation_id.starts_with("documents.") {
         return "content";
     }
+    if operation_id.starts_with("workspaceTeams.") {
+        return "collaboration";
+    }
     if operation_id.starts_with("users.")
         || operation_id.starts_with("teams.")
         || operation_id.starts_with("workspaces.members.")
         || operation_id.starts_with("policies.")
         || operation_id.starts_with("auditEvents.")
-        || operation_id.starts_with("teamGovernance.")
     {
         return "iam";
     }
@@ -15351,7 +15354,7 @@ impl AppState {
                 code: Some("demo.team".to_owned()),
                 title: Some("Demo collaboration team".to_owned()),
                 name: "Demo collaboration team".to_owned(),
-                description: Some("Representative admin team list item.".to_owned()),
+                description: Some("Representative backend governance team list item.".to_owned()),
                 owner_id: Some("user-demo-owner".to_owned()),
                 leader_id: Some("user-demo-owner".to_owned()),
                 created_by_user_id: Some("user-demo-owner".to_owned()),
@@ -15964,7 +15967,7 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 80] = [
     },
     RouteSpec {
         method: "get",
-        operation_id: "teams.list",
+        operation_id: "workspaceTeams.list",
         path: "/app/v3/api/teams",
         summary: "List workspace teams",
         tag: "app",
@@ -16013,7 +16016,7 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 80] = [
     },
     RouteSpec {
         method: "get",
-        operation_id: "teamGovernance.list",
+        operation_id: "teams.list",
         path: "/backend/v3/api/iam/teams",
         summary: "List teams",
         tag: "backend",
@@ -16027,7 +16030,7 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 80] = [
     },
     RouteSpec {
         method: "get",
-        operation_id: "teamGovernance.members.list",
+        operation_id: "teams.members.list",
         path: "/backend/v3/api/iam/teams/:teamId/members",
         summary: "List team members",
         tag: "backend",
@@ -28841,7 +28844,7 @@ exit 1\n"
         let app = build_app_with_state(state);
         let request_body = serde_json::json!({
             "requestKind": "review",
-            "inputSummary": "Review unified app/admin facade parity",
+            "inputSummary": "Review unified app/backend facade parity",
         });
 
         let create_response = app
@@ -28908,7 +28911,7 @@ exit 1\n"
         assert_eq!(persisted_turn.1, "provider-runtime");
         assert_eq!(persisted_turn.2, "review");
         assert!(matches!(persisted_turn.3.as_str(), "running" | "completed"));
-        assert_eq!(persisted_turn.4, "Review unified app/admin facade parity");
+        assert_eq!(persisted_turn.4, "Review unified app/backend facade parity");
         if persisted_turn.3 == "running" {
             assert!(persisted_turn.5.is_none());
         } else {
@@ -32054,7 +32057,7 @@ exit 1\n"
         );
         assert_eq!(
             json["paths"]["/backend/v3/api/iam/teams/{teamId}/members"]["get"]["operationId"],
-            "teamGovernance.members.list"
+            "teams.members.list"
         );
         assert_eq!(
             json["paths"]["/backend/v3/api/projects/{projectId}/deployment_targets"]["get"]

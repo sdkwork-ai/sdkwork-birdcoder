@@ -20,15 +20,15 @@ Close the remaining `runtime-data-kernel-v2` schema-only entities by promoting `
 - `packages/sdkwork-birdcoder-types/src/server-api.ts` already freezes:
   - `BirdCoderTeamMemberSummary`
   - `BirdCoderDeploymentTargetSummary`
-  - `BirdCoderAdminApiModel.members`
-  - `BirdCoderAdminApiModel.deploymentTargets`
+  - `BirdCoderBackendApiModel.members`
+  - `BirdCoderBackendApiModel.deploymentTargets`
 - `team_member` is now closed on a real shared authority path:
   - shared console repositories and queries now materialize `team_members`
-  - the shared generated facade now exposes `listTeamMembers(teamId)` on `/backend/v3/api/teams/:teamId/members`
+  - the explicit app/backend SDK clients now exposes `listTeamMembers(teamId)` on `/backend/v3/api/iam/teams/:teamId/members`
   - the in-process transport and Rust host demo/sqlite authorities now serve the same admin member route
 - `deployment_target` is now also closed on a real shared authority path:
   - shared console repositories and queries now materialize `deployment_targets`
-  - the shared generated facade now exposes `listDeploymentTargets(projectId)` on `/backend/v3/api/projects/:projectId/deployment_targets`
+  - the explicit app/backend SDK clients now exposes `listDeploymentTargets(projectId)` on `/backend/v3/api/projects/:projectId/deployment_targets`
   - the in-process transport and Rust host demo/sqlite authorities now serve the same project-scoped admin target route
 - Step `17Z` explicitly avoided forcing `deployment_target` into the earlier deployment-record lane, so the Step `20B` closure is a deliberate new authority slice, not a regression in an already-closed deployment-record path.
 - Step `20` no longer has an open schema-only authority entity in `runtime-data-kernel-v2`.
@@ -40,7 +40,7 @@ Close the remaining `runtime-data-kernel-v2` schema-only entities by promoting `
 - `packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts`
 - shared collaboration or delivery repository and query layers
 - `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
-- shared generated facade promotion and first consumer adoption
+- explicit app/backend SDK clients promotion and first consumer adoption
 - governance contracts, architecture writeback, prompt writeback, and release notes
 
 ## Non-Goals
@@ -81,8 +81,8 @@ Reasoning:
 
 - `CP20-1` `team_member` and `deployment_target` must stop being schema-only entities; at least one real authority path must be frozen before consumer work starts.
 - `CP20-2` repository and query truth must stay on shared provider or UoW boundaries, not page-local state.
-- `CP20-3` shared generated facades must own the promoted reads once the server route truth is real.
-- `CP20-4` one representative consumer per promoted surface must adopt the shared facade instead of rebuilding transport details locally.
+- `CP20-3` explicit app/backend SDK clientss must own the promoted reads once the server route truth is real.
+- `CP20-4` one representative consumer per promoted surface must adopt the explicit app/backend SDK client pair instead of rebuilding transport details locally.
 - `CP20-5` docs and release notes must state when neither `team_member` nor `deployment_target` remains open so Step `20` can be marked complete.
 
 ## Verification Plan

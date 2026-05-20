@@ -6,7 +6,7 @@
 
 ## Goal
 
-Turn `GET /app/v3/api/documents` from a `not_implemented` placeholder into a real representative app-surface authority read, then wire the first shared facade and first consumer path without reopening already-closed core lanes.
+Turn `GET /app/v3/api/documents` from a `not_implemented` placeholder into a real representative app-surface authority read, then wire the first explicit app/backend SDK client pair and first consumer path without reopening already-closed core lanes.
 
 ## Scope
 
@@ -44,7 +44,7 @@ Turn `GET /app/v3/api/documents` from a `not_implemented` placeholder into a rea
   - direct sqlite provider: loaded from `project_documents`
 - `packages/sdkwork-birdcoder-types/src/server-api.ts` now promotes `app.listDocuments` into the shared generated app/backend facade through `listDocuments()`.
 - `appConsoleRepository.ts`, `consoleQueries.ts`, and `sdkClients.ts` now close the representative document repository/query/transport slice on top of shared provider truth.
-- `IDocumentService`, `ApiBackedDocumentService`, `createDefaultBirdCoderIdeServices()`, shared contexts, `loadDocuments()`, and `useDocuments()` now close the first document-facing consumer path on the shared facade boundary.
+- `IDocumentService`, `ApiBackedDocumentService`, `createDefaultBirdCoderIdeServices()`, shared contexts, `loadDocuments()`, and `useDocuments()` now close the first document-facing consumer path on the explicit app/backend SDK client pair boundary.
 - `check:release-flow` now executes document service and document consumer governance alongside the existing app/backend facade contracts.
 
 ## Next Serial Path

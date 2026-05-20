@@ -180,39 +180,39 @@ for (const { label, path } of rustSources) {
 
   const tableExpectations = [
     {
-      tableName: 'skill_packages',
+      tableName: 'ai_skill_package',
       fields: [...commonSnakeFields, 'slug', 'source_uri', 'manifest_json', 'status'],
     },
     {
-      tableName: 'skill_versions',
+      tableName: 'ai_skill_version',
       fields: [...commonSnakeFields, 'skill_package_id', 'version_label', 'manifest_json', 'status'],
     },
     {
-      tableName: 'skill_capabilities',
+      tableName: 'ai_skill_capability',
       fields: [...commonSnakeFields, 'skill_version_id', 'capability_key', 'payload_json'],
     },
     {
-      tableName: 'skill_installations',
+      tableName: 'ai_skill_installation',
       fields: [...commonSnakeFields, 'scope_type', 'scope_id', 'skill_version_id', 'status', 'installed_at'],
     },
     {
-      tableName: 'app_templates',
+      tableName: 'studio_app_template',
       fields: [...commonSnakeFields, 'slug', 'name', 'category', 'status'],
     },
     {
-      tableName: 'app_template_versions',
+      tableName: 'studio_app_template_version',
       fields: [...commonSnakeFields, 'app_template_id', 'version_label', 'manifest_json', 'status'],
     },
     {
-      tableName: 'app_template_target_profiles',
+      tableName: 'studio_app_template_target_profile',
       fields: [...commonSnakeFields, 'app_template_version_id', 'profile_key', 'status'],
     },
     {
-      tableName: 'app_template_presets',
+      tableName: 'studio_app_template_preset',
       fields: [...commonSnakeFields, 'app_template_version_id', 'preset_key', 'description_text', 'payload_json'],
     },
     {
-      tableName: 'app_template_instantiations',
+      tableName: 'studio_app_template_instantiation',
       fields: [...commonSnakeFields, 'app_template_version_id', 'preset_key', 'status', 'output_root'],
     },
   ];

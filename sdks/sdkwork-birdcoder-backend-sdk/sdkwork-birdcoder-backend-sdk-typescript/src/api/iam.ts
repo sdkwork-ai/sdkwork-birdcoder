@@ -7,8 +7,8 @@ import type {
 import type * as Types from '../types';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
-type IamTeamGovernanceListQuery = Types.IamTeamGovernanceListQuery;
-type IamTeamGovernanceMembersListPathParams = Types.IamTeamGovernanceMembersListPathParams;
+type IamTeamsListQuery = Types.IamTeamsListQuery;
+type IamTeamsMembersListPathParams = Types.IamTeamsMembersListPathParams;
 
 export interface IamApi {
   auditEvents: {
@@ -17,10 +17,10 @@ export interface IamApi {
   policies: {
     list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderAdminPolicySummaryListEnvelope>;
   };
-  teamGovernance: {
-    list(query?: IamTeamGovernanceListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderTeamSummaryListEnvelope>;
+  teams: {
+    list(query?: IamTeamsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderTeamSummaryListEnvelope>;
     members: {
-      list(pathParams: IamTeamGovernanceMembersListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderTeamMemberSummaryListEnvelope>;
+      list(pathParams: IamTeamsMembersListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderTeamMemberSummaryListEnvelope>;
     };
   };
 }
@@ -37,13 +37,13 @@ export function createIamApi(requestOperation: BirdcoderSdkRequestOperation): Ia
         return requestOperation<Types.BirdCoderAdminPolicySummaryListEnvelope>("iam.policies.list", {}, options);
       }
     },
-    teamGovernance: {
-      list(query: IamTeamGovernanceListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderTeamSummaryListEnvelope>("iam.teamGovernance.list", { query }, options);
+    teams: {
+      list(query: IamTeamsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderTeamSummaryListEnvelope>("iam.teams.list", { query }, options);
       },
       members: {
-        list(pathParams: IamTeamGovernanceMembersListPathParams, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderTeamMemberSummaryListEnvelope>("iam.teamGovernance.members.list", { pathParams }, options);
+        list(pathParams: IamTeamsMembersListPathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderTeamMemberSummaryListEnvelope>("iam.teams.members.list", { pathParams }, options);
         }
       }
     }

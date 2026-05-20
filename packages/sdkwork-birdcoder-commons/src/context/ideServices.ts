@@ -7,8 +7,8 @@ import type {
   IAuditService,
   ICatalogService,
   ICollaborationService,
-  ICoreReadService,
-  ICoreWriteService,
+  IAppRuntimeReadService,
+  IAppRuntimeWriteService,
   IDeploymentService,
   IDocumentService,
   IFileSystemService,
@@ -28,8 +28,8 @@ export interface IIDEContext {
   workspaceService: IWorkspaceService;
   projectService: IProjectService;
   collaborationService: ICollaborationService;
-  coreReadService: ICoreReadService;
-  coreWriteService: ICoreWriteService;
+  appRuntimeReadService: IAppRuntimeReadService;
+  appRuntimeWriteService: IAppRuntimeWriteService;
   auditService: IAuditService;
   deploymentService: IDeploymentService;
   documentService: IDocumentService;
@@ -50,8 +50,8 @@ export function createDefaultIdeContextValue(): IIDEContext {
     workspaceService: defaultIdeServices.workspaceService,
     projectService: defaultIdeServices.projectService,
     collaborationService: defaultIdeServices.collaborationService,
-    coreReadService: defaultIdeServices.coreReadService,
-    coreWriteService: defaultIdeServices.coreWriteService,
+    appRuntimeReadService: defaultIdeServices.appRuntimeReadService,
+    appRuntimeWriteService: defaultIdeServices.appRuntimeWriteService,
     auditService: defaultIdeServices.auditService,
     deploymentService: defaultIdeServices.deploymentService,
     documentService: defaultIdeServices.documentService,

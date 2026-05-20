@@ -4,7 +4,7 @@
 
 **Goal:** Promote `team_member` from schema-only definition into real shared repository, route, facade, and first consumer authority without reopening already-closed team, policy, or deployment-record lanes.
 
-**Architecture:** Keep the closure aligned with the existing Step 17 representative app or admin pattern. Add one admin-surface member-read lane rooted in the shared provider-backed table repository and shared generated client facade, then wire the in-process transport and Rust host to the same truth so every execution mode converges on one authority path.
+**Architecture:** Keep the closure aligned with the existing Step 17 representative app/backend pattern. Add one backend-surface member-read lane rooted in the shared provider-backed table repository and shared generated client facade, then wire the in-process transport and Rust host to the same truth so every execution mode converges on one authority path.
 
 **Tech Stack:** TypeScript, shared generated coding-server client, in-process app or admin transport, shared table repositories, Rust host Axum routes, contract tests, VitePress docs, release docs.
 
@@ -16,14 +16,14 @@
 - Modify: `packages/sdkwork-birdcoder-types/src/server-api.ts`
 - Modify: `packages/sdkwork-birdcoder-server/src/index.ts`
 - Test: `scripts/coding-server-route-contract.test.ts`
-- Test: `scripts/generated-app/backend-client-facade-contract.test.ts`
+- Test: `scripts/split-sdk-client-facade-contract.test.ts`
 
 - [ ] **Step 1: Write the failing route and facade tests**
 
-Add assertions for one new admin route and one new shared facade entry:
+Add assertions for one new backend route and one new explicit app/backend SDK client pair entry:
 
 ```ts
-assert.equal(admin.teamMembers.path, '/api/admin/v1/teams/:teamId/members');
+assert.equal(admin.teamMembers.path, '/backend/v3/api/iam/teams/:teamId/members');
 const members = await client.listTeamMembers('team-generated-facade');
 assert.equal(members[0]?.teamId, 'team-generated-facade');
 ```
@@ -32,7 +32,7 @@ assert.equal(members[0]?.teamId, 'team-generated-facade');
 
 Run:
 `node scripts/coding-server-route-contract.test.ts`
-`node --experimental-strip-types scripts/generated-app/backend-client-facade-contract.test.ts`
+`node --experimental-strip-types scripts/split-sdk-client-facade-contract.test.ts`
 
 Expected:
 - route contract fails because `teamMembers` is missing
@@ -43,11 +43,11 @@ Expected:
 Update shared types and route contracts:
 
 ```ts
-export interface BirdCoderSplitSdkApiClients {
+export interface BirdCoderAppSdkApiClient / BirdCoderBackendSdkApiClient {
   listTeamMembers(teamId: string): Promise<BirdCoderTeamMemberSummary[]>;
 }
 
-export interface BirdCoderAdminApiContract {
+export interface BirdCoderBackendApiContract {
   teamMembers: BirdCoderApiRouteDefinition;
 }
 ```
@@ -59,7 +59,7 @@ teamMembers: createRoute(
   'admin',
   'admin',
   'GET',
-  '/api/admin/v1/teams/:teamId/members',
+  '/backend/v3/api/iam/teams/:teamId/members',
   'List team members',
 ),
 ```
@@ -68,7 +68,7 @@ teamMembers: createRoute(
 
 Run:
 `node scripts/coding-server-route-contract.test.ts`
-`node --experimental-strip-types scripts/generated-app/backend-client-facade-contract.test.ts`
+`node --experimental-strip-types scripts/split-sdk-client-facade-contract.test.ts`
 
 Expected:
 - both tests PASS
@@ -131,14 +131,14 @@ Run:
 Expected:
 - PASS
 
-### Task 3: Close the in-process transport and shared facade consumer
+### Task 3: Close the in-process transport and explicit app/backend SDK client pair consumer
 
 **Files:**
 - Modify: `packages/sdkwork-birdcoder-types/src/server-api.ts`
 - Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts`
 - Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts`
-- Test: `scripts/generated-app/backend-client-facade-contract.test.ts`
-- Test: `scripts/app/backend-sdk-consumer-contract.test.ts`
+- Test: `scripts/split-sdk-client-facade-contract.test.ts`
+- Test: `scripts/split-sdk-consumer-contract.test.ts`
 
 - [ ] **Step 1: Write the failing transport and consumer tests**
 
@@ -147,7 +147,7 @@ Add one generated-facade assertion and one in-process consumer assertion:
 ```ts
 assert.deepEqual(observedRequests.at(-1), {
   method: 'GET',
-  path: '/api/admin/v1/teams/team-generated-facade/members',
+  path: '/backend/v3/api/iam/teams/:teamId/members',
 });
 ```
 
@@ -161,15 +161,15 @@ assert.equal(members[0]?.role, 'admin');
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run:
-`node --experimental-strip-types scripts/generated-app/backend-client-facade-contract.test.ts`
-`node --experimental-strip-types scripts/app/backend-sdk-consumer-contract.test.ts`
+`node --experimental-strip-types scripts/split-sdk-client-facade-contract.test.ts`
+`node --experimental-strip-types scripts/split-sdk-consumer-contract.test.ts`
 
 Expected:
 - FAIL because no transport mapping or facade method exists yet
 
 - [ ] **Step 3: Write the minimal transport or facade implementation**
 
-Add shared facade method:
+Add explicit app/backend SDK client pair method:
 
 ```ts
 async listTeamMembers(teamId: string): Promise<BirdCoderTeamMemberSummary[]> {
@@ -181,7 +181,7 @@ async listTeamMembers(teamId: string): Promise<BirdCoderTeamMemberSummary[]> {
 Add in-process route mapping:
 
 ```ts
-case `/api/admin/v1/teams/${teamId}/members`:
+case `/backend/v3/api/iam/teams/${teamId}/members`:
   return createListEnvelope(
     (await queries.listTeamMembers({ teamId })).map(mapTeamMemberSummary),
   );
@@ -190,8 +190,8 @@ case `/api/admin/v1/teams/${teamId}/members`:
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run:
-`node --experimental-strip-types scripts/generated-app/backend-client-facade-contract.test.ts`
-`node --experimental-strip-types scripts/app/backend-sdk-consumer-contract.test.ts`
+`node --experimental-strip-types scripts/split-sdk-client-facade-contract.test.ts`
+`node --experimental-strip-types scripts/split-sdk-consumer-contract.test.ts`
 
 Expected:
 - PASS
@@ -232,7 +232,7 @@ Add:
 - `TeamMemberPayload`
 - provider table schema and clear-path support for `team_members`
 - demo and sqlite authority loaders
-- `GET /api/admin/v1/teams/:teamId/members`
+- `GET /backend/v3/api/iam/teams/:teamId/members`
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -279,8 +279,8 @@ Capture:
 
 Run:
 `node scripts/coding-server-route-contract.test.ts`
-`node --experimental-strip-types scripts/generated-app/backend-client-facade-contract.test.ts`
-`node --experimental-strip-types scripts/app/backend-sdk-consumer-contract.test.ts`
+`node --experimental-strip-types scripts/split-sdk-client-facade-contract.test.ts`
+`node --experimental-strip-types scripts/split-sdk-consumer-contract.test.ts`
 `node --experimental-strip-types scripts/provider-backed-console-contract.test.ts`
 `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
 `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`

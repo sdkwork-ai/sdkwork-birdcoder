@@ -90,28 +90,28 @@ try {
   ]);
 
   await repositories.workspaces.save({
-    id: 'workspace-core-write-contract',
-    name: 'Core Write Contract Workspace',
-    description: 'Workspace for core write create-session adoption.',
-    ownerId: 'user-core-write-contract',
+    id: 'workspace-app-runtime-write-contract',
+    name: 'App Runtime Write Contract Workspace',
+    description: 'Workspace for app runtime write create-session adoption.',
+    ownerId: 'user-app-runtime-write-contract',
     createdAt: '2026-04-11T11:30:00.000Z',
     updatedAt: '2026-04-11T11:30:00.000Z',
   });
   await repositories.projects.save({
-    id: 'project-core-write-contract',
-    workspaceId: 'workspace-core-write-contract',
-    name: 'Core Write Contract Project',
+    id: 'project-app-runtime-write-contract',
+    workspaceId: 'workspace-app-runtime-write-contract',
+    name: 'App Runtime Write Contract Project',
     description: 'Project catalog item resolved before remote create.',
     status: 'active',
     createdAt: '2026-04-11T11:31:00.000Z',
     updatedAt: '2026-04-11T11:31:00.000Z',
   });
   await repositories.projectContents.save({
-    id: 'project-content-core-write-contract',
-    projectId: 'project-core-write-contract',
-    projectUuid: 'project-project-core-write-contract',
+    id: 'project-content-app-runtime-write-contract',
+    projectId: 'project-app-runtime-write-contract',
+    projectUuid: 'project-project-app-runtime-write-contract',
     configData: JSON.stringify({
-      rootPath: 'D:/workspace/core-write-contract',
+      rootPath: 'D:/workspace/app-runtime-write-contract',
     }),
     contentVersion: '1.0',
     createdAt: '2026-04-11T11:31:00.250Z',
@@ -226,7 +226,7 @@ try {
     title: string,
     options: { engineId: string; modelId: string },
   ) => Promise<Awaited<ReturnType<typeof services.projectService.createCodingSession>>> )(
-    'project-core-write-contract',
+    'project-app-runtime-write-contract',
     'Remote Authoritative Session',
     {
       engineId: 'claude-code',
@@ -235,7 +235,7 @@ try {
   );
 
   assert.equal(createdSession.id, 'coding-session-server-authoritative');
-  assert.equal(createdSession.projectId, 'project-core-write-contract');
+  assert.equal(createdSession.projectId, 'project-app-runtime-write-contract');
   assert.equal(
     createdSession.engineId,
     'claude-code',
@@ -247,14 +247,14 @@ try {
     'remote authoritative session metadata must reflect the requested model so follow-up turns stay aligned with the selected provider runtime.',
   );
 
-  const projects = await services.projectService.getProjects('workspace-core-write-contract');
-  const project = projects.find((candidate) => candidate.id === 'project-core-write-contract');
+  const projects = await services.projectService.getProjects('workspace-app-runtime-write-contract');
+  const project = projects.find((candidate) => candidate.id === 'project-app-runtime-write-contract');
 
   assert.ok(project, 'project catalog must still resolve through the shared app client.');
   assert.deepEqual(observedRemoteCreates, [
     {
-      workspaceId: 'workspace-core-write-contract',
-      projectId: 'project-core-write-contract',
+      workspaceId: 'workspace-app-runtime-write-contract',
+      projectId: 'project-app-runtime-write-contract',
       title: 'Remote Authoritative Session',
       hostMode: undefined,
       engineId: 'claude-code',
@@ -275,8 +275,8 @@ try {
         id: 'coding-session-server-authoritative',
         engineId: 'claude-code',
         modelId: 'claude-code',
-        workspaceId: 'workspace-core-write-contract',
-        projectId: 'project-core-write-contract',
+        workspaceId: 'workspace-app-runtime-write-contract',
+        projectId: 'project-app-runtime-write-contract',
         title: 'Remote Authoritative Session',
       },
     ],
@@ -290,4 +290,4 @@ try {
   }
 }
 
-console.log('api-backed project service core create-coding-session contract passed.');
+console.log('api-backed project service app runtime create-coding-session contract passed.');

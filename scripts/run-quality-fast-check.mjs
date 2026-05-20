@@ -48,6 +48,7 @@ export const QUALITY_FAST_CHECK_COMMANDS = [
   'node scripts/run-workspace-package-script.mjs . check:code-run-entry-boundary',
   'node scripts/run-workspace-package-script.mjs . check:api-transport-standard',
   'node scripts/run-workspace-package-script.mjs . check:appbase-package-boundary',
+  'node scripts/run-workspace-package-script.mjs . check:iam-standard',
   'node scripts/run-workspace-package-script.mjs . check:auth-session-standard',
   'node scripts/run-workspace-package-script.mjs . check:terminal-surface-standard',
   'node scripts/run-workspace-package-script.mjs . check:workbench-session-standard',
